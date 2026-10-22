@@ -35,6 +35,8 @@ const TESTS = [
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
+    { name: 'Email link and guest merge', file: 'test-email-link.js' },
+    { name: 'Two-factor auth', file: 'test-totp.js' },
 ];
 
 let allPassed = true;

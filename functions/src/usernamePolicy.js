@@ -49,7 +49,11 @@ const RESERVED_EXACT = [
     'satoshi', 'needcreations', 'bitcoinquest', 'system'
 ];
 // Substrings that still impersonate even with a suffix (NachoBot, Admin_).
-const RESERVED_CONTAINS = ['nacho', 'admin', 'moderator', 'official', 'support', 'staff'];
+// "mod" stays exact-only so "modern" is allowed. Digits are stripped before this check.
+const RESERVED_CONTAINS = [
+    'nacho', 'admin', 'moderator', 'official', 'support', 'staff',
+    'satoshi', 'needcreations', 'bitcoinquest', 'system'
+];
 
 const HOLD_MS = 30 * 24 * 60 * 60 * 1000;
 const RENAME_MS = 24 * 60 * 60 * 1000;
@@ -60,6 +64,7 @@ function normalizeReserved(name) {
         .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
         .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't')
         .replace(/\$/g, 's').replace(/@/g, 'a').replace(/!/g, 'i')
+        .replace(/[0-9]/g, '')
         .replace(/[\s._\-]/g, '');
 }
 

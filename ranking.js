@@ -242,6 +242,7 @@ function initRanking() {
                 auth.signInWithCredential(e.credential).then(function(signed) {
                     return _handleSignInResultGlobal(signed.user, fallbackAnon, null);
                 }).catch(function(err) {
+                    if (surfaceMfaRequired(err)) return;
                     console.log('Redirect link fallback failed:', err && err.code);
                 });
                 return null;
@@ -444,6 +445,33 @@ async function handleEmailSignIn() {
     return finishEmailSignIn(email, _signInUrl);
 }
 
+function planEmailLinkFailure(code, hasCredential) {
+    if (code === 'auth/multi-factor-auth-required') return 'mfa';
+    if ((code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') && hasCredential) return 'credential';
+    if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use' || code === 'auth/provider-already-linked') return 'email-link';
+    return 'throw';
+}
+
+function planEmailSignInFailure(code) {
+    if (code === 'auth/multi-factor-auth-required') return 'mfa';
+    if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code') return 'resend';
+    return 'toast';
+}
+
+function guestLinkShouldDrop(error) {
+    return error === 'expired' || error === 'one_guest' || error === 'guest_too_old' || error === 'already_linked' || error === 'bad_nonce';
+}
+
+function surfaceMfaRequired(err) {
+    if (!err || err.code !== 'auth/multi-factor-auth-required') return false;
+    if (typeof window._showMFASignInChallenge === 'function') {
+        window._showMFASignInChallenge(err.resolver);
+    } else if (typeof showToast === 'function') {
+        showToast('Two-factor authentication required. Please refresh and try again.');
+    }
+    return true;
+}
+
 async function finishEmailSignIn(email, _signInUrl) {
     if (!email) {
         showToast('⚠️ Could not determine your email. Please sign in again from the app.');
@@ -478,17 +506,34 @@ async function finishEmailSignIn(email, _signInUrl) {
                 resultUser = linkedEmail.user;
             } catch (linkErr) {
                 var linkCode = linkErr && linkErr.code;
-                if ((linkCode === 'auth/credential-already-in-use' || linkCode === 'auth/email-already-in-use') && linkErr.credential) {
+                var linkPlan = planEmailLinkFailure(linkCode, !!(linkErr && linkErr.credential));
+                if (linkPlan === 'mfa') throw linkErr;
+                if (linkPlan === 'credential') {
                     var signedEmail = await auth.signInWithCredential(linkErr.credential);
                     resultUser = signedEmail.user;
-                } else if (linkCode !== 'auth/provider-already-linked') {
+                } else if (linkPlan === 'throw') {
                     throw linkErr;
                 }
             }
         }
         if (!resultUser) {
-            const result = await auth.signInWithEmailLink(email, _signInUrl);
-            resultUser = result.user;
+            try {
+                const result = await auth.signInWithEmailLink(email, _signInUrl);
+                resultUser = result.user;
+            } catch (signErr) {
+                var signPlan = planEmailSignInFailure(signErr && signErr.code);
+                if (signPlan === 'mfa') throw signErr;
+                if (signPlan === 'resend') {
+                    var resent = false;
+                    try { resent = await sendMagicLink(email); } catch (sendErr) { resent = false; }
+                    var consumed = new Error(resent
+                        ? 'That sign-in link was already used. We emailed you a fresh link.'
+                        : 'That sign-in link was already used. Request a new one from the sign-in screen.');
+                    consumed.code = 'auth/link-consumed';
+                    throw consumed;
+                }
+                throw signErr;
+            }
         }
         console.log('[Email Sign-In] Sign-in result:', resultUser ? resultUser.uid : 'no user');
         localStorage.removeItem('btc_signin_email');
@@ -567,13 +612,11 @@ async function finishEmailSignIn(email, _signInUrl) {
         showToast('Email verified. You\'re signed in.');
     } catch(e) {
         console.error('[Email Sign-In] Full error:', e.code, e.message, e.stack);
-        // MFA required
-        if (e.code === 'auth/multi-factor-auth-required') {
-            if (typeof window._showMFASignInChallenge === 'function') {
-                window._showMFASignInChallenge(e.resolver);
-            } else {
-                showToast('Two-factor authentication required. Please refresh and try again.');
-            }
+        // MFA required. Do not start a new guest session over the challenge.
+        if (surfaceMfaRequired(e)) return;
+        if (e.code === 'auth/link-consumed') {
+            showToast(e.message || 'That sign-in link was already used. Request a new one.');
+            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
             return;
         }
         // Check if this is a Firestore permission error
@@ -619,6 +662,7 @@ window.signInWithGoogle = async function() {
                 await signInWithGIS();
                 return;
             } catch(gisErr) {
+                if (surfaceMfaRequired(gisErr)) return;
                 console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
                 try { google.accounts.id.cancel(); } catch(e) {}
                 document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
@@ -700,7 +744,8 @@ window.signInWithTwitter = async function() {
             await linkOrSignInPopup(new firebase.auth.TwitterAuthProvider());
             return;
         } catch(e) {
-            if (e.code === 'auth/popup-closed-by-user') return;
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            if (surfaceMfaRequired(e)) return;
             showPWAAuthFallback('Twitter');
             return;
         }
@@ -717,7 +762,8 @@ window.signInWithGithub = async function() {
             await linkOrSignInPopup(new firebase.auth.GithubAuthProvider());
             return;
         } catch(e) {
-            if (e.code === 'auth/popup-closed-by-user') return;
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            if (surfaceMfaRequired(e)) return;
             showPWAAuthFallback('GitHub');
             return;
         }
@@ -771,7 +817,8 @@ window.signInWithFacebook = async function() {
             await signInWithFBSDK();
             return;
         } catch(fbErr) {
-            if (fbErr.message === 'Facebook login cancelled') return;
+            if (fbErr && fbErr.message === 'Facebook login cancelled') return;
+            if (surfaceMfaRequired(fbErr)) return;
             console.warn('[Auth] FB SDK failed:', fbErr);
         }
     }
@@ -967,7 +1014,15 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
             showToast('🟣 Signed in with Nostr!');
         } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed - no token received</span>'; }
-    } catch(e) { console.error('Nostr auth error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>'; }
+    } catch(e) {
+        if (surfaceMfaRequired(e)) {
+            var overlay = document.getElementById('nostrAuthOverlay');
+            if (overlay) overlay.remove();
+            return;
+        }
+        console.error('Nostr auth error:', e);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>';
+    }
 };
 
 // Apple Sign-In removed
@@ -1092,6 +1147,12 @@ window.signInWithLightning = async function() {
                     if (typeof showToast === 'function') showToast('⚡ Signed in with Lightning!');
                 }
             } catch(e) {
+                if (surfaceMfaRequired(e)) {
+                    clearInterval(pollInterval);
+                    var mfaModal = document.getElementById('lnAuthModal');
+                    if (mfaModal) mfaModal.remove();
+                    return;
+                }
                 // Not ready yet, keep polling
                 if (e.code !== 'not-found') console.log('LN auth poll:', e.message);
             }
@@ -1380,15 +1441,8 @@ async function signInWithProvider(provider) {
     } catch(e) {
         console.error('Provider sign-in error:', e.code, e.message, e);
 
-        // MFA required - user has phone 2FA enabled
-        if (e.code === 'auth/multi-factor-auth-required') {
-            if (typeof window._showMFASignInChallenge === 'function') {
-                window._showMFASignInChallenge(e.resolver);
-            } else {
-                showToast('Two-factor authentication required. Please refresh and try again.');
-            }
-            return;
-        }
+        // MFA required - user has phone 2FA enabled. Do not fall through to redirect.
+        if (surfaceMfaRequired(e)) return;
 
         // Popup blocked, closed, or failed - fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
@@ -2201,9 +2255,21 @@ async function tryLinkGuest() {
     try { parsed = JSON.parse(raw); } catch (e) { return; }
     if (!parsed || !parsed.anonUid || parsed.anonUid === auth.currentUser.uid) return;
     var fn = firebase.functions().httpsCallable('linkGuestAccount');
-    await fn({ anonUid: parsed.anonUid, nonce: parsed.nonce });
-    localStorage.removeItem('btc_guest_link');
-    if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
+    var res = null;
+    try {
+        res = await fn({ anonUid: parsed.anonUid, nonce: parsed.nonce });
+    } catch (e) {
+        var code = e && e.code;
+        if (code === 'functions/invalid-argument' || code === 'functions/permission-denied' || code === 'functions/not-found' || code === 'functions/failed-precondition' || code === 'functions/unauthenticated') {
+            try { localStorage.removeItem('btc_guest_link'); } catch (dropErr) {}
+        }
+        return;
+    }
+    var data = res && res.data ? res.data : {};
+    if ((data.error && guestLinkShouldDrop(data.error)) || data.ok) {
+        try { localStorage.removeItem('btc_guest_link'); } catch (dropOk) {}
+    }
+    if (data.ok && typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
 }
 window.tryLinkGuest = tryLinkGuest;
 

@@ -3,13 +3,14 @@
 const crypto = require('crypto');
 const quest = require('./onboardingQuest');
 const names = require('./usernamePolicy');
+const faucetGuard = require('./faucetGuard');
 const { isSatsBanned } = require('./cipherClaim');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
 const USERNAME_ATTEMPTS = 3;
-const SCAN_PAGE = 400;
-const SCAN_MAX_PAGES = 80;
+const USERNAME_APP_ATTEMPTS = 30;
+const USERNAME_IP_ATTEMPTS = 10;
 
 function httpsError(functionsV1, code, message) {
     return new functionsV1.https.HttpsError(code, message);
@@ -127,58 +128,14 @@ function writeDailyPoints(tx, admin, dailyRef, dailyUsed, grant) {
     }
 }
 
-async function profileNameOwners(db, uid, trimmed, lower) {
-    const jobs = [
-        db.collection('public_profiles').where('username_lower', '==', lower).limit(5).get(),
-        db.collection('public_profiles').where('username', '==', trimmed).limit(5).get(),
-        db.collection('users').where('username_lower', '==', lower).limit(5).get(),
-        db.collection('users').where('username', '==', trimmed).limit(5).get(),
-    ];
-    if (trimmed !== lower) {
-        jobs.push(db.collection('public_profiles').where('username', '==', lower).limit(5).get());
-        jobs.push(db.collection('users').where('username', '==', lower).limit(5).get());
-    }
-    const snaps = await Promise.all(jobs);
-    const owners = {};
-    snaps.forEach(function (snap) {
-        snap.forEach(function (doc) {
-            if (doc.id !== uid) owners[doc.id] = true;
-        });
-    });
-    return Object.keys(owners);
+function recentStamps(snap, nowMs) {
+    const raw = snap && snap.exists && Array.isArray((snap.data() || {}).attempts) ? snap.data().attempts : [];
+    return raw.filter(function (t) { return nowMs - Number(t) < USERNAME_HOUR_MS; });
 }
 
-async function scanLegacyNames(db, admin, uid, lower) {
-    const owners = {};
-    const cols = ['users', 'public_profiles'];
-    for (let c = 0; c < cols.length; c++) {
-        let cursor = null;
-        for (let page = 0; page < SCAN_MAX_PAGES; page++) {
-            let q = db.collection(cols[c]).orderBy(admin.firestore.FieldPath.documentId()).limit(SCAN_PAGE).select('username', 'username_lower');
-            if (cursor) q = q.startAfter(cursor);
-            const snap = await q.get();
-            if (snap.empty) break;
-            snap.forEach(function (doc) {
-                if (doc.id === uid) return;
-                const d = doc.data() || {};
-                const a = String(d.username_lower || '').trim().toLowerCase();
-                const b = String(d.username || '').trim().toLowerCase();
-                if (a === lower || b === lower) owners[doc.id] = true;
-            });
-            cursor = snap.docs[snap.docs.length - 1];
-            if (snap.size < SCAN_PAGE) break;
-            if (page === SCAN_MAX_PAGES - 1 && snap.size === SCAN_PAGE) return { incomplete: true, owners: Object.keys(owners) };
-        }
-    }
-    return { incomplete: false, owners: Object.keys(owners) };
-}
-
-function nameStillTaken(owners, reservation, uid, nowMs) {
-    const list = (owners || []).filter(function (id) { return id && id !== uid; });
-    if (!list.length) return false;
-    const expiredAnon = reservation && reservation.anon === true && !names.reservationBlocks(reservation, uid, nowMs);
-    if (expiredAnon && list.length === 1 && list[0] === reservation.uid) return false;
-    return true;
+function usernameIpDocId(ip) {
+    const clean = String(ip || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 80);
+    return 'username_ip_' + (clean || 'unknown');
 }
 
 function clearGuestNonce(tx, admin, anonRef) {
@@ -485,6 +442,8 @@ function registerOnboarding(deps) {
             tx.set(anonRef, {
                 mergedInto: uid,
                 points: 0,
+                weeklyXP: 0,
+                monthlyXP: 0,
                 orangeTickets: 0,
                 channelsVisited: 0,
                 guestLinkNonce: admin.firestore.FieldValue.delete(),
@@ -521,25 +480,35 @@ function registerOnboarding(deps) {
         const first = names.assessUsername(rawName, { allowReserved: true });
         if (!first.ok) throw httpsError(functionsV1, 'invalid-argument', names.usernameMessage(first.error));
         const lower = first.username_lower;
-        const trimmed = first.username;
         const userRef = db.collection('users').doc(uid);
         const nameRef = db.collection('usernames').doc(lower);
         const nowMs = Date.now();
-        const meta = await db.collection('usernames_meta').doc('backfill').get();
-        const backfillApplied = !!(meta.exists && meta.data() && meta.data().applied === true);
-        const owners = await profileNameOwners(db, uid, trimmed, lower);
-        let scannedOwners = [];
-        if (!backfillApplied) {
-            const scanned = await scanLegacyNames(db, admin, uid, lower);
-            if (scanned.incomplete && !scanned.owners.length && !owners.length) {
-                throw httpsError(functionsV1, 'unavailable', 'Username check is still catching up. Try again shortly.');
-            }
-            scannedOwners = scanned.owners || [];
+        // Rate limit before any profile, ledger, or username read. Guests count
+        // on both their uid and their IP. Run backfill_usernames.js --apply
+        // before the front end ships; until that marker exists, refuse.
+        const ip = faucetGuard.clientIpFromRequest(context && context.rawRequest) || 'unknown';
+        const uidLimit = context && context.app ? USERNAME_APP_ATTEMPTS : USERNAME_ATTEMPTS;
+        const uidRateRef = db.collection('rate_limits').doc('username_' + uid);
+        const ipRateRef = db.collection('rate_limits').doc(usernameIpDocId(ip));
+        const allowed = await db.runTransaction(async function (tx) {
+            const uidSnap = await tx.get(uidRateRef);
+            const ipSnap = await tx.get(ipRateRef);
+            const uidStamps = recentStamps(uidSnap, nowMs);
+            const ipStamps = recentStamps(ipSnap, nowMs);
+            if (uidStamps.length >= uidLimit || ipStamps.length >= USERNAME_IP_ATTEMPTS) return false;
+            uidStamps.push(nowMs);
+            ipStamps.push(nowMs);
+            tx.set(uidRateRef, { attempts: uidStamps, uid: uid }, { merge: true });
+            tx.set(ipRateRef, { attempts: ipStamps }, { merge: true });
+            return true;
+        });
+        if (!allowed) {
+            throw httpsError(functionsV1, 'resource-exhausted', 'Too many username attempts. Try again in an hour.');
         }
-        const reservationSnap = await db.collection('usernames').doc(lower).get();
-        const reservation = reservationSnap.exists ? reservationView(reservationSnap.data()) : null;
-        const ownerIds = owners.concat(scannedOwners);
-        const taken = nameStillTaken(ownerIds, reservation, uid, nowMs);
+        const meta = await db.collection('usernames_meta').doc('backfill').get();
+        if (!(meta.exists && meta.data() && meta.data().applied === true)) {
+            throw httpsError(functionsV1, 'unavailable', 'Username check is still catching up. Try again shortly.');
+        }
         const saved = await db.runTransaction(async function (tx) {
             const userSnap = await tx.get(userRef);
             const nameSnap = await tx.get(nameRef);
@@ -553,28 +522,14 @@ function registerOnboarding(deps) {
                 oldRef = db.collection('usernames').doc(prevLower);
                 oldSnap = await tx.get(oldRef);
             }
-            let rateSnap = null;
-            let rateRef = null;
-            if (!context.app) {
-                rateRef = db.collection('rate_limits').doc('username_' + uid);
-                rateSnap = await tx.get(rateRef);
-            }
             if (accountBlocked(current, ledger)) return { ok: false, error: 'unavailable' };
-            if (rateRef) {
-                const stamps = rateSnap.exists && Array.isArray((rateSnap.data() || {}).attempts)
-                    ? (rateSnap.data().attempts || []).filter(function (t) { return nowMs - Number(t) < USERNAME_HOUR_MS; })
-                    : [];
-                if (stamps.length >= USERNAME_ATTEMPTS) return { ok: false, error: 'rate' };
-                stamps.push(nowMs);
-                tx.set(rateRef, { attempts: stamps, uid: uid }, { merge: true });
-            }
             const selfHasSame = prevLower === lower;
             const changedAt = timestampMs(current.usernameChangedAt);
             const renameTooSoon = !selfHasSame && !!prevLower && changedAt != null && (nowMs - changedAt) < names.RENAME_MS;
             const reservedDoc = nameSnap.exists ? reservationView(nameSnap.data()) : null;
             const reservedByOther = !!(reservedDoc && names.reservationBlocks(reservedDoc, uid, nowMs));
             const decision = names.assessUsername(rawName, {
-                taken: taken || reservedByOther,
+                taken: reservedByOther,
                 selfHasSame: selfHasSame,
                 allowReserved: roleMayUseReserved(current),
                 renameTooSoon: renameTooSoon,

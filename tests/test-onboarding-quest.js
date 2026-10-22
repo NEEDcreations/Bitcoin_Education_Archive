@@ -179,7 +179,7 @@ test('usernames reject html, profanity, short names, and duplicates', function (
 });
 
 test('reserved names catch leetspeak, separators, and lookalikes', function () {
-    ['N4cho', 'nacho.', 'Admin_', 'n.a.c.h.o', 'NachoBot', 'Satoshi', 'mod', 'm.o.d'].forEach(function (name) {
+    ['N4cho', 'nacho.', 'Admin_', 'n.a.c.h.o', 'NachoBot', 'Satoshi', 'mod', 'm.o.d', 'NEEDcreations2', 'BitcoinQuest1', 'Satoshi_Nakamoto'].forEach(function (name) {
         const out = assessUsername(name, {});
         assert.strictEqual(out.ok, false, name);
         assert.strictEqual(out.error, 'reserved', name);
@@ -188,6 +188,7 @@ test('reserved names catch leetspeak, separators, and lookalikes', function () {
     const msg = require('../functions/src/usernamePolicy').usernameMessage('reserved');
     assert.strictEqual(msg, 'That name is reserved.');
     assert.strictEqual(assessUsername('modern', {}).ok, true);
+    assert.strictEqual(assessUsername('modern2', {}).ok, true);
     assert.strictEqual(assessUsername('Nacho', { allowReserved: true }).ok, true);
     assert.strictEqual(assessUsername('Satoshi', { selfHasSame: true }).ok, true);
     const held = reservationBlocks({ uid: 'other', releasedAt: Date.now() - 1000, holdUid: 'other' }, 'me', Date.now());
@@ -201,16 +202,26 @@ test('reserved names catch leetspeak, separators, and lookalikes', function () {
     assert.strictEqual(assessUsername('bob', { renameTooSoon: true }).error, 'rename_limit');
 });
 
-test('backfill groups collisions by uid and skips the name', function () {
+test('backfill keeps the oldest holder and marks the rest to pick again', function () {
     const grouped = groupUsernames([
-        { uid: 'u1', lower: 'alice' },
-        { uid: 'u2', lower: 'alice' },
-        { uid: 'u3', lower: 'bob' },
+        { uid: 'u1', lower: 'alice', created: 200, col: 'users' },
+        { uid: 'u2', lower: 'alice', created: 100, col: 'users' },
+        { uid: 'u3', lower: 'bob', created: 50, col: 'public_profiles' },
     ]);
+    assert.strictEqual(grouped.unique.get('alice'), 'u2');
     assert.strictEqual(grouped.unique.get('bob'), 'u3');
-    assert.strictEqual(grouped.unique.has('alice'), false);
+    assert.strictEqual(grouped.repicks.length, 1);
+    assert.strictEqual(grouped.repicks[0].uid, 'u1');
     assert.strictEqual(grouped.collisions.length, 1);
-    assert.deepStrictEqual(grouped.collisions[0].slice().sort(), ['u1', 'u2']);
+    const tied = groupUsernames([
+        { uid: 'b', lower: 'sam', created: 5 },
+        { uid: 'a', lower: 'sam', created: 5 },
+    ]);
+    assert.strictEqual(tied.unique.get('sam'), 'a');
+    const script = fs.readFileSync(path.join(__dirname, '..', 'functions', 'scripts', 'backfill_usernames.js'), 'utf8');
+    assert.ok(script.includes('before the front end ships'));
+    assert.ok(script.includes('applied: true'));
+    assert.ok(!script.includes('unresolved === 0'));
 });
 
 test('rules block client writes to reward and onboarding fields', function () {
@@ -240,6 +251,8 @@ test('the client quest list matches the server modes', function () {
     assert.ok(!src.includes('awardPoints'));
     assert.ok(src.includes("beacon: '#onboardingQuizEntry'"));
     assert.ok(src.includes('z-index:2100001'));
+    assert.ok(src.includes('usernameModal'));
+    assert.ok(src.includes("Satoshi's Favor"));
     assert.ok(src.includes('id = \'onboardingQuizEntry\''));
 });
 
@@ -252,11 +265,20 @@ test('guest merge never writes daily action counts and usernames survive a missi
     assert.ok(api.includes('guestLinkNonceAt'));
     assert.ok(api.includes('mergedFromGuest'));
     assert.ok(api.includes('points: 0'));
+    assert.ok(api.includes('weeklyXP: 0'));
+    assert.ok(api.includes('monthlyXP: 0'));
     assert.ok(api.includes('splitDailyXp') === false);
     assert.ok(api.includes('planDailyGrant'));
     assert.ok(api.includes('enforceAppCheck: false'));
     assert.ok(api.includes('username_'));
-    assert.ok(api.includes('scanLegacyNames'));
+    assert.ok(api.includes('username_ip_'));
+    assert.ok(api.includes('Try again shortly'));
+    assert.ok(!api.includes('scanLegacyNames'));
+    assert.ok(!api.includes('profileNameOwners'));
+    const setAt = api.indexOf('async function setUsername');
+    const rateAt = api.indexOf("doc('username_' + uid)", setAt);
+    const markerAt = api.indexOf("doc('backfill')", setAt);
+    assert.ok(setAt > 0 && rateAt > setAt && markerAt > rateAt, 'rate limit runs before the backfill marker read');
     const client = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
     assert.ok(client.includes('linkWithPopup'));
     assert.ok(client.includes('linkWithCredential'));
