@@ -983,6 +983,7 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
         ['rate_limits', 'delete_' + uid],
         ['rate_limits', 'reply_' + uid],
         ['totp_rate_limits', uid],
+        ['totp_rate_limits', uid + '_day'],
         ['totp_rate_limits', uid + '_verify'],
         ['totp_rate_limits', uid + '_disable'],
         ['totp_rate_limits', uid + '_regen'],
@@ -1090,6 +1091,8 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     // Session ids are uid + '_' + sessionId, so the single doc above is only
     // the legacy row. Every live session is stored under its own id.
     await deleteWhere(db, batcher, 'totp_sessions', 'uid', '==', uid, [], documentIdField);
+    await deleteWhere(db, batcher, 'trusted_devices', 'uid', '==', uid, [], documentIdField);
+    await deleteWhere(db, batcher, 'totp_fresh_proofs', 'uid', '==', uid, [], documentIdField);
     await deleteDocTree(
         batcher,
         db.collection('global_chat_meta').doc('live_dj').collection('dj_queue').doc(uid),
@@ -1138,7 +1141,7 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
             if (!decision.ok) throw new HttpsError(decision.code, decision.message);
             if (!decision.byAdmin) {
                 const secondFactor = require('./secondFactor');
-                await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+                await secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'deleteAccount');
             }
             const clock = typeof nowMs === 'function'
                 ? nowMs()
