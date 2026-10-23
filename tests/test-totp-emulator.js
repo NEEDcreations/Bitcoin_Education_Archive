@@ -795,6 +795,123 @@ async function main() {
         assert.strictEqual(sessionsLeft.size, 0);
     });
 
+    await test('authenticator guesses share one limit, and an eleventh device evicts the oldest', async function () {
+        now = 1700020000000;
+        const uid = 'e2esharedlimit';
+        const email = 'e2esharedlimit@example.com';
+        await createUser(uid, email);
+        const enrolled = await enrollTotp(uid, 'password', email);
+        const context = enrolled.context;
+        const secondFactor = require('../functions/src/secondFactor');
+        for (let i = 0; i < 3; i++) {
+            await expectThrow(function () {
+                return fns.totpCheck.run({ code: '10000' + i }, context);
+            }, 'invalid-argument', 'Invalid code');
+        }
+        for (let i = 0; i < 2; i++) {
+            await expectThrow(function () {
+                return fns.totpResumeDevice.run({ deviceToken: 'cd'.repeat(32) }, context);
+            }, 'failed-precondition', 'Device is not trusted');
+        }
+        await expectThrow(function () {
+            return fns.totpStepUp.run({ code: codeAt(enrolled.secret, now), action: 'deleteAccount' }, context);
+        }, 'resource-exhausted', 'Too many attempts');
+        const stepBucket = await db.collection('totp_rate_limits').doc(uid + '_step_deleteAccount').get();
+        assert.strictEqual(stepBucket.exists, false);
+        now += 120000;
+        const afterWindow = await fns.totpCheck.run({ code: codeAt(enrolled.secret, now) }, context);
+        assert.ok(afterWindow.sessionId);
+        const midway = await db.collection('totp_rate_limits').doc(uid).get();
+        assert.strictEqual(midway.data().failedAttempts, 5);
+        let failed = 5;
+        while (failed < secondFactor.DAILY_FAIL_MAX) {
+            now += 120000;
+            const room = Math.min(5, secondFactor.DAILY_FAIL_MAX - failed);
+            for (let i = 0; i < room; i++) {
+                await expectThrow(function () {
+                    return fns.totpDisable.run({ code: '333333' }, context);
+                }, 'invalid-argument', 'Invalid code');
+            }
+            failed += room;
+        }
+        now += 120000;
+        await expectThrow(function () {
+            return fns.regenerateRecoveryCodes.run({ code: codeAt(enrolled.secret, now) }, context);
+        }, 'resource-exhausted', 'tomorrow');
+        const capped = await db.collection('totp_rate_limits').doc(uid).get();
+        assert.strictEqual(capped.data().failedAttempts, secondFactor.DAILY_FAIL_MAX);
+
+        now = 1700030000000;
+        const capUid = 'e2edevicecap';
+        await createUser(capUid, 'e2edevicecap@example.com');
+        const cappedUser = await enrollTotp(capUid, 'password', 'e2edevicecap@example.com');
+        const tokens = [];
+        for (let i = 0; i < secondFactor.MAX_TRUSTED_DEVICES + 1; i++) {
+            now += 60000;
+            const checked = await fns.totpCheck.run({
+                code: codeAt(cappedUser.secret, now),
+                rememberDevice: true,
+            }, cappedUser.context);
+            assert.ok(checked.deviceToken);
+            tokens.push(checked.deviceToken);
+        }
+        const rows = await db.collection('trusted_devices').where('uid', '==', capUid).get();
+        const active = rows.docs.filter(function (doc) { return doc.data().revoked !== true; });
+        assert.strictEqual(active.length, secondFactor.MAX_TRUSTED_DEVICES);
+        const oldestHash = crypto.createHash('sha256').update(Buffer.from(tokens[0], 'hex')).digest('hex');
+        const oldest = rows.docs.find(function (doc) { return doc.data().tokenHash === oldestHash; });
+        assert.strictEqual(oldest.data().revoked, true);
+        const newestHash = crypto.createHash('sha256').update(Buffer.from(tokens[tokens.length - 1], 'hex')).digest('hex');
+        const newest = rows.docs.find(function (doc) { return doc.data().tokenHash === newestHash; });
+        assert.strictEqual(newest.data().revoked, false);
+        assert.ok(newest.data().expiresAt && typeof newest.data().expiresAt.toDate === 'function');
+        await expectThrow(function () {
+            return fns.totpResumeDevice.run({ deviceToken: tokens[0] }, cappedUser.context);
+        }, 'failed-precondition', 'Device is not trusted');
+        const resumed = await fns.totpResumeDevice.run({ deviceToken: tokens[tokens.length - 1] }, cappedUser.context);
+        assert.ok(resumed.sessionId);
+        now += 60000;
+        const proof = await fns.totpStepUp.run({
+            code: codeAt(cappedUser.secret, now),
+            action: 'resetLightningAddress',
+        }, cappedUser.context);
+        const proofRow = await db.collection('totp_fresh_proofs').doc(capUid + '_resetLightningAddress').get();
+        assert.ok(proofRow.data().expiresAt && typeof proofRow.data().expiresAt.toDate === 'function');
+        assert.ok(proof.freshProofId);
+    });
+
+    await test('a password change rejects devices remembered before it', async function () {
+        const uid = 'e2epasswordchange';
+        const email = 'e2epasswordchange@example.com';
+        now = Date.now() - (5 * 60 * 1000);
+        await createUser(uid, email);
+        const enrolled = await enrollTotp(uid, 'password', email);
+        now += 60000;
+        const remembered = await fns.totpCheck.run({
+            code: codeAt(enrolled.secret, now),
+            rememberDevice: true,
+        }, enrolled.context);
+        assert.ok(remembered.deviceToken);
+        const before = await admin.auth().getUser(uid);
+        await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+        await admin.auth().updateUser(uid, { password: 'test-pass-456' });
+        const after = await admin.auth().getUser(uid);
+        assert.ok(after.tokensValidAfterTime, 'password change did not set tokensValidAfterTime');
+        assert.notStrictEqual(after.tokensValidAfterTime, before.tokensValidAfterTime);
+        await expectThrow(function () {
+            return fns.totpResumeDevice.run({ deviceToken: remembered.deviceToken }, enrolled.context);
+        }, 'failed-precondition', 'Device is not trusted');
+        const revoked = await db.collection('trusted_devices').where('uid', '==', uid).get();
+        assert.ok(revoked.docs.every(function (doc) { return doc.data().revoked === true; }));
+        now = Date.now() + 60000;
+        const again = await fns.totpCheck.run({
+            code: codeAt(enrolled.secret, now),
+            rememberDevice: true,
+        }, enrolled.context);
+        const resumed = await fns.totpResumeDevice.run({ deviceToken: again.deviceToken }, enrolled.context);
+        assert.ok(resumed.sessionId);
+    });
+
     await test('client auth cannot write secrets, sessions, recovery codes, or the 2FA flags', async function () {
         const email = 'e2erules@example.com';
         const password = 'test-pass-123';

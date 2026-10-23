@@ -42,9 +42,11 @@ const ranking = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8'
 const sandbox = {};
 vm.createContext(sandbox);
 vm.runInContext(
+    extractFunction(ranking, 'mfaErrorCode') + '\n' +
     extractFunction(ranking, 'mfaIsTransientError') + '\n' +
+    extractFunction(ranking, 'mfaAllowsAfterStatusError') + '\n' +
     extractFunction(ranking, 'mfaRetryOnce') + '\n' +
-    'this.mfaIsTransientError = mfaIsTransientError; this.mfaRetryOnce = mfaRetryOnce;',
+    'this.mfaIsTransientError = mfaIsTransientError; this.mfaRetryOnce = mfaRetryOnce; this.mfaAllowsAfterStatusError = mfaAllowsAfterStatusError;',
     sandbox
 );
 
@@ -145,8 +147,13 @@ async function main() {
         }, function (e) { return e.code === 'resource-exhausted'; });
         assert.strictEqual(limited, 1);
         assert.strictEqual(sandbox.mfaIsTransientError(err('failed-precondition', 'Device is not trusted.')), false);
+        assert.strictEqual(sandbox.mfaIsTransientError(err('failed-precondition', 'Authenticator is temporarily unavailable.')), false);
+        assert.strictEqual(sandbox.mfaIsTransientError(err('functions/unavailable', 'cold start')), true);
         assert.strictEqual(sandbox.mfaIsTransientError(err('internal', 'cold start')), true);
-        assert.strictEqual(sandbox.mfaIsTransientError(err('', 'Failed to fetch')), true);
+        assert.strictEqual(sandbox.mfaIsTransientError(err('', 'Failed to fetch')), false);
+        assert.strictEqual(sandbox.mfaIsTransientError(err('', 'unavailable')), false);
+        assert.strictEqual(sandbox.mfaAllowsAfterStatusError(true), false);
+        assert.strictEqual(sandbox.mfaAllowsAfterStatusError(false), true);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

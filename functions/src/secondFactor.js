@@ -16,6 +16,9 @@ const DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const FRESH_TTL_MS = 5 * 60 * 1000;
 const RATE_WINDOW_MS = 120000;
 const RATE_MAX = 5;
+const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const DAILY_FAIL_MAX = 20;
+const MAX_TRUSTED_DEVICES = 10;
 const FRESH_ACTIONS = {
     resetLightningAddress: true,
     disableTotp: true,
@@ -180,6 +183,20 @@ function deviceLabel(ua) {
 function hashDeviceToken(token) {
     if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return '';
     return crypto.createHash('sha256').update(Buffer.from(token, 'hex')).digest('hex');
+}
+
+function sameSecret(left, right) {
+    const a = Buffer.from(String(left || ''), 'utf8');
+    const b = Buffer.from(String(right || ''), 'utf8');
+    if (a.length !== b.length || a.length === 0) return false;
+    return crypto.timingSafeEqual(a, b);
+}
+
+function parseAuthTimeMs(value) {
+    if (value == null || value === '') return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
+    const parsed = Date.parse(String(value));
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function userAgentFrom(context) {
@@ -364,6 +381,34 @@ function initSecondFactor(deps) {
         if (n || !keepSessionId) await batch.commit();
     }
 
+    async function evictOldestTrustedDevices(uid, nowMs) {
+        const snap = await db.collection('trusted_devices').where('uid', '==', uid).get();
+        const active = [];
+        snap.forEach(function (doc) {
+            const row = doc.data() || {};
+            if (row.revoked === true) return;
+            if (!(typeof row.expiresAtMs === 'number' && row.expiresAtMs > nowMs)) return;
+            active.push({
+                ref: doc.ref,
+                id: doc.id,
+                createdAtMs: typeof row.createdAtMs === 'number' ? row.createdAtMs : 0,
+            });
+        });
+        active.sort(function (a, b) {
+            if (a.createdAtMs !== b.createdAtMs) return a.createdAtMs - b.createdAtMs;
+            if (a.id < b.id) return -1;
+            if (a.id > b.id) return 1;
+            return 0;
+        });
+        const extra = active.length - (MAX_TRUSTED_DEVICES - 1);
+        if (extra <= 0) return;
+        const batch = db.batch();
+        for (let i = 0; i < extra; i++) {
+            batch.update(active[i].ref, { revoked: true, revokedAtMs: nowMs });
+        }
+        await batch.commit();
+    }
+
     async function issueTrustedDevice(uid, nowMs, context, previousToken) {
         const tokenBuf = crypto.randomBytes(32);
         const token = tokenBuf.toString('hex');
@@ -371,6 +416,15 @@ function initSecondFactor(deps) {
         const id = crypto.randomBytes(16).toString('hex');
         const expiresAtMs = nowMs + DEVICE_TTL_MS;
         const label = deviceLabel(userAgentFrom(context));
+        if (previousToken && previousToken !== token) {
+            const old = await deviceByToken(previousToken);
+            if (old && old.row.uid === uid && old.tokenHash !== tokenHash && old.row.revoked !== true) {
+                await old.ref.update({ revoked: true, revokedAtMs: nowMs });
+            }
+        }
+        await evictOldestTrustedDevices(uid, nowMs);
+        // expiresAt is the Firestore TTL field. Turn on a TTL policy for
+        // trusted_devices.expiresAt. The server still rejects expired rows immediately.
         await db.collection('trusted_devices').doc(id).set({
             uid: uid,
             tokenHash: tokenHash,
@@ -383,12 +437,6 @@ function initSecondFactor(deps) {
             lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
             expiresAt: new Date(expiresAtMs),
         });
-        if (previousToken && previousToken !== token) {
-            const old = await deviceByToken(previousToken);
-            if (old && old.row.uid === uid && old.tokenHash !== tokenHash && old.row.revoked !== true) {
-                await old.ref.update({ revoked: true, revokedAtMs: nowMs });
-            }
-        }
         return token;
     }
 
@@ -404,6 +452,7 @@ function initSecondFactor(deps) {
             expiresAtMs: expiresAtMs,
             consumed: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            expiresAt: new Date(expiresAtMs),
         });
         return { proofId: proofId, expiresAtMs: expiresAtMs };
     }
@@ -420,7 +469,7 @@ function initSecondFactor(deps) {
             const row = snap.data() || {};
             if (row.uid !== uid) return false;
             if (row.action !== action) return false;
-            if (row.proofId !== proofId) return false;
+            if (!sameSecret(row.proofId, proofId)) return false;
             if (row.consumed === true) return false;
             if (!(typeof row.verifiedAtMs === 'number' && row.verifiedAtMs <= nowMs && (nowMs - row.verifiedAtMs) <= FRESH_TTL_MS)) return false;
             if (!(typeof row.expiresAtMs === 'number' && row.expiresAtMs > nowMs)) return false;
@@ -471,9 +520,7 @@ function initSecondFactor(deps) {
             if (/^[a-f0-9]{32}$/.test(proofId)) {
                 await consumeFreshProof(uid, action, proofId, nowMs);
             } else if (/^\d{6}$/.test(code)) {
-                await takeAttempt(uid + '_step_' + action, nowMs);
                 await acceptTotp(uid, code, nowMs);
-                await clearAttempt(uid + '_step_' + action);
             } else {
                 throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
             }
@@ -613,7 +660,88 @@ function initSecondFactor(deps) {
         }
     }
 
+    function guessWindow(row, nowMs) {
+        let ws = 0;
+        if (row && typeof row.windowStartMs === 'number') ws = row.windowStartMs;
+        else if (row && row.windowStart && row.windowStart.toDate) ws = row.windowStart.toDate().getTime();
+        if (ws && (nowMs - ws) < RATE_WINDOW_MS) return { attempts: row.attempts || 0, windowStart: ws };
+        return { attempts: 0, windowStart: nowMs };
+    }
+
+    function guessDay(row, nowMs) {
+        let ws = 0;
+        if (row && typeof row.failedWindowStartMs === 'number') ws = row.failedWindowStartMs;
+        if (ws && (nowMs - ws) < DAILY_WINDOW_MS) return { failed: row.failedAttempts || 0, windowStart: ws };
+        return { failed: 0, windowStart: nowMs };
+    }
+
+    function writeGuessLimit(tx, ref, attempts, windowStart, failed, failStart) {
+        tx.set(ref, {
+            attempts: attempts,
+            windowStartMs: windowStart,
+            expireAt: new Date(windowStart + RATE_WINDOW_MS),
+            failedAttempts: failed,
+            failedWindowStartMs: failStart,
+            failedExpireAt: new Date(failStart + DAILY_WINDOW_MS),
+        });
+    }
+
+    // One bucket per user for every authenticator guess and device resume.
+    // Five tries in two minutes, then twenty failures in a day.
+    async function chargeTotpGuess(uid, nowMs) {
+        const ref = db.collection('totp_rate_limits').doc(uid);
+        const result = await db.runTransaction(async function (tx) {
+            const snap = await tx.get(ref);
+            const row = snap.exists ? (snap.data() || {}) : {};
+            const day = guessDay(row, nowMs);
+            const win = guessWindow(row, nowMs);
+            if (day.failed >= DAILY_FAIL_MAX) return { limited: 'day' };
+            if (win.attempts >= RATE_MAX) return { limited: 'window' };
+            writeGuessLimit(tx, ref, win.attempts + 1, win.windowStart, day.failed, day.windowStart);
+            return { limited: '' };
+        });
+        if (result.limited === 'day') throw httpError('resource-exhausted', 'Too many attempts. Try again tomorrow.');
+        if (result.limited) throw httpError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+    }
+
+    async function recordTotpGuessFailure(uid, nowMs) {
+        const ref = db.collection('totp_rate_limits').doc(uid);
+        await db.runTransaction(async function (tx) {
+            const snap = await tx.get(ref);
+            const row = snap.exists ? (snap.data() || {}) : {};
+            const day = guessDay(row, nowMs);
+            const win = guessWindow(row, nowMs);
+            writeGuessLimit(tx, ref, win.attempts, win.windowStart, day.failed + 1, day.windowStart);
+        });
+    }
+
+    async function clearTotpGuessWindow(uid, nowMs) {
+        const ref = db.collection('totp_rate_limits').doc(uid);
+        await db.runTransaction(async function (tx) {
+            const snap = await tx.get(ref);
+            const row = snap.exists ? (snap.data() || {}) : {};
+            const day = guessDay(row, nowMs);
+            writeGuessLimit(tx, ref, 0, nowMs, day.failed, day.windowStart);
+        });
+    }
+
+    async function passwordBoundaryMs(uid) {
+        let user = null;
+        try { user = await admin.auth().getUser(uid); } catch (e) { user = null; }
+        if (!user) return null;
+        const passwordAt = parseAuthTimeMs(user.passwordUpdatedAt)
+            || parseAuthTimeMs(user.metadata && user.metadata.passwordUpdatedAt);
+        if (passwordAt) return passwordAt;
+        const tokensAt = parseAuthTimeMs(user.tokensValidAfterTime);
+        const createdAt = parseAuthTimeMs(user.metadata && user.metadata.creationTime);
+        // Signup sets this to the account's creation time. A later password
+        // change or reset email moves it forward. Ignore the creation stamp.
+        if (tokensAt && createdAt && tokensAt <= createdAt + 1000) return 0;
+        return tokensAt;
+    }
+
     async function acceptTotp(uid, token, nowMs) {
+        await chargeTotpGuess(uid, nowMs);
         const ref = db.collection('totp_secrets').doc(uid);
         const outcome = await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
@@ -632,10 +760,12 @@ function initSecondFactor(deps) {
             tx.update(ref, { lastAcceptedStep: step });
             return { ok: true, step: step };
         });
+        if (outcome.error === 'invalid' || outcome.error === 'replay') await recordTotpGuessFailure(uid, nowMs);
         if (outcome.error === 'not-found') throw httpError('not-found', 'TOTP not enabled');
         if (outcome.error === 'unavailable') throw httpError('failed-precondition', 'Authenticator is temporarily unavailable.');
         if (outcome.error === 'replay') throw httpError('invalid-argument', 'This code was already used. Wait for the next one.');
         if (outcome.error === 'invalid') throw httpError('invalid-argument', 'Invalid code');
+        await clearTotpGuessWindow(uid, nowMs);
         return outcome;
     }
 
@@ -754,13 +884,16 @@ function initSecondFactor(deps) {
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         await assertTotpKey();
         const nowMs = currentNow();
-        await takeAttempt(uid + '_verify', nowMs);
+        await chargeTotpGuess(uid, nowMs);
         const pending = await db.collection('totp_pending').doc(uid).get();
         if (!pending.exists) throw httpError('not-found', 'No pending TOTP setup. Start setup first.');
         const row = pending.data() || {};
         const secret = await readPlainSecret(row);
         const delta = totpDelta(authenticator, String(data.code).trim(), secret, nowMs);
-        if (delta === null) throw httpError('invalid-argument', 'Invalid code. Try again.');
+        if (delta === null) {
+            await recordTotpGuessFailure(uid, nowMs);
+            throw httpError('invalid-argument', 'Invalid code. Try again.');
+        }
         const step = Math.floor(nowMs / STEP_MS) + delta;
         const encSecret = encryptTotpSecret(secret);
         await db.collection('totp_secrets').doc(uid).set({
@@ -772,7 +905,7 @@ function initSecondFactor(deps) {
         });
         await db.collection('users').doc(uid).set({ totpEnabled: true }, { merge: true });
         await db.collection('totp_pending').doc(uid).delete().catch(function () {});
-        await clearAttempt(uid + '_verify');
+        await clearTotpGuessWindow(uid, nowMs);
         const recoveryCodes = await storeRecoveryCodes(uid, 'totp');
         const session = await issueSession(uid, nowMs);
         return {
@@ -787,9 +920,7 @@ function initSecondFactor(deps) {
         const uid = requireUser(context);
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         const nowMs = currentNow();
-        await takeAttempt(uid, nowMs);
         await acceptTotp(uid, String(data.code).trim(), nowMs);
-        await clearAttempt(uid);
         const session = await issueSession(uid, nowMs);
         let deviceToken = null;
         if (data.rememberDevice === true) {
@@ -813,9 +944,7 @@ function initSecondFactor(deps) {
         if (!hasCode && !/^[a-f0-9]{32}$/.test(proofId)) {
             throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
         }
-        await takeAttempt(uid + '_disable', nowMs);
         await proveFreshCode(data, context, uid, 'disableTotp', nowMs);
-        await clearAttempt(uid + '_disable');
         await clearTotp(uid);
         forgetPhone(uid);
         const phone = await phoneInfo(uid);
@@ -885,9 +1014,7 @@ function initSecondFactor(deps) {
         const uid = requireUser(context);
         stamp(data, context);
         const nowMs = currentNow();
-        await takeAttempt(uid + '_regen', nowMs);
         const how = await proveFreshCode(data, context, uid, 'regenerateRecoveryCodes', nowMs);
-        await clearAttempt(uid + '_regen');
         const secret = await secretRecord(uid);
         const phone = await phoneInfo(uid);
         if (!secret && phone.enrolled !== true) throw httpError('failed-precondition', 'Two-factor authentication is off.');
@@ -971,15 +1098,32 @@ function initSecondFactor(deps) {
     const totpResumeDevice = onCallApp(async function (data, context) {
         const uid = requireUser(context);
         const nowMs = currentNow();
-        await takeAttempt(uid + '_resume', nowMs);
+        await chargeTotpGuess(uid, nowMs);
         const secret = await secretRecord(uid);
-        if (!secret) throw httpError('failed-precondition', 'Device is not trusted.');
+        if (!secret) {
+            await recordTotpGuessFailure(uid, nowMs);
+            throw httpError('failed-precondition', 'Device is not trusted.');
+        }
         const token = data && typeof data.deviceToken === 'string' ? data.deviceToken.trim() : '';
         const found = await deviceByToken(token);
-        if (!found) throw httpError('failed-precondition', 'Device is not trusted.');
+        if (!found) {
+            await recordTotpGuessFailure(uid, nowMs);
+            throw httpError('failed-precondition', 'Device is not trusted.');
+        }
         if (found.row.uid !== uid) throw httpError('permission-denied', 'Device is not trusted.');
-        if (found.row.revoked === true) throw httpError('failed-precondition', 'Device is not trusted.');
+        if (found.row.revoked === true) {
+            await recordTotpGuessFailure(uid, nowMs);
+            throw httpError('failed-precondition', 'Device is not trusted.');
+        }
         if (!(typeof found.row.expiresAtMs === 'number' && found.row.expiresAtMs > nowMs)) {
+            await recordTotpGuessFailure(uid, nowMs);
+            throw httpError('failed-precondition', 'Device is not trusted.');
+        }
+        const boundary = await passwordBoundaryMs(uid);
+        const createdAtMs = typeof found.row.createdAtMs === 'number' ? found.row.createdAtMs : 0;
+        if (boundary == null || (boundary > 0 && createdAtMs < boundary)) {
+            if (boundary != null) await found.ref.update({ revoked: true, revokedAtMs: nowMs }).catch(function () {});
+            await recordTotpGuessFailure(uid, nowMs);
             throw httpError('failed-precondition', 'Device is not trusted.');
         }
         const expiresAtMs = found.row.expiresAtMs;
@@ -997,9 +1141,12 @@ function initSecondFactor(deps) {
             });
             return true;
         });
-        if (!accepted) throw httpError('failed-precondition', 'Device is not trusted.');
+        if (!accepted) {
+            await recordTotpGuessFailure(uid, nowMs);
+            throw httpError('failed-precondition', 'Device is not trusted.');
+        }
         const session = await issueSession(uid, nowMs);
-        await clearAttempt(uid + '_resume');
+        await clearTotpGuessWindow(uid, nowMs);
         return { success: true, sessionId: session.sessionId, expiresAt: session.expiresAtMs };
     });
 
@@ -1009,9 +1156,7 @@ function initSecondFactor(deps) {
         if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         const nowMs = currentNow();
-        await takeAttempt(uid + '_step_' + action, nowMs);
         await acceptTotp(uid, String(data.code).trim(), nowMs);
-        await clearAttempt(uid + '_step_' + action);
         const proof = await issueFreshProof(uid, action, nowMs);
         return { success: true, action: action, freshProofId: proof.proofId, expiresAt: proof.expiresAtMs };
     });
@@ -1192,6 +1337,8 @@ module.exports = {
     SESSION_TTL_MS: SESSION_TTL_MS,
     DEVICE_TTL_MS: DEVICE_TTL_MS,
     FRESH_TTL_MS: FRESH_TTL_MS,
+    DAILY_FAIL_MAX: DAILY_FAIL_MAX,
+    MAX_TRUSTED_DEVICES: MAX_TRUSTED_DEVICES,
     deviceLabel: deviceLabel,
     hashDeviceToken: hashDeviceToken,
 };

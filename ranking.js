@@ -136,30 +136,20 @@ function mfaDeviceKey(uid) {
     return 'btc_mfa_device_' + uid;
 }
 
-function mfaIsTransientError(err) {
+function mfaErrorCode(err) {
     var code = String((err && (err.code || err.status)) || '').toLowerCase();
-    var msg = String((err && err.message) || '').toLowerCase();
-    if (code.indexOf('resource-exhausted') !== -1) return false;
-    if (code.indexOf('failed-precondition') !== -1) return false;
-    if (code.indexOf('permission-denied') !== -1) return false;
-    if (code.indexOf('invalid-argument') !== -1) return false;
-    if (code.indexOf('unauthenticated') !== -1) return false;
-    if (code.indexOf('not-found') !== -1) return false;
-    if (code.indexOf('already-exists') !== -1) return false;
-    if (code.indexOf('unavailable') !== -1) return true;
-    if (code.indexOf('deadline-exceeded') !== -1) return true;
-    if (code.indexOf('internal') !== -1) return true;
-    if (code.indexOf('aborted') !== -1) return true;
-    if (code.indexOf('cancelled') !== -1) return true;
-    if (msg.indexOf('network') !== -1) return true;
-    if (msg.indexOf('failed to fetch') !== -1) return true;
-    if (msg.indexOf('cold start') !== -1) return true;
-    if (msg.indexOf('unavailable') !== -1) return true;
-    if (msg.indexOf('deadline') !== -1) return true;
-    if (msg.indexOf('econn') !== -1) return true;
-    if (msg.indexOf('etimedout') !== -1) return true;
-    if (msg.indexOf('socket') !== -1) return true;
-    return false;
+    var slash = code.lastIndexOf('/');
+    if (slash !== -1) code = code.slice(slash + 1);
+    return code;
+}
+
+function mfaIsTransientError(err) {
+    var code = mfaErrorCode(err);
+    return code === 'unavailable' || code === 'deadline-exceeded' || code === 'internal' || code === 'aborted' || code === 'cancelled';
+}
+
+function mfaAllowsAfterStatusError(totpEnabled) {
+    return !totpEnabled;
 }
 
 function mfaRetryOnce(run, sleep) {
@@ -225,7 +215,10 @@ function installMfaCallablePatch() {
 function _mfaFailure(e) {
     var code = (e && e.code) || '';
     var msg = (e && e.message) || '';
-    if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many attempts') !== -1) return 'Too many attempts. Wait 2 minutes.';
+    if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many attempts') !== -1) {
+        if (msg.indexOf('tomorrow') !== -1) return 'Too many attempts. Try again tomorrow.';
+        return 'Too many attempts. Wait 2 minutes.';
+    }
     if (msg.indexOf('already used') !== -1) return 'That code was already used. Wait for the next one.';
     if (msg.indexOf('Authenticator session required') !== -1) return 'Enter your authenticator code first.';
     if (msg.indexOf('phone verification') !== -1) return 'Sign out and sign back in so your phone verification applies.';
@@ -252,9 +245,8 @@ window._serverTotpAllows = async function (uid) {
         var result = await mfaRetryOnce(function () { return statusFn({ sessionId: sessionId }); });
         data = (result && result.data) || {};
     } catch (e) {
-        if (mfaIsTransientError(e)) return true;
-        if (typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled) return false;
-        return true;
+        var totpOn = typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled;
+        return mfaAllowsAfterStatusError(totpOn);
     }
     window._mfaStatus = data;
     if (!data.enabled || data.sessionVerified) {
@@ -276,11 +268,9 @@ window._serverTotpAllows = async function (uid) {
         }
         return false;
     } catch (e3) {
-        if (mfaIsTransientError(e3)) return true;
-        var resumeCode = String((e3 && e3.code) || '');
-        var resumeMsg = String((e3 && e3.message) || '');
-        if (resumeCode.indexOf('resource-exhausted') === -1 && resumeMsg.indexOf('Too many') === -1) mfaClearDevice(uid);
-        return false;
+        var resumeCode = mfaErrorCode(e3);
+        if (!mfaIsTransientError(e3) && resumeCode !== 'resource-exhausted') mfaClearDevice(uid);
+        return mfaAllowsAfterStatusError(true);
     }
 };
 
