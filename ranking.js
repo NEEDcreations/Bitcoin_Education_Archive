@@ -2785,10 +2785,16 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             // Track pts for ghost banner re-show
             if (typeof window._ghostTrackPts === 'function') window._ghostTrackPts(pts);
         }
-        // Local preview only. The server cap is full through 600, then half until 1,000.
+        // Local preview only. Same tiers as functions/src/dailyXp.js:
+        // full through 500, half through 900, quarter until 1,000.
+        // Floor per tier. A boundary split does not carry a fractional point.
         // Guest points are not banked, and a later sign-in does not redeem them as overflow.
         var DAILY_CAP = 1000;
-        var FULL_UNTIL = 600;
+        var TAPER_TIERS = [
+            { end: 500, divisor: 1 },
+            { end: 900, divisor: 2 },
+            { end: 1000, divisor: 4 }
+        ];
         var _today = new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
         var _capKey = 'btc_daily_pts_' + _today;
         var _dailyUsed = parseInt(localStorage.getItem(_capKey) || '0', 10);
@@ -2812,21 +2818,26 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
         }
 
-        var awarded = pts;
+        var awarded = 0;
         var cursor = _dailyUsed;
         var left = pts;
-        if (cursor >= DAILY_CAP) {
-            awarded = 0;
-        } else {
-            awarded = 0;
-            if (cursor < FULL_UNTIL) {
-                var fullRoom = Math.min(left, FULL_UNTIL - cursor);
-                awarded += fullRoom;
-                cursor += fullRoom;
-                left -= fullRoom;
-            }
-            if (left > 0 && cursor < DAILY_CAP) {
-                awarded += Math.min(Math.floor(left / 2), DAILY_CAP - cursor);
+        if (cursor < DAILY_CAP && left > 0) {
+            for (var ti = 0; ti < TAPER_TIERS.length; ti++) {
+                if (left <= 0 || cursor >= DAILY_CAP) break;
+                var tier = TAPER_TIERS[ti];
+                if (cursor >= tier.end) continue;
+                var room = tier.end - cursor;
+                var rawNeeded = room * tier.divisor;
+                if (left >= rawNeeded) {
+                    awarded += room;
+                    cursor += room;
+                    left -= rawNeeded;
+                } else {
+                    var credit = Math.floor(left / tier.divisor);
+                    awarded += credit;
+                    cursor += credit;
+                    left = 0;
+                }
             }
         }
 
@@ -2846,7 +2857,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
+                if (typeof showToast === 'function') showToast('Daily cap hit (1,000). Full through 500, half through 900, then a quarter. More XP today is not awarded.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -2919,7 +2930,8 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                     signedIn: true,
                     dailyXp: result.data.dailyXp,
                     dailyCap: result.data.dailyCap || 1000,
-                    fullUntil: result.data.fullUntil || 600,
+                    fullUntil: result.data.fullUntil || 500,
+                    halfUntil: result.data.halfUntil || 900,
                     pastCap: result.data.pastCap === true
                 };
                 window._paintDailyXpMeter(window._serverDailyXp);
@@ -2928,7 +2940,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
+                    showToast('Daily cap hit (1,000). Full through 500, half through 900, then a quarter. More XP today is not awarded.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -3303,7 +3315,7 @@ function _updateCapIndicator(atCap) {
     if (atCap || _dailyPts >= 1000) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = 'Daily XP cap reached (1,000). Full through 600, then half.';
+        el.title = 'Daily XP cap reached (1,000). Full through 500, half through 900, then a quarter.';
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -5860,7 +5872,7 @@ function showSettingsPage(tab) {
             html += '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">';
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-weight:700;font-size:0.85rem;color:#a5b4fc;">⏳ Queued Overflow XP</div><div style="font-size:0.6rem;font-weight:800;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 8px;border-radius:20px;">~' + _ofDL + ' day' + (_ofDL !== 1 ? 's' : '') + '</div></div>';
             html += '<div style="font-size:1.3rem;font-weight:900;font-family:monospace;color:#c7d2fe;margin-bottom:8px;">+' + _pendingOf.toLocaleString() + ' XP</div>';
-            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">This is leftover XP from before the shared daily cap. New XP is not added here. A day pays full XP through 600, then half until 1,000.</div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">This is leftover XP from before the shared daily cap. New XP is not added here. A day pays full XP through 500, half through 900, then a quarter until 1,000.</div>';
             html += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:10px;">';
             var _tileCap = Math.min(_ofDL, 10);
             for (var _td = 0; _td < _tileCap; _td++) {

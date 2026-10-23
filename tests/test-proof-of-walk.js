@@ -69,8 +69,8 @@ test('several past dates sum, then today\'s taper drops the rest', function () {
     assert.strictEqual(fromZero.overflowAdded, 0);
     assert.strictEqual(fromZero.dropped, plan.rawPoints - 1000);
     const half = planDailyXp(800, 500);
-    assert.strictEqual(half.awarded, 200);
-    assert.strictEqual(half.dailyXp, 1000);
+    assert.strictEqual(half.awarded, 175);
+    assert.strictEqual(half.dailyXp, 975);
     assert.strictEqual(planDailyXp(1000, plan.rawPoints).awarded, 0);
     const blocked = planDailyXp(0, 0);
     assert.strictEqual(blocked.awarded, 0);

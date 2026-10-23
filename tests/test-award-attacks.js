@@ -130,24 +130,24 @@ test('trivia and chat share the one daily counter', function () {
     const mem = fresh();
     mem.daily.u = { total: 990 };
     const quiz = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
-    assert.strictEqual(quiz.awarded, 5);
-    assert.strictEqual(mem.daily.u.total, 995);
+    assert.strictEqual(quiz.awarded, 2);
+    assert.strictEqual(mem.daily.u.total, 992);
     const chat = grant(mem, { action: '💬 Global Chat', pts: 5 });
-    assert.strictEqual(chat.awarded, 2);
-    assert.strictEqual(mem.daily.u.total, 997);
+    assert.strictEqual(chat.awarded, 1);
+    assert.strictEqual(mem.daily.u.total, 993);
     const more = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
-    assert.strictEqual(more.awarded, 3);
-    assert.strictEqual(mem.daily.u.total, 1000);
+    assert.strictEqual(more.awarded, 2);
+    assert.strictEqual(mem.daily.u.total, 995);
 });
 
 test('planGrant tapers on the shared counter and drops the rest', function () {
     const under = awardActions.planGrant({
         xp: 100, dailyUsed: 590, triviaQuiz: true, dailyCap: 500, triviaCap: 500,
     });
-    assert.strictEqual(under.awarded, 55);
-    assert.strictEqual(under.dropped, 45);
+    assert.strictEqual(under.awarded, 50);
+    assert.strictEqual(under.dropped, 50);
     assert.strictEqual(under.overflowAdded, 0);
-    assert.strictEqual(under.dailyXp, 645);
+    assert.strictEqual(under.dailyXp, 640);
     const wrong = awardActions.planGrant({
         xp: 0, dailyUsed: 0, triviaQuizUsed: 0, triviaQuiz: true, dailyCap: 500, triviaCap: 500,
     });

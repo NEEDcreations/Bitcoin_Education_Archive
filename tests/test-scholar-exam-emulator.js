@@ -77,7 +77,7 @@ async function main() {
 
     const first = await fns.gradeScholarExam.run({ examId: examRef.id, answers: answers() }, ctx(uid));
     assert.strictEqual(first.passed, true, 'first exam should pass');
-    // 2,100 still shares the daily cap: full through 600, half until 1,000.
+    // 2,100 still shares the daily cap: full through 500, half through 900, quarter until 1,000.
     assert.strictEqual(first.pointsAwarded, 1000);
     const after = (await db.collection('users').doc(uid).get()).data();
     assert.strictEqual(after.certPassed_prop, true);

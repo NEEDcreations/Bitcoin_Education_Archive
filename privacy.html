@@ -582,7 +582,7 @@
         <li>Rate limiting on sign-in attempts and message sending (30 messages/hour)</li>
         <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
         <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
-        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 600, then half rate until 1,000, nothing banked; atomic transactions)</li>
+        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked; atomic transactions)</li>
         <li>Device fingerprinting and IP-based multi-account detection for faucet claims and referral signup</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
         <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>
@@ -610,7 +610,7 @@
         <tr><td>Lifetime total claimed</td><td>Enforce 15,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
         <tr><td>IP address (faucet claim, and once at referral signup)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is an HMAC in a server-only record that expires after 90 days and is deleted with the account.</td></tr>
-        <tr><td>Server-side daily points tracking</td><td>Enforce the shared 1,000 XP/day cap (full through 600, then half until 1,000, nothing banked) — tracked in Firebase, not the browser</td></tr>
+        <tr><td>Server-side daily points tracking</td><td>Enforce the shared 1,000 XP/day cap (full through 500, half through 900, then a quarter until 1,000, floor per tier, nothing banked) — tracked in Firebase, not the browser</td></tr>
     </table>
 
     <h3>Firestore Data Structure</h3>
@@ -618,7 +618,7 @@
     <ul>
         <li><strong>sats_withdrawals</strong> — individual claim records (amount, truncated invoice, timestamp, status)</li>
         <li><strong>sats_daily</strong> — daily aggregate tracking (amount claimed per day, claim count)</li>
-        <li><strong>daily_points</strong> — server-side daily XP tracking (total awarded per day; full XP through 600, then half rate until 1,000, nothing banked)</li>
+        <li><strong>daily_points</strong> — server-side daily XP tracking (total awarded per day; full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked)</li>
         <li><strong>faucet_stats</strong> — global faucet statistics (total distributed, active claimants)</li>
         <li><strong>faucet_ip_log</strong> — IP addresses at claim time (detects multi-account abuse per network)</li>
         <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus a 90-day expiry. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>

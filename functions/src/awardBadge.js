@@ -2,7 +2,7 @@
 
 // One transaction per badge: prove it, write the award, and add one
 // Satoshi's Favor point. A second award of the same id does not add a second point.
-// Badge XP goes through applyDailyXp: full until 600, half until 1,000, then 0.
+// Badge XP goes through applyDailyXp: full until 500, half until 900, quarter until 1,000, then 0.
 // The remainder is dropped. Nothing is saved for a later day.
 // A badge the profile already shows gets an award row with 0 XP and no pool point.
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
