@@ -36,7 +36,7 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
 const { beatsCensor } = require('./src/beats-censor.js');
-const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOthers, capUserDevices, sendPreparedMessages } = require('./src/push');
+const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOthers, capUserDevices } = require('./src/push');
 const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
@@ -8030,67 +8030,11 @@ async function settlePvpMatch(matchId, after) {
     }
 }
 
+const { createLobbyPush } = require('./src/pvpLobbyPush');
+const lobbyPush = createLobbyPush({ db: db, pvpFlow: pvpFlow, sendUserPush: sendUserPush });
+
 async function pushPvpLobby(joinerUid, name) {
-    const now = Date.now();
-    const globalRef = db.collection('pvp_rate').doc('global');
-    const globalSnap = await globalRef.get();
-    const room = pvpFlow.lobbyGlobalRoom(globalSnap.exists ? globalSnap.data() : {}, now);
-    if (!room.push) return;
-    const order = pvpFlow.pushShardOrder(Math.floor(Math.random() * 10));
-    const messages = [];
-    for (let s = 0; s < order.length && !messages.length; s++) {
-        const usersSnap = await db.collection('users').where('pvpPushShard', '==', order[s]).limit(40).get();
-        const docs = usersSnap.docs.slice();
-        for (let i = docs.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            const tmp = docs[i];
-            docs[i] = docs[j];
-            docs[j] = tmp;
-        }
-        for (const userDoc of docs) {
-            const uid = userDoc.id;
-            const data = userDoc.data() || {};
-            if (data.pvpPushEnabled !== true) continue;
-            const rateRef = db.collection('pvp_rate').doc(uid);
-            const rate = await rateRef.get();
-            const rateData = rate.exists ? rate.data() : {};
-            const decision = pvpFlow.decidePvpPush({
-                uid: uid,
-                joinerUid: joinerUid,
-                optedIn: true,
-                muted: data.pvpAlertsMuted === true,
-                lastPushMs: rateData.lastPvpPushMs,
-                pushTimes: rateData.pvpPushTimes || [],
-                nowMs: now,
-            });
-            if (!decision.send) continue;
-            const tokenDoc = await db.collection('push_tokens').doc(uid).get();
-            if (!tokenDoc.exists || !tokenDoc.data().token) continue;
-            const prev = Array.isArray(rateData.pvpPushTimes) ? rateData.pvpPushTimes.filter(function (t) {
-                return typeof t === 'number' && (now - t) < pvpFlow.PUSH_WEEK_MS;
-            }) : [];
-            prev.push(now);
-            await rateRef.set({ lastPvpPushMs: now, pvpPushTimes: prev.slice(-5) }, { merge: true });
-            messages.push({
-                token: tokenDoc.data().token,
-                notification: {
-                    title: '⚔️ PvP lobby',
-                    body: pvpFlow.safeDisplayName(name) + ' is waiting for a PvP match!',
-                },
-                data: { url: 'https://bitcoineducation.quest/#pvp' },
-                webpush: { fcmOptions: { link: 'https://bitcoineducation.quest/#pvp' } },
-            });
-            if (messages.length >= 20) break;
-        }
-    }
-    if (!messages.length) return;
-    await globalRef.set({
-        windowStart: room.windowStart,
-        shoutCount: room.shoutCount,
-        pushCount: room.pushCount + 1,
-        lastPushWaveMs: now,
-    }, { merge: true });
-    await sendPreparedMessages(messages);
+    return lobbyPush.pushPvpLobby(joinerUid, name);
 }
 
 async function syncPvpLobbyLive(docId, before, after) {

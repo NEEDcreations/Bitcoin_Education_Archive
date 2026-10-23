@@ -235,4 +235,214 @@ test('push security: sign-out, identity, dead tokens, caps, and click links', fu
     assert.ok(privacy.includes('Signing out removes this device\'s token'));
 });
 
-console.log('push tests ok');
+test('lobby pushes go through sendUserPush and no other sender bypasses it', function() {
+    const index = read('functions/index.js');
+    const lobby = read('functions/src/pvpLobbyPush.js');
+    const push = read('functions/src/push.js');
+    const fn = index.slice(index.indexOf('async function pushPvpLobby'), index.indexOf('async function syncPvpLobbyLive'));
+    assert.ok(fn.includes('lobbyPush.pushPvpLobby'));
+    assert.strictEqual(fn.includes('push_tokens'), false);
+    assert.strictEqual(fn.includes('sendPreparedMessages'), false);
+    assert.ok(lobby.includes("sendUserPush(uid, 'pvp'"));
+    assert.ok(lobby.includes('pvpPushEnabled !== true'));
+    assert.ok(lobby.includes('banned === true'));
+    assert.ok(lobby.includes('decidePvpPush'));
+    assert.strictEqual(lobby.includes('push_tokens'), false);
+    assert.strictEqual(lobby.includes('admin.messaging('), false);
+    assert.strictEqual(push.includes('sendPreparedMessages'), false);
+    ['functions/index.js', 'functions/src/gifting.js', 'functions/src/predictionJobs.js', 'functions/src/peerLevel.js', 'functions/src/tweetSatoshisFavor.js', 'functions/src/pvpLobbyPush.js'].forEach(function(file) {
+        assert.strictEqual(read(file).includes('admin.messaging('), false, file);
+    });
+});
+
+function memoryAdmin(seed) {
+    const docs = new Map();
+    Object.keys(seed).forEach(function(key) { docs.set(key, seed[key]); });
+    function docRef(docPath) {
+        return {
+            path: docPath,
+            id: docPath.split('/').pop(),
+            get: function() {
+                const data = docs.has(docPath) ? docs.get(docPath) : null;
+                return Promise.resolve({
+                    exists: data != null,
+                    id: docPath.split('/').pop(),
+                    data: function() { return data; },
+                    get: function(field) { return data ? data[field] : undefined; },
+                    ref: { path: docPath }
+                });
+            },
+            set: function(data, opts) {
+                const prev = (opts && opts.merge && docs.has(docPath)) ? docs.get(docPath) : {};
+                docs.set(docPath, Object.assign({}, prev, data));
+                return Promise.resolve();
+            },
+            collection: function(name) { return collection(docPath + '/' + name); }
+        };
+    }
+    function collection(collPath) {
+        const depth = collPath.split('/').length;
+        function rows() {
+            const found = [];
+            docs.forEach(function(data, docPath) {
+                if (!docPath.startsWith(collPath + '/')) return;
+                if (docPath.split('/').length !== depth + 1) return;
+                found.push({
+                    id: docPath.split('/').pop(),
+                    data: function() { return data; },
+                    get: function(field) { return data[field]; },
+                    ref: docRef(docPath)
+                });
+            });
+            return found;
+        }
+        return {
+            doc: function(id) { return docRef(collPath + '/' + id); },
+            get: function() {
+                const found = rows();
+                return Promise.resolve({
+                    docs: found,
+                    empty: found.length === 0,
+                    size: found.length,
+                    forEach: function(cb) { found.forEach(cb); }
+                });
+            },
+            where: function(field, op, value) {
+                return {
+                    limit: function() {
+                        return {
+                            get: function() {
+                                const found = rows().filter(function(row) { return row.data()[field] === value; });
+                                return Promise.resolve({ docs: found, empty: found.length === 0, size: found.length });
+                            }
+                        };
+                    }
+                };
+            }
+        };
+    }
+    const sent = [];
+    const db = {
+        collection: function(name) { return collection(name); },
+        collectionGroup: function() {
+            return {
+                where: function() {
+                    return {
+                        limit: function() {
+                            return { get: function() { return Promise.resolve({ forEach: function() {}, docs: [], empty: true }); } };
+                        }
+                    };
+                }
+            };
+        },
+        runTransaction: function(fn) {
+            return fn({
+                get: function(ref) { return ref.get(); },
+                set: function(ref, data, opts) { return ref.set(data, opts); }
+            });
+        }
+    };
+    return {
+        docs: docs,
+        sent: sent,
+        firestore: function() { return db; },
+        messaging: function() {
+            return {
+                sendEach: function(messages) {
+                    messages.forEach(function(message) { sent.push(message); });
+                    return Promise.resolve({ responses: messages.map(function() { return { success: true }; }) });
+                }
+            };
+        }
+    };
+}
+
+function withPushAdmin(seed, fn) {
+    const Module = require('module');
+    const admin = memoryAdmin(seed);
+    const original = Module._load;
+    Module._load = function(request, parent, isMain) {
+        if (request === 'firebase-admin') return admin;
+        return original.apply(this, arguments);
+    };
+    const pushPath = require.resolve('../functions/src/push');
+    delete require.cache[pushPath];
+    return Promise.resolve().then(function() {
+        const push = require('../functions/src/push');
+        const pvpFlow = require('../functions/src/pvpFlow');
+        const lobby = require('../functions/src/pvpLobbyPush').createLobbyPush({
+            db: admin.firestore(),
+            pvpFlow: pvpFlow,
+            sendUserPush: push.sendUserPush
+        });
+        return fn(admin, lobby);
+    }).finally(function() {
+        Module._load = original;
+        delete require.cache[pushPath];
+    });
+}
+
+const LOBBY_NOW = 1700000000000;
+
+function lobbyUser(extra) {
+    return Object.assign({
+        pvpPushEnabled: true,
+        pvpPushShard: 3,
+        banned: false,
+        notificationPrefs: { master: true, pvp: true }
+    }, extra || {});
+}
+
+function testAsync(name, fn) {
+    return Promise.resolve().then(fn).then(function() {
+        console.log('✅ ' + name);
+    });
+}
+
+testAsync('pvpPushEnabled on with master off gets nothing', function() {
+    return withPushAdmin({
+        'users/watch1': lobbyUser({ notificationPrefs: { master: false, pvp: true } }),
+        'push_tokens/watch1/devices/phone': { token: 'device-token-1', updatedAt: LOBBY_NOW }
+    }, function(admin, lobby) {
+        return lobby.pushPvpLobby('joiner1', 'Ada', LOBBY_NOW).then(function(result) {
+            assert.strictEqual(result.sent, 0);
+            assert.strictEqual(admin.sent.length, 0);
+            assert.strictEqual(admin.docs.has('pvp_rate/watch1'), false);
+            assert.strictEqual(admin.docs.has('pvp_rate/global'), false);
+        });
+    });
+}).then(function() {
+    return testAsync('master on, pvp on, and a device gets the lobby push', function() {
+        return withPushAdmin({
+            'users/watch1': lobbyUser(),
+            'push_tokens/watch1/devices/phone': { token: 'device-token-1', updatedAt: LOBBY_NOW }
+        }, function(admin, lobby) {
+            return lobby.pushPvpLobby('joiner1', 'Ada', LOBBY_NOW).then(function(result) {
+                assert.strictEqual(result.sent, 1);
+                assert.strictEqual(admin.sent.length, 1);
+                assert.strictEqual(admin.sent[0].token, 'device-token-1');
+                assert.ok(admin.sent[0].notification.title.indexOf('PvP lobby') !== -1);
+                assert.strictEqual(admin.sent[0].webpush.fcmOptions.link, 'https://bitcoineducation.quest/#pvp');
+                assert.strictEqual(admin.docs.get('pvp_rate/watch1').lastPvpPushMs, LOBBY_NOW);
+                assert.strictEqual(admin.docs.get('pvp_rate/global').pushCount, 1);
+            });
+        });
+    });
+}).then(function() {
+    return testAsync('a banned lobby watcher gets nothing even with master and pvp on', function() {
+        return withPushAdmin({
+            'users/watch1': lobbyUser({ banned: true }),
+            'push_tokens/watch1/devices/phone': { token: 'device-token-1', updatedAt: LOBBY_NOW }
+        }, function(admin, lobby) {
+            return lobby.pushPvpLobby('joiner1', 'Ada', LOBBY_NOW).then(function(result) {
+                assert.strictEqual(result.sent, 0);
+                assert.strictEqual(admin.sent.length, 0);
+            });
+        });
+    });
+}).then(function() {
+    console.log('push tests ok');
+}).catch(function(err) {
+    console.error(err);
+    process.exit(1);
+});
