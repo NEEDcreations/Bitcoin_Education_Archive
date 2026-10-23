@@ -104,15 +104,14 @@
         return !!(card && /CURRENT RAID BOSS/.test(card.textContent || ''));
     }
 
-    function flexNeedsAttention() {
-        if (!signedIn()) return false;
+    function flexDone() {
         var utc = new Date().toISOString().slice(0, 10);
         var state = safeJSON('btc_flex_state', {});
         for (var i = 0; i < FLEX_IDS.length; i++) {
             var row = state && state[FLEX_IDS[i]];
-            if (!row || row.lastDate !== utc) return true;
+            if (!row || row.lastDate !== utc) return false;
         }
-        return false;
+        return true;
     }
 
     function storyNeedsAttention() {
@@ -144,18 +143,20 @@
         var cd = document.getElementById('todayFavorCountdown');
         if (!pointsEl || !cd) return;
         if (!signedIn()) {
-            pointsEl.textContent = 'Sign in to see Favor points';
-            cd.textContent = '\u2014';
+            pointsEl.textContent = 'Earn Favor daily, payouts every epoch';
+            cd.hidden = true;
+            cd.textContent = '';
             delete cd.dataset.live;
             return;
         }
         var info = window._todayFavorInfo;
         if (!info) {
-            pointsEl.textContent = '\u2014 Favor points';
-            if (!cd.dataset.live) cd.textContent = '\u2014';
+            pointsEl.textContent = 'Favor points';
+            cd.hidden = !cd.dataset.live;
             return;
         }
         pointsEl.textContent = info.points + ' Favor points';
+        cd.hidden = false;
         if (info.active) {
             cd.dataset.live = '1';
             return;
@@ -200,18 +201,18 @@
         var predictLabel = document.getElementById('predAccuracyLabel');
         mark(predictLabel && predictLabel.closest ? predictLabel.closest('button') : null, predictDone());
         mark(document.getElementById('sayHiBtn'), sayHiDone());
-        var done = (tri === 3 ? 1 : 0) + (spinDone() ? 1 : 0) + (watchDone() ? 1 : 0) + (predictDone() ? 1 : 0) + (sayHiDone() ? 1 : 0);
+        var flex = flexDone();
+        mark(document.getElementById('todayFlexBtn'), flex);
+        var done = (tri === 3 ? 1 : 0) + (spinDone() ? 1 : 0) + (watchDone() ? 1 : 0) + (predictDone() ? 1 : 0) + (sayHiDone() ? 1 : 0) + (flex ? 1 : 0);
         var counter = document.getElementById('todayDoneCount');
-        if (counter) counter.textContent = done + '/5 done today';
+        if (counter) counter.textContent = done + '/6 done today';
 
         var live = raidLive();
         var raidCadence = document.getElementById('todayCadenceRaid');
         if (raidCadence) raidCadence.textContent = live ? 'Event live' : 'Monthly';
         setDot('todayDotRaid', live);
-        setDot('todayDotFlex', flexNeedsAttention());
         setDot('todayDotStory', storyNeedsAttention());
-        var any = live || flexNeedsAttention() || storyNeedsAttention();
-        setDot('todayMoreDot', any);
+        setDot('todayMoreDot', live || storyNeedsAttention());
         paintFavor();
     };
 

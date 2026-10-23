@@ -374,7 +374,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('id="tctvWatchBtn"'));
     assert.ok(html.includes('id="sayHiBtn"'));
     assert.ok(html.includes('startTctvDailyWatch()'));
-    assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(5, minmax(0, 1fr)); }'));
+    assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
     assert.ok(html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('id="tctvWatchSub"'));
