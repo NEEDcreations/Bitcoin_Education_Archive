@@ -138,6 +138,10 @@ function makeApi(opts) {
         HttpsError: HttpsError,
         now: function() { return now; },
         askNacho: async function(input) {
+            if (input && input.purpose === 'summary') {
+                if (opts && opts.summary) return { answer: opts.summary(input) };
+                return { answer: '' };
+            }
             calls.ask += 1;
             if (opts && opts.answer) return { answer: opts.answer(input, calls.ask) };
             return { answer: 'A block header includes a nonce that miners change while hashing.' };
@@ -240,6 +244,8 @@ test('ATTACK rules deny client writes and keep limits private', () => {
     const built = read('bundle.min.js');
     assert.ok(built.includes('💬 Start a conversation'));
     assert.ok(built.includes('Just now'));
+    assert.ok(built.includes('Your message will also be posted publicly to the Pleb Talk forum.'));
+    assert.ok(built.includes('<time datetime="'));
     assert.ok(read('bundle.src.js').includes('function injectTopicPrompts'));
 });
 
@@ -332,6 +338,19 @@ function createDom() {
             });
         };
         el.focus = function() { document.activeElement = el; };
+        el.compareDocumentPosition = function(other) {
+            var order = [];
+            function walk(node) {
+                if (!node) return;
+                order.push(node);
+                (node.childNodes || []).forEach(walk);
+            }
+            walk(html);
+            var a = order.indexOf(el);
+            var b = order.indexOf(other);
+            if (a < 0 || b < 0 || a === b) return 0;
+            return b < a ? 2 : 4;
+        };
         el.getBoundingClientRect = function() { return { top: 0, height: 0 }; };
         el.scrollIntoView = function(opts) { el._view = opts; };
         el.splitText = function(offset) {
@@ -362,7 +381,20 @@ function createDom() {
         activeElement: null,
         createElement: createElement,
         createTextNode: createText,
-        querySelector: function() { return null; }
+        querySelector: function(sel) {
+            var selector = String(sel || '');
+            if (selector.charAt(0) === '#') return document.getElementById(selector.slice(1));
+            if (selector.charAt(0) !== '.') return null;
+            var cls = selector.slice(1);
+            var found = null;
+            function walk(node) {
+                if (!node || found) return;
+                if (node.classList && node.classList.contains(cls)) { found = node; return; }
+                (node.childNodes || []).forEach(walk);
+            }
+            walk(html);
+            return found;
+        }
     };
     var html = createElement('html');
     var head = createElement('head');
@@ -573,6 +605,10 @@ test('conversation buttons open the discussion and posts show server date-time',
     assert.strictEqual(plan.document.activeElement, area);
     assert.strictEqual(topic.main._scrolled.behavior, 'auto');
     assert.strictEqual(plan.document.getElementById('topic-discussion-live') != null, true);
+    var notice = plan.document.querySelector('.td-forum-notice');
+    assert.ok(notice);
+    assert.strictEqual(notice.textContent, 'Your message will also be posted publicly to the Pleb Talk forum.');
+    assert.ok(notice.compareDocumentPosition(area) & 2);
 
     var guest = bootTopicClient({ signedIn: false, reduceMotion: false });
     var guestTopic = hostTopic(guest, paras);
@@ -584,6 +620,7 @@ test('conversation buttons open the discussion and posts show server date-time',
     assert.strictEqual(guest.document.getElementById('topic-discussion-input'), null);
     var composer = guest.document.getElementById('topic-discussion-composer');
     assert.ok(composer.textContent.indexOf('Sign in to ask a question or leave a comment.') !== -1);
+    assert.ok(composer.textContent.indexOf('Your message will also be posted publicly to the Pleb Talk forum.') !== -1);
     assert.strictEqual(guest.document.activeElement.textContent, 'Sign in');
     assert.strictEqual(guestTopic.main._scrolled.behavior, 'smooth');
 
@@ -631,10 +668,12 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         text: 'What is a nonce in the block header?',
         channelId: 'mining',
         postId: 'post123',
+        forumPostId: 'tdforum_mining_post123',
         isQuestion: true,
     });
     assert.ok(text.length <= 300);
-    assert.ok(text.includes('[join the discussion](#topic/mining/post123)'));
+    assert.ok(text.includes('[the topic](#topic/mining/post123)'));
+    assert.ok(text.includes('[Pleb Talk](#forum/post/tdforum_mining_post123)'));
     const tg = bridge.toTelegramText(text);
     assert.ok(tg.includes('https://bitcoineducation.quest/#topic=mining&post=post123'));
     assert.strictEqual(td.decideAnnounce({ lastAnnounceAtMs: 0 }, { hourKey: '1', count: 12 }, 3600000).allow, false);
@@ -748,6 +787,8 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         assert.strictEqual(chat.uid, 'nacho-bot');
         assert.strictEqual(chat.name, '🦌 Nacho');
         assert.ok(chat.text.includes('#topic/mining/'));
+        assert.ok(chat.text.includes('#forum/post/'));
+        assert.ok(chat.forumPost);
         assert.strictEqual(local.calls.mirror.length, 1);
         local.advance(31000);
         const second = await local.api.postTopicComment({ channelId: 'mining', text: 'another comment in the same window' }, auth('links'));

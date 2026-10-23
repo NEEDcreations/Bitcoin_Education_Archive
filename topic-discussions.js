@@ -135,6 +135,7 @@
             '.td-send{padding:10px 16px;border:none;border-radius:10px;background:var(--accent,#f97316);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;}',
             '.td-send:disabled{opacity:0.55;cursor:default;}',
             '.td-note{font-size:0.75rem;color:var(--text-muted,#94a3b8);line-height:1.4;}',
+            '.td-forum-notice{margin:0;padding:8px 10px;border-radius:10px;border:1px solid rgba(249,115,22,0.45);background:rgba(249,115,22,0.1);color:var(--text,#e2e8f0);font-size:0.82rem;font-weight:700;line-height:1.35;}',
             '.td-fallback{padding:10px 12px;border-radius:10px;background:rgba(249,115,22,0.08);color:var(--text-muted,#94a3b8);font-size:0.85rem;margin-bottom:10px;}',
             '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
@@ -473,6 +474,12 @@
             .catch(function() { toast('Could not load earlier comments.'); });
     }
 
+    function forumCrossPostNotice() {
+        var notice = el('p', 'td-forum-notice');
+        notice.textContent = 'Your message will also be posted publicly to the Pleb Talk forum.';
+        return notice;
+    }
+
     function renderComposer() {
         var host = document.getElementById('topic-discussion-composer');
         if (!host) return;
@@ -484,6 +491,7 @@
                 ? 'You are browsing as a guest. Create an account to ask a question. You can still read the discussion.'
                 : 'Sign in to ask a question or leave a comment. Anyone can read.';
             host.appendChild(note);
+            host.appendChild(forumCrossPostNotice());
             host.appendChild(btn('Sign in', 'td-send', function() {
                 if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             }));
@@ -511,6 +519,7 @@
         count.textContent = '0/500';
         area.addEventListener('input', function() { count.textContent = String(area.value.length) + '/500'; });
         host.appendChild(area);
+        host.appendChild(forumCrossPostNotice());
         var controls = el('div', 'td-compose-row');
         var hint = el('span', 'td-note');
         hint.textContent = 'Nacho may answer questions. Posting does not earn XP or tickets.';

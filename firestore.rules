@@ -709,6 +709,31 @@ service cloud.firestore {
     // FORUM POSTS
     // [AUDIT FIX S5] Upvote tracking with voter deduplication
     // =============================================
+    // Topic cross-posts are Admin SDK writes. Clients cannot set the mirror
+    // fields or change authorId. A new post also waits out the shared 30s
+    // Pleb Talk pace stored on topic_discussion_limits.
+    function forumMirrorFieldsAbsent() {
+      return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'noAward', 'mirrored']);
+    }
+    function forumMirrorFieldsFrozen() {
+      return request.resource.data.get('origin', null) == resource.data.get('origin', null)
+        && request.resource.data.get('mirrorOf', null) == resource.data.get('mirrorOf', null)
+        && request.resource.data.get('mirrorSync', null) == resource.data.get('mirrorSync', null)
+        && request.resource.data.get('topicChannel', null) == resource.data.get('topicChannel', null)
+        && request.resource.data.get('topicPost', null) == resource.data.get('topicPost', null)
+        && request.resource.data.get('topicLink', null) == resource.data.get('topicLink', null)
+        && request.resource.data.get('noAward', null) == resource.data.get('noAward', null)
+        && request.resource.data.get('mirrored', null) == resource.data.get('mirrored', null)
+        && request.resource.data.authorId == resource.data.authorId;
+    }
+    function forumPaceOk() {
+      let row = /databases/$(database)/documents/topic_discussion_limits/$(request.auth.uid);
+      return !exists(row)
+        || !('lastForumPostMs' in get(row).data)
+        || !(get(row).data.lastForumPostMs is int)
+        || request.time.toMillis() - get(row).data.lastForumPostMs >= 30000;
+    }
+
     match /forum_posts/{postId} {
       allow read: if true;
       allow create: if request.auth != null
@@ -716,9 +741,15 @@ service cloud.firestore {
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
                     && request.resource.data.title.size() <= 120
-                    && request.resource.data.authorId == request.auth.uid;
+                    && request.resource.data.authorId == request.auth.uid
+                    && forumMirrorFieldsAbsent()
+                    && forumPaceOk();
       allow update: if request.auth != null
                     && (
+                      isAdmin()
+                      || (
+                        forumMirrorFieldsFrozen()
+                        && (
                       // Upvote: only if user hasn't voted yet, increment by exactly 1, append only own UID
                       // Upvote: +1, no replyCount manipulation
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
@@ -735,7 +766,8 @@ service cloud.firestore {
                        && !(request.auth.uid in request.resource.data.voters)
                       )
                       || resource.data.authorId == request.auth.uid
-                      || isAdmin()
+                        )
+                      )
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
@@ -752,16 +784,22 @@ service cloud.firestore {
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 1000
-                    && request.resource.data.authorId == request.auth.uid;
+                    && request.resource.data.authorId == request.auth.uid
+                    && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
                     && (
+                      isAdmin()
+                      || (
+                        forumMirrorFieldsFrozen()
+                        && (
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (!(request.auth.uid in resource.data.get('voters', [])))
                        && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters)
                       || resource.data.authorId == request.auth.uid
-                      || isAdmin()
+                        )
+                      )
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid

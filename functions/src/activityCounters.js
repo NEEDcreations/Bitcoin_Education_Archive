@@ -1,6 +1,7 @@
 'use strict';
 
 const { grantFamily, familyFor } = require('./grantBadge');
+const { forumActivityAwardable } = require('./topicForumMirror');
 const { rewardBlocked } = require('./cipherClaim');
 const { noteComboZone } = require('./comboActivity');
 const { offsetDateKey } = require('./offsetDay');
@@ -54,12 +55,14 @@ function recordDm(db, adminSdk, data) {
 }
 
 function recordForumPost(db, adminSdk, data) {
+    if (!forumActivityAwardable(data)) return Promise.resolve({ bumped: false, reason: 'mirror' });
     return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumPosts').then(function (result) {
         return noteZone(db, adminSdk, result, 'forum');
     });
 }
 
 function recordForumReply(db, adminSdk, data) {
+    if (!forumActivityAwardable(data)) return Promise.resolve({ bumped: false, reason: 'mirror' });
     return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumReplies').then(function (result) {
         return noteZone(db, adminSdk, result, 'forum');
     });
@@ -117,6 +120,7 @@ async function recordPvpFinished(db, adminSdk, before, after) {
 }
 
 module.exports = {
+    forumActivityAwardable: forumActivityAwardable,
     bumpCounter: bumpCounter,
     chatAuthor: chatAuthor,
     recordChat: recordChat,

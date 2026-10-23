@@ -7128,7 +7128,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
                 '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
-                '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+                '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
         if (p.body) {
@@ -7191,6 +7191,25 @@ window.forumViewPost = async function(postId, fromPopState) {
     }
 };
 
+function forumExactTime(ts) {
+    var ms = 0;
+    if (!ts) return '';
+    if (typeof ts.toMillis === 'function') ms = ts.toMillis();
+    else if (typeof ts.toDate === 'function') ms = ts.toDate().getTime();
+    else if (typeof ts.seconds === 'number') ms = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
+    else if (typeof ts === 'number') ms = ts;
+    if (!ms) return '';
+    var date = new Date(ms);
+    if (isNaN(date.getTime())) return '';
+    var datePart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+    var timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date);
+    var text = datePart + ' · ' + timePart;
+    return '<time datetime="' + date.toISOString() + '" title="' + text + '">' + text + '</time>';
+}
+function forumWhen(ts) {
+    return forumExactTime(ts) || (typeof timeAgo === 'function' ? timeAgo(ts) : '');
+}
+
 // ---- Load Replies ----
 async function forumLoadReplies(postId) {
     var container = document.getElementById('forumReplies');
@@ -7234,7 +7253,7 @@ async function forumLoadReplies(postId) {
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
-                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
+                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
@@ -22577,6 +22596,7 @@ window.toggleAITools = function() {
             '.td-send{padding:10px 16px;border:none;border-radius:10px;background:var(--accent,#f97316);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;}',
             '.td-send:disabled{opacity:0.55;cursor:default;}',
             '.td-note{font-size:0.75rem;color:var(--text-muted,#94a3b8);line-height:1.4;}',
+            '.td-forum-notice{margin:0;padding:8px 10px;border-radius:10px;border:1px solid rgba(249,115,22,0.45);background:rgba(249,115,22,0.1);color:var(--text,#e2e8f0);font-size:0.82rem;font-weight:700;line-height:1.35;}',
             '.td-fallback{padding:10px 12px;border-radius:10px;background:rgba(249,115,22,0.08);color:var(--text-muted,#94a3b8);font-size:0.85rem;margin-bottom:10px;}',
             '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
@@ -22915,6 +22935,12 @@ window.toggleAITools = function() {
             .catch(function() { toast('Could not load earlier comments.'); });
     }
 
+    function forumCrossPostNotice() {
+        var notice = el('p', 'td-forum-notice');
+        notice.textContent = 'Your message will also be posted publicly to the Pleb Talk forum.';
+        return notice;
+    }
+
     function renderComposer() {
         var host = document.getElementById('topic-discussion-composer');
         if (!host) return;
@@ -22926,6 +22952,7 @@ window.toggleAITools = function() {
                 ? 'You are browsing as a guest. Create an account to ask a question. You can still read the discussion.'
                 : 'Sign in to ask a question or leave a comment. Anyone can read.';
             host.appendChild(note);
+            host.appendChild(forumCrossPostNotice());
             host.appendChild(btn('Sign in', 'td-send', function() {
                 if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             }));
@@ -22953,6 +22980,7 @@ window.toggleAITools = function() {
         count.textContent = '0/500';
         area.addEventListener('input', function() { count.textContent = String(area.value.length) + '/500'; });
         host.appendChild(area);
+        host.appendChild(forumCrossPostNotice());
         var controls = el('div', 'td-compose-row');
         var hint = el('span', 'td-note');
         hint.textContent = 'Nacho may answer questions. Posting does not earn XP or tickets.';

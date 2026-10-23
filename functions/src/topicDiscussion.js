@@ -13,6 +13,7 @@
 
 const { classifyChatText, maskChatProfanity } = require('./chatProfanity');
 const { mirrorShoutoutOnce } = require('./telegramBridge');
+const forumMirror = require('./topicForumMirror');
 
 const TOPIC_CHANNELS = require('./topicChannels.json');
 const TOPIC_GROUNDING = require('./topicGrounding.json');
@@ -163,7 +164,7 @@ function buildAnnouncement(input) {
     const channelId = cleanId(src.channelId, 80);
     const postId = cleanId(src.postId, 128);
     const label = src.isQuestion ? 'New question' : 'New comment';
-    const link = '[join the discussion](#topic/' + channelId + '/' + postId + ')';
+    const link = forumMirror.announcementLinks(channelId, postId, src.forumPostId || '');
     let snip = snippetOf(src.text);
     let text = '🦌 ' + label + ' in ' + title + ': "' + snip + '" → ' + link;
     while (text.length > 300 && snip.length > 16) {
@@ -371,6 +372,9 @@ function createTopicDiscussion(deps) {
         // Injection still gets an unsure reply inside writeNachoReply, and never
         // reaches the model. The cap is reserved here so parallel posts cannot slip past it.
         const question = isTop && looksLikeQuestion(prepared.text);
+        const title = displayTitle(meta, channelId);
+        const forumPostId = isTop ? forumMirror.forumPostIdFor(channelId, postRef.id) : '';
+        const summary = isTop ? await forumMirror.summarizeOpener(askNacho, prepared.text, title) : '';
 
         const planned = await db.runTransaction(async function(tx) {
             const userSnap = await tx.get(userRef);
@@ -412,6 +416,16 @@ function createTopicDiscussion(deps) {
                     nachoGlobalPatch = cap.global;
                 }
             }
+            let forumSlot = null;
+            let openForum = false;
+            if (isTop && forumPostId) {
+                forumSlot = forumMirror.reserveForumSlot(limit, nowMs, offsetDateKey);
+                // A full Pleb Talk day must not mint another forum thread. The
+                // topic comment still posts under the topic cap. A forum pace
+                // hit (30s) also skips the cross-post; the topic pace already
+                // refused a second topic comment inside that window.
+                openForum = forumSlot.ok === true;
+            }
             let announce = null;
             if (isTop) {
                 const decision = decideAnnounce(
@@ -422,15 +436,17 @@ function createTopicDiscussion(deps) {
                 if (decision.allow) {
                     announce = {
                         text: buildAnnouncement({
-                            title: displayTitle(meta, channelId),
+                            title: title,
                             text: prepared.text,
                             channelId: channelId,
                             postId: postRef.id,
+                            forumPostId: openForum ? forumPostId : '',
                             isQuestion: question,
                         }),
                         lastAnnounceAtMs: decision.lastAnnounceAtMs,
                         hourKey: decision.hourKey,
                         count: decision.count,
+                        forumPostId: openForum ? forumPostId : '',
                     };
                 }
             }
@@ -439,6 +455,11 @@ function createTopicDiscussion(deps) {
                 dayKey: rate.dayKey,
                 dayCount: rate.dayCount,
             };
+            if (openForum && forumSlot) {
+                limitNext.forumDayKey = forumSlot.forumDayKey;
+                limitNext.forumDayCount = forumSlot.forumDayCount;
+                limitNext.lastForumPostMs = forumSlot.lastForumPostMs;
+            }
             if (nachoUserPatch) {
                 limitNext.nachoDayKey = nachoUserPatch.nachoDayKey;
                 limitNext.nachoDayCount = nachoUserPatch.nachoDayCount;
@@ -464,7 +485,27 @@ function createTopicDiscussion(deps) {
                 isNacho: false,
                 linksRemoved: prepared.linksRemoved === true,
                 replyCount: 0,
+                forumPostId: openForum ? forumPostId : '',
             };
+            if (openForum) {
+                const forumDoc = forumMirror.buildForumPostDoc({
+                    channelId: channelId,
+                    postId: postRef.id,
+                    forumPostId: forumPostId,
+                    title: title,
+                    summary: summary,
+                    text: prepared.text,
+                    uid: who.uid,
+                    name: name,
+                    faction: user.faction || null,
+                    points: user.points || 0,
+                    admin: admin,
+                    nowMs: nowMs,
+                });
+                if (!forumDoc) fail('internal', 'Could not open the forum thread.');
+                tx.set(db.collection('forum_posts').doc(forumDoc.id), forumDoc.data);
+                post.summary = summary;
+            }
             tx.set(postRef, post);
             if (parentRef) {
                 const replyCount = Number(parent.replyCount) || 0;
@@ -478,6 +519,8 @@ function createTopicDiscussion(deps) {
                 announce: announce,
                 parent: parent,
                 parentId: parentId || '',
+                forumPostId: (openForum ? forumPostId : '') || (parent && parent.forumPostId) || '',
+                post: post,
             };
         });
 
@@ -491,6 +534,7 @@ function createTopicDiscussion(deps) {
                     isNachoAuto: false,
                     topicChannel: channelId,
                     topicPost: planned.postId,
+                    forumPost: planned.announce.forumPostId || planned.forumPostId || '',
                     ts: stamp(admin, nowMs),
                 });
                 await mirror({ docId: chatId, text: planned.announce.text });
@@ -509,6 +553,23 @@ function createTopicDiscussion(deps) {
                 title: displayTitle(meta, channelId),
                 snippet: snippetOf(planned.text),
             });
+        }
+
+        if (planned.parentId) {
+            try {
+                await forumMirror.mirrorTopicPost({
+                    db: db,
+                    admin: admin,
+                    channelId: channelId,
+                    postId: planned.postId,
+                    post: planned.post,
+                    nowMs: nowMs,
+                    faction: null,
+                    points: 0,
+                });
+            } catch (err) {
+                console.warn('[topicDiscussion] forum reply mirror failed');
+            }
         }
 
         let nachoPosted = false;
@@ -582,11 +643,12 @@ function createTopicDiscussion(deps) {
         if (!channelMeta(channelId, channels) || !postId || !action) fail('invalid-argument', 'That moderation action is not valid.');
         const postRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(postId);
         const privateRef = db.collection('topic_discussion_private').doc(channelId + '~' + postId);
-        await db.runTransaction(async function(tx) {
+        const changed = await db.runTransaction(async function(tx) {
             const postSnap = await tx.get(postRef);
             const privateSnap = await tx.get(privateRef);
             if (!postSnap.exists) fail('not-found', 'That comment is no longer there.');
             const post = postSnap.data() || {};
+            let after;
             if (action === 'hide') {
                 if (post.text) {
                     tx.set(privateRef, {
@@ -597,16 +659,32 @@ function createTopicDiscussion(deps) {
                         hiddenAtMs: nowFn(),
                     });
                 }
+                after = Object.assign({}, post, { hidden: true, text: '', deleted: false });
                 tx.set(postRef, { hidden: true, text: '', deleted: false }, { merge: true });
             } else if (action === 'unhide') {
                 const saved = privateSnap.exists ? (privateSnap.data() || {}) : {};
+                after = Object.assign({}, post, { hidden: false, text: saved.text || post.text || '', deleted: false });
                 tx.set(postRef, { hidden: false, text: saved.text || post.text || '' }, { merge: true });
                 tx.delete(privateRef);
             } else {
+                after = Object.assign({}, post, { deleted: true, hidden: false, text: '' });
                 tx.set(postRef, { deleted: true, hidden: false, text: '' }, { merge: true });
                 tx.delete(privateRef);
             }
+            return { before: post, after: after };
         });
+        try {
+            await forumMirror.syncTopicToForum({
+                db: db,
+                admin: admin,
+                channelId: channelId,
+                postId: postId,
+                before: changed.before,
+                after: changed.after,
+            });
+        } catch (err) {
+            console.warn('[topicDiscussion] forum moderation mirror failed');
+        }
         return { ok: true };
     }
 
@@ -618,14 +696,27 @@ function createTopicDiscussion(deps) {
         if (!channelMeta(channelId, channels) || !postId) fail('invalid-argument', 'That comment could not be deleted.');
         const postRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(postId);
         const privateRef = db.collection('topic_discussion_private').doc(channelId + '~' + postId);
-        await db.runTransaction(async function(tx) {
+        const changed = await db.runTransaction(async function(tx) {
             const postSnap = await tx.get(postRef);
             if (!postSnap.exists) fail('not-found', 'That comment is no longer there.');
             const post = postSnap.data() || {};
             if (post.uid !== who.uid || post.isNacho === true) fail('permission-denied', 'You can only delete your own comment.');
             tx.set(postRef, { deleted: true, text: '', hidden: false }, { merge: true });
             tx.delete(privateRef);
+            return { before: post, after: Object.assign({}, post, { deleted: true, text: '', hidden: false }) };
         });
+        try {
+            await forumMirror.syncTopicToForum({
+                db: db,
+                admin: admin,
+                channelId: channelId,
+                postId: postId,
+                before: changed.before,
+                after: changed.after,
+            });
+        } catch (err) {
+            console.warn('[topicDiscussion] forum delete mirror failed');
+        }
         return { ok: true };
     }
 
@@ -708,6 +799,28 @@ async function writeNachoReply(opts) {
             });
             tx.set(parentRef, { replyCount: (Number(parent.replyCount) || 0) + 1 }, { merge: true });
         });
+        try {
+            await forumMirror.mirrorTopicPost({
+                db: o.db,
+                admin: o.admin,
+                channelId: o.channelId,
+                postId: replyRef.id,
+                nowMs: nowMs,
+                post: {
+                    channelId: o.channelId,
+                    uid: NACHO_UID,
+                    name: 'Nacho',
+                    text: answer,
+                    parentId: o.parentId,
+                    createdAtMs: nowMs,
+                    deleted: false,
+                    hidden: false,
+                    isNacho: true,
+                },
+            });
+        } catch (err) {
+            console.warn('[topicDiscussion] nacho forum mirror failed');
+        }
         await writeReplyNotice(o.db, o.admin, nowMs, {
             recipientId: o.parentUid,
             senderId: NACHO_UID,

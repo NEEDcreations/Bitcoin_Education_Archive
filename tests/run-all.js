@@ -56,6 +56,7 @@ const TESTS = [
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
+    { name: 'Topic Forum Mirror', file: 'test-topic-forum-mirror.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
     { name: 'Quote of the Day', file: 'test-quotes.js' },
     { name: 'Referrals', file: 'test-referrals.js' },

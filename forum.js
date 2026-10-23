@@ -392,7 +392,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
                 '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
-                '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+                '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
         if (p.body) {
@@ -455,6 +455,25 @@ window.forumViewPost = async function(postId, fromPopState) {
     }
 };
 
+function forumExactTime(ts) {
+    var ms = 0;
+    if (!ts) return '';
+    if (typeof ts.toMillis === 'function') ms = ts.toMillis();
+    else if (typeof ts.toDate === 'function') ms = ts.toDate().getTime();
+    else if (typeof ts.seconds === 'number') ms = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
+    else if (typeof ts === 'number') ms = ts;
+    if (!ms) return '';
+    var date = new Date(ms);
+    if (isNaN(date.getTime())) return '';
+    var datePart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+    var timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date);
+    var text = datePart + ' · ' + timePart;
+    return '<time datetime="' + date.toISOString() + '" title="' + text + '">' + text + '</time>';
+}
+function forumWhen(ts) {
+    return forumExactTime(ts) || (typeof timeAgo === 'function' ? timeAgo(ts) : '');
+}
+
 // ---- Load Replies ----
 async function forumLoadReplies(postId) {
     var container = document.getElementById('forumReplies');
@@ -498,7 +517,7 @@ async function forumLoadReplies(postId) {
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
-                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
+                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
