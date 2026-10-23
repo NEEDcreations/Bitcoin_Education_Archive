@@ -14,9 +14,11 @@
  * later faction choice can move them. This never changes the live pool
  * points or the Favor window.
  *
- * Credit only catalog ids that come from badge_awards or from profile
- * fields the client cannot write (badges, visibleBadges, hiddenBadges,
- * donationBadges). Ids that appear only on earnedHidden, displayBadge, or
+ * Credit only catalog ids that come from badge_awards or from badges,
+ * visibleBadges, or donationBadges. A hiddenBadges id counts only when that
+ * same id also appears in one of those sources. On live, clients could still
+ * write hiddenBadges, so an id that appears only there is excluded as
+ * hidden-only. Ids that appear only on earnedHidden, displayBadge, or
  * equippedBadge are excluded, and so are ids that are not in the catalog.
  * Dry-run prints those excluded counts by reason.
  *
@@ -32,7 +34,8 @@ const { rewardBlocked } = require('../functions/src/cipherClaim');
 const badgeRules = require('../functions/src/badgeRules');
 const { collectIds } = require('../functions/src/badgeProfile');
 
-const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'hiddenBadges', 'donationBadges'];
+const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'donationBadges'];
+const HIDDEN_LIST_FIELDS = ['hiddenBadges'];
 const CLIENT_LIST_FIELDS = ['earnedHidden'];
 const CLIENT_SINGLE_FIELDS = ['displayBadge', 'equippedBadge'];
 
@@ -97,11 +100,16 @@ function classifyHeld(input) {
     const src = input || {};
     const user = src.user || {};
     const server = new Set();
+    const hidden = new Set();
     const client = new Set();
     const awards = new Set();
     collectIds(user, SERVER_LIST_FIELDS, []).forEach(function (id) {
         const clean = keyPart(id);
         if (clean) server.add(clean);
+    });
+    collectIds(user, HIDDEN_LIST_FIELDS, []).forEach(function (id) {
+        const clean = keyPart(id);
+        if (clean) hidden.add(clean);
     });
     collectIds(user, CLIENT_LIST_FIELDS, CLIENT_SINGLE_FIELDS).forEach(function (id) {
         const clean = keyPart(id);
@@ -111,7 +119,7 @@ function classifyHeld(input) {
         const clean = keyPart(id);
         if (clean) awards.add(clean);
     });
-    const excluded = { 'client-writable-field': 0, 'not-in-catalog': 0 };
+    const excluded = { 'client-writable-field': 0, 'not-in-catalog': 0, 'hidden-only': 0 };
     const credit = [];
     const seen = {};
     function consider(id) {
@@ -119,12 +127,14 @@ function classifyHeld(input) {
         seen[id] = true;
         const trusted = server.has(id) || awards.has(id);
         const known = badgeRules.isKnown(id);
+        if (!trusted && hidden.has(id)) excluded['hidden-only'] += 1;
         if (!trusted && client.has(id)) excluded['client-writable-field'] += 1;
         if (!known) excluded['not-in-catalog'] += 1;
         if (trusted && known) credit.push(id);
     }
     server.forEach(consider);
     awards.forEach(consider);
+    hidden.forEach(consider);
     client.forEach(consider);
     return { credit: credit, excluded: excluded };
 }
@@ -191,7 +201,7 @@ async function main() {
         missing: 0,
         written: 0,
         byFaction: { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 },
-        excluded: { 'client-writable-field': 0, 'not-in-catalog': 0 },
+        excluded: { 'client-writable-field': 0, 'not-in-catalog': 0, 'hidden-only': 0 },
     };
     let cursor = null;
     let batch = db.batch();
@@ -227,6 +237,7 @@ async function main() {
             });
             counts.excluded['client-writable-field'] += classified.excluded['client-writable-field'];
             counts.excluded['not-in-catalog'] += classified.excluded['not-in-catalog'];
+            counts.excluded['hidden-only'] += classified.excluded['hidden-only'];
             const contrib = db.collection('satoshiFavor').doc('current').collection('contributors');
             const existing = await contrib
                 .orderBy(admin.firestore.FieldPath.documentId())
@@ -274,6 +285,7 @@ async function main() {
     console.log('unaffiliated: ' + counts.byFaction.unaffiliated);
     console.log('excluded client-writable-field: ' + counts.excluded['client-writable-field']);
     console.log('excluded not-in-catalog: ' + counts.excluded['not-in-catalog']);
+    console.log('excluded hidden-only: ' + counts.excluded['hidden-only']);
     console.log(JSON.stringify(counts));
 }
 

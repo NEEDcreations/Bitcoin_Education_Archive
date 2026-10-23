@@ -555,6 +555,26 @@ queue.push(test('backfill dedupes date and name keys and plans faction totals on
     assert.strictEqual(classified.credit.indexOf('fake_award_id'), -1);
     assert.strictEqual(classified.excluded['client-writable-field'], 2);
     assert.strictEqual(classified.excluded['not-in-catalog'], 2);
+    assert.strictEqual(classified.excluded['hidden-only'], 0);
+    const hidden = backfill.classifyHeld({
+        user: {
+            badges: ['say_hi_1'],
+            visibleBadges: ['peer_1'],
+            donationBadges: ['spin_1'],
+            hiddenBadges: ['say_hi_1', 'peer_1', 'spin_1', 'first_channel', 'explorer_100', 'not_real_hidden'],
+        },
+        awardIds: ['explorer_100', 'fake_award_id'],
+    });
+    assert.ok(hidden.credit.indexOf('say_hi_1') !== -1);
+    assert.ok(hidden.credit.indexOf('peer_1') !== -1);
+    assert.ok(hidden.credit.indexOf('spin_1') !== -1);
+    assert.ok(hidden.credit.indexOf('explorer_100') !== -1);
+    assert.strictEqual(hidden.credit.indexOf('first_channel'), -1);
+    assert.strictEqual(hidden.credit.indexOf('not_real_hidden'), -1);
+    assert.strictEqual(hidden.credit.indexOf('fake_award_id'), -1);
+    assert.strictEqual(hidden.excluded['hidden-only'], 2);
+    assert.strictEqual(hidden.excluded['not-in-catalog'], 2);
+    assert.strictEqual(hidden.excluded['client-writable-field'], 0);
     const dropped = backfill.planUser({ uid: 'w', user: {}, held: ['not_a_real_badge'], contributorIds: [] });
     assert.strictEqual(dropped.missing.length, 0);
     const src = fs.readFileSync(path.join(root, 'scripts', 'backfill-badge-favor.js'), 'utf8');
@@ -564,6 +584,9 @@ queue.push(test('backfill dedupes date and name keys and plans faction totals on
     assert.ok(!src.includes("doc('current').set"));
     assert.ok(!src.includes("doc('current').update"));
     assert.ok(src.includes('factionTotals'));
+    assert.ok(src.includes('excluded hidden-only'));
+    assert.ok(src.includes("const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'donationBadges']"));
+    assert.ok(src.includes("const HIDDEN_LIST_FIELDS = ['hiddenBadges']"));
 }));
 
 queue.push(test('combo tiers follow server zones and trivia is graded before the counter', function () {
