@@ -374,7 +374,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('id="tctvWatchBtn"'));
     assert.ok(html.includes('id="sayHiBtn"'));
     assert.ok(html.includes('startTctvDailyWatch()'));
-    assert.ok(html.includes('#em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }'));
+    assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
     assert.ok(html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('id="tctvWatchSub"'));
@@ -388,7 +388,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261022_v2321'));
+    assert.ok(html.includes('features.registry.js?v=20261022_v2322'));
     assert.ok(client.includes('getDailyKey'));
     assert.ok(client.includes('IntersectionObserver'));
     assert.strictEqual(client.includes('600000'), false);
@@ -398,9 +398,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     const predict = row.indexOf('Predict Price');
     const story = row.indexOf("Nacho's Story");
     const hi = row.indexOf('id="sayHiBtn"');
-    assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < story && story < hi);
+    assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2321'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2322'"));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

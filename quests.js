@@ -3369,110 +3369,51 @@ if (typeof _renderQuestHubTab !== "undefined") window._renderQuestHubTab = _rend
 
 window._questHubTab = 'quiz';
 
-// Show quiz topic picker inside Quest Hub with back button
-window._questHubShowQuizPicker = function() {
-    var body = document.getElementById('questHubBody');
-    var tabs = document.getElementById('questHubTabs');
-    if (!body) { // fallback: open old modal flow
-        document.getElementById('questHubOverlay').remove();
-        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
-        return;
-    }
-    // Swap header: hide tabs, show back button
-    if (tabs) tabs.style.display = 'none';
-    var header = tabs && tabs.parentElement;
-    var backBar = document.getElementById('qhBackBar');
-    if (!backBar && header) {
-        backBar = document.createElement('div');
-        backBar.id = 'qhBackBar';
-        backBar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px;';
-        backBar.innerHTML = '<button onclick="window._questHubBackToTabs()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">← Back</button>' +
-            '<span style="color:var(--heading);font-size:0.95rem;font-weight:800;">Choose a Quiz Topic</span>';
-        tabs.parentNode.insertBefore(backBar, tabs);
-    }
-    if (backBar) backBar.style.display = 'flex';
-    // Render topic picker inline
-    if (typeof _renderQuestHubQuizPicker === 'function') _renderQuestHubQuizPicker(body);
-    else {
-        // Fallback: open old modal
-        document.getElementById('questHubOverlay').remove();
-        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
-    }
-};
+function _questScreenTitle(tab) {
+    var names = { quiz: 'Daily Quiz', trivia: 'Trivia', poll: 'Poll', flex: 'Flex', favor: "Satoshi's Favor", raid: 'Raid', citadel: 'Citadel', charity: 'Charity', community: 'Community', nook: 'Nook / Inventory' };
+    return names[tab] || 'Today';
+}
 
-window._questHubBackToTabs = function() {
-    var tabs = document.getElementById('questHubTabs');
-    var backBar = document.getElementById('qhBackBar');
-    if (tabs) tabs.style.display = 'grid'; // must be grid, not '' (which resets to block)
-    if (backBar) backBar.style.display = 'none';
-    window._questHubTab = 'quiz';
-    if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
-};
-
-window.showQuestHub = function() {
-    // Minimize global chat if open (so Quest Hub is visible on mobile)
-    if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') {
-        toggleChatOverlay();
+function _closeQuestScreen() {
+    if (typeof window._cleanupRaidBoss === 'function') window._cleanupRaidBoss();
+    if (typeof window._cleanupCharityListeners === 'function') window._cleanupCharityListeners();
+    if (typeof _cleanupLastWindowListener === 'function') _cleanupLastWindowListener();
+    var ov = document.getElementById('questHubOverlay');
+    if (ov) ov.remove();
+    if (window._qhPopHandler) {
+        window.removeEventListener('popstate', window._qhPopHandler);
+        window._qhPopHandler = null;
     }
+    if (window.location.hash === '#questhub') {
+        try { history.replaceState({ home: true }, '', (window._qhReturnPath || '/')); } catch (e) {}
+        if (typeof goHome === 'function') goHome(true);
+    }
+}
 
-    // Remove existing
-    var existing = document.getElementById('questHubOverlay');
-    if (existing) existing.remove();
+function _ensureQuestScreen() {
+    if (document.getElementById('questHubBody')) return;
+    var stale = document.getElementById('questHubOverlay');
+    if (stale) stale.remove();
 
     var overlay = document.createElement('div');
     overlay.id = 'questHubOverlay';
-    var _qhAlign = window.innerWidth <= 900 ? 'flex-start' : 'center';
-    var _qhPad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px'; // bottom padding clears nav+FABs on mobile
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + _qhAlign + ';justify-content:center;backdrop-filter:blur(5px);padding:' + _qhPad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay && !window._flexJustCompleted) { window._cleanupRaidBoss(); window._cleanupCharityListeners && window._cleanupCharityListeners(); _cleanupLastWindowListener && _cleanupLastWindowListener(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
+    var align = window.innerWidth <= 900 ? 'flex-start' : 'center';
+    var pad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + align + ';justify-content:center;backdrop-filter:blur(5px);padding:' + pad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.onclick = function(e) {
+        if (e.target === overlay && !window._flexJustCompleted) _closeQuestScreen();
+    };
 
     var modal = document.createElement('div');
-    var _qhMaxH = window.innerWidth <= 900
-        ? 'calc(100vh - 140px)' // mobile: subtract bottom nav (60px) + floating btns (50px) + safe area
-        : '85vh';
-    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:' + _qhMaxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+    var maxH = window.innerWidth <= 900 ? 'calc(100vh - 140px)' : '85vh';
+    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:' + maxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
 
-    // Desktop font-size boost - everything in the modal reads larger on wide screens
-    var qhStyle = document.createElement('style');
-    qhStyle.textContent = '@media(min-width:600px){' +
-        '#questHubOverlay [style*="font-size:0.6"]{font-size:0.82rem!important}' +
-        '#questHubOverlay [style*="font-size:0.7"]{font-size:0.88rem!important}' +
-        '#questHubOverlay [style*="font-size:0.75"]{font-size:0.9rem!important}' +
-        '#questHubOverlay [style*="font-size:0.78"]{font-size:0.92rem!important}' +
-        '#questHubOverlay [style*="font-size:0.8"]{font-size:0.95rem!important}' +
-        '#questHubOverlay [style*="font-size:0.82"]{font-size:0.97rem!important}' +
-        '#questHubOverlay [style*="font-size:0.85"]{font-size:1rem!important}' +
-        '#questHubOverlay [style*="font-size:0.9"]{font-size:1.05rem!important}' +
-        '#questHubOverlay [style*="font-size:0.95"]{font-size:1.08rem!important}' +
-        '#questHubOverlay p,[id="questHubBody"] div{font-size:inherit}' +
-        '#questHubBody{font-size:1rem}' +
-        '#questHubTabs button{font-size:0.88rem!important;padding:12px 0!important}' +
-        '#questHubTabs #qhTabNook{font-size:0.62rem!important;line-height:1.15!important;white-space:normal!important;padding:6px 3px!important}' +
-        '#questHubTabs{grid-template-columns:repeat(5,1fr)!important}' +
-    '}';
-    modal.appendChild(qhStyle);
-
-    // Header
     var header = document.createElement('div');
+    header.id = 'questHubHeader';
     header.style.cssText = 'padding:20px 24px 0;flex-shrink:0;';
-    header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-        '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div>' +
-        '<div style="margin-top:6px;padding:6px 10px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:600;">🎯 Daily Trifecta: Complete the daily quiz, trivia and poll to earn the Daily Trifecta!</div></div>' +
-        '<button onclick="window._cleanupRaidBoss();window._cleanupCharityListeners&&window._cleanupCharityListeners();_cleanupLastWindowListener&&_cleanupLastWindowListener();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
-        // Tabs
-        '<div id="questHubTabs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">' +
-        '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
-        '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
-        '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏆 Flex</button>' +
-        '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
-        '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
-        '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
-        '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
-        '<button id="qhTabCommunity" onclick="window._questHubTab=\'community\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">🤝 Community</button>' +
-        '<button id="qhTabNook" aria-label="Nook / Inventory" onclick="window._questHubTab=\'nook\';_renderQuestHubTab()" style="width:100%;padding:6px 3px;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.62rem;line-height:1.15;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:normal;">🦌 Nook/Inv</button>' +
-                '</div>';
+    header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;">' +
+        '<h2 id="questHubTitle" style="margin:0;color:var(--heading);font-size:1.3rem;">' + _questScreenTitle(window._questHubTab) + '</h2>' +
+        '<button type="button" aria-label="Close" onclick="if(window._closeQuestScreen)window._closeQuestScreen()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>';
 
     var body = document.createElement('div');
     body.id = 'questHubBody';
@@ -3483,42 +3424,118 @@ window.showQuestHub = function() {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    _renderQuestHubTab();
-    // A deep link may have chosen Nook/Inventory before this default render.
-    // Apply it again after Quest Hub's own init, including the deferred pass.
-    if (window._bqHubLock && window._bqHubLock.tab && Date.now() < window._bqHubLock.until) {
-        window._questHubTab = window._bqHubLock.tab;
-        if (window._bqHubLock.sub) window._nookSubTab = window._bqHubLock.sub;
-        _renderQuestHubTab();
-        setTimeout(function () {
-            var lock = window._bqHubLock;
-            if (!lock || !lock.tab || Date.now() > lock.until) return;
-            window._questHubTab = lock.tab;
-            if (lock.sub) window._nookSubTab = lock.sub;
-            if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
-        }, 400);
-    }
-
-    // History: push state so browser/swipe back closes/reopens Quest Hub
-    // Save the current path so close buttons can restore it without history.back()
     window._qhReturnPath = window.location.pathname + (window.location.hash !== '#questhub' ? window.location.hash : '');
     if (window.location.hash !== '#questhub') {
         history.pushState({ overlay: 'questhub' }, '', '#questhub');
     }
-    // Popstate: back gesture/button returns to Quest Hub
-    function _qhPopHandler(e) {
+    function _qhPopHandler() {
         var ov = document.getElementById('questHubOverlay');
-        if (!ov) return; // already closed
-        // If user navigated back, close gracefully (don't re-push)
-        window._cleanupRaidBoss && window._cleanupRaidBoss();
+        if (!ov) return;
+        if (typeof window._cleanupRaidBoss === 'function') window._cleanupRaidBoss();
         ov.remove();
+        window._qhPopHandler = null;
     }
     window._qhPopHandler = _qhPopHandler;
     window.addEventListener('popstate', _qhPopHandler, { once: true });
+}
+window._closeQuestScreen = _closeQuestScreen;
+
+// Show quiz topic picker inside the open quest screen, with a back button.
+window._questHubShowQuizPicker = function() {
+    var body = document.getElementById('questHubBody');
+    var tabs = document.getElementById('questHubTabs');
+    if (!body) {
+        var ov = document.getElementById('questHubOverlay');
+        if (ov) ov.remove();
+        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
+        return;
+    }
+    if (tabs) tabs.style.display = 'none';
+    var header = document.getElementById('questHubHeader') || (tabs && tabs.parentElement);
+    var backBar = document.getElementById('qhBackBar');
+    if (!backBar && header) {
+        backBar = document.createElement('div');
+        backBar.id = 'qhBackBar';
+        backBar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px;';
+        backBar.innerHTML = '<button type="button" onclick="window._questHubBackToTabs()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">← Back</button>' +
+            '<span style="color:var(--heading);font-size:0.95rem;font-weight:800;">Choose a Quiz Topic</span>';
+        if (tabs && tabs.parentNode) tabs.parentNode.insertBefore(backBar, tabs);
+        else header.appendChild(backBar);
+    }
+    if (backBar) backBar.style.display = 'flex';
+    if (typeof _renderQuestHubQuizPicker === 'function') _renderQuestHubQuizPicker(body);
+    else {
+        var ov2 = document.getElementById('questHubOverlay');
+        if (ov2) ov2.remove();
+        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
+    }
 };
+
+window._questHubBackToTabs = function() {
+    var tabs = document.getElementById('questHubTabs');
+    var backBar = document.getElementById('qhBackBar');
+    if (tabs) tabs.style.display = 'grid';
+    if (backBar) backBar.style.display = 'none';
+    window._questHubTab = 'quiz';
+    if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+};
+
+// No tab argument scrolls to the Today card. A tab name, or a follow-up
+// _renderQuestHubTab within 420ms, opens that one screen. Callers that set
+// _questHubTab after showQuestHub() keep working.
+window.showQuestHub = function(tabArg) {
+    window.showQuestHub._todayReal = true;
+    if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') {
+        try { toggleChatOverlay(); } catch (e) {}
+    }
+    if (typeof tabArg === 'string' && tabArg) {
+        window._questHubTab = tabArg;
+        if (window._qhAwaitToken) window._qhClaimedOpen = window._qhAwaitToken;
+        _ensureQuestScreen();
+        if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+        return;
+    }
+    var token = (window._qhOpenToken || 0) + 1;
+    window._qhOpenToken = token;
+    window._qhAwaitToken = token;
+    setTimeout(function() {
+        if (window._qhOpenToken !== token) return;
+        if (window._qhClaimedOpen === token) return;
+        var lock = window._bqHubLock;
+        if (lock && lock.tab && Date.now() < lock.until) {
+            window._questHubTab = lock.tab;
+            if (lock.sub) window._nookSubTab = lock.sub;
+            window._qhClaimedOpen = token;
+            _ensureQuestScreen();
+            if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+            return;
+        }
+        _closeQuestScreen();
+        if (typeof window._focusTodayCard === 'function') window._focusTodayCard();
+    }, 420);
+};
+window.showQuestHub._todayReal = true;
+if (window._pendingQuestTab) {
+    var _pendingQuestTabNow = window._pendingQuestTab;
+    window._pendingQuestTab = '';
+    setTimeout(function() { window.showQuestHub(_pendingQuestTabNow); }, 0);
+} else if (window._bqHubLock && window._bqHubLock.tab && Date.now() < window._bqHubLock.until && !document.getElementById('questHubBody')) {
+    var _hubLockNow = window._bqHubLock;
+    window._questHubTab = _hubLockNow.tab;
+    if (_hubLockNow.sub) window._nookSubTab = _hubLockNow.sub;
+    setTimeout(function() { window.showQuestHub(_hubLockNow.tab); }, 0);
+}
 
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
+    if (tab === 'flashcards') {
+        if (window._qhAwaitToken) window._qhClaimedOpen = window._qhAwaitToken;
+        if (typeof go === 'function') go('learning-quests');
+        return;
+    }
+    var knownTab = { quiz: 1, trivia: 1, poll: 1, raid: 1, favor: 1, charity: 1, flex: 1, citadel: 1, community: 1, nook: 1 };
+    if (!knownTab[tab]) return;
+    if (window._qhAwaitToken) window._qhClaimedOpen = window._qhAwaitToken;
     // Update active tab styles
     ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Community', 'Nook'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
@@ -3536,7 +3553,16 @@ function _renderQuestHubTab() {
     });
 
     var body = document.getElementById('questHubBody');
-    if (!body) return;
+    if (!body) {
+        if (window._qhEnsuring) return;
+        window._qhEnsuring = true;
+        try { _ensureQuestScreen(); } catch (e) {}
+        window._qhEnsuring = false;
+        body = document.getElementById('questHubBody');
+        if (!body) return;
+    }
+    var titleEl = document.getElementById('questHubTitle');
+    if (titleEl) titleEl.textContent = _questScreenTitle(tab);
 
     // Cleanup listeners when switching away
     if (tab !== 'raid') window._cleanupRaidBoss();
