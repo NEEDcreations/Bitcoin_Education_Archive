@@ -91,6 +91,7 @@ function buildCSP(nonce) {
             " https://www.gstatic.com" +
             " https://challenges.cloudflare.com" +
             " https://accounts.google.com" +
+            " https://accounts.google.com/gsi/client" + // Google Identity Services button
             " https://apis.google.com" +           // Google Sign-In auth library (api.js)
             " https://auth.bitcoineducation.quest" + // Custom auth domain (Safari ITP fix)
             " https://connect.facebook.net" +
@@ -141,6 +142,7 @@ function buildCSP(nonce) {
             " https://bitcoin-education-archive.firebaseapp.com" + // Firebase Auth iframe
             " https://auth.bitcoineducation.quest" +             // Custom auth domain (Safari ITP fix)
             " https://accounts.google.com" +          // Google Sign-In popup
+            " https://accounts.google.com/gsi/" +    // GIS button iframe
             " https://www.google.com" +          // reCAPTCHA v3 hidden iframe (App Check)
             " https://leo-mattes.com" +           // Pump It! game (Bitcoin Beats tab)
             " https://timechaincalendar.com" +      // Timechain Calendar iframe (dashboard)
@@ -160,7 +162,7 @@ function buildCSP(nonce) {
 
         "font-src 'self' https://fonts.gstatic.com",
 
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
 
         "object-src 'none'",    // No Flash/plugins
         "base-uri 'self'",      // No <base> tag hijacking
