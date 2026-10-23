@@ -138,8 +138,13 @@ function makeApi(opts) {
         now: function() { return now; },
         askNacho: async function(input) {
             calls.ask += 1;
-            if (opts && opts.answer) return { answer: opts.answer(input, calls.ask) };
-            return { answer: 'A block header includes a nonce that miners change while hashing.' };
+            const produced = opts && opts.answer ? opts.answer(input, calls.ask) : 'A block header includes a nonce that miners change while hashing.';
+            if (produced && typeof produced === 'object') return produced;
+            return {
+                answer: produced,
+                links: opts && opts.links,
+                followUps: opts && opts.followUps,
+            };
         },
         mirror: async function(args) { calls.mirror.push(args); },
     });
@@ -497,6 +502,117 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         await api.reportTopicComment({ channelId: 'mining', postId: hideMe.postId }, auth('other'));
         const reported = postsOf(db, 'mining').filter(function(post) { return post._id === hideMe.postId; })[0];
         assert.strictEqual(reported.reportCount, 1);
+    });
+
+    await testAsync('Nacho reply keeps real topic links and drops invented ones', async function() {
+        const local = makeApi({
+            links: [
+                { id: 'mining', title: 'FAKE TITLE' },
+                { id: 'not-a-real-topic', title: 'Invented channel' },
+                { id: 'scarce', title: 'Nope' },
+                { id: 'mining', title: 'dup' },
+            ],
+            followUps: [
+                'What is the halving?',
+                'what do you think about mining?',
+                'hi',
+                'What is proof of work?',
+                'Not a question',
+                'What is a Bitcoin node?',
+                'What is the Lightning Network?',
+            ],
+        });
+        seedUser(local.db, 'links2');
+        const asked = await local.api.postTopicComment({ channelId: 'mining', text: 'What is a block subsidy?' }, auth('links2'));
+        assert.strictEqual(asked.nacho, true);
+        const reply = postsOf(local.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.ok(reply);
+        assert.deepStrictEqual(reply.links.map(function(link) { return link.id; }), ['mining', 'scarce']);
+        assert.strictEqual(reply.links[0].title, 'Mining');
+        assert.ok(!reply.text.includes('FAKE') && !reply.text.includes('Invented'));
+        assert.deepStrictEqual(reply.followUps, [
+            'What is the halving?',
+            'What is proof of work?',
+            'What is a Bitcoin node?',
+        ]);
+    });
+
+    test('topic discussion renders Nacho links and follow-ups as buttons', function() {
+        const vm = require('vm');
+        function createEl(tag) {
+            return {
+                tag: tag,
+                className: '',
+                textContent: '',
+                type: '',
+                hidden: false,
+                children: [],
+                attrs: {},
+                listeners: [],
+                style: {},
+                get childNodes() { return this.children; },
+                setAttribute: function(key, value) { this.attrs[key] = String(value); },
+                getAttribute: function(key) { return this.attrs[key]; },
+                appendChild: function(child) { this.children.push(child); return child; },
+                addEventListener: function(type, fn) { this.listeners.push({ type: type, fn: fn }); },
+                classList: { add: function() {}, remove: function() {} },
+            };
+        }
+        const document = {
+            head: createEl('head'),
+            getElementById: function() { return null; },
+            createElement: createEl,
+            querySelector: function() { return null; },
+        };
+        const sandbox = {
+            document: document,
+            window: {},
+            console: console,
+            setTimeout: setTimeout,
+            Date: Date,
+        };
+        sandbox.window = sandbox;
+        vm.createContext(sandbox);
+        vm.runInContext(fs.readFileSync(path.join(root, 'topic-discussions.js'), 'utf8'), sandbox);
+        const asked = [];
+        const opened = [];
+        sandbox.bqAskFollowUp = function(q) { asked.push(q); };
+        sandbox.go = function(id) { opened.push(id); };
+        const post = {
+            id: 'n1',
+            isNacho: true,
+            name: '<img src=x>',
+            text: 'Bitcoin is $100,000 right now. <script>alert(1)</script>',
+            createdAt: Date.now(),
+            links: [{ id: 'charts', title: 'Charts', kind: 'topic' }, { id: 'bad id!', title: 'Nope' }],
+            followUps: ['What are Bitcoin fees right now?', 'what do you think?'],
+        };
+        const row = sandbox._topicDiscussionRenderPost(post, {
+            viewer: { signedIn: true, uid: 'me', admin: false },
+            onReply: function() {},
+            onReport: function() {},
+            onDelete: function() {},
+            onModerate: function() {},
+            onToggleReplies: function() {},
+        });
+        const nodes = [];
+        (function walk(node) {
+            nodes.push(node);
+            (node.children || []).forEach(walk);
+        })(row);
+        const text = nodes.filter(function(node) { return node.className === 'td-text'; })[0];
+        assert.ok(text.textContent.includes('<script>alert(1)</script>'));
+        assert.ok(!nodes.some(function(node) { return node.tag === 'script'; }));
+        const topic = nodes.filter(function(node) { return node.attrs && node.attrs['data-bq-topic']; });
+        assert.deepStrictEqual(topic.map(function(node) { return node.attrs['data-bq-topic']; }), ['charts']);
+        topic[0].listeners[0].fn({ stopPropagation: function() {}, preventDefault: function() {} });
+        assert.deepStrictEqual(opened, ['charts']);
+        const chips = nodes.filter(function(node) { return node.attrs && node.attrs['data-bq-chip']; });
+        assert.strictEqual(chips.length, 1);
+        chips[0].listeners[0].fn({ stopPropagation: function() {}, preventDefault: function() {} });
+        assert.deepStrictEqual(asked, ['What are Bitcoin fees right now?']);
+        const name = nodes.filter(function(node) { return String(node.className).indexOf('td-name') !== -1; })[0];
+        assert.strictEqual(name.textContent, 'Nacho');
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

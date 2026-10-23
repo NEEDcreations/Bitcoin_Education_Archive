@@ -387,7 +387,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261023_v2330'));
+    assert.ok(html.includes('features.registry.js?v=20261023_v2337'));
     assert.ok(client.includes('getDailyKey'));
     assert.ok(client.includes('IntersectionObserver'));
     assert.strictEqual(client.includes('600000'), false);
@@ -399,7 +399,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2334'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2337'"));
     assert.ok(!sw.includes('btc-archive-v2333'));
     assert.ok(!sw.includes('btc-archive-v2332'));
     assert.ok(!sw.includes('btc-archive-v2331'));

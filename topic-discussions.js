@@ -97,6 +97,10 @@
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
             '.td-btn{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#1e293b);background:none;color:var(--text-muted,#94a3b8);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;}',
+            '.td-links,.td-followups{margin-top:8px;}',
+            '.td-extra-label{font-size:0.68rem;color:var(--text-faint,#64748b);margin-bottom:4px;}',
+            '.td-topic{display:block;width:100%;margin-top:4px;padding:8px;background:var(--accent,#f97316);border:none;border-radius:8px;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:inherit;text-align:left;}',
+            '.td-follow{display:block;width:100%;margin-top:4px;padding:6px 8px;background:none;border:1px solid var(--border,#1e293b);border-radius:8px;color:var(--text-muted,#94a3b8);font-size:0.78rem;cursor:pointer;font-family:inherit;text-align:left;}',
             '.td-compose{display:flex;flex-direction:column;gap:8px;margin-top:12px;}',
             '.td-compose textarea{width:100%;box-sizing:border-box;min-height:72px;max-height:180px;padding:12px;border-radius:12px;border:1px solid var(--border,#1e293b);background:var(--input-bg,#020617);color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;resize:vertical;}',
             '.td-compose-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}',
@@ -127,7 +131,69 @@
         return fallback;
     }
 
+    function appendNachoExtras(main, post) {
+        if (!post || !post.isNacho) return;
+        var links = Array.isArray(post.links) ? post.links.slice(0, 3) : [];
+        if (links.length) {
+            var box = el('div', 'td-links');
+            box.setAttribute('data-bq-links', '1');
+            var label = el('div', 'td-extra-label');
+            label.textContent = 'Learn more';
+            box.appendChild(label);
+            links.forEach(function(item) {
+                if (!item) return;
+                var raw = String(item.id || '');
+                var id = raw.replace(/[^a-z0-9_-]/gi, '');
+                if (!id || id !== raw) return;
+                var kind = item.kind === 'app' ? 'app' : 'topic';
+                var button = el('button', 'td-topic');
+                button.type = 'button';
+                button.setAttribute('data-bq-topic', id);
+                button.setAttribute('data-bq-kind', kind);
+                button.textContent = String(item.title || id);
+                button.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    if (kind === 'app' && typeof window.bqOpenFeature === 'function') window.bqOpenFeature(id);
+                    else if (typeof window.go === 'function') window.go(id);
+                });
+                box.appendChild(button);
+            });
+            main.appendChild(box);
+        }
+        var followUps = Array.isArray(post.followUps) ? post.followUps.slice(0, 3) : [];
+        var shown = [];
+        followUps.forEach(function(q) {
+            var text = String(q || '').replace(/<[^>]*>/g, '').trim();
+            if (text.length < 8 || text.length > 90 || text.charAt(text.length - 1) !== '?') return;
+            if (/\b(what do you think|do you think|how do you feel|your opinion)\b/i.test(text)) return;
+            shown.push(text);
+        });
+        if (shown.length) {
+            var fbox = el('div', 'td-followups');
+            fbox.setAttribute('data-bq-followups', '1');
+            var flabel = el('div', 'td-extra-label');
+            flabel.textContent = 'You might also ask:';
+            fbox.appendChild(flabel);
+            shown.forEach(function(text) {
+                var button = el('button', 'td-follow');
+                button.type = 'button';
+                button.setAttribute('data-bq-chip', '1');
+                button.setAttribute('data-q', text);
+                button.textContent = text;
+                button.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    if (typeof window.bqAskFollowUp === 'function') window.bqAskFollowUp(text);
+                });
+                fbox.appendChild(button);
+            });
+            main.appendChild(fbox);
+        }
+    }
+
     function renderPost(post, ctx) {
+        injectStyle();
         var who = ctx.viewer || viewer();
         var row = el('article', 'td-post' + (post.parentId ? ' td-reply' : ''));
         row.id = 'td-post-' + post.id;
@@ -158,10 +224,12 @@
         }
         main.appendChild(meta);
         var text = el('div', 'td-text');
+        var showBody = !post.deleted && !(post.hidden && !who.admin);
         if (post.deleted) text.textContent = 'Comment removed';
-        else if (post.hidden && !who.admin) text.textContent = '';
+        else if (!showBody) text.textContent = '';
         else text.textContent = post.text || '';
         main.appendChild(text);
+        if (showBody) appendNachoExtras(main, post);
         var actions = el('div', 'td-actions');
         if (!post.deleted && !post.parentId && who.signedIn) {
             actions.appendChild(btn('Reply', 'td-btn', function() { ctx.onReply(post); }));

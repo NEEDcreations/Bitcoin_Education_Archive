@@ -3875,6 +3875,34 @@ function incrementAICount() {
     localStorage.setItem('btc_nacho_ai_uses', JSON.stringify(data));
 }
 
+function fillLiveTemplates(text) {
+    text = String(text || '');
+    if (!text || text.indexOf('{') === -1) return text;
+    var price = null;
+    var height = null;
+    var halving = null;
+    try {
+        if (window._btcData) {
+            price = window._btcData.price;
+            height = window._btcData.height;
+            halving = window._btcData.halvingBlocks;
+        }
+    } catch (e) {}
+    if (!price) { try { price = parseFloat(localStorage.getItem('btc_last_price')); } catch (e2) {} }
+    if (!height) { try { height = parseInt(localStorage.getItem('btc_last_height'), 10); } catch (e3) {} }
+    if (price) text = text.replace(/\{price\}/g, '$' + Math.round(price).toLocaleString());
+    if (height) text = text.replace(/\{height\}/g, Number(height).toLocaleString());
+    if (halving) text = text.replace(/\{halving\}/g, Number(halving).toLocaleString());
+    return text;
+}
+
+function workerGround() {
+    return {
+        links: Array.isArray(window._bqLastLinks) ? window._bqLastLinks.slice(0, 3) : [],
+        followUps: Array.isArray(window._bqLastFollowUps) ? window._bqLastFollowUps.slice(0, 3) : []
+    };
+}
+
 async function nachoAIAnswer(question, callback) {
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (getAICount() >= NACHO_AI_DAILY_LIMIT) { callback(null); return; }
@@ -3893,12 +3921,14 @@ async function nachoAIAnswer(question, callback) {
         history.push({ q: _nachoConvoHistory[hi].q, a: _nachoConvoHistory[hi].a.substring(0, 200) });
     }
 
-    // Check if KB has a relevant answer to send as context
+    // Check if KB has a relevant answer to send as context.
+    // Fill {price} here. The template is only for local rendering otherwise.
     var kbContext = '';
     if (typeof findAnswer === 'function') {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
             var kbAnswerText = typeof kbMatch.answer === 'function' ? kbMatch.answer('') : kbMatch.answer;
+            kbAnswerText = fillLiveTemplates(kbAnswerText);
             kbContext = (kbAnswerText || '').substring(0, 1200);
             if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
@@ -3959,9 +3989,12 @@ async function nachoAIAnswer(question, callback) {
             if (timeoutId) clearTimeout(timeoutId);
             if (data && data.answer && !data.error) {
                 var conversationalAnswer = data.answer;
+                window._bqLastLinks = Array.isArray(data.links) ? data.links.slice(0, 3) : [];
+                window._bqLastFollowUps = Array.isArray(data.followUps) ? data.followUps.filter(Boolean).slice(0, 3) : [];
                 if (data.followUp) {
                     var _fu = String(data.followUp).replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
                     if (_fu) window._bqLastFollowUp = _fu;
+                    if (!window._bqLastFollowUps.length && _fu) window._bqLastFollowUps = [_fu];
                 }
                 callback(conversationalAnswer);
             } else {
@@ -4238,8 +4271,8 @@ window.nachoAnswer = function() {
                 }
                 var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + (result.answer || 'Hmm, try asking another way! 🦌') + '</div>';
 
-                // Add channel link if available
-                if (result.channel) {
+                // Topic buttons already in the answer replace the single channel link.
+                if (result.channel && String(result.answer || '').indexOf('data-bq-links') === -1) {
                     html += '<br><a href="#" ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){go(\'' + result.channel + '\')},100)" style="color:var(--accent);font-weight:600;font-size:0.85rem;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
                 }
                 // Add site action button if available
@@ -4944,6 +4977,19 @@ window.nachoUnifiedAnswer = function(question, callback) {
     }
 
     // ---- STEP 4: KB HIT → Use KB answer, optionally polish with AI ----
+    // Live data and the calculator already have the right answer. Do not let a polish pass replace them.
+    if (liveMatch) {
+        var _liveGround = workerGround();
+        callback({
+            type: 'live',
+            answer: processNfa(pq(liveMatch.answer && typeof liveMatch.answer === 'function' ? liveMatch.answer('') : kbMatch.answer)) + disclaimer,
+            channel: liveMatch.channel || kbMatch.channel || null,
+            channelName: liveMatch.channelName || kbMatch.channelName || null,
+            links: _liveGround.links,
+            followUps: _liveGround.followUps
+        });
+        return;
+    }
     if (kbMatch) {
         var kbAnswer = processNfa(pq(kbMatch.answer));
         var ch = kbMatch.channel || null;
@@ -4996,22 +5042,24 @@ window.nachoUnifiedAnswer = function(question, callback) {
                 if (_kbCallbackFired) return; // Safety timer already fired
                 _kbCallbackFired = true;
                 clearTimeout(_kbSafetyTimer);
+                var _ground = workerGround();
                 if (aiAnswer) {
                     // Relevance check: AI answer should share key terms with the question
                     var qWords = q.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
                     var aiLower = aiAnswer.toLowerCase();
                     var relevantWords = qWords.filter(function(w) { return aiLower.indexOf(w) !== -1; });
-                    // If AI answer shares fewer than half the key question words, it's probably off-topic — use KB
-                    if (qWords.length > 2 && relevantWords.length < qWords.length * 0.3) {
+                    var isDeflection = /shouldn.t go there|antlers are telling me|not a real-time|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+                    // A refusal must not replace the knowledge-base answer.
+                    if (isDeflection || (qWords.length > 2 && relevantWords.length < qWords.length * 0.3)) {
                         nachoRemember(q, kbMatch.answer);
-                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
+                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps });
                     } else {
                         nachoRemember(q, aiAnswer);
-                        callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName });
+                        callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps });
                     }
                 } else {
                     nachoRemember(q, kbMatch.answer);
-                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
+                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps });
                 }
             });
         } else {
@@ -5027,12 +5075,13 @@ window.nachoUnifiedAnswer = function(question, callback) {
         nachoAIAnswer(q, function(aiAnswer) {
             if (aiAnswer) {
                 var aiLower = aiAnswer.toLowerCase();
-                var isDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+                var isDeflection = /shouldn.t go there|antlers are telling me|not a real-time|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+                var _missGround = workerGround();
 
                 if (!isDeflection) {
                     // Maxi AI answered fine — use it
                     nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai', answer: escapeHtml(aiAnswer) + disclaimer });
+                    callback({ type: 'ai', answer: escapeHtml(aiAnswer) + disclaimer, links: _missGround.links, followUps: _missGround.followUps });
                     return;
                 }
             }
@@ -5314,6 +5363,7 @@ window.nachoFollowUps = function(answerText) {
     if (window._bqLastFollowUp && String(answerText).indexOf(String(window._bqLastFollowUp).slice(0, 24)) !== -1) {
         return [];
     }
+    if (window._bqLastFollowUps && window._bqLastFollowUps.length) return window._bqLastFollowUps.slice(0, 3);
     if (window._bqLastFollowUp) return [window._bqLastFollowUp];
     var a = answerText.toLowerCase();
     var suggestions = [];
@@ -5444,5 +5494,5 @@ window.nachoFollowUps = function(answerText) {
         suggestions[j] = suggestions[r];
         suggestions[r] = tmp;
     }
-    return suggestions.slice(0, 1);
+    return suggestions.slice(0, 3);
 };

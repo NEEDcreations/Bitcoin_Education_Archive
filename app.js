@@ -2004,6 +2004,8 @@
             window._bqLastFollowUp = '';
             return [];
         }
+        if (/data-bq-followups/.test(String(answer || ''))) return [];
+        if (window._bqLastFollowUps && window._bqLastFollowUps.length) return window._bqLastFollowUps.slice(0, 3);
         if (typeof nachoFollowUps === 'function') {
             return nachoFollowUps((question || '') + ' ' + (answer || ''));
         }
@@ -2779,7 +2781,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var extra = '';
             if (result && result.siteAction) {
                 extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
-            } else if (result && result.channel) {
+            } else if (result && result.channel && String(result.answer || '').indexOf('data-bq-links') === -1) {
                 extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
             }
             reply((result && result.answer ? result.answer : 'Hmm, let me think about that... Try asking another way! 🦌') + extra, (result && result.type) || 'fallback');

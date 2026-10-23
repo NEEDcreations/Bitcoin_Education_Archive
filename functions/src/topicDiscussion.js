@@ -16,6 +16,8 @@ const { mirrorShoutoutOnce } = require('./telegramBridge');
 
 const TOPIC_CHANNELS = require('./topicChannels.json');
 const TOPIC_GROUNDING = require('./topicGrounding.json');
+let NACHO_TOPIC_INDEX = {};
+try { NACHO_TOPIC_INDEX = require('./nachoTopicIndex.json'); } catch (err) { NACHO_TOPIC_INDEX = {}; }
 
 const NACHO_AI_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/ai';
 const RESET_HOUR_UTC = 5;
@@ -287,7 +289,46 @@ async function defaultAskNacho(input) {
     });
     if (!res || !res.ok) throw new Error('ai');
     const json = await res.json();
-    return { answer: json && json.answer ? String(json.answer) : '' };
+    const links = Array.isArray(json && json.links) ? json.links : [];
+    const followUps = Array.isArray(json && json.followUps) ? json.followUps : [];
+    return {
+        answer: json && json.answer ? String(json.answer) : '',
+        links: links,
+        followUps: followUps,
+    };
+}
+
+function cleanNachoLinks(list) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(list) ? list : []).forEach(function(item) {
+        const id = String(item && item.id || '').replace(/[^a-z0-9_-]/gi, '');
+        const row = id && NACHO_TOPIC_INDEX[id];
+        if (!row || seen.has(id)) return;
+        seen.add(id);
+        out.push({
+            id: id,
+            title: String(row.title || id).slice(0, 60),
+            hash: String(row.hash || id).slice(0, 80),
+            kind: row.kind === 'app' ? 'app' : 'topic',
+        });
+    });
+    return out.slice(0, 3);
+}
+
+function cleanNachoFollowUps(list) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(list) ? list : []).forEach(function(item) {
+        const q = String(item || '').replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
+        const key = q.toLowerCase();
+        if (q.length < 8 || q.length > 90 || !q.endsWith('?')) return;
+        if (/\b(what do you think|do you think|how do you feel|your opinion)\b/i.test(q)) return;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(q);
+    });
+    return out.slice(0, 3);
 }
 
 function stamp(admin, nowMs) {
@@ -667,6 +708,8 @@ async function writeReplyNotice(db, admin, nowMs, info) {
 async function writeNachoReply(opts) {
     const o = opts || {};
     let answer = UNSURE;
+    let nachoLinks = [];
+    let nachoFollowUps = [];
     try {
         if (INJECTION_RE.test(o.question || '')) {
             answer = UNSURE;
@@ -677,6 +720,8 @@ async function writeNachoReply(opts) {
                 channelTitle: o.title,
             });
             answer = sanitizeNachoAnswer(result && result.answer);
+            nachoLinks = cleanNachoLinks(result && result.links);
+            nachoFollowUps = cleanNachoFollowUps(result && result.followUps);
         }
     } catch (err) {
         answer = UNSURE;
@@ -704,6 +749,8 @@ async function writeNachoReply(opts) {
                 deleted: false,
                 isNacho: true,
                 linksRemoved: false,
+                links: nachoLinks,
+                followUps: nachoFollowUps,
                 replyCount: 0,
             });
             tx.set(parentRef, { replyCount: (Number(parent.replyCount) || 0) + 1 }, { merge: true });
