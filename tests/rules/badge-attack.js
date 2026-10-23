@@ -77,7 +77,19 @@ const parts = emu.split(':');
         await expect('completed quests', function () {
             return updateDoc(ref, { completedQuests: ['quest_whitepaper'], questsCompletedToday: 1 });
         }, true);
-        await expect('referred-by', function () { return updateDoc(ref, { referredBy: 'phil' }); }, false);
+        try {
+            await updateDoc(ref, { referredBy: 'phil' });
+            failed++;
+            console.log('DENY   referred-by  ✗ allowed');
+        } catch (referredErr) {
+            const referredMsg = String((referredErr && referredErr.message) || referredErr);
+            if (/maximum of 1000|Unable to evaluate/i.test(referredMsg)) {
+                failed++;
+                console.log('DENY   referred-by  ✗ ' + referredMsg);
+            } else {
+                console.log('DENY   referred-by  ✓');
+            }
+        }
         await expect('notification prefs', function () {
             return updateDoc(ref, { notificationPrefs: { master: true, rewards: false } });
         }, true);
