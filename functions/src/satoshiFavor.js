@@ -465,6 +465,14 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
+    // Same transaction as the contributor doc. Owner-readable counter only.
+    const userSfRef = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid);
+    transaction.set(userSfRef, {
+      uid: uid,
+      points: admin.firestore.FieldValue.increment(pointsToAdd),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
     if (stateData.favorActive) {
       // Favor is active and not expired — add bonus minutes (capped)
       const rawBonus = (stateData.bonusMinutes || 0) + (BONUS_MINUTES_PER_POINT * pointsToAdd);

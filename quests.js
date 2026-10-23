@@ -2492,6 +2492,9 @@ function _renderFavorTab(body) {
                 '<button type="button" id="sfChooseFactionBtn" onclick="window._openFactionPicker()" style="display:none;padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;">Choose a faction</button>' +
             '</div>' +
         '</div>' +
+        '<div id="sfMyContribution" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
+            '<span id="sfMyContributionText" style="font-size:0.78rem;font-weight:700;color:var(--text);"></span>' +
+        '</div>' +
         '<div id="sfUnclaimedPool" style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
             '<span id="sfScoreUnaffiliated" style="font-size:0.75rem;font-weight:800;color:var(--text-muted);font-family:monospace;">Unclaimed: 0 pts</span>' +
         '</div>' +
@@ -2676,6 +2679,7 @@ window._openFactionPicker = function() {
     var overlay = document.getElementById('questHubOverlay');
     if (overlay) overlay.remove();
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
+    _stopMySfListener();
     setTimeout(function() {
         if (typeof showSettingsPage === 'function') showSettingsPage('account');
     }, 50);
@@ -2689,6 +2693,7 @@ window.closeQuestHubForFavor = function() {
     _cleanupLastWindowListener && _cleanupLastWindowListener();
     // Clean up faction listener
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
+    if (typeof _stopMySfListener === 'function') _stopMySfListener();
     // Store that we should reopen Quest Hub on miner close
     window._qhReopenOnMinerClose = true;
 };
@@ -2757,6 +2762,8 @@ function _startFactionScoreboardListener() {
         var sfLabel = document.getElementById('sfUserFactionLabel');
         var sfIcon = document.getElementById('sfUserFactionIcon');
         var sfChoose = document.getElementById('sfChooseFactionBtn');
+        _paintMySfContribution();
+
         if (sfLabel && sfIcon) {
             if (userFaction === 'cyber_hornets') {
                 sfIcon.textContent = '🐝';
@@ -2794,6 +2801,46 @@ function _startFactionScoreboardListener() {
     }, function(err) {
         console.warn('[FACTION-SCORE] Listener error:', err);
     });
+
+    _stopMySfListener();
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    if (!me) {
+        window._mySfPoints = null;
+        _paintMySfContribution();
+        return;
+    }
+    window._mySfUnsub = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(me.uid).onSnapshot(function(doc) {
+        var raw = doc.exists && doc.data() ? Number(doc.data().points) : 0;
+        window._mySfPoints = Number.isFinite(raw) && raw > 0 ? raw : 0;
+        _paintMySfContribution();
+    }, function(err) {
+        console.warn('[SF-MINE] Listener error:', err);
+        window._mySfPoints = null;
+        _paintMySfContribution();
+    });
+}
+
+function _stopMySfListener() {
+    if (window._mySfUnsub) { window._mySfUnsub(); window._mySfUnsub = null; }
+}
+
+function _paintMySfContribution() {
+    var row = document.getElementById('sfMyContribution');
+    var el = document.getElementById('sfMyContributionText');
+    if (!row || !el) return;
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    if (!me || window._mySfPoints == null) {
+        row.style.display = 'none';
+        el.textContent = '';
+        return;
+    }
+    var n = window._mySfPoints;
+    var faction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
+    var where = faction === 'honey_badgers' ? ' to Honey Badgers'
+        : faction === 'cyber_hornets' ? ' to Cyber Hornets'
+        : ', unclaimed';
+    el.textContent = "You've contributed " + n.toLocaleString() + ' SF points' + where + ' (all time).';
+    row.style.display = 'block';
 }
 
 // Detach handles for real-time SF listeners

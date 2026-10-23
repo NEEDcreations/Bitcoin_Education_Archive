@@ -1893,9 +1893,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false; // Cloud Functions only
 
-      // Contributors subcollection — server writes only
+      // Contributors — owner may read their own docs. No client writes.
+      // A list of someone else's docs fails because the query cannot match uid.
       match /contributors/{docId} {
-        allow read: if true;
+        allow read: if request.auth != null
+          && resource.data.uid == request.auth.uid;
         allow write: if false;
       }
 
@@ -1929,6 +1931,16 @@ service cloud.firestore {
     match /satoshiFavor/factionTotals {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Per-user all-time Satoshi's Favor contribution. Server writes only.
+    // The owner can read their own total. Other clients cannot.
+    match /satoshiFavor/userSfPoints {
+      allow read, write: if false;
+      match /users/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
     }
 
     // Faction sync records — server writes only
