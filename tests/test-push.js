@@ -119,7 +119,7 @@ test('client and workers share the safe push path', function() {
     assert.ok(sw.includes('stopImmediatePropagation'));
     assert.ok(sw.includes('clients.matchAll'));
     assert.ok(sw.includes('navigate'));
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2321'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2322'"));
     assert.strictEqual(sw.includes('btc-archive-v2314'), false);
     assert.strictEqual(sw.includes('btc-archive-v2295'), false);
     assert.strictEqual(sw.includes('btc-archive-v2273'), false);
@@ -143,7 +143,7 @@ test('client and workers share the safe push path', function() {
     assert.ok(rules.includes('request.auth.uid == uid'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('push-prefs.js?v=20261022_v2321'));
+    assert.ok(html.includes('push-prefs.js?v=20261022_v2322'));
     assert.ok(html.includes('id="settings-notifications"') === false);
     assert.ok(html.includes("sessionStorage.setItem('btc_open_notif_settings'"));
     assert.ok(read('ranking.js').includes('id="settings-notifications"'));

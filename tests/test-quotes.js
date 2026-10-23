@@ -77,7 +77,7 @@ test('fallback quotes are a subset of quotes.json and the card escapes the sourc
     assert.ok(src.includes('escapeHtml(quote.text)'));
     assert.ok(src.includes('escapeHtml(href)'));
     assert.ok(src.includes('event.stopPropagation()'));
-    assert.ok(src.includes("fetch('data/quotes.json?v=20261022_v2321'"));
+    assert.ok(src.includes("fetch('data/quotes.json?v=20261022_v2322'"));
     assert.ok(!src.includes('BITCOIN_QUOTES'));
 });
 

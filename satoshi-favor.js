@@ -332,6 +332,20 @@
     }
 
     function renderHomeBanner() {
+        var strip = document.getElementById('todayFavorStrip');
+        if (strip && typeof window._paintTodayFavor === 'function') {
+            var active = isFavorEffectivelyActive();
+            window._paintTodayFavor({
+                points: (favorState && favorState.points) || 0,
+                active: active,
+                target: POINTS_TARGET
+            });
+            if (active) startCountdown('todayFavorCountdown');
+            var old = document.getElementById('satoshiFavorHomeBanner');
+            if (old) old.remove();
+            return;
+        }
+
         const homeInner = document.querySelector('#home .home-inner');
         if (!homeInner) return;
 
