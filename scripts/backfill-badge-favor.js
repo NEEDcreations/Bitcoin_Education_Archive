@@ -14,6 +14,12 @@
  * later faction choice can move them. This never changes the live pool
  * points or the Favor window.
  *
+ * Credit only catalog ids that come from badge_awards or from profile
+ * fields the client cannot write (badges, visibleBadges, hiddenBadges,
+ * donationBadges). Ids that appear only on earnedHidden, displayBadge, or
+ * equippedBadge are excluded, and so are ids that are not in the catalog.
+ * Dry-run prints those excluded counts by reason.
+ *
  * Banned users are skipped. Dry-run is the default and prints counts per
  * faction. --apply writes. Do not run it as part of a deploy.
  *
@@ -24,7 +30,11 @@
 
 const { rewardBlocked } = require('../functions/src/cipherClaim');
 const badgeRules = require('../functions/src/badgeRules');
-const { profileBadgeIds } = require('../functions/src/badgeProfile');
+const { collectIds } = require('../functions/src/badgeProfile');
+
+const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'hiddenBadges', 'donationBadges'];
+const CLIENT_LIST_FIELDS = ['earnedHidden'];
+const CLIENT_SINGLE_FIELDS = ['displayBadge', 'equippedBadge'];
 
 const PAGE = 200;
 
@@ -83,6 +93,42 @@ function creditsBadge(docId, uid, badgeId, name) {
     return re.test(docId);
 }
 
+function classifyHeld(input) {
+    const src = input || {};
+    const user = src.user || {};
+    const server = new Set();
+    const client = new Set();
+    const awards = new Set();
+    collectIds(user, SERVER_LIST_FIELDS, []).forEach(function (id) {
+        const clean = keyPart(id);
+        if (clean) server.add(clean);
+    });
+    collectIds(user, CLIENT_LIST_FIELDS, CLIENT_SINGLE_FIELDS).forEach(function (id) {
+        const clean = keyPart(id);
+        if (clean) client.add(clean);
+    });
+    (src.awardIds || []).forEach(function (id) {
+        const clean = keyPart(id);
+        if (clean) awards.add(clean);
+    });
+    const excluded = { 'client-writable-field': 0, 'not-in-catalog': 0 };
+    const credit = [];
+    const seen = {};
+    function consider(id) {
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        const trusted = server.has(id) || awards.has(id);
+        const known = badgeRules.isKnown(id);
+        if (!trusted && client.has(id)) excluded['client-writable-field'] += 1;
+        if (!known) excluded['not-in-catalog'] += 1;
+        if (trusted && known) credit.push(id);
+    }
+    server.forEach(consider);
+    awards.forEach(consider);
+    client.forEach(consider);
+    return { credit: credit, excluded: excluded };
+}
+
 function planUser(input) {
     const src = input || {};
     const uid = String(src.uid || '');
@@ -90,7 +136,7 @@ function planUser(input) {
     const seen = {};
     (src.held || []).forEach(function (id) {
         const badgeId = keyPart(id);
-        if (!badgeId || seen[badgeId]) return;
+        if (!badgeId || seen[badgeId] || !badgeRules.isKnown(badgeId)) return;
         seen[badgeId] = true;
         held.push(badgeId);
     });
@@ -145,6 +191,7 @@ async function main() {
         missing: 0,
         written: 0,
         byFaction: { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 },
+        excluded: { 'client-writable-field': 0, 'not-in-catalog': 0 },
     };
     let cursor = null;
     let batch = db.batch();
@@ -173,12 +220,13 @@ async function main() {
                 counts.banned += 1;
                 continue;
             }
-            const held = profileBadgeIds(user);
             const awards = await userDoc.ref.collection('badge_awards').get();
-            awards.docs.forEach(function (award) {
-                const id = keyPart(award.id);
-                if (id) held.add(id);
+            const classified = classifyHeld({
+                user: user,
+                awardIds: awards.docs.map(function (award) { return award.id; }),
             });
+            counts.excluded['client-writable-field'] += classified.excluded['client-writable-field'];
+            counts.excluded['not-in-catalog'] += classified.excluded['not-in-catalog'];
             const contrib = db.collection('satoshiFavor').doc('current').collection('contributors');
             const existing = await contrib
                 .orderBy(admin.firestore.FieldPath.documentId())
@@ -189,11 +237,11 @@ async function main() {
             const plan = planUser({
                 uid: userDoc.id,
                 user: user,
-                held: Array.from(held),
+                held: classified.credit,
                 contributorIds: contributorIds,
             });
-            counts.badgeRecords += held.size;
-            counts.alreadyCredited += (held.size - plan.missing.length);
+            counts.badgeRecords += classified.credit.length;
+            counts.alreadyCredited += (classified.credit.length - plan.missing.length);
             plan.missing.forEach(function (row) {
                 counts.missing += 1;
                 counts.byFaction[factionBucket(plan.faction)] += 1;
@@ -224,6 +272,8 @@ async function main() {
     console.log('cyber_hornets: ' + counts.byFaction.cyber_hornets);
     console.log('honey_badgers: ' + counts.byFaction.honey_badgers);
     console.log('unaffiliated: ' + counts.byFaction.unaffiliated);
+    console.log('excluded client-writable-field: ' + counts.excluded['client-writable-field']);
+    console.log('excluded not-in-catalog: ' + counts.excluded['not-in-catalog']);
     console.log(JSON.stringify(counts));
 }
 
@@ -238,6 +288,7 @@ module.exports = {
     keyPart: keyPart,
     creditsBadge: creditsBadge,
     planUser: planUser,
+    classifyHeld: classifyHeld,
     factionOf: factionOf,
     factionBucket: factionBucket,
     badgeName: badgeName,

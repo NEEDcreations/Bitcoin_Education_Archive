@@ -30,12 +30,17 @@ const VERIFY_HOSTS = [
     'phoenix.acinq.co',
 ];
 
+// lnbits.com is an exact host. Other custodians still match their subdomains.
+const EXACT_HOSTS = { 'lnbits.com': true };
+
 function hostAllowed(hostname) {
     const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
     if (!host || host.indexOf('..') !== -1) return false;
     for (let i = 0; i < VERIFY_HOSTS.length; i++) {
         const domain = VERIFY_HOSTS[i];
-        if (host === domain || host.endsWith('.' + domain)) return true;
+        if (host === domain) return true;
+        if (EXACT_HOSTS[domain]) continue;
+        if (host.endsWith('.' + domain)) return true;
     }
     return false;
 }

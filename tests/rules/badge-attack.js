@@ -100,6 +100,7 @@ const parts = emu.split(':');
             return updateDoc(ref, { nachoQuestDone: true });
         }, false);
         await expect('intro seen', function () { return updateDoc(ref, { introSeen: true }); }, false);
+        await expect('merged anon flag', function () { return updateDoc(ref, { mergedAnon: true }); }, false);
         await expect('authenticator flag', function () { return updateDoc(ref, { totpEnabled: false }); }, false);
         await expect('ATTACK hiddenBadges', function () {
             return updateDoc(ref, { hiddenBadges: ['night_owl'] });

@@ -181,7 +181,7 @@ service cloud.firestore {
       function profileUpdateBlocked() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
         return changed.hasAny([
-            'referredBy', 'nachoQuestDone', 'introSeen', 'totpEnabled', 'introSeenAt'
+            'referredBy', 'nachoQuestDone', 'introSeen', 'totpEnabled', 'introSeenAt', 'mergedAnon'
           ])
           || changed.hasAny(userProfileServerOnlyKeys())
           || changed.hasAny([

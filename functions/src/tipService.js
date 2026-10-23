@@ -167,8 +167,8 @@ async function verifyPayment(data, callerUid) {
     return { verified: false, reason: lud.reason || 'lud21-unverified', paymentHash: '' };
 }
 
-async function takeTipRate(uid, now) {
-    const ref = db().collection('rate_limits').doc('tip_' + uid);
+async function takeRate(docId, now) {
+    const ref = db().collection('rate_limits').doc(docId);
     let decision = { ok: false, reason: 'rate' };
     await db().runTransaction(async function(t) {
         const snap = await t.get(ref);
@@ -186,6 +186,14 @@ async function takeTipRate(uid, now) {
         });
     });
     return decision;
+}
+
+async function takeTipRate(uid, now) {
+    return takeRate('tip_' + uid, now);
+}
+
+async function takeTipInvoiceRate(uid, now) {
+    return takeRate('tip_invoice_' + uid, now);
 }
 
 async function confirmTipSent(data, context) {
@@ -222,7 +230,8 @@ async function confirmTipSent(data, context) {
     if (!rate.ok) throw httpsError('resource-exhausted', 'Too many tip checks. Wait a moment and try again.');
 
     let verification = { verified: false, reason: 'not-tip-day', paymentHash: '' };
-    if (tipConfirm.isTippingChallenge(challengeId)) {
+    const badgeAttempt = !!String((data && data.recipientUid) || '').trim();
+    if (tipConfirm.isTippingChallenge(challengeId) || badgeAttempt) {
         verification = await verifyPayment(data || {}, uid);
     }
     if (verification.verified && verification.paymentHash) {
@@ -254,6 +263,20 @@ async function confirmTipSent(data, context) {
             verifyReason: verification.reason || call.reason || 'unverified',
             challengeCompleted: false,
             challengeId: challengeId,
+        };
+    }
+    // A server-invoice badge check that has not settled yet must not lock the
+    // day. The client can confirm again after the payment is visible.
+    if (badgeAttempt && !tipConfirm.isTippingChallenge(challengeId) && !verification.verified) {
+        return {
+            success: false,
+            already: false,
+            awarded: 0,
+            verified: false,
+            verifyReason: verification.reason || 'unverified',
+            challengeCompleted: false,
+            challengeId: challengeId,
+            tipsCounted: false,
         };
     }
 
@@ -442,6 +465,41 @@ async function confirmTipSent(data, context) {
     return result || { success: false, awarded: 0 };
 }
 
+const TIP_FETCH_HOPS = 3;
+const TIP_REDIRECTS = { 301: true, 302: true, 303: true, 307: true, 308: true };
+
+async function fetchAllowlisted(startUrl) {
+    let current = String(startUrl || '');
+    for (let hop = 0; hop < TIP_FETCH_HOPS; hop++) {
+        let parsed;
+        try { parsed = new URL(current); } catch (e) {
+            throw httpsError('unavailable', 'Could not reach that wallet');
+        }
+        if (parsed.protocol !== 'https:') throw httpsError('unavailable', 'Could not reach that wallet');
+        const host = parsed.hostname.toLowerCase();
+        if (!tipBadge.hostAllowed(host)) throw httpsError('failed-precondition', 'That wallet is not on the tip list');
+        try {
+            await assertPublicHost(host);
+        } catch (e) {
+            throw httpsError('failed-precondition', 'That wallet is not on the tip list');
+        }
+        const res = await fetch(parsed.toString(), { timeout: 8000, size: 65536, redirect: 'manual' });
+        if (TIP_REDIRECTS[res.status]) {
+            const location = res.headers.get('location');
+            if (!location || hop === TIP_FETCH_HOPS - 1) throw httpsError('unavailable', 'Could not reach that wallet');
+            let next;
+            try { next = new URL(location, parsed); } catch (e) {
+                throw httpsError('unavailable', 'Could not reach that wallet');
+            }
+            if (next.protocol !== 'https:') throw httpsError('unavailable', 'Could not reach that wallet');
+            current = next.toString();
+            continue;
+        }
+        return res;
+    }
+    throw httpsError('unavailable', 'Could not reach that wallet');
+}
+
 async function fetchLnurlInvoice(address, amountSats) {
     const text = String(address || '').trim().toLowerCase();
     const at = text.lastIndexOf('@');
@@ -449,8 +507,8 @@ async function fetchLnurlInvoice(address, amountSats) {
     const localPart = text.slice(0, at);
     const domain = text.slice(at + 1).split(':')[0];
     if (!domain || domain.indexOf('..') !== -1) throw httpsError('failed-precondition', 'That wallet has no Lightning address');
-    await assertPublicHost(domain);
-    const metaRes = await fetch('https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart), { timeout: 8000, size: 65536 });
+    if (!tipBadge.hostAllowed(domain)) throw httpsError('failed-precondition', 'That wallet is not on the tip list');
+    const metaRes = await fetchAllowlisted('https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart));
     if (!metaRes.ok) throw httpsError('unavailable', 'Could not reach that wallet');
     const meta = await metaRes.json();
     if (!meta || !meta.callback) throw httpsError('unavailable', 'Could not reach that wallet');
@@ -458,20 +516,20 @@ async function fetchLnurlInvoice(address, amountSats) {
     try { cbUrl = new URL(meta.callback); } catch (e) {
         throw httpsError('unavailable', 'Could not reach that wallet');
     }
-    if (cbUrl.protocol !== 'https:' || cbUrl.hostname.toLowerCase() !== domain) {
+    if (cbUrl.protocol !== 'https:' || !tipBadge.hostAllowed(cbUrl.hostname.toLowerCase())) {
         throw httpsError('unavailable', 'Could not reach that wallet');
     }
-    await assertPublicHost(cbUrl.hostname);
     const msats = amountSats * 1000;
     if (meta.minSendable && msats < meta.minSendable) throw httpsError('invalid-argument', 'Amount is below that wallet minimum');
     if (meta.maxSendable && msats > meta.maxSendable) throw httpsError('invalid-argument', 'Amount is above that wallet maximum');
     const sep = String(meta.callback).indexOf('?') === -1 ? '?' : '&';
-    const invoiceRes = await fetch(meta.callback + sep + 'amount=' + msats, { timeout: 8000, size: 65536 });
+    const invoiceRes = await fetchAllowlisted(meta.callback + sep + 'amount=' + msats);
     if (!invoiceRes.ok) throw httpsError('unavailable', 'Could not reach that wallet');
     const invoiceData = await invoiceRes.json();
     const pr = invoiceData && invoiceData.pr;
     if (!pr || String(pr).toLowerCase().indexOf('lnbc') !== 0) throw httpsError('unavailable', 'Could not reach that wallet');
-    return String(pr);
+    const verifyUrl = invoiceData && invoiceData.verify ? String(invoiceData.verify) : '';
+    return { invoice: String(pr), verifyUrl: verifyUrl };
 }
 
 async function requestTipInvoice(data, context) {
@@ -497,7 +555,10 @@ async function requestTipInvoice(data, context) {
     if (tipBadge.sharesCluster(sender, recipient)) throw httpsError('permission-denied', 'Not allowed');
     const address = await recipientLightning(recipientUid);
     if (!address) throw httpsError('failed-precondition', 'That wallet has no Lightning address');
-    const pr = await fetchLnurlInvoice(address, amount);
+    const rate = await takeTipInvoiceRate(uid, Date.now());
+    if (!rate.ok) throw httpsError('resource-exhausted', 'Too many tip invoices. Wait a moment and try again.');
+    const fetched = await fetchLnurlInvoice(address, amount);
+    const pr = fetched.invoice;
     const paymentHash = hashFromInvoice(pr);
     const sats = invoiceSats(pr);
     if (!paymentHash || sats !== amount) throw httpsError('failed-precondition', 'Wallet returned an unexpected invoice');
@@ -506,7 +567,7 @@ async function requestTipInvoice(data, context) {
     if (existing.exists) {
         const row = existing.data() || {};
         if (row.senderUid === uid && row.recipientUid === recipientUid && row.sats === sats) {
-            return { success: true, invoice: row.invoice, paymentHash: paymentHash, sats: sats };
+            return { success: true, invoice: row.invoice, paymentHash: paymentHash, sats: sats, verifyUrl: fetched.verifyUrl || '' };
         }
         throw httpsError('already-exists', 'Invoice already used');
     }
@@ -518,7 +579,7 @@ async function requestTipInvoice(data, context) {
         invoice: pr,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { success: true, invoice: pr, paymentHash: paymentHash, sats: sats };
+    return { success: true, invoice: pr, paymentHash: paymentHash, sats: sats, verifyUrl: fetched.verifyUrl || '' };
 }
 
 module.exports = {

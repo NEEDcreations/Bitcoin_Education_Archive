@@ -116,6 +116,9 @@ test('badge credit requires a server invoice and an allowlisted verify host', ()
     assert.ok(tipBadge.hostAllowed('coinos.io'));
     assert.ok(tipBadge.hostAllowed('speed.app'));
     assert.strictEqual(tipBadge.hostAllowed('attacker.example'), false);
+    assert.strictEqual(tipBadge.hostAllowed('lnbits.com'), true);
+    assert.strictEqual(tipBadge.hostAllowed('demo.lnbits.com'), false);
+    assert.strictEqual(tipBadge.hostAllowed('foo.lnbits.com'), false);
     const stored = { senderUid: 'a', recipientUid: 'b', paymentHash: 'ab'.repeat(32), sats: 100, invoice: 'lnbc' };
     const base = {
         senderUid: 'a', recipientUid: 'b', stored: stored, decodedSats: 100,
@@ -158,6 +161,21 @@ test('badge credit requires a server invoice and an allowlisted verify host', ()
     assert.ok(service.includes('tipBadge.decide'));
     assert.ok(service.includes('invoiceSats(stored.invoice)'));
     assert.strictEqual(service.includes('invoiceSats(data && data.invoice)'), false);
+    const hops = service.slice(service.indexOf('const TIP_FETCH_HOPS'), service.indexOf('async function requestTipInvoice'));
+    assert.ok(hops.indexOf('hostAllowed') < hops.indexOf('fetch('));
+    assert.ok(hops.includes("redirect: 'manual'"));
+    assert.ok(hops.includes('assertPublicHost'));
+    assert.ok(hops.includes('TIP_FETCH_HOPS = 3'));
+    const request = service.slice(service.indexOf('async function requestTipInvoice'));
+    assert.ok(request.indexOf('takeTipInvoiceRate') < request.indexOf('fetchLnurlInvoice'));
+    const client = fs.readFileSync(path.join(__dirname, '..', 'lightning-tips.js.src'), 'utf8');
+    const serverAt = client.indexOf('requestTipInvoice');
+    assert.ok(serverAt > 0);
+    assert.ok(client.indexOf('opts.bolt11') < serverAt);
+    assert.ok(client.includes('confirmTipSent'));
+    assert.ok(client.includes('social tip only'));
+    const deployed = fs.readFileSync(path.join(__dirname, '..', 'lightning-tips.js'), 'utf8');
+    assert.ok(deployed.includes('requestTipInvoice'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

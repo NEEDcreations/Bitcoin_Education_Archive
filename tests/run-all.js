@@ -3,9 +3,15 @@
 // MASTER TEST RUNNER
 // Runs all test suites and reports results
 // Run: node tests/run-all.js
+// Installs tests/rules dependencies with npm ci first, so a fresh clone
+// can run the Firestore rules suites without a separate install step.
 // =============================================
 const { execSync } = require('child_process');
 const path = require('path');
+
+const rulesDir = path.join(__dirname, 'rules');
+console.log('Installing tests/rules dependencies (npm ci)…');
+execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },

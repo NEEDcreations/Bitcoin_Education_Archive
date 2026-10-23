@@ -267,12 +267,17 @@ queue.push(test('user updates deny server fields and poll votes are server-only'
     ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak', 'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay', 'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare', 'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived', 'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed'].forEach(function (field) {
         assert.ok(fn.includes("'" + field + "'"), field + ' must stay server-only');
     });
-    ['lqProgress', 'trailProgress', 'earnedTitles', 'nachoStoryProgress', 'spinCount', 'completedQuests', 'referredBy', 'notificationPrefs', 'beatsShowUncensored', 'bio'].forEach(function (field) {
+    ['lqProgress', 'trailProgress', 'earnedTitles', 'nachoStoryProgress', 'spinCount', 'completedQuests', 'notificationPrefs', 'beatsShowUncensored', 'bio'].forEach(function (field) {
         assert.ok(!fn.includes("'" + field + "'"), field + ' is a live client save');
     });
+    assert.ok(!fn.includes("'referredBy'"), 'referredBy stays out of userProfileServerOnlyKeys');
+    assert.ok(!fn.includes("'mergedAnon'"), 'mergedAnon stays out of userProfileServerOnlyKeys');
     assert.ok(rules.includes('userProfileServerOnlyKeys()'));
     const updateRule = rules.slice(rules.indexOf('allow update: if request.auth'), rules.indexOf('allow delete: if false'));
+    assert.ok(updateRule.includes("'referredBy'"), 'referredBy client write is denied');
+    assert.ok(updateRule.includes("'mergedAnon'"), 'mergedAnon client write is denied');
     assert.ok(updateRule.indexOf("'referredBy'") < updateRule.indexOf('userProfileServerOnlyKeys()'));
+    assert.ok(updateRule.indexOf("'mergedAnon'") < updateRule.indexOf('userProfileServerOnlyKeys()'));
     const polls = rules.slice(rules.indexOf('match /poll_votes/{pollId}'), rules.indexOf('match /poll_cumulative/'));
     assert.ok(polls.includes('allow read: if true'));
     assert.ok(polls.includes('allow create, update, delete: if false'));
@@ -531,6 +536,25 @@ queue.push(test('backfill dedupes date and name keys and plans faction totals on
     assert.strictEqual(none.missing[0].doc.faction, null);
     assert.strictEqual(none.byFaction.unaffiliated, 1);
     assert.strictEqual(backfill.creditsBadge('v_badge_' + nameToken, 'v', 'say_hi_1', name), true);
+    const classified = backfill.classifyHeld({
+        user: {
+            badges: ['say_hi_1'],
+            visibleBadges: ['peer_1'],
+            earnedHidden: ['spin_1'],
+            displayBadge: 'not_a_real_badge',
+            equippedBadge: 'say_hi_1',
+        },
+        awardIds: ['peer_1', 'fake_award_id'],
+    });
+    assert.ok(classified.credit.indexOf('say_hi_1') !== -1);
+    assert.ok(classified.credit.indexOf('peer_1') !== -1);
+    assert.strictEqual(classified.credit.indexOf('spin_1'), -1);
+    assert.strictEqual(classified.credit.indexOf('not_a_real_badge'), -1);
+    assert.strictEqual(classified.credit.indexOf('fake_award_id'), -1);
+    assert.strictEqual(classified.excluded['client-writable-field'], 2);
+    assert.strictEqual(classified.excluded['not-in-catalog'], 2);
+    const dropped = backfill.planUser({ uid: 'w', user: {}, held: ['not_a_real_badge'], contributorIds: [] });
+    assert.strictEqual(dropped.missing.length, 0);
     const src = fs.readFileSync(path.join(root, 'scripts', 'backfill-badge-favor.js'), 'utf8');
     assert.ok(src.includes("source: 'backfill'"));
     assert.ok(src.includes('pointsAdded: 1'));
@@ -555,6 +579,20 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.deepStrictEqual(lastGrant, ['combo_legend']);
     assert.deepStrictEqual(combo.planCombo(state, 'chat').grant, []);
     assert.deepStrictEqual(combo.planCombo(state, 'combo_legend').grant, []);
+    assert.strictEqual(
+        fs.readFileSync(path.join(root, 'data', 'trivia-bank.js'), 'utf8'),
+        fs.readFileSync(path.join(root, 'functions', 'src', 'trivia-bank.js'), 'utf8')
+    );
+    const os = require('os');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'trivia-fn-'));
+    fs.mkdirSync(path.join(tmp, 'functions', 'src'), { recursive: true });
+    fs.copyFileSync(path.join(root, 'functions', 'src', 'triviaBank.js'), path.join(tmp, 'functions', 'src', 'triviaBank.js'));
+    fs.copyFileSync(path.join(root, 'functions', 'src', 'trivia-bank.js'), path.join(tmp, 'functions', 'src', 'trivia-bank.js'));
+    assert.ok(!fs.existsSync(path.join(tmp, 'data', 'trivia-bank.js')));
+    const isolated = require(path.join(tmp, 'functions', 'src', 'triviaBank.js'));
+    const isolatedQuestion = isolated.questionForDay('2026-10-22');
+    assert.ok(isolatedQuestion && isolatedQuestion.optionCount > 0);
+    assert.strictEqual(isolated.grade('2026-10-22', isolatedQuestion.answer).correct, true);
     const trivia = require('../functions/src/triviaBank');
     const day = '2026-10-22';
     const question = trivia.questionForDay(day);

@@ -8756,6 +8756,7 @@ exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
         throw new functionsV1.https.HttpsError('not-found', 'User document not found');
     }
     if (userDoc.data().anonBadgesMerged) {
+        if (!userDoc.data().mergedAnon) await userRef.update({ mergedAnon: true });
         return { merged: 0, skipped: 0, alreadyDone: true };
     }
     const anonUid = data && typeof data.anonUid === 'string' ? data.anonUid : '';
@@ -8778,7 +8779,7 @@ exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
             } catch (e) { /* one badge must not abort the recompute */ }
         }
     }
-    await userRef.update({ anonBadgesMerged: true });
+    await userRef.update({ anonBadgesMerged: true, mergedAnon: true });
     console.log('[mergeAnonBadges] recomputed', uid, 'linkedAnon', linkedAnon, 'merged', merged);
     return { merged: merged, skipped: 0, recomputed: true };
 });

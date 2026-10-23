@@ -305,27 +305,22 @@ function initRanking() {
                 const existData = existingDoc.data();
                 // Anti-abuse: only merge anonymous data once per account
                 // Anonymous data merge now handled minimally (points/visits are server-managed)
-                if (!existData.mergedAnon) {
-                    try { await existingDoc.ref.update({ mergedAnon: true }); } catch (e) {}
+                if (!existData.mergedAnon && !existData.anonBadgesMerged) {
                     if (typeof tryLinkGuest === 'function') {
                         try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
                     }
-                    // Merge anonymous badges into existing account's visibleBadges.
-                    // Anonymous users can't write to Firestore, so their badges are
-                    // localStorage-only. mergeAnonBadges CF validates + unions them
-                    // into the real account's visibleBadges, deduplicated server-side.
-                    // One-time only: CF sets anonBadgesMerged flag to prevent replay.
+                    // Anonymous badges live in localStorage. mergeAnonBadges
+                    // recomputes from server counters and sets mergedAnon.
+                    // The client cannot write that flag.
                     var _anonBadges = [];
                     try { _anonBadges = JSON.parse(localStorage.getItem('btc_badges') || '[]'); } catch(e) {}
-                    if (_anonBadges.length > 0) {
-                        try {
-                            var _mergeAnonBadgesFn = firebase.functions().httpsCallable('mergeAnonBadges');
-                            await _mergeAnonBadgesFn({ anonBadges: _anonBadges });
-                            console.log('[Auth] Merged', _anonBadges.length, 'anon badges into account');
-                        } catch(e) {
-                            if (_isMfaBlock(e)) window._pendingAnonBadges = _anonBadges;
-                            else console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
-                        }
+                    try {
+                        var _mergeAnonBadgesFn = firebase.functions().httpsCallable('mergeAnonBadges');
+                        await _mergeAnonBadgesFn({ anonBadges: _anonBadges, anonUid: anonUid || '' });
+                        console.log('[Auth] Merged anon progress into account');
+                    } catch(e) {
+                        if (_isMfaBlock(e)) window._pendingAnonBadges = _anonBadges;
+                        else console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
                     }
                 }
             }

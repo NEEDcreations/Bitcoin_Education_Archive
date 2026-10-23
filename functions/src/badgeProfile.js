@@ -10,10 +10,10 @@ function cleanBadgeId(raw) {
     return String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 60);
 }
 
-function profileBadgeIds(user) {
+function collectIds(user, listFields, singleFields) {
     const set = new Set();
     if (!user || typeof user !== 'object') return set;
-    LIST_FIELDS.forEach(function (key) {
+    (listFields || []).forEach(function (key) {
         const value = user[key];
         if (Array.isArray(value)) {
             value.forEach(function (item) {
@@ -34,12 +34,16 @@ function profileBadgeIds(user) {
             });
         }
     });
-    SINGLE_FIELDS.forEach(function (key) {
+    (singleFields || []).forEach(function (key) {
         if (typeof user[key] !== 'string') return;
         const id = cleanBadgeId(user[key]);
         if (id) set.add(id);
     });
     return set;
+}
+
+function profileBadgeIds(user) {
+    return collectIds(user, LIST_FIELDS, SINGLE_FIELDS);
 }
 
 function profileHoldsBadge(user, badgeId) {
@@ -52,6 +56,7 @@ module.exports = {
     LIST_FIELDS: LIST_FIELDS,
     SINGLE_FIELDS: SINGLE_FIELDS,
     cleanBadgeId: cleanBadgeId,
+    collectIds: collectIds,
     profileBadgeIds: profileBadgeIds,
     profileHoldsBadge: profileHoldsBadge,
 };

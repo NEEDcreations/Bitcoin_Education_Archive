@@ -10,7 +10,8 @@ let bank = null;
 
 function load() {
     if (bank) return bank;
-    const src = fs.readFileSync(path.join(__dirname, '..', '..', 'data', 'trivia-bank.js'), 'utf8');
+    // Shipped inside functions/ so a functions-only deploy can grade trivia.
+    const src = fs.readFileSync(path.join(__dirname, 'trivia-bank.js'), 'utf8');
     bank = new Function(src + '\nreturn TRIVIA_BANK;')();
     return bank;
 }
