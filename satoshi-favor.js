@@ -334,7 +334,9 @@
     function renderHomeBanner() {
         var strip = document.getElementById('todayFavorStrip');
         if (strip && typeof window._paintTodayFavor === 'function') {
+            // Active window: favorActive and the countdown end is still ahead.
             var active = isFavorEffectivelyActive();
+            strip.dataset.favorLive = active ? '1' : '0';
             window._paintTodayFavor({
                 points: (favorState && favorState.points) || 0,
                 active: active,

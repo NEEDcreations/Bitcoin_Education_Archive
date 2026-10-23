@@ -666,6 +666,19 @@
         #todayFavorCountdown[hidden] { display: none !important; }
         #todayEarnFavor { margin-left: auto; background: #1a1208; color: #f7931a; border: none; border-radius: 10px; font-weight: 800; font-size: 0.92rem; padding: 10px 16px; cursor: pointer; font-family: inherit; }
         #todayEarnFavor:hover { filter: brightness(1.08); }
+        #todayFavorStrip.is-favor-active { position: relative; overflow: hidden; animation: todayFavorPulse 2s ease-in-out infinite; }
+        #todayFavorStrip.is-favor-active > * { position: relative; z-index: 1; }
+        #todayFavorStrip.is-favor-active::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(110deg, transparent 32%, rgba(255,255,255,0.22) 50%, transparent 68%); transform: translateX(-130%); animation: todayFavorShimmer 2s ease-in-out infinite; }
+        #todayEarnFavor.is-favor-active { animation: todayEarnPulse 2s ease-in-out infinite; }
+        @keyframes todayFavorPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 150, 0); transform: scale(1); } 50% { box-shadow: 0 0 22px 4px rgba(255, 220, 160, 0.55); transform: scale(1.012); } }
+        @keyframes todayFavorShimmer { 0%, 100% { transform: translateX(-130%); } 55% { transform: translateX(130%); } }
+        @keyframes todayEarnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); box-shadow: 0 0 12px rgba(255, 220, 160, 0.45); } }
+        @media (prefers-reduced-motion: reduce) {
+            #todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after, #todayEarnFavor.is-favor-active { animation: none; }
+            #todayFavorStrip.is-favor-active { box-shadow: 0 0 18px 2px rgba(255, 220, 160, 0.5); transform: none; }
+            #todayFavorStrip.is-favor-active::after { display: none; }
+            #todayEarnFavor.is-favor-active { transform: none; box-shadow: 0 0 10px rgba(255, 220, 160, 0.4); }
+        }
         .today-body { padding: 12px 12px 14px; }
         .today-check-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 2px 8px; }
         .today-check-head h2 { margin: 0; font-size: 1rem; font-weight: 900; color: #fff; }
@@ -1337,8 +1350,8 @@
                             <button id="nqSpinBtn" class="today-tile" type="button" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
                             <button id="tctvWatchBtn" class="today-tile" type="button" onclick="if(typeof startTctvDailyWatch==='function')startTctvDailyWatch()" aria-label="Watch 10 minutes of Timechain TV" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="tctvWatchEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">📺</span><span id="tctvWatchLabel">Watch TV</span><span id="tctvWatchSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/10 min</span></button>
                             <button class="today-tile" type="button" onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
-                            <button id="sayHiBtn" class="today-tile" type="button" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi to the community" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
-                            <button id="todayFlexBtn" class="today-tile" type="button" onclick="if(window.openTodayQuest)window.openTodayQuest('flex')" aria-label="Flex, healthy habits. Resets daily." style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🏆</span>Flex<span id="todayFlexSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">Resets daily</span></button>
+                            <button id="sayHiBtn" class="today-tile" type="button" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi!" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi!</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
+                            <button id="todayFlexBtn" class="today-tile" type="button" onclick="if(window.openTodayQuest)window.openTodayQuest('flex')" aria-label="Flex, 0 of 5" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🏆</span><span id="todayFlexLabel">Flex</span><span id="todayFlexSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/5</span></button>
                         </div>
                         <div id="todayTrifectaChooser" hidden role="group" aria-label="Quiz, Trivia, and Poll">
                             <button type="button" id="todayQuizBtn" onclick="if(window.openTodayQuest)window.openTodayQuest('quiz')">📝 Quiz</button>
@@ -1672,13 +1685,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="ranking.js?v=20261022_v2322" defer></script>
+    <script src="ranking.js?v=20261023_v2323" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261022_v2322" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261022_v2322" defer></script>
     <script src="tctv-watch.js?v=20261022_v2301" defer></script>
-    <script src="today-card.js?v=20261023_v2322" defer></script>
+    <script src="today-card.js?v=20261023_v2323" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
     <script src="onboarding.js?v=20261022_v2322" defer></script>
@@ -1692,15 +1705,15 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261022_v2322',
-            'satoshi-favor.js?v=20261023_v2322'
+            'global-chat.js?v=20261023_v2323',
+            'satoshi-favor.js?v=20261023_v2323'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261023_v2322',
+            'quests.js?v=20261023_v2323',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261022_v2263',
             'scholar.js?v=20260809_1846','beats.js?v=20261022_v2322',
-            'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261022_v2279',
+            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261022_v2322','gifting.js?v=20261022_v2254','guide.js?v=20261022_v2322','modules.js?v=20261022_v2287',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
@@ -1759,20 +1772,20 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261022_v2322'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261022_v2322'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261022_v2322'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261022_v2322'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2323'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2323'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2323'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2323'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
-            'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261022_v2279'],
+            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],
             'proof-of-play': ['pvp.js?v=20261022_v2322', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261022_v2287'],
             'learning-quests': ['learning-quests.js?v=20261014_0554'],
-            'quests':        ['quests.js?v=20261023_v2322'],
-            'questhub':      ['quests.js?v=20261023_v2322'],
-            'app':           ['quests.js?v=20261023_v2322'],
+            'quests':        ['quests.js?v=20261023_v2323'],
+            'questhub':      ['quests.js?v=20261023_v2323'],
+            'app':           ['quests.js?v=20261023_v2323'],
             'timechain-tv':  ['timechain-tv.js?v=20261022_v2266'],
             'tv':            ['timechain-tv.js?v=20261022_v2266']
         };

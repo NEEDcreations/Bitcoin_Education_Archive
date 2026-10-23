@@ -9,6 +9,7 @@ const admin = require('firebase-admin');
 const crypto = require('crypto');
 const dns = require('dns').promises;
 const bolt11 = require('bolt11');
+const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
@@ -785,28 +786,15 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
             throw new Error('Invalid Lightning Address.');
         }
         const parts = lnAddr.split('@');
-        const localPart = parts[0];
         const domain = (parts[1] || '').split(':')[0];
-        await _assertPublicHost(domain);
-        const nodeFetch = require('node-fetch');
-        const metaRes = await nodeFetch('https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart), { timeout: 8000, size: 65536 });
-        if (!metaRes.ok) throw new Error('Could not look up that Lightning Address.');
-        const meta = await metaRes.json();
-        if (!meta.callback) throw new Error('Lightning Address did not return a callback.');
-        let cbUrl;
-        try { cbUrl = new URL(meta.callback); } catch (_) { throw new Error('Bad callback URL.'); }
-        if (cbUrl.protocol !== 'https:' || cbUrl.hostname.toLowerCase() !== domain.toLowerCase()) {
-            throw new Error('Lightning Address callback was rejected.');
+        try {
+            const resolved = await resolveLnurlInvoice({ address: lnAddr, msats: amount * 1000, bolt11: bolt11 });
+            bolt = resolved.pr;
+        } catch (e) {
+            console.error('[GIFT] Lightning Address resolution failed domain=' + domain);
+            const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
+            throw new Error(clear && e.message ? e.message : 'Could not look up that Lightning Address.');
         }
-        const msats = amount * 1000;
-        if (meta.minSendable && msats < meta.minSendable) throw new Error('Amount is below that wallet minimum.');
-        if (meta.maxSendable && msats > meta.maxSendable) throw new Error('Amount is above that wallet maximum.');
-        const sep = meta.callback.indexOf('?') === -1 ? '?' : '&';
-        const invRes = await nodeFetch(meta.callback + sep + 'amount=' + msats, { timeout: 8000, size: 65536 });
-        if (!invRes.ok) throw new Error('Could not create an invoice for that address.');
-        const invData = await invRes.json();
-        if (!invData.pr) throw new Error('No invoice returned.');
-        bolt = invData.pr;
     }
     if (!bolt || bolt.toLowerCase().indexOf('lnbc') !== 0 || bolt.length < 50 || bolt.length > 2000) {
         throw new Error('Paste a Lightning invoice that starts with lnbc, or a Lightning Address.');

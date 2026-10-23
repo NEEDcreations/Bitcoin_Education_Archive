@@ -104,15 +104,93 @@
         return !!(card && /CURRENT RAID BOSS/.test(card.textContent || ''));
     }
 
-    function flexDone() {
-        var utc = new Date().toISOString().slice(0, 10);
-        var state = safeJSON('btc_flex_state', {});
-        for (var i = 0; i < FLEX_IDS.length; i++) {
-            var row = state && state[FLEX_IDS[i]];
-            if (!row || row.lastDate !== utc) return false;
-        }
-        return true;
+    function flexGoal() {
+        return Math.min(5, FLEX_IDS.length);
     }
+
+    function flexCount() {
+        var n = window._todayFlexCount;
+        if (typeof n !== 'number' || !isFinite(n) || n < 0) return 0;
+        return Math.floor(n);
+    }
+
+    // Count comes from users/{uid}/daily_action_counts/{offsetDay}_flex.
+    function paintFlex() {
+        var goal = flexGoal();
+        var count = flexCount();
+        var shown = Math.min(count, goal);
+        var done = goal > 0 && count >= goal;
+        var btn = document.getElementById('todayFlexBtn');
+        var label = document.getElementById('todayFlexLabel');
+        var sub = document.getElementById('todayFlexSub');
+        if (label) label.textContent = 'Flex';
+        if (sub) sub.textContent = shown + '/' + goal;
+        if (btn) btn.setAttribute('aria-label', 'Flex, ' + shown + ' of ' + goal);
+        mark(btn, done);
+        return done;
+    }
+
+    var flexWatchId = '';
+    var flexUnsub = null;
+
+    function flexUid() {
+        try {
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return auth.currentUser.uid;
+            }
+        } catch (e) {}
+        return '';
+    }
+
+    function watchFlexCount() {
+        if (window._todayStubUser) return;
+        var uid = flexUid();
+        var canRead = uid && typeof db !== 'undefined' && db && typeof firebase !== 'undefined' && firebase.firestore;
+        if (!canRead) {
+            if (flexUnsub) {
+                try { flexUnsub(); } catch (e) {}
+                flexUnsub = null;
+            }
+            flexWatchId = '';
+            if (window._todayFlexCount !== 0) {
+                window._todayFlexCount = 0;
+                if (window._paintTodayCard) window._paintTodayCard();
+            }
+            return;
+        }
+        var id = uid + '/' + todayKey();
+        if (flexWatchId === id && flexUnsub) return;
+        if (flexUnsub) {
+            try { flexUnsub(); } catch (e2) {}
+            flexUnsub = null;
+        }
+        flexWatchId = id;
+        var day = todayKey();
+        try {
+            flexUnsub = db.collection('users').doc(uid).collection('daily_action_counts').doc(day + '_flex').onSnapshot(function (snap) {
+                var n = 0;
+                if (snap && snap.exists) {
+                    var data = snap.data() || {};
+                    n = parseInt(data.count, 10);
+                    if (isNaN(n) || n < 0) n = 0;
+                }
+                window._todayFlexCount = n;
+                if (window._paintTodayCard) window._paintTodayCard();
+            }, function () {
+                window._todayFlexCount = 0;
+                if (window._paintTodayCard) window._paintTodayCard();
+            });
+        } catch (e3) {
+            flexWatchId = '';
+        }
+    }
+
+    window._noteTodayFlexCount = function (n) {
+        var count = parseInt(n, 10);
+        if (isNaN(count) || count < 0) count = 0;
+        window._todayFlexCount = count;
+        if (window._paintTodayCard) window._paintTodayCard();
+    };
 
     function storyNeedsAttention() {
         var days = safeJSON('btc_nacho_story_days', []);
@@ -139,25 +217,33 @@
     }
 
     function paintFavor() {
+        var strip = document.getElementById('todayFavorStrip');
+        var title = document.getElementById('todayFavorTitle');
+        var earn = document.getElementById('todayEarnFavor');
         var pointsEl = document.getElementById('todayFavorPoints');
         var cd = document.getElementById('todayFavorCountdown');
         if (!pointsEl || !cd) return;
-        if (!signedIn()) {
+        var info = window._todayFavorInfo;
+        // info.active is isFavorEffectivelyActive(): the countdown is running.
+        var active = !!(info && info.active);
+        if (strip) strip.classList.toggle('is-favor-active', active);
+        if (earn) earn.classList.toggle('is-favor-active', active);
+        if (title) title.textContent = active ? "Satoshi's Favor is Active!" : "Satoshi's Favor";
+        if (!signedIn() && !active) {
             pointsEl.textContent = 'Earn Favor daily, payouts every epoch';
             cd.hidden = true;
             cd.textContent = '';
             delete cd.dataset.live;
             return;
         }
-        var info = window._todayFavorInfo;
         if (!info) {
-            pointsEl.textContent = 'Favor points';
+            pointsEl.textContent = signedIn() ? 'Favor points' : 'Earn Favor daily, payouts every epoch';
             cd.hidden = !cd.dataset.live;
             return;
         }
         pointsEl.textContent = info.points + ' Favor points';
         cd.hidden = false;
-        if (info.active) {
+        if (active) {
             cd.dataset.live = '1';
             return;
         }
@@ -201,8 +287,11 @@
         var predictLabel = document.getElementById('predAccuracyLabel');
         mark(predictLabel && predictLabel.closest ? predictLabel.closest('button') : null, predictDone());
         mark(document.getElementById('sayHiBtn'), sayHiDone());
-        var flex = flexDone();
-        mark(document.getElementById('todayFlexBtn'), flex);
+        var sayHiLabel = document.getElementById('sayHiBtnLabel');
+        var sayHiSub = document.getElementById('sayHiBtnSub');
+        if (sayHiLabel) sayHiLabel.textContent = 'Say hi!';
+        if (sayHiSub) sayHiSub.textContent = 'to the community';
+        var flex = paintFlex();
         var done = (tri === 3 ? 1 : 0) + (spinDone() ? 1 : 0) + (watchDone() ? 1 : 0) + (predictDone() ? 1 : 0) + (sayHiDone() ? 1 : 0) + (flex ? 1 : 0);
         var counter = document.getElementById('todayDoneCount');
         if (counter) counter.textContent = done + '/6 done today';
@@ -274,13 +363,20 @@
     function boot() {
         applyMoreState();
         window._paintTodayCard();
+        watchFlexCount();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 
-    setInterval(function () { if (window._paintTodayCard) window._paintTodayCard(); }, 20000);
-    window.addEventListener('focus', function () { if (window._paintTodayCard) window._paintTodayCard(); });
+    setInterval(function () {
+        watchFlexCount();
+        if (window._paintTodayCard) window._paintTodayCard();
+    }, 20000);
+    window.addEventListener('focus', function () {
+        watchFlexCount();
+        if (window._paintTodayCard) window._paintTodayCard();
+    });
     window.addEventListener('storage', function () { if (window._paintTodayCard) window._paintTodayCard(); });
 
     if (!(typeof window.showQuestHub === 'function' && window.showQuestHub._todayReal)) {

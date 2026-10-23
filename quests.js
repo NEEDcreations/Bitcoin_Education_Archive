@@ -6206,7 +6206,14 @@ var FLEX_ACTIONS = [
 var FLEX_BADGE_MILESTONES = [1, 5, 50, 500];
 
 function _flexTodayKey() {
-    return new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    try {
+        if (typeof getDailyKey === 'function') return getDailyKey();
+    } catch (e) {}
+    return new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10);
+}
+
+function _flexDayGoal() {
+    return Math.min(5, FLEX_ACTIONS.length);
 }
 
 function _flexGetState() {
@@ -6235,7 +6242,22 @@ function _flexMarkDone(actionId, onDone) {
     s[actionId].total = (s[actionId].total || 0) + 1;
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
-    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
+    var award = null;
+    if (action && typeof awardPoints === 'function') {
+        award = awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
+    }
+    if (award && typeof award.then === 'function') {
+        award.then(function (result) {
+            var data = result && result.data ? result.data : null;
+            if (!data || data.success === false) return;
+            if (typeof data.flexCount === 'number' && typeof window._noteTodayFlexCount === 'function') {
+                window._noteTodayFlexCount(data.flexCount);
+            }
+            if (typeof data.flexFullDays === 'number') window._flexFullDays = data.flexFullDays;
+            if (data.flexDayComplete) _flexClaimDayRewards(data);
+            if (typeof window._paintFlexHubGoal === 'function') window._paintFlexHubGoal();
+        }).catch(function () {});
+    }
     // Persist lifetime total to Firestore so it survives localStorage wipes
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
         var _flexTotalsRef = db.collection('users').doc(auth.currentUser.uid);
@@ -6245,17 +6267,15 @@ function _flexMarkDone(actionId, onDone) {
     }
     // Check per-action badges
     _flexCheckBadges(actionId, s[actionId].total);
-    // Check all-daily-flex-complete badge
-    _flexCheckAllDoneBadge(s);
     if (onDone) onDone(s[actionId].total);
 }
 
 var FLEX_ALL_MILESTONES = [1, 5, 50, 500];
 var FLEX_ALL_BADGE_DEFS = [
-    { m:1,   id:'flex_all_1',   emoji:'💪', name:'Full Stack Bitcoiner',    desc:'Completed every daily Flex action in one day',            pts:25   },
-    { m:5,   id:'flex_all_5',   emoji:'🔥', name:'Consistent Stacker',      desc:'Completed all daily Flex actions 5 times',                pts:100  },
-    { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Completed all daily Flex actions 50 times',               pts:500  },
-    { m:500, id:'flex_all_500', emoji:'🏆', name:'Proof of Discipline',       desc:'Completed all daily Flex actions 500 times',              pts:5000 },
+    { m:1,   id:'flex_all_1',   emoji:'💪', name:'Full Stack Bitcoiner',    desc:'Completed 5 Flex actions in one day',                     pts:25   },
+    { m:5,   id:'flex_all_5',   emoji:'🔥', name:'Consistent Stacker',      desc:'Hit the daily Flex goal 5 days',                           pts:100  },
+    { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Hit the daily Flex goal 50 days',                          pts:500  },
+    { m:500, id:'flex_all_500', emoji:'🏆', name:'Proof of Discipline',       desc:'Hit the daily Flex goal 500 days',                         pts:5000 },
 ];
 
 // Restore today's flex completions from server daily_action_counts
@@ -6269,10 +6289,18 @@ window._flexRestoreFromServer = function(uid) {
             .where(firebase.firestore.FieldPath.documentId(), '>=', today + '_flex_')
             .where(firebase.firestore.FieldPath.documentId(), '<=', today + '_flex_\uf8ff')
             .get({ source: 'server' }),
-        db.collection('users').doc(uid).get({ source: 'server' })
+        db.collection('users').doc(uid).get({ source: 'server' }),
+        db.collection('users').doc(uid).collection('daily_action_counts').doc(today + '_flex').get({ source: 'server' })
     ]).then(function(results) {
         var snap = results[0];
         var userDoc = results[1];
+        var countDoc = results[2];
+        var serverCount = countDoc && countDoc.exists ? (parseInt(countDoc.data().count, 10) || 0) : 0;
+        if (serverCount < 0) serverCount = 0;
+        window._flexFullDays = (userDoc.exists && userDoc.data().flexFullDays) || 0;
+        if (typeof window._noteTodayFlexCount === 'function') window._noteTodayFlexCount(serverCount);
+        else window._todayFlexCount = serverCount;
+        if (serverCount >= _flexDayGoal()) _flexClaimDayRewards({ flexDayComplete: true, flexFullDays: window._flexFullDays });
         var flexTotals = (userDoc.exists && userDoc.data().flexTotals) ? userDoc.data().flexTotals : {};
         var s = _flexGetState();
         var restored = 0;
@@ -6307,27 +6335,33 @@ window._flexRestoreFromServer = function(uid) {
     }).catch(function(e) { console.warn('[FLEX] Server restore failed:', e.message); });
 };
 
-function _flexCheckAllDoneBadge(s) {
-    // All actions completed today?
-    var allDone = FLEX_ACTIONS.every(function(a) {
-        return s[a.id] && s[a.id].lastDate === _flexTodayKey();
-    });
-    if (!allDone) return;
-    // Increment all-done streak counter (once per day)
-    var allKey = '__flex_all_done__';
-    if (!s[allKey]) s[allKey] = { total: 0, lastDate: '' };
-    if (s[allKey].lastDate === _flexTodayKey()) return; // already counted today
-    s[allKey].lastDate = _flexTodayKey();
-    s[allKey].total = (s[allKey].total || 0) + 1;
-    _flexSaveState(s);
-    var total = s[allKey].total;
-    // Award bonus XP
-    if (typeof awardPoints === 'function') awardPoints(50, '💪 FLEX: All Daily Actions Complete! Day #' + total);
-    // Toast
-    if (typeof showToast === 'function') showToast('💪 Full Stack! All Flex done today! +50 XP');
-    // Check milestones
+function _flexClaimDayRewards(data) {
+    if (!data || !data.flexDayComplete) return;
+    var fullDays = parseInt(data.flexFullDays, 10);
+    if (isNaN(fullDays) || fullDays < 0) fullDays = 0;
+    var day = _flexTodayKey();
+    var flag = 'btc_flex_day_bonus_' + day;
+    var booked = false;
+    try { booked = localStorage.getItem(flag) === '1'; } catch (e) {}
+    if (!booked && typeof awardPoints === 'function') {
+        try { localStorage.setItem(flag, '1'); } catch (e2) {}
+        var pending = awardPoints(50, '💪 FLEX: All Daily Actions Complete! Day #' + Math.max(fullDays, 1), null, null, null, null, { actionKey: 'flex_day_complete' });
+        if (pending && typeof pending.then === 'function') {
+            pending.then(function (result) {
+                var info = result && result.data ? result.data : null;
+                if (info && info.success === false && !info.dailyActionCapped) {
+                    try { localStorage.removeItem(flag); } catch (e3) {}
+                    return;
+                }
+                if (info && info.success && typeof showToast === 'function') showToast('💪 Full Stack! Flex done today! +50 XP');
+            }).catch(function () {
+                try { localStorage.removeItem(flag); } catch (e4) {}
+            });
+        }
+    }
+    if (fullDays < 1) return;
     FLEX_ALL_BADGE_DEFS.forEach(function(def) {
-        if (total >= def.m) {
+        if (fullDays >= def.m) {
             var allCur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
             var allAlreadyEarned = allCur.indexOf(def.id) !== -1;
             if (typeof earnedBadges !== 'undefined' && !allAlreadyEarned && !earnedBadges.has(def.id)) {
@@ -6340,7 +6374,7 @@ function _flexCheckAllDoneBadge(s) {
                         var _alreadyAwarded = result && result.data &&
                             (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
                         var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
-                        if (!serverRejected && total === def.m && typeof window.contributeSatoshiFavor === 'function') {
+                        if (!serverRejected && fullDays === def.m && typeof window.contributeSatoshiFavor === 'function') {
                             window.contributeSatoshiFavor('badge_earned', def.id).catch(function(){});
                         }
                     }).catch(function() {});
@@ -6391,6 +6425,20 @@ function _flexCheckBadges(actionId, total) {
     });
 }
 
+window._paintFlexHubGoal = function () {
+    var goal = _flexDayGoal();
+    var raw = (typeof window._todayFlexCount === 'number') ? window._todayFlexCount : 0;
+    if (raw < 0) raw = 0;
+    var shown = Math.min(raw, goal);
+    var met = goal > 0 && raw >= goal;
+    var bar = document.getElementById('flexDayProgressBar');
+    var label = document.getElementById('flexDayProgressLabel');
+    var mark = document.getElementById('flexDayStackMark');
+    if (bar) bar.style.width = Math.round((goal ? shown / goal : 0) * 100) + '%';
+    if (label) label.textContent = shown + '/' + goal + ' today' + (met ? ' — Full Stack!' : '');
+    if (mark) mark.textContent = met ? '🏆' : '🎯';
+};
+
 function _renderFlexTab(body) {
     var today = _flexTodayKey();
     var doneCount = FLEX_ACTIONS.filter(function(a) { return _flexDoneToday(a.id); }).length;
@@ -6417,20 +6465,23 @@ function _renderFlexTab(body) {
         '.flex-streak{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.3);border-radius:10px;font-size:0.65rem;font-weight:700;color:var(--accent);}' +
     '</style>';
 
-    // Header
-    var _flexAllState = _flexGetState()['__flex_all_done__'] || { total: 0 };
-    var _flexAllTotal = _flexAllState.total || 0;
-    var _flexNextBadge = FLEX_ALL_BADGE_DEFS.find(function(d){ return _flexAllTotal < d.m; });
-    var _flexAllDoneToday = FLEX_ACTIONS.every(function(a){ return _flexDoneToday(a.id); });
+    // Header. The daily goal is 5 (or the catalog size when that is smaller).
+    var goal = _flexDayGoal();
+    var raw = (typeof window._todayFlexCount === 'number') ? window._todayFlexCount : doneCount;
+    if (raw < 0) raw = 0;
+    var shown = Math.min(raw, goal);
+    var goalMet = goal > 0 && raw >= goal;
+    var fullDays = parseInt(window._flexFullDays, 10) || 0;
+    var _flexNextBadge = FLEX_ALL_BADGE_DEFS.find(function(d){ return fullDays < d.m; });
     html += '<div style="text-align:center;margin-bottom:16px;">' +
-        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (_flexAllDoneToday ? '🏆' : '🎯') + '</div>' +
+        '<div id="flexDayStackMark" style="font-size:1.8rem;margin-bottom:4px;">' + (goalMet ? '🏆' : '🎯') + '</div>' +
         '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Flex</div>' +
         '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
         '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
-        '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + doneCount + '/' + FLEX_ACTIONS.length + ' done today' + (_flexAllDoneToday ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Stack!</span>' : '') + '</div>' +
-        (_flexAllTotal > 0 || _flexAllDoneToday ? '<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;padding:4px 10px;font-size:0.68rem;font-weight:700;color:var(--accent);">'
-            + '🏆 Full Stack ×' + _flexAllTotal
+        '<div id="flexDayProgressBar" style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round((goal ? shown / goal : 0) * 100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
+        '<div id="flexDayProgressLabel" style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + shown + '/' + goal + ' today' + (goalMet ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Stack!</span>' : '') + '</div>' +
+        (fullDays > 0 || goalMet ? '<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;padding:4px 10px;font-size:0.68rem;font-weight:700;color:var(--accent);">'
+            + '🏆 Full Stack ×' + fullDays
             + (_flexNextBadge ? ' — next badge at ' + _flexNextBadge.m : ' — 🏆 Max badges!')
             + '</div>' : '') +
     '</div>';

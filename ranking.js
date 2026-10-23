@@ -19,7 +19,10 @@ var LN_ADDRESS_LOCK_NOTICE = "You can only add one lightning address to your acc
 var LN_ADDRESS_LOCKED_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 
 function normalizeClientLn(addr) {
-    return String(addr || '').trim().toLowerCase();
+    var s = String(addr || '').trim().toLowerCase();
+    if (s.indexOf('lightning:') === 0) s = s.slice('lightning:'.length).trim();
+    if (s.indexOf('mailto:') === 0) s = s.slice('mailto:'.length).trim();
+    return s;
 }
 function clientLnValid(addr) {
     return addr.length >= 5 && addr.length <= 320 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr);
@@ -5283,9 +5286,10 @@ function showSettingsPage(tab) {
                 html += '<div class="pf-link-row" data-key="lightning" style="margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);">' +
                     '<div style="display:flex;align-items:center;gap:12px;">' +
                     '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
-                    '<span style="flex:1;color:var(--text);font-size:0.85rem;word-break:break-all;">' + escapeHtml(val) + '</span>' +
+                    '<span id="profileLnReadonly" style="flex:1;color:var(--text);font-size:0.85rem;word-break:break-all;"></span>' +
                     '</div>' +
                     '<p style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCKED_NOTICE + '</p>' +
+                    '<p style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.</p>' +
                     '</div>';
                 return;
             }
@@ -5314,6 +5318,9 @@ function showSettingsPage(tab) {
 
                 // Lightning wallet prompt (only if no Lightning Address set)
         var _hasLn = currentUser && (currentUser.lightning || currentUser.lightningAddress);
+        if (!_hasLn || (typeof _withdrawalLnEligible === 'function' && _withdrawalLnEligible())) {
+            html += '<button type="button" onclick="openWithdrawalAddress({mode:\'reset\'})" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">Set your withdrawal Lightning Address</button>';
+        }
         if (!_hasLn) {
             html += '<div onclick="hideUsernamePrompt();setTimeout(function(){go(\'lightning\')},300)" style="width:100%;padding:16px;background:linear-gradient(135deg,rgba(234,179,8,0.08),rgba(247,147,26,0.04));border:2px solid rgba(247,147,26,0.25);border-radius:14px;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:12px;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
                 '<span style="font-size:1.8rem;">⚡</span>' +
@@ -5932,12 +5939,19 @@ function showSettingsPage(tab) {
         var _satsLnAddr = currentUser ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;background:linear-gradient(135deg,#eab308,#f97316);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">⚡</div><div><div style="font-weight:700;font-size:0.85rem;color:var(--text);">Lightning Address</div><div style="font-size:0.72rem;color:var(--text-muted);">For receiving tips from other users</div></div></div>';
+        var _satsLnEligible = !_satsLnAddr || !clientLnValid(normalizeClientLn(_satsLnAddr));
+        try { if (sessionStorage.getItem('btc_ln_needs_reset') === '1') _satsLnEligible = true; } catch (eLnFlag) {}
         if (_satsLnAddr) {
-            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:8px;"><span style="color:#22c55e;font-size:0.9rem;">✅</span><span style="color:var(--text);font-size:0.82rem;font-weight:600;word-break:break-all;">' + escapeHtml(_satsLnAddr) + '</span></div>';
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:8px;"><span style="color:#22c55e;font-size:0.9rem;">✅</span><span id="satsLnReadonly" style="color:var(--text);font-size:0.82rem;font-weight:600;word-break:break-all;"></span></div>';
             html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCKED_NOTICE + '</p>';
+            html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.</p>';
+            html += '<button type="button" onclick="showWithdrawalAddressReadonly()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">View withdrawal address</button>';
         } else {
             html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCK_NOTICE + '</p>';
             html += '<div style="display:flex;gap:8px;align-items:center;"><input type="text" id="satsLnAddrInput" placeholder="you@walletofsatoshi.com" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:10px 12px;background:var(--input-bg,rgba(255,255,255,0.07));border:1px solid var(--border,#444);border-radius:10px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;-webkit-text-fill-color:var(--text,#e2e8f0);" onkeydown="if(event.key===\'Enter\')saveSatsLnAddress()"><button onclick="saveSatsLnAddress()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button></div>';
+        }
+        if (_satsLnEligible) {
+            html += '<button type="button" onclick="openWithdrawalAddress({mode:\'reset\'})" style="margin-top:8px;width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Set your withdrawal Lightning Address</button>';
         }
         html += '<div id="satsLnAddrStatus" style="margin-top:6px;font-size:0.75rem;text-align:center;"></div>';
         if (!_satsLnAddr) {
@@ -6746,6 +6760,11 @@ function showSettingsPage(tab) {
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
+    var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';
+    var profileLn = document.getElementById('profileLnReadonly');
+    var satsLn = document.getElementById('satsLnReadonly');
+    if (profileLn) profileLn.textContent = shownLn;
+    if (satsLn) satsLn.textContent = shownLn;
     modal.classList.add('open');
     if (settingsTab === 'prefs') {
         setTimeout(function() {
@@ -7337,6 +7356,7 @@ async function saveProfile() {
     }
     var updateData = { bio: bio, country: country };
     var _lnProfileError = '';
+    var _profileFreshLn = '';
 
     // Social links mapping
     var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
@@ -7364,10 +7384,7 @@ async function saveProfile() {
                     _lnProfileError = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)';
                     return;
                 }
-                if (freshLn) {
-                    updateData.lightning = freshLn;
-                    updateData.lightningAddress = freshLn;
-                }
+                if (freshLn) _profileFreshLn = freshLn;
             }
             return;
         }
@@ -7420,6 +7437,7 @@ async function saveProfile() {
 
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
         if (typeof showToast === 'function') showToast('✅ Profile saved successfully!');
+        if (_profileFreshLn) openWithdrawalAddress({ mode: 'reset', address: _profileFreshLn, start: 'confirm' });
 
         // Small delay then close or refresh settings view
         setTimeout(function() {
@@ -7816,7 +7834,12 @@ window.submitUsername = async function() {
             showToast('⚡ Please enter a valid Lightning address (e.g. you@wallet.com) or leave it blank.');
             return;
         }
-        if (lnAddress) localStorage.setItem('btc_pending_ln_address', lnAddress);
+        if (lnAddress) {
+            var confirmedSignup = await openWithdrawalAddress({ mode: 'signup', address: lnAddress, start: 'confirm' });
+            if (!confirmedSignup) return;
+            lnAddress = confirmedSignup;
+            localStorage.setItem('btc_pending_ln_address', lnAddress);
+        }
 
         if (email) {
             // Email provided - send magic link for verification
@@ -7887,6 +7910,283 @@ if (!localStorage.getItem('btc_last_height') || Date.now() - parseInt(localStora
         var height=parseInt(h);if(height){localStorage.setItem('btc_last_height',height.toString());localStorage.setItem('btc_height_ts',Date.now().toString());}
     }).catch(function(){});
 }
+
+var LN_PERMANENT_WARNING = 'This will be your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.';
+var LN_READONLY_NOTE = 'This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.';
+var LN_DOUBLE_CHECK = 'Please double-check this is written exactly right';
+var LN_SET_TITLE = 'Set your withdrawal Lightning Address';
+var LN_TURNSTILE_SITEKEY = '0x4AAAAAAD-ivgpRkbXpgz86';
+
+function _savedWithdrawalLn() {
+    var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    if (!u) return '';
+    return normalizeClientLn(u.lightningAddress || u.lightning || u.lnAddress || '');
+}
+
+function _withdrawalLnEligible() {
+    var saved = _savedWithdrawalLn();
+    if (!saved || !clientLnValid(saved)) return true;
+    try { if (sessionStorage.getItem('btc_ln_needs_reset') === '1') return true; } catch (e) {}
+    return false;
+}
+
+function _lnBtn(label, primary) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.style.cssText = primary
+        ? 'flex:1;padding:12px;background:#f97316;color:#fff;border:none;border-radius:12px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;'
+        : 'flex:1;padding:12px;background:transparent;color:#e2e8f0;border:1px solid #1e293b;border-radius:12px;font-size:0.92rem;font-weight:700;cursor:pointer;font-family:inherit;';
+    return btn;
+}
+
+function openWithdrawalAddress(opts) {
+    opts = opts || {};
+    var mode = opts.mode || 'reset';
+    var start = opts.start || (mode === 'readonly' ? 'readonly' : 'input');
+    return new Promise(function (resolve) {
+        var old = document.getElementById('lnAddrModal');
+        if (old) old.remove();
+        var settled = false;
+        function finish(value) {
+            if (settled) return;
+            settled = true;
+            var el = document.getElementById('lnAddrModal');
+            if (el) el.remove();
+            resolve(value || null);
+        }
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lnAddrModal';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:620000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
+
+        var panel = document.createElement('div');
+        panel.style.cssText = 'background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:22px;max-width:420px;width:100%;color:#e2e8f0;box-sizing:border-box;';
+
+        var title = document.createElement('div');
+        title.id = 'lnAddrTitle';
+        title.textContent = mode === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
+        title.style.cssText = 'font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:12px;text-align:center;';
+        panel.appendChild(title);
+
+        var errorEl = document.createElement('div');
+        errorEl.id = 'lnAddrError';
+        errorEl.style.cssText = 'display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#fca5a5;text-align:center;';
+        function paintLnError(msg) {
+            errorEl.textContent = msg || '';
+            errorEl.style.display = msg ? 'block' : 'none';
+        }
+        panel.appendChild(errorEl);
+
+        var stepInput = document.createElement('div');
+        stepInput.id = 'lnAddrStepInput';
+        var inputLabel = document.createElement('label');
+        inputLabel.textContent = 'Lightning Address';
+        inputLabel.style.cssText = 'display:block;font-size:0.78rem;color:#94a3b8;margin-bottom:6px;';
+        var input = document.createElement('input');
+        input.id = 'lnAddrInput';
+        input.type = 'text';
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('autocapitalize', 'off');
+        input.setAttribute('spellcheck', 'false');
+        input.placeholder = 'you@walletofsatoshi.com';
+        input.value = opts.address ? String(opts.address) : '';
+        input.style.cssText = 'width:100%;padding:12px;background:#020617;border:1px solid #1e293b;border-radius:10px;color:#e2e8f0;font-size:1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;outline:none;box-sizing:border-box;';
+        var nextRow = document.createElement('div');
+        nextRow.style.cssText = 'display:flex;gap:8px;margin-top:14px;';
+        var cancelBtn = _lnBtn('Cancel', false);
+        var nextBtn = _lnBtn('Continue', true);
+        nextRow.appendChild(cancelBtn);
+        nextRow.appendChild(nextBtn);
+        stepInput.appendChild(inputLabel);
+        stepInput.appendChild(input);
+        stepInput.appendChild(nextRow);
+
+        var stepConfirm = document.createElement('div');
+        stepConfirm.id = 'lnAddrStepConfirm';
+        var addrEl = document.createElement('div');
+        addrEl.id = 'lnAddrConfirmText';
+        addrEl.style.cssText = 'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:1.35rem;font-weight:700;color:#fff;text-align:center;word-break:break-all;line-height:1.35;margin:8px 0 12px;';
+        var check = document.createElement('p');
+        check.textContent = LN_DOUBLE_CHECK;
+        check.style.cssText = 'margin:0 0 8px;font-size:0.95rem;font-weight:700;text-align:center;color:#fff;';
+        var warn = document.createElement('p');
+        warn.textContent = LN_PERMANENT_WARNING;
+        warn.style.cssText = 'margin:0 0 14px;font-size:0.8rem;line-height:1.45;color:#cbd5e1;text-align:center;';
+        var checkRow = document.createElement('label');
+        checkRow.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:0.85rem;margin-bottom:12px;cursor:pointer;';
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.id = 'lnAddrUnderstand';
+        var boxText = document.createElement('span');
+        boxText.textContent = 'I understand';
+        checkRow.appendChild(box);
+        checkRow.appendChild(boxText);
+        var ts = document.createElement('div');
+        ts.id = 'lnAddrTurnstile';
+        ts.style.cssText = 'margin-bottom:12px;';
+        var confirmRow = document.createElement('div');
+        confirmRow.style.cssText = 'display:flex;gap:8px;';
+        var backBtn = _lnBtn('Back / Edit', false);
+        var confirmBtn = _lnBtn('Confirm', true);
+        confirmBtn.id = 'lnAddrConfirmBtn';
+        confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '0.55';
+        confirmRow.appendChild(backBtn);
+        confirmRow.appendChild(confirmBtn);
+        stepConfirm.appendChild(addrEl);
+        stepConfirm.appendChild(check);
+        stepConfirm.appendChild(warn);
+        stepConfirm.appendChild(checkRow);
+        stepConfirm.appendChild(ts);
+        stepConfirm.appendChild(confirmRow);
+
+        var stepRead = document.createElement('div');
+        stepRead.id = 'lnAddrStepReadonly';
+        var readAddr = document.createElement('div');
+        readAddr.id = 'lnAddrReadonlyText';
+        readAddr.style.cssText = addrEl.style.cssText;
+        var readNote = document.createElement('p');
+        readNote.textContent = LN_READONLY_NOTE;
+        readNote.style.cssText = 'margin:0 0 14px;font-size:0.8rem;line-height:1.45;color:#cbd5e1;text-align:center;';
+        var closeBtn = _lnBtn('Close', true);
+        stepRead.appendChild(readAddr);
+        stepRead.appendChild(readNote);
+        stepRead.appendChild(closeBtn);
+
+        panel.appendChild(stepInput);
+        panel.appendChild(stepConfirm);
+        panel.appendChild(stepRead);
+        overlay.appendChild(panel);
+
+        var chosen = normalizeClientLn(opts.address || '');
+        var widgetRendered = false;
+
+        function paintLnStep(name) {
+            stepInput.style.display = name === 'input' ? 'block' : 'none';
+            stepConfirm.style.display = name === 'confirm' ? 'block' : 'none';
+            stepRead.style.display = name === 'readonly' ? 'block' : 'none';
+            title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
+            if (name === 'confirm' && mode === 'reset' && !widgetRendered && window.turnstile) {
+                widgetRendered = true;
+                try {
+                    window.turnstile.render('#lnAddrTurnstile', { sitekey: LN_TURNSTILE_SITEKEY, theme: 'dark', size: 'flexible' });
+                } catch (e) {}
+            }
+            if (name === 'confirm' && mode !== 'reset') ts.style.display = 'none';
+        }
+
+        function goConfirm(addr) {
+            chosen = addr;
+            addrEl.textContent = addr;
+            box.checked = false;
+            confirmBtn.disabled = true;
+            confirmBtn.style.opacity = '0.55';
+            paintLnError('');
+            paintLnStep('confirm');
+        }
+
+        cancelBtn.addEventListener('click', function () { finish(null); });
+        closeBtn.addEventListener('click', function () { finish(null); });
+        nextBtn.addEventListener('click', function () {
+            var addr = normalizeClientLn(input.value);
+            if (!clientLnValid(addr)) {
+                paintLnError('Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)');
+                return;
+            }
+            paintLnError('');
+            goConfirm(addr);
+        });
+        backBtn.addEventListener('click', function () {
+            input.value = chosen || input.value;
+            paintLnStep('input');
+        });
+        box.addEventListener('change', function () {
+            confirmBtn.disabled = !box.checked;
+            confirmBtn.style.opacity = box.checked ? '1' : '0.55';
+        });
+        confirmBtn.addEventListener('click', function () {
+            if (!box.checked || !chosen) return;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Saving…';
+            var pending = Promise.resolve({ ok: true, address: chosen });
+            if (typeof opts.onConfirm === 'function') pending = Promise.resolve(opts.onConfirm(chosen));
+            else if (mode === 'reset') pending = _callResetLightning(chosen);
+            pending.then(function (result) {
+                result = result || { ok: true, address: chosen };
+                if (result.ok === false) {
+                    paintLnError(result.error || 'Could not resolve Lightning Address. Check the address and try again.');
+                    confirmBtn.textContent = 'Confirm';
+                    confirmBtn.disabled = !box.checked;
+                    confirmBtn.style.opacity = box.checked ? '1' : '0.55';
+                    input.value = chosen;
+                    paintLnStep('input');
+                    return;
+                }
+                finish(result.address || chosen);
+            }).catch(function (e) {
+                paintLnError((e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.');
+                confirmBtn.textContent = 'Confirm';
+                confirmBtn.disabled = !box.checked;
+                input.value = chosen;
+                paintLnStep('input');
+            });
+        });
+
+        if (mode === 'readonly' || start === 'readonly') {
+            readAddr.textContent = normalizeClientLn(opts.address || _savedWithdrawalLn());
+            paintLnStep('readonly');
+        } else if (start === 'confirm' && clientLnValid(normalizeClientLn(opts.address || ''))) {
+            goConfirm(normalizeClientLn(opts.address));
+        } else {
+            paintLnStep('input');
+        }
+
+        document.body.appendChild(overlay);
+        if (stepInput.style.display !== 'none') {
+            setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+        }
+    });
+}
+
+function _callResetLightning(addr) {
+    var token = '';
+    var tsEl = document.querySelector('#lnAddrTurnstile [name="cf-turnstile-response"]');
+    if (tsEl) token = tsEl.value || '';
+    if (!token) return Promise.resolve({ ok: false, error: 'Security check pending — please wait a moment and try again.', code: 'turnstile' });
+    var appCheckReady;
+    try {
+        appCheckReady = firebase.appCheck().getToken(false);
+    } catch (e) {
+        return Promise.resolve({ ok: false, error: 'Security check failed. Refresh the page and try again.' });
+    }
+    return appCheckReady.then(function () {
+        var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
+        return fn({ lightningAddress: addr, turnstileToken: token });
+    }).then(function (res) {
+        var data = res && res.data ? res.data : {};
+        if (!data.ok) return { ok: false, error: data.error || 'Could not resolve Lightning Address. Check the address and try again.', code: data.code || 'address_unresolved' };
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.lightning = data.address || addr;
+            currentUser.lightningAddress = data.address || addr;
+        }
+        try { sessionStorage.removeItem('btc_ln_needs_reset'); } catch (e) {}
+        if (typeof showToast === 'function') showToast('Lightning Address saved.');
+        return { ok: true, address: data.address || addr };
+    }).catch(function (e) {
+        return { ok: false, error: (e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.', code: 'address_unresolved' };
+    });
+}
+
+function showWithdrawalAddressReadonly(addr) {
+    return openWithdrawalAddress({ mode: 'readonly', address: addr || _savedWithdrawalLn(), start: 'readonly' });
+}
+
+window.openWithdrawalAddress = openWithdrawalAddress;
+window.showWithdrawalAddressReadonly = showWithdrawalAddressReadonly;
+window._withdrawalLnEligible = _withdrawalLnEligible;
+
 
 // ---- Init Firebase & Auth ----
 if (document.readyState === 'loading') {
@@ -8616,40 +8916,15 @@ function showSignInPrompt() {
 }
 
 // ===== SATS CLAIM FLOW =====
-window.saveSatsLnAddress = async function() {
-    var status = document.getElementById('satsLnAddrStatus');
-    var locked = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
-    if (locked) {
-        if (status) status.textContent = LN_ADDRESS_LOCKED_NOTICE;
-        return;
-    }
+window.saveSatsLnAddress = function() {
     var input = document.getElementById('satsLnAddrInput');
-    if (!input) return;
-    var addr = normalizeClientLn(input.value);
-    if (!clientLnValid(addr)) {
+    var addr = input ? normalizeClientLn(input.value) : '';
+    if (addr && !clientLnValid(addr)) {
+        var status = document.getElementById('satsLnAddrStatus');
         if (status) status.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)';
         return;
     }
-    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (status) status.textContent = 'Sign in to save your Lightning Address';
-        return;
-    }
-    try {
-        if (status) status.textContent = 'Saving...';
-        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
-        if (typeof currentUser !== 'undefined' && currentUser) { currentUser.lightning = addr; currentUser.lightningAddress = addr; }
-        if (status) status.textContent = 'Lightning Address saved.';
-        if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
-        if (localStorage.getItem('btc_lightning_setup') !== 'true') {
-            localStorage.setItem('btc_lightning_setup', 'true');
-            if (typeof awardPoints === 'function') awardPoints(100, '⚡ Lightning wallet setup!');
-            if (typeof showToast === 'function') setTimeout(function() { showToast('⚡🏅 Lightning Rod badge earned! +100 pts'); }, 1500);
-            if (typeof initBadges === 'function') setTimeout(initBadges, 2000);
-        }
-        setTimeout(function(){ if (typeof showSettingsPage === 'function') showSettingsPage('sats'); }, 400);
-    } catch(e) {
-        if (status) status.textContent = LN_ADDRESS_LOCKED_NOTICE;
-    }
+    openWithdrawalAddress({ mode: 'reset', address: addr, start: addr ? 'confirm' : 'input' });
 };
 
 window.initSatsClaim = function() {
@@ -8793,6 +9068,12 @@ window.submitSatsClaim = async function() {
         if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
         return;
     }
+    var savedNow = normalizeClientLn((typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || currentUser.lnAddress || '') : '');
+    if (!savedNow || savedNow !== lnAddr) {
+        var confirmedAddr = await openWithdrawalAddress({ mode: 'claim', address: lnAddr, start: 'confirm' });
+        if (!confirmedAddr) return;
+        lnAddr = confirmedAddr;
+    }
     claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
 
     // Hide previous errors
@@ -8882,6 +9163,10 @@ window.submitSatsClaim = async function() {
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+            if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
+                try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
+                openWithdrawalAddress({ mode: 'reset', address: lnAddr });
+            }
             window._satsClaimInProgress = false;
             btn.disabled = false;
             btn.textContent = '⚡ Send Sats to My Wallet';
