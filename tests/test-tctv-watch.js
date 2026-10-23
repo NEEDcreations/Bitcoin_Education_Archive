@@ -748,12 +748,14 @@ test('playback with no server clock asks the server to start it and does not inv
     assert.strictEqual(width, '8%');
 });
 
-test('patch notes keep the live timer as the only Latest line and keep the daily taper', () => {
+test('patch notes keep one Latest line and keep the live timer and daily taper', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
+    const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('Latest: Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
+    assert.ok(notes.includes(timer));
+    assert.ok(!notes.includes('Latest: The TCTV'));
     assert.ok(notes.includes(taper));
     assert.ok(!notes.includes('Latest: Daily XP'));
 });
