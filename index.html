@@ -920,8 +920,8 @@
     #homeAppsMenu .apps-grid-btn.tier-locked { opacity:0.6;filter:grayscale(0.7);cursor:help; }
     #homeAppsMenu .apps-grid-btn.tier-locked .app-desc { color:rgba(255,255,255,0.45); }
     </style>
-    <!-- Google Sign-In (gsi/client) lazy-loaded on demand to avoid 2s reCAPTCHA CPU hit on every page load -->
-    <script>window._loadGSI=function(){if(window._gsiLoaded)return;window._gsiLoaded=true;var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.integrity='sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM';s.crossOrigin='anonymous';s.async=true;document.head.appendChild(s);};</script>
+    <!-- Google Sign-In (gsi/client) lazy-loaded on demand. Not integrity-pinned: Google replaces this file and does not send CORS headers, so a pinned hash blocks the button. -->
+    <script>window._loadGSI=function(){if(window._gsiLoaded)return;window._gsiLoaded=true;var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;document.head.appendChild(s);};</script>
     <!-- Facebook SDK loaded on-demand only when user clicks "Sign in with Facebook" -->
     <script type="application/ld+json">
     {
@@ -1706,7 +1706,8 @@
             </div>
             <div style="padding-top:8px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or sign in with a provider:</p>
-                <button onclick="this.innerHTML='⏳ Opening Google...';this.style.opacity='0.6';signInWithGoogle()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
+                <div id="gsiButtonHost" style="display:none;margin:0 0 6px;min-height:44px;text-align:center;"></div>
+                <button id="googleSignInFallback" type="button" onclick="signInWithGoogle()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                     <img src="auth-icons/google.svg" alt="" width="18" height="18"> Sign in with Google
                 </button>
                 <button onclick="signInWithFacebook()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
@@ -1747,7 +1748,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="ranking.js?v=20261023_v2339" defer></script>
+    <script src="ranking.js?v=20261023_v2341" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261023_v2340" defer fetchpriority="high"></script>
