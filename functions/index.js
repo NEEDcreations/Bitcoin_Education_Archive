@@ -1375,7 +1375,7 @@ exports.payQualifiedReferrals = onSchedule({
 
 // =============================================
 // NOTE: Old allowedAwards-based awardPoints removed - replaced by daily-cap version below (line ~1527)
-// That version enforces the shared 1,000 XP/day cap (full through 600, then half) via daily_points
+// That version enforces the shared 1,000 XP/day cap (full through 500, half through 900, then a quarter) via daily_points
 
 // =============================================
 // AUDIT FIX: Server-Side Daily Limit Check
@@ -3520,6 +3520,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 dailyXp: grant.dailyXp,
                 dailyCap: grant.dailyCap,
                 fullUntil: grant.fullUntil,
+                halfUntil: grant.halfUntil,
                 channelTracked: channelTracked,
                 progress: progress,
                 doubled: xpBoost.doubled,
@@ -3597,6 +3598,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         dailyXp: transactionResult.dailyXp,
         dailyCap: transactionResult.dailyCap,
         fullUntil: transactionResult.fullUntil,
+        halfUntil: transactionResult.halfUntil,
         channelTracked: transactionResult.channelTracked,
         doubled: !!transactionResult.doubled,
         doubleXpUntil: transactionResult.doubleXpUntil || 0,
@@ -4208,7 +4210,7 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
-        // Double XP does not apply. The wheel still shares the 600 / 1,000 cap.
+        // Double XP does not apply. The wheel still shares the 500 / 900 / 1,000 cap.
         const spinDoubled = false;
         const spinLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
         const spinBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || spinLedger.banned === true;
@@ -4630,7 +4632,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         let pointsAwarded = 0;
         if (passed) {
-            // Once per cert type. The 2,100 XP still shares the daily 600 / 1,000 taper.
+            // Once per cert type. The 2,100 XP still shares the daily 500 / 900 / 1,000 taper.
             pointsAwarded = scholarPlan.awarded;
             if (pointsAwarded > 0) {
                 update.points = admin.firestore.FieldValue.increment(pointsAwarded);
