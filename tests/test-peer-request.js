@@ -311,7 +311,8 @@ queue.push(test('managePeer send reads in one batch and writes the request with 
     assert.ok(send.includes(".where('from', '==', uid).where('status', '==', 'pending').limit(51).get()"));
     assert.ok(send.includes('reqRef.get()'));
     assert.ok(send.includes('revReqRef.get()'));
-    assert.strictEqual((send.match(/await /g) || []).length, 2, 'send should await the parallel read and the batch commit only');
+    assert.strictEqual((send.match(/await /g) || []).length, 3, 'send awaits the parallel read, the batch commit, and the category push');
+    assert.ok(send.includes('await sendUserPush'));
     assert.ok(send.includes('batch.set(reqRef,'));
     assert.ok(send.includes("batch.set(db.collection('notifications').doc(),"));
     assert.ok(send.includes("type: 'peer_request'"));

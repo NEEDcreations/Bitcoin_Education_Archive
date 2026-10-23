@@ -393,6 +393,11 @@ async function broadcastCategory(category, builder) {
     return { sent: sent, skipped: skipped, failed: failed };
 }
 
+async function sendPreparedMessages(messages) {
+    if (!messages || !messages.length) return null;
+    return admin.messaging().sendEach(messages);
+}
+
 async function cleanStaleTokens() {
     const index = await listTokenIndex();
     const messaging = admin.messaging();
@@ -431,6 +436,7 @@ async function cleanStaleTokens() {
 module.exports = {
     sendUserPush: sendUserPush,
     broadcastCategory: broadcastCategory,
+    sendPreparedMessages: sendPreparedMessages,
     cleanStaleTokens: cleanStaleTokens,
     loadUserTokens: loadUserTokens,
     categoryAllowed: prefs.categoryAllowed,

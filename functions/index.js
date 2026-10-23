@@ -36,7 +36,7 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
 const { beatsCensor } = require('./src/beats-censor.js');
-const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOthers, capUserDevices } = require('./src/push');
+const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOthers, capUserDevices, sendPreparedMessages } = require('./src/push');
 const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
@@ -8090,7 +8090,7 @@ async function pushPvpLobby(joinerUid, name) {
         pushCount: room.pushCount + 1,
         lastPushWaveMs: now,
     }, { merge: true });
-    await admin.messaging().sendEach(messages);
+    await sendPreparedMessages(messages);
 }
 
 async function syncPvpLobbyLive(docId, before, after) {
