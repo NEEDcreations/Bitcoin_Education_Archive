@@ -1,8 +1,8 @@
 // Cache-buster pin. This ship branch is btc-archive-v2334.
-// bundle.min.js stays 20261023_v2325.
-// ranking.js is 20261023_v2334. features.registry.js and today-card.js stay 20261023_v2330.
-// scholar.js is 20261023_v2330.
-// quests.js is 20261023_v2334. global-chat.js, learning-quests.js, and modules.js stay 20261023_v2324.
+// bundle.min.js is 20261023_v2333.
+// ranking.js is 20261023_v2334. global-chat.js is 20261023_v2333.
+// features.registry.js, today-card.js, and scholar.js stay 20261023_v2330.
+// quests.js is 20261023_v2334. learning-quests.js and modules.js stay 20261023_v2324.
 // lightning.js and satoshi-favor.js stay 20261023_v2323.
 // tctv-watch.js stays on v2301.
 // index.html and 404.html must stay identical. The precache keeps the
@@ -36,7 +36,8 @@ test('service worker cache is v2334', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2325/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2333/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261023_v2325'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2324'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2295'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2293'));
@@ -49,12 +50,14 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('ranking.js?v=20261023_v2334'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2332'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2330'));
+    assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
-    assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261023_v2324'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2333'));
+    assert.ok(!html.includes('global-chat.js?v=20261023_v2324'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2323'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
@@ -89,6 +92,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2334/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2326/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 0);
     assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
@@ -130,6 +134,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: One shared cap. Full XP through 600, then half until 1,000.'));
+    assert.ok(notes.includes('Badge XP now follows how long a badge takes to earn, from 10 up to 2,000. Cosmetic badges show 0.'));
+    assert.ok(!notes.includes('Latest: Badge XP'));
+    assert.ok(notes.includes('You can remember this device for 30 days after an authenticator code. Changing your Lightning Address, turning off 2FA, new recovery codes, and deleting the account still ask for a fresh code.'));
     assert.ok(notes.includes('The minimized Invite pill sits clear of the Bitcoin Quest title, and the Quest pill sits clear of the header buttons, the Invite pill, and the buttons along the bottom.'));
     assert.ok(!notes.includes('Latest: The minimized Invite pill'));
     assert.ok(notes.includes('Scholar and Protocol Expert certificates, and the 2,100 exam XP, are issued only from a server-recorded passing exam. Clearing profile flags cannot grant them again.'));

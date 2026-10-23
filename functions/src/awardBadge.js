@@ -2,7 +2,8 @@
 
 // One transaction per badge: prove it, write the award, and add one
 // Satoshi's Favor point. A second award of the same id does not add a second point.
-// The daily XP cap still writes the badge and the Favor point, with 0 XP.
+// Badge XP goes through applyDailyXp: full until 600, half until 1,000, then 0.
+// The remainder is dropped. Nothing is saved for a later day.
 // A badge the profile already shows gets an award row with 0 XP and no pool point.
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
@@ -14,6 +15,23 @@ const { offsetDateKey } = require('./offsetDay');
 const { profileHoldsBadge } = require('./badgeProfile');
 
 const ALIASES = { country_set: 'global_citizen' };
+
+function needsFlexClaims(rule) {
+    if (!rule || !rule.source) return false;
+    const kind = rule.source.type;
+    return kind === 'flex' || kind === 'flexSum' || kind === 'flexAll';
+}
+
+function claimIdsFromSnap(snap) {
+    const ids = [];
+    if (!snap) return ids;
+    if (typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) { ids.push(doc.id); });
+        return ids;
+    }
+    (snap.docs || []).forEach(function (doc) { ids.push(doc.id); });
+    return ids;
+}
 
 function cleanId(raw) {
     const trimmed = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 60);
@@ -92,6 +110,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             };
         }
 
+        let flexClaims = options.flexClaims || null;
+        if (!flexClaims && needsFlexClaims(rule)) {
+            const countsSnap = await t.get(userRef.collection('daily_action_counts'));
+            flexClaims = badgeRules.tallyFlexClaims(claimIdsFromSnap(countsSnap));
+        }
         let awardsSnap = null;
         if (needsAwards) awardsSnap = await t.get(userRef.collection('badge_awards'));
         const awardSet = new Set();
@@ -106,7 +129,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         }
         const payingCount = badgeRules.countPaying(awardSet);
         const signedIn = options.signedIn !== false;
-        if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, scholarExamPassed: scholarExamPassed })) {
+        if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, flexClaims: flexClaims, scholarExamPassed: scholarExamPassed })) {
             return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
 
@@ -114,12 +137,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const contributorSnap = await t.get(contributorRef);
         const totalsSnap = await t.get(totalsRef);
 
-        const catalogXp = Math.min(
-            badgeRules.XP_CAP,
-            verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0)
-        );
-        const split = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef });
-        const xp = split.awarded > 0 ? split.awarded : 0;
+        const catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
+        const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef });
+        const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
 
         const update = {
             visibleBadges: adminSdk.firestore.FieldValue.arrayUnion(badgeId),
@@ -135,13 +155,14 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
+            dropped: xpGrant.dropped,
             day: day,
             source: options.source || 'awardBadge',
         });
         t.update(userRef, update);
-        if (xp > 0) {
-            t.set(split.dailyRef, {
-                total: split.dailyXp,
+        if (xp > 0 && xpGrant.dailyRef) {
+            t.set(xpGrant.dailyRef, {
+                total: xpGrant.dailyXp,
                 lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }
@@ -210,8 +231,10 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             success: true,
             xp: xp,
             awarded: xp,
-            overflowAdded: split.overflowAdded,
-            capped: catalogXp > 0 && xp <= 0,
+            overflowAdded: 0,
+            dropped: xpGrant.dropped,
+            capped: xpGrant.capped,
+            capBypass: false,
             favor: favor,
             badgeId: badgeId,
             cosmetic: false,

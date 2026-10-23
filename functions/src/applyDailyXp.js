@@ -5,9 +5,10 @@
 // The rest is dropped. This module never writes pendingOverflow.
 //
 // applyDailyXp(uid, amount, tx, opts) is the hook other grants call inside
-// their transaction. The taper itself is dailyXp.planDailyXp.
+// their transaction. Badge grants use the same hook. The taper itself is
+// dailyXp.planDailyXp.
 // { bypass: true } grants the full amount and does not read or write the
-// daily counter. One-time backfills pass that.
+// daily counter. One-time backfills, including the badge XP backfill, pass that.
 
 const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
 

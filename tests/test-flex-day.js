@@ -111,6 +111,7 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(quests.indexOf('_flexDayGoal') > 0);
     assert.ok(quests.indexOf('5 * 3600000') > 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2334/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
 });
 
 test('Say hi stays labeled Say hi, and an active Favor banner can pulse', function () {

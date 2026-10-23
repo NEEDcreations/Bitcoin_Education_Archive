@@ -258,6 +258,8 @@ test('cache name is v2334 and the TV script cache-buster moved', () => {
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2334'"));
     assert.ok(!sw.includes('btc-archive-v2333'));
     assert.ok(!sw.includes('btc-archive-v2332'));
+    assert.ok(!sw.includes('btc-archive-v2331'));
+    assert.ok(!sw.includes('btc-archive-v2330'));
     assert.ok(!sw.includes('btc-archive-v2329'));
     assert.ok(!sw.includes('btc-archive-v2327'));
     assert.ok(!sw.includes('btc-archive-v2326'));
@@ -319,11 +321,12 @@ test('cache name is v2334 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('quests.js?v=20261022_v2279'));
     assert.ok(!html.includes('quests.js?v=20261022_v2251'));
     assert.ok(html.includes('ranking.js?v=20261023_v2334'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2251'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2251'));
-    assert.ok(html.includes('bundle.min.js?v=20261023_v2325'));
+    assert.ok(html.includes('bundle.min.js?v=20261023_v2333'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2295'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2293'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2279'));
@@ -335,7 +338,7 @@ test('cache name is v2334 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2261'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2252'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2246'));
-    assert.ok(html.includes('global-chat.js?v=20261023_v2324'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2333'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
