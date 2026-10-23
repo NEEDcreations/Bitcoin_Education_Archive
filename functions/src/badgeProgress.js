@@ -198,6 +198,10 @@ function planTopicCredit(input) {
         reason: 'skip',
         close: true,
     };
+    if (isMirrorCopy(post)) {
+        out.reason = 'mirror';
+        return out;
+    }
     const age = (Number(src.nowMs) || 0) - (Number(post.createdAtMs) || 0);
     if (!(post.createdAtMs > 0) || age < COMMENT_MATURE_MS) {
         out.close = false;
@@ -231,19 +235,32 @@ function planTopicCredit(input) {
     }
     out.credit = true;
     out.channel = String(post.channelId || '');
-    // Topic-discussion posts and their Pleb Talk / forum mirrors are paid by
-    // the topic-conversation rewards. This grant does not add another 5 XP
-    // on those same messages. A comment with none of those markers can still
-    // earn the 5 XP, up to 3 a day. No writer in this deploy feeds that shape.
+    // Topic conversations already pay through topicConversationXp. This +5
+    // stays off any topic post and any mirrored copy, so one message has one
+    // award path. A comment with none of those markers can still earn it,
+    // up to 3 times a day.
     if (!topicConversationMessage(post) && xpUsed < COMMENT_XP_CAP) out.xp = COMMENT_XP;
     out.reason = 'credit';
     return out;
 }
 
+function isMirrorCopy(post) {
+    const row = post || {};
+    if (row.noAward === true || row.mirrorOf) return true;
+    if (row.mirrored === true || row.forumCopy === true || row.plebMirror === true) return true;
+    const origin = String(row.origin || '');
+    if (origin === 'topic' || origin === 'forum') return true;
+    if (row.topicPost || row.topicChannel) return true;
+    const source = String(row.source || '');
+    if (source === 'pleb-talk' || source === 'pleb-talk-mirror') return true;
+    return false;
+}
+
 function topicConversationMessage(post) {
     const row = post || {};
+    if (isMirrorCopy(row)) return true;
     if (row.channelId || row.topicChannel || row.topicPost) return true;
-    if (row.mirrored === true || row.forumCopy === true || row.plebMirror === true) return true;
+    if (row.origin || row.noAward === true) return true;
     const source = String(row.source || '');
     if (source === 'topic-discussion' || source === 'pleb-talk' || source === 'pleb-talk-mirror') return true;
     const collection = String(row.collection || '');
@@ -319,6 +336,7 @@ module.exports = {
     planPeerKeyCredit: planPeerKeyCredit,
     planPeerLevel: planPeerLevel,
     planPeerAcceptXp: planPeerAcceptXp,
+    isMirrorCopy: isMirrorCopy,
     topicConversationMessage: topicConversationMessage,
     planTopicCredit: planTopicCredit,
     planTopicRevoke: planTopicRevoke,

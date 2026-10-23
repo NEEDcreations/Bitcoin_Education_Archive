@@ -121,7 +121,7 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
       [`peerData.${senderUid}.giftsExchanged`]: giftsExchanged,
     };
 
-    // Level-up XP shares the 600 / 1,000 daily counter. It is not doubled.
+    // Level-up XP shares the 500 / 900 / 1,000 daily counter. It is not doubled.
     const rawXp = (didLevelUp && newLevel.xp > 0) ? newLevel.xp : 0;
     function taperedXp(raw, userDoc, dailyDoc, ledgerDoc) {
       if (!(raw > 0)) return 0;

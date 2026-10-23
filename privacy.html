@@ -437,7 +437,7 @@
         <li>Your <strong>profile picture</strong> is visible on the leaderboard, PVP, and user profiles</li>
         <li>Your <strong>uploaded music tracks</strong> (including albums/EPs) on Bitcoin Beats are publicly playable by all users</li>
         <li>Your <strong>Global Chat messages</strong> are visible to all users in real time</li>
-        <li>Your <strong>topic discussion comments</strong> (username and comment text) are visible publicly on that topic, including to people who are not signed in</li>
+        <li>Your <strong>topic discussion comments</strong> (username and comment text) are visible publicly on that topic, including to people who are not signed in. The first post of a thread is also published automatically on the public Pleb Talk forum under your username, with the topic name, a link back, and the start of your message. A short summary may replace that opening after the post is accepted. Replies are mirrored both ways between the topic thread and that forum post, still under the name of the person who wrote them. Conversation XP for that message is recorded once. If the cross-post limit is already used, the message stays on the topic and is not added to Pleb Talk</li>
         <li>Your <strong>DJ broadcasts</strong> (currently playing track, sound effects) are heard by all listeners</li>
         <li>Your <strong>online presence</strong> (username, active status) is visible via the online users counter</li>
         <li>Your <strong>PVP battle results</strong> may be displayed on leaderboards</li>
@@ -483,6 +483,7 @@
         <li>Questions you ask Nacho are first checked <strong>in your browser</strong> against saved Bitcoin answers</li>
         <li>If that is not enough, we send your question, a short recent Nacho conversation, your display name, rank, and point total, your language, whether simple-explanation mode is on, a knowledge snippet, and a short note about matching app features. If you are signed in, the request may also include your Firebase sign-in token. We do not put your email, Lightning address, or wallet in the prompt</li>
         <li>When you ask a question in a topic discussion, the server sends that question text plus a short excerpt of the topic notes to the same Cloudflare Workers AI proxy. Your username and user ID are not included. The reply is posted in the thread as Nacho</li>
+        <li>When you start a topic thread and the cross-post is accepted, the forum post is saved first with the topic name and the opening of your message. The server may then send that opening to the same proxy, as untrusted data rather than as instructions, to write a short public summary. The summary is checked and stored on that post. It is not requested for a post that was refused, and it is not written again for later replies. Your username and user ID are not included. If the summary cannot be written, the forum post keeps the topic name and the opening of your message</li>
         <li>Nacho chat history for the session is stored <strong>in your browser</strong></li>
         <li>A local list of recent questions stays on your device</li>
         <li>Nacho uses your username for greetings</li>
@@ -582,7 +583,7 @@
         <li>Rate limiting on sign-in attempts and message sending (30 messages/hour)</li>
         <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
         <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
-        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 600, then half rate until 1,000, nothing banked; atomic transactions)</li>
+        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked; atomic transactions)</li>
         <li>Device fingerprinting and IP-based multi-account detection for faucet claims, referral signup, and the peer-key and peer-request checks that decide badge and XP credit. Those checks compare fingerprint, IP, email, and Lightning address the same way tips do. Server-written badge counters (gifts opened, keys used, shop purchases, raffle tickets bought, topic comments, and the rest of the badge ladders) live on the account profile and are not writable from the browser</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
         <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>
@@ -610,7 +611,7 @@
         <tr><td>Lifetime total claimed</td><td>Enforce 15,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
         <tr><td>IP address (faucet claim, and once at referral signup)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is an HMAC in a server-only record that expires after 90 days and is deleted with the account.</td></tr>
-        <tr><td>Server-side daily points tracking</td><td>Enforce the shared 1,000 XP/day cap (full through 600, then half until 1,000, nothing banked) — tracked in Firebase, not the browser</td></tr>
+        <tr><td>Server-side daily points tracking</td><td>Enforce the shared 1,000 XP/day cap (full through 500, half through 900, then a quarter until 1,000, floor per tier, nothing banked) — tracked in Firebase, not the browser</td></tr>
     </table>
 
     <h3>Firestore Data Structure</h3>
@@ -618,7 +619,7 @@
     <ul>
         <li><strong>sats_withdrawals</strong> — individual claim records (amount, truncated invoice, timestamp, status)</li>
         <li><strong>sats_daily</strong> — daily aggregate tracking (amount claimed per day, claim count)</li>
-        <li><strong>daily_points</strong> — server-side daily XP tracking (total awarded per day; full XP through 600, then half rate until 1,000, nothing banked)</li>
+        <li><strong>daily_points</strong> — server-side daily XP tracking (total awarded per day; full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked)</li>
         <li><strong>faucet_stats</strong> — global faucet statistics (total distributed, active claimants)</li>
         <li><strong>faucet_ip_log</strong> — IP addresses at claim time (detects multi-account abuse per network)</li>
         <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus a 90-day expiry. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>

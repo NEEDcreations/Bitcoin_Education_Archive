@@ -17,6 +17,7 @@ const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Marketplace Client', file: 'test-marketplace.js' },
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
@@ -61,6 +62,8 @@ const TESTS = [
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
+    { name: 'Topic Forum Mirror', file: 'test-topic-forum-mirror.js' },
+    { name: 'Topic Conversation XP', file: 'test-topic-conversation-xp.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
     { name: 'Quote of the Day', file: 'test-quotes.js' },
     { name: 'Referrals', file: 'test-referrals.js' },
@@ -73,6 +76,7 @@ const TESTS = [
     { name: 'Remembered device retry', file: 'test-mfa-device.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
+    { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },
     { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
 ];
 

@@ -2,9 +2,9 @@
 
 // Exact-action allowlist for awardPoints.
 // Client phrases map to a fixed XP amount (or a closed set of amounts).
-// Tickets are never granted here. Every action shares the 600 / 1,000 taper.
+// Tickets are never granted here. Every action shares the 500 / 900 / 1,000 taper.
 
-const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
+const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 
 const ALLOWED_ACTION_KEYS = {
     flex_action: true,
@@ -436,6 +436,7 @@ function planGrant(opts) {
         dailyXp: plan.dailyXp,
         dailyCap: DAILY_CAP,
         fullUntil: TAPER_FULL_UNTIL,
+        halfUntil: TAPER_HALF_UNTIL,
     };
 }
 
@@ -579,6 +580,7 @@ function applyAward(mem, uid, data, opts) {
         dailyXp: grant.dailyXp,
         dailyCap: grant.dailyCap,
         fullUntil: grant.fullUntil,
+        halfUntil: grant.halfUntil,
         id: resolved.id,
         orangeTickets: user.orangeTickets || 0,
         banned: false,

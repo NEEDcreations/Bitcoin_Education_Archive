@@ -811,6 +811,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
     const snap = event.data; const context = { params: event.params };
         const post = snap.data();
         const postId = context.params.postId;
+        if (!activityCounters.forumActivityAwardable(post)) return null;
         const authorId = post.authorId || 'unknown';
         if (authorId !== 'unknown' && String(post.title || '').trim()) {
             await grantServerTickets(authorId, 'forum_post_ticket');
@@ -895,6 +896,7 @@ exports.onForumShoutout = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (!activityCounters.forumActivityAwardable(event.data.data())) return null;
     try {
         await announceActivity({
             kind: 'forum',
@@ -1375,7 +1377,7 @@ exports.payQualifiedReferrals = onSchedule({
 
 // =============================================
 // NOTE: Old allowedAwards-based awardPoints removed - replaced by daily-cap version below (line ~1527)
-// That version enforces the shared 1,000 XP/day cap (full through 600, then half) via daily_points
+// That version enforces the shared 1,000 XP/day cap (full through 500, half through 900, then a quarter) via daily_points
 
 // =============================================
 // AUDIT FIX: Server-Side Daily Limit Check
@@ -3521,6 +3523,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 dailyXp: grant.dailyXp,
                 dailyCap: grant.dailyCap,
                 fullUntil: grant.fullUntil,
+                halfUntil: grant.halfUntil,
                 channelTracked: channelTracked,
                 progress: progress,
                 doubled: xpBoost.doubled,
@@ -3598,6 +3601,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         dailyXp: transactionResult.dailyXp,
         dailyCap: transactionResult.dailyCap,
         fullUntil: transactionResult.fullUntil,
+        halfUntil: transactionResult.halfUntil,
         channelTracked: transactionResult.channelTracked,
         doubled: !!transactionResult.doubled,
         doubleXpUntil: transactionResult.doubleXpUntil || 0,
@@ -4209,7 +4213,7 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
-        // Double XP does not apply. The wheel still shares the 600 / 1,000 cap.
+        // Double XP does not apply. The wheel still shares the 500 / 900 / 1,000 cap.
         const spinDoubled = false;
         const spinLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
         const spinBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || spinLedger.banned === true;
@@ -4631,7 +4635,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         let pointsAwarded = 0;
         if (passed) {
-            // Once per cert type. The 2,100 XP still shares the daily 600 / 1,000 taper.
+            // Once per cert type. The 2,100 XP still shares the daily 500 / 900 / 1,000 taper.
             pointsAwarded = scholarPlan.awarded;
             if (pointsAwarded > 0) {
                 update.points = admin.firestore.FieldValue.increment(pointsAwarded);
@@ -8997,3 +9001,112 @@ exports.postTopicComment = functionsV1.runWith({ timeoutSeconds: 30, memory: '25
 exports.reportTopicComment = functionsV1.https.onCall(topicDiscussion.reportTopicComment);
 exports.moderateTopicPost = functionsV1.https.onCall(topicDiscussion.moderateTopicPost);
 exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopicComment);
+
+// Topic ↔ Pleb Talk mirror. Deploy these with the callables above:
+// postTopicComment, deleteTopicComment, moderateTopicPost,
+// onForumPost, onForumShoutout, onForumPostBadgeCount, onForumReplyBadgeCount,
+// onForumReplyToTopic, onForumReplyMirrorSync, onForumReplyMirrorDelete,
+// onForumPostMirrorDelete, onTopicPostMirrorSync.
+// Rules diff: forum_posts and forum_replies reject client writes of origin,
+// mirrorOf, mirrorSync, topicChannel, topicPost, topicLink, noAward, and
+// mirrored. On a mirrored doc, hidden and deleted are frozen too. The author
+// may change only body, and only while that doc is not hidden or deleted.
+// Ordinary forum creates are not paced. users/{uid}/xp_ledger is server-only
+// (topic conversation XP, source topic_conversation).
+const topicForumMirror = require('./src/topicForumMirror');
+const TOPIC_MIRROR_OPTS = { maxInstances: 10 };
+
+exports.onForumReplyToTopic = onDocumentCreated({
+    document: 'forum_replies/{replyId}',
+    maxInstances: TOPIC_MIRROR_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        const fresh = await db.collection('forum_replies').doc(event.params.replyId).get();
+        if (!fresh.exists) return null;
+        const data = fresh.data() || {};
+        if (data.deleted === true || data.hidden === true) return null;
+        await topicForumMirror.mirrorForumReplyToTopic({
+            db: db,
+            admin: admin,
+            replyId: event.params.replyId,
+            data: data,
+        });
+    } catch (e) {
+        console.warn('[onForumReplyToTopic]', e && e.message ? e.message : '');
+    }
+    return null;
+});
+
+exports.onForumReplyMirrorSync = onDocumentUpdated({
+    document: 'forum_replies/{replyId}',
+    maxInstances: TOPIC_MIRROR_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        await topicForumMirror.syncForumReplyEdit({
+            db: db,
+            admin: admin,
+            replyId: event.params.replyId,
+            before: event.data.before.data(),
+            after: event.data.after.data(),
+        });
+    } catch (e) {
+        console.warn('[onForumReplyMirrorSync]', e && e.message ? e.message : '');
+    }
+    return null;
+});
+
+exports.onForumReplyMirrorDelete = onDocumentDeleted({
+    document: 'forum_replies/{replyId}',
+    maxInstances: TOPIC_MIRROR_OPTS.maxInstances,
+}, async (event) => {
+    try {
+        await topicForumMirror.syncForumReplyDelete({
+            db: db,
+            admin: admin,
+            replyId: event.params.replyId,
+            before: event.data && event.data.data ? event.data.data() : {},
+        });
+    } catch (e) {
+        console.warn('[onForumReplyMirrorDelete]', e && e.message ? e.message : '');
+    }
+    return null;
+});
+
+exports.onForumPostMirrorDelete = onDocumentDeleted({
+    document: 'forum_posts/{postId}',
+    maxInstances: TOPIC_MIRROR_OPTS.maxInstances,
+}, async (event) => {
+    try {
+        await topicForumMirror.syncForumPostDelete({
+            db: db,
+            admin: admin,
+            postId: event.params.postId,
+            before: event.data && event.data.data ? event.data.data() : {},
+        });
+    } catch (e) {
+        console.warn('[onForumPostMirrorDelete]', e && e.message ? e.message : '');
+    }
+    return null;
+});
+
+exports.onTopicPostMirrorSync = onDocumentUpdated({
+    document: 'topic_discussions/{channelId}/posts/{postId}',
+    maxInstances: TOPIC_MIRROR_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        await topicForumMirror.syncTopicToForum({
+            db: db,
+            admin: admin,
+            channelId: event.params.channelId,
+            postId: event.params.postId,
+            before: event.data.before.data(),
+            after: event.data.after.data(),
+        });
+    } catch (e) {
+        console.warn('[onTopicPostMirrorSync]', e && e.message ? e.message : '');
+    }
+    return null;
+});

@@ -247,8 +247,38 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
         nowMs: NOW,
         day: '2026-10-22',
     });
-    assert.strictEqual(mirror.credit, true);
+    assert.strictEqual(mirror.credit, false);
     assert.strictEqual(mirror.xp, 0);
+    assert.strictEqual(mirror.reason, 'mirror');
+    const forumCopy = progress.planTopicCredit({
+        post: Object.assign({}, post, {
+            channelId: '',
+            origin: 'topic',
+            noAward: true,
+            mirrorOf: 'p1',
+            topicChannel: 'mining',
+        }),
+        user: person('ada', { topicCountDay: '2026-10-22', topicCountToday: 1, topicXpDay: '2026-10-23', topicXpCount: 0 }),
+        nowMs: NOW,
+        day: '2026-10-22',
+    });
+    assert.strictEqual(forumCopy.credit, false);
+    assert.strictEqual(forumCopy.xp, 0);
+    const echoed = progress.planTopicCredit({
+        post: Object.assign({}, post, { origin: 'forum', noAward: true, mirrorOf: 'reply1' }),
+        user: person('ada', { topicCountDay: '2026-10-22', topicCountToday: 1 }),
+        nowMs: NOW,
+        day: '2026-10-22',
+    });
+    assert.strictEqual(echoed.credit, false);
+    const discussion = progress.planTopicCredit({
+        post: Object.assign({}, post, { collection: 'topic_discussions' }),
+        user: person('ada', { topicCountDay: '2026-10-22', topicCountToday: 1, topicXpDay: '2026-10-23', topicXpCount: 0 }),
+        nowMs: NOW,
+        day: '2026-10-22',
+    });
+    assert.strictEqual(discussion.credit, true);
+    assert.strictEqual(discussion.xp, 0);
     const other = progress.planTopicCredit({
         post: {
             uid: 'ada',
@@ -284,15 +314,17 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
 
 test('the shared taper drops overflow instead of banking it', function () {
     const mid = planBadgeDailyXp(900, 150);
-    assert.strictEqual(mid.awarded, 75);
+    assert.strictEqual(mid.awarded, 37);
+    assert.strictEqual(mid.dailyXp, 937);
     assert.strictEqual(mid.overflowAdded, 0);
-    assert.strictEqual(mid.dropped, 75);
+    assert.strictEqual(mid.dropped, 113);
     const full = planBadgeDailyXp(1000, 10);
     assert.strictEqual(full.awarded, 0);
     assert.strictEqual(full.overflowAdded, 0);
     assert.strictEqual(full.capped, true);
     const early = planBadgeDailyXp(590, 20);
-    assert.strictEqual(early.awarded, 15);
+    assert.strictEqual(early.awarded, 10);
+    assert.strictEqual(early.dailyXp, 600);
 });
 
 test('rules deny the new counters and the cert fields', function () {

@@ -4,7 +4,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { planDailyXp, taperAward, splitDailyXp, DAILY_CAP, TAPER_FULL_UNTIL } = require('../functions/src/dailyXp');
+const { planDailyXp, taperAward, splitDailyXp, DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('../functions/src/dailyXp');
 const { offsetDateKey } = require('../functions/src/offsetDay');
 const sayHi = require('../functions/src/sayHi');
 const { isRewardBanned } = require('../functions/src/questReward');
@@ -35,30 +35,67 @@ function walk(dir, out) {
     return out;
 }
 
-test('taper boundaries 599 to 601 and 999 to 1001', function () {
+test('taper boundaries floor per tier at 500, 900, and 1000', function () {
     assert.strictEqual(DAILY_CAP, 1000);
-    assert.strictEqual(TAPER_FULL_UNTIL, 600);
-    assert.strictEqual(taperAward(2, 599).awarded, 1);
-    assert.strictEqual(taperAward(2, 599).dailyXp, 600);
-    assert.strictEqual(taperAward(3, 599).awarded, 2);
-    assert.strictEqual(taperAward(3, 599).dailyXp, 601);
-    assert.strictEqual(planDailyXp(600, 2).awarded, 1);
-    assert.strictEqual(planDailyXp(600, 2).dailyXp, 601);
-    assert.strictEqual(planDailyXp(600, 1).awarded, 0);
-    assert.strictEqual(planDailyXp(601, 2).awarded, 1);
-    assert.strictEqual(taperAward(2, 999).awarded, 1);
-    assert.strictEqual(taperAward(2, 999).dailyXp, 1000);
-    assert.strictEqual(taperAward(1, 999).awarded, 0);
-    assert.strictEqual(taperAward(1, 999).dailyXp, 999);
+    assert.strictEqual(TAPER_FULL_UNTIL, 500);
+    assert.strictEqual(TAPER_HALF_UNTIL, 900);
+    // 499+10 straddles full and half: 1 full + floor(9/2) = 5. The odd raw is not carried.
+    assert.strictEqual(taperAward(10, 499).awarded, 5);
+    assert.strictEqual(taperAward(10, 499).dailyXp, 504);
+    assert.strictEqual(planDailyXp(499, 10).dropped, 5);
+    assert.strictEqual(planDailyXp(499, 2).awarded, 1);
+    assert.strictEqual(planDailyXp(499, 2).dailyXp, 500);
+    // 890+30 straddles half and quarter: 20 raw fill 10, floor(10/4) = 2.
+    assert.strictEqual(planDailyXp(890, 30).awarded, 12);
+    assert.strictEqual(planDailyXp(890, 30).dailyXp, 902);
+    assert.strictEqual(planDailyXp(890, 30).dropped, 18);
+    assert.strictEqual(planDailyXp(899, 3).awarded, 1);
+    assert.strictEqual(planDailyXp(899, 3).dailyXp, 900);
+    // 990+100 fills the last 10 at quarter rate (40 raw) and drops the rest.
+    assert.strictEqual(planDailyXp(990, 100).awarded, 10);
+    assert.strictEqual(planDailyXp(990, 100).dailyXp, 1000);
+    assert.strictEqual(planDailyXp(990, 100).dropped, 90);
+    assert.strictEqual(planDailyXp(990, 100).capped, true);
+    // Exactly 500: the point that lands on 500 is still full. The next raw point is half.
+    assert.strictEqual(planDailyXp(0, 500).awarded, 500);
+    assert.strictEqual(planDailyXp(0, 500).dailyXp, 500);
+    assert.strictEqual(planDailyXp(500, 1).awarded, 0);
+    assert.strictEqual(planDailyXp(500, 1).dailyXp, 500);
+    assert.strictEqual(planDailyXp(500, 2).awarded, 1);
+    assert.strictEqual(planDailyXp(500, 2).dailyXp, 501);
+    // Exactly 900: 800 raw from 500 fills the half tier. The next raw points are a quarter.
+    assert.strictEqual(planDailyXp(500, 800).awarded, 400);
+    assert.strictEqual(planDailyXp(500, 800).dailyXp, 900);
+    assert.strictEqual(planDailyXp(900, 3).awarded, 0);
+    assert.strictEqual(planDailyXp(900, 3).dailyXp, 900);
+    assert.strictEqual(planDailyXp(900, 4).awarded, 1);
+    assert.strictEqual(planDailyXp(900, 4).dailyXp, 901);
+    // Exactly 1,000: 400 raw from 900 fills the quarter tier. Past that, nothing.
+    assert.strictEqual(planDailyXp(900, 400).awarded, 100);
+    assert.strictEqual(planDailyXp(900, 400).dailyXp, 1000);
     assert.strictEqual(planDailyXp(1000, 50).awarded, 0);
+    assert.strictEqual(planDailyXp(1000, 50).dailyXp, 1000);
     assert.strictEqual(planDailyXp(1001, 50).awarded, 0);
     assert.strictEqual(planDailyXp(1001, 50).dailyXp, 1000);
     assert.strictEqual(splitDailyXp(0, 2100).awarded, 1000);
     assert.strictEqual(splitDailyXp(0, 2100).overflowAdded, 0);
 });
 
+test('raw XP from zero buys 500, 900, and 1,000 credit', function () {
+    assert.strictEqual(planDailyXp(0, 500).awarded, 500);
+    assert.strictEqual(planDailyXp(0, 1300).awarded, 900);
+    assert.strictEqual(planDailyXp(0, 1300).dailyXp, 900);
+    assert.strictEqual(planDailyXp(0, 1699).awarded, 999);
+    assert.strictEqual(planDailyXp(0, 1699).dailyXp, 999);
+    assert.strictEqual(planDailyXp(0, 1700).awarded, 1000);
+    assert.strictEqual(planDailyXp(0, 1700).dailyXp, 1000);
+    assert.strictEqual(planDailyXp(0, 1701).awarded, 1000);
+    assert.strictEqual(planDailyXp(0, 1701).dropped, 701);
+    assert.strictEqual(planDailyXp(0, 1701).overflowAdded, 0);
+});
+
 test('say hi and a poll share one daily counter', function () {
-    let used = 590;
+    let used = 490;
     const hi = sayHi.planSayHiXp(used, 80, '2026-10-21', '2026-10-22');
     assert.strictEqual(hi.awarded, 30);
     assert.strictEqual(hi.overflowRedeemed, 0);
@@ -67,7 +104,7 @@ test('say hi and a poll share one daily counter', function () {
     const poll = splitDailyXp(used, 50);
     assert.strictEqual(poll.awarded, 25);
     assert.strictEqual(poll.overflowAdded, 0);
-    assert.strictEqual(used + poll.awarded, 645);
+    assert.strictEqual(used + poll.awarded, 545);
 });
 
 test('no pendingOverflow writes in function sources', function () {
@@ -97,7 +134,7 @@ test('the shared counter rolls over at 5 AM UTC', function () {
     assert.notStrictEqual(offsetDateKey(before), offsetDateKey(after));
     assert.strictEqual(planDailyXp(1000, 50).awarded, 0);
     assert.strictEqual(sayHi.planSayHiXp(0, 0, offsetDateKey(before), offsetDateKey(after)).awarded, 50);
-    assert.strictEqual(planDailyXp(599, 2).dailyXp, 600);
+    assert.strictEqual(planDailyXp(499, 2).dailyXp, 500);
     assert.strictEqual(planDailyXp(0, 2).awarded, 2);
 });
 
@@ -174,15 +211,18 @@ function fakeDaily(total) {
 
 async function checkApplyDailyXp() {
     const { applyDailyXp, taperDailyXp } = require('../functions/src/applyDailyXp');
-    assert.strictEqual(taperDailyXp(2, 599).awarded, 1);
-    assert.strictEqual(taperDailyXp(2, 599).dailyXp, 600);
-    assert.strictEqual(taperDailyXp(3, 599).awarded, 2);
-    assert.strictEqual(taperDailyXp(3, 599).dailyXp, 601);
-    assert.strictEqual(taperDailyXp(2, 600).awarded, 1);
-    assert.strictEqual(taperDailyXp(1, 600).awarded, 0);
-    assert.strictEqual(taperDailyXp(2, 999).awarded, 1);
-    assert.strictEqual(taperDailyXp(2, 999).dailyXp, 1000);
-    assert.strictEqual(taperDailyXp(1, 999).awarded, 0);
+    assert.strictEqual(taperDailyXp(10, 499).awarded, 5);
+    assert.strictEqual(taperDailyXp(10, 499).dailyXp, 504);
+    assert.strictEqual(taperDailyXp(30, 890).awarded, 12);
+    assert.strictEqual(taperDailyXp(30, 890).dailyXp, 902);
+    assert.strictEqual(taperDailyXp(100, 990).awarded, 10);
+    assert.strictEqual(taperDailyXp(100, 990).dailyXp, 1000);
+    assert.strictEqual(taperDailyXp(1, 500).awarded, 0);
+    assert.strictEqual(taperDailyXp(2, 500).awarded, 1);
+    assert.strictEqual(taperDailyXp(2, 500).dailyXp, 501);
+    assert.strictEqual(taperDailyXp(3, 900).awarded, 0);
+    assert.strictEqual(taperDailyXp(4, 900).awarded, 1);
+    assert.strictEqual(taperDailyXp(4, 900).dailyXp, 901);
     assert.strictEqual(taperDailyXp(50, 1000).awarded, 0);
     assert.strictEqual(taperDailyXp(50, 1001).dailyXp, 1000);
     const bypass = await applyDailyXp('u', 2000, null, { bypass: true });
@@ -194,16 +234,16 @@ async function checkApplyDailyXp() {
     try { await applyDailyXp('u', 10, null, { day: '2026-10-23' }); }
     catch (err) { threw = err && err.message.indexOf('applyDailyXp needs') === 0; }
     assert.strictEqual(threw, true);
-    const mid = fakeDaily(599);
-    const grant = await applyDailyXp('u', 3, mid.tx, { day: '2026-10-23', userRef: mid.userRef });
-    assert.strictEqual(grant.awarded, 2);
-    assert.strictEqual(grant.dailyXp, 601);
+    const mid = fakeDaily(499);
+    const grant = await applyDailyXp('u', 10, mid.tx, { day: '2026-10-23', userRef: mid.userRef });
+    assert.strictEqual(grant.awarded, 5);
+    assert.strictEqual(grant.dailyXp, 504);
     assert.strictEqual(grant.overflowAdded, 0);
-    assert.strictEqual(grant.dropped, 1);
+    assert.strictEqual(grant.dropped, 5);
     assert.strictEqual(grant.dailyRef, mid.dailyRef);
-    const top = fakeDaily(999);
-    const edge = await applyDailyXp('u', 2, top.tx, { day: '2026-10-23', userRef: top.userRef });
-    assert.strictEqual(edge.awarded, 1);
+    const top = fakeDaily(990);
+    const edge = await applyDailyXp('u', 100, top.tx, { day: '2026-10-23', userRef: top.userRef });
+    assert.strictEqual(edge.awarded, 10);
     assert.strictEqual(edge.dailyXp, 1000);
     const over = fakeDaily(1000);
     const none = await applyDailyXp('u', 50, over.tx, { day: '2026-10-23', userRef: over.userRef });
@@ -212,7 +252,7 @@ async function checkApplyDailyXp() {
 }
 
 checkApplyDailyXp().then(function () {
-    console.log('✅ applyDailyXp hook matches the 600/1000 taper and drops overflow');
+    console.log('✅ applyDailyXp hook matches the 500/900/1000 taper and drops overflow');
     passed++;
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

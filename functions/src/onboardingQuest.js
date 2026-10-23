@@ -125,7 +125,7 @@ function planGuestMerge(input) {
     };
 }
 
-// Same shared cap as every other XP grant: full through 600, half until 1,000.
+// Same shared cap as every other XP grant: full through 500, half through 900, then a quarter until 1,000.
 // A guest-point merge does not call this. Weekly and monthly use the awarded part.
 function planDailyGrant(input) {
     const src = input || {};
