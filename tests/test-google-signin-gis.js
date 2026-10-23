@@ -85,6 +85,8 @@ test('Google sign-in uses the rendered button and links a guest in place', funct
     assert.ok(html.includes('id="gsiButtonHost"'));
     assert.ok(html.includes('id="googleSignInFallback"'));
     assert.ok(html.includes('accounts.google.com/gsi/client'));
+    assert.ok(!html.includes('sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM'));
+    assert.ok(!html.includes("s.crossOrigin='anonymous'"));
 });
 
 test('manifest scope stays ./ and CSP allows the GIS button', function () {

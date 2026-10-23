@@ -913,8 +913,8 @@
     #homeAppsMenu .apps-grid-btn.tier-locked { opacity:0.6;filter:grayscale(0.7);cursor:help; }
     #homeAppsMenu .apps-grid-btn.tier-locked .app-desc { color:rgba(255,255,255,0.45); }
     </style>
-    <!-- Google Sign-In (gsi/client) lazy-loaded on demand to avoid 2s reCAPTCHA CPU hit on every page load -->
-    <script>window._loadGSI=function(){if(window._gsiLoaded)return;window._gsiLoaded=true;var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.integrity='sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM';s.crossOrigin='anonymous';s.async=true;document.head.appendChild(s);};</script>
+    <!-- Google Sign-In (gsi/client) lazy-loaded on demand. Not integrity-pinned: Google replaces this file and does not send CORS headers, so a pinned hash blocks the button. -->
+    <script>window._loadGSI=function(){if(window._gsiLoaded)return;window._gsiLoaded=true;var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;document.head.appendChild(s);};</script>
     <!-- Facebook SDK loaded on-demand only when user clicks "Sign in with Facebook" -->
     <script type="application/ld+json">
     {

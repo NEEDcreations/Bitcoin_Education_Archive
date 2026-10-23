@@ -142,7 +142,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Sign in with Google uses the Google button on this page, so it works on Android with the app installed.'));
+    assert.ok(notes.includes('Latest: Google sign-in stays on this page and works on Android with the app installed.'));
     assert.ok(notes.includes('Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.'));
     assert.ok(!notes.includes('Latest: Daily XP'));
     assert.ok(notes.includes('Badge XP now follows how long a badge takes to earn, from 10 up to 2,000. Cosmetic badges show 0.'));
