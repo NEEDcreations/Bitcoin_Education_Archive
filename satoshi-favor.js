@@ -98,59 +98,8 @@
     // Feature 4: Community heat meter state
     var _sfTotalHashes = 0;
 
-    // ─── SF CHAT + NEWS ANNOUNCEMENTS ───
-    var SF_ANNOUNCE_DEDUP_MS = 4 * 60 * 60 * 1000; // 4 hours — fallback dedup
-    function _nachoSFAnnounce(type) {
-        if (typeof db === 'undefined' || !db) return;
-        if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
-        var uid = auth.currentUser.uid;
-        var msg = type === 'start'
-            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to solve a block! ⚡🦌 ➡️ [Satoshi's Favor](#favor)"
-            : "⏱️ **Satoshi's Favor has ended.** The mining window is now closed — great effort everyone! Keep earning points to trigger the next one. Completing daily activities, earning badges and ranking up all get us closer to mining again. 🦌";
-
-        // Dedup key: cycle-scoped so a stale tab reconnecting after >4h can't re-fire
-        // 'end' is keyed to the cycleId that just ended — a new cycle gets a fresh key.
-        // 'start' is also cycle-scoped so double-fires are blocked for the same window.
-        var cycleId = (favorState && favorState.currentCycleId) || 'unknown';
-        var field = type === 'start' ? ('startAnnounced_' + cycleId) : ('endAnnounced_' + cycleId);
-
-        var dedupRef = db.collection('satoshiFavor').doc('announceDedup');
-        db.runTransaction(function(txn) {
-            return txn.get(dedupRef).then(function(doc) {
-                var data = doc.exists ? doc.data() : {};
-                // Cycle-scoped: if this cycleId was already announced for this type, skip
-                if (data[field]) {
-                    throw Object.assign(new Error('sf_already_announced'), { _dedupSkip: true });
-                }
-                // Fallback: also block if announced within 4h (handles unknown/missing cycleId edge case)
-                var legacyField = type === 'start' ? 'startAnnouncedAt' : 'endAnnouncedAt';
-                var legacy = data[legacyField];
-                var legacyMs = legacy && legacy.toMillis ? legacy.toMillis() : (typeof legacy === 'number' ? legacy : 0);
-                if (legacyMs && (Date.now() - legacyMs) < SF_ANNOUNCE_DEDUP_MS) {
-                    throw Object.assign(new Error('sf_already_announced'), { _dedupSkip: true });
-                }
-                var patch = {};
-                patch[field] = firebase.firestore.FieldValue.serverTimestamp();
-                patch[legacyField] = firebase.firestore.FieldValue.serverTimestamp();
-                if (doc.exists) {
-                    txn.update(dedupRef, patch);
-                } else {
-                    txn.set(dedupRef, patch);
-                }
-            });
-        }).then(function() {
-            // [BUG-6 FIX] Client writes to /announcements are disabled (allow create: if false).
-            // Route through nachoGlobalAnnounce → nachoAnnounce Cloud Function.
-            // Direct global_chat writes as "🦌 Nacho" also fail the username==profile rule.
-            if (typeof window.nachoGlobalAnnounce === 'function') {
-                window.nachoGlobalAnnounce(msg, uid);
-            } else if (typeof bridgeToTelegram === 'function') {
-                bridgeToTelegram({ user: '🦌 Nacho', text: msg });
-            }
-        }).catch(function(err) {
-            if (!err._dedupSkip) console.warn('[SF] announce txn failed:', err);
-        });
-    }
+    // Window open/close chat posts are server-only (favorAnnounce). The client
+    // must not write announcement docs or post Nacho into Global Chat for them.
 
     // ─── INIT ───
     function initSatoshiFavor() {
@@ -240,11 +189,7 @@
                 }
                 sfState.myHashCount = 0;
                 sfState.currentWindowId = favorState.currentCycleId || null;
-
-                if (typeof window.forceShowBubble === 'function') {
-                    window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to hash! Click below to start hashing! ⛏️🦌", 'fire');
-                }
-                _nachoSFAnnounce('start');
+                // Popup or idle bubble, never both. _sfSyncLiveChrome decides.
             } else if (!nowActive && _prevFavorActive) {
                 // Feature 1: Window closed — update streak based on participation
                 if (sfState.myHashCount > 0) {
@@ -280,7 +225,6 @@
                 if (typeof window.forceShowBubble === 'function') {
                     window.forceShowBubble("⛏️ Satoshi's Favor has ended! Keep earning points for the next activation! 🦌", 'default');
                 }
-                _nachoSFAnnounce('end');
             }
 
             // New window started (different cycleId) — reset myHashCount
@@ -329,6 +273,7 @@
         renderHomeBanner();
         renderChatBanner();
         updateQuestHubTab();
+        _sfSyncLiveChrome();
     }
 
     function renderHomeBanner() {
@@ -1413,6 +1358,280 @@
             el.remove();
         });
     };
+
+    // ─── LIVE WINDOW CHROME ───
+    // One shared listener (satoshiFavor/current) drives the popup and the pill.
+    // Popup: once per window per browser, localStorage by cycle id.
+    // Pill: dismissible per window. hashingNow is a number already on that doc.
+    var _sfChromeTimer = null;
+    var _sfChromeTicks = 0;
+
+    function _sfWindowId() {
+        var id = String((favorState && favorState.currentCycleId) || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
+        return id;
+    }
+    function _sfStoreKey(prefix) {
+        var id = _sfWindowId();
+        return id ? (prefix + id) : '';
+    }
+    function _sfStored(prefix) {
+        var key = _sfStoreKey(prefix);
+        if (!key) return false;
+        try { return localStorage.getItem(key) === '1'; } catch (e) { return false; }
+    }
+    function _sfStore(prefix) {
+        var key = _sfStoreKey(prefix);
+        if (!key) return;
+        try { localStorage.setItem(key, '1'); } catch (e) {}
+    }
+    function _sfMarkBubbleSeen() { _sfStore('btc_sf_bubble_'); }
+    function _sfQuietMode() {
+        var mode = null;
+        try { mode = localStorage.getItem('btc_experience_mode'); } catch (e) {}
+        return mode === 'beginner' || mode === 'intermediate';
+    }
+    function _sfSignedIn() {
+        return !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
+    }
+    function _sfBlocked() {
+        if (_satsDisabledNow()) return true;
+        if (typeof currentUser !== 'undefined' && currentUser && (currentUser.banned === true || currentUser.satsDisabled === true)) return true;
+        return false;
+    }
+    function _sfPopupEligible() {
+        if (_sfBlocked() || !_sfSignedIn() || _sfQuietMode()) return false;
+        return true;
+    }
+    function _sfShown(el) {
+        if (!el) return false;
+        var cs = window.getComputedStyle(el);
+        return !!(cs && cs.display !== 'none' && cs.visibility !== 'hidden');
+    }
+    function _sfOnHashScreen() {
+        if (document.getElementById('satoshiFavorMinerOverlay')) return true;
+        if (document.getElementById('questHubOverlay') && window._questHubTab === 'favor') return true;
+        return false;
+    }
+    function _sfUiBusy() {
+        if (window._scholarExamActive) return true;
+        var ids = ['questModal', 'usernameModal', 'tosModal', 'spinModal', 'pvpOverlay', 'pvpNameOverlay', 'satsClaimOverlay', 'satsCelebration', 'questHubOverlay'];
+        for (var i = 0; i < ids.length; i++) {
+            if (_sfShown(document.getElementById(ids[i]))) return true;
+        }
+        var bubble = document.getElementById('nacho-bubble');
+        if (bubble && bubble.getAttribute('data-interactive') === 'true' && bubble.classList.contains('show')) return true;
+        return false;
+    }
+    function _sfRemainingMs() {
+        if (!favorState || !favorState.favorActive) return 0;
+        var endBase = 0;
+        if (favorState.favorEndBase && typeof favorState.favorEndBase.toMillis === 'function') endBase = favorState.favorEndBase.toMillis();
+        else if (typeof favorState.favorEndBaseMs === 'number') endBase = favorState.favorEndBaseMs;
+        var bonusMs = (favorState.bonusMinutes || 0) * 60 * 1000;
+        return (endBase + bonusMs) - Date.now();
+    }
+    function _sfFormatRemain(ms) {
+        if (ms < 0) ms = 0;
+        var totalSec = Math.ceil(ms / 1000);
+        var h = Math.floor(totalSec / 3600);
+        var m = Math.floor((totalSec % 3600) / 60);
+        var s = totalSec % 60;
+        if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+    function _sfHashingNow() {
+        var n = Math.floor(Number(favorState && favorState.hashingNow));
+        if (!isFinite(n) || n < 1) return 0;
+        return n > 9999 ? 9999 : n;
+    }
+    function _sfEnsureChromeStyle() {
+        if (document.getElementById('sfFavorChromeStyle')) return;
+        var style = document.createElement('style');
+        style.id = 'sfFavorChromeStyle';
+        style.textContent = [
+            '#sfFavorPopup{position:fixed;inset:0;z-index:390000;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center;padding:12px;}',
+            '#sfFavorPopupCard{position:relative;z-index:390020;background:var(--bg-side);color:var(--text);border:1px solid var(--border);border-radius:20px;width:100%;max-width:420px;padding:22px 18px 16px;box-shadow:0 24px 60px rgba(0,0,0,0.45);font-family:inherit;}',
+            '#sfFavorPopup h2{margin:0;font-size:1.15rem;line-height:1.3;color:var(--heading,var(--text));}',
+            '#sfFavorPopupTime{font-variant-numeric:tabular-nums;font-weight:800;color:var(--accent);font-size:1.6rem;letter-spacing:0.02em;}',
+            '#sfFavorStart{width:100%;margin-top:14px;padding:14px 16px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;}',
+            '#sfFavorLater{width:100%;margin-top:8px;padding:10px 16px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;}',
+            '#sfFavorPill{position:fixed;top:calc(72px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);z-index:390010;display:flex;align-items:center;gap:6px;max-width:calc(100% - 20px);}',
+            '@media (max-width:900px){body.ticker-visible #sfFavorPill{top:calc(104px + env(safe-area-inset-top, 0px));}}',
+            '@media (min-width:901px){#sfFavorPill{top:12px;}body.ticker-visible #sfFavorPill{top:44px;}}',
+            '#sfFavorPillGo{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-weight:800;font-size:0.78rem;cursor:pointer;font-family:inherit;box-shadow:0 6px 18px rgba(0,0,0,0.18);animation:sfFavorPulse 2s ease-in-out infinite;}',
+            '#sfFavorPillTime{font-variant-numeric:tabular-nums;color:var(--accent);}',
+            '#sfFavorPillCount{font-weight:700;color:var(--text-muted);font-size:0.72rem;}',
+            '#sfFavorPillX{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--bg-side);color:var(--text-muted);cursor:pointer;font-family:inherit;font-weight:800;}',
+            '@keyframes sfFavorPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow,rgba(247,147,26,0.35));}50%{box-shadow:0 0 0 6px transparent;}}',
+            '@media (min-width:720px){#sfFavorPopup{align-items:center;}}',
+            '@media (prefers-reduced-motion:reduce){#sfFavorPillGo{animation:none;}}'
+        ].join('');
+        document.head.appendChild(style);
+    }
+    function _sfOnFavorKey(e) {
+        if (!e || e.key !== 'Escape') return;
+        if (!document.getElementById('sfFavorPopup')) return;
+        _sfRemovePopup();
+    }
+    function _sfRemovePopup() {
+        document.removeEventListener('keydown', _sfOnFavorKey);
+        var el = document.getElementById('sfFavorPopup');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+    function _sfRemovePill() {
+        var el = document.getElementById('sfFavorPill');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+    function _sfStartHashing() {
+        _sfRemovePopup();
+        if (typeof window.openSatoshiFavorMiner === 'function') window.openSatoshiFavorMiner();
+    }
+    function _sfMaybePopup() {
+        if (!isFavorEffectivelyActive() || !_sfPopupEligible()) { _sfRemovePopup(); return; }
+        if (_sfStored('btc_sf_popup_')) { _sfRemovePopup(); return; }
+        if (_sfOnHashScreen() || _sfUiBusy()) { _sfRemovePopup(); return; }
+        if (document.getElementById('sfFavorPopup')) return;
+        _sfEnsureChromeStyle();
+        _sfStore('btc_sf_popup_');
+        _sfMarkBubbleSeen();
+        document.addEventListener('keydown', _sfOnFavorKey);
+        var root = document.createElement('div');
+        root.id = 'sfFavorPopup';
+        root.setAttribute('role', 'dialog');
+        root.setAttribute('aria-modal', 'true');
+        root.setAttribute('aria-labelledby', 'sfFavorPopupTitle');
+        var card = document.createElement('div');
+        card.id = 'sfFavorPopupCard';
+        var title = document.createElement('h2');
+        title.id = 'sfFavorPopupTitle';
+        title.textContent = "⛏️ Satoshi's Favor is active";
+        var sub = document.createElement('p');
+        sub.style.margin = '8px 0 0';
+        sub.style.color = 'var(--text-muted)';
+        sub.style.fontSize = '0.86rem';
+        sub.textContent = 'Hash now for a shot at sats.';
+        var time = document.createElement('div');
+        time.id = 'sfFavorPopupTime';
+        time.style.marginTop = '10px';
+        time.textContent = _sfFormatRemain(_sfRemainingMs());
+        var count = document.createElement('div');
+        count.id = 'sfFavorPopupCount';
+        count.style.marginTop = '4px';
+        count.style.fontSize = '0.78rem';
+        count.style.color = 'var(--text-muted)';
+        var n = _sfHashingNow();
+        count.textContent = n > 0 ? (n + ' hashing now') : '';
+        var go = document.createElement('button');
+        go.id = 'sfFavorStart';
+        go.type = 'button';
+        go.textContent = 'Start hashing';
+        go.addEventListener('click', _sfStartHashing);
+        var later = document.createElement('button');
+        later.id = 'sfFavorLater';
+        later.type = 'button';
+        later.textContent = 'Not now';
+        later.addEventListener('click', _sfRemovePopup);
+        card.appendChild(title);
+        card.appendChild(sub);
+        card.appendChild(time);
+        card.appendChild(count);
+        card.appendChild(go);
+        card.appendChild(later);
+        root.appendChild(card);
+        root.addEventListener('click', function(e) { if (e.target === root) _sfRemovePopup(); });
+        document.body.appendChild(root);
+    }
+    function _sfMaybePill() {
+        var active = isFavorEffectivelyActive() && !_sfBlocked();
+        var minerOpen = !!document.getElementById('satoshiFavorMinerOverlay');
+        if (!active || minerOpen || _sfStored('btc_sf_pill_')) { _sfRemovePill(); return; }
+        _sfEnsureChromeStyle();
+        var pill = document.getElementById('sfFavorPill');
+        if (!pill) {
+            pill = document.createElement('div');
+            pill.id = 'sfFavorPill';
+            var go = document.createElement('button');
+            go.id = 'sfFavorPillGo';
+            go.type = 'button';
+            go.addEventListener('click', _sfStartHashing);
+            var label = document.createElement('span');
+            label.textContent = '⛏️ Favor live';
+            var time = document.createElement('span');
+            time.id = 'sfFavorPillTime';
+            var count = document.createElement('span');
+            count.id = 'sfFavorPillCount';
+            go.appendChild(label);
+            go.appendChild(time);
+            go.appendChild(count);
+            var close = document.createElement('button');
+            close.id = 'sfFavorPillX';
+            close.type = 'button';
+            close.setAttribute('aria-label', 'Dismiss');
+            close.textContent = '×';
+            close.addEventListener('click', function(e) {
+                e.stopPropagation();
+                _sfStore('btc_sf_pill_');
+                _sfRemovePill();
+            });
+            pill.appendChild(go);
+            pill.appendChild(close);
+            document.body.appendChild(pill);
+        }
+        var timeEl = document.getElementById('sfFavorPillTime');
+        if (timeEl) timeEl.textContent = _sfFormatRemain(_sfRemainingMs());
+        var countEl = document.getElementById('sfFavorPillCount');
+        if (countEl) {
+            var n = _sfHashingNow();
+            countEl.textContent = n > 0 ? (n + ' hashing now') : '';
+        }
+    }
+    function _sfPaintCountdown() {
+        var label = _sfFormatRemain(_sfRemainingMs());
+        var popupTime = document.getElementById('sfFavorPopupTime');
+        if (popupTime) popupTime.textContent = label;
+        var pillTime = document.getElementById('sfFavorPillTime');
+        if (pillTime) pillTime.textContent = label;
+        var n = _sfHashingNow();
+        var popupCount = document.getElementById('sfFavorPopupCount');
+        if (popupCount) popupCount.textContent = n > 0 ? (n + ' hashing now') : '';
+        var pillCount = document.getElementById('sfFavorPillCount');
+        if (pillCount) pillCount.textContent = n > 0 ? (n + ' hashing now') : '';
+    }
+    function _sfMaybeFavorBubble() {
+        if (!isFavorEffectivelyActive() || !_sfPopupEligible()) return;
+        if (_sfStored('btc_sf_bubble_')) return;
+        if (_sfOnHashScreen() || _sfUiBusy() || document.getElementById('sfFavorPopup')) return;
+        _sfMarkBubbleSeen();
+        if (typeof window.forceShowBubble === 'function') {
+            window.forceShowBubble("⛏️ Satoshi's Favor is live! Hash now for a shot at sats. 🦌", 'fire');
+        }
+    }
+    function _sfSyncLiveChrome() {
+        var active = isFavorEffectivelyActive();
+        if (!active) {
+            _sfRemovePopup();
+            _sfRemovePill();
+            if (_sfChromeTimer) { clearInterval(_sfChromeTimer); _sfChromeTimer = null; }
+            return;
+        }
+        _sfMaybePopup();
+        _sfMaybePill();
+        _sfPaintCountdown();
+        _sfMaybeFavorBubble();
+        if (!_sfChromeTimer) {
+            _sfChromeTicks = 0;
+            _sfChromeTimer = setInterval(function() {
+                if (!isFavorEffectivelyActive()) { _sfSyncLiveChrome(); return; }
+                _sfPaintCountdown();
+                _sfMaybePill();
+                _sfChromeTicks++;
+                if (_sfChromeTicks % 5 === 0) {
+                    _sfMaybePopup();
+                    _sfMaybeFavorBubble();
+                }
+            }, 1000);
+        }
+    }
 
     // ─── EXPORTS ───
     window._renderFavorChatBanner = renderChatBanner;

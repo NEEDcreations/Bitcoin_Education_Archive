@@ -1,6 +1,6 @@
 // Cache-buster pin. gh-pages is btc-archive-v2295.
-// This branch is btc-archive-v2315 (v2295–v2314 are reserved).
-// global-chat.js is v2272. features.registry.js stays on v2266.
+// This branch is btc-archive-v2316 (v2295–v2315 are reserved).
+// global-chat.js is v2272. features.registry.js and satoshi-favor.js are v2316.
 // notifications.js, gifting.js, ranking.js, and push-prefs.js are 20261022_push.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
@@ -20,12 +20,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2315', () => {
+test('service worker cache is v2316', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2315'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2316'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    for (var n = 2314; n >= 2240; n--) {
+    for (var n = 2315; n >= 2240; n--) {
         assert.ok(!sw.includes('btc-archive-v' + n), 'still mentions v' + n);
     }
 });
@@ -50,8 +50,11 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));
-    assert.ok(html.includes('features.registry.js?v=20261022_v2266'));
+    assert.ok(html.includes('features.registry.js?v=20261022_v2316'));
+    assert.ok(!html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261022_v2316'));
+    assert.ok(!html.includes('satoshi-favor.js?v=20261022_v2250'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
     assert.ok(!html.includes('notifications.js?v=20261022_gifts'));
     assert.ok(!html.includes('notifications.js?v=20261022_rewards'));

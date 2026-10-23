@@ -6268,7 +6268,42 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
     const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
     const effectiveEnd = favorEndBase + bonusMs;
 
+    if (now <= effectiveEnd) {
+        // Open post (if the activator's call failed), last-5-minute reminder,
+        // and the one push. The push reads the marker and skips its transaction
+        // after the first send. hashingNow is one count query, not a per-hash write.
+        try {
+            const favorAnnounce = require('./src/favorAnnounce');
+            const { mirrorShoutoutOnce } = require('./src/telegramBridge');
+            await favorAnnounce.ensureLive(db, stateData, {
+                FieldValue: admin.firestore.FieldValue,
+                mirror: (o) => mirrorShoutoutOnce(o),
+            });
+        } catch (e) {
+            console.warn('[SF-CRON] live announce failed:', e.message);
+        }
+        try {
+            const favorAnnounce = require('./src/favorAnnounce');
+            await favorAnnounce.refreshHashingNow(db, stateData, {
+                since: admin.firestore.Timestamp.fromMillis(now - 90 * 1000),
+            });
+        } catch (e) {
+            console.warn('[SF-CRON] hashingNow refresh failed:', e.message);
+        }
+        return;
+    }
+
     if (now > effectiveEnd) {
+        try {
+            const favorAnnounce = require('./src/favorAnnounce');
+            const { mirrorShoutoutOnce } = require('./src/telegramBridge');
+            await favorAnnounce.announceClosed(db, stateData, {
+                FieldValue: admin.firestore.FieldValue,
+                mirror: (o) => mirrorShoutoutOnce(o),
+            });
+        } catch (e) {
+            console.warn('[SF-CRON] recap failed:', e.message);
+        }
         // Archive window stats BEFORE resetting
         try {
             const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
@@ -6309,6 +6344,7 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
             lowestHashThisWindowUsername: null,
             lastReset: admin.firestore.Timestamp.now(),
             currentCycleId: stateData.currentCycleId || null,
+            eraHashes: stateData.eraHashes || 0,
         });
         console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
     }

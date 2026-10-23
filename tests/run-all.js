@@ -35,6 +35,7 @@ const TESTS = [
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
+    { name: 'Satoshi Favor Announce', file: 'test-favor-announce.js' },
 ];
 
 let allPassed = true;

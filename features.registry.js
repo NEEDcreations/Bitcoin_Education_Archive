@@ -127,7 +127,11 @@
         if (k === 'art') return function () { if (typeof win.goRandomArt === 'function') win.goRandomArt(); };
         if (k === 'graphic') return function () { if (typeof win.goRandomGraphic === 'function') win.goRandomGraphic(); };
         if (k === 'favor') return function () {
-            if (typeof win.openSatoshiFavorMiner === 'function') win.openSatoshiFavorMiner();
+            var live = typeof win._isSatoshiFavorActive === 'function' && win._isSatoshiFavorActive();
+            if (live && typeof win.openSatoshiFavorMiner === 'function') {
+                win.openSatoshiFavorMiner();
+                return;
+            }
             if (typeof win.showQuestHub === 'function') win.showQuestHub();
             win._questHubTab = 'favor';
             setTimeout(function () { if (typeof win._renderQuestHubTab === 'function') win._renderQuestHubTab(); }, 80);
@@ -307,9 +311,9 @@
             follow: 'Want the Community Challenge after Flex?',
             hash: 'app/flex', aliases: ['flex', 'qh-flex'], kind: 'quest', arg: 'flex', questTab: 'flex' }),
         R({ id: 'favor', title: "Satoshi's Favor", group: 'Quests', term: "satoshi's favor", priority: 70,
-            kw: "satoshi's favor satoshis favor mining game hash mine",
-            desc: "Satoshi's Favor is the community mining game. You contribute points, then hash during a window.",
-            how: "Open Quest Hub → Favor, or open the miner. Hash during the window for a chance at the prize.",
+            kw: "satoshi's favor satoshis favor mining game hash mine hash now start hashing favor live window",
+            desc: "Satoshi's Favor is the community mining game. When a window is open, hash for a shot at sats.",
+            how: "Open the hashing screen from Quest Hub → Favor, or tap Hash now while Satoshi's Favor is live. Each hash is a chance to solve a block.",
             follow: 'Want a hash booster from the Nook for more hashes?',
             hash: 'favor', aliases: ['favor', 'sf', 'satoshi-favor'], kind: 'favor', questTab: 'favor',
             openFns: ['openSatoshiFavorMiner', 'showQuestHub'] }),
@@ -905,7 +909,7 @@
         if (/how do i donate|donate to (the )?(archive|site|app)|support the archive/.test(s)) return 'donate';
         if (/tip (another|a|other) user|how do i tip|lightning tip|send a tip/.test(s)) return 'tips';
         if (/community challenge/.test(s)) return 'community';
-        if (/satoshi'?s favor|satoshi favor/.test(s)) return 'favor';
+        if (/satoshi'?s favor|satoshi favor|hash now|start hashing|favor live|favor is open|favor is active/.test(s)) return 'favor';
         if (/what is flex|flex in quest|flex tab|healthy habit/.test(s)) return 'qh-flex';
         if (/daily poll|where is the poll|\bpoll\b/.test(s)) return 'qh-poll';
         if (/daily trivia|where is the trivia|\btrivia\b/.test(s) && !/pvp|battle/.test(s)) return 'qh-trivia';

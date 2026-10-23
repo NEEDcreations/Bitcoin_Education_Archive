@@ -410,8 +410,8 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2264'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2315'"));
-    ['v2314', 'v2295', 'v2293', 'v2273', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264'].forEach(function (older) {
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2316'"));
+    ['v2315', 'v2314', 'v2295', 'v2293', 'v2273', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264'].forEach(function (older) {
         assert.ok(!sw.includes('btc-archive-' + older), older);
     });
     assert.ok(sw.includes('nacho-fly.svg') === false);

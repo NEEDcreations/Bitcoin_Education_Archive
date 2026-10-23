@@ -14,11 +14,8 @@ const crypto = require('crypto');
 const db = admin.firestore();
 const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
 const rewardNotify = require('./rewardNotify');
-
-// One-way hash of uid for public dedup (prevents uid exposure in readable docs)
-function uidHash(uid) {
-  return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
-}
+const favorAnnounce = require('./favorAnnounce');
+const { mirrorShoutoutOnce } = require('./telegramBridge');
 
 // Difficulty history (ordered oldest first):
 // Each entry: { target, since: ISO-date string (UTC midnight) }
@@ -399,8 +396,14 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
 
   const contributorRef = stateRef.collection('contributors').doc(contributorKey);
 
-  // Run in a transaction for atomicity
+  // Run in a transaction for atomicity.
+  // Flags are assigned inside the callback (retries reset them) and read
+  // only after commit. Chat posts happen after the transaction.
+  let closedSnapshot = null;
+  let justActivated = false;
   const result = await db.runTransaction(async (transaction) => {
+    closedSnapshot = null;
+    justActivated = false;
     // Batch all reads before any writes (Firestore best practice for transactions)
     const [contributorDoc, stateDoc, badgeProofDoc] = await Promise.all([
       transaction.get(contributorRef),
@@ -440,7 +443,11 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     };
 
     // Check if favor expired, reset if needed
+    const priorFavor = stateData;
     stateData = checkAndResetFavor(stateData, transaction, stateRef);
+    if (priorFavor && priorFavor.favorActive && !stateData.favorActive) {
+      closedSnapshot = favorAnnounce.snapshotWindow(priorFavor);
+    }
 
     // Record contributor — stamp faction at time of contribution
     const faction = userData.faction || null; // cyber_hornets | honey_badgers | null
@@ -496,6 +503,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
           eraHashes: stateData.eraHashes || 0,
         };
         transaction.set(stateRef, activatedState);
+        justActivated = true;
         return activatedState;
       } else {
         // Just add points
@@ -506,6 +514,25 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     }
   });
 
+  if (closedSnapshot || justActivated) {
+    // Open (and a close recap) post here. The push waits for the minute cron.
+    const announceOpts = {
+      FieldValue: admin.firestore.FieldValue,
+      mirror: (o) => mirrorShoutoutOnce(o),
+      push: false,
+    };
+    // Await so the instance is not frozen before the idempotent post finishes.
+    // A failure here does not roll back the point grant. The minute cron retries.
+    if (closedSnapshot) {
+      try { await favorAnnounce.announceClosed(db, closedSnapshot, announceOpts); }
+      catch (err) { console.warn('[FAVOR] recap failed:', err.message); }
+    }
+    if (justActivated) {
+      try { await favorAnnounce.ensureLive(db, result, announceOpts); }
+      catch (err) { console.warn('[FAVOR] open announce failed:', err.message); }
+    }
+  }
+
   return {
     success: true,
     points: result.points,
@@ -514,6 +541,21 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     currentCycleId: result.currentCycleId || null,
   };
 });
+
+// Epoch shares are the payout. Check again at pay time so a later ban still
+// withholds the share. A failed read withholds it too.
+async function favorPayoutBlocked(uid) {
+  try {
+    const userSnap = await db.collection('users').doc(uid).get();
+    const ledgerSnap = await db.collection('faucet_ledger').doc(uid).get();
+    const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+    const ledger = ledgerSnap.exists ? ledgerSnap.data() : null;
+    return userData.banned === true || !!userData.ban_reason || isSatsBanned(userData, ledger);
+  } catch (e) {
+    console.warn('[FAVOR] payout check failed');
+    return true;
+  }
+}
 
 /**
  * hashForFavor (onCall)
@@ -599,7 +641,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     const ledgerDoc = await transaction.get(ledgerRef);
 
     const userData = userDoc.exists ? userDoc.data() : {};
-    if (isSatsBanned(userData, ledgerDoc.exists ? ledgerDoc.data() : null)) {
+    if (userData.banned === true || isSatsBanned(userData, ledgerDoc.exists ? ledgerDoc.data() : null)) {
       throw new HttpsError('failed-precondition', SATS_BANNED_ERROR);
     }
     const boosterHashesAvail = userData.hashBoosterHashes || 0;
@@ -678,37 +720,44 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     difficultyTarget: DIFFICULTY_TARGET,
   });
 
-  // Feature 2A: Write session hash count for live leaderboard (per-cycle, resets on new window)
+  // First hash this window is decided inside the session_hashes transaction
+  // so two concurrent first hashes cannot both add a hasher.
+  // lastHash is what the minute cron counts.
+  let firstHasherThisWindow = false;
   try {
     const sessionHashRef = stateRef.collection('session_hashes').doc(uid);
-    const currentCycleId = stateData.currentCycleId || null;
-    const sessionDoc = await sessionHashRef.get();
-    if (sessionDoc.exists && sessionDoc.data().cycleId === currentCycleId) {
-      // Same window — increment existing count
-      await sessionHashRef.update({
-        count: admin.firestore.FieldValue.increment(1),
-        lastHash: admin.firestore.FieldValue.serverTimestamp(),
-        username, // keep username fresh
-      });
-    } else {
-      // New window (or first hash ever) — reset count to 1
-      await sessionHashRef.set({
+    const sessionCycleId = stateData.currentCycleId || null;
+    firstHasherThisWindow = await db.runTransaction(async (tx) => {
+      const sessionDoc = await tx.get(sessionHashRef);
+      const sameWindow = sessionDoc.exists && sessionDoc.data().cycleId === sessionCycleId;
+      if (sameWindow) {
+        tx.update(sessionHashRef, {
+          count: admin.firestore.FieldValue.increment(1),
+          lastHash: admin.firestore.FieldValue.serverTimestamp(),
+          username,
+        });
+        return false;
+      }
+      tx.set(sessionHashRef, {
         uid,
         username,
-        cycleId: currentCycleId,
+        cycleId: sessionCycleId,
         count: 1,
         lastHash: admin.firestore.FieldValue.serverTimestamp(),
       });
-    }
+      return true;
+    });
   } catch (e) {
     console.warn('[FAVOR] session_hashes write failed:', e.message);
   }
 
-  // Feature 4A: Increment community totalHashes counter + track lowest hash this window
+  // Feature 4A: Increment community totalHashes counter + track lowest hash this window.
+  // The live count is written by the minute cron, not on this path.
   try {
     const currentDoc = await stateRef.get();
     const currentLowest = currentDoc.exists ? (currentDoc.data().lowestHashThisWindow || Infinity) : Infinity;
     const updatePayload = { totalHashes: admin.firestore.FieldValue.increment(1), eraHashes: admin.firestore.FieldValue.increment(1) };
+    if (firstHasherThisWindow) updatePayload.uniqueHashers = admin.firestore.FieldValue.increment(1);
     if (value < currentLowest) {
       updatePayload.lowestHashThisWindow = value;
       updatePayload.lowestHashThisWindowUid = uid;
@@ -811,43 +860,55 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       console.warn('[FAVOR] poolEpoch update failed:', e.message);
     }
 
-    // Post epoch completion announcement AFTER transaction commits
+    // Post epoch completion announcement AFTER transaction commits.
+    // Banned accounts are left out of the share. Their block stays in the archive.
     if (epochComplete) {
       try {
         const { epochNum, blocks } = epochComplete;
-        const winnerList = blocks
-          .map((b, i) => `${i + 1}. @${(b.username || 'Anonymous').replace(/[<>"'&]/g, '').substring(0, 30)} (${(b.value || 0).toLocaleString()})`)
-          .join('\n');
-        const epochMsg = `⛏️ EPOCH #${epochNum} COMPLETE! 🎉\n\n5 blocks have been mined — 21,000 sats will be split among the winners:\n\n${winnerList}\n\n💰 Each winner receives ~${Math.floor(21000 / 5).toLocaleString()} sats. Congrats to all 5 miners! Keep hashing for the next epoch! ⚡`;
-        const nachoUid = 'nacho-bot';
-        const epochTs = admin.firestore.FieldValue.serverTimestamp();
-        await db.collection('global_chat').add({
-          uid: nachoUid,
-          name: '🦌 Nacho',
-          text: epochMsg,
-          isNachoAuto: false,
-          ts: epochTs,
-        }).catch(e => console.warn('[FAVOR] Epoch announce global_chat failed:', e.message));
-        await db.collection('announcements').add({
-          uid: nachoUid,
-          name: '🦌 Nacho',
-          text: epochMsg,
-          isNachoAuto: true,
-          ts: epochTs,
-        }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
-        console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
-        const share = Math.floor(21000 / Math.max(1, blocks.length));
-        const seen = {};
+        const payable = [];
         for (let bi = 0; bi < blocks.length; bi++) {
-          const winnerUid = blocks[bi] && blocks[bi].uid;
-          if (!winnerUid || seen[winnerUid]) continue;
-          seen[winnerUid] = true;
-          await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-            uid: winnerUid,
-            onceKey: 'sfepoch_' + epochNum,
-            icon: '⛏️',
-            message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + share.toLocaleString('en-US') + ' sats.',
-          }));
+          const block = blocks[bi];
+          if (!block || !block.uid) continue;
+          if (await favorPayoutBlocked(block.uid)) continue;
+          payable.push(block);
+        }
+        if (!payable.length) {
+          console.log('[FAVOR] Epoch #' + epochNum + ' payout skipped.');
+        } else {
+          const winnerList = payable
+            .map((b, i) => `${i + 1}. @${(b.username || 'Anonymous').replace(/[<>"'&]/g, '').substring(0, 30)} (${(b.value || 0).toLocaleString()})`)
+            .join('\n');
+          const share = Math.floor(21000 / Math.max(1, blocks.length));
+          const epochMsg = `⛏️ EPOCH #${epochNum} COMPLETE! 🎉\n\nEligible block shares — about ${share.toLocaleString()} sats each:\n\n${winnerList}\n\n💰 Congrats to the eligible miners! Keep hashing for the next epoch! ⚡`;
+          const nachoUid = 'nacho-bot';
+          const epochTs = admin.firestore.FieldValue.serverTimestamp();
+          await db.collection('global_chat').add({
+            uid: nachoUid,
+            name: '🦌 Nacho',
+            text: epochMsg,
+            isNachoAuto: false,
+            ts: epochTs,
+          }).catch(e => console.warn('[FAVOR] Epoch announce global_chat failed:', e.message));
+          await db.collection('announcements').add({
+            uid: nachoUid,
+            name: '🦌 Nacho',
+            text: epochMsg,
+            isNachoAuto: true,
+            ts: epochTs,
+          }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
+          console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
+          const seen = {};
+          for (let pi = 0; pi < payable.length; pi++) {
+            const winnerUid = payable[pi].uid;
+            if (!winnerUid || seen[winnerUid]) continue;
+            seen[winnerUid] = true;
+            await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+              uid: winnerUid,
+              onceKey: 'sfepoch_' + epochNum,
+              icon: '⛏️',
+              message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + share.toLocaleString('en-US') + ' sats.',
+            }));
+          }
         }
       } catch (e) {
         console.warn('[FAVOR] Epoch completion announcement failed:', e.message);
@@ -1001,6 +1062,14 @@ exports.checkFavorState = functionsV1.https.onCall(async (data, context) => {
     const effectiveEnd = favorEndBase + bonusMs;
 
     if (now > effectiveEnd) {
+      try {
+        await favorAnnounce.announceClosed(db, stateData, {
+          FieldValue: admin.firestore.FieldValue,
+          mirror: (o) => mirrorShoutoutOnce(o),
+        });
+      } catch (e) {
+        console.warn('[FAVOR] checkFavorState recap failed:', e.message);
+      }
       // Archive last window stats before resetting
       try {
         const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
