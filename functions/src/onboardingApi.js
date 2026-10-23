@@ -56,6 +56,7 @@ function timestampMs(value) {
 
 function accountBlocked(user, ledger) {
     if (!user) return false;
+    if (user.ban_reason) return true;
     if (user.banned === true || user.flagged === true) return true;
     return isSatsBanned(user, ledger || {});
 }
@@ -113,10 +114,6 @@ function applyPointFields(update, admin, grant) {
     if (grant.awarded > 0) {
         update.weeklyXP = admin.firestore.FieldValue.increment(grant.awarded);
         update.monthlyXP = admin.firestore.FieldValue.increment(grant.awarded);
-    }
-    if (grant.touchOverflow) {
-        update.pendingOverflow = grant.pendingOverflow;
-        update.lastOverflowDate = grant.today;
     }
     return update;
 }
@@ -320,7 +317,6 @@ function registerOnboarding(deps) {
         }
         const anonRef = db.collection('users').doc(anonUid);
         const destRef = db.collection('users').doc(uid);
-        const today = offsetDateKey(Date.now());
         const nowMs = Date.now();
         let guestHadQuiz = false;
         try {
@@ -335,8 +331,6 @@ function registerOnboarding(deps) {
             const freshDest = await tx.get(destRef);
             const ledgerSnap = await tx.get(db.collection('faucet_ledger').doc(uid));
             const anonLedgerSnap = await tx.get(db.collection('faucet_ledger').doc(anonUid));
-            const dailyRef = destRef.collection('daily_points').doc(today);
-            const dailySnap = await tx.get(dailyRef);
             const nachoSnap = await tx.get(anonRef.collection('onboarding_evidence').doc('nacho'));
             const quizSnap = await tx.get(anonRef.collection('onboarding_evidence').doc('quiz'));
             const row = freshAnon.exists ? (freshAnon.data() || {}) : {};
@@ -383,15 +377,8 @@ function registerOnboarding(deps) {
                 if (nonceMatches) clearGuestNonce(tx, admin, anonRef);
                 return { ok: true, already: true, points: 0, tickets: 0 };
             }
-            const dailyUsed = dailySnap.exists ? Number((dailySnap.data() || {}).total) || 0 : 0;
-            const grant = quest.planDailyGrant({
-                dailyUsed: freshDest.exists ? dailyUsed : 0,
-                amount: again.points,
-                pendingOverflow: freshDest.exists ? (dest.pendingOverflow || 0) : 0,
-                lastOverflowDate: freshDest.exists ? (dest.lastOverflowDate || '') : '',
-                today: today,
-            });
-            grant.today = today;
+            // Guest points were already earned. Moving them is not a new daily grant.
+            const movedPoints = Math.max(0, Math.floor(Number(again.points) || 0));
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;
@@ -400,9 +387,9 @@ function registerOnboarding(deps) {
             }
             if (!freshDest.exists) {
                 const created = {
-                    points: grant.pointsOut,
-                    weeklyXP: grant.awarded,
-                    monthlyXP: grant.awarded,
+                    points: movedPoints,
+                    weeklyXP: movedPoints,
+                    monthlyXP: movedPoints,
                     orangeTickets: again.tickets,
                     channelsVisited: again.channelsVisited,
                     totalVisits: 1,
@@ -410,10 +397,6 @@ function registerOnboarding(deps) {
                     mergedFromGuest: true,
                     created: admin.firestore.FieldValue.serverTimestamp(),
                 };
-                if (grant.touchOverflow) {
-                    created.pendingOverflow = grant.pendingOverflow;
-                    created.lastOverflowDate = today;
-                }
                 if (movedName) {
                     created.username = movedName;
                     created.username_lower = guestLower;
@@ -421,7 +404,11 @@ function registerOnboarding(deps) {
                 tx.set(destRef, created);
             } else {
                 const update = { mergedFromGuest: true };
-                applyPointFields(update, admin, grant);
+                if (movedPoints > 0) {
+                    update.points = admin.firestore.FieldValue.increment(movedPoints);
+                    update.weeklyXP = admin.firestore.FieldValue.increment(movedPoints);
+                    update.monthlyXP = admin.firestore.FieldValue.increment(movedPoints);
+                }
                 if (again.tickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(again.tickets);
                 const channels = Math.max(dest.channelsVisited || 0, again.channelsVisited || 0);
                 if (channels > (dest.channelsVisited || 0)) update.channelsVisited = channels;
@@ -431,7 +418,6 @@ function registerOnboarding(deps) {
                 }
                 tx.update(destRef, update);
             }
-            writeDailyPoints(tx, admin, dailyRef, freshDest.exists ? dailyUsed : 0, grant);
             if (movedName && nameRef) {
                 tx.set(nameRef, {
                     uid: uid,
@@ -464,7 +450,7 @@ function registerOnboarding(deps) {
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
             }
-            return { ok: true, already: false, points: grant.pointsOut, tickets: again.tickets };
+            return { ok: true, already: false, points: movedPoints, tickets: again.tickets };
         });
         return {
             ok: !!written.ok,

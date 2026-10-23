@@ -13,7 +13,7 @@ const tipConfirm = require('./tipConfirm');
 const doubleXp = require('./doubleXp');
 const referrals = require('./referrals');
 const { assertPublicHost } = require('./publicHost');
-const { splitDailyXp } = require('./dailyXp');
+const { applyDailyXp } = require('./applyDailyXp');
 const { paymentHashFromDecoded, rewardBlocked } = require('./cipherClaim');
 const tipBadge = require('./tipBadge');
 
@@ -280,7 +280,6 @@ async function confirmTipSent(data, context) {
         };
     }
 
-    const dailyRef = userRef.collection('daily_points').doc(capDay);
     const hashRef = (verification.verified && verification.paymentHash)
         ? db().collection('tip_hashes').doc(verification.paymentHash)
         : null;
@@ -297,7 +296,7 @@ async function confirmTipSent(data, context) {
     let result = null;
 
     await db().runTransaction(async function(t) {
-        const reads = [t.get(userRef), t.get(lockRef), t.get(dailyRef)];
+        const reads = [t.get(userRef), t.get(lockRef)];
         if (hashRef) reads.push(t.get(hashRef));
         if (recipientRef) reads.push(t.get(recipientRef));
         if (invoiceRef) reads.push(t.get(invoiceRef));
@@ -305,10 +304,9 @@ async function confirmTipSent(data, context) {
         if (senderLedgerRef) reads.push(t.get(senderLedgerRef));
         if (recipientLedgerRef) reads.push(t.get(recipientLedgerRef));
         const docs = await Promise.all(reads);
-        let cursor = 3;
+        let cursor = 2;
         const userDoc = docs[0];
         const lockDoc = docs[1];
-        const dailyDoc = docs[2];
         const hashDoc = hashRef ? docs[cursor++] : null;
         const recipientDoc = recipientRef ? docs[cursor++] : null;
         const invoiceDoc = invoiceRef ? docs[cursor++] : null;
@@ -342,22 +340,21 @@ async function confirmTipSent(data, context) {
             return;
         }
         const boost = doubleXp.boostPoints(call.awardXp, user, now);
-        const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-        const split = splitDailyXp(dailyUsed, boost.points);
+        const senderLedger = senderLedgerDoc && senderLedgerDoc.exists ? (senderLedgerDoc.data() || {}) : {};
+        const split = await applyDailyXp(uid, rewardBlocked(user, senderLedger) ? 0 : boost.points, t, {
+            day: capDay,
+            userRef: userRef,
+        });
         const userUpdate = { tipConfirmedDate: today };
         if (call.challengeCompleted) userUpdate.tipChallengeDate = today;
         if (split.awarded > 0) {
             userUpdate.points = admin.firestore.FieldValue.increment(split.awarded);
             userUpdate.weeklyXP = admin.firestore.FieldValue.increment(split.awarded);
             userUpdate.monthlyXP = admin.firestore.FieldValue.increment(split.awarded);
-            t.set(dailyRef, {
-                total: dailyUsed + split.awarded,
+            t.set(split.dailyRef, {
+                total: split.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-        }
-        if (split.overflowAdded > 0) {
-            userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(split.overflowAdded);
-            userUpdate.lastOverflowDate = capDay;
         }
         let tipsCounted = false;
         let countedSats = 0;

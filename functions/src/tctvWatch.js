@@ -12,7 +12,7 @@
 // least 10 real minutes. The prize is once per uid per 5 AM UTC day.
 
 const rewardNotify = require('./rewardNotify');
-const { splitDailyXp } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const { offsetDateKey } = require('./offsetDay');
 const ticketGrants = require('./ticketGrants');
 const tctvPresence = require('../tctv-presence-lib');
@@ -25,8 +25,6 @@ const GOAL_SECONDS = 600;
 const REWARD_XP = 100;
 // Same once-per-offset-day ticket #64 grants for a paying watch block.
 const REWARD_TICKETS = ticketGrants.get('tctv_watch_ticket').tickets;
-// Same 1,000 cap claimSayHi uses. The default in splitDailyXp is 500.
-const WATCH_DAILY_CAP = 1000;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_MAX = 4;
 const TOAST_TEXT = '📺 +100 XP and +1 🎟️ orange ticket for watching Timechain TV!';
@@ -99,19 +97,16 @@ function buildWatchNotice(uid, day, xp, tickets) {
 
 // Same shape as planSayHiXp. Tickets are not capped by the daily XP ledger.
 function planWatchXp(dailyUsed, pendingOverflow, lastOverflowDate, today) {
-    let pending = Number(pendingOverflow) || 0;
-    let redeemed = 0;
-    if (pending > 0 && lastOverflowDate && lastOverflowDate !== today) {
-        redeemed = Math.min(pending, WATCH_DAILY_CAP);
-        pending -= redeemed;
-    }
-    const split = splitDailyXp(Number(dailyUsed) || 0, REWARD_XP, WATCH_DAILY_CAP);
+    void pendingOverflow;
+    void lastOverflowDate;
+    void today;
+    const split = planDailyXp(Number(dailyUsed) || 0, REWARD_XP);
     return {
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
-        overflowRedeemed: redeemed,
-        pendingOverflow: pending + split.overflowAdded,
-        touchOverflow: split.overflowAdded > 0 || redeemed > 0,
+        overflowAdded: 0,
+        overflowRedeemed: 0,
+        pendingOverflow: 0,
+        touchOverflow: false,
         tickets: split.awarded > 0 ? REWARD_TICKETS : 0,
     };
 }
@@ -313,7 +308,6 @@ module.exports = {
     GOAL_SECONDS: GOAL_SECONDS,
     REWARD_XP: REWARD_XP,
     REWARD_TICKETS: REWARD_TICKETS,
-    WATCH_DAILY_CAP: WATCH_DAILY_CAP,
     RATE_WINDOW_MS: RATE_WINDOW_MS,
     RATE_MAX: RATE_MAX,
     TOAST_TEXT: TOAST_TEXT,

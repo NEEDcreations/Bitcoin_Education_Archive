@@ -202,6 +202,8 @@ service cloud.firestore {
                         'pointsClaimed', 'pointsExchanged',
                         'lastSatsClaim', 'lastAwards', '_pendingClaim',
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
+                        'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
+                        'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
                         'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',
@@ -1687,6 +1689,17 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       // Writes only from Cloud Functions (server-side enforcement)
       allow write: if false;
+    }
+
+    // Quiz part completions. Cloud Functions only — not the client-editable
+    // completedQuests array on the user doc.
+    match /users/{userId}/quest_completions/{docId} {
+      allow read, write: if false;
+    }
+
+    // One pass per quiz part. gradeQuest writes this so questsPassed cannot be farmed.
+    match /users/{userId}/quest_passes/{docId} {
+      allow read, write: if false;
     }
 
     // Server-side badge award deduplication (Cloud Function only)

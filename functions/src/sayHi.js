@@ -4,16 +4,14 @@
 // message id. The day, the button press, the text, and the reward are all
 // decided here. One claim per uid per server day, inside one transaction.
 
-const { splitDailyXp } = require('./dailyXp');
-const { isSatsBanned } = require('./cipherClaim');
+const { planDailyXp } = require('./dailyXp');
+const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily } = require('./grantBadge');
 const dailyFive = require('./dailyFive');
 const { offsetDateKey } = require('./offsetDay');
 
 const SAY_HI_XP = 50;
 const SAY_HI_TICKETS = 1;
-// Same cap awardPoints enforces and the client tells people about (1,000).
-const SAY_HI_DAILY_CAP = 1000;
 // "hi" is the shortest real greeting this button asks for. One character is not.
 const MIN_SAY_HI_CHARS = 2;
 const MAX_SAY_HI_CHARS = 300;
@@ -86,25 +84,20 @@ function isSpamRepeat(text) {
 }
 
 function isSayHiBlocked(user, ledger) {
-    if (isSatsBanned(user || {}, ledger || {})) return true;
-    if (user && user.banned === true) return true;
-    return false;
+    return rewardBlocked(user, ledger);
 }
 
 function planSayHiXp(dailyUsed, pendingOverflow, lastOverflowDate, today) {
-    let pending = Number(pendingOverflow) || 0;
-    let redeemed = 0;
-    if (pending > 0 && lastOverflowDate && lastOverflowDate !== today) {
-        redeemed = Math.min(pending, SAY_HI_DAILY_CAP);
-        pending -= redeemed;
-    }
-    const split = splitDailyXp(Number(dailyUsed) || 0, SAY_HI_XP, SAY_HI_DAILY_CAP);
+    void pendingOverflow;
+    void lastOverflowDate;
+    void today;
+    const split = planDailyXp(Number(dailyUsed) || 0, SAY_HI_XP);
     return {
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
-        overflowRedeemed: redeemed,
-        pendingOverflow: pending + split.overflowAdded,
-        touchOverflow: split.overflowAdded > 0 || redeemed > 0,
+        overflowAdded: 0,
+        overflowRedeemed: 0,
+        pendingOverflow: 0,
+        touchOverflow: false,
         tickets: SAY_HI_TICKETS,
     };
 }
@@ -339,15 +332,10 @@ function createSayHiHandlers(opts) {
                 sayHiDays: admin.firestore.FieldValue.increment(1),
                 orangeTickets: admin.firestore.FieldValue.increment(xp.tickets),
             };
-            const pointsOut = xp.awarded + xp.overflowRedeemed;
-            if (pointsOut > 0) userUpdate.points = admin.firestore.FieldValue.increment(pointsOut);
             if (xp.awarded > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(xp.awarded);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp.awarded);
                 userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp.awarded);
-            }
-            if (xp.touchOverflow) {
-                userUpdate.pendingOverflow = xp.pendingOverflow;
-                userUpdate.lastOverflowDate = bag.today;
             }
             tx.update(bag.userRef, userUpdate);
             if (xp.awarded > 0) {
@@ -419,7 +407,6 @@ function bindSayHi(functionsV1, admin, db) {
 module.exports = {
     SAY_HI_XP: SAY_HI_XP,
     SAY_HI_TICKETS: SAY_HI_TICKETS,
-    SAY_HI_DAILY_CAP: SAY_HI_DAILY_CAP,
     MIN_SAY_HI_CHARS: MIN_SAY_HI_CHARS,
     SAY_HI_RATE_MS: SAY_HI_RATE_MS,
     offsetDateKey: offsetDateKey,

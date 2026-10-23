@@ -15,7 +15,7 @@ function tctvClaimId(day) {
 const { rewardBlocked } = require('./cipherClaim');
 const DAILY_FIVE_XP = 100;
 const DAILY_FIVE_TICKETS = 1;
-const { splitDailyXp } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const { grantFamily } = require('./grantBadge');
 
 function offsetDateKey(nowMs) {
@@ -96,7 +96,7 @@ async function maybeCompleteDailyFive(opts) {
         const days = Number(user.dailyFiveDays || 0) + 1;
         const streak = prevSnap.exists ? Number(user.dailyFiveStreak || 0) + 1 : 1;
         const dailyUsed = dailySnap.exists ? Number(dailySnap.data().total || 0) : 0;
-        const split = splitDailyXp(dailyUsed, DAILY_FIVE_XP, 1000);
+        const split = planDailyXp(dailyUsed, DAILY_FIVE_XP);
         const update = {
             dailyFiveDays: days,
             dailyFiveStreak: streak,

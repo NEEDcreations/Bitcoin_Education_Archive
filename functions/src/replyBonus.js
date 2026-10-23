@@ -10,7 +10,8 @@
 // account under a day old, a missing linked provider, a banned replier, or
 // a banned original author gets nothing.
 
-const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
+const { applyDailyXp } = require('./applyDailyXp');
 const {
     timestampMs,
     offsetDateKey,
@@ -149,7 +150,7 @@ function assessReplyBonus(input) {
 
     const first = src.firstClaimed !== true;
     const nominal = first ? FIRST_REPLY_XP : LATER_REPLY_XP;
-    const split = splitDailyXp(Number(src.dailyUsed) || 0, nominal, DAILY_POINTS_CAP);
+    const split = planDailyXp(Number(src.dailyUsed) || 0, nominal);
     return {
         ok: true,
         code: 'ok',
@@ -307,6 +308,13 @@ function createReplyBonusHandlers(opts) {
 
             if (decision.code === 'already' || decision.code === 'rate') return decision;
             if (decision.ok && !pairRef) return fail('not-reply');
+            if (decision.ok) {
+                const grant = await applyDailyXp(uid, decision.nominal, tx, { day: today, userRef: userRef });
+                decision.xp = grant.awarded;
+                decision.dailyXp = grant.dailyXp;
+                decision.dailyRef = grant.dailyRef;
+                decision.showToast = grant.awarded > 0;
+            }
 
             let rankPrev = {};
             if (decision.ok && decision.xp > 0) {
@@ -322,14 +330,10 @@ function createReplyBonusHandlers(opts) {
                 userUpdate.points = admin.firestore.FieldValue.increment(decision.xp);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(decision.xp);
                 userUpdate.monthlyXP = admin.firestore.FieldValue.increment(decision.xp);
-                tx.set(dailyRef, {
-                    total: (Number(dailySnap.exists ? (dailySnap.data() || {}).total : 0) || 0) + decision.xp,
+                tx.set(decision.dailyRef, {
+                    total: decision.dailyXp,
                     lastUpdated: ts,
                 }, { merge: true });
-            }
-            if (decision.overflowAdded > 0) {
-                userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(decision.overflowAdded);
-                userUpdate.lastOverflowDate = today;
             }
             userUpdate.replyBonusCount = admin.firestore.FieldValue.increment(1);
             if (Object.keys(userUpdate).length) tx.update(userRef, userUpdate);
@@ -426,7 +430,6 @@ module.exports = {
     DAILY_REPLY_CAP: DAILY_REPLY_CAP,
     MAX_AGE_MS: MAX_AGE_MS,
     MIN_ACCOUNT_AGE_MS: MIN_ACCOUNT_AGE_MS,
-    DAILY_POINTS_CAP: DAILY_POINTS_CAP,
     validMessageId: validMessageId,
     isMirrorOrBot: isMirrorOrBot,
     pairDocId: pairDocId,

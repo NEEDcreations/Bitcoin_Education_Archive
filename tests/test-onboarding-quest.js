@@ -153,18 +153,19 @@ test('guest link expires, allows one merge, and rejects an old guest', function 
     assert.strictEqual(planGuestMerge(Object.assign({}, base, FRESH)).ok, true);
 });
 
-test('quest and merge XP split through the 500 point daily cap', function () {
+test('quest XP uses the shared taper and does not redeem a bank', function () {
     const split = planDailyGrant({ dailyUsed: 490, amount: 25, pendingOverflow: 0, lastOverflowDate: '', today: '2026-10-22' });
-    assert.strictEqual(split.awarded, 10);
-    assert.strictEqual(split.overflowAdded, 15);
-    assert.strictEqual(split.pointsOut, 10);
+    assert.strictEqual(split.awarded, 25);
+    assert.strictEqual(split.overflowAdded, 0);
+    assert.strictEqual(split.pointsOut, 25);
     const redeem = planDailyGrant({ dailyUsed: 0, amount: 25, pendingOverflow: 40, lastOverflowDate: '2026-10-21', today: '2026-10-22' });
-    assert.strictEqual(redeem.overflowRedeemed, 40);
+    assert.strictEqual(redeem.overflowRedeemed, 0);
     assert.strictEqual(redeem.awarded, 25);
-    assert.strictEqual(redeem.pointsOut, 65);
-    const full = planDailyGrant({ dailyUsed: 500, amount: 500, pendingOverflow: 0, today: '2026-10-22' });
+    assert.strictEqual(redeem.pointsOut, 25);
+    assert.strictEqual(redeem.touchOverflow, false);
+    const full = planDailyGrant({ dailyUsed: 1000, amount: 500, pendingOverflow: 0, today: '2026-10-22' });
     assert.strictEqual(full.awarded, 0);
-    assert.strictEqual(full.overflowAdded, 500);
+    assert.strictEqual(full.overflowAdded, 0);
     assert.strictEqual(full.pointsOut, 0);
 });
 

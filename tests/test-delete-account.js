@@ -369,6 +369,7 @@ function world() {
         'tctv_watch/u1': { minutes: 10 },
         'tctv_watch/u2': { minutes: 4 },
         'users/u1/quest_completions/q9': { questId: 'q9' },
+        'users/u1/quest_passes/q9': { questId: 'q9' },
         'users/u1/lifetime_awards/life1': { award: 'first' },
         'users/u1/onboarding_evidence/ev1': { note: 'joined' },
         'suspicious_activity/sa1': { uid: 'u1', email: 'alice@example.com' },
@@ -705,6 +706,7 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('tctv_watch/u1'), false);
         assert.ok(db.docs.has('tctv_watch/u2'));
         assert.strictEqual(db.docs.has('users/u1/quest_completions/q9'), false);
+        assert.strictEqual(db.docs.has('users/u1/quest_passes/q9'), false);
         assert.strictEqual(db.docs.has('users/u1/lifetime_awards/life1'), false);
         assert.strictEqual(db.docs.has('users/u1/onboarding_evidence/ev1'), false);
         assert.strictEqual(db.docs.get('suspicious_activity/sa1').email, 'alice@example.com');
@@ -1014,6 +1016,7 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('users/u1/sats_daily/2026-10-22'));
         assert.ok(db.docs.has('users/u1/proof_of_walk/act1'));
         assert.ok(db.docs.has('users/u1/quest_completions/q9'));
+        assert.ok(db.docs.has('users/u1/quest_passes/q9'));
         assert.ok(db.docs.has('users/u1/lifetime_awards/life1'));
         assert.ok(db.docs.has('users/u1/onboarding_evidence/ev1'));
         assert.ok(db.docs.has('reply_bonus_state/u1'));
@@ -1051,6 +1054,7 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('users/u1/daily_action_counts/2026-10-22'), false);
         assert.strictEqual(db.docs.has('users/u1/badge_awards/b1'), false);
         assert.strictEqual(db.docs.has('users/u1/quest_completions/q9'), false);
+        assert.strictEqual(db.docs.has('users/u1/quest_passes/q9'), false);
         assert.strictEqual(db.docs.has('users/u1/lifetime_awards/life1'), false);
         assert.strictEqual(db.docs.has('users/u1/onboarding_evidence/ev1'), false);
         assert.strictEqual(db.docs.has('reply_bonus_state/u1'), false);
