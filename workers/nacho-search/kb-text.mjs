@@ -68,6 +68,7 @@ const TOKEN_SYN = {
     satoshis: "satoshiunit",
     halvings: "halving",
     halvening: "halving",
+    fees: "fee",
     "sha-256": "sha256",
     multisigs: "multisig",
     statechains: "statechain",

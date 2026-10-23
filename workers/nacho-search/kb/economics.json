@@ -4,9 +4,9 @@
     "category": "economics",
     "question": "What is time preference?",
     "alts": [
-      "In simple words, what is time preference?",
-      "What is time preference, briefly?",
-      "Help me understand: what is time preference?"
+      "Define time preference?",
+      "Explain time preference?",
+      "Describe time preference?"
     ],
     "answer": "Time preference is how strongly you prefer something now over something later. A money people trust to hold value makes saving easier to explain. Bitcoin's supply schedule is the checkable part, and the exchange price can still fall, so this is not a promise of profit.",
     "topics": [
@@ -26,9 +26,9 @@
     "category": "economics",
     "question": "What is dollar-cost averaging?",
     "alts": [
-      "In simple words, what is dollar-cost averaging?",
-      "What is dollar-cost averaging, briefly?",
-      "Help me understand: what is dollar-cost averaging?"
+      "Define dollar-cost averaging?",
+      "Explain dollar-cost averaging?",
+      "Describe dollar-cost averaging?"
     ],
     "answer": "Dollar-cost averaging means buying a fixed amount on a schedule instead of guessing the perfect day. It reduces the chance you spend everything on one unlucky hour, and it does not guarantee a gain. This is not financial advice.",
     "topics": [
@@ -48,9 +48,9 @@
     "category": "economics",
     "question": "What is the Austrian school of economics?",
     "alts": [
-      "In simple words, what is the Austrian school of economics?",
-      "What is the Austrian school of economics, briefly?",
-      "Help me understand: what is the Austrian school of economics?"
+      "Define the Austrian school of economics?",
+      "Explain the Austrian school of economics?",
+      "Describe the Austrian school of economics?"
     ],
     "answer": "The Austrian tradition, associated with thinkers such as Menger, Mises, and Hayek, treats value as subjective and studies how money emerges from trade. It is skeptical of managing the economy by expanding money. People use it as a lens on Bitcoin, and it is not a price model.",
     "topics": [
@@ -70,9 +70,9 @@
     "category": "economics",
     "question": "What does subjective value mean?",
     "alts": [
-      "In simple words, what does subjective value mean?",
-      "What does subjective value mean, briefly?",
-      "Help me understand: what does subjective value mean?"
+      "Explain what subjective value mean?",
+      "Clarify what subjective value mean?",
+      "Describe what subjective value mean?"
     ],
     "answer": "Subjective value means a thing is worth what people will give up for it, not a number baked into the object. Bitcoin has no coupon and no industrial use requirement. Its price is what buyers and sellers agree, and that can change.",
     "topics": [
@@ -92,9 +92,9 @@
     "category": "economics",
     "question": "What is marginal utility?",
     "alts": [
-      "In simple words, what is marginal utility?",
-      "What is marginal utility, briefly?",
-      "Help me understand: what is marginal utility?"
+      "Define marginal utility?",
+      "Explain marginal utility?",
+      "Describe marginal utility?"
     ],
     "answer": "Marginal utility is the value of one more unit, which usually falls as you hold more. It is a basic idea in price theory. It does not tell you what one more bitcoin will cost next year.",
     "topics": [
@@ -114,9 +114,9 @@
     "category": "economics",
     "question": "What is the regression theorem?",
     "alts": [
-      "In simple words, what is the regression theorem?",
-      "What is the regression theorem, briefly?",
-      "Help me understand: what is the regression theorem?"
+      "Define the regression theorem?",
+      "Explain the regression theorem?",
+      "Describe the regression theorem?"
     ],
     "answer": "Mises argued that money's value today traces back to a time when the good had another use. Gold fits that story easily. Whether bitcoin's early collectible and trading use satisfies the idea is a debate, not a line of code.",
     "topics": [
@@ -136,9 +136,9 @@
     "category": "economics",
     "question": "What do people mean by sound money?",
     "alts": [
-      "In simple words, what do people mean by sound money?",
-      "What do people mean by sound money, briefly?",
-      "Help me understand: what do people mean by sound money?"
+      "Explain this: what do people mean by sound money?",
+      "Clarify this: what do people mean by sound money?",
+      "Unpack this: what do people mean by sound money?"
     ],
     "answer": "They mean money whose supply is hard to change for political convenience. Bitcoin's schedule is the example they can verify. The phrase is a value judgment plus that technical fact.",
     "topics": [
@@ -158,9 +158,9 @@
     "category": "economics",
     "question": "What is hard money?",
     "alts": [
-      "In simple words, what is hard money?",
-      "What is hard money, briefly?",
-      "Help me understand: what is hard money?"
+      "Define hard money?",
+      "Explain hard money?",
+      "Describe hard money?"
     ],
     "answer": "Hard money is costly to produce more of. Gold was the historical example, and bitcoin's cost is proof of work plus a hard cap. Easy money can be printed by policy.",
     "topics": [
@@ -180,9 +180,9 @@
     "category": "economics",
     "question": "What is fiat money?",
     "alts": [
-      "In simple words, what is fiat money?",
-      "What is fiat money, briefly?",
-      "Help me understand: what is fiat money?"
+      "Define fiat money?",
+      "Explain fiat money?",
+      "Describe fiat money?"
     ],
     "answer": "Fiat money is a currency that circulates because a state accepts it for taxes and debts and requires it in many contracts. Its supply is a policy choice. Bitcoin does not have that issuer.",
     "topics": [
@@ -202,9 +202,9 @@
     "category": "economics",
     "question": "What was a gold standard?",
     "alts": [
-      "In simple words, what was a gold standard?",
-      "What was a gold standard, briefly?",
-      "Help me understand: what was a gold standard?"
+      "Explain this: what was a gold standard?",
+      "Clarify this: what was a gold standard?",
+      "Unpack this: what was a gold standard?"
     ],
     "answer": "Under a gold standard, a currency could be redeemed for a fixed amount of metal, at least for some holders. That constrained issuance until governments suspended it. Bitcoin imitates the constraint with code instead of vaults.",
     "topics": [
@@ -224,9 +224,9 @@
     "category": "economics",
     "question": "Why do bitcoiners mention 1971?",
     "alts": [
-      "In simple words, why do bitcoiners mention 1971?",
-      "Why do bitcoiners mention 1971, briefly?",
-      "Help me understand: why do bitcoiners mention 1971?"
+      "Explain why do bitcoiners mention 1971?",
+      "For what reason do bitcoiners mention 1971?",
+      "What is the reason do bitcoiners mention 1971?"
     ],
     "answer": "That is when the United States closed the gold window for foreign official holders of dollars. The modern fiat era is often dated from there. It is history, not a trading signal.",
     "topics": [
@@ -246,9 +246,9 @@
     "category": "economics",
     "question": "What is monetary inflation?",
     "alts": [
-      "In simple words, what is monetary inflation?",
-      "What is monetary inflation, briefly?",
-      "Help me understand: what is monetary inflation?"
+      "Define monetary inflation?",
+      "Explain monetary inflation?",
+      "Describe monetary inflation?"
     ],
     "answer": "Monetary inflation means an increase in the supply of money. Price inflation means goods cost more in that money, which can have other causes too. Bitcoin's issuance is the first kind, and it shrinks on a schedule.",
     "topics": [
@@ -268,11 +268,11 @@
     "category": "economics",
     "question": "Is the consumer price index the whole story?",
     "alts": [
-      "In simple words, is the consumer price index the whole story?",
-      "Is the consumer price index the whole story, briefly?",
-      "Help me understand: is the consumer price index the whole story?"
+      "Explain whether is the consumer price index the whole story?",
+      "Clarify whether is the consumer price index the whole story?",
+      "Is this the case: is the consumer price index the whole story?"
     ],
-    "answer": "A price index measures a basket someone chose, and it can miss housing, quality, or assets. It is a statistic, not the protocol. Bitcoin does not target that index.",
+    "answer": "Whether a consumer price index measures the cost of living is debated, because the basket, the weights, housing, and quality adjustments are choices people argue about. It is a statistic, not the protocol. Bitcoin does not target that index.",
     "topics": [
       "problems-of-money",
       "math",
@@ -283,16 +283,16 @@
       "econ-savings",
       "econ-low-time"
     ],
-    "sources": "CPI limits."
+    "sources": "CPI is debated. Bitcoin does not target it."
   },
   {
     "id": "econ-cantillon",
     "category": "economics",
     "question": "Who gets new fiat first?",
     "alts": [
-      "In simple words, who gets new fiat first?",
-      "Who gets new fiat first, briefly?",
-      "Help me understand: who gets new fiat first?"
+      "Explain who gets new fiat first?",
+      "Which person gets new fiat first?",
+      "Name who gets new fiat first?"
     ],
     "answer": "New bank money often reaches governments, banks, and borrowers before wages adjust. That order is the Cantillon idea. Bitcoin's new coins are the block reward, and the amount is public.",
     "topics": [
@@ -312,9 +312,9 @@
     "category": "economics",
     "question": "Why does savings matter in this teaching?",
     "alts": [
-      "In simple words, why does savings matter in this teaching?",
-      "Why does savings matter in this teaching, briefly?",
-      "Help me understand: why does savings matter in this teaching?"
+      "Explain why does savings matter in this teaching?",
+      "For what reason does savings matter in this teaching?",
+      "What is the reason does savings matter in this teaching?"
     ],
     "answer": "Savings fund later spending and investment without needing every worker to be paid in a melting currency. A capped money is one tool people use for that goal. It can also drop in market price, so it is not a risk-free account.",
     "topics": [
@@ -334,9 +334,9 @@
     "category": "economics",
     "question": "What is low time preference?",
     "alts": [
-      "In simple words, what is low time preference?",
-      "What is low time preference, briefly?",
-      "Help me understand: what is low time preference?"
+      "Define low time preference?",
+      "Explain low time preference?",
+      "Describe low time preference?"
     ],
     "answer": "Low time preference means you are willing to wait. Teachers connect it to building and saving rather than only consuming now. It is a personal trait, not a button in a wallet.",
     "topics": [
@@ -356,9 +356,9 @@
     "category": "economics",
     "question": "What is opportunity cost?",
     "alts": [
-      "In simple words, what is opportunity cost?",
-      "What is opportunity cost, briefly?",
-      "Help me understand: what is opportunity cost?"
+      "Define opportunity cost?",
+      "Explain opportunity cost?",
+      "Describe opportunity cost?"
     ],
     "answer": "Opportunity cost is what you give up by choosing one thing. Spending bitcoin later means not spending it now, and holding it means not holding something else. The idea does not pick the winner for you.",
     "topics": [
@@ -378,9 +378,9 @@
     "category": "economics",
     "question": "Does bitcoin pay interest by itself?",
     "alts": [
-      "In simple words, does bitcoin pay interest by itself?",
-      "Does bitcoin pay interest by itself, briefly?",
-      "Help me understand: does bitcoin pay interest by itself?"
+      "Explain whether does bitcoin pay interest by itself?",
+      "Clarify whether does bitcoin pay interest by itself?",
+      "Is this the case: does bitcoin pay interest by itself?"
     ],
     "answer": "The protocol does not pay interest. Any yield comes from lending the coins to someone, which adds their default risk. A promise of yield for holding is not a property of the asset.",
     "topics": [
@@ -400,9 +400,9 @@
     "category": "economics",
     "question": "What is the risk of lending bitcoin?",
     "alts": [
-      "In simple words, what is the risk of lending bitcoin?",
-      "What is the risk of lending bitcoin, briefly?",
-      "Help me understand: what is the risk of lending bitcoin?"
+      "Define the risk of lending bitcoin?",
+      "Explain the risk of lending bitcoin?",
+      "Describe the risk of lending bitcoin?"
     ],
     "answer": "The borrower or the platform can fail, and you may not get the coins back. Interest is the price of that risk. Self-custody has no yield and also no borrower.",
     "topics": [
@@ -422,9 +422,9 @@
     "category": "economics",
     "question": "What is unit bias?",
     "alts": [
-      "In simple words, what is unit bias?",
-      "What is unit bias, briefly?",
-      "Help me understand: what is unit bias?"
+      "Define unit bias?",
+      "Explain unit bias?",
+      "Describe unit bias?"
     ],
     "answer": "Unit bias is preferring to hold one whole coin instead of a fraction, even when the fraction is the same kind of asset. Bitcoin's price per coin can encourage that feeling. Sats exist so small amounts are thinkable.",
     "topics": [
@@ -444,9 +444,9 @@
     "category": "economics",
     "question": "Can purchasing power still fall with a fixed supply?",
     "alts": [
-      "In simple words, can purchasing power still fall with a fixed supply?",
-      "Can purchasing power still fall with a fixed supply, briefly?",
-      "Help me understand: can purchasing power still fall with a fixed supply?"
+      "Explain whether can purchasing power still fall with a fixed supply?",
+      "Clarify whether can purchasing power still fall with a fixed supply?",
+      "Is this the case: can purchasing power still fall with a fixed supply?"
     ],
     "answer": "Yes. If people sell, or if demand falls, the exchange price falls even though the coin count does not rise. A cap limits issuance. It does not limit pessimism.",
     "topics": [
@@ -466,9 +466,9 @@
     "category": "economics",
     "question": "Why has bitcoin's price been volatile?",
     "alts": [
-      "In simple words, why has bitcoin's price been volatile?",
-      "Why has bitcoin's price been volatile, briefly?",
-      "Help me understand: why has bitcoin's price been volatile?"
+      "Explain why has bitcoin's price been volatile?",
+      "For what reason has bitcoin's price been volatile?",
+      "What is the reason has bitcoin's price been volatile?"
     ],
     "answer": "The market is young compared with gold, supply is inelastic, and leverage on exchanges amplifies moves. Those are explanations, not a forecast that the swings will end. This is not financial advice.",
     "topics": [
@@ -488,9 +488,9 @@
     "category": "economics",
     "question": "What do people mean by a bitcoin cycle?",
     "alts": [
-      "In simple words, what do people mean by a bitcoin cycle?",
-      "What do people mean by a bitcoin cycle, briefly?",
-      "Help me understand: what do people mean by a bitcoin cycle?"
+      "Explain this: what do people mean by a bitcoin cycle?",
+      "Clarify this: what do people mean by a bitcoin cycle?",
+      "Unpack this: what do people mean by a bitcoin cycle?"
     ],
     "answer": "They mean the habit of large rises and drawdowns around halvings and credit conditions in past years. Past patterns are not a schedule the protocol enforces. Anyone selling certainty about the next cycle is overclaiming.",
     "topics": [
@@ -510,9 +510,9 @@
     "category": "economics",
     "question": "Is stock-to-flow a price law?",
     "alts": [
-      "In simple words, is stock-to-flow a price law?",
-      "Is stock-to-flow a price law, briefly?",
-      "Help me understand: is stock-to-flow a price law?"
+      "Explain whether is stock-to-flow a price law?",
+      "Clarify whether is stock-to-flow a price law?",
+      "Is this the case: is stock-to-flow a price law?"
     ],
     "answer": "Stock-to-flow compares existing supply with new supply. It describes scarcity. Models that turn it into a future price have failed often enough that they are not a fact this archive will repeat.",
     "topics": [
@@ -532,9 +532,9 @@
     "category": "economics",
     "question": "What is a monetary network effect?",
     "alts": [
-      "In simple words, what is a monetary network effect?",
-      "What is a monetary network effect, briefly?",
-      "Help me understand: what is a monetary network effect?"
+      "Define a monetary network effect?",
+      "Explain a monetary network effect?",
+      "Describe a monetary network effect?"
     ],
     "answer": "A money is more useful when more people accept it. That feedback can favor one monetary good. It is a tendency, not a proof that other tools disappear.",
     "topics": [
@@ -554,9 +554,9 @@
     "category": "economics",
     "question": "What is the Lindy effect?",
     "alts": [
-      "In simple words, what is the Lindy effect?",
-      "What is the Lindy effect, briefly?",
-      "Help me understand: what is the Lindy effect?"
+      "Define the Lindy effect?",
+      "Explain the Lindy effect?",
+      "Describe the Lindy effect?"
     ],
     "answer": "The Lindy idea says that the longer something non-perishable has survived, the longer it may continue. Bitcoin's years of operation are the input people cite. It is a heuristic, not a guarantee.",
     "topics": [
@@ -576,9 +576,9 @@
     "category": "economics",
     "question": "What is a reserve asset?",
     "alts": [
-      "In simple words, what is a reserve asset?",
-      "What is a reserve asset, briefly?",
-      "Help me understand: what is a reserve asset?"
+      "Define a reserve asset?",
+      "Explain a reserve asset?",
+      "Describe a reserve asset?"
     ],
     "answer": "A reserve asset is what institutions hold to settle later and to store surplus. Gold played that role, and some treasuries now hold bitcoin. Holding it as a reserve is a choice those institutions make, and it can be reversed.",
     "topics": [
@@ -598,9 +598,9 @@
     "category": "economics",
     "question": "What is seigniorage?",
     "alts": [
-      "In simple words, what is seigniorage?",
-      "What is seigniorage, briefly?",
-      "Help me understand: what is seigniorage?"
+      "Define seigniorage?",
+      "Explain seigniorage?",
+      "Describe seigniorage?"
     ],
     "answer": "Seigniorage is the profit an issuer earns by creating money that costs less than its face value. Fiat issuers have it. Bitcoin's subsidy pays miners for work, and it shrinks, so there is no lasting issuer profit in the same sense.",
     "topics": [
@@ -620,9 +620,9 @@
     "category": "economics",
     "question": "How do commercial banks create money?",
     "alts": [
-      "In simple words, how do commercial banks create money?",
-      "How do commercial banks create money, briefly?",
-      "Help me understand: how do commercial banks create money?"
+      "Explain how commercial banks create money?",
+      "Describe how commercial banks create money?",
+      "What is the way commercial banks create money?"
     ],
     "answer": "In modern systems, banks create deposits when they lend, under regulation and central-bank rules. That money is a liability of the bank. Bitcoin deposits on an exchange are also a liability, while a UTXO you can sign is not.",
     "topics": [
@@ -642,9 +642,9 @@
     "category": "economics",
     "question": "What is base money?",
     "alts": [
-      "In simple words, what is base money?",
-      "What is base money, briefly?",
-      "Help me understand: what is base money?"
+      "Define base money?",
+      "Explain base money?",
+      "Describe base money?"
     ],
     "answer": "Base money is the final settlement asset, such as central-bank reserves and cash in fiat systems, or on-chain bitcoin in this network. Layers and bank accounts are claims on top. The distinction is why self-custody is taught.",
     "topics": [
@@ -664,9 +664,9 @@
     "category": "economics",
     "question": "What is final settlement?",
     "alts": [
-      "In simple words, what is final settlement?",
-      "What is final settlement, briefly?",
-      "Help me understand: what is final settlement?"
+      "Define final settlement?",
+      "Explain final settlement?",
+      "Describe final settlement?"
     ],
     "answer": "Final settlement means the payment is done in the asset that does not depend on another issuer's office being open. On Bitcoin, confirmations are the path to that for an on-chain payment. An exchange internal transfer is not final settlement on the chain.",
     "topics": [
@@ -686,9 +686,9 @@
     "category": "economics",
     "question": "What did you give up for a capped supply?",
     "alts": [
-      "In simple words, what did you give up for a capped supply?",
-      "What did you give up for a capped supply, briefly?",
-      "Help me understand: what did you give up for a capped supply?"
+      "Explain this: what did you give up for a capped supply?",
+      "Clarify this: what did you give up for a capped supply?",
+      "Unpack this: what did you give up for a capped supply?"
     ],
     "answer": "You give up a committee that could add liquidity in a crisis by printing. You gain a rule anyone can audit. Whether that trade is worth it is a judgment, and this archive will not pretend it is free of consequences.",
     "topics": [
@@ -708,9 +708,9 @@
     "category": "economics",
     "question": "How do government deficits meet money?",
     "alts": [
-      "In simple words, how do government deficits meet money?",
-      "How do government deficits meet money, briefly?",
-      "Help me understand: how do government deficits meet money?"
+      "Explain how government deficits meet money?",
+      "Describe how government deficits meet money?",
+      "What is the way government deficits meet money?"
     ],
     "answer": "Governments that spend more than they tax often borrow, and central banks sometimes support that debt. The link to inflation is debated in degree and in timing. Bitcoin is outside that process, which is the point people are making.",
     "topics": [
@@ -730,9 +730,9 @@
     "category": "economics",
     "question": "Is bitcoin a claim about employment policy?",
     "alts": [
-      "In simple words, is bitcoin a claim about employment policy?",
-      "Is bitcoin a claim about employment policy, briefly?",
-      "Help me understand: is bitcoin a claim about employment policy?"
+      "Explain whether is bitcoin a claim about employment policy?",
+      "Clarify whether is bitcoin a claim about employment policy?",
+      "Is this the case: is bitcoin a claim about employment policy?"
     ],
     "answer": "No. Debates about jobs and interest rates belong to fiat policy. Bitcoin does not set a rate. It only refuses to expand by vote.",
     "topics": [
@@ -752,9 +752,9 @@
     "category": "economics",
     "question": "How do gold arguments transfer?",
     "alts": [
-      "In simple words, how do gold arguments transfer?",
-      "How do gold arguments transfer, briefly?",
-      "Help me understand: how do gold arguments transfer?"
+      "Explain how gold arguments transfer?",
+      "Describe how gold arguments transfer?",
+      "What is the way gold arguments transfer?"
     ],
     "answer": "Arguments about scarcity, verification, and issuance transfer in part. Arguments about jewelry demand and mining supply response do not transfer cleanly. Bitcoin's flow does not rise when the price rises.",
     "topics": [
@@ -774,9 +774,9 @@
     "category": "economics",
     "question": "What is the petrodollar story?",
     "alts": [
-      "In simple words, what is the petrodollar story?",
-      "What is the petrodollar story, briefly?",
-      "Help me understand: what is the petrodollar story?"
+      "Define the petrodollar story?",
+      "Explain the petrodollar story?",
+      "Describe the petrodollar story?"
     ],
     "answer": "After the gold window closed, oil trade largely used dollars, which supported demand for dollars. The history is real and the political story people build on it varies. Bitcoin does not need that story to explain its supply rule.",
     "topics": [
@@ -796,9 +796,9 @@
     "category": "economics",
     "question": "What is the dollar milkshake idea?",
     "alts": [
-      "In simple words, what is the dollar milkshake idea?",
-      "What is the dollar milkshake idea, briefly?",
-      "Help me understand: what is the dollar milkshake idea?"
+      "Define the dollar milkshake idea?",
+      "Explain the dollar milkshake idea?",
+      "Describe the dollar milkshake idea?"
     ],
     "answer": "It is a market thesis that dollar debt around the world creates demand for dollars in a crunch. It is one analyst's framework, not a bitcoin rule. This archive does not treat it as a forecast.",
     "topics": [
@@ -818,9 +818,9 @@
     "category": "economics",
     "question": "Is speculative demand illegitimate?",
     "alts": [
-      "In simple words, is speculative demand illegitimate?",
-      "Is speculative demand illegitimate, briefly?",
-      "Help me understand: is speculative demand illegitimate?"
+      "Explain whether is speculative demand illegitimate?",
+      "Clarify whether is speculative demand illegitimate?",
+      "Is this the case: is speculative demand illegitimate?"
     ],
     "answer": "People buy bitcoin both to use it and to hold it for later. Speculative demand is part of almost every market. It does not change the supply rule, and it can reverse.",
     "topics": [
@@ -840,9 +840,9 @@
     "category": "economics",
     "question": "Does bitcoin produce cash flow?",
     "alts": [
-      "In simple words, does bitcoin produce cash flow?",
-      "Does bitcoin produce cash flow, briefly?",
-      "Help me understand: does bitcoin produce cash flow?"
+      "Explain whether does bitcoin produce cash flow?",
+      "Clarify whether does bitcoin produce cash flow?",
+      "Is this the case: does bitcoin produce cash flow?"
     ],
     "answer": "The asset itself does not pay a dividend. Miners have a business with costs and revenue. Holding the coin is not owning a miner unless you actually own the machines.",
     "topics": [
@@ -862,9 +862,9 @@
     "category": "economics",
     "question": "How do people value bitcoin?",
     "alts": [
-      "In simple words, how do people value bitcoin?",
-      "How do people value bitcoin, briefly?",
-      "Help me understand: how do people value bitcoin?"
+      "Explain how people value bitcoin?",
+      "Describe how people value bitcoin?",
+      "What is the way people value bitcoin?"
     ],
     "answer": "They compare it with monetary metals, with network adoption, and with the cost of mining, and they still disagree. None of those methods is a consensus rule. Be wary of anyone who has the one true price.",
     "topics": [
@@ -884,9 +884,9 @@
     "category": "economics",
     "question": "Is holding a moral duty?",
     "alts": [
-      "In simple words, is holding a moral duty?",
-      "Is holding a moral duty, briefly?",
-      "Help me understand: is holding a moral duty?"
+      "Explain whether is holding a moral duty?",
+      "Clarify whether is holding a moral duty?",
+      "Is this the case: is holding a moral duty?"
     ],
     "answer": "No. Holding is a choice about time preference and risk. Spending bitcoin for something you want is also using it. The culture has slogans, and the protocol is neutral.",
     "topics": [
@@ -906,9 +906,9 @@
     "category": "economics",
     "question": "Does a tax change the supply?",
     "alts": [
-      "In simple words, does a tax change the supply?",
-      "Does a tax change the supply, briefly?",
-      "Help me understand: does a tax change the supply?"
+      "Explain whether does a tax change the supply?",
+      "Clarify whether does a tax change the supply?",
+      "Is this the case: does a tax change the supply?"
     ],
     "answer": "A tax can change whether people want to buy or sell, and it does not add coins to the schedule. Nodes do not know your tax rate. The economic effect and the protocol effect are different.",
     "topics": [
@@ -928,9 +928,9 @@
     "category": "economics",
     "question": "What is an adoption curve?",
     "alts": [
-      "In simple words, what is an adoption curve?",
-      "What is an adoption curve, briefly?",
-      "Help me understand: what is an adoption curve?"
+      "Define an adoption curve?",
+      "Explain an adoption curve?",
+      "Describe an adoption curve?"
     ],
     "answer": "An S-curve is a story of slow start, fast growth, then saturation, seen in other technologies. People apply it to Bitcoin as a hope. It is not a measurement you can read from a block.",
     "topics": [
@@ -950,9 +950,9 @@
     "category": "economics",
     "question": "Do monies start as collectibles?",
     "alts": [
-      "In simple words, do monies start as collectibles?",
-      "Do monies start as collectibles, briefly?",
-      "Help me understand: do monies start as collectibles?"
+      "Explain whether do monies start as collectibles?",
+      "Clarify whether do monies start as collectibles?",
+      "Is this the case: do monies start as collectibles?"
     ],
     "answer": "Some monetary history says goods become stores of value, then media of exchange, then units of account. Teachers place bitcoin somewhere on that path. The path is a theory, and daily prices in your town are the evidence.",
     "topics": [
@@ -972,9 +972,9 @@
     "category": "economics",
     "question": "Can two monies coexist?",
     "alts": [
-      "In simple words, can two monies coexist?",
-      "Can two monies coexist, briefly?",
-      "Help me understand: can two monies coexist?"
+      "Explain whether can two monies coexist?",
+      "Clarify whether can two monies coexist?",
+      "Is this the case: can two monies coexist?"
     ],
     "answer": "Yes. People already hold local currency for bills and other assets for savings. Bitcoin can be one of those assets without being the only one. Coexistence is normal.",
     "topics": [
@@ -994,9 +994,9 @@
     "category": "economics",
     "question": "Why might someone spend fiat and hold bitcoin?",
     "alts": [
-      "In simple words, why might someone spend fiat and hold bitcoin?",
-      "Why might someone spend fiat and hold bitcoin, briefly?",
-      "Help me understand: why might someone spend fiat and hold bitcoin?"
+      "Explain why might someone spend fiat and hold bitcoin?",
+      "For what reason might someone spend fiat and hold bitcoin?",
+      "What is the reason might someone spend fiat and hold bitcoin?"
     ],
     "answer": "If they expect fiat to be expanded and bitcoin not to be, Gresham's story says they spend the softer money. They might be wrong about the future price. The story is a lens, not advice to do it.",
     "topics": [
@@ -1016,9 +1016,9 @@
     "category": "economics",
     "question": "How do you measure purchasing power?",
     "alts": [
-      "In simple words, how do you measure purchasing power?",
-      "How do you measure purchasing power, briefly?",
-      "Help me understand: how do you measure purchasing power?"
+      "Explain how you measure purchasing power?",
+      "Describe how you measure purchasing power?",
+      "What is the way you measure purchasing power?"
     ],
     "answer": "You compare the money with a basket of goods over time. Any basket is a choice. Bitcoin's exchange rate against one currency is not the whole basket.",
     "topics": [
@@ -1038,9 +1038,9 @@
     "category": "economics",
     "question": "Is bitcoin backed by energy?",
     "alts": [
-      "In simple words, is bitcoin backed by energy?",
-      "Is bitcoin backed by energy, briefly?",
-      "Help me understand: is bitcoin backed by energy?"
+      "Explain whether is bitcoin backed by energy?",
+      "Clarify whether is bitcoin backed by energy?",
+      "Is this the case: is bitcoin backed by energy?"
     ],
     "answer": "Energy is spent to produce blocks, and that cost secures history. You cannot redeem a coin for a fixed number of kilowatt hours. The backing people mean is the cost to attack and the demand to hold, not a redemption window.",
     "topics": [
@@ -1060,9 +1060,9 @@
     "category": "economics",
     "question": "Can you redeem bitcoin for a fixed dollar amount?",
     "alts": [
-      "In simple words, can you redeem bitcoin for a fixed dollar amount?",
-      "Can you redeem bitcoin for a fixed dollar amount, briefly?",
-      "Help me understand: can you redeem bitcoin for a fixed dollar amount?"
+      "Explain whether can you redeem bitcoin for a fixed dollar amount?",
+      "Clarify whether can you redeem bitcoin for a fixed dollar amount?",
+      "Is this the case: can you redeem bitcoin for a fixed dollar amount?"
     ],
     "answer": "Not in the protocol. A stablecoin or a broker might offer a price, and that offer can close. Bitcoin itself has no peg.",
     "topics": [
@@ -1082,9 +1082,9 @@
     "category": "economics",
     "question": "Is number-go-up a plan?",
     "alts": [
-      "In simple words, is number-go-up a plan?",
-      "Is number-go-up a plan, briefly?",
-      "Help me understand: is number-go-up a plan?"
+      "Explain whether is number-go-up a plan?",
+      "Clarify whether is number-go-up a plan?",
+      "Is this the case: is number-go-up a plan?"
     ],
     "answer": "It is a meme about wanting the exchange price to rise. It is not a mechanism and not a promise. Education is about how the system works when the number goes either way.",
     "topics": [
@@ -1104,9 +1104,9 @@
     "category": "economics",
     "question": "What was the Bretton Woods system?",
     "alts": [
-      "In simple words, what was the Bretton Woods system?",
-      "What was the Bretton Woods system, briefly?",
-      "Help me understand: what was the Bretton Woods system?"
+      "Explain this: what was the Bretton Woods system?",
+      "Clarify this: what was the Bretton Woods system?",
+      "Unpack this: what was the Bretton Woods system?"
     ],
     "answer": "Bretton Woods was the mid-century arrangement that pegged many currencies to the dollar and the dollar to gold for foreign governments. It is history, and it ended in practice when convertibility stopped. Bitcoin's supply rule is not a revival of that treaty.",
     "topics": [
@@ -1126,9 +1126,9 @@
     "category": "economics",
     "question": "Who ended dollar convertibility to gold?",
     "alts": [
-      "In simple words, who ended dollar convertibility to gold?",
-      "Who ended dollar convertibility to gold, briefly?",
-      "Help me understand: who ended dollar convertibility to gold?"
+      "Explain who ended dollar convertibility to gold?",
+      "Which person ended dollar convertibility to gold?",
+      "Name who ended dollar convertibility to gold?"
     ],
     "answer": "In August 1971 the United States stopped redeeming dollars for gold for foreign governments. That closed the gold window of the Bretton Woods era. Bitcoin did not exist yet, and people study the date as fiat history.",
     "topics": [
@@ -1147,9 +1147,9 @@
     "category": "economics",
     "question": "What is fractional reserve banking?",
     "alts": [
-      "In simple words, what is fractional reserve banking?",
-      "What is fractional reserve banking, briefly?",
-      "Help me understand: what is fractional reserve banking?"
+      "Define fractional reserve banking?",
+      "Explain fractional reserve banking?",
+      "Describe fractional reserve banking?"
     ],
     "answer": "A fractional-reserve bank keeps only part of deposits in cash and lends the rest. The practice lets the broader money supply expand beyond base money. It is a banking arrangement, not something Bitcoin nodes do.",
     "topics": [
@@ -1168,9 +1168,9 @@
     "category": "economics",
     "question": "What is a bank run?",
     "alts": [
-      "In simple words, what is a bank run?",
-      "What is a bank run, briefly?",
-      "Help me understand: what is a bank run?"
+      "Define a bank run?",
+      "Explain a bank run?",
+      "Describe a bank run?"
     ],
     "answer": "A bank run is when many depositors ask for cash at once and the bank cannot pay them all immediately. The mismatch comes from lending deposits out. Bitcoin in your own keys does not have that queue.",
     "topics": [
@@ -1189,9 +1189,9 @@
     "category": "economics",
     "question": "What is a lender of last resort?",
     "alts": [
-      "In simple words, what is a lender of last resort?",
-      "What is a lender of last resort, briefly?",
-      "Help me understand: what is a lender of last resort?"
+      "Define a lender of last resort?",
+      "Explain a lender of last resort?",
+      "Describe a lender of last resort?"
     ],
     "answer": "A lender of last resort is a central bank that lends to banks during a run so they can pay depositors. That support can also expand the money supply. Bitcoin has no such office inside the protocol.",
     "topics": [
@@ -1210,9 +1210,9 @@
     "category": "economics",
     "question": "What is the equation of exchange?",
     "alts": [
-      "In simple words, what is the equation of exchange?",
-      "What is the equation of exchange, briefly?",
-      "Help me understand: what is the equation of exchange?"
+      "Define the equation of exchange?",
+      "Explain the equation of exchange?",
+      "Describe the equation of exchange?"
     ],
     "answer": "The equation of exchange says the money supply times how often it is spent relates to prices times output. It is an accounting identity, not a law that predicts the bitcoin exchange rate. This archive does not turn it into a forecast.",
     "topics": [
@@ -1231,9 +1231,9 @@
     "category": "economics",
     "question": "How is saving different from a yield product?",
     "alts": [
-      "In simple words, how is saving different from a yield product?",
-      "How is saving different from a yield product, briefly?",
-      "Help me understand: how is saving different from a yield product?"
+      "Explain this: how is saving different from a yield product?",
+      "Clarify this: how is saving different from a yield product?",
+      "Unpack this: how is saving different from a yield product?"
     ],
     "answer": "Saving is holding money you did not spend. A yield product pays you by lending, by taking risk, or by diluting someone else. Bitcoin's protocol does not pay a yield for holding.",
     "topics": [
@@ -1252,9 +1252,9 @@
     "category": "economics",
     "question": "Can credit exist around bitcoin?",
     "alts": [
-      "In simple words, can credit exist around bitcoin?",
-      "Can credit exist around bitcoin, briefly?",
-      "Help me understand: can credit exist around bitcoin?"
+      "Explain whether can credit exist around bitcoin?",
+      "Clarify whether can credit exist around bitcoin?",
+      "Is this the case: can credit exist around bitcoin?"
     ],
     "answer": "People can still lend bitcoin or borrow against it with contracts outside the base protocol. Those contracts add counterparty risk the chain does not erase. The 21 million cap does not ban credit.",
     "topics": [
@@ -1273,11 +1273,11 @@
     "category": "economics",
     "question": "Why can a price index miss quality changes?",
     "alts": [
-      "In simple words, why can a price index miss quality changes?",
-      "Why can a price index miss quality changes, briefly?",
-      "Help me understand: why can a price index miss quality changes?"
+      "Explain why can a price index miss quality changes?",
+      "For what reason can a price index miss quality changes?",
+      "What is the reason can a price index miss quality changes?"
     ],
-    "answer": "A consumer index tracks a basket, and the basket's quality and contents change. A single percentage is not the whole of purchasing power. Read the method before treating an index as truth.",
+    "answer": "Economists debate whether a price index captures quality changes, because the basket and the method change over time. A single percentage is not the whole of purchasing power. Read the method before treating an index as truth.",
     "topics": [
       "problems-of-money",
       "money"
@@ -1287,16 +1287,16 @@
       "econ-indirect",
       "econ-stock-flow-diff"
     ],
-    "sources": "Index methods."
+    "sources": "Quality adjustments are debated."
   },
   {
     "id": "econ-coincidence",
     "category": "economics",
     "question": "What is the double coincidence of wants?",
     "alts": [
-      "In simple words, what is the double coincidence of wants?",
-      "What is the double coincidence of wants, briefly?",
-      "Help me understand: what is the double coincidence of wants?"
+      "Define the double coincidence of wants?",
+      "Explain the double coincidence of wants?",
+      "Describe the double coincidence of wants?"
     ],
     "answer": "Barter needs each person to want what the other has, at the same time. Money removes that coincidence by being something almost anyone will accept next. Bitcoin is studied as a candidate for that role, not as a completed world price list.",
     "topics": [
@@ -1315,9 +1315,9 @@
     "category": "economics",
     "question": "Why did people move to indirect exchange?",
     "alts": [
-      "In simple words, why did people move to indirect exchange?",
-      "Why did people move to indirect exchange, briefly?",
-      "Help me understand: why did people move to indirect exchange?"
+      "Explain why did people move to indirect exchange?",
+      "For what reason did people move to indirect exchange?",
+      "What is the reason did people move to indirect exchange?"
     ],
     "answer": "Indirect exchange means selling your good for a widely accepted money, then buying what you want. It scales better than finding a perfect barter match. Which good becomes money is a market outcome, not a decree in the Bitcoin code.",
     "topics": [
@@ -1336,9 +1336,9 @@
     "category": "economics",
     "question": "How is a stock different from a flow?",
     "alts": [
-      "In simple words, how is a stock different from a flow?",
-      "How is a stock different from a flow, briefly?",
-      "Help me understand: how is a stock different from a flow?"
+      "Explain this: how is a stock different from a flow?",
+      "Clarify this: how is a stock different from a flow?",
+      "Unpack this: how is a stock different from a flow?"
     ],
     "answer": "A stock is a pile measured at a moment, and a flow is a rate over time. Bitcoin's existing coins are the stock, and the subsidy is the flow. Mixing the two makes issuance debates muddy.",
     "topics": [

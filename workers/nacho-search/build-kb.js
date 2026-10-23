@@ -16,45 +16,213 @@ function sentences(text) {
     return String(text || "").split(/(?<=[.!?])\s+/).map(function (part) { return part.trim(); }).filter(Boolean);
 }
 
+const APP_QUESTIONS = {
+    "one-stop-shop": ["What is the One Stop Shop?", "How do I use the One Stop Shop?"],
+    home: ["What is the Bitcoin Quest home page?", "How do I use the home page?"],
+    channels: ["What are the education channels?", "How do I open an education channel?"],
+    signin: ["How does sign-in work on Bitcoin Quest?", "Where do I sign in on Bitcoin Quest?"],
+    "say-hi": ["What is the Say hi quest?", "How do I say hi to the community?"],
+    "tctv-watch": ["What is the Timechain TV watch quest?", "How do I finish the Timechain TV watch quest?"],
+    export: ["What is the export-my-data tool?", "How do I export my data from the app?"],
+    donate: ["What is the donate page?", "How do I donate to the archive?"],
+    referral: ["What is the invite-friends reward?", "How do I invite friends to Bitcoin Quest?"],
+    sats: ["What is the claim-sats page?", "How do I claim sats in the app?"],
+    xp: ["What are XP and points in Bitcoin Quest?", "How do XP and points work in the app?"],
+    "first-purchase": ["What is the first-purchase lesson?", "How do I open the first-purchase lesson?"],
+    audio: ["What are sound effects in Bitcoin Quest?", "How do I control sound effects?"],
+    "double-xp": ["What is a Double XP charge?", "How does a Double XP charge work?"],
+    "hash-booster": ["What is a hash booster?", "How does the hash booster differ from a second rig?"]
+};
+
+function featureName(title) {
+    return String(title || "").replace(/^Brand new\?\s*/i, "").replace(/\?/g, "").replace(/\s+/g, " ").trim();
+}
+
+function fitQuestion(text) {
+    let phrase = String(text || "").replace(/\s+/g, " ").trim();
+    if (!phrase) return "";
+    if (!phrase.endsWith("?")) phrase += "?";
+    phrase = phrase.replace(/\?{2,}/g, "?");
+    if (phrase.length < 8 || phrase.length > 90) return "";
+    if ((phrase.match(/\?/g) || []).length !== 1) return "";
+    if (/^(?:In simple words,|Help me understand:)/i.test(phrase)) return "";
+    if (/, briefly\?$/i.test(phrase)) return "";
+    return phrase;
+}
+
 function makeAlts(question) {
-    const body = String(question || "").replace(/\?$/, "").trim();
-    const lower = body.charAt(0).toLowerCase() + body.slice(1);
-    const titled = lower.charAt(0).toUpperCase() + lower.slice(1);
-    return [
-        "In simple words, " + lower + "?",
-        titled + ", briefly?",
-        "Help me understand: " + lower + "?"
-    ];
+    const q = String(question || "").replace(/\?$/, "").trim();
+    const lower = q.charAt(0).toLowerCase() + q.slice(1);
+    const options = [];
+    function add(text) {
+        const phrase = fitQuestion(text);
+        if (phrase) options.push(phrase);
+    }
+    if (/^What is /i.test(q)) {
+        const rest = q.replace(/^What is /i, "");
+        add("Define " + rest + "?");
+        add("Explain " + rest + "?");
+        add("Describe " + rest + "?");
+    } else if (/^What are /i.test(q)) {
+        const rest = q.replace(/^What are /i, "");
+        add("Explain " + rest + "?");
+        add("Describe " + rest + "?");
+        add("Define " + rest + "?");
+    } else if (/^What does /i.test(q)) {
+        const rest = q.replace(/^What does /i, "");
+        add("Explain what " + rest + "?");
+        add("Clarify what " + rest + "?");
+        add("Describe what " + rest + "?");
+    } else if (/^How do I /i.test(q)) {
+        const rest = q.replace(/^How do I /i, "");
+        add("How can I " + rest + "?");
+        add("Show me how to " + rest + "?");
+        add("What is the way to " + rest + "?");
+    } else if (/^How does /i.test(q)) {
+        const rest = q.replace(/^How does /i, "");
+        add("Explain how " + rest + "?");
+        add("Describe how " + rest + "?");
+        add("How can " + rest + "?");
+    } else if (/^How do /i.test(q)) {
+        const rest = q.replace(/^How do /i, "");
+        add("Explain how " + rest + "?");
+        add("Describe how " + rest + "?");
+        add("What is the way " + rest + "?");
+    } else if (/^Why /i.test(q)) {
+        const rest = q.replace(/^Why /i, "");
+        add("Explain why " + rest + "?");
+        add("For what reason " + rest + "?");
+        add("What is the reason " + rest + "?");
+    } else if (/^When /i.test(q)) {
+        const rest = q.replace(/^When /i, "");
+        add("Explain when " + rest + "?");
+        add("At what time " + rest + "?");
+        add("Which date fits " + rest + "?");
+    } else if (/^Who /i.test(q)) {
+        const rest = q.replace(/^Who /i, "");
+        add("Explain who " + rest + "?");
+        add("Which person " + rest + "?");
+        add("Name who " + rest + "?");
+    } else if (/^(?:Is|Do|Does|Can|Are|Should) /i.test(q)) {
+        add("Explain whether " + lower + "?");
+        add("Clarify whether " + lower + "?");
+        add("Is this the case: " + lower + "?");
+    }
+    add("Explain this: " + lower + "?");
+    add("Clarify this: " + lower + "?");
+    add("Unpack this: " + lower + "?");
+    return options;
 }
 
 function appEntries(topicIds) {
     const out = [];
     registry.FEATURES.forEach(function (feature) {
-        const title = String(feature.title || feature.id);
+        const name = featureName(feature.title || feature.id);
         const desc = String(feature.desc || "").trim().replace(/[.!?]$/, "") + ".";
         const how = String(feature.how || "").trim().replace(/[.!?]$/, "") + ".";
         const answer = desc + " " + how + " This describes a Bitcoin Quest feature, not financial advice.";
-        const topic = topicIds.has(feature.id) ? feature.id : (feature.id === "pow-support" ? "proof-of-walk" : "faq");
+        const topic = topicIds.has(feature.id) ? feature.id : (feature.id === "pow-support" ? "proof-of-walk" : (feature.id === "audio" ? "faq" : "faq"));
         const second = topicIds.has("one-stop-shop") ? "one-stop-shop" : "faq";
+        const custom = APP_QUESTIONS[feature.id];
         function push(suffix, question) {
-            if (question.length > 90) return;
+            const phrase = fitQuestion(question);
+            if (!phrase) return;
             out.push({
                 id: "app-" + feature.id + "-" + suffix,
                 category: "app",
-                question: question,
+                question: phrase,
                 answer: answer,
                 topics: topic === second ? [topic] : [topic, second],
                 sources: "features.registry.js entry " + feature.id + "."
             });
         }
-        let what = "What is " + title + " in Bitcoin Quest?";
-        if (what.length > 90) what = "What is " + title + "?";
-        let howQ = "How do I use " + title + " in the app?";
-        if (howQ.length > 90) howQ = "How do I use " + title + "?";
+        const what = custom ? custom[0] : "What is " + name + " in Bitcoin Quest?";
+        const howQ = custom ? custom[1] : "How do I use " + name + " in the app?";
         push("what", what);
         push("how", howQ);
     });
     return out;
+}
+
+function chooseAlts(question, foldKey, seenKey) {
+    const chosen = [];
+    const local = new Set();
+    const own = foldKey(question);
+    makeAlts(question).forEach(function (phrase) {
+        if (chosen.length >= 3) return;
+        const key = foldKey(phrase);
+        if (!key || key === own || seenKey.has(key) || local.has(key)) return;
+        local.add(key);
+        chosen.push(phrase);
+    });
+    return chosen;
+}
+
+function buildIndex(entries, text) {
+    const vocab = new Map();
+    function tid(token) {
+        let id = vocab.get(token);
+        if (id == null) {
+            id = vocab.size;
+            vocab.set(token, id);
+        }
+        return id;
+    }
+    const df = new Map();
+    const packed = [];
+    const exact = {};
+    let total = 0;
+    entries.forEach(function (entry) {
+        const qTokens = text.contentTokens(entry.question);
+        const altTokens = (entry.alts || []).map(function (alt) { return text.contentTokens(alt); });
+        const tf = new Map();
+        qTokens.forEach(function (token) { tf.set(token, (tf.get(token) || 0) + 1); });
+        altTokens.forEach(function (row) {
+            row.forEach(function (token) { tf.set(token, (tf.get(token) || 0) + 1); });
+        });
+        const len = qTokens.length + altTokens.reduce(function (sum, row) { return sum + row.length; }, 0);
+        total += len || 1;
+        tf.forEach(function (_count, token) { df.set(token, (df.get(token) || 0) + 1); });
+        packed.push({
+            id: entry.id,
+            len: len || 1,
+            q: qTokens.slice(),
+            alts: altTokens,
+            tf: tf
+        });
+        [entry.question].concat(entry.alts || []).forEach(function (phrase) {
+            const key = text.foldKey(phrase);
+            if (key && !exact[key]) exact[key] = entry.id;
+        });
+    });
+    const n = packed.length;
+    const words = [];
+    packed.forEach(function (doc) {
+        doc.q = doc.q.map(tid);
+        doc.alts = doc.alts.map(function (row) { return row.map(tid); });
+    });
+    vocab.forEach(function (_id, token) { words[_id] = token; });
+    const idf = words.map(function (token) {
+        const dfi = df.get(token) || 0;
+        return Math.log(1 + (n - dfi + 0.5) / (dfi + 0.5));
+    });
+    const postings = words.map(function () { return []; });
+    packed.forEach(function (doc, di) {
+        doc.tf.forEach(function (count, token) {
+            postings[vocab.get(token)].push([di, count]);
+        });
+    });
+    return {
+        avgdl: n ? total / n : 1,
+        n: n,
+        vocab: words,
+        idf: idf,
+        postings: postings,
+        docs: packed.map(function (doc) {
+            return { id: doc.id, len: doc.len, q: doc.q, alts: doc.alts };
+        }),
+        exact: exact
+    };
 }
 
 async function main() {
@@ -68,15 +236,16 @@ async function main() {
     const seenKey = new Set();
     const errors = [];
     entries.forEach(function (entry) {
-        entry.alts = (entry.alts && entry.alts.length >= 3) ? entry.alts.slice(0, 6) : makeAlts(entry.question);
+        entry.alts = (entry.alts && entry.alts.length >= 3) ? entry.alts.slice(0, 6) : chooseAlts(entry.question, foldKey, seenKey);
         if (!/^[a-z0-9-]{3,80}$/.test(entry.id)) errors.push("bad id " + entry.id);
         if (seenId.has(entry.id)) errors.push("dup id " + entry.id);
         seenId.add(entry.id);
-        if (!entry.question || entry.question.length > 90 || !entry.question.endsWith("?")) errors.push("bad question " + entry.id + " " + entry.question);
+        if (!entry.question || entry.question.length > 90 || !entry.question.endsWith("?") || (entry.question.match(/\?/g) || []).length !== 1) errors.push("bad question " + entry.id + " " + entry.question);
         const keys = [entry.question].concat(entry.alts);
         keys.forEach(function (phrase) {
             const key = foldKey(phrase);
             if (!key) errors.push("empty phrase " + entry.id);
+            if (/^(?:In simple words,|Help me understand:)/i.test(phrase) || /, briefly\?$/i.test(phrase)) errors.push("template " + entry.id + " :: " + phrase);
             if (seenKey.has(key)) errors.push("dup phrase " + entry.id + " :: " + phrase);
             seenKey.add(key);
         });
@@ -158,7 +327,10 @@ async function main() {
         };
     });
     fs.writeFileSync(path.join(__dirname, "kb-data.mjs"), "export const KB = " + JSON.stringify(flat) + ";\n");
+    const index = buildIndex(flat, text);
+    fs.writeFileSync(path.join(__dirname, "kb-index.mjs"), "export const INDEX = " + JSON.stringify(index) + ";\n");
     console.log("entries", flat.length);
+    console.log("index vocab", index.vocab.length, "postings", index.postings.reduce(function (sum, row) { return sum + row.length; }, 0));
     console.log(JSON.stringify(counts, null, 2));
 }
 

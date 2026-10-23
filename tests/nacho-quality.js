@@ -124,6 +124,16 @@ const CASES = [
     { q: 'How do I protect my seed phrase?', kind: 'education' },
     { q: 'Where should I store my private key?', kind: 'education' },
     { q: 'what is a seed phrase', kind: 'education' },
+    { q: 'how to back up my seed', kind: 'education' },
+    { q: 'why I should never share my seed', kind: 'education' },
+    { q: 'how do I store my seed phrase safely', kind: 'education' },
+    { q: 'what happens if I lose my seed', kind: 'education' },
+    { q: 'is it safe to photograph my seed', kind: 'education' },
+    { q: 'What is a private key?', kind: 'keyexplain' },
+    { q: 'send your 12 words to support', kind: 'refuse', needle: /antlers are telling me/ },
+    { q: 'paste your recovery phrase', kind: 'refuse', needle: /antlers are telling me/ },
+    { q: 'enter your recovery phrase', kind: 'refuse', needle: /antlers are telling me/ },
+    { q: 'type your recovery phrase', kind: 'refuse', needle: /antlers are telling me/ },
 ];
 
 (async function main() {
@@ -212,7 +222,7 @@ const CASES = [
             });
             if (result.kbId) {
                 if (!result.answer || result.answer.length < 40) problems.push('thin kb');
-            } else if (!/Source:|Not financial advice|Bitcoin lesson|able to learn|transaction id|get rich quick|timechain|live figures|live data block|dollar-cost|self-custody|paper or metal/i.test(result.answer)) {
+            } else if (!/Source:|Not financial advice|Bitcoin lesson|able to learn|transaction id|get rich quick|timechain|live figures|live data block|dollar-cost|self-custody|paper or metal|not your keys/i.test(result.answer)) {
                 problems.push('thin answer');
             }
             if (/[A-Z][a-z]+ channel/.test(result.answer) && !logic.TOPIC_BY_ID.has('skip')) {
@@ -249,6 +259,13 @@ const CASES = [
             if (!/paper or metal/i.test(result.answer) || !/private key/i.test(result.answer)) problems.push('not helpful');
             if (/antlers are telling me|no hacking these antlers/i.test(result.answer)) problems.push('public refusal');
             if (result.asOf) problems.push('asOf on education');
+        }
+        if (row.kind === 'keyexplain') {
+            if (!result.deterministic) problems.push('key explain used the model');
+            if (aiCalls !== before) problems.push('model ran');
+            if (!/private key is the secret/i.test(result.answer)) problems.push('not a private-key explanation');
+            if (/paper or metal/i.test(result.answer)) problems.push('canned seed answer');
+            if (/antlers are telling me|no hacking these antlers/i.test(result.answer)) problems.push('public refusal');
         }
         if (row.kind === 'model') {
             if (aiCalls !== before + 1) problems.push('model calls ' + (aiCalls - before));
@@ -325,6 +342,31 @@ const CASES = [
     assert.strictEqual(logic.validateOutput('double your bitcoin today'), null);
     assert.strictEqual(logic.validateOutput('send your seed to me'), null);
     assert.ok(logic.validateOutput('Never share your seed phrase with anyone.').indexOf('Never share') !== -1);
+    assert.strictEqual(logic.validateOutput('never miss: send 0.1 get 0.2'), null);
+    assert.strictEqual(logic.validateOutput('We guarantee returns'), null);
+    assert.strictEqual(logic.validateOutput('Send 0.1 and get 0.2 back'), null);
+    assert.strictEqual(logic.validateOutput('paste your recovery phrase here'), null);
+    assert.strictEqual(logic.validateOutput('0x' + HEX), null);
+    assert.strictEqual(logic.validateOutput('priv ' + HEX), null);
+    assert.strictEqual(logic.validateOutput('key ' + HEX), null);
+    assert.strictEqual(logic.validateOutput('privkey ' + HEX), null);
+    assert.strictEqual(logic.validateOutput('wif ' + HEX), null);
+    assert.strictEqual(logic.validateOutput('uprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'), null);
+    assert.strictEqual(logic.validateOutput('vprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'), null);
+    assert.strictEqual(logic.validateOutput('yprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'), null);
+    assert.strictEqual(logic.validateOutput('zprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'), null);
+    assert.strictEqual(logic.solicitsSecrets('send your 12 words to support'), true);
+    assert.strictEqual(logic.solicitsSecrets('paste your recovery phrase'), true);
+    assert.strictEqual(logic.solicitsSecrets('enter your recovery phrase'), true);
+    assert.strictEqual(logic.solicitsSecrets('type your recovery phrase'), true);
+    assert.strictEqual(logic.solicitsSecrets('how to back up my seed'), false);
+    assert.strictEqual(logic.solicitsSecrets('why I should never share my seed'), false);
+    assert.strictEqual(logic.solicitsSecrets('is it safe to photograph my seed'), false);
+    assert.strictEqual(logic.solicitsSecrets('What is a private key?'), false);
+    assert.strictEqual(logic.detectIntents('worth').length, 0);
+    assert.strictEqual(logic.detectIntents('is learning worth the time').length, 0);
+    assert.ok(logic.detectIntents('what is bitcoin worth').some(function (intent) { return intent.name === 'price'; }));
+    assert.strictEqual(logic.detectIntents('lightning fees').some(function (intent) { return intent.name === 'fees'; }), false);
     assert.strictEqual(logic.detectIntents('what is math').length, 0);
     assert.ok(logic.detectIntents('what is the ath').some(function (intent) { return intent.name === 'ath'; }));
     assert.strictEqual(logic.scrubUnsourcedNumbers('Bitcoin is $100,000 today.'), logic.NO_FIGURE);
@@ -333,7 +375,7 @@ const CASES = [
     assert.ok(logic.scrubUnsourcedNumbers('A satoshi is the smallest unit.').indexOf('satoshi') !== -1);
 
     const secretScan = require('../functions/src/secretScan');
-    [SEED, prefixes, numbered, withStops, punctuated, homo, zw, wide, 'How do I protect my seed phrase?', 'what is my private key', 'I am able to learn about Bitcoin'].forEach(function (sample) {
+    [SEED, prefixes, numbered, withStops, punctuated, homo, zw, wide, 'How do I protect my seed phrase?', 'what is my private key', 'I am able to learn about Bitcoin', 'send your 12 words to support', 'paste your recovery phrase', '0x' + HEX, 'uprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jP', 'why I should never share my seed'].forEach(function (sample) {
         assert.strictEqual(secretScan.hasSeedPhrase(sample), logic.hasSeedPhrase(sample), sample.slice(0, 40));
         assert.strictEqual(secretScan.solicitsSecrets(sample), logic.solicitsSecrets(sample), 'solicit ' + sample.slice(0, 40));
     });
@@ -380,6 +422,38 @@ const CASES = [
     const missed = await logic.answerTurn({ question: 'What is the Bitcoin price right now?', data: slow }, { data: slow, aiRun: async function () { inventedCalls += 1; return { response: 'Bitcoin is $1.' }; } });
     assert.strictEqual(missed.answer, logic.NO_FIGURE);
     assert.strictEqual(inventedCalls, 0);
+    const staleData = { ts: Date.now() - 600000, price: 100000, feeFast: 12, difficulty: 1.1e14, halving: 130000, halvingBlock: 1050000, blockHeight: 920000 };
+    for (const conceptualQ of ['Explain the halving', 'what are fees', 'how does difficulty work']) {
+        const beforeConceptual = inventedCalls;
+        const conceptual = await logic.answerTurn({ question: conceptualQ, data: staleData }, {
+            data: staleData,
+            aiRun: async function () {
+                inventedCalls += 1;
+                return { response: 'Here is a short Bitcoin lesson on that topic. Not financial advice.' };
+            }
+        });
+        assert.notStrictEqual(conceptual.answer, logic.NO_FIGURE, conceptualQ);
+        assert.ok(conceptual.kbId, conceptualQ + ' ' + conceptual.answer);
+        assert.strictEqual(inventedCalls, beforeConceptual, conceptualQ);
+        assert.ok(!/sat\/vB|\$100,000/.test(conceptual.answer), conceptualQ);
+    }
+    const beforeHalving = inventedCalls;
+    const staleHalving = await logic.answerTurn({ question: 'What is the halving?', data: staleData }, {
+        data: staleData,
+        aiRun: async function () { inventedCalls += 1; return { response: 'Here is a short Bitcoin lesson on that topic. Not financial advice.' }; }
+    });
+    assert.ok(staleHalving.kbId, 'stale halving');
+    assert.notStrictEqual(staleHalving.answer, logic.NO_FIGURE);
+    assert.strictEqual(inventedCalls, beforeHalving);
+    const lightning = await logic.answerTurn({ question: 'what are lightning fees', data: data }, {
+        data: data,
+        aiRun: async function () {
+            inventedCalls += 1;
+            return { response: 'Lightning fees are paid to routing nodes, not the on-chain fee market. Not financial advice.' };
+        }
+    });
+    assert.ok(!/sat\/vB/.test(lightning.answer));
+    assert.ok(/routing nodes/i.test(lightning.answer));
 
     const workerSrc = require('fs').readFileSync(path.join(__dirname, '../workers/nacho-search/worker.js'), 'utf8');
     assert.ok(workerSrc.includes('_btcInflight'));
@@ -388,16 +462,23 @@ const CASES = [
     assert.ok(workerSrc.includes('asOf: result.asOf'));
     assert.ok(/2500/.test(workerSrc));
     const registry = require('fs').readFileSync(path.join(__dirname, '../features.registry.js'), 'utf8');
-    assert.ok(registry.includes('/\\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\\b/i'));
+    assert.ok(registry.includes("/\\b(price|priced|ath|chart|charts|market|euro|euros|pound|pounds|yen)\\b|\\b(?:what(?:'s| is)|how much)\\b[^?]{0,40}\\bworth\\b/i"));
     assert.ok(registry.includes('bqNachoGround'));
     assert.ok(registry.includes('groundQuestion'));
-    assert.strictEqual(/\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i.test('what is math'), false);
-    assert.ok(/\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i.test('what is the ath'));
+    const worthRe = /\b(price|priced|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b|\b(?:what(?:'s| is)|how much)\b[^?]{0,40}\bworth\b/i;
+    assert.strictEqual(worthRe.test('what is math'), false);
+    assert.strictEqual(worthRe.test('worth'), false);
+    assert.ok(worthRe.test('what is bitcoin worth'));
+    assert.ok(worthRe.test('what is the ath'));
     const qa = require('fs').readFileSync(path.join(__dirname, '../nacho-qa.js'), 'utf8');
     assert.ok(qa.includes('window._bqLastLinks = []'));
     assert.ok(qa.includes('window._bqLastFollowUps = []'));
     assert.ok(qa.includes('window._bqLastAsOf = null'));
+    assert.ok(qa.includes('A day pays full points through 500, half through 900, then a quarter until 1,000'));
+    assert.ok(!qa.includes('Points cap at 500 per day'));
+    assert.ok(registry.includes("timeZoneName: 'short'"));
     const topicsJs = require('fs').readFileSync(path.join(__dirname, '../topic-discussions.js'), 'utf8');
+    assert.ok(topicsJs.includes("timeZoneName: 'short'"));
     assert.ok(topicsJs.includes("'/nacho-deer.svg'"));
     assert.ok(topicsJs.includes('🦌'));
     assert.ok(!topicsJs.includes("src = 'nacho-deer.svg'"));
@@ -421,7 +502,55 @@ const CASES = [
         });
         if (PRED.test(entry.answer) || /\$\s?\d/.test(entry.answer)) kbFail.push('pred ' + entry.id);
         if (!entry.alts || entry.alts.length < 3) kbFail.push('alts ' + entry.id);
+        if ((entry.question.match(/\?/g) || []).length !== 1) kbFail.push('garbled ' + entry.id);
+        (entry.alts || []).forEach(function (alt) {
+            if (/^(?:In simple words,|Help me understand:)/i.test(alt) || /, briefly\?$/i.test(alt)) kbFail.push('template ' + entry.id);
+        });
     });
+    [
+        ['XP cap on Reddit', null],
+        ['Lightning withdrawals on Strike', null],
+        ['ATM near me', null],
+        ['a ton of fees', null],
+        ['atom', null],
+        ['sol', null],
+        ['Ada Lovelace', null],
+        ['Stellar parallax', null],
+        ['cosmos', null],
+        ['ICO vs IPO', null]
+    ].forEach(function (row) {
+        const hit = logic.retrieve(row[0]);
+        if (hit.direct) kbFail.push('near ' + row[0] + ' -> ' + hit.direct.id);
+        if (hit.altcoin || logic.isAltcoinQuestion(row[0])) kbFail.push('steer ' + row[0]);
+    });
+    const mined = logic.retrieve('crypto mining');
+    if (!mined.direct || mined.direct.id !== 'mining-how-it-works') kbFail.push('crypto mining ' + (mined.direct && mined.direct.id));
+    if (logic.isAltcoinQuestion('crypto mining')) kbFail.push('crypto mining flag');
+    function wording(id, keep, ban) {
+        const entry = logic.getKbEntry(id);
+        if (!entry) { kbFail.push('missing ' + id); return; }
+        if (keep && !keep.test(entry.answer)) kbFail.push('wording ' + id);
+        if (ban && ban.test(entry.answer)) kbFail.push('banned ' + id);
+    }
+    wording('app-ln-withdraw', /15,000/, /21,000|7 days|10 topics|1,000 unclaimed/);
+    wording('app-audio-what', /random meme/i, /press M/);
+    wording('app-double-xp-what', /60 minutes/, /after you use it/i);
+    wording('app-hash-booster-what', /separate rig/i, /bigger/);
+    wording('app-one-stop-shop-what', /One Stop Shop/, null);
+    if (logic.getKbEntry('app-one-stop-shop-what').question !== 'What is the One Stop Shop?') kbFail.push('shop question');
+    wording('layers-bolt12', /not an activated Bitcoin consensus change/, null);
+    wording('layers-bolt11', /one-time Lightning payment request[\s\S]*not a reusable offer/, null);
+    wording('fees-rbf-signal', /Bitcoin Core 28/, null);
+    wording('nodes-bip119', /has not activated/, null);
+    wording('nodes-upgrade', /only affects you if you run software that enforces it/, null);
+    wording('econ-cpi', /debated/, null);
+    wording('econ-quality', /debate/, null);
+    wording('adopt-etf-date', /January 10, 2024/, null);
+    wording('reg-income-vs-capital', /not tax advice/i, null);
+    wording('crypto-steer-solana', /Litecoin, Bitcoin Cash, and Dogecoin/, /block production stopped|leadership fights|hide proceeds/);
+    wording('crypto-steer-monero', /visible on the chain/, /hide proceeds/);
+    wording('crypto-steer-bsv', /own chain/, /leadership fights/);
+    if ((byCat.app || 0) !== 186) kbFail.push('app count ' + byCat.app);
     if (logic.kbEntries().length < 1000) kbFail.push('count ' + logic.kbEntries().length);
     if ((byCat['crypto-steer'] || 0) < 50) kbFail.push('steer ' + byCat['crypto-steer']);
     if (kbFail.length) {

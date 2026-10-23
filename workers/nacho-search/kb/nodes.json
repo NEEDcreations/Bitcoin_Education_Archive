@@ -4,9 +4,9 @@
     "category": "nodes",
     "question": "What is a Bitcoin node?",
     "alts": [
-      "In simple words, what is a Bitcoin node?",
-      "What is a Bitcoin node, briefly?",
-      "Help me understand: what is a Bitcoin node?"
+      "Define a Bitcoin node?",
+      "Explain a Bitcoin node?",
+      "Describe a Bitcoin node?"
     ],
     "answer": "A full node downloads blocks and checks every rule: signatures, supply, and block limits. It does not trust a website to say your payment is real. A pruned node can do this and then delete old block files.",
     "topics": [
@@ -26,9 +26,9 @@
     "category": "nodes",
     "question": "What is a pruned node?",
     "alts": [
-      "In simple words, what is a pruned node?",
-      "What is a pruned node, briefly?",
-      "Help me understand: what is a pruned node?"
+      "Define a pruned node?",
+      "Explain a pruned node?",
+      "Describe a pruned node?"
     ],
     "answer": "A pruned node still checks every block from the start, then throws away old block data it no longer needs to store. It remains a full verifier. It cannot serve the whole ancient chain to a new peer.",
     "topics": [
@@ -48,9 +48,9 @@
     "category": "nodes",
     "question": "Do nodes and miners do the same job?",
     "alts": [
-      "In simple words, do nodes and miners do the same job?",
-      "Do nodes and miners do the same job, briefly?",
-      "Help me understand: do nodes and miners do the same job?"
+      "Explain whether do nodes and miners do the same job?",
+      "Clarify whether do nodes and miners do the same job?",
+      "Is this the case: do nodes and miners do the same job?"
     ],
     "answer": "Miners propose blocks and spend energy to do it. Nodes accept or ignore those blocks. A miner who breaks the rules is ignored by honest nodes, even if the hash is impressive.",
     "topics": [
@@ -70,9 +70,9 @@
     "category": "nodes",
     "question": "What is consensus in Bitcoin?",
     "alts": [
-      "In simple words, what is consensus in Bitcoin?",
-      "What is consensus in Bitcoin, briefly?",
-      "Help me understand: what is consensus in Bitcoin?"
+      "Define consensus in Bitcoin?",
+      "Explain consensus in Bitcoin?",
+      "Describe consensus in Bitcoin?"
     ],
     "answer": "Consensus means nodes independently accept the same valid chain because they share rules and prefer the most work. There is no vote snapshot that sets the rules each Tuesday. Disagreement about software can become two networks.",
     "topics": [
@@ -92,9 +92,9 @@
     "category": "nodes",
     "question": "Is mempool policy the same as consensus?",
     "alts": [
-      "In simple words, is mempool policy the same as consensus?",
-      "Is mempool policy the same as consensus, briefly?",
-      "Help me understand: is mempool policy the same as consensus?"
+      "Explain whether is mempool policy the same as consensus?",
+      "Clarify whether is mempool policy the same as consensus?",
+      "Is this the case: is mempool policy the same as consensus?"
     ],
     "answer": "No. Consensus is what makes a block valid forever. Mempool policy is what a node is willing to relay before a block, and it can differ. A miner can include a transaction your node refused to relay, if the block is otherwise valid.",
     "topics": [
@@ -114,9 +114,9 @@
     "category": "nodes",
     "question": "What is initial block download?",
     "alts": [
-      "In simple words, what is initial block download?",
-      "What is initial block download, briefly?",
-      "Help me understand: what is initial block download?"
+      "Define initial block download?",
+      "Explain initial block download?",
+      "Describe initial block download?"
     ],
     "answer": "Initial block download is a new node catching up from the genesis block to today. It checks history instead of trusting a summary from a stranger. It takes time and disk or a prune setting.",
     "topics": [
@@ -136,9 +136,9 @@
     "category": "nodes",
     "question": "What does assumevalid mean?",
     "alts": [
-      "In simple words, what does assumevalid mean?",
-      "What does assumevalid mean, briefly?",
-      "Help me understand: what does assumevalid mean?"
+      "Explain what assumevalid mean?",
+      "Clarify what assumevalid mean?",
+      "Describe what assumevalid mean?"
     ],
     "answer": "Some software can skip signature checks far in the past, up to a block the developers have reviewed, while still checking the structure and the recent signatures. It is a performance option. You can turn the shortcut off and check everything.",
     "topics": [
@@ -158,9 +158,9 @@
     "category": "nodes",
     "question": "What does a node store?",
     "alts": [
-      "In simple words, what does a node store?",
-      "What does a node store, briefly?",
-      "Help me understand: what does a node store?"
+      "Explain what a node store?",
+      "Clarify what a node store?",
+      "Describe what a node store?"
     ],
     "answer": "A node stores block and undo data, the set of unspent outputs, and peer information. Pruning shrinks the block files. The wallet, if you use one inside the node, stores keys separately and should be backed up.",
     "topics": [
@@ -180,9 +180,9 @@
     "category": "nodes",
     "question": "How does a node find peers?",
     "alts": [
-      "In simple words, how does a node find peers?",
-      "How does a node find peers, briefly?",
-      "Help me understand: how does a node find peers?"
+      "Explain how a node find peers?",
+      "Describe how a node find peers?",
+      "How can a node find peers?"
     ],
     "answer": "Nodes learn addresses from other nodes and from built-in seeds when they are new. They speak the Bitcoin peer protocol over the network. You can also connect to a peer you chose yourself.",
     "topics": [
@@ -202,9 +202,9 @@
     "category": "nodes",
     "question": "Can a node use Tor?",
     "alts": [
-      "In simple words, can a node use Tor?",
-      "Can a node use Tor, briefly?",
-      "Help me understand: can a node use Tor?"
+      "Explain whether can a node use Tor?",
+      "Clarify whether can a node use Tor?",
+      "Is this the case: can a node use Tor?"
     ],
     "answer": "Yes. Many node programs can listen or connect over Tor so your home address is less obvious. That is a privacy option for the peer connection. It does not hide the amounts in the transactions you make.",
     "topics": [
@@ -224,9 +224,9 @@
     "category": "nodes",
     "question": "Does a node use a lot of bandwidth?",
     "alts": [
-      "In simple words, does a node use a lot of bandwidth?",
-      "Does a node use a lot of bandwidth, briefly?",
-      "Help me understand: does a node use a lot of bandwidth?"
+      "Explain whether does a node use a lot of bandwidth?",
+      "Clarify whether does a node use a lot of bandwidth?",
+      "Is this the case: does a node use a lot of bandwidth?"
     ],
     "answer": "A node uploads and downloads blocks and transactions. The first catch-up is the heavy part. After that, staying current is closer to ordinary home traffic, and it depends on your settings.",
     "topics": [
@@ -246,9 +246,9 @@
     "category": "nodes",
     "question": "What computer can run a node?",
     "alts": [
-      "In simple words, what computer can run a node?",
-      "What computer can run a node, briefly?",
-      "Help me understand: what computer can run a node?"
+      "Explain this: what computer can run a node?",
+      "Clarify this: what computer can run a node?",
+      "Unpack this: what computer can run a node?"
     ],
     "answer": "A modest always-on computer with enough disk and a decent connection can run a node. Phones usually run wallets instead. The point is checking the chain, not mining it.",
     "topics": [
@@ -268,9 +268,9 @@
     "category": "nodes",
     "question": "Why run your own node?",
     "alts": [
-      "In simple words, why run your own node?",
-      "Why run your own node, briefly?",
-      "Help me understand: why run your own node?"
+      "Explain why run your own node?",
+      "For what reason run your own node?",
+      "What is the reason run your own node?"
     ],
     "answer": "Your node tells you whether a payment follows the rules, without a company as the judge. It also lets a wallet ask a machine you control. If you do not run one, you trust someone who does.",
     "topics": [
@@ -290,9 +290,9 @@
     "category": "nodes",
     "question": "What do light wallets trust?",
     "alts": [
-      "In simple words, what do light wallets trust?",
-      "What do light wallets trust, briefly?",
-      "Help me understand: what do light wallets trust?"
+      "Explain this: what do light wallets trust?",
+      "Clarify this: what do light wallets trust?",
+      "Unpack this: what do light wallets trust?"
     ],
     "answer": "A light wallet trusts that the headers it sees are the real most-work chain, and often trusts a server to tell it about its transactions. That is fine for small amounts for many people. Large holdings are a reason to check with your own node.",
     "topics": [
@@ -312,9 +312,9 @@
     "category": "nodes",
     "question": "Is a block explorer a node I control?",
     "alts": [
-      "In simple words, is a block explorer a node I control?",
-      "Is a block explorer a node I control, briefly?",
-      "Help me understand: is a block explorer a node I control?"
+      "Explain whether is a block explorer a node I control?",
+      "Clarify whether is a block explorer a node I control?",
+      "Is this the case: is a block explorer a node I control?"
     ],
     "answer": "No. An explorer is someone else's server showing you their view. It can be wrong, hacked, or slow. It is a window, not your verification.",
     "topics": [
@@ -334,9 +334,9 @@
     "category": "nodes",
     "question": "How does a soft fork activate?",
     "alts": [
-      "In simple words, how does a soft fork activate?",
-      "How does a soft fork activate, briefly?",
-      "Help me understand: how does a soft fork activate?"
+      "Explain how a soft fork activate?",
+      "Describe how a soft fork activate?",
+      "How can a soft fork activate?"
     ],
     "answer": "New software starts enforcing a tighter rule after a signal or a flag day that was written into the code. Old nodes still see the blocks as valid if the new rule is a tightening. Miners and users both matter, because blocks must be both mined and accepted.",
     "topics": [
@@ -356,9 +356,9 @@
     "category": "nodes",
     "question": "What was the UASF?",
     "alts": [
-      "In simple words, what was the UASF?",
-      "What was the UASF, briefly?",
-      "Help me understand: what was the UASF?"
+      "Explain this: what was the UASF?",
+      "Clarify this: what was the UASF?",
+      "Unpack this: what was the UASF?"
     ],
     "answer": "In 2017 some users ran software that would reject blocks that did not support SegWit after a date, a user-activated soft fork under BIP148. It was a contentious moment. SegWit did activate, and the episode shows users are not only passengers.",
     "topics": [
@@ -378,9 +378,9 @@
     "category": "nodes",
     "question": "How did the August 2017 chain split work?",
     "alts": [
-      "In simple words, how did the August 2017 chain split work?",
-      "How did the August 2017 chain split work, briefly?",
-      "Help me understand: how did the August 2017 chain split work?"
+      "Explain this: how did the August 2017 chain split work?",
+      "Clarify this: how did the August 2017 chain split work?",
+      "Unpack this: how did the August 2017 chain split work?"
     ],
     "answer": "A separate chain split by hard fork on 1 August 2017, mainly over a larger block size, and took the name Bitcoin Cash. It has its own coins and its own rules. A bitcoin on the chain this archive teaches is not a coin on that other chain.",
     "topics": [
@@ -400,9 +400,9 @@
     "category": "nodes",
     "question": "What is a replay attack across forks?",
     "alts": [
-      "In simple words, what is a replay attack across forks?",
-      "What is a replay attack across forks, briefly?",
-      "Help me understand: what is a replay attack across forks?"
+      "Define a replay attack across forks?",
+      "Explain a replay attack across forks?",
+      "Describe a replay attack across forks?"
     ],
     "answer": "If two chains share history and a transaction is valid on both, a payment on one might be copied onto the other. Split coins need protection, such as rules that make transactions invalid on one side. You should not assume a fork handles this for you.",
     "topics": [
@@ -422,9 +422,9 @@
     "category": "nodes",
     "question": "Does everyone run Bitcoin Core?",
     "alts": [
-      "In simple words, does everyone run Bitcoin Core?",
-      "Does everyone run Bitcoin Core, briefly?",
-      "Help me understand: does everyone run Bitcoin Core?"
+      "Explain whether does everyone run Bitcoin Core?",
+      "Clarify whether does everyone run Bitcoin Core?",
+      "Is this the case: does everyone run Bitcoin Core?"
     ],
     "answer": "Bitcoin Core is the implementation most nodes run, and that concentration is a real discussion. Other implementations exist and must match consensus or they fork off by accident. Diversity is healthy only when the rules still match.",
     "topics": [
@@ -444,9 +444,9 @@
     "category": "nodes",
     "question": "What if node software has a bug?",
     "alts": [
-      "In simple words, what if node software has a bug?",
-      "What if node software has a bug, briefly?",
-      "Help me understand: what if node software has a bug?"
+      "Explain this: what if node software has a bug?",
+      "Clarify this: what if node software has a bug?",
+      "Unpack this: what if node software has a bug?"
     ],
     "answer": "Bugs have happened, and operators upgrade or downgrade when a bad release appears. A bug in one program does not rewrite history that other honest nodes reject. This is why validation is in many hands.",
     "topics": [
@@ -466,9 +466,9 @@
     "category": "nodes",
     "question": "Have inflation bugs existed?",
     "alts": [
-      "In simple words, have inflation bugs existed?",
-      "Have inflation bugs existed, briefly?",
-      "Help me understand: have inflation bugs existed?"
+      "Explain this: have inflation bugs existed?",
+      "Clarify this: have inflation bugs existed?",
+      "Unpack this: have inflation bugs existed?"
     ],
     "answer": "Yes. There have been serious bugs that could have created coins, and they were patched when found. The lesson is to upgrade known-bad releases and to keep validation strict. It is not a reason to add a central kill switch.",
     "topics": [
@@ -488,9 +488,9 @@
     "category": "nodes",
     "question": "Who is in charge of Bitcoin Core?",
     "alts": [
-      "In simple words, who is in charge of Bitcoin Core?",
-      "Who is in charge of Bitcoin Core, briefly?",
-      "Help me understand: who is in charge of Bitcoin Core?"
+      "Explain who is in charge of Bitcoin Core?",
+      "Which person is in charge of Bitcoin Core?",
+      "Name who is in charge of Bitcoin Core?"
     ],
     "answer": "Bitcoin Core has maintainers who merge code, and many reviewers. They cannot force your node to upgrade. Social reputation matters, and the software you run is still your choice.",
     "topics": [
@@ -510,9 +510,9 @@
     "category": "nodes",
     "question": "What is a BIP?",
     "alts": [
-      "In simple words, what is a BIP?",
-      "What is a BIP, briefly?",
-      "Help me understand: what is a BIP?"
+      "Define a BIP?",
+      "Explain a BIP?",
+      "Describe a BIP?"
     ],
     "answer": "A BIP is a numbered public proposal for a Bitcoin idea, from wallets to consensus. Many BIPs are never adopted. The number is a label, not a stamp of activation.",
     "topics": [
@@ -532,9 +532,9 @@
     "category": "nodes",
     "question": "How have soft forks signaled?",
     "alts": [
-      "In simple words, how have soft forks signaled?",
-      "How have soft forks signaled, briefly?",
-      "Help me understand: how have soft forks signaled?"
+      "Explain this: how have soft forks signaled?",
+      "Clarify this: how have soft forks signaled?",
+      "Unpack this: how have soft forks signaled?"
     ],
     "answer": "Some soft forks used version bits in blocks so miners could signal readiness. Taproot used a later signaling design. Signaling is coordination, and nodes still enforce the rule after activation.",
     "topics": [
@@ -554,9 +554,9 @@
     "category": "nodes",
     "question": "What does lock-in mean for a soft fork?",
     "alts": [
-      "In simple words, what does lock-in mean for a soft fork?",
-      "What does lock-in mean for a soft fork, briefly?",
-      "Help me understand: what does lock-in mean for a soft fork?"
+      "Explain what lock-in mean for a soft fork?",
+      "Clarify what lock-in mean for a soft fork?",
+      "Describe what lock-in mean for a soft fork?"
     ],
     "answer": "Lock-in means the signaling threshold was met, so the new rule is scheduled to start enforcing. Before that moment, the rule is not yet consensus. After activation, blocks that break it are invalid.",
     "topics": [
@@ -576,9 +576,9 @@
     "category": "nodes",
     "question": "What is a chain split?",
     "alts": [
-      "In simple words, what is a chain split?",
-      "What is a chain split, briefly?",
-      "Help me understand: what is a chain split?"
+      "Define a chain split?",
+      "Explain a chain split?",
+      "Describe a chain split?"
     ],
     "answer": "A chain split is when two groups of nodes follow different blocks. It can be a brief race or a lasting fork with two coins. Wallets should not confuse the two coins.",
     "topics": [
@@ -598,9 +598,9 @@
     "category": "nodes",
     "question": "What makes a block invalid?",
     "alts": [
-      "In simple words, what makes a block invalid?",
-      "What makes a block invalid, briefly?",
-      "Help me understand: what makes a block invalid?"
+      "Explain this: what makes a block invalid?",
+      "Clarify this: what makes a block invalid?",
+      "Unpack this: what makes a block invalid?"
     ],
     "answer": "A block is invalid if the proof of work is too weak, the subsidy is too big, a signature fails, or it breaks another consensus rule. Hash power does not rescue it. Nodes drop it.",
     "topics": [
@@ -620,9 +620,9 @@
     "category": "nodes",
     "question": "What is an economic node?",
     "alts": [
-      "In simple words, what is an economic node?",
-      "What is an economic node, briefly?",
-      "Help me understand: what is an economic node?"
+      "Define an economic node?",
+      "Explain an economic node?",
+      "Describe an economic node?"
     ],
     "answer": "People use that phrase for a node that wallets and businesses actually trust when they accept payment. A node nobody queries still checks for its operator. The influence comes from whose rejection matters for commerce.",
     "topics": [
@@ -642,9 +642,9 @@
     "category": "nodes",
     "question": "Should a home node accept incoming connections?",
     "alts": [
-      "In simple words, should a home node accept incoming connections?",
-      "Should a home node accept incoming connections, briefly?",
-      "Help me understand: should a home node accept incoming connections?"
+      "Explain whether should a home node accept incoming connections?",
+      "Clarify whether should a home node accept incoming connections?",
+      "Is this the case: should a home node accept incoming connections?"
     ],
     "answer": "Listening helps the network by serving blocks to others. It is optional, and some home routers make it awkward. A node that only connects outward still verifies for you.",
     "topics": [
@@ -664,9 +664,9 @@
     "category": "nodes",
     "question": "What are DNS seeds?",
     "alts": [
-      "In simple words, what are DNS seeds?",
-      "What are DNS seeds, briefly?",
-      "Help me understand: what are DNS seeds?"
+      "Explain DNS seeds?",
+      "Describe DNS seeds?",
+      "Define DNS seeds?"
     ],
     "answer": "DNS seeds are hostnames that return addresses of nodes so a new client can find a first peer. After that, the node learns more peers from the network. The seeds are a bootstrap, not a directory you must keep using.",
     "topics": [
@@ -686,9 +686,9 @@
     "category": "nodes",
     "question": "What is an eclipse attack?",
     "alts": [
-      "In simple words, what is an eclipse attack?",
-      "What is an eclipse attack, briefly?",
-      "Help me understand: what is an eclipse attack?"
+      "Define an eclipse attack?",
+      "Explain an eclipse attack?",
+      "Describe an eclipse attack?"
     ],
     "answer": "An eclipse attack tries to surround your node with the attacker's peers so you see a fake view. Diverse peers, and checking over more than one network, make it harder. It is a reason not to trust a single server.",
     "topics": [
@@ -708,9 +708,9 @@
     "category": "nodes",
     "question": "Can my node disagree with an exchange?",
     "alts": [
-      "In simple words, can my node disagree with an exchange?",
-      "Can my node disagree with an exchange, briefly?",
-      "Help me understand: can my node disagree with an exchange?"
+      "Explain whether can my node disagree with an exchange?",
+      "Clarify whether can my node disagree with an exchange?",
+      "Is this the case: can my node disagree with an exchange?"
     ],
     "answer": "Yes. If an exchange credits a deposit you do not see, or the reverse, one of you is on a different view or a different policy. Your node is your measure of the bitcoin rules. Their database is their measure of your account with them.",
     "topics": [
@@ -730,11 +730,11 @@
     "category": "nodes",
     "question": "Do I have to upgrade my node?",
     "alts": [
-      "In simple words, do I have to upgrade my node?",
-      "Do I have to upgrade my node, briefly?",
-      "Help me understand: do I have to upgrade my node?"
+      "Explain whether do I have to upgrade my node?",
+      "Clarify whether do I have to upgrade my node?",
+      "Is this the case: do I have to upgrade my node?"
     ],
-    "answer": "You should leave a release that has a known serious bug. You do not have to take every user-interface change on day one. Consensus changes are the ones that decide which chain you follow.",
+    "answer": "You should leave a release that has a known serious bug. You do not have to take every user-interface change on day one. A consensus change only affects you if you run software that enforces it.",
     "topics": [
       "core-source-code",
       "nodes",
@@ -752,9 +752,9 @@
     "category": "nodes",
     "question": "What is bitcoin.conf?",
     "alts": [
-      "In simple words, what is bitcoin.conf?",
-      "What is bitcoin.conf, briefly?",
-      "Help me understand: what is bitcoin.conf?"
+      "Define bitcoin.conf?",
+      "Explain bitcoin.conf?",
+      "Describe bitcoin.conf?"
     ],
     "answer": "bitcoin.conf is a text file of settings for Bitcoin Core, such as prune size, network, and RPC. A bad setting can change performance or which network you join. It does not let you invent new coins that other nodes will accept.",
     "topics": [
@@ -774,9 +774,9 @@
     "category": "nodes",
     "question": "What is node RPC?",
     "alts": [
-      "In simple words, what is node RPC?",
-      "What is node RPC, briefly?",
-      "Help me understand: what is node RPC?"
+      "Define node RPC?",
+      "Explain node RPC?",
+      "Describe node RPC?"
     ],
     "answer": "RPC is how another program asks your node questions or tells a wallet to build a transaction. It should not be exposed to the open internet. Whoever can use RPC can ask your node to do wallet actions if a wallet is loaded.",
     "topics": [
@@ -796,9 +796,9 @@
     "category": "nodes",
     "question": "What is the UTXO set?",
     "alts": [
-      "In simple words, what is the UTXO set?",
-      "What is the UTXO set, briefly?",
-      "Help me understand: what is the UTXO set?"
+      "Define the UTXO set?",
+      "Explain the UTXO set?",
+      "Describe the UTXO set?"
     ],
     "answer": "The UTXO set is the collection of outputs that have not been spent. Nodes use it to reject a second spend. It is the live state of who can still move which coins.",
     "topics": [
@@ -818,9 +818,9 @@
     "category": "nodes",
     "question": "What is an archival node?",
     "alts": [
-      "In simple words, what is an archival node?",
-      "What is an archival node, briefly?",
-      "Help me understand: what is an archival node?"
+      "Define an archival node?",
+      "Explain an archival node?",
+      "Describe an archival node?"
     ],
     "answer": "An archival node keeps the full block history and can serve old blocks to peers. Pruned nodes do not. Archives help new nodes sync, and they are not a different set of rules.",
     "topics": [
@@ -840,9 +840,9 @@
     "category": "nodes",
     "question": "How would I notice a fork?",
     "alts": [
-      "In simple words, how would I notice a fork?",
-      "How would I notice a fork, briefly?",
-      "Help me understand: how would I notice a fork?"
+      "Explain this: how would I notice a fork?",
+      "Clarify this: how would I notice a fork?",
+      "Unpack this: how would I notice a fork?"
     ],
     "answer": "Your node would stop seeing the same tip as other honest nodes, or it would refuse blocks your old software still accepts. Exchanges may pause deposits when they fear a split. The careful check is your own validation, not a headline.",
     "topics": [
@@ -862,9 +862,9 @@
     "category": "nodes",
     "question": "Can I read the consensus code?",
     "alts": [
-      "In simple words, can I read the consensus code?",
-      "Can I read the consensus code, briefly?",
-      "Help me understand: can I read the consensus code?"
+      "Explain whether can I read the consensus code?",
+      "Clarify whether can I read the consensus code?",
+      "Is this the case: can I read the consensus code?"
     ],
     "answer": "Yes. Bitcoin Core and other implementations publish their source. Reading it takes skill, and you can still rely on many reviewers without pretending you audited every line. The option to read is the point.",
     "topics": [
@@ -884,9 +884,9 @@
     "category": "nodes",
     "question": "Does hash power vote on the rules?",
     "alts": [
-      "In simple words, does hash power vote on the rules?",
-      "Does hash power vote on the rules, briefly?",
-      "Help me understand: does hash power vote on the rules?"
+      "Explain whether does hash power vote on the rules?",
+      "Clarify whether does hash power vote on the rules?",
+      "Is this the case: does hash power vote on the rules?"
     ],
     "answer": "Miners can signal, and they choose which valid blocks to build. They do not get a ballot that forces nodes to accept invalid coins. Users and businesses reveal their rules by the software they run.",
     "topics": [
@@ -906,9 +906,9 @@
     "category": "nodes",
     "question": "What did 2017 teach about upgrades?",
     "alts": [
-      "In simple words, what did 2017 teach about upgrades?",
-      "What did 2017 teach about upgrades, briefly?",
-      "Help me understand: what did 2017 teach about upgrades?"
+      "Explain this: what did 2017 teach about upgrades?",
+      "Clarify this: what did 2017 teach about upgrades?",
+      "Unpack this: what did 2017 teach about upgrades?"
     ],
     "answer": "A block-size fight showed that companies, miners, and users can want different things. SegWit activated as a soft fork, and a big-block hard fork became another coin. Social consensus is messy, and the chain you follow is the software you run.",
     "topics": [
@@ -928,9 +928,9 @@
     "category": "nodes",
     "question": "What was the New York Agreement?",
     "alts": [
-      "In simple words, what was the New York Agreement?",
-      "What was the New York Agreement, briefly?",
-      "Help me understand: what was the New York Agreement?"
+      "Explain this: what was the New York Agreement?",
+      "Clarify this: what was the New York Agreement?",
+      "Unpack this: what was the New York Agreement?"
     ],
     "answer": "It was a 2017 business proposal to activate SegWit and also schedule a hard fork to larger blocks. The hard fork part did not become Bitcoin. It is a reminder that a meeting of companies is not the protocol.",
     "topics": [
@@ -950,9 +950,9 @@
     "category": "nodes",
     "question": "What is block weight?",
     "alts": [
-      "In simple words, what is block weight?",
-      "What is block weight, briefly?",
-      "Help me understand: what is block weight?"
+      "Define block weight?",
+      "Explain block weight?",
+      "Describe block weight?"
     ],
     "answer": "Weight is the unit SegWit uses to limit block size. A block may have up to 4 million weight units. Signature data is counted at a discount, which is why witness-heavy blocks can hold more payments.",
     "topics": [
@@ -972,9 +972,9 @@
     "category": "nodes",
     "question": "What is a vbyte?",
     "alts": [
-      "In simple words, what is a vbyte?",
-      "What is a vbyte, briefly?",
-      "Help me understand: what is a vbyte?"
+      "Define a vbyte?",
+      "Explain a vbyte?",
+      "Describe a vbyte?"
     ],
     "answer": "A virtual byte is weight divided by four. Fees are often quoted per virtual byte so wallets can compare transactions fairly. It is a measuring stick, not a different coin.",
     "topics": [
@@ -994,9 +994,9 @@
     "category": "nodes",
     "question": "What was the old block size limit?",
     "alts": [
-      "In simple words, what was the old block size limit?",
-      "What was the old block size limit, briefly?",
-      "Help me understand: what was the old block size limit?"
+      "Explain this: what was the old block size limit?",
+      "Clarify this: what was the old block size limit?",
+      "Unpack this: what was the old block size limit?"
     ],
     "answer": "Before SegWit, blocks were limited to 1 megabyte of block data. SegWit replaced that simple cap with the weight limit. The history explains why 2017 was a fight about capacity.",
     "topics": [
@@ -1016,9 +1016,9 @@
     "category": "nodes",
     "question": "Why not make blocks enormous?",
     "alts": [
-      "In simple words, why not make blocks enormous?",
-      "Why not make blocks enormous, briefly?",
-      "Help me understand: why not make blocks enormous?"
+      "Explain why not make blocks enormous?",
+      "For what reason not make blocks enormous?",
+      "What is the reason not make blocks enormous?"
     ],
     "answer": "Bigger blocks cost more to download and check, so fewer people can run a node. Bitcoin has preferred wide validation over fitting every tiny payment on the base chain. Layers are the other half of that choice.",
     "topics": [
@@ -1038,9 +1038,9 @@
     "category": "nodes",
     "question": "What is assumeutxo?",
     "alts": [
-      "In simple words, what is assumeutxo?",
-      "What is assumeutxo, briefly?",
-      "Help me understand: what is assumeutxo?"
+      "Define assumeutxo?",
+      "Explain assumeutxo?",
+      "Describe assumeutxo?"
     ],
     "answer": "Assumeutxo is a way to start a node from a snapshot of the UTXO set so it becomes useful faster, while it checks history in the background. You trust the snapshot until that check finishes. It is a bootstrap speedup, not a different money.",
     "topics": [
@@ -1060,9 +1060,9 @@
     "category": "nodes",
     "question": "What is headers-first sync?",
     "alts": [
-      "In simple words, what is headers-first sync?",
-      "What is headers-first sync, briefly?",
-      "Help me understand: what is headers-first sync?"
+      "Define headers-first sync?",
+      "Explain headers-first sync?",
+      "Describe headers-first sync?"
     ],
     "answer": "A node can download block headers first and then the blocks, so it learns the shape of the chain quickly. It still validates before it trusts payments. The order is a performance detail.",
     "topics": [
@@ -1082,9 +1082,9 @@
     "category": "nodes",
     "question": "Did Bitcoin use checkpoints?",
     "alts": [
-      "In simple words, did Bitcoin use checkpoints?",
-      "Did Bitcoin use checkpoints, briefly?",
-      "Help me understand: did Bitcoin use checkpoints?"
+      "Explain this: did Bitcoin use checkpoints?",
+      "Clarify this: did Bitcoin use checkpoints?",
+      "Unpack this: did Bitcoin use checkpoints?"
     ],
     "answer": "Early software used hardcoded checkpoints so a new node would not follow a fake low-work chain during sync. Later designs rely more on headers and proof of work. Checkpoints were a bootstrap aid, not an ongoing council.",
     "topics": [
@@ -1104,9 +1104,9 @@
     "category": "nodes",
     "question": "How does a node know it is on mainnet?",
     "alts": [
-      "In simple words, how does a node know it is on mainnet?",
-      "How does a node know it is on mainnet, briefly?",
-      "Help me understand: how does a node know it is on mainnet?"
+      "Explain how a node know it is on mainnet?",
+      "Describe how a node know it is on mainnet?",
+      "How can a node know it is on mainnet?"
     ],
     "answer": "Messages start with a network marker, and the genesis block and rules differ by network. A testnet peer is rejected by a mainnet node. That keeps play coins away from real ones.",
     "topics": [
@@ -1126,9 +1126,9 @@
     "category": "nodes",
     "question": "What is BIP9?",
     "alts": [
-      "In simple words, what is BIP9?",
-      "What is BIP9, briefly?",
-      "Help me understand: what is BIP9?"
+      "Define BIP9?",
+      "Explain BIP9?",
+      "Describe BIP9?"
     ],
     "answer": "BIP9 is a method for miners to signal readiness for a soft fork using version bits, measured over retarget periods. It was used around the CSV and SegWit deployments. Signaling is not the same as a node choosing the rules.",
     "topics": [
@@ -1148,9 +1148,9 @@
     "category": "nodes",
     "question": "What is BIP8?",
     "alts": [
-      "In simple words, what is BIP8?",
-      "What is BIP8, briefly?",
-      "Help me understand: what is BIP8?"
+      "Define BIP8?",
+      "Explain BIP8?",
+      "Describe BIP8?"
     ],
     "answer": "BIP8 is a proposed way to deploy a soft fork with a block-height deadline. It is a process document, not an active consensus rule by itself. Taproot used a different signaling design.",
     "topics": [
@@ -1169,9 +1169,9 @@
     "category": "nodes",
     "question": "What is BIP16?",
     "alts": [
-      "In simple words, what is BIP16?",
-      "What is BIP16, briefly?",
-      "Help me understand: what is BIP16?"
+      "Define BIP16?",
+      "Explain BIP16?",
+      "Describe BIP16?"
     ],
     "answer": "BIP16 defines pay to script hash, so an address can commit to a script that is revealed when spending. It activated in 2012. The revealed script still has to pass the consensus checks.",
     "topics": [
@@ -1190,9 +1190,9 @@
     "category": "nodes",
     "question": "What is BIP65?",
     "alts": [
-      "In simple words, what is BIP65?",
-      "What is BIP65, briefly?",
-      "Help me understand: what is BIP65?"
+      "Define BIP65?",
+      "Explain BIP65?",
+      "Describe BIP65?"
     ],
     "answer": "BIP65 added OP_CHECKLOCKTIMEVERIFY so a spend can require a block height or time to have passed. It activated in 2015. It is an absolute lock, not a relative one.",
     "topics": [
@@ -1211,9 +1211,9 @@
     "category": "nodes",
     "question": "What is BIP68?",
     "alts": [
-      "In simple words, what is BIP68?",
-      "What is BIP68, briefly?",
-      "Help me understand: what is BIP68?"
+      "Define BIP68?",
+      "Explain BIP68?",
+      "Describe BIP68?"
     ],
     "answer": "BIP68 lets an input encode a relative lock based on how old that input is. It activated with the CSV soft fork in 2016. Wallets use it for delays such as Lightning penalty paths.",
     "topics": [
@@ -1232,9 +1232,9 @@
     "category": "nodes",
     "question": "What is BIP112?",
     "alts": [
-      "In simple words, what is BIP112?",
-      "What is BIP112, briefly?",
-      "Help me understand: what is BIP112?"
+      "Define BIP112?",
+      "Explain BIP112?",
+      "Describe BIP112?"
     ],
     "answer": "BIP112 added OP_CHECKSEQUENCEVERIFY so a script can require the relative lock from BIP68. It activated in 2016 with the CSV soft fork. The script, not only the input field, can demand the delay.",
     "topics": [
@@ -1253,9 +1253,9 @@
     "category": "nodes",
     "question": "What is BIP141?",
     "alts": [
-      "In simple words, what is BIP141?",
-      "What is BIP141, briefly?",
-      "Help me understand: what is BIP141?"
+      "Define BIP141?",
+      "Explain BIP141?",
+      "Describe BIP141?"
     ],
     "answer": "BIP141 is the SegWit consensus change that moved signatures into a witness and fixed a third-party malleability problem. It activated in August 2017. Block capacity is measured in weight after it.",
     "topics": [
@@ -1274,9 +1274,9 @@
     "category": "nodes",
     "question": "What is BIP173?",
     "alts": [
-      "In simple words, what is BIP173?",
-      "What is BIP173, briefly?",
-      "Help me understand: what is BIP173?"
+      "Define BIP173?",
+      "Explain BIP173?",
+      "Describe BIP173?"
     ],
     "answer": "BIP173 defines bech32 addresses for native SegWit outputs. It is an address format, not a separate coin. A bech32 string is not a private key.",
     "topics": [
@@ -1295,9 +1295,9 @@
     "category": "nodes",
     "question": "What is BIP125?",
     "alts": [
-      "In simple words, what is BIP125?",
-      "What is BIP125, briefly?",
-      "Help me understand: what is BIP125?"
+      "Define BIP125?",
+      "Explain BIP125?",
+      "Describe BIP125?"
     ],
     "answer": "BIP125 describes a policy for replacing an unconfirmed transaction when it signals that replacement is allowed. It is relay policy, which nodes can differ on, not a way to reverse a confirmed payment. The replacement still needs a fee the policy accepts.",
     "topics": [
@@ -1316,9 +1316,9 @@
     "category": "nodes",
     "question": "What does BIP174 define?",
     "alts": [
-      "In simple words, what does BIP174 define?",
-      "What does BIP174 define, briefly?",
-      "Help me understand: what does BIP174 define?"
+      "Explain what BIP174 define?",
+      "Clarify what BIP174 define?",
+      "Describe what BIP174 define?"
     ],
     "answer": "BIP174 defines partially signed Bitcoin transactions, a format for passing a spend between wallets and devices. It is a coordination format, not a new signature algorithm. The chain only sees the final transaction.",
     "topics": [
@@ -1337,9 +1337,9 @@
     "category": "nodes",
     "question": "What is BIP340?",
     "alts": [
-      "In simple words, what is BIP340?",
-      "What is BIP340, briefly?",
-      "Help me understand: what is BIP340?"
+      "Define BIP340?",
+      "Explain BIP340?",
+      "Describe BIP340?"
     ],
     "answer": "BIP340 specifies Schnorr signatures on Bitcoin's curve. Taproot uses them. They are a signature scheme, not a new coin.",
     "topics": [
@@ -1358,9 +1358,9 @@
     "category": "nodes",
     "question": "What is BIP341?",
     "alts": [
-      "In simple words, what is BIP341?",
-      "What is BIP341, briefly?",
-      "Help me understand: what is BIP341?"
+      "Define BIP341?",
+      "Explain BIP341?",
+      "Describe BIP341?"
     ],
     "answer": "BIP341 defines Taproot outputs, which can spend with a key or with a revealed script. It activated in November 2021. Complex scripts can stay hidden when the key path is used.",
     "topics": [
@@ -1379,9 +1379,9 @@
     "category": "nodes",
     "question": "What is BIP342?",
     "alts": [
-      "In simple words, what is BIP342?",
-      "What is BIP342, briefly?",
-      "Help me understand: what is BIP342?"
+      "Define BIP342?",
+      "Explain BIP342?",
+      "Describe BIP342?"
     ],
     "answer": "BIP342 defines Tapscript, the script rules used in a Taproot script-path spend. It activated with Taproot in November 2021. It changes opcode and signature checks inside those scripts.",
     "topics": [
@@ -1400,9 +1400,9 @@
     "category": "nodes",
     "question": "What is BIP352?",
     "alts": [
-      "In simple words, what is BIP352?",
-      "What is BIP352, briefly?",
-      "Help me understand: what is BIP352?"
+      "Define BIP352?",
+      "Explain BIP352?",
+      "Describe BIP352?"
     ],
     "answer": "BIP352 describes silent payments, where a receiver publishes a static code and each payment can still create a fresh on-chain output. Wallet support was still spreading as of 2026. It does not hide amounts.",
     "topics": [
@@ -1421,9 +1421,9 @@
     "category": "nodes",
     "question": "What is BIP324?",
     "alts": [
-      "In simple words, what is BIP324?",
-      "What is BIP324, briefly?",
-      "Help me understand: what is BIP324?"
+      "Define BIP324?",
+      "Explain BIP324?",
+      "Describe BIP324?"
     ],
     "answer": "BIP324 specifies encrypted transport between nodes, sometimes called v2 transport. It protects the connection from casual observers on the wire. It does not make on-chain amounts private, and a live count of upgraded nodes is omitted.",
     "topics": [
@@ -1442,11 +1442,11 @@
     "category": "nodes",
     "question": "What is BIP119?",
     "alts": [
-      "In simple words, what is BIP119?",
-      "What is BIP119, briefly?",
-      "Help me understand: what is BIP119?"
+      "Define BIP119?",
+      "Explain BIP119?",
+      "Describe BIP119?"
     ],
-    "answer": "BIP119 proposes OP_CHECKTEMPLATEVERIFY, a covenant opcode. It is a proposal, not an active consensus rule as of 2026. Nodes that have not activated it reject spends that need it.",
+    "answer": "BIP119 proposes OP_CHECKTEMPLATEVERIFY, also called CTV. CTV is a proposal and has not activated, so it is not a consensus rule as of 2026. Nodes that have not activated it reject spends that need it.",
     "topics": [
       "bip119",
       "ctv-covenants"
@@ -1456,16 +1456,16 @@
       "nodes-dns-use",
       "nodes-full-node"
     ],
-    "sources": "BIP119 proposal, not active as of 2026."
+    "sources": "BIP119 proposal, not activated as of 2026."
   },
   {
     "id": "nodes-port-test",
     "category": "nodes",
     "question": "What port does testnet use?",
     "alts": [
-      "In simple words, what port does testnet use?",
-      "What port does testnet use, briefly?",
-      "Help me understand: what port does testnet use?"
+      "Explain this: what port does testnet use?",
+      "Clarify this: what port does testnet use?",
+      "Unpack this: what port does testnet use?"
     ],
     "answer": "The public test network traditionally uses port 18333, separate from mainnet port 8333. Test coins have no value on mainnet. Do not send real bitcoin to a test address.",
     "topics": [
@@ -1484,9 +1484,9 @@
     "category": "nodes",
     "question": "What is a DNS seed used for?",
     "alts": [
-      "In simple words, what is a DNS seed used for?",
-      "What is a DNS seed used for, briefly?",
-      "Help me understand: what is a DNS seed used for?"
+      "Define a DNS seed used for?",
+      "Explain a DNS seed used for?",
+      "Describe a DNS seed used for?"
     ],
     "answer": "A DNS seed returns addresses of nodes that a new node can try to reach. It is a bootstrap hint, not a source of truth about blocks. After connecting, the node checks headers and blocks itself.",
     "topics": [

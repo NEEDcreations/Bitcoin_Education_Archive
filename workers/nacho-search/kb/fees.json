@@ -4,9 +4,9 @@
     "category": "fees",
     "question": "What is a Bitcoin transaction fee?",
     "alts": [
-      "In simple words, what is a Bitcoin transaction fee?",
-      "What is a Bitcoin transaction fee, briefly?",
-      "Help me understand: what is a Bitcoin transaction fee?"
+      "What are fees?",
+      "What are bitcoin fees?",
+      "Explain a transaction fee?"
     ],
     "answer": "A fee is the difference between the inputs you spend and the outputs you create, and the miner who includes the transaction can claim it. It is not a charge sent to a company that owns Bitcoin. The rate rises when more people want limited block space.",
     "topics": [
@@ -26,9 +26,9 @@
     "category": "fees",
     "question": "What is sat per vbyte?",
     "alts": [
-      "In simple words, what is sat per vbyte?",
-      "What is sat per vbyte, briefly?",
-      "Help me understand: what is sat per vbyte?"
+      "Define sat per vbyte?",
+      "Explain sat per vbyte?",
+      "Describe sat per vbyte?"
     ],
     "answer": "Sat per vbyte is how many satoshis of fee you pay for each virtual byte of transaction size. Wallets use it to compare offers. A larger transaction costs more at the same rate.",
     "topics": [
@@ -48,9 +48,9 @@
     "category": "fees",
     "question": "Why do fees change?",
     "alts": [
-      "In simple words, why do fees change?",
-      "Why do fees change, briefly?",
-      "Help me understand: why do fees change?"
+      "Explain why do fees change?",
+      "For what reason do fees change?",
+      "What is the reason do fees change?"
     ],
     "answer": "Block space is limited and miners prefer higher-paying transactions. When demand is high, people bid up the rate to be included sooner. When demand is quiet, a low rate can confirm.",
     "topics": [
@@ -70,9 +70,9 @@
     "category": "fees",
     "question": "Does the protocol set the fee?",
     "alts": [
-      "In simple words, does the protocol set the fee?",
-      "Does the protocol set the fee, briefly?",
-      "Help me understand: does the protocol set the fee?"
+      "Explain whether does the protocol set the fee?",
+      "Clarify whether does the protocol set the fee?",
+      "Is this the case: does the protocol set the fee?"
     ],
     "answer": "No fixed fee is required by consensus, aside from practical dust and policy minimums that nodes choose for relay. A miner can include a low-fee transaction. Relay policy is why your wallet still aims above a floor.",
     "topics": [
@@ -92,9 +92,9 @@
     "category": "fees",
     "question": "How do you speed up a stuck transaction?",
     "alts": [
-      "In simple words, how do you speed up a stuck transaction?",
-      "How do you speed up a stuck transaction, briefly?",
-      "Help me understand: how do you speed up a stuck transaction?"
+      "Explain how you speed up a stuck transaction?",
+      "Describe how you speed up a stuck transaction?",
+      "What is the way you speed up a stuck transaction?"
     ],
     "answer": "If it signaled replace-by-fee, you can republish it with a higher fee. If you received the coins, a child-pays-for-parent spend can pull it along. A confirmed transaction is no longer stuck.",
     "topics": [
@@ -114,9 +114,9 @@
     "category": "fees",
     "question": "How does batching save fees?",
     "alts": [
-      "In simple words, how does batching save fees?",
-      "How does batching save fees, briefly?",
-      "Help me understand: how does batching save fees?"
+      "Explain how batching save fees?",
+      "Describe how batching save fees?",
+      "How can batching save fees?"
     ],
     "answer": "Several payments share one transaction overhead instead of each paying it alone. The savings are real for senders with many recipients. It does not change the need for each destination to be correct.",
     "topics": [
@@ -136,9 +136,9 @@
     "category": "fees",
     "question": "Why are SegWit transactions often cheaper?",
     "alts": [
-      "In simple words, why are SegWit transactions often cheaper?",
-      "Why are SegWit transactions often cheaper, briefly?",
-      "Help me understand: why are SegWit transactions often cheaper?"
+      "Explain why are SegWit transactions often cheaper?",
+      "For what reason are SegWit transactions often cheaper?",
+      "What is the reason are SegWit transactions often cheaper?"
     ],
     "answer": "Witness bytes are discounted in the weight calculation, so a SegWit spend uses fewer virtual bytes than a similar legacy spend. The fee rate can be the same and the total fee lower. Native SegWit and Taproot take advantage of that.",
     "topics": [
@@ -158,9 +158,9 @@
     "category": "fees",
     "question": "When is consolidation sensible?",
     "alts": [
-      "In simple words, when is consolidation sensible?",
-      "When is consolidation sensible, briefly?",
-      "Help me understand: when is consolidation sensible?"
+      "Explain when is consolidation sensible?",
+      "At what time is consolidation sensible?",
+      "Which date fits is consolidation sensible?"
     ],
     "answer": "When fee rates are low, combining many small UTXOs costs less than doing it later during a rush. You lose some privacy by linking them. You gain simpler future spends.",
     "topics": [
@@ -180,9 +180,9 @@
     "category": "fees",
     "question": "What happens when mempools fill?",
     "alts": [
-      "In simple words, what happens when mempools fill?",
-      "What happens when mempools fill, briefly?",
-      "Help me understand: what happens when mempools fill?"
+      "Explain this: what happens when mempools fill?",
+      "Clarify this: what happens when mempools fill?",
+      "Unpack this: what happens when mempools fill?"
     ],
     "answer": "Nodes drop the transactions they least want to keep, often the lowest fee rate, when they hit a limit. Your transaction can wait or be forgotten by a node. Rebroadcast or a higher fee is how wallets respond.",
     "topics": [
@@ -202,9 +202,9 @@
     "category": "fees",
     "question": "What does next-block fee mean?",
     "alts": [
-      "In simple words, what does next-block fee mean?",
-      "What does next-block fee mean, briefly?",
-      "Help me understand: what does next-block fee mean?"
+      "Explain what next-block fee mean?",
+      "Clarify what next-block fee mean?",
+      "Describe what next-block fee mean?"
     ],
     "answer": "It is an estimate of the rate that recently got into a block quickly. The next block can differ. Treat it as a market quote, and the live number belongs to a data feed.",
     "topics": [
@@ -224,9 +224,9 @@
     "category": "fees",
     "question": "Were fees ever optional in practice?",
     "alts": [
-      "In simple words, were fees ever optional in practice?",
-      "Were fees ever optional in practice, briefly?",
-      "Help me understand: were fees ever optional in practice?"
+      "Explain this: were fees ever optional in practice?",
+      "Clarify this: were fees ever optional in practice?",
+      "Unpack this: were fees ever optional in practice?"
     ],
     "answer": "Early blocks had room and some transactions confirmed with tiny fees. As demand grew, space became a market. The design always allowed miners to prefer higher fees.",
     "topics": [
@@ -246,11 +246,11 @@
     "category": "fees",
     "question": "How does a transaction allow replacement?",
     "alts": [
-      "In simple words, how does a transaction allow replacement?",
-      "How does a transaction allow replacement, briefly?",
-      "Help me understand: how does a transaction allow replacement?"
+      "Explain how a transaction allow replacement?",
+      "Describe how a transaction allow replacement?",
+      "How can a transaction allow replacement?"
     ],
-    "answer": "BIP125 uses a sequence field to signal that a transaction may be replaced. A wallet that sets it can bump the fee later. A transaction that does not signal may be stuck with CPFP or a wait.",
+    "answer": "Since Bitcoin Core 28, full replace-by-fee is the default, so a replacement no longer requires the BIP125 opt-in signal. Wallets can still set that signal. A replacement pays a higher fee and spends the same inputs.",
     "topics": [
       "rbf",
       "transaction_fees",
@@ -261,16 +261,16 @@
       "fees-package",
       "fees-ancestor"
     ],
-    "sources": "BIP125 signaling."
+    "sources": "Full RBF is the Core 28 default. Signaling is optional."
   },
   {
     "id": "fees-cpfp-when",
     "category": "fees",
     "question": "When is child-pays-for-parent the right tool?",
     "alts": [
-      "In simple words, when is child-pays-for-parent the right tool?",
-      "When is child-pays-for-parent the right tool, briefly?",
-      "Help me understand: when is child-pays-for-parent the right tool?"
+      "Explain when is child-pays-for-parent the right tool?",
+      "At what time is child-pays-for-parent the right tool?",
+      "Which date fits is child-pays-for-parent the right tool?"
     ],
     "answer": "Use it when you cannot replace the parent, often because you are the recipient and the sender will not bump. Your child spend must pay enough for both. It requires an output you can spend.",
     "topics": [
@@ -290,9 +290,9 @@
     "category": "fees",
     "question": "What is package relay?",
     "alts": [
-      "In simple words, what is package relay?",
-      "What is package relay, briefly?",
-      "Help me understand: what is package relay?"
+      "Define package relay?",
+      "Explain package relay?",
+      "Describe package relay?"
     ],
     "answer": "Package relay lets nodes judge a parent and child together so a low-fee parent can be saved by a high-fee child. It improves CPFP. Deployment has been incremental in node software.",
     "topics": [
@@ -312,9 +312,9 @@
     "category": "fees",
     "question": "What is an ancestor fee?",
     "alts": [
-      "In simple words, what is an ancestor fee?",
-      "What is an ancestor fee, briefly?",
-      "Help me understand: what is an ancestor fee?"
+      "Define an ancestor fee?",
+      "Explain an ancestor fee?",
+      "Describe an ancestor fee?"
     ],
     "answer": "A transaction's ancestors are unconfirmed parents it depends on. Miners look at the combined fee and size when deciding whether the set is worth including. One juicy child can pay for a poor parent.",
     "topics": [
@@ -334,9 +334,9 @@
     "category": "fees",
     "question": "What is transaction pinning?",
     "alts": [
-      "In simple words, what is transaction pinning?",
-      "What is transaction pinning, briefly?",
-      "Help me understand: what is transaction pinning?"
+      "Define transaction pinning?",
+      "Explain transaction pinning?",
+      "Describe transaction pinning?"
     ],
     "answer": "Pinning is a way to make a transaction awkward to replace, often by using rules about package size or replacement limits. It matters in Lightning and other contracts that need to bump fees. Protocol work has tried to reduce those traps.",
     "topics": [
@@ -356,9 +356,9 @@
     "category": "fees",
     "question": "Why do nodes reject tiny outputs?",
     "alts": [
-      "In simple words, why do nodes reject tiny outputs?",
-      "Why do nodes reject tiny outputs, briefly?",
-      "Help me understand: why do nodes reject tiny outputs?"
+      "Explain why do nodes reject tiny outputs?",
+      "For what reason do nodes reject tiny outputs?",
+      "What is the reason do nodes reject tiny outputs?"
     ],
     "answer": "A tiny output can cost more to spend than it pays and can bloat the UTXO set. Nodes set dust policies for what they will relay. The exact sat number depends on the output type and the policy, so a lesson should not freeze one number.",
     "topics": [
@@ -378,9 +378,9 @@
     "category": "fees",
     "question": "Did Bitcoin used to have coin age priority?",
     "alts": [
-      "In simple words, did Bitcoin used to have coin age priority?",
-      "Did Bitcoin used to have coin age priority, briefly?",
-      "Help me understand: did Bitcoin used to have coin age priority?"
+      "Explain this: did Bitcoin used to have coin age priority?",
+      "Clarify this: did Bitcoin used to have coin age priority?",
+      "Unpack this: did Bitcoin used to have coin age priority?"
     ],
     "answer": "Early software sometimes preferred old coins when blocks had room, a priority idea that faded as a fee market appeared. Modern inclusion is about fees and policy. You should not rely on an old coin confirming for free.",
     "topics": [
@@ -400,9 +400,9 @@
     "category": "fees",
     "question": "Why do fee estimates differ between wallets?",
     "alts": [
-      "In simple words, why do fee estimates differ between wallets?",
-      "Why do fee estimates differ between wallets, briefly?",
-      "Help me understand: why do fee estimates differ between wallets?"
+      "Explain why do fee estimates differ between wallets?",
+      "For what reason do fee estimates differ between wallets?",
+      "What is the reason do fee estimates differ between wallets?"
     ],
     "answer": "Wallets look at different mempools and use different targets for how many blocks to wait. One can aim for the next block and another for a day. Both can be honest and still disagree.",
     "topics": [
@@ -422,9 +422,9 @@
     "category": "fees",
     "question": "Is a high fee a donation?",
     "alts": [
-      "In simple words, is a high fee a donation?",
-      "Is a high fee a donation, briefly?",
-      "Help me understand: is a high fee a donation?"
+      "Explain whether is a high fee a donation?",
+      "Clarify whether is a high fee a donation?",
+      "Is this the case: is a high fee a donation?"
     ],
     "answer": "A fee higher than necessary confirms faster and pays the miner more. It is not a charity receipt. If you are not in a hurry, a lower target saves sats.",
     "topics": [
@@ -444,9 +444,9 @@
     "category": "fees",
     "question": "What if the fee is too low?",
     "alts": [
-      "In simple words, what if the fee is too low?",
-      "What if the fee is too low, briefly?",
-      "Help me understand: what if the fee is too low?"
+      "Explain this: what if the fee is too low?",
+      "Clarify this: what if the fee is too low?",
+      "Unpack this: what if the fee is too low?"
     ],
     "answer": "The transaction can sit unconfirmed or be dropped from mempools. Your coins are not lost. They remain spendable by a replacement or after the attempt is abandoned, depending on the wallet.",
     "topics": [
@@ -466,9 +466,9 @@
     "category": "fees",
     "question": "When is Lightning cheaper than on-chain?",
     "alts": [
-      "In simple words, when is Lightning cheaper than on-chain?",
-      "When is Lightning cheaper than on-chain, briefly?",
-      "Help me understand: when is Lightning cheaper than on-chain?"
+      "Explain when is Lightning cheaper than on-chain?",
+      "At what time is Lightning cheaper than on-chain?",
+      "Which date fits is Lightning cheaper than on-chain?"
     ],
     "answer": "A single on-chain payment has a minimum size, so a small payment can be mostly fee. Lightning routing fees are often tiny once a channel exists, and opening the channel is the on-chain cost. The crossover depends on the fee market that day.",
     "topics": [
@@ -488,9 +488,9 @@
     "category": "fees",
     "question": "Does consolidation have a privacy price?",
     "alts": [
-      "In simple words, does consolidation have a privacy price?",
-      "Does consolidation have a privacy price, briefly?",
-      "Help me understand: does consolidation have a privacy price?"
+      "Explain whether does consolidation have a privacy price?",
+      "Clarify whether does consolidation have a privacy price?",
+      "Is this the case: does consolidation have a privacy price?"
     ],
     "answer": "Yes. One transaction that spends many of your outputs links them in public. You pay a chain fee and you pay with metadata. People still do it when small coins would be annoying later.",
     "topics": [
@@ -510,9 +510,9 @@
     "category": "fees",
     "question": "What are the usual replacement rules?",
     "alts": [
-      "In simple words, what are the usual replacement rules?",
-      "What are the usual replacement rules, briefly?",
-      "Help me understand: what are the usual replacement rules?"
+      "Explain the usual replacement rules?",
+      "Describe the usual replacement rules?",
+      "Define the usual replacement rules?"
     ],
     "answer": "A replacement generally must pay more fee than the transaction it replaces, and pay a higher rate, under the policies nodes actually run. The details have changed as policy improved. Your wallet's bump button is applying those policies.",
     "topics": [
@@ -532,9 +532,9 @@
     "category": "fees",
     "question": "Who receives the fee?",
     "alts": [
-      "In simple words, who receives the fee?",
-      "Who receives the fee, briefly?",
-      "Help me understand: who receives the fee?"
+      "Explain who receives the fee?",
+      "Which person receives the fee?",
+      "Name who receives the fee?"
     ],
     "answer": "The miner who includes the transaction in a block that becomes part of the chain. It is collected in the coinbase along with the subsidy. There is no Bitcoin fee account at a foundation.",
     "topics": [
@@ -554,9 +554,9 @@
     "category": "fees",
     "question": "Why do fees matter after many halvings?",
     "alts": [
-      "In simple words, why do fees matter after many halvings?",
-      "Why do fees matter after many halvings, briefly?",
-      "Help me understand: why do fees matter after many halvings?"
+      "Explain why do fees matter after many halvings?",
+      "For what reason do fees matter after many halvings?",
+      "What is the reason do fees matter after many halvings?"
     ],
     "answer": "As the subsidy shrinks, fees are a larger share of what pays for proof of work. That is the long-run security design. Whether the market will pay enough is not something the code can promise.",
     "topics": [
@@ -576,9 +576,9 @@
     "category": "fees",
     "question": "What is full replace-by-fee?",
     "alts": [
-      "In simple words, what is full replace-by-fee?",
-      "What is full replace-by-fee, briefly?",
-      "Help me understand: what is full replace-by-fee?"
+      "Define full replace-by-fee?",
+      "Explain full replace-by-fee?",
+      "Describe full replace-by-fee?"
     ],
     "answer": "Full RBF means a node will allow replacement even if the original transaction did not signal it. It was a policy debate because it changes zero-confirmation assumptions. It does not let anyone rewrite a confirmed block.",
     "topics": [
@@ -598,9 +598,9 @@
     "category": "fees",
     "question": "What is a zero-confirmation payment?",
     "alts": [
-      "In simple words, what is a zero-confirmation payment?",
-      "What is a zero-confirmation payment, briefly?",
-      "Help me understand: what is a zero-confirmation payment?"
+      "Define a zero-confirmation payment?",
+      "Explain a zero-confirmation payment?",
+      "Describe a zero-confirmation payment?"
     ],
     "answer": "It means trusting a transaction before it is in a block. The sender might replace it or a miner might ignore it. Merchants who accept that risk are making a business choice, not following a protocol guarantee.",
     "topics": [
@@ -620,9 +620,9 @@
     "category": "fees",
     "question": "What makes a transaction large?",
     "alts": [
-      "In simple words, what makes a transaction large?",
-      "What makes a transaction large, briefly?",
-      "Help me understand: what makes a transaction large?"
+      "Explain this: what makes a transaction large?",
+      "Clarify this: what makes a transaction large?",
+      "Unpack this: what makes a transaction large?"
     ],
     "answer": "More inputs, more outputs, and older address types add bytes. A many-input consolidation is large. Taproot and native SegWit spends are usually smaller than equivalent legacy spends.",
     "topics": [
@@ -642,9 +642,9 @@
     "category": "fees",
     "question": "What does a one-block target mean?",
     "alts": [
-      "In simple words, what does a one-block target mean?",
-      "What does a one-block target mean, briefly?",
-      "Help me understand: what does a one-block target mean?"
+      "Explain what a one-block target mean?",
+      "Clarify what a one-block target mean?",
+      "Describe what a one-block target mean?"
     ],
     "answer": "The wallet is bidding to be included in the next block or so, based on recent rates. It can still miss if a sudden pile of higher bids arrives. A six-block target aims to pay less and wait longer.",
     "topics": [
@@ -664,9 +664,9 @@
     "category": "fees",
     "question": "How does block weight become vbytes?",
     "alts": [
-      "In simple words, how does block weight become vbytes?",
-      "How does block weight become vbytes, briefly?",
-      "Help me understand: how does block weight become vbytes?"
+      "Explain how block weight become vbytes?",
+      "Describe how block weight become vbytes?",
+      "How can block weight become vbytes?"
     ],
     "answer": "SegWit weight counts witness bytes less heavily than other bytes, and a vbyte is that weight divided by four. Fees are usually quoted in sats per vbyte. The division is a unit conversion, not a second fee market.",
     "topics": [
@@ -685,9 +685,9 @@
     "category": "fees",
     "question": "What fee rate does a miner actually see?",
     "alts": [
-      "In simple words, what fee rate does a miner actually see?",
-      "What fee rate does a miner actually see, briefly?",
-      "Help me understand: what fee rate does a miner actually see?"
+      "Explain this: what fee rate does a miner actually see?",
+      "Clarify this: what fee rate does a miner actually see?",
+      "Unpack this: what fee rate does a miner actually see?"
     ],
     "answer": "A miner looking at a transaction sees the fee divided by the size it will take in the block, usually talked about as sats per vbyte. Ancestor transactions can lower the package rate. The number on a website is an estimate of that view.",
     "topics": [
@@ -706,9 +706,9 @@
     "category": "fees",
     "question": "Does sending change make a payment larger?",
     "alts": [
-      "In simple words, does sending change make a payment larger?",
-      "Does sending change make a payment larger, briefly?",
-      "Help me understand: does sending change make a payment larger?"
+      "Explain whether does sending change make a payment larger?",
+      "Clarify whether does sending change make a payment larger?",
+      "Is this the case: does sending change make a payment larger?"
     ],
     "answer": "Yes, an extra change output adds bytes, so the fee is higher than a payment that spends the inputs exactly. Wallets add change whenever the inputs overshoot. Coin selection is how they try to keep that cost reasonable.",
     "topics": [

@@ -1,8 +1,10 @@
 'use strict';
 
 // One daily counter: users/{uid}/daily_points/{day}.total.
-// Full XP until that total is 600, then floor(half) until 1,000, then 0.
-// The rest is dropped. This module never writes pendingOverflow.
+// Full XP until that total is 500, then floor(half) until 900, then
+// floor(quarter) until 1,000, then 0. An award that crosses a tier is
+// split, and each tier floors on its own. The rest is dropped.
+// This module never writes pendingOverflow.
 //
 // applyDailyXp(uid, amount, tx, opts) is the hook other grants call inside
 // their transaction. Badge grants use the same hook. The taper itself is
@@ -10,7 +12,7 @@
 // { bypass: true } grants the full amount and does not read or write the
 // daily counter. One-time backfills, including the badge XP backfill, pass that.
 
-const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
+const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 
 const DAILY_XP_CAP = DAILY_CAP;
 
@@ -70,4 +72,5 @@ module.exports = {
     planBadgeDailyXp: planBadgeDailyXp,
     DAILY_XP_CAP: DAILY_XP_CAP,
     TAPER_FULL_UNTIL: TAPER_FULL_UNTIL,
+    TAPER_HALF_UNTIL: TAPER_HALF_UNTIL,
 };

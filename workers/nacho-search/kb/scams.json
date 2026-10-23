@@ -4,9 +4,9 @@
     "category": "scams",
     "question": "What should you do if a site asks for your seed?",
     "alts": [
-      "In simple words, what should you do if a site asks for your seed?",
-      "What should you do if a site asks for your seed, briefly?",
-      "Help me understand: what should you do if a site asks for your seed?"
+      "Explain this: what should you do if a site asks for your seed?",
+      "Clarify this: what should you do if a site asks for your seed?",
+      "Unpack this: what should you do if a site asks for your seed?"
     ],
     "answer": "Close it. A real wallet or a real support desk does not need the words to help you. Anyone who receives the words can move the coins.",
     "topics": [
@@ -26,9 +26,9 @@
     "category": "scams",
     "question": "What is a bitcoin giveaway scam?",
     "alts": [
-      "In simple words, what is a bitcoin giveaway scam?",
-      "What is a bitcoin giveaway scam, briefly?",
-      "Help me understand: what is a bitcoin giveaway scam?"
+      "Define a bitcoin giveaway scam?",
+      "Explain a bitcoin giveaway scam?",
+      "Describe a bitcoin giveaway scam?"
     ],
     "answer": "A post pretends a famous person will send you more if you send them coins first. The famous person is not sending anything. The first payment is the theft.",
     "topics": [
@@ -48,9 +48,9 @@
     "category": "scams",
     "question": "What is a send-more-to-receive-more scam?",
     "alts": [
-      "In simple words, what is a send-more-to-receive-more scam?",
-      "What is a send-more-to-receive-more scam, briefly?",
-      "Help me understand: what is a send-more-to-receive-more scam?"
+      "Define a send-more-to-receive-more scam?",
+      "Explain a send-more-to-receive-more scam?",
+      "Describe a send-more-to-receive-more scam?"
     ],
     "answer": "The pitch says a small payment will unlock a larger one. No protocol works that way. The small payment is simply gone.",
     "topics": [
@@ -70,9 +70,9 @@
     "category": "scams",
     "question": "How do fake support agents operate?",
     "alts": [
-      "In simple words, how do fake support agents operate?",
-      "How do fake support agents operate, briefly?",
-      "Help me understand: how do fake support agents operate?"
+      "Explain how fake support agents operate?",
+      "Describe how fake support agents operate?",
+      "What is the way fake support agents operate?"
     ],
     "answer": "They arrive in chat, email, or a search ad and offer to repair a wallet. They ask for a seed or for remote control of the screen. Stop there.",
     "topics": [
@@ -92,9 +92,9 @@
     "category": "scams",
     "question": "What is a crypto romance scam?",
     "alts": [
-      "In simple words, what is a crypto romance scam?",
-      "What is a crypto romance scam, briefly?",
-      "Help me understand: what is a crypto romance scam?"
+      "Define a crypto romance scam?",
+      "Explain a crypto romance scam?",
+      "Describe a crypto romance scam?"
     ],
     "answer": "A new online friend steers the conversation toward an investment app they control. The app shows fake profits and blocks withdrawals. The relationship was the bait.",
     "topics": [
@@ -114,9 +114,9 @@
     "category": "scams",
     "question": "What is pig-butchering fraud?",
     "alts": [
-      "In simple words, what is pig-butchering fraud?",
-      "What is pig-butchering fraud, briefly?",
-      "Help me understand: what is pig-butchering fraud?"
+      "Define pig-butchering fraud?",
+      "Explain pig-butchering fraud?",
+      "Describe pig-butchering fraud?"
     ],
     "answer": "It is a long con that fattens a victim with small fake gains before a large deposit that cannot be withdrawn. The name is ugly and the pattern is common. Unsolicited investment coaching is the warning sign.",
     "topics": [
@@ -136,9 +136,9 @@
     "category": "scams",
     "question": "How do fake wallet apps steal coins?",
     "alts": [
-      "In simple words, how do fake wallet apps steal coins?",
-      "How do fake wallet apps steal coins, briefly?",
-      "Help me understand: how do fake wallet apps steal coins?"
+      "Explain how fake wallet apps steal coins?",
+      "Describe how fake wallet apps steal coins?",
+      "What is the way fake wallet apps steal coins?"
     ],
     "answer": "A lookalike app in a store or a search ad takes the seed during setup. Check the publisher and the install source. A wallet that appeared from an ad is a bad place to restore savings.",
     "topics": [
@@ -158,9 +158,9 @@
     "category": "scams",
     "question": "How does address-swapping malware work?",
     "alts": [
-      "In simple words, how does address-swapping malware work?",
-      "How does address-swapping malware work, briefly?",
-      "Help me understand: how does address-swapping malware work?"
+      "Explain how address-swapping malware work?",
+      "Describe how address-swapping malware work?",
+      "How can address-swapping malware work?"
     ],
     "answer": "It watches the clipboard and replaces a bitcoin address with the attacker's. Compare the address on a trusted screen after pasting. The malware does not need your seed if you send the coins yourself.",
     "topics": [
@@ -180,9 +180,9 @@
     "category": "scams",
     "question": "What is a recovery scam?",
     "alts": [
-      "In simple words, what is a recovery scam?",
-      "What is a recovery scam, briefly?",
-      "Help me understand: what is a recovery scam?"
+      "Define a recovery scam?",
+      "Explain a recovery scam?",
+      "Describe a recovery scam?"
     ],
     "answer": "After a loss, someone promises they can get the coins back for a fee. They cannot reverse a confirmed theft. The fee is a second theft.",
     "topics": [
@@ -202,9 +202,9 @@
     "category": "scams",
     "question": "Why are cloud seed backups dangerous?",
     "alts": [
-      "In simple words, why are cloud seed backups dangerous?",
-      "Why are cloud seed backups dangerous, briefly?",
-      "Help me understand: why are cloud seed backups dangerous?"
+      "Explain why are cloud seed backups dangerous?",
+      "For what reason are cloud seed backups dangerous?",
+      "What is the reason are cloud seed backups dangerous?"
     ],
     "answer": "A photo or a note in a cloud account is stolen when that account is stolen. The chain has no fraud department to undo the spend. Offline copies exist to avoid that failure.",
     "topics": [
@@ -224,9 +224,9 @@
     "category": "scams",
     "question": "Why are investment tips in direct messages risky?",
     "alts": [
-      "In simple words, why are investment tips in direct messages risky?",
-      "Why are investment tips in direct messages risky, briefly?",
-      "Help me understand: why are investment tips in direct messages risky?"
+      "Explain why are investment tips in direct messages risky?",
+      "For what reason are investment tips in direct messages risky?",
+      "What is the reason are investment tips in direct messages risky?"
     ],
     "answer": "Strangers do not know your finances and often hold the asset they praise. A private tip is a sales channel. Treat it as an ad.",
     "topics": [
@@ -246,9 +246,9 @@
     "category": "scams",
     "question": "What is a wallet phishing site?",
     "alts": [
-      "In simple words, what is a wallet phishing site?",
-      "What is a wallet phishing site, briefly?",
-      "Help me understand: what is a wallet phishing site?"
+      "Define a wallet phishing site?",
+      "Explain a wallet phishing site?",
+      "Describe a wallet phishing site?"
     ],
     "answer": "The site copies a real login or restore page and captures what you type. Bookmarks and typed official addresses help. A link in a mail is the weak path.",
     "topics": [
@@ -268,9 +268,9 @@
     "category": "scams",
     "question": "What is a malicious airdrop?",
     "alts": [
-      "In simple words, what is a malicious airdrop?",
-      "What is a malicious airdrop, briefly?",
-      "Help me understand: what is a malicious airdrop?"
+      "Define a malicious airdrop?",
+      "Explain a malicious airdrop?",
+      "Describe a malicious airdrop?"
     ],
     "answer": "An unknown token appears in a wallet, and the site that claims it asks you to sign a dangerous approval. You can ignore tokens you did not ask for. Signing a contract you do not understand is the hazard.",
     "topics": [
@@ -290,9 +290,9 @@
     "category": "scams",
     "question": "How are payment QR codes abused?",
     "alts": [
-      "In simple words, how are payment QR codes abused?",
-      "How are payment QR codes abused, briefly?",
-      "Help me understand: how are payment QR codes abused?"
+      "Explain this: how are payment QR codes abused?",
+      "Clarify this: how are payment QR codes abused?",
+      "Unpack this: how are payment QR codes abused?"
     ],
     "answer": "A sticker or a swapped screen shows a different address than the one the merchant intended. Confirm the address out of band for large payments. A QR code is only as honest as the display.",
     "topics": [
@@ -312,9 +312,9 @@
     "category": "scams",
     "question": "Are celebrity bitcoin endorsements trustworthy?",
     "alts": [
-      "In simple words, are celebrity bitcoin endorsements trustworthy?",
-      "Are celebrity bitcoin endorsements trustworthy, briefly?",
-      "Help me understand: are celebrity bitcoin endorsements trustworthy?"
+      "Explain whether are celebrity bitcoin endorsements trustworthy?",
+      "Clarify whether are celebrity bitcoin endorsements trustworthy?",
+      "Is this the case: are celebrity bitcoin endorsements trustworthy?"
     ],
     "answer": "A paid post is an ad, and a hacked celebrity account is a classic giveaway lure. Fame is not analysis. The protocol does not have spokespeople.",
     "topics": [
@@ -334,9 +334,9 @@
     "category": "scams",
     "question": "What is a cloud-mining promise?",
     "alts": [
-      "In simple words, what is a cloud-mining promise?",
-      "What is a cloud-mining promise, briefly?",
-      "Help me understand: what is a cloud-mining promise?"
+      "Define a cloud-mining promise?",
+      "Explain a cloud-mining promise?",
+      "Describe a cloud-mining promise?"
     ],
     "answer": "A site says it will mine on your behalf and pay a steady return. Some hosting businesses exist, and many of the ads are just taking the deposit. A steady high return is the part that should stop you.",
     "topics": [
@@ -356,9 +356,9 @@
     "category": "scams",
     "question": "How can you recognize a bitcoin ponzi?",
     "alts": [
-      "In simple words, how can you recognize a bitcoin ponzi?",
-      "How can you recognize a bitcoin ponzi, briefly?",
-      "Help me understand: how can you recognize a bitcoin ponzi?"
+      "Explain this: how can you recognize a bitcoin ponzi?",
+      "Clarify this: how can you recognize a bitcoin ponzi?",
+      "Unpack this: how can you recognize a bitcoin ponzi?"
     ],
     "answer": "The pitch pays earlier users from later deposits and hides behind a bitcoin story. The protocol itself does not promise a return. If the yield only works while new money arrives, walk away.",
     "topics": [
@@ -378,9 +378,9 @@
     "category": "scams",
     "question": "Should a stranger hold part of your seed?",
     "alts": [
-      "In simple words, should a stranger hold part of your seed?",
-      "Should a stranger hold part of your seed, briefly?",
-      "Help me understand: should a stranger hold part of your seed?"
+      "Explain whether should a stranger hold part of your seed?",
+      "Clarify whether should a stranger hold part of your seed?",
+      "Is this the case: should a stranger hold part of your seed?"
     ],
     "answer": "No. A helper you just met in chat is not a backup plan. Multisig with people you actually trust is a different, slower design. Chat support does not need a share.",
     "topics": [
@@ -400,9 +400,9 @@
     "category": "scams",
     "question": "What is a fake firmware update?",
     "alts": [
-      "In simple words, what is a fake firmware update?",
-      "What is a fake firmware update, briefly?",
-      "Help me understand: what is a fake firmware update?"
+      "Define a fake firmware update?",
+      "Explain a fake firmware update?",
+      "Describe a fake firmware update?"
     ],
     "answer": "A message says your hardware signer must be updated at a link, and the file steals keys. Updates should come from the vendor path you already verified. Urgency is part of the trick.",
     "topics": [
@@ -422,9 +422,9 @@
     "category": "scams",
     "question": "What is a SIM swap?",
     "alts": [
-      "In simple words, what is a SIM swap?",
-      "What is a SIM swap, briefly?",
-      "Help me understand: what is a SIM swap?"
+      "Define a SIM swap?",
+      "Explain a SIM swap?",
+      "Describe a SIM swap?"
     ],
     "answer": "An attacker moves your phone number and intercepts text messages, including exchange logins. Text messages are a weak second factor. An authenticator app or a hardware key is stronger for those accounts.",
     "topics": [
@@ -444,9 +444,9 @@
     "category": "scams",
     "question": "How are exchange accounts taken?",
     "alts": [
-      "In simple words, how are exchange accounts taken?",
-      "How are exchange accounts taken, briefly?",
-      "Help me understand: how are exchange accounts taken?"
+      "Explain this: how are exchange accounts taken?",
+      "Clarify this: how are exchange accounts taken?",
+      "Unpack this: how are exchange accounts taken?"
     ],
     "answer": "Phishing, reused passwords, and weak two-factor are the usual doors. The exchange then pays out coins you cannot reverse. Your own wallet does not have that login, which is the point of withdrawing savings.",
     "topics": [
@@ -466,9 +466,9 @@
     "category": "scams",
     "question": "Is every tiny incoming payment an attack?",
     "alts": [
-      "In simple words, is every tiny incoming payment an attack?",
-      "Is every tiny incoming payment an attack, briefly?",
-      "Help me understand: is every tiny incoming payment an attack?"
+      "Explain whether is every tiny incoming payment an attack?",
+      "Clarify whether is every tiny incoming payment an attack?",
+      "Is this the case: is every tiny incoming payment an attack?"
     ],
     "answer": "No. Some are tests or mistakes. A tiny payment used to link your coins later is the dusting pattern. You do not have to spend it.",
     "topics": [
@@ -488,9 +488,9 @@
     "category": "scams",
     "question": "What is a fake crypto job offer?",
     "alts": [
-      "In simple words, what is a fake crypto job offer?",
-      "What is a fake crypto job offer, briefly?",
-      "Help me understand: what is a fake crypto job offer?"
+      "Define a fake crypto job offer?",
+      "Explain a fake crypto job offer?",
+      "Describe a fake crypto job offer?"
     ],
     "answer": "The offer pays in a token, or it asks you to pay for training equipment first. Real employers do not need your seed and do not require a fee to start. The fee is the scam.",
     "topics": [
@@ -510,9 +510,9 @@
     "category": "scams",
     "question": "What is bitcoin blackmail email?",
     "alts": [
-      "In simple words, what is bitcoin blackmail email?",
-      "What is bitcoin blackmail email, briefly?",
-      "Help me understand: what is bitcoin blackmail email?"
+      "Define bitcoin blackmail email?",
+      "Explain bitcoin blackmail email?",
+      "Describe bitcoin blackmail email?"
     ],
     "answer": "The mail claims a camera recorded you and demands bitcoin. It is usually a bluff sent to millions of addresses. Do not pay from fear, and do not reply.",
     "topics": [
@@ -532,9 +532,9 @@
     "category": "scams",
     "question": "How do you check a bitcoin claim?",
     "alts": [
-      "In simple words, how do you check a bitcoin claim?",
-      "How do you check a bitcoin claim, briefly?",
-      "Help me understand: how do you check a bitcoin claim?"
+      "Explain how you check a bitcoin claim?",
+      "Describe how you check a bitcoin claim?",
+      "What is the way you check a bitcoin claim?"
     ],
     "answer": "See whether your own wallet or node shows the payment, and ignore screenshots. Screenshots are trivial to fake. The chain is the record.",
     "topics": [
@@ -554,9 +554,9 @@
     "category": "scams",
     "question": "Why are seed-phrase tutorial ads dangerous?",
     "alts": [
-      "In simple words, why are seed-phrase tutorial ads dangerous?",
-      "Why are seed-phrase tutorial ads dangerous, briefly?",
-      "Help me understand: why are seed-phrase tutorial ads dangerous?"
+      "Explain why are seed-phrase tutorial ads dangerous?",
+      "For what reason are seed-phrase tutorial ads dangerous?",
+      "What is the reason are seed-phrase tutorial ads dangerous?"
     ],
     "answer": "Some videos tell you to use a specific word list they display. Those words are the attacker's wallet. Generate words only inside a wallet you installed yourself.",
     "topics": [
@@ -576,9 +576,9 @@
     "category": "scams",
     "question": "What if someone hands you a paper wallet as a gift?",
     "alts": [
-      "In simple words, what if someone hands you a paper wallet as a gift?",
-      "What if someone hands you a paper wallet as a gift, briefly?",
-      "Help me understand: what if someone hands you a paper wallet as a gift?"
+      "Explain this: what if someone hands you a paper wallet as a gift?",
+      "Clarify this: what if someone hands you a paper wallet as a gift?",
+      "Unpack this: what if someone hands you a paper wallet as a gift?"
     ],
     "answer": "The giver may have kept a copy of the key. A gift you cannot sweep into a new wallet you control is still theirs. Generate your own keys for anything that matters.",
     "topics": [
@@ -598,9 +598,9 @@
     "category": "scams",
     "question": "What is social engineering in bitcoin?",
     "alts": [
-      "In simple words, what is social engineering in bitcoin?",
-      "What is social engineering in bitcoin, briefly?",
-      "Help me understand: what is social engineering in bitcoin?"
+      "Define social engineering in bitcoin?",
+      "Explain social engineering in bitcoin?",
+      "Describe social engineering in bitcoin?"
     ],
     "answer": "It is talking you into revealing a secret or approving a payment. The technology can be perfect and the conversation can still lose the coins. Slow down when someone creates urgency.",
     "topics": [
@@ -620,9 +620,9 @@
     "category": "scams",
     "question": "Can anyone honestly guarantee a bitcoin return?",
     "alts": [
-      "In simple words, can anyone honestly guarantee a bitcoin return?",
-      "Can anyone honestly guarantee a bitcoin return, briefly?",
-      "Help me understand: can anyone honestly guarantee a bitcoin return?"
+      "Explain whether can anyone honestly guarantee a bitcoin return?",
+      "Clarify whether can anyone honestly guarantee a bitcoin return?",
+      "Is this the case: can anyone honestly guarantee a bitcoin return?"
     ],
     "answer": "No. The protocol pays no interest, and markets move both ways. A guaranteed gain is the sentence that marks the pitch as unsafe. This is not financial advice.",
     "topics": [
@@ -642,9 +642,9 @@
     "category": "scams",
     "question": "How do fake multisig setups steal funds?",
     "alts": [
-      "In simple words, how do fake multisig setups steal funds?",
-      "How do fake multisig setups steal funds, briefly?",
-      "Help me understand: how do fake multisig setups steal funds?"
+      "Explain how fake multisig setups steal funds?",
+      "Describe how fake multisig setups steal funds?",
+      "What is the way fake multisig setups steal funds?"
     ],
     "answer": "A helper creates the multisig and keeps enough keys to move the coins alone, or swaps a key in the quorum. Read the policy on a device you trust before depositing. If you do not know which keys exist, you do not control the coins.",
     "topics": [
@@ -664,9 +664,9 @@
     "category": "scams",
     "question": "What is a risky over-the-counter trade?",
     "alts": [
-      "In simple words, what is a risky over-the-counter trade?",
-      "What is a risky over-the-counter trade, briefly?",
-      "Help me understand: what is a risky over-the-counter trade?"
+      "Define a risky over-the-counter trade?",
+      "Explain a risky over-the-counter trade?",
+      "Describe a risky over-the-counter trade?"
     ],
     "answer": "Meeting a stranger to trade cash for bitcoin can become a robbery or a fake transfer. Confirm the payment yourself before you hand over anything. Public places and small amounts are basic caution, not a full safety plan.",
     "topics": [
@@ -686,9 +686,9 @@
     "category": "scams",
     "question": "What is a fake tax call about bitcoin?",
     "alts": [
-      "In simple words, what is a fake tax call about bitcoin?",
-      "What is a fake tax call about bitcoin, briefly?",
-      "Help me understand: what is a fake tax call about bitcoin?"
+      "Define a fake tax call about bitcoin?",
+      "Explain a fake tax call about bitcoin?",
+      "Describe a fake tax call about bitcoin?"
     ],
     "answer": "A caller threatens arrest unless you pay bitcoin immediately. Tax offices do not work that way. Hang up and use a published official contact if you are unsure.",
     "topics": [
@@ -708,9 +708,9 @@
     "category": "scams",
     "question": "Why is remote screen sharing dangerous around a wallet?",
     "alts": [
-      "In simple words, why is remote screen sharing dangerous around a wallet?",
-      "Why is remote screen sharing dangerous around a wallet, briefly?",
-      "Help me understand: why is remote screen sharing dangerous around a wallet?"
+      "Explain why is remote screen sharing dangerous around a wallet?",
+      "For what reason is remote screen sharing dangerous around a wallet?",
+      "What is the reason is remote screen sharing dangerous around a wallet?"
     ],
     "answer": "A stranger who can see or drive your screen can change a destination or walk you into revealing a seed. Never install remote-control software for someone who offers to fix a wallet. Close the chat and use a channel you looked up yourself.",
     "topics": [
@@ -729,9 +729,9 @@
     "category": "scams",
     "question": "Why are wallet ads in search results risky?",
     "alts": [
-      "In simple words, why are wallet ads in search results risky?",
-      "Why are wallet ads in search results risky, briefly?",
-      "Help me understand: why are wallet ads in search results risky?"
+      "Explain why are wallet ads in search results risky?",
+      "For what reason are wallet ads in search results risky?",
+      "What is the reason are wallet ads in search results risky?"
     ],
     "answer": "An ad can sit above the real site and lead to a lookalike that asks for a seed. Type an address you already trust, or use a bookmark. The first result is not a verification.",
     "topics": [
@@ -750,9 +750,9 @@
     "category": "scams",
     "question": "What should you check on the device before sending?",
     "alts": [
-      "In simple words, what should you check on the device before sending?",
-      "What should you check on the device before sending, briefly?",
-      "Help me understand: what should you check on the device before sending?"
+      "Explain this: what should you check on the device before sending?",
+      "Clarify this: what should you check on the device before sending?",
+      "Unpack this: what should you check on the device before sending?"
     ],
     "answer": "Read the address and the amount on the signer itself, not only in the app that built the payment. A swapped screen on the computer is a known trick. If the device does not match, do not approve.",
     "topics": [
@@ -771,9 +771,9 @@
     "category": "scams",
     "question": "Why do bitcoin scams rush you?",
     "alts": [
-      "In simple words, why do bitcoin scams rush you?",
-      "Why do bitcoin scams rush you, briefly?",
-      "Help me understand: why do bitcoin scams rush you?"
+      "Explain why do bitcoin scams rush you?",
+      "For what reason do bitcoin scams rush you?",
+      "What is the reason do bitcoin scams rush you?"
     ],
     "answer": "Urgency stops you from checking a domain, a device, or a second channel. A real protocol does not expire your savings in the next ten minutes. Pause when a message demands speed.",
     "topics": [

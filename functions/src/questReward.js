@@ -5,8 +5,9 @@
 // are ignored. Points are decided from functions/reward-banks.json, which
 // build.sh copies from data/trivia-bank.js, quests.js, and learning-quests.js.
 //
-// Trivia and quiz XP use the shared daily counter: full through 600, then
-// half until 1,000, on the offset-day daily_points doc. Wrong answers pay 0.
+// Trivia and quiz XP use the shared daily counter: full through 500, half
+// through 900, then a quarter until 1,000, on the offset-day daily_points
+// doc. Each tier floors on its own. Wrong answers pay 0.
 
 const crypto = require('crypto');
 const banks = require('../reward-banks.json');

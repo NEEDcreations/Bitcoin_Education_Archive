@@ -106,7 +106,21 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
+// Firebase reserved helpers (/__/auth/handler, /__/firebase/*) must not be
+// intercepted. Android can open an in-scope return URL in the installed app;
+// a respondWith here would cache or stall that handler. The manifest scope
+// stays "./" because path exclusion is not a safe manifest feature.
+function bypassesAuthHelper(requestUrl) {
+  try {
+    var url = new URL(requestUrl);
+    return url.origin === self.location.origin && url.pathname.indexOf('/__/') === 0;
+  } catch (err) {
+    return false;
+  }
+}
+
 self.addEventListener('fetch', event => {
+  if (bypassesAuthHelper(event.request.url)) return;
   if (event.request.method !== 'GET') return;
   
   const url = new URL(event.request.url);

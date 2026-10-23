@@ -61,7 +61,8 @@ test('daily quiz and trivia use the shared 1000 cap', function() {
     assert.strictEqual(reward.DAILY_QUIZ_XP_CAP, undefined);
     assert.strictEqual(dailyXp.DAILY_CAP, 1000);
     assert.strictEqual(dailyXp.DAILY_POINTS_CAP, dailyXp.DAILY_CAP);
-    assert.strictEqual(dailyXp.TAPER_FULL_UNTIL, 600);
+    assert.strictEqual(dailyXp.TAPER_FULL_UNTIL, 500);
+    assert.strictEqual(dailyXp.TAPER_HALF_UNTIL, 900);
     assert.strictEqual(reward.offsetDateKey(NOW), '2026-10-22');
     if (reward.triviaLength() === 158) {
         assert.strictEqual(reward.triviaIndexForDay(DAY), 134);
@@ -122,7 +123,7 @@ test('banned accounts and the daily cap hold for trivia', function() {
     assert.strictEqual(capped.overflowAdded, 0);
     assert.strictEqual(capped.capped, true);
     const partial = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 980 }));
-    assert.strictEqual(partial.awarded, 20);
+    assert.strictEqual(partial.awarded, 12);
     assert.strictEqual(partial.overflowAdded, 0);
 });
 

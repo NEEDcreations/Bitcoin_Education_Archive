@@ -4,9 +4,9 @@
     "category": "regulation",
     "question": "Is this tax or legal advice?",
     "alts": [
-      "In simple words, is this tax or legal advice?",
-      "Is this tax or legal advice, briefly?",
-      "Help me understand: is this tax or legal advice?"
+      "Explain whether is this tax or legal advice?",
+      "Clarify whether is this tax or legal advice?",
+      "Is this the case: is this tax or legal advice?"
     ],
     "answer": "No. Rules differ by country and change. A qualified local professional is the right source for your case. This archive teaches how Bitcoin works.",
     "topics": [
@@ -26,9 +26,9 @@
     "category": "regulation",
     "question": "Do taxes apply to bitcoin?",
     "alts": [
-      "In simple words, do taxes apply to bitcoin?",
-      "Do taxes apply to bitcoin, briefly?",
-      "Help me understand: do taxes apply to bitcoin?"
+      "Explain whether do taxes apply to bitcoin?",
+      "Clarify whether do taxes apply to bitcoin?",
+      "Is this the case: do taxes apply to bitcoin?"
     ],
     "answer": "Many countries tax a sale, a spend, or sometimes a trade, and they differ on mining and gifts. The protocol does not calculate your tax. Keep records if your country expects them.",
     "topics": [
@@ -48,11 +48,11 @@
     "category": "regulation",
     "question": "Why do mining and selling get taxed differently?",
     "alts": [
-      "In simple words, why do mining and selling get taxed differently?",
-      "Why do mining and selling get taxed differently, briefly?",
-      "Help me understand: why do mining and selling get taxed differently?"
+      "Explain why do mining and selling get taxed differently?",
+      "For what reason do mining and selling get taxed differently?",
+      "What is the reason do mining and selling get taxed differently?"
     ],
-    "answer": "Some systems treat mined coins as income when received and a later sale as a capital change. Others do not. The label is a statute, not a field in the block.",
+    "answer": "This is not tax advice. Whether mining is income when coins arrive, and whether a later sale is a capital change, depends on the jurisdiction. The block does not label a payment.",
     "topics": [
       "regulation",
       "mining",
@@ -63,16 +63,16 @@
       "reg-aml",
       "reg-travel"
     ],
-    "sources": "Tax categories vary."
+    "sources": "Depends on jurisdiction. Not tax advice."
   },
   {
     "id": "reg-kyc",
     "category": "regulation",
     "question": "What is know-your-customer?",
     "alts": [
-      "In simple words, what is know-your-customer?",
-      "What is know-your-customer, briefly?",
-      "Help me understand: what is know-your-customer?"
+      "Define know-your-customer?",
+      "Explain know-your-customer?",
+      "Describe know-your-customer?"
     ],
     "answer": "It is the identity check a financial company runs on customers. Exchanges do it because of law or banking partners. Your own wallet does not have a KYC screen in the protocol.",
     "topics": [
@@ -92,9 +92,9 @@
     "category": "regulation",
     "question": "What is anti-money-laundering law?",
     "alts": [
-      "In simple words, what is anti-money-laundering law?",
-      "What is anti-money-laundering law, briefly?",
-      "Help me understand: what is anti-money-laundering law?"
+      "Define anti-money-laundering law?",
+      "Explain anti-money-laundering law?",
+      "Describe anti-money-laundering law?"
     ],
     "answer": "AML rules tell certain companies to watch for suspicious funds and to report them. They bind those companies. They do not add a permission bit to a bitcoin signature.",
     "topics": [
@@ -114,9 +114,9 @@
     "category": "regulation",
     "question": "What is the travel rule?",
     "alts": [
-      "In simple words, what is the travel rule?",
-      "What is the travel rule, briefly?",
-      "Help me understand: what is the travel rule?"
+      "Define the travel rule?",
+      "Explain the travel rule?",
+      "Describe the travel rule?"
     ],
     "answer": "The travel rule asks some companies to share customer information when they send funds to another company. It is a compliance duty for them. A person paying another person from their own wallet is outside that company-to-company pipe.",
     "topics": [
@@ -136,9 +136,9 @@
     "category": "regulation",
     "question": "Do exchanges need licenses?",
     "alts": [
-      "In simple words, do exchanges need licenses?",
-      "Do exchanges need licenses, briefly?",
-      "Help me understand: do exchanges need licenses?"
+      "Explain whether do exchanges need licenses?",
+      "Clarify whether do exchanges need licenses?",
+      "Is this the case: do exchanges need licenses?"
     ],
     "answer": "Often yes, and the license type depends on the country. A license regulates the company. It does not license the Bitcoin network itself.",
     "topics": [
@@ -158,9 +158,9 @@
     "category": "regulation",
     "question": "Can a country ban Bitcoin?",
     "alts": [
-      "In simple words, can a country ban Bitcoin?",
-      "Can a country ban Bitcoin, briefly?",
-      "Help me understand: can a country ban Bitcoin?"
+      "Explain whether can a country ban Bitcoin?",
+      "Clarify whether can a country ban Bitcoin?",
+      "Is this the case: can a country ban Bitcoin?"
     ],
     "answer": "It can ban companies, mining, or the act of holding, inside its courts' reach. It cannot switch off every node elsewhere. History shows restrictions move activity more often than they delete the ledger.",
     "topics": [
@@ -180,9 +180,9 @@
     "category": "regulation",
     "question": "What does a mining ban do?",
     "alts": [
-      "In simple words, what does a mining ban do?",
-      "What does a mining ban do, briefly?",
-      "Help me understand: what does a mining ban do?"
+      "Explain what a mining ban do?",
+      "Clarify what a mining ban do?",
+      "Describe what a mining ban do?"
     ],
     "answer": "It removes hash power in that region. Difficulty can fall, and other miners become a larger share. The chain continues if any miners remain.",
     "topics": [
@@ -202,9 +202,9 @@
     "category": "regulation",
     "question": "Is bitcoin a security?",
     "alts": [
-      "In simple words, is bitcoin a security?",
-      "Is bitcoin a security, briefly?",
-      "Help me understand: is bitcoin a security?"
+      "Explain whether is bitcoin a security?",
+      "Clarify whether is bitcoin a security?",
+      "Is this the case: is bitcoin a security?"
     ],
     "answer": "Regulators have often treated bitcoin itself differently from token sales that look like shares in a company. The answer is a legal classification and it is not uniform worldwide. This is not a legal opinion.",
     "topics": [
@@ -224,9 +224,9 @@
     "category": "regulation",
     "question": "Why do some agencies say commodity?",
     "alts": [
-      "In simple words, why do some agencies say commodity?",
-      "Why do some agencies say commodity, briefly?",
-      "Help me understand: why do some agencies say commodity?"
+      "Explain why do some agencies say commodity?",
+      "For what reason do some agencies say commodity?",
+      "What is the reason do some agencies say commodity?"
     ],
     "answer": "Some US officials have described bitcoin as a commodity-like asset because there is no issuer. Other rules still apply to brokers and funds. The word does not settle every law.",
     "topics": [
@@ -246,9 +246,9 @@
     "category": "regulation",
     "question": "Who is a broker in these debates?",
     "alts": [
-      "In simple words, who is a broker in these debates?",
-      "Who is a broker in these debates, briefly?",
-      "Help me understand: who is a broker in these debates?"
+      "Explain who is a broker in these debates?",
+      "Which person is a broker in these debates?",
+      "Name who is a broker in these debates?"
     ],
     "answer": "A broker is someone in the business of effecting trades for others. Laws that define that word can pull in companies and sometimes software debates. Self-custody software is the contested edge, and courts and statutes differ.",
     "topics": [
@@ -268,9 +268,9 @@
     "category": "regulation",
     "question": "Are privacy tools illegal?",
     "alts": [
-      "In simple words, are privacy tools illegal?",
-      "Are privacy tools illegal, briefly?",
-      "Help me understand: are privacy tools illegal?"
+      "Explain whether are privacy tools illegal?",
+      "Clarify whether are privacy tools illegal?",
+      "Is this the case: are privacy tools illegal?"
     ],
     "answer": "Some laws target services that launder money, not the idea of a fresh address. Coinjoin can be lawful or restricted depending on place and use. This is not legal advice, and intent matters in real cases.",
     "topics": [
@@ -290,9 +290,9 @@
     "category": "regulation",
     "question": "Do you have to report holdings?",
     "alts": [
-      "In simple words, do you have to report holdings?",
-      "Do you have to report holdings, briefly?",
-      "Help me understand: do you have to report holdings?"
+      "Explain whether do you have to report holdings?",
+      "Clarify whether do you have to report holdings?",
+      "Is this the case: do you have to report holdings?"
     ],
     "answer": "Some countries require reports above a threshold or on tax returns. Others are silent or different. The chain will not file the form for you.",
     "topics": [
@@ -312,9 +312,9 @@
     "category": "regulation",
     "question": "Can estates owe tax on bitcoin?",
     "alts": [
-      "In simple words, can estates owe tax on bitcoin?",
-      "Can estates owe tax on bitcoin, briefly?",
-      "Help me understand: can estates owe tax on bitcoin?"
+      "Explain whether can estates owe tax on bitcoin?",
+      "Clarify whether can estates owe tax on bitcoin?",
+      "Is this the case: can estates owe tax on bitcoin?"
     ],
     "answer": "Often yes, under the same estate or inheritance rules as other property, with local differences. The technical plan for keys and the tax plan are both needed. This is not legal advice.",
     "topics": [
@@ -334,9 +334,9 @@
     "category": "regulation",
     "question": "What are sanctions lists?",
     "alts": [
-      "In simple words, what are sanctions lists?",
-      "What are sanctions lists, briefly?",
-      "Help me understand: what are sanctions lists?"
+      "Explain sanctions lists?",
+      "Describe sanctions lists?",
+      "Define sanctions lists?"
     ],
     "answer": "Governments publish names and addresses they forbid their companies to serve. Exchanges block those customers. The list does not become a consensus rule unless people choose software that enforces it, and the main chain does not embed those lists.",
     "topics": [
@@ -356,9 +356,9 @@
     "category": "regulation",
     "question": "What should a company disclose?",
     "alts": [
-      "In simple words, what should a company disclose?",
-      "What should a company disclose, briefly?",
-      "Help me understand: what should a company disclose?"
+      "Explain this: what should a company disclose?",
+      "Clarify this: what should a company disclose?",
+      "Unpack this: what should a company disclose?"
     ],
     "answer": "Public companies follow their market's rules for material holdings and risks. Those filings are the source for a treasury number. A social post is a weaker source.",
     "topics": [
@@ -378,9 +378,9 @@
     "category": "regulation",
     "question": "What consumer rules touch wallets?",
     "alts": [
-      "In simple words, what consumer rules touch wallets?",
-      "What consumer rules touch wallets, briefly?",
-      "Help me understand: what consumer rules touch wallets?"
+      "Explain this: what consumer rules touch wallets?",
+      "Clarify this: what consumer rules touch wallets?",
+      "Unpack this: what consumer rules touch wallets?"
     ],
     "answer": "Some places regulate custodial wallet companies like money transmitters. Non-custodial software is treated differently in many drafts, and the drafts change. Read the current local rule, not a summary from last year.",
     "topics": [
@@ -400,9 +400,9 @@
     "category": "regulation",
     "question": "Can energy policy affect miners?",
     "alts": [
-      "In simple words, can energy policy affect miners?",
-      "Can energy policy affect miners, briefly?",
-      "Help me understand: can energy policy affect miners?"
+      "Explain whether can energy policy affect miners?",
+      "Clarify whether can energy policy affect miners?",
+      "Is this the case: can energy policy affect miners?"
     ],
     "answer": "Yes. Taxes, grid rules, and bans change where mining is profitable. They do not change the subsidy. Miners respond by moving or shutting off.",
     "topics": [
@@ -422,9 +422,9 @@
     "category": "regulation",
     "question": "Are ETF shares the same as holding coins?",
     "alts": [
-      "In simple words, are ETF shares the same as holding coins?",
-      "Are ETF shares the same as holding coins, briefly?",
-      "Help me understand: are ETF shares the same as holding coins?"
+      "Explain whether are ETF shares the same as holding coins?",
+      "Clarify whether are ETF shares the same as holding coins?",
+      "Is this the case: are ETF shares the same as holding coins?"
     ],
     "answer": "No. You hold a security in a brokerage account, and the fund holds coins with a custodian. You cannot sign a bitcoin transaction with an ETF share. Creation and redemption are the fund's process.",
     "topics": [
@@ -444,9 +444,9 @@
     "category": "regulation",
     "question": "What is a wash sale in this context?",
     "alts": [
-      "In simple words, what is a wash sale in this context?",
-      "What is a wash sale in this context, briefly?",
-      "Help me understand: what is a wash sale in this context?"
+      "Define a wash sale in this context?",
+      "Explain a wash sale in this context?",
+      "Describe a wash sale in this context?"
     ],
     "answer": "Some tax systems limit claiming a loss if you rebuy the same asset quickly. Whether that applies to bitcoin is a country-specific rule. Do not assume a forum post matches your statute.",
     "topics": [
@@ -466,9 +466,9 @@
     "category": "regulation",
     "question": "What records help with taxes?",
     "alts": [
-      "In simple words, what records help with taxes?",
-      "What records help with taxes, briefly?",
-      "Help me understand: what records help with taxes?"
+      "Explain this: what records help with taxes?",
+      "Clarify this: what records help with taxes?",
+      "Unpack this: what records help with taxes?"
     ],
     "answer": "Dates, amounts, and the value in your local currency when you acquired and disposed of coins are the usual raw material. Wallets do not automatically know your tax lot. Exporting transactions is a habit, not a protocol feature.",
     "topics": [
@@ -488,9 +488,9 @@
     "category": "regulation",
     "question": "Is publishing node software speech?",
     "alts": [
-      "In simple words, is publishing node software speech?",
-      "Is publishing node software speech, briefly?",
-      "Help me understand: is publishing node software speech?"
+      "Explain whether is publishing node software speech?",
+      "Clarify whether is publishing node software speech?",
+      "Is this the case: is publishing node software speech?"
     ],
     "answer": "Courts have sometimes treated software publication as speech, and governments still try to regulate conduct around money. The outcome is legal and local. The code's existence and the law's command can conflict.",
     "topics": [
@@ -510,9 +510,9 @@
     "category": "regulation",
     "question": "Is there one global bitcoin law?",
     "alts": [
-      "In simple words, is there one global bitcoin law?",
-      "Is there one global bitcoin law, briefly?",
-      "Help me understand: is there one global bitcoin law?"
+      "Explain whether is there one global bitcoin law?",
+      "Clarify whether is there one global bitcoin law?",
+      "Is this the case: is there one global bitcoin law?"
     ],
     "answer": "No. Countries copy ideas and still write their own statutes. A compliant setup in one place can be illegal in another. Assume locality.",
     "topics": [
@@ -532,9 +532,9 @@
     "category": "regulation",
     "question": "Does Bitcoin report you to a tax office?",
     "alts": [
-      "In simple words, does Bitcoin report you to a tax office?",
-      "Does Bitcoin report you to a tax office, briefly?",
-      "Help me understand: does Bitcoin report you to a tax office?"
+      "Explain whether does Bitcoin report you to a tax office?",
+      "Clarify whether does Bitcoin report you to a tax office?",
+      "Is this the case: does Bitcoin report you to a tax office?"
     ],
     "answer": "No. There is no identity field and no filing function in the protocol. A company you use may report you. The chain will not.",
     "topics": [
@@ -554,9 +554,9 @@
     "category": "regulation",
     "question": "Do you need a license to run a node?",
     "alts": [
-      "In simple words, do you need a license to run a node?",
-      "Do you need a license to run a node, briefly?",
-      "Help me understand: do you need a license to run a node?"
+      "Explain whether do you need a license to run a node?",
+      "Clarify whether do you need a license to run a node?",
+      "Is this the case: do you need a license to run a node?"
     ],
     "answer": "In ordinary cases, running a node at home is not treated like opening a bank, but local law can surprise you. This is not legal advice. The software itself does not ask for a permit.",
     "topics": [
@@ -576,9 +576,9 @@
     "category": "regulation",
     "question": "Do miners need permits?",
     "alts": [
-      "In simple words, do miners need permits?",
-      "Do miners need permits, briefly?",
-      "Help me understand: do miners need permits?"
+      "Explain whether do miners need permits?",
+      "Clarify whether do miners need permits?",
+      "Is this the case: do miners need permits?"
     ],
     "answer": "They need whatever power, business, and land permits a heavy electrical site needs. That is industrial law. The block is valid without a sticker on it.",
     "topics": [
@@ -598,9 +598,9 @@
     "category": "regulation",
     "question": "Can charities take bitcoin?",
     "alts": [
-      "In simple words, can charities take bitcoin?",
-      "Can charities take bitcoin, briefly?",
-      "Help me understand: can charities take bitcoin?"
+      "Explain whether can charities take bitcoin?",
+      "Clarify whether can charities take bitcoin?",
+      "Is this the case: can charities take bitcoin?"
     ],
     "answer": "Many do, and their regulators may have rules for accepting it. A fresh address helps them and the donor. Tax treatment of the gift is local.",
     "topics": [
@@ -620,9 +620,9 @@
     "category": "regulation",
     "question": "Can wages be paid in bitcoin?",
     "alts": [
-      "In simple words, can wages be paid in bitcoin?",
-      "Can wages be paid in bitcoin, briefly?",
-      "Help me understand: can wages be paid in bitcoin?"
+      "Explain whether can wages be paid in bitcoin?",
+      "Clarify whether can wages be paid in bitcoin?",
+      "Is this the case: can wages be paid in bitcoin?"
     ],
     "answer": "Some employers do it where labor law allows, often with a local-currency calculation underneath. Employment law still applies. The payment itself can be an ordinary transaction.",
     "topics": [
@@ -642,9 +642,9 @@
     "category": "regulation",
     "question": "Does the protocol police scams?",
     "alts": [
-      "In simple words, does the protocol police scams?",
-      "Does the protocol police scams, briefly?",
-      "Help me understand: does the protocol police scams?"
+      "Explain whether does the protocol police scams?",
+      "Clarify whether does the protocol police scams?",
+      "Is this the case: does the protocol police scams?"
     ],
     "answer": "No. It checks signatures and amounts. Fraud is a human crime handled by courts when they have jurisdiction. A valid transaction can still be a theft if the signature was obtained by deceit.",
     "topics": [
@@ -664,9 +664,9 @@
     "category": "regulation",
     "question": "Why does this archive skip tax rates?",
     "alts": [
-      "In simple words, why does this archive skip tax rates?",
-      "Why does this archive skip tax rates, briefly?",
-      "Help me understand: why does this archive skip tax rates?"
+      "Explain why does this archive skip tax rates?",
+      "For what reason does this archive skip tax rates?",
+      "What is the reason does this archive skip tax rates?"
     ],
     "answer": "Tax rates, forms, and holding periods differ by country and change. A number copied here would become wrong and could be mistaken for advice. Keep your own records and ask a qualified person where you live.",
     "topics": [
@@ -685,9 +685,9 @@
     "category": "regulation",
     "question": "Why can two countries treat bitcoin differently?",
     "alts": [
-      "In simple words, why can two countries treat bitcoin differently?",
-      "Why can two countries treat bitcoin differently, briefly?",
-      "Help me understand: why can two countries treat bitcoin differently?"
+      "Explain why can two countries treat bitcoin differently?",
+      "For what reason can two countries treat bitcoin differently?",
+      "What is the reason can two countries treat bitcoin differently?"
     ],
     "answer": "Each state writes its own tax, licensing, and payments rules. The Bitcoin network does not look up those statutes when it checks a signature. Legal treatment and consensus validity are separate questions, and this is not legal advice.",
     "topics": [

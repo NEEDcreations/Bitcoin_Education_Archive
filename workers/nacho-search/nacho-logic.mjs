@@ -23,7 +23,12 @@ const HOMO = {
 const STALE_MS = 180000;
 const FETCH_TIMEOUT_MS = 2500;
 const NO_FIGURE = "I can't get a fresh figure right now, try again in a minute.";
-const KEY_LABEL_RE = /\b(private key|secret key|privkey|priv key|secret|key:)/g;
+const KEY_LABEL_RE = /\b(private key|secret key|privkey|priv key|priv|wif|secret|key)\b/g;
+const SECRET_ASK_RE = /\b(?:send|enter|share|paste|type|give|submit)\b[^.]{0,60}\b(?:your|the)\s+(?:seed(?:\s+phrase|\s+words)?|mnemonic|recovery(?:\s+phrase|\s+words)?|backup(?:\s+phrase|\s+words)?|12\s+words|24\s+words|private key|secret key|xprv|wif)\b/;
+const REVEAL_ASK_RE = /\b(?:show me|give me|reveal|dump|paste|tell me)\b[^.]{0,48}\b(?:my |your )?(?:private key|secret key|seed phrase|seed words|seed|recovery phrase|mnemonic|xprv|wif)\b/;
+const MY_SECRET_RE = /\b(?:what(?:'s| is)|where(?:'s| is))\s+my\s+(?:private key|secret key|seed phrase|seed words|seed|recovery phrase|xprv)\b/;
+const SEED_TOPIC_RE = /\b(seed(?:\s+phrase|\s+words)?|mnemonic|recovery phrase|backup phrase|12\s+words|24\s+words)\b/i;
+const XPRV_RE = /\b[tuvxyz]prv[1-9A-HJ-NP-Za-km-z]{10,}\b/i;
 const TX_LABEL_RE = /\b(txid|tx id|transaction(?: id| hash)?|block ?hash|blockhash)\b/g;
 
 const INTENT_TOPICS = {
@@ -99,7 +104,9 @@ function clauseBefore(lower, idx) {
 }
 
 function clauseNegated(clause) {
-    const cleaned = String(clause || "").replace(/\b(?:isn'?t|is not|not)\s+a\s+scam\b/g, " ");
+    const cleaned = String(clause || "")
+        .replace(/\b(?:isn'?t|is not|not)\s+a\s+scam\b/g, " ")
+        .replace(/\bnever\s+(?:miss|forget|ignore|skip)\b/g, " ");
     return /\b(not|no|never|without|avoid)\b/.test(cleaned) || /n't/.test(cleaned);
 }
 
@@ -117,9 +124,10 @@ function bareMatch(lower, re) {
 export function scammy(text) {
     const lower = normalizeForScan(text);
     if (bareMatch(lower, /\bdouble your (?:bitcoin|btc)\b/)) return true;
-    if (bareMatch(lower, /\b(?:send|enter|share)\b[^.]{0,48}\byour\s+(?:seed(?:\s+phrase|\s+words)?|private key|secret key)\b/)) return true;
-    if (bareMatch(lower, /guaranteed returns/)) return true;
+    if (bareMatch(lower, SECRET_ASK_RE)) return true;
+    if (bareMatch(lower, /\bguarant(?:eed|ee|ees)\s+returns?\b/)) return true;
     if (bareMatch(lower, /get rich quick/)) return true;
+    if (bareMatch(lower, /\bsend\b[^.]{0,48}\b\d+(?:\.\d+)?\b[^.]{0,48}\bget\b[^.]{0,32}\b\d+(?:\.\d+)?\b/)) return true;
     return false;
 }
 
@@ -137,7 +145,7 @@ function nearest(re, text) {
 
 export function hasLabeledHexKey(text) {
     const lower = normalizeForScan(text);
-    const hex = /\b[a-f0-9]{64}\b/g;
+    const hex = /\b(?:0x)?[a-f0-9]{64}\b/g;
     let match;
     while ((match = hex.exec(lower))) {
         const before = lower.slice(Math.max(0, match.index - 80), match.index);
@@ -145,7 +153,7 @@ export function hasLabeledHexKey(text) {
         const keyAt = nearest(KEY_LABEL_RE, before);
         const txAt = nearest(TX_LABEL_RE, before);
         if (keyAt >= 0 && keyAt > txAt) return true;
-        const keyAfter = /\b(private key|secret key|privkey|priv key)\b/.test(after);
+        const keyAfter = /\b(private key|secret key|privkey|priv key|priv|wif|secret|key)\b/.test(after);
         const txAfter = nearest(TX_LABEL_RE, before + " " + after);
         if (keyAfter && txAfter < 0) return true;
     }
@@ -156,7 +164,8 @@ export function containsKeyMaterial(text) {
     const raw = String(text || "");
     if (hasSeedPhrase(raw)) return true;
     if (/\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/.test(raw)) return true;
-    if (/\b[xtyz]prv[1-9A-HJ-NP-Za-km-z]{10,}\b/i.test(raw)) return true;
+    if (XPRV_RE.test(raw)) return true;
+    if (/\b0x[a-f0-9]{64}\b/i.test(normalizeForScan(raw))) return true;
     if (hasLabeledHexKey(raw)) return true;
     return false;
 }
@@ -187,9 +196,10 @@ export function validateOutput(text) {
 export function solicitsSecrets(question) {
     const q = String(question || "");
     if (containsKeyMaterial(q)) return true;
-    if (/\b(?:send|enter|share)\b[^.]{0,48}\byour\s+(?:seed(?:\s+phrase|\s+words)?|private key|secret key)\b/i.test(q)) return true;
-    if (/\b(?:show me|give me|reveal|dump|paste|tell me)\b[^.]{0,48}\b(?:my |your )?(?:private key|secret key|seed phrase|seed words|seed|xprv|wif)\b/i.test(q)) return true;
-    if (/\b(?:what(?:'s| is)|where(?:'s| is))\s+my\s+(?:private key|secret key|seed phrase|seed words|seed|xprv)\b/i.test(q)) return true;
+    const lower = normalizeForScan(q);
+    if (bareMatch(lower, SECRET_ASK_RE)) return true;
+    if (bareMatch(lower, REVEAL_ASK_RE)) return true;
+    if (bareMatch(lower, MY_SECRET_RE)) return true;
     return false;
 }
 
@@ -255,10 +265,10 @@ export function detectIntents(question) {
     const currency = detectCurrency(q);
     if (/\b(24h|24[-\s]?hours?|past 24|last 24|daily change|price change)\b/i.test(q)) intents.push({ name: "change24h" });
     else if (/\b(all[- ]time high|\bath\b)\b/i.test(q)) intents.push({ name: "ath" });
-    else if (/\b(price|priced|worth|trading at|btc price|bitcoin price)\b/i.test(q) || (currency && currency !== "USD" && /\b(btc|bitcoin)\b/i.test(q))) {
+    else if (/\b(price|priced|trading at|btc price|bitcoin price)\b/i.test(q) || /\b(?:what(?:'s| is)|how much(?: is)?)\b[^?]{0,48}\bworth\b/i.test(q) || (currency && currency !== "USD" && /\b(btc|bitcoin)\b/i.test(q))) {
         intents.push({ name: "price", currency: currency || "USD" });
     }
-    if (/\b(fees?|sat\/vb|sat\/vbyte|sats?\/vbyte)\b/i.test(q)) intents.push({ name: "fees" });
+    if (/\b(fees?|sat\/vb|sat\/vbyte|sats?\/vbyte)\b/i.test(q) && !/\blightning\b/i.test(q)) intents.push({ name: "fees" });
     if (/\b(halving|halvening)\b/i.test(q)) intents.push({ name: "halving" });
     else if (/\b(block height|current block|latest block|what block|chain tip|block are we)\b/i.test(q)) intents.push({ name: "height" });
     if (/\b(hash\s?rate|hashrate)\b/i.test(q)) intents.push({ name: "hashrate" });
@@ -274,8 +284,19 @@ export function isAdvice(question) {
 
 function isSimple(question, intents) {
     if (!intents || intents.length !== 1) return false;
-    if (/\b(why|explain|should|what does|how does|compare|versus|vs\.?|history|meaning of|mean to)\b/i.test(String(question || ""))) return false;
+    if (isConceptual(question)) return false;
     return true;
+}
+
+function isConceptual(question) {
+    const q = String(question || "");
+    if (/\b(why|explain|should|what does|how does|how do|compare|versus|vs\.?|history|meaning of|mean to|work)\b/i.test(q)) return true;
+    if (/\bwhat are\b/i.test(q) && !/\b(right now|currently|current|today|latest|this minute)\b/i.test(q)) return true;
+    return false;
+}
+
+function asksForCurrentNumber(question) {
+    return /\b(right now|currently|current|today|latest|this minute|at the moment)\b/i.test(String(question || ""));
 }
 
 function group(n) {
@@ -359,6 +380,16 @@ function hasMarketNumber(text) {
 export function scrubUnsourcedNumbers(text) {
     if (hasMarketNumber(text)) return NO_FIGURE;
     return String(text || "");
+}
+
+function stripLiveFigures(text) {
+    return String(text || "")
+        .replace(/[$€£¥]\s?\d[\d,]*(?:\.\d+)?/g, "")
+        .replace(/\b\d+(?:\.\d+)?\s*%/g, "")
+        .replace(/\b\d+(?:\.\d+)?\s*sat\/vb\b/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/\s+\./g, ".")
+        .trim();
 }
 
 export function renderIntent(intent, data) {
@@ -627,15 +658,32 @@ function buildMessages(body, data, intents, notes) {
     return messages;
 }
 
+function isPrivateKeyDefinition(question) {
+    const q = String(question || "");
+    if (solicitsSecrets(q) || harmfulQuestion(q)) return false;
+    if (SEED_TOPIC_RE.test(q)) return false;
+    if (!/\b(private key|secret key)\b/i.test(q)) return false;
+    if (/\b(store|backup|back up|keep|protect|write down|offline|where|photograph|photo)\b/i.test(q)) return false;
+    return /\b(what(?:'s| is| are)?|explain|define|mean)\b/i.test(q);
+}
+
 function isCustodyEducation(question) {
     const q = String(question || "");
-    if (solicitsSecrets(q) || harmfulQuestion(q) || detectIntents(q).length) return false;
-    if (!/\b(seed phrase|seed words|private key|secret key|mnemonic)\b/i.test(q)) return false;
-    return /\b(protect|store|backup|back up|keep|safe|safeguard|what|where|how|why|explain|should i|write down|offline)\b/i.test(q);
+    if (solicitsSecrets(q) || harmfulQuestion(q) || isPrivateKeyDefinition(q)) return false;
+    const intents = detectIntents(q);
+    if (intents.some(function (intent) { return intent.name === "price" || intent.name === "fees"; })) return false;
+    const seed = SEED_TOPIC_RE.test(q);
+    const key = /\b(private key|secret key)\b/i.test(q);
+    if (!seed && !key) return false;
+    return /\b(protect|store|backup|back up|keep|safe|safely|safeguard|what|where|how|why|explain|should|write down|offline|lose|lost|photograph|photo|picture|share|never|happens)\b/i.test(q);
 }
 
 function custodyAnswer() {
-    return "A seed phrase is the word list that can restore a Bitcoin wallet. Write it on paper or metal, store it offline, and never type it into a website or a chat. A private key stays in the wallet. Not your keys, not your coins.";
+    return "A seed phrase is the word list that can restore a Bitcoin wallet. Write it on paper or metal, store it offline, and never type it into a website or a chat. Do not photograph it, because a photo can sync to the cloud. A private key stays in the wallet. Not your keys, not your coins.";
+}
+
+function privateKeyAnswer() {
+    return "A private key is the secret number that can spend bitcoin from one address. It is not the seed phrase, which is the word list a wallet uses to recreate keys. The wallet keeps the private key. Never share it, and never type it into a website or a chat. Not your keys, not your coins.";
 }
 
 function wantsLiveNumber(question) {
@@ -692,8 +740,9 @@ function finishKb(packed) {
 
 function steerEntry(found) {
     if (found.direct && found.direct.category === "crypto-steer") return found.direct;
-    if (found.bestSteer) return found.bestSteer;
-    return getKbEntry(GENERIC_STEER_ID);
+    if (found.altcoin && found.bestSteer) return found.bestSteer;
+    if (found.altcoin) return getKbEntry(GENERIC_STEER_ID);
+    return null;
 }
 
 function pack(question, answer, opts) {
@@ -724,37 +773,47 @@ export async function answerTurn(body, deps) {
         return refusal("injection");
     }
     if (solicitsSecrets(question) || harmfulQuestion(question)) return refusal("harm");
+    if (isPrivateKeyDefinition(question)) {
+        return pack(question, privateKeyAnswer(), { deterministic: true, asOf: null });
+    }
     if (isCustodyEducation(question)) {
         return pack(question, custodyAnswer(), { deterministic: true, asOf: null });
     }
     const found = retrieve(question);
-    if (found.altcoin || isAltcoinQuestion(question)) {
-        const steered = finishKb(packKb(steerEntry(found) || { id: GENERIC_STEER_ID, question: question, answer: "", topics: [], followUps: [] }));
-        if (steered) return steered;
-    }
     const data = input.data || d.data || null;
     const intents = detectIntents(question);
     const advice = isAdvice(question);
     const fresh = marketFresh(data, intents);
-    if (intents.length && !fresh) {
+    const conceptual = isConceptual(question);
+    const numberNow = asksForCurrentNumber(question);
+    const steerFirst = !!(found.altcoin || (found.direct && found.direct.category === "crypto-steer"));
+    if (intents.length && !fresh && numberNow && !conceptual && !steerFirst) {
         return pack(question, NO_FIGURE, { intents: intents, advice: advice, deterministic: true, asOf: null });
     }
+    const liveOwns = !!(fresh && marketOwns(question, intents));
     let answer = "";
     let deterministic = false;
     let usedLive = false;
-    if (advice) {
+    if (!steerFirst && found.direct && found.direct.category !== "crypto-steer" && !liveOwns) {
+        const direct = finishKb(packKb(found.direct));
+        if (direct) return direct;
+    }
+    if (!answer) {
+        const steered = steerEntry(found);
+        if (steered) {
+            const packed = finishKb(packKb(steered));
+            if (packed) return packed;
+        }
+    }
+    if (!answer && advice) {
         answer = adviceAnswer();
         deterministic = true;
-    } else if (isSimple(question, intents)) {
+    } else if (!answer && fresh && isSimple(question, intents)) {
         answer = renderIntent(intents[0], data);
         if (answer) {
             deterministic = true;
             usedLive = true;
         }
-    }
-    if (!answer && found.direct && !marketOwns(question, intents)) {
-        const direct = finishKb(packKb(found.direct));
-        if (direct) return direct;
     }
     if (!answer) {
         const messages = buildMessages(input, fresh ? data : null, fresh ? intents : [], found.grounding);
@@ -763,16 +822,20 @@ export async function answerTurn(body, deps) {
         const ai = await aiRun("@cf/meta/llama-3.3-70b-instruct-fp8-fast", { messages: messages, max_tokens: 300, temperature: 0.4 });
         let text = (ai && (ai.response || ai.answer)) || "";
         text = String(text).replace(/\nFollow-up:\s*.+$/i, "").trim();
-        if (intents.length && !fresh) text = scrubUnsourcedNumbers(text);
+        if (intents.length && !fresh && !conceptual) text = scrubUnsourcedNumbers(text);
+        if (conceptual && !fresh) text = stripLiveFigures(text);
         text = text === NO_FIGURE ? text : validateOutput(text);
-        if (!text && fresh && intents.length === 1) text = renderIntent(intents[0], data);
+        if (!text && fresh && intents.length === 1 && !conceptual) text = renderIntent(intents[0], data);
         if (!text) return refusal("harm");
         if (text !== NO_FIGURE) {
             answer = stripInventedTopics(text);
             const checked = validateOutput(answer);
             if (!checked) return refusal("harm");
             answer = checked;
-            if (intents.length && !fresh && hasMarketNumber(answer)) answer = NO_FIGURE;
+            if (intents.length && !fresh && !conceptual && hasMarketNumber(answer)) answer = NO_FIGURE;
+            if (conceptual && !fresh && asksForCurrentNumber(question) && answer.indexOf(NO_FIGURE) === -1) {
+                answer = answer + " " + NO_FIGURE;
+            }
         } else {
             answer = NO_FIGURE;
         }
