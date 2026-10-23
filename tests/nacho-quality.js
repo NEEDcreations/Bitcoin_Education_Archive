@@ -72,32 +72,42 @@ const CASES = [
     { q: "What is Bitcoin's all-time high?", kind: 'live', source: /CoinGecko/, nfa: true, num: function(a, d) { return within(grouped(a, /\$([0-9,]+)/), d.ath); } },
     { q: 'How much did Bitcoin change in 24 hours?', kind: 'live', source: /Kraken/, nfa: true, num: function(a, d) { return within(grouped(a, /([0-9.]+)%/), d.change24h); } },
     { q: 'What is a satoshi?', kind: 'model' },
-    { q: 'What is Bitcoin?', kind: 'model' },
-    { q: 'How does Bitcoin mining work?', kind: 'model' },
-    { q: 'What is the Lightning Network?', kind: 'model' },
-    { q: 'Why is self-custody important?', kind: 'model' },
+    { q: 'What is Bitcoin?', kind: 'kb' },
+    { q: 'How does Bitcoin mining work?', kind: 'kb' },
+    { q: 'What is the Lightning Network?', kind: 'kb' },
+    { q: 'Why is self-custody important?', kind: 'kb' },
     { q: 'What is a seed phrase?', kind: 'education' },
-    { q: 'What is proof of work?', kind: 'model' },
-    { q: 'Why is the supply capped at 21 million?', kind: 'model' },
-    { q: 'What is a Bitcoin node?', kind: 'model' },
-    { q: 'What is the Bitcoin whitepaper?', kind: 'model' },
-    { q: 'What is time preference?', kind: 'model' },
-    { q: 'What is dollar-cost averaging?', kind: 'model' },
-    { q: 'What is a UTXO?', kind: 'model' },
-    { q: 'What is Taproot?', kind: 'model' },
-    { q: 'Who created Bitcoin?', kind: 'model' },
-    { q: 'What does not your keys, not your coins mean?', kind: 'model' },
-    { q: 'How do Bitcoin addresses work?', kind: 'model' },
-    { q: "What is Satoshi's Favor?", kind: 'model' },
-    { q: 'How do I earn XP on Bitcoin Quest?', kind: 'model' },
-    { q: 'How do raffles work here?', kind: 'model' },
-    { q: 'What is the Quest Hub?', kind: 'model' },
-    { q: 'How do I turn on two-factor auth?', kind: 'model' },
-    { q: 'What are Orange Tickets?', kind: 'model' },
-    { q: 'What is the daily quiz?', kind: 'model' },
-    { q: 'How do gifts work in the app?', kind: 'model' },
-    { q: 'What is Proof of Walk?', kind: 'model' },
-    { q: 'Where do I start if I am brand new?', kind: 'model' },
+    { q: 'What is proof of work?', kind: 'kb' },
+    { q: 'Why is the supply capped at 21 million?', kind: 'kb' },
+    { q: 'What is a Bitcoin node?', kind: 'kb' },
+    { q: 'What is the Bitcoin whitepaper?', kind: 'kb' },
+    { q: 'What is time preference?', kind: 'kb' },
+    { q: 'What is dollar-cost averaging?', kind: 'kb' },
+    { q: 'What is a UTXO?', kind: 'kb' },
+    { q: 'What is Taproot?', kind: 'kb' },
+    { q: 'Who created Bitcoin?', kind: 'kb' },
+    { q: 'What does not your keys, not your coins mean?', kind: 'kb' },
+    { q: 'How do Bitcoin addresses work?', kind: 'kb' },
+    { q: "What is Satoshi's Favor?", kind: 'kb' },
+    { q: 'How do I earn XP on Bitcoin Quest?', kind: 'kb', keep: /full through 500, half through 900, then a quarter until 1,000/ },
+    { q: 'How do raffles work here?', kind: 'kb', keep: /1st/ },
+    { q: 'What is the Quest Hub?', kind: 'kb' },
+    { q: 'How do I turn on two-factor auth?', kind: 'kb', keep: /Settings/ },
+    { q: 'What are Orange Tickets?', kind: 'kb' },
+    { q: 'What is the daily quiz?', kind: 'kb' },
+    { q: 'How do gifts work in the app?', kind: 'kb' },
+    { q: 'What is Proof of Walk?', kind: 'kb' },
+    { q: 'Where do I start if I am brand new?', kind: 'kb' },
+    { q: 'What is Ethereum?', kind: 'steer' },
+    { q: 'Should I buy Ethereum?', kind: 'steer' },
+    { q: 'What is Solana?', kind: 'steer' },
+    { q: 'Which altcoin should I buy?', kind: 'steer' },
+    { q: 'What is an NFT?', kind: 'steer' },
+    { q: 'What is crypto?', kind: 'steer' },
+    { q: 'what is the ethereum price', kind: 'steer' },
+    { q: 'ethereum fees', kind: 'steer' },
+    { q: 'Which coin will moon?', kind: 'steer' },
+    { q: 'What is a memecoin?', kind: 'steer' },
     { q: 'Should I buy Bitcoin?', kind: 'advice' },
     { q: 'Is it a good time to buy bitcoin?', kind: 'advice' },
     { q: 'I am able to learn about Bitcoin and the whitepaper from the archive', kind: 'model', keep: /able to learn about/i },
@@ -192,10 +202,17 @@ const CASES = [
             if (!result.followUps || result.followUps.length < 2 || result.followUps.length > 3) problems.push('followUps ' + (result.followUps && result.followUps.length));
             (result.followUps || []).forEach(function(q) {
                 if (!logic.validFollowUp(q, row.q)) problems.push('bad follow-up ' + q);
+                if (result.kbId) {
+                    const hit = logic.getKbEntry && logic.kbEntries().some(function (entry) { return entry.question === q; });
+                    if (!hit) problems.push('follow-up not in kb ' + q);
+                    return;
+                }
                 const item = logic.POOL.find(function(p) { return p.q === q; });
                 if (!item || !logic.answerForPoolItem(item, data)) problems.push('follow-up has no answer ' + q);
             });
-            if (!/Source:|Not financial advice|Bitcoin lesson|able to learn|transaction id|get rich quick|timechain|live figures|live data block|dollar-cost|self-custody|paper or metal/i.test(result.answer)) {
+            if (result.kbId) {
+                if (!result.answer || result.answer.length < 40) problems.push('thin kb');
+            } else if (!/Source:|Not financial advice|Bitcoin lesson|able to learn|transaction id|get rich quick|timechain|live figures|live data block|dollar-cost|self-custody|paper or metal/i.test(result.answer)) {
                 problems.push('thin answer');
             }
             if (/[A-Z][a-z]+ channel/.test(result.answer) && !logic.TOPIC_BY_ID.has('skip')) {
@@ -238,6 +255,23 @@ const CASES = [
             if (row.keep && !row.keep.test(result.answer)) problems.push('missing phrase');
             if (row.liveInPrompt && !/LIVE DATA/.test(lastUser)) problems.push('live data not passed to the model');
             if (/KB notes:/.test(lastSystem)) problems.push('system saw kb notes');
+        }
+        if (row.kind === 'kb' || row.kind === 'steer') {
+            if (aiCalls !== before) problems.push('model ran');
+            if (!result.deterministic || !result.kbId) problems.push('not a kb answer');
+            if (result.asOf) problems.push('asOf on kb');
+            if (/\b(price target|will reach|going to be worth|guaranteed profit|you should buy|you should sell|will hit|predicted to|going to the moon|price will)\b/i.test(result.answer) || /\$\s?\d/.test(result.answer)) problems.push('prediction');
+            if (row.keep && !row.keep.test(result.answer)) problems.push('missing phrase');
+        }
+        if (row.kind === 'steer') {
+            if (!/bitcoin/i.test(result.answer)) problems.push('no bitcoin steer');
+            if (!/fixed supply|no premine|proof-of-work|proof of work/i.test(result.answer)) problems.push('missing reason');
+            if (/shitcoin|trash coin|garbage|stupid coin|scam coin/i.test(result.answer)) problems.push('insult');
+            if (/\$100,00|100000\.50|Coinbase/.test(result.answer)) problems.push('quoted bitcoin as the other coin');
+            (result.followUps || []).forEach(function (q) {
+                const entry = logic.kbEntries().find(function (item) { return item.question === q; });
+                if (!entry || entry.category === 'crypto-steer') problems.push('steer follow-up ' + q);
+            });
         }
         if (problems.length) failures.push(row.q.slice(0, 72) + ' — ' + problems.join(', '));
     }
@@ -367,6 +401,34 @@ const CASES = [
     assert.ok(topicsJs.includes("'/nacho-deer.svg'"));
     assert.ok(topicsJs.includes('🦌'));
     assert.ok(!topicsJs.includes("src = 'nacho-deer.svg'"));
+
+    const PRED = /\b(price target|will reach|going to be worth|guaranteed profit|you should buy|you should sell|will hit|predicted to|going to the moon|price will)\b/i;
+    const kbFail = [];
+    const byCat = {};
+    logic.kbEntries().forEach(function (entry) {
+        byCat[entry.category] = (byCat[entry.category] || 0) + 1;
+        const own = logic.retrieve(entry.question);
+        if (!own.direct || own.direct.id !== entry.id) kbFail.push('miss ' + entry.id);
+        const alt = entry.alts && entry.alts[0];
+        const altHit = logic.retrieve(alt);
+        if (!alt || !altHit.direct || altHit.direct.id !== entry.id) kbFail.push('alt ' + entry.id);
+        if (!entry.followUps || entry.followUps.length < 2) kbFail.push('follows ' + entry.id);
+        (entry.followUps || []).forEach(function (id) {
+            if (!logic.getKbEntry(id)) kbFail.push('follow ' + entry.id + ' ' + id);
+        });
+        (entry.topics || []).forEach(function (id) {
+            if (!logic.TOPIC_BY_ID.has(id)) kbFail.push('topic ' + id + ' in ' + entry.id);
+        });
+        if (PRED.test(entry.answer) || /\$\s?\d/.test(entry.answer)) kbFail.push('pred ' + entry.id);
+        if (!entry.alts || entry.alts.length < 3) kbFail.push('alts ' + entry.id);
+    });
+    if (logic.kbEntries().length < 1000) kbFail.push('count ' + logic.kbEntries().length);
+    if ((byCat['crypto-steer'] || 0) < 50) kbFail.push('steer ' + byCat['crypto-steer']);
+    if (kbFail.length) {
+        console.log(kbFail.slice(0, 20).join('\n'));
+        process.exit(1);
+    }
+    console.log('kb ' + logic.kbEntries().length + ' ' + JSON.stringify(byCat));
 
     if (failures.length) {
         console.log(failures.join('\n'));

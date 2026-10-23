@@ -1,0 +1,837 @@
+[
+  {
+    "id": "adopt-el-salvador",
+    "category": "adoption",
+    "question": "Did a country make bitcoin legal tender?",
+    "alts": [
+      "In simple words, did a country make bitcoin legal tender?",
+      "Did a country make bitcoin legal tender, briefly?",
+      "Help me understand: did a country make bitcoin legal tender?"
+    ],
+    "answer": "El Salvador made bitcoin legal tender in 2021. Later political agreements changed how that law works in practice. The protocol does not depend on any one statute, and statutes can be revised.",
+    "topics": [
+      "news-adoption",
+      "geopolitics___macroeconomics",
+      "market_cap"
+    ],
+    "followUps": [
+      "adopt-etf",
+      "adopt-treasury",
+      "adopt-not-price"
+    ],
+    "sources": "El Salvador, 2021. Later legal changes are political, not protocol."
+  },
+  {
+    "id": "adopt-etf",
+    "category": "adoption",
+    "question": "What is a spot bitcoin ETF?",
+    "alts": [
+      "In simple words, what is a spot bitcoin ETF?",
+      "What is a spot bitcoin ETF, briefly?",
+      "Help me understand: what is a spot bitcoin ETF?"
+    ],
+    "answer": "In January 2024, US regulators allowed funds that hold bitcoin and trade like shares. A share is a claim on the fund, not a key in your hand. It is an access product, and it is not self-custody.",
+    "topics": [
+      "news-adoption",
+      "market_cap",
+      "self-custody"
+    ],
+    "followUps": [
+      "adopt-treasury",
+      "adopt-not-price",
+      "adopt-merchant"
+    ],
+    "sources": "US spot ETFs, January 2024."
+  },
+  {
+    "id": "adopt-treasury",
+    "category": "adoption",
+    "question": "What is a bitcoin treasury company?",
+    "alts": [
+      "In simple words, what is a bitcoin treasury company?",
+      "What is a bitcoin treasury company, briefly?",
+      "Help me understand: what is a bitcoin treasury company?"
+    ],
+    "answer": "Some public companies keep bitcoin on their balance sheet. The firm once called MicroStrategy began buying in 2020 and is the famous early case. Holdings change, so this lesson does not quote a live total.",
+    "topics": [
+      "news-adoption",
+      "market_cap",
+      "geopolitics___macroeconomics"
+    ],
+    "followUps": [
+      "adopt-not-price",
+      "adopt-merchant",
+      "adopt-remittance"
+    ],
+    "sources": "Corporate treasuries since 2020. Totals change."
+  },
+  {
+    "id": "adopt-not-price",
+    "category": "adoption",
+    "question": "Does adoption mean the price must rise?",
+    "alts": [
+      "In simple words, does adoption mean the price must rise?",
+      "Does adoption mean the price must rise, briefly?",
+      "Help me understand: does adoption mean the price must rise?"
+    ],
+    "answer": "More users can increase demand, and they can also arrive with sellers. Adoption is about use and holdings, not a formula for next month's price. This is not financial advice.",
+    "topics": [
+      "news-adoption",
+      "predictions",
+      "network_effects"
+    ],
+    "followUps": [
+      "adopt-merchant",
+      "adopt-remittance",
+      "adopt-unbanked"
+    ],
+    "sources": "No price formula."
+  },
+  {
+    "id": "adopt-merchant",
+    "category": "adoption",
+    "question": "How do merchants take bitcoin?",
+    "alts": [
+      "In simple words, how do merchants take bitcoin?",
+      "How do merchants take bitcoin, briefly?",
+      "Help me understand: how do merchants take bitcoin?"
+    ],
+    "answer": "They can use a processor, a Lightning wallet, or their own node. Some convert to local currency immediately and some keep the coins. The tool they pick decides the custody.",
+    "topics": [
+      "use-cases",
+      "layer-2-lightning",
+      "apps-tools"
+    ],
+    "followUps": [
+      "adopt-remittance",
+      "adopt-unbanked",
+      "adopt-sanctions"
+    ],
+    "sources": "Merchant acceptance."
+  },
+  {
+    "id": "adopt-remittance",
+    "category": "adoption",
+    "question": "Why do people mention remittances?",
+    "alts": [
+      "In simple words, why do people mention remittances?",
+      "Why do people mention remittances, briefly?",
+      "Help me understand: why do people mention remittances?"
+    ],
+    "answer": "Sending money across borders through banks can be slow and costly. Bitcoin and Lightning are one route people try. The local cash-out still depends on a person or a company in the receiving place.",
+    "topics": [
+      "use-cases",
+      "international",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "adopt-unbanked",
+      "adopt-sanctions",
+      "adopt-circular"
+    ],
+    "sources": "Remittances."
+  },
+  {
+    "id": "adopt-unbanked",
+    "category": "adoption",
+    "question": "Does bitcoin require a bank account?",
+    "alts": [
+      "In simple words, does bitcoin require a bank account?",
+      "Does bitcoin require a bank account, briefly?",
+      "Help me understand: does bitcoin require a bank account?"
+    ],
+    "answer": "The network does not. Buying from a regulated exchange often does. Person-to-person purchase and earning bitcoin directly are ways people start without that account.",
+    "topics": [
+      "use-cases",
+      "human_rights__social_justice_and_freedo",
+      "self-custody"
+    ],
+    "followUps": [
+      "adopt-sanctions",
+      "adopt-circular",
+      "adopt-legal-hold"
+    ],
+    "sources": "Access."
+  },
+  {
+    "id": "adopt-sanctions",
+    "category": "adoption",
+    "question": "Can people use bitcoin when banks block them?",
+    "alts": [
+      "In simple words, can people use bitcoin when banks block them?",
+      "Can people use bitcoin when banks block them, briefly?",
+      "Help me understand: can people use bitcoin when banks block them?"
+    ],
+    "answer": "If they can reach the network and hold keys, a payment does not need a bank's permission. Local law may still forbid it, and on-ramps may be closed. The protocol and the statute are different layers.",
+    "topics": [
+      "human_rights__social_justice_and_freedo",
+      "supranational",
+      "regulation"
+    ],
+    "followUps": [
+      "adopt-circular",
+      "adopt-legal-hold",
+      "adopt-nation-mine"
+    ],
+    "sources": "Permissionless network, local law still exists."
+  },
+  {
+    "id": "adopt-circular",
+    "category": "adoption",
+    "question": "What is a circular bitcoin economy?",
+    "alts": [
+      "In simple words, what is a circular bitcoin economy?",
+      "What is a circular bitcoin economy, briefly?",
+      "Help me understand: what is a circular bitcoin economy?"
+    ],
+    "answer": "It means people earn and spend bitcoin in a town or a scene without converting every time. A few places experiment with that. Most economies still price daily life in fiat.",
+    "topics": [
+      "use-cases",
+      "news-adoption",
+      "money"
+    ],
+    "followUps": [
+      "adopt-legal-hold",
+      "adopt-nation-mine",
+      "adopt-seizure"
+    ],
+    "sources": "Circular use is local and partial."
+  },
+  {
+    "id": "adopt-legal-hold",
+    "category": "adoption",
+    "question": "Is it legal to hold bitcoin?",
+    "alts": [
+      "In simple words, is it legal to hold bitcoin?",
+      "Is it legal to hold bitcoin, briefly?",
+      "Help me understand: is it legal to hold bitcoin?"
+    ],
+    "answer": "In many countries, holding bitcoin is legal and regulated at the exchange. In a few places it is restricted. This archive cannot give a country-by-country ruling, and the answer changes.",
+    "topics": [
+      "regulation",
+      "international",
+      "politics"
+    ],
+    "followUps": [
+      "adopt-nation-mine",
+      "adopt-seizure",
+      "adopt-etf-flow"
+    ],
+    "sources": "Legality is local and changes."
+  },
+  {
+    "id": "adopt-nation-mine",
+    "category": "adoption",
+    "question": "Do governments mine bitcoin?",
+    "alts": [
+      "In simple words, do governments mine bitcoin?",
+      "Do governments mine bitcoin, briefly?",
+      "Help me understand: do governments mine bitcoin?"
+    ],
+    "answer": "Some states and state-linked firms have mined or held bitcoin. The list changes with elections and budgets. Their coins follow the same rules as everyone else's.",
+    "topics": [
+      "geopolitics___macroeconomics",
+      "mining",
+      "news-adoption"
+    ],
+    "followUps": [
+      "adopt-seizure",
+      "adopt-etf-flow",
+      "adopt-custody-concentration"
+    ],
+    "sources": "State mining exists and changes."
+  },
+  {
+    "id": "adopt-seizure",
+    "category": "adoption",
+    "question": "Can coins be seized?",
+    "alts": [
+      "In simple words, can coins be seized?",
+      "Can coins be seized, briefly?",
+      "Help me understand: can coins be seized?"
+    ],
+    "answer": "Keys can be seized if they are stored where a court can reach them, and exchanges can be ordered to freeze accounts. Coins in a key nobody surrenders are not moved by a PDF. That is a legal and practical fight, not a protocol command.",
+    "topics": [
+      "regulation",
+      "self-custody",
+      "politics"
+    ],
+    "followUps": [
+      "adopt-etf-flow",
+      "adopt-custody-concentration",
+      "adopt-lightning-use"
+    ],
+    "sources": "Seizure targets keys and custodians."
+  },
+  {
+    "id": "adopt-etf-flow",
+    "category": "adoption",
+    "question": "Do ETFs change Bitcoin's rules?",
+    "alts": [
+      "In simple words, do ETFs change Bitcoin's rules?",
+      "Do ETFs change Bitcoin's rules, briefly?",
+      "Help me understand: do ETFs change Bitcoin's rules?"
+    ],
+    "answer": "No. A fund buys and holds bitcoin, or fails to, under its own charter. The cap and the validation rules stay. The fund can become a large custodian, which is a social concentration, not a code change.",
+    "topics": [
+      "news-adoption",
+      "self-custody",
+      "governance"
+    ],
+    "followUps": [
+      "adopt-custody-concentration",
+      "adopt-lightning-use",
+      "adopt-developer-jobs"
+    ],
+    "sources": "ETFs do not edit consensus."
+  },
+  {
+    "id": "adopt-custody-concentration",
+    "category": "adoption",
+    "question": "Why do large custodians worry people?",
+    "alts": [
+      "In simple words, why do large custodians worry people?",
+      "Why do large custodians worry people, briefly?",
+      "Help me understand: why do large custodians worry people?"
+    ],
+    "answer": "If a few companies hold keys for millions of users, pressure on those companies matters more. The chain still rejects invalid blocks. Concentration of custody is a political risk, not a change to the supply.",
+    "topics": [
+      "self-custody",
+      "governance",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "adopt-lightning-use",
+      "adopt-developer-jobs",
+      "adopt-education"
+    ],
+    "sources": "Custodial concentration."
+  },
+  {
+    "id": "adopt-lightning-use",
+    "category": "adoption",
+    "question": "Where is Lightning actually used?",
+    "alts": [
+      "In simple words, where is Lightning actually used?",
+      "Where is Lightning actually used, briefly?",
+      "Help me understand: where is Lightning actually used?"
+    ],
+    "answer": "People use it for small payments, creator tips, and some remittances and apps. Capacity and reliability vary by wallet. It is real and it is not yet how every store works.",
+    "topics": [
+      "layer-2-lightning",
+      "news-adoption",
+      "use-cases"
+    ],
+    "followUps": [
+      "adopt-developer-jobs",
+      "adopt-education",
+      "adopt-metrics"
+    ],
+    "sources": "Partial Lightning use."
+  },
+  {
+    "id": "adopt-developer-jobs",
+    "category": "adoption",
+    "question": "Are there jobs in Bitcoin?",
+    "alts": [
+      "In simple words, are there jobs in Bitcoin?",
+      "Are there jobs in Bitcoin, briefly?",
+      "Help me understand: are there jobs in Bitcoin?"
+    ],
+    "answer": "Yes. Companies hire engineers, educators, and operators, and open-source work is a path. A job is ordinary employment, not a yield on holding coins. Listings change and are not a promise of hiring.",
+    "topics": [
+      "jobs-earn",
+      "developers",
+      "use-cases"
+    ],
+    "followUps": [
+      "adopt-education",
+      "adopt-metrics",
+      "adopt-media"
+    ],
+    "sources": "Jobs exist. No hiring promise."
+  },
+  {
+    "id": "adopt-education",
+    "category": "adoption",
+    "question": "Why educate before buying?",
+    "alts": [
+      "In simple words, why educate before buying?",
+      "Why educate before buying, briefly?",
+      "Help me understand: why educate before buying?"
+    ],
+    "answer": "The failure modes are lost seeds, scam sites, and custodians. Understanding them is cheaper than learning during a loss. This site is built for that order, and it still does not tell you whether to buy.",
+    "topics": [
+      "curriculum",
+      "one-stop-shop",
+      "investment-strategy"
+    ],
+    "followUps": [
+      "adopt-metrics",
+      "adopt-media",
+      "adopt-institutions"
+    ],
+    "sources": "Education first. Not advice."
+  },
+  {
+    "id": "adopt-metrics",
+    "category": "adoption",
+    "question": "What adoption metrics go stale?",
+    "alts": [
+      "In simple words, what adoption metrics go stale?",
+      "What adoption metrics go stale, briefly?",
+      "Help me understand: what adoption metrics go stale?"
+    ],
+    "answer": "User counts, volumes, and treasury sizes change every month. A lesson that freezes them will lie next year. The durable facts are the rules and the patterns, not this quarter's chart.",
+    "topics": [
+      "news-adoption",
+      "market_cap",
+      "charts"
+    ],
+    "followUps": [
+      "adopt-media",
+      "adopt-institutions",
+      "adopt-grassroots"
+    ],
+    "sources": "Avoid frozen metrics."
+  },
+  {
+    "id": "adopt-media",
+    "category": "adoption",
+    "question": "Why do headlines swing so hard?",
+    "alts": [
+      "In simple words, why do headlines swing so hard?",
+      "Why do headlines swing so hard, briefly?",
+      "Help me understand: why do headlines swing so hard?"
+    ],
+    "answer": "Bitcoin touches money, politics, and crime stories, so coverage is emotional. The chain does not read the headline. A node is calmer than a feed.",
+    "topics": [
+      "news-adoption",
+      "philosophy",
+      "nodes"
+    ],
+    "followUps": [
+      "adopt-institutions",
+      "adopt-grassroots",
+      "adopt-language"
+    ],
+    "sources": "Headlines versus protocol."
+  },
+  {
+    "id": "adopt-institutions",
+    "category": "adoption",
+    "question": "What does institutional adoption change?",
+    "alts": [
+      "In simple words, what does institutional adoption change?",
+      "What does institutional adoption change, briefly?",
+      "Help me understand: what does institutional adoption change?"
+    ],
+    "answer": "It can add demand, surveillance, and products like funds. It does not grant institutions a vote over your node. You can use the tools or ignore them.",
+    "topics": [
+      "news-adoption",
+      "governance",
+      "market_cap"
+    ],
+    "followUps": [
+      "adopt-grassroots",
+      "adopt-language",
+      "adopt-phone"
+    ],
+    "sources": "Institutions."
+  },
+  {
+    "id": "adopt-grassroots",
+    "category": "adoption",
+    "question": "What is grassroots adoption?",
+    "alts": [
+      "In simple words, what is grassroots adoption?",
+      "What is grassroots adoption, briefly?",
+      "Help me understand: what is grassroots adoption?"
+    ],
+    "answer": "It means individuals holding and spending, not only funds and companies. Both can exist. The protocol treats their transactions the same if they are valid.",
+    "topics": [
+      "news-adoption",
+      "use-cases",
+      "organic"
+    ],
+    "followUps": [
+      "adopt-language",
+      "adopt-phone",
+      "adopt-atm"
+    ],
+    "sources": "Individuals and institutions."
+  },
+  {
+    "id": "adopt-language",
+    "category": "adoption",
+    "question": "Is Bitcoin only an English-speaking project?",
+    "alts": [
+      "In simple words, is Bitcoin only an English-speaking project?",
+      "Is Bitcoin only an English-speaking project, briefly?",
+      "Help me understand: is Bitcoin only an English-speaking project?"
+    ],
+    "answer": "The software and the whitepaper spread from English, and communities exist in many languages. The rules are math, not a language. Local teachers matter for real understanding.",
+    "topics": [
+      "international",
+      "curriculum",
+      "organic"
+    ],
+    "followUps": [
+      "adopt-phone",
+      "adopt-atm",
+      "adopt-p2p"
+    ],
+    "sources": "Global communities."
+  },
+  {
+    "id": "adopt-phone",
+    "category": "adoption",
+    "question": "Why do phones matter for adoption?",
+    "alts": [
+      "In simple words, why do phones matter for adoption?",
+      "Why do phones matter for adoption, briefly?",
+      "Help me understand: why do phones matter for adoption?"
+    ],
+    "answer": "Many people meet Bitcoin first as a phone wallet. That can be custodial or self-custodial. The phone is the interface, and the keys decide the custody.",
+    "topics": [
+      "use-cases",
+      "apps-tools",
+      "self-custody"
+    ],
+    "followUps": [
+      "adopt-atm",
+      "adopt-p2p",
+      "adopt-oss-companies"
+    ],
+    "sources": "Mobile first contact."
+  },
+  {
+    "id": "adopt-atm",
+    "category": "adoption",
+    "question": "What is a bitcoin ATM?",
+    "alts": [
+      "In simple words, what is a bitcoin ATM?",
+      "What is a bitcoin ATM, briefly?",
+      "Help me understand: what is a bitcoin ATM?"
+    ],
+    "answer": "A machine that sells or buys bitcoin for cash, usually with a fee and sometimes with identity checks. It is a vending business, not part of the protocol. Rates and limits are the operator's.",
+    "topics": [
+      "use-cases",
+      "apps-tools",
+      "regulation"
+    ],
+    "followUps": [
+      "adopt-p2p",
+      "adopt-oss-companies",
+      "adopt-standards"
+    ],
+    "sources": "ATMs are businesses."
+  },
+  {
+    "id": "adopt-p2p",
+    "category": "adoption",
+    "question": "What is person-to-person bitcoin trading?",
+    "alts": [
+      "In simple words, what is person-to-person bitcoin trading?",
+      "What is person-to-person bitcoin trading, briefly?",
+      "Help me understand: what is person-to-person bitcoin trading?"
+    ],
+    "answer": "Two people trade bitcoin for cash or goods without an exchange in the middle. Local laws can still apply. The on-chain part is an ordinary payment.",
+    "topics": [
+      "use-cases",
+      "privacy-nonkyc",
+      "regulation"
+    ],
+    "followUps": [
+      "adopt-oss-companies",
+      "adopt-standards",
+      "adopt-cbdc-contrast"
+    ],
+    "sources": "P2P trade."
+  },
+  {
+    "id": "adopt-oss-companies",
+    "category": "adoption",
+    "question": "Do companies fund Bitcoin development?",
+    "alts": [
+      "In simple words, do companies fund Bitcoin development?",
+      "Do companies fund Bitcoin development, briefly?",
+      "Help me understand: do companies fund Bitcoin development?"
+    ],
+    "answer": "Yes, some employ contributors, and some do not. Funding can create influence and also maintenance. The node software you run is still the check on that influence.",
+    "topics": [
+      "developers",
+      "governance",
+      "open_source"
+    ],
+    "followUps": [
+      "adopt-standards",
+      "adopt-cbdc-contrast",
+      "adopt-legal-tender-limits"
+    ],
+    "sources": "Sponsored development."
+  },
+  {
+    "id": "adopt-standards",
+    "category": "adoption",
+    "question": "Do accounting standards mention bitcoin?",
+    "alts": [
+      "In simple words, do accounting standards mention bitcoin?",
+      "Do accounting standards mention bitcoin, briefly?",
+      "Help me understand: do accounting standards mention bitcoin?"
+    ],
+    "answer": "Some jurisdictions have guidance for how companies report digital assets. The guidance changes and is not global. It affects disclosures, not validity of blocks.",
+    "topics": [
+      "regulation",
+      "news-adoption",
+      "politics"
+    ],
+    "followUps": [
+      "adopt-cbdc-contrast",
+      "adopt-legal-tender-limits",
+      "adopt-energy-jobs"
+    ],
+    "sources": "Accounting rules vary."
+  },
+  {
+    "id": "adopt-cbdc-contrast",
+    "category": "adoption",
+    "question": "How is bitcoin different from a central bank digital currency?",
+    "alts": [
+      "In simple words, how is bitcoin different from a central bank digital currency?",
+      "How is bitcoin different from a central bank digital currency, briefly?",
+      "Help me understand: how is bitcoin different from a central bank digital currency?"
+    ],
+    "answer": "A CBDC is a liability of a central bank, with whatever controls that system includes. Bitcoin is not anyone's liability, and no issuer can freeze an output inside the protocol. They can share a screen and still be opposite designs.",
+    "topics": [
+      "politics",
+      "money",
+      "decentralized"
+    ],
+    "followUps": [
+      "adopt-legal-tender-limits",
+      "adopt-energy-jobs",
+      "adopt-education-archive"
+    ],
+    "sources": "CBDC contrast."
+  },
+  {
+    "id": "adopt-legal-tender-limits",
+    "category": "adoption",
+    "question": "What did legal tender not solve?",
+    "alts": [
+      "In simple words, what did legal tender not solve?",
+      "What did legal tender not solve, briefly?",
+      "Help me understand: what did legal tender not solve?"
+    ],
+    "answer": "Naming bitcoin legal tender did not force every shop to have working tools, and it did not remove volatility. Adoption still needs wallets, liquidity, and habit. A statute is not a merchant network.",
+    "topics": [
+      "news-adoption",
+      "politics",
+      "use-cases"
+    ],
+    "followUps": [
+      "adopt-energy-jobs",
+      "adopt-education-archive",
+      "adopt-meetups"
+    ],
+    "sources": "Legal tender limits."
+  },
+  {
+    "id": "adopt-energy-jobs",
+    "category": "adoption",
+    "question": "Do miners bring local jobs?",
+    "alts": [
+      "In simple words, do miners bring local jobs?",
+      "Do miners bring local jobs, briefly?",
+      "Help me understand: do miners bring local jobs?"
+    ],
+    "answer": "A mining site hires electricians and operators and buys power. The scale is local and can leave if the power contract changes. It is an industry, not a protocol promise to a town.",
+    "topics": [
+      "mining",
+      "jobs-earn",
+      "energy"
+    ],
+    "followUps": [
+      "adopt-education-archive",
+      "adopt-meetups",
+      "adopt-nostr"
+    ],
+    "sources": "Local industry."
+  },
+  {
+    "id": "adopt-education-archive",
+    "category": "adoption",
+    "question": "Where do I start if I am brand new?",
+    "alts": [
+      "In simple words, where do I start if I am brand new?",
+      "Where do I start if I am brand new, briefly?",
+      "Help me understand: where do I start if I am brand new?"
+    ],
+    "answer": "Start with what bitcoin is, how keys work, and how nodes check the rules, before any product. On this site, the One Stop Shop channel and Nacho's Trails are the guided path. This is education, not a recommendation to buy.",
+    "topics": [
+      "one-stop-shop",
+      "curriculum",
+      "faq-glossary"
+    ],
+    "followUps": [
+      "adopt-meetups",
+      "adopt-nostr",
+      "adopt-zaps"
+    ],
+    "sources": "Bitcoin Quest starting path."
+  },
+  {
+    "id": "adopt-meetups",
+    "category": "adoption",
+    "question": "Why do bitcoin meetups exist?",
+    "alts": [
+      "In simple words, why do bitcoin meetups exist?",
+      "Why do bitcoin meetups exist, briefly?",
+      "Help me understand: why do bitcoin meetups exist?"
+    ],
+    "answer": "People learn faster when they can ask questions and see a wallet in person. A meetup is not an oracle. It is a room, and the chain is still the reference.",
+    "topics": [
+      "use-cases",
+      "curriculum",
+      "social-media"
+    ],
+    "followUps": [
+      "adopt-nostr",
+      "adopt-zaps",
+      "adopt-tipping"
+    ],
+    "sources": "Meetups."
+  },
+  {
+    "id": "adopt-nostr",
+    "category": "adoption",
+    "question": "What is Nostr in this context?",
+    "alts": [
+      "In simple words, what is Nostr in this context?",
+      "What is Nostr in this context, briefly?",
+      "Help me understand: what is Nostr in this context?"
+    ],
+    "answer": "Nostr is a protocol for signed notes that many bitcoiners use for social posts and zaps over Lightning. It is not Bitcoin, and it is not a blockchain. It shows up beside Bitcoin because the same people experiment with it.",
+    "topics": [
+      "nostr",
+      "layer-2-lightning",
+      "social-media"
+    ],
+    "followUps": [
+      "adopt-zaps",
+      "adopt-tipping",
+      "adopt-etf-date"
+    ],
+    "sources": "Nostr is a separate protocol."
+  },
+  {
+    "id": "adopt-zaps",
+    "category": "adoption",
+    "question": "What is a zap?",
+    "alts": [
+      "In simple words, what is a zap?",
+      "What is a zap, briefly?",
+      "Help me understand: what is a zap?"
+    ],
+    "answer": "A zap is a small Lightning payment attached to a social post, often on Nostr. It is a tip. It spends real sats if it is a real payment, so the amount still matters.",
+    "topics": [
+      "nostr",
+      "layer-2-lightning",
+      "use-cases"
+    ],
+    "followUps": [
+      "adopt-tipping",
+      "adopt-etf-date",
+      "adopt-sv-date"
+    ],
+    "sources": "Zaps."
+  },
+  {
+    "id": "adopt-tipping",
+    "category": "adoption",
+    "question": "Why are tips a common first use?",
+    "alts": [
+      "In simple words, why are tips a common first use?",
+      "Why are tips a common first use, briefly?",
+      "Help me understand: why are tips a common first use?"
+    ],
+    "answer": "A tip can be tiny, so a mistake is cheap, and Lightning makes the transfer casual. It teaches receiving and sending. It is practice, not proof that all commerce has moved.",
+    "topics": [
+      "use-cases",
+      "layer-2-lightning",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "adopt-etf-date",
+      "adopt-sv-date",
+      "adopt-treasury-start"
+    ],
+    "sources": "Tips as practice."
+  },
+  {
+    "id": "adopt-etf-date",
+    "category": "adoption",
+    "question": "When did United States spot bitcoin ETFs start?",
+    "alts": [
+      "In simple words, when did United States spot bitcoin ETFs start?",
+      "When did United States spot bitcoin ETFs start, briefly?",
+      "Help me understand: when did United States spot bitcoin ETFs start?"
+    ],
+    "answer": "Spot bitcoin ETFs in the United States began trading in January 2024. A share is a claim on a fund, not a key in your wallet. Live holdings change, so this note does not freeze a total, as of 2026.",
+    "topics": [
+      "news-adoption",
+      "regulation",
+      "investment-strategy"
+    ],
+    "followUps": [
+      "adopt-sv-date",
+      "adopt-treasury-start",
+      "adopt-el-salvador"
+    ],
+    "sources": "January 2024. Totals omitted."
+  },
+  {
+    "id": "adopt-sv-date",
+    "category": "adoption",
+    "question": "When did El Salvador make bitcoin legal tender?",
+    "alts": [
+      "In simple words, when did El Salvador make bitcoin legal tender?",
+      "When did El Salvador make bitcoin legal tender, briefly?",
+      "Help me understand: when did El Salvador make bitcoin legal tender?"
+    ],
+    "answer": "El Salvador made bitcoin legal tender in 2021. Later politics changed parts of that policy, and this note does not freeze a later statute. The protocol did not change either way.",
+    "topics": [
+      "news-adoption",
+      "geopolitics___macroeconomics",
+      "regulation"
+    ],
+    "followUps": [
+      "adopt-treasury-start",
+      "adopt-el-salvador",
+      "adopt-etf"
+    ],
+    "sources": "2021 legal tender. Later statutes not frozen."
+  },
+  {
+    "id": "adopt-treasury-start",
+    "category": "adoption",
+    "question": "When did public companies start bitcoin treasuries?",
+    "alts": [
+      "In simple words, when did public companies start bitcoin treasuries?",
+      "When did public companies start bitcoin treasuries, briefly?",
+      "Help me understand: when did public companies start bitcoin treasuries?"
+    ],
+    "answer": "Some public companies began holding bitcoin in treasury, and MicroStrategy's purchases starting in 2020 are a widely cited example. A company balance is not the protocol supply, and live totals go stale. This is not a suggestion to copy a company.",
+    "topics": [
+      "giga-chad",
+      "news-adoption"
+    ],
+    "followUps": [
+      "adopt-el-salvador",
+      "adopt-etf",
+      "adopt-treasury"
+    ],
+    "sources": "From 2020. Live totals omitted."
+  }
+]

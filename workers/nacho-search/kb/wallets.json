@@ -1,0 +1,1334 @@
+[
+  {
+    "id": "wallets-not-your-keys",
+    "category": "wallets",
+    "question": "What does not your keys, not your coins mean?",
+    "alts": [
+      "In simple words, what does not your keys, not your coins mean?",
+      "What does not your keys, not your coins mean, briefly?",
+      "Help me understand: what does not your keys, not your coins mean?"
+    ],
+    "answer": "If a company holds the keys, you hold a claim on that company, not a bitcoin output you can move alone. Not your keys, not your coins, is that warning in one line. Withdrawal to your own wallet is what turns the claim into coins you control.",
+    "topics": [
+      "self-custody",
+      "public_key_vs_private_key",
+      "derivation_path"
+    ],
+    "followUps": [
+      "wallets-why-custody",
+      "wallets-exchange",
+      "wallets-hardware"
+    ],
+    "sources": "Custodial versus self-custodial holding."
+  },
+  {
+    "id": "wallets-why-custody",
+    "category": "wallets",
+    "question": "Why is self-custody important?",
+    "alts": [
+      "In simple words, why is self-custody important?",
+      "Why is self-custody important, briefly?",
+      "Help me understand: why is self-custody important?"
+    ],
+    "answer": "Self-custody means you can move the coins without a company's permission, and a company failure does not freeze them. The cost is that you must protect the backup. Exchanges are convenient and they are not the same thing.",
+    "topics": [
+      "self-custody",
+      "risks__threats__attack_vectors__weaknes",
+      "money"
+    ],
+    "followUps": [
+      "wallets-exchange",
+      "wallets-hardware",
+      "wallets-software"
+    ],
+    "sources": "Custodian risk."
+  },
+  {
+    "id": "wallets-exchange",
+    "category": "wallets",
+    "question": "What do you hold on an exchange?",
+    "alts": [
+      "In simple words, what do you hold on an exchange?",
+      "What do you hold on an exchange, briefly?",
+      "Help me understand: what do you hold on an exchange?"
+    ],
+    "answer": "You hold an account balance in the exchange's database. The bitcoin, if they have it, is in wallets they control. Their outage, freeze, or bankruptcy is your problem until you withdraw.",
+    "topics": [
+      "self-custody",
+      "risks__threats__attack_vectors__weaknes",
+      "use-cases"
+    ],
+    "followUps": [
+      "wallets-hardware",
+      "wallets-software",
+      "wallets-hot-cold"
+    ],
+    "sources": "Exchange IOUs."
+  },
+  {
+    "id": "wallets-hardware",
+    "category": "wallets",
+    "question": "What is a hardware signer?",
+    "alts": [
+      "In simple words, what is a hardware signer?",
+      "What is a hardware signer, briefly?",
+      "Help me understand: what is a hardware signer?"
+    ],
+    "answer": "A hardware signer keeps keys in a small device and shows the address and amount on its own screen. A compromised computer can suggest a bad payment, and the device can still refuse it if you check the screen. The idea does not depend on one brand.",
+    "topics": [
+      "hardware",
+      "self-custody",
+      "public_key_vs_private_key"
+    ],
+    "followUps": [
+      "wallets-software",
+      "wallets-hot-cold",
+      "wallets-backup"
+    ],
+    "sources": "Hardware signing devices."
+  },
+  {
+    "id": "wallets-software",
+    "category": "wallets",
+    "question": "What is a software wallet?",
+    "alts": [
+      "In simple words, what is a software wallet?",
+      "What is a software wallet, briefly?",
+      "Help me understand: what is a software wallet?"
+    ],
+    "answer": "A software wallet stores keys on a phone or computer. It is convenient and it shares the fate of that device if malware arrives. Small amounts and spending money are the usual role, with savings on a colder setup.",
+    "topics": [
+      "self-custody",
+      "apps-tools",
+      "hardware"
+    ],
+    "followUps": [
+      "wallets-hot-cold",
+      "wallets-backup",
+      "wallets-metal"
+    ],
+    "sources": "Hot wallets."
+  },
+  {
+    "id": "wallets-hot-cold",
+    "category": "wallets",
+    "question": "What is a cold wallet?",
+    "alts": [
+      "In simple words, what is a cold wallet?",
+      "What is a cold wallet, briefly?",
+      "Help me understand: what is a cold wallet?"
+    ],
+    "answer": "Cold means the keys stay offline except when you deliberately sign. A hardware device or an air-gapped computer can do that. Cold storage is a practice, not a particular product.",
+    "topics": [
+      "self-custody",
+      "hardware",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-backup",
+      "wallets-metal",
+      "wallets-inheritance"
+    ],
+    "sources": "Cold storage."
+  },
+  {
+    "id": "wallets-backup",
+    "category": "wallets",
+    "question": "How should a seed phrase be backed up?",
+    "alts": [
+      "In simple words, how should a seed phrase be backed up?",
+      "How should a seed phrase be backed up, briefly?",
+      "Help me understand: how should a seed phrase be backed up?"
+    ],
+    "answer": "Write the words on paper or metal and store them where fire, water, and strangers are unlikely. Do not photograph them, type them into a site, or put them in cloud notes. A second copy in a second place is common, and anyone with either copy can spend.",
+    "topics": [
+      "self-custody",
+      "secure",
+      "public_key_vs_private_key"
+    ],
+    "followUps": [
+      "wallets-metal",
+      "wallets-inheritance",
+      "wallets-multisig-why"
+    ],
+    "sources": "Offline backups."
+  },
+  {
+    "id": "wallets-metal",
+    "category": "wallets",
+    "question": "Why do people use metal seed backups?",
+    "alts": [
+      "In simple words, why do people use metal seed backups?",
+      "Why do people use metal seed backups, briefly?",
+      "Help me understand: why do people use metal seed backups?"
+    ],
+    "answer": "Paper burns and smears. Metal plates survive fire and flood better. The threat model is physical disaster, and the words are still a secret if someone finds the plate.",
+    "topics": [
+      "self-custody",
+      "hardware",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-inheritance",
+      "wallets-multisig-why",
+      "wallets-single-sig"
+    ],
+    "sources": "Metal backups."
+  },
+  {
+    "id": "wallets-inheritance",
+    "category": "wallets",
+    "question": "How do people plan bitcoin inheritance?",
+    "alts": [
+      "In simple words, how do people plan bitcoin inheritance?",
+      "How do people plan bitcoin inheritance, briefly?",
+      "Help me understand: how do people plan bitcoin inheritance?"
+    ],
+    "answer": "A plan tells a trusted person how to find the backup later, without posting the words anywhere online. Multisig can require an heir and an advisor, or a timelock can open a path after a delay. This is education, not legal advice.",
+    "topics": [
+      "self-custody",
+      "smart-contracts",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-multisig-why",
+      "wallets-single-sig",
+      "wallets-verify-address"
+    ],
+    "sources": "Inheritance patterns. Not legal advice."
+  },
+  {
+    "id": "wallets-multisig-why",
+    "category": "wallets",
+    "question": "Why use multisig for savings?",
+    "alts": [
+      "In simple words, why use multisig for savings?",
+      "Why use multisig for savings, briefly?",
+      "Help me understand: why use multisig for savings?"
+    ],
+    "answer": "One key can be lost, stolen, or in a house that burns. A two-of-three setup can survive one of those events. The cost is more complexity and a written plan for where each key is.",
+    "topics": [
+      "self-custody",
+      "smart-contracts",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-single-sig",
+      "wallets-verify-address",
+      "wallets-receive"
+    ],
+    "sources": "M-of-n savings."
+  },
+  {
+    "id": "wallets-single-sig",
+    "category": "wallets",
+    "question": "When is a single signature wallet enough?",
+    "alts": [
+      "In simple words, when is a single signature wallet enough?",
+      "When is a single signature wallet enough, briefly?",
+      "Help me understand: when is a single signature wallet enough?"
+    ],
+    "answer": "A single signature is simpler and is a common choice for modest amounts. The risk is concentrated in one backup and one device. The right setup depends on the amount and on how carefully you store the words.",
+    "topics": [
+      "self-custody",
+      "secure",
+      "faq-glossary"
+    ],
+    "followUps": [
+      "wallets-verify-address",
+      "wallets-receive",
+      "wallets-send"
+    ],
+    "sources": "Single-sig tradeoff. Not a product recommendation."
+  },
+  {
+    "id": "wallets-verify-address",
+    "category": "wallets",
+    "question": "Why verify an address on the device?",
+    "alts": [
+      "In simple words, why verify an address on the device?",
+      "Why verify an address on the device, briefly?",
+      "Help me understand: why verify an address on the device?"
+    ],
+    "answer": "Malware can swap an address on a computer screen. A hardware signer that shows the address lets you check the device, not the infected display. Sending a small test first is a habit some people use for large new payees.",
+    "topics": [
+      "self-custody",
+      "hardware",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "wallets-receive",
+      "wallets-send",
+      "wallets-watch-only"
+    ],
+    "sources": "Address substitution."
+  },
+  {
+    "id": "wallets-receive",
+    "category": "wallets",
+    "question": "How do you receive bitcoin?",
+    "alts": [
+      "In simple words, how do you receive bitcoin?",
+      "How do you receive bitcoin, briefly?",
+      "Help me understand: how do you receive bitcoin?"
+    ],
+    "answer": "You give the sender an address from your wallet, or a Lightning invoice if that is the network you mean. You wait until your wallet sees the payment confirmed to your standard. You do not need to share a seed to receive.",
+    "topics": [
+      "self-custody",
+      "utxos",
+      "use-cases"
+    ],
+    "followUps": [
+      "wallets-send",
+      "wallets-watch-only",
+      "wallets-gap"
+    ],
+    "sources": "Receiving."
+  },
+  {
+    "id": "wallets-send",
+    "category": "wallets",
+    "question": "What should you check before sending?",
+    "alts": [
+      "In simple words, what should you check before sending?",
+      "What should you check before sending, briefly?",
+      "Help me understand: what should you check before sending?"
+    ],
+    "answer": "Check the address, the amount, and the fee on a screen you trust. Bitcoin payments do not have a chargeback desk. A wrong address is usually a permanent mistake.",
+    "topics": [
+      "self-custody",
+      "transaction_fees",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-watch-only",
+      "wallets-gap",
+      "wallets-restore"
+    ],
+    "sources": "Irreversible sends."
+  },
+  {
+    "id": "wallets-watch-only",
+    "category": "wallets",
+    "question": "What is a watch-only wallet?",
+    "alts": [
+      "In simple words, what is a watch-only wallet?",
+      "What is a watch-only wallet, briefly?",
+      "Help me understand: what is a watch-only wallet?"
+    ],
+    "answer": "A watch-only wallet has public keys or descriptors and can see balances without the ability to spend. It is useful next to a cold signer. It cannot recover coins if the seed is lost.",
+    "topics": [
+      "self-custody",
+      "derivation_path",
+      "apps-tools"
+    ],
+    "followUps": [
+      "wallets-gap",
+      "wallets-restore",
+      "wallets-passphrase-risk"
+    ],
+    "sources": "Watch-only."
+  },
+  {
+    "id": "wallets-gap",
+    "category": "wallets",
+    "question": "What is the address gap limit?",
+    "alts": [
+      "In simple words, what is the address gap limit?",
+      "What is the address gap limit, briefly?",
+      "Help me understand: what is the address gap limit?"
+    ],
+    "answer": "Wallets look ahead a limited number of unused addresses when they search for payments. If someone pays an address far beyond that window, the wallet may not show the coins until you extend the search. The coins are not gone if the seed is intact.",
+    "topics": [
+      "derivation_path",
+      "self-custody",
+      "utxos"
+    ],
+    "followUps": [
+      "wallets-restore",
+      "wallets-passphrase-risk",
+      "wallets-decoy"
+    ],
+    "sources": "Gap limit."
+  },
+  {
+    "id": "wallets-restore",
+    "category": "wallets",
+    "question": "How do you restore a wallet?",
+    "alts": [
+      "In simple words, how do you restore a wallet?",
+      "How do you restore a wallet, briefly?",
+      "Help me understand: how do you restore a wallet?"
+    ],
+    "answer": "You enter the seed into a wallet you trust, offline if it is a large amount, and you confirm the derivation path if the software asks. The new device derives the same keys. You should not restore a seed on a random website.",
+    "topics": [
+      "self-custody",
+      "derivation_path",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-passphrase-risk",
+      "wallets-decoy",
+      "wallets-supply-chain"
+    ],
+    "sources": "Seed restore."
+  },
+  {
+    "id": "wallets-passphrase-risk",
+    "category": "wallets",
+    "question": "What is the risk of an extra passphrase?",
+    "alts": [
+      "In simple words, what is the risk of an extra passphrase?",
+      "What is the risk of an extra passphrase, briefly?",
+      "Help me understand: what is the risk of an extra passphrase?"
+    ],
+    "answer": "The passphrase creates a second wallet that looks empty if you restore the words alone. That can be a feature against a thief and a disaster if you forget the word. Write down that you used one, without writing the word in an obvious place if that breaks your plan.",
+    "topics": [
+      "self-custody",
+      "derivation_path",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-decoy",
+      "wallets-supply-chain",
+      "wallets-firmware-check"
+    ],
+    "sources": "Passphrase footgun."
+  },
+  {
+    "id": "wallets-decoy",
+    "category": "wallets",
+    "question": "What is a decoy wallet?",
+    "alts": [
+      "In simple words, what is a decoy wallet?",
+      "What is a decoy wallet, briefly?",
+      "Help me understand: what is a decoy wallet?"
+    ],
+    "answer": "A decoy is a wallet with a small balance that you might reveal under pressure, while the main balance sits behind a passphrase or another seed. It is not magic protection. Your safety as a person matters more than a clever wallet trick.",
+    "topics": [
+      "self-custody",
+      "secure",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "wallets-supply-chain",
+      "wallets-firmware-check",
+      "wallets-phone"
+    ],
+    "sources": "Duress wallets."
+  },
+  {
+    "id": "wallets-supply-chain",
+    "category": "wallets",
+    "question": "What is a supply-chain attack on a signer?",
+    "alts": [
+      "In simple words, what is a supply-chain attack on a signer?",
+      "What is a supply-chain attack on a signer, briefly?",
+      "Help me understand: what is a supply-chain attack on a signer?"
+    ],
+    "answer": "Someone could tamper with a device before it reaches you, or with the software you install. Buying from a reputable path, checking packaging, and verifying software signatures are the usual habits. No habit removes all risk.",
+    "topics": [
+      "hardware",
+      "secure",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "wallets-firmware-check",
+      "wallets-phone",
+      "wallets-custodial-lightning"
+    ],
+    "sources": "Tampering."
+  },
+  {
+    "id": "wallets-firmware-check",
+    "category": "wallets",
+    "question": "Why verify wallet software?",
+    "alts": [
+      "In simple words, why verify wallet software?",
+      "Why verify wallet software, briefly?",
+      "Help me understand: why verify wallet software?"
+    ],
+    "answer": "A fake wallet can steal the seed when you type it. Open-source projects publish signatures or hashes so you can check the file. The check is the difference between the project you meant and a lookalike.",
+    "topics": [
+      "secure",
+      "open_source",
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-phone",
+      "wallets-custodial-lightning",
+      "wallets-change-address-check"
+    ],
+    "sources": "Software verification."
+  },
+  {
+    "id": "wallets-phone",
+    "category": "wallets",
+    "question": "Is a phone wallet real self-custody?",
+    "alts": [
+      "In simple words, is a phone wallet real self-custody?",
+      "Is a phone wallet real self-custody, briefly?",
+      "Help me understand: is a phone wallet real self-custody?"
+    ],
+    "answer": "Yes, if the keys are on the phone and you have the seed, even though the phone is a hot environment. You can still lose coins to malware or a stolen unlocked phone. It is self-custody with a weaker device, not an exchange account.",
+    "topics": [
+      "self-custody",
+      "hardware",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-custodial-lightning",
+      "wallets-change-address-check",
+      "wallets-label"
+    ],
+    "sources": "Mobile wallets."
+  },
+  {
+    "id": "wallets-custodial-lightning",
+    "category": "wallets",
+    "question": "Are all Lightning wallets self-custodial?",
+    "alts": [
+      "In simple words, are all Lightning wallets self-custodial?",
+      "Are all Lightning wallets self-custodial, briefly?",
+      "Help me understand: are all Lightning wallets self-custodial?"
+    ],
+    "answer": "No. Some Lightning apps hold the keys for you and show a balance. Others keep the keys on your device. The word wallet does not answer the custody question.",
+    "topics": [
+      "layer-2-lightning",
+      "self-custody",
+      "apps-tools"
+    ],
+    "followUps": [
+      "wallets-change-address-check",
+      "wallets-label",
+      "wallets-coinjoin-wallet"
+    ],
+    "sources": "Custodial Lightning apps exist."
+  },
+  {
+    "id": "wallets-change-address-check",
+    "category": "wallets",
+    "question": "Why does my wallet create addresses I did not ask for?",
+    "alts": [
+      "In simple words, why does my wallet create addresses I did not ask for?",
+      "Why does my wallet create addresses I did not ask for, briefly?",
+      "Help me understand: why does my wallet create addresses I did not ask for?"
+    ],
+    "answer": "Those are usually change addresses or a lookahead for the next payment. They belong to your seed. You do not need to back them up one by one if the seed backup is correct.",
+    "topics": [
+      "utxos",
+      "derivation_path",
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-label",
+      "wallets-coinjoin-wallet",
+      "wallets-fee-estimate"
+    ],
+    "sources": "Change and lookahead."
+  },
+  {
+    "id": "wallets-label",
+    "category": "wallets",
+    "question": "Should you label addresses?",
+    "alts": [
+      "In simple words, should you label addresses?",
+      "Should you label addresses, briefly?",
+      "Help me understand: should you label addresses?"
+    ],
+    "answer": "Labels stay in the wallet and help you remember who paid you. They are not on the chain. A backup of labels is separate from the seed, and the seed alone will not restore your notes.",
+    "topics": [
+      "self-custody",
+      "privacy-nonkyc",
+      "apps-tools"
+    ],
+    "followUps": [
+      "wallets-coinjoin-wallet",
+      "wallets-fee-estimate",
+      "wallets-rbf-ui"
+    ],
+    "sources": "Labels are local."
+  },
+  {
+    "id": "wallets-coinjoin-wallet",
+    "category": "wallets",
+    "question": "What does a privacy wallet add?",
+    "alts": [
+      "In simple words, what does a privacy wallet add?",
+      "What does a privacy wallet add, briefly?",
+      "Help me understand: what does a privacy wallet add?"
+    ],
+    "answer": "Some wallets help you avoid address reuse and can coordinate coinjoins with other people. The chain still shows amounts. Privacy is a habit plus tools, not a switch that makes history disappear.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-fee-estimate",
+      "wallets-rbf-ui",
+      "wallets-batch"
+    ],
+    "sources": "Wallet privacy features."
+  },
+  {
+    "id": "wallets-fee-estimate",
+    "category": "wallets",
+    "question": "How do wallets pick a fee?",
+    "alts": [
+      "In simple words, how do wallets pick a fee?",
+      "How do wallets pick a fee, briefly?",
+      "Help me understand: how do wallets pick a fee?"
+    ],
+    "answer": "They look at recent blocks and mempools and suggest a rate for a target wait. You can override it. The suggestion is a guess, and the next blocks can be fuller or emptier than expected.",
+    "topics": [
+      "transaction_fees",
+      "self-custody",
+      "vbyte"
+    ],
+    "followUps": [
+      "wallets-rbf-ui",
+      "wallets-batch",
+      "wallets-consolidation"
+    ],
+    "sources": "Fee estimation."
+  },
+  {
+    "id": "wallets-rbf-ui",
+    "category": "wallets",
+    "question": "What is a bump-fee button?",
+    "alts": [
+      "In simple words, what is a bump-fee button?",
+      "What is a bump-fee button, briefly?",
+      "Help me understand: what is a bump-fee button?"
+    ],
+    "answer": "It publishes a replacement transaction with a higher fee if the original signaled that replacement is allowed. Use it when a payment is stuck and you need it sooner. It does not help a transaction that is already confirmed.",
+    "topics": [
+      "rbf",
+      "transaction_fees",
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-batch",
+      "wallets-consolidation",
+      "wallets-inheritance-letter"
+    ],
+    "sources": "User-facing RBF."
+  },
+  {
+    "id": "wallets-batch",
+    "category": "wallets",
+    "question": "Can one wallet pay many people at once?",
+    "alts": [
+      "In simple words, can one wallet pay many people at once?",
+      "Can one wallet pay many people at once, briefly?",
+      "Help me understand: can one wallet pay many people at once?"
+    ],
+    "answer": "Yes. A single transaction can have many outputs, which often costs less than many separate payments. Businesses do this for payroll and withdrawals. Each output still needs its own address.",
+    "topics": [
+      "transaction_fees",
+      "utxos",
+      "use-cases"
+    ],
+    "followUps": [
+      "wallets-consolidation",
+      "wallets-inheritance-letter",
+      "wallets-seed-split"
+    ],
+    "sources": "Payment batching."
+  },
+  {
+    "id": "wallets-consolidation",
+    "category": "wallets",
+    "question": "What is UTXO consolidation?",
+    "alts": [
+      "In simple words, what is UTXO consolidation?",
+      "What is UTXO consolidation, briefly?",
+      "Help me understand: what is UTXO consolidation?"
+    ],
+    "answer": "Consolidation spends many small outputs into one when fees are low, so later spending is simpler. It links those coins together in one transaction, which is a privacy cost. People choose a quiet fee period on purpose.",
+    "topics": [
+      "utxos",
+      "transaction_fees",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "wallets-inheritance-letter",
+      "wallets-seed-split",
+      "wallets-shamir-careful"
+    ],
+    "sources": "Consolidation."
+  },
+  {
+    "id": "wallets-inheritance-letter",
+    "category": "wallets",
+    "question": "What belongs in an inheritance letter?",
+    "alts": [
+      "In simple words, what belongs in an inheritance letter?",
+      "What belongs in an inheritance letter, briefly?",
+      "Help me understand: what belongs in an inheritance letter?"
+    ],
+    "answer": "The letter can say that bitcoin exists, where the metal backup is, and who to call, without writing the words themselves in the letter. A lawyer or a trusted friend can hold pieces of a multisig plan. Laws differ, and this is not legal advice.",
+    "topics": [
+      "self-custody",
+      "secure",
+      "faq-glossary"
+    ],
+    "followUps": [
+      "wallets-seed-split",
+      "wallets-shamir-careful",
+      "wallets-no-brand"
+    ],
+    "sources": "Inheritance letter. Not legal advice."
+  },
+  {
+    "id": "wallets-seed-split",
+    "category": "wallets",
+    "question": "Should you split a seed into halves?",
+    "alts": [
+      "In simple words, should you split a seed into halves?",
+      "Should you split a seed into halves, briefly?",
+      "Help me understand: should you split a seed into halves?"
+    ],
+    "answer": "Splitting a word list with a homemade scheme often creates backups that cannot be restored, or shares that leak the whole secret. Well-specified secret sharing or multisig is the serious version. A clever paper cut is a common way to lose coins.",
+    "topics": [
+      "self-custody",
+      "secure",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "wallets-shamir-careful",
+      "wallets-no-brand",
+      "wallets-test-restore"
+    ],
+    "sources": "Homemade splits are dangerous."
+  },
+  {
+    "id": "wallets-shamir-careful",
+    "category": "wallets",
+    "question": "What is Shamir backup?",
+    "alts": [
+      "In simple words, what is Shamir backup?",
+      "What is Shamir backup, briefly?",
+      "Help me understand: what is Shamir backup?"
+    ],
+    "answer": "Shamir secret sharing splits a secret into parts, and a threshold of parts restores it. Some wallets offer this. You still must use their exact restore method, and a photo of all the parts in one place defeats the split.",
+    "topics": [
+      "self-custody",
+      "cryptography",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-no-brand",
+      "wallets-test-restore",
+      "wallets-dusting"
+    ],
+    "sources": "Threshold backups."
+  },
+  {
+    "id": "wallets-no-brand",
+    "category": "wallets",
+    "question": "Does Bitcoin require a specific wallet brand?",
+    "alts": [
+      "In simple words, does Bitcoin require a specific wallet brand?",
+      "Does Bitcoin require a specific wallet brand, briefly?",
+      "Help me understand: does Bitcoin require a specific wallet brand?"
+    ],
+    "answer": "No. Any correct wallet that follows the consensus rules can send and receive. Brands differ in features and in how well they are built. The archive teaches the ideas and does not crown a product.",
+    "topics": [
+      "apps-tools",
+      "self-custody",
+      "faq-glossary"
+    ],
+    "followUps": [
+      "wallets-test-restore",
+      "wallets-dusting",
+      "wallets-poison"
+    ],
+    "sources": "No required brand."
+  },
+  {
+    "id": "wallets-test-restore",
+    "category": "wallets",
+    "question": "Why do people test a restore?",
+    "alts": [
+      "In simple words, why do people test a restore?",
+      "Why do people test a restore, briefly?",
+      "Help me understand: why do people test a restore?"
+    ],
+    "answer": "A backup you have never restored is a hope. Some people wipe a test device and recover a small wallet before they fund a large one. Do the test with care so you do not type a real savings seed into a unsafe machine.",
+    "topics": [
+      "self-custody",
+      "secure",
+      "projects-diy"
+    ],
+    "followUps": [
+      "wallets-dusting",
+      "wallets-poison",
+      "wallets-clipboard"
+    ],
+    "sources": "Restore tests."
+  },
+  {
+    "id": "wallets-dusting",
+    "category": "wallets",
+    "question": "What is a dusting attack?",
+    "alts": [
+      "In simple words, what is a dusting attack?",
+      "What is a dusting attack, briefly?",
+      "Help me understand: what is a dusting attack?"
+    ],
+    "answer": "Dusting means sending you a tiny amount so that if you later spend it together with other coins, the sender can guess those coins are yours. Coin control and ignoring dust reduce the link. The tiny output is still an output.",
+    "topics": [
+      "privacy-nonkyc",
+      "dust",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "wallets-poison",
+      "wallets-clipboard",
+      "wallets-support-scam"
+    ],
+    "sources": "Dusting."
+  },
+  {
+    "id": "wallets-poison",
+    "category": "wallets",
+    "question": "What is an address poisoning attack?",
+    "alts": [
+      "In simple words, what is an address poisoning attack?",
+      "What is an address poisoning attack, briefly?",
+      "Help me understand: what is an address poisoning attack?"
+    ],
+    "answer": "An attacker sends a tiny payment from an address that looks like one you use, hoping you copy it from your history later. You should copy a saved address, not the last similar line in a list. The lookalike is the attack.",
+    "topics": [
+      "risks__threats__attack_vectors__weaknes",
+      "self-custody",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "wallets-clipboard",
+      "wallets-support-scam",
+      "wallets-paper"
+    ],
+    "sources": "Address poisoning."
+  },
+  {
+    "id": "wallets-clipboard",
+    "category": "wallets",
+    "question": "What is clipboard malware?",
+    "alts": [
+      "In simple words, what is clipboard malware?",
+      "What is clipboard malware, briefly?",
+      "Help me understand: what is clipboard malware?"
+    ],
+    "answer": "Malware replaces a copied address with the thief's address at the moment you paste. Checking the first and last characters after pasting is a small defense. A hardware screen is a stronger one.",
+    "topics": [
+      "risks__threats__attack_vectors__weaknes",
+      "self-custody",
+      "hardware"
+    ],
+    "followUps": [
+      "wallets-support-scam",
+      "wallets-paper",
+      "wallets-airgap"
+    ],
+    "sources": "Clipboard swap."
+  },
+  {
+    "id": "wallets-support-scam",
+    "category": "wallets",
+    "question": "What is a wallet support scam?",
+    "alts": [
+      "In simple words, what is a wallet support scam?",
+      "What is a wallet support scam, briefly?",
+      "Help me understand: what is a wallet support scam?"
+    ],
+    "answer": "A stranger offers to fix a stuck payment or a wallet error and asks for the seed or a remote-control session. Real support never needs the seed. The help is the theft.",
+    "topics": [
+      "risks__threats__attack_vectors__weaknes",
+      "self-custody",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-paper",
+      "wallets-airgap",
+      "wallets-node-connect"
+    ],
+    "sources": "Support impersonation."
+  },
+  {
+    "id": "wallets-paper",
+    "category": "wallets",
+    "question": "What is a paper wallet?",
+    "alts": [
+      "In simple words, what is a paper wallet?",
+      "What is a paper wallet, briefly?",
+      "Help me understand: what is a paper wallet?"
+    ],
+    "answer": "A paper wallet is a key printed on paper, an old pattern from early years. Spending from it safely is easy to get wrong, and the paper is a single backup. A seed from a modern wallet is the pattern to learn now.",
+    "topics": [
+      "self-custody",
+      "history",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-airgap",
+      "wallets-node-connect",
+      "wallets-electrum-protocol"
+    ],
+    "sources": "Paper wallets are legacy."
+  },
+  {
+    "id": "wallets-airgap",
+    "category": "wallets",
+    "question": "What is an air gap?",
+    "alts": [
+      "In simple words, what is an air gap?",
+      "What is an air gap, briefly?",
+      "Help me understand: what is an air gap?"
+    ],
+    "answer": "An air-gapped signer never connects to the network. Transactions are carried to it by QR code or a memory card and the signature is carried back. The gap reduces remote malware, and physical theft still matters.",
+    "topics": [
+      "hardware",
+      "self-custody",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-node-connect",
+      "wallets-electrum-protocol",
+      "wallets-change-analysis"
+    ],
+    "sources": "Air-gapped signing."
+  },
+  {
+    "id": "wallets-node-connect",
+    "category": "wallets",
+    "question": "Why connect a wallet to your own node?",
+    "alts": [
+      "In simple words, why connect a wallet to your own node?",
+      "Why connect a wallet to your own node, briefly?",
+      "Help me understand: why connect a wallet to your own node?"
+    ],
+    "answer": "The wallet then learns about transactions from a machine you validate, not from a company server. That closes one trust gap. The keys can still live in a separate signer.",
+    "topics": [
+      "nodes",
+      "self-custody",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-electrum-protocol",
+      "wallets-change-analysis",
+      "wallets-kyc"
+    ],
+    "sources": "Personal node plus wallet."
+  },
+  {
+    "id": "wallets-electrum-protocol",
+    "category": "wallets",
+    "question": "What is a wallet server protocol?",
+    "alts": [
+      "In simple words, what is a wallet server protocol?",
+      "What is a wallet server protocol, briefly?",
+      "Help me understand: what is a wallet server protocol?"
+    ],
+    "answer": "Some wallets talk to a server that indexes addresses, using a protocol such as Electrum's. Your node can run that index so the server is yours. A public server learns which addresses you asked about.",
+    "topics": [
+      "nodes",
+      "privacy-nonkyc",
+      "apps-tools"
+    ],
+    "followUps": [
+      "wallets-change-analysis",
+      "wallets-kyc",
+      "wallets-first-withdraw"
+    ],
+    "sources": "Electrum-style servers."
+  },
+  {
+    "id": "wallets-change-analysis",
+    "category": "wallets",
+    "question": "How do wallets leak privacy by default?",
+    "alts": [
+      "In simple words, how do wallets leak privacy by default?",
+      "How do wallets leak privacy by default, briefly?",
+      "Help me understand: how do wallets leak privacy by default?"
+    ],
+    "answer": "A typical payment has one output to the recipient and one change output back to you. Analysts guess which output is change. Avoiding address reuse and using coin control are partial answers.",
+    "topics": [
+      "privacy-nonkyc",
+      "utxos",
+      "coin_mixing_coinjoin_coin_control_utxo"
+    ],
+    "followUps": [
+      "wallets-kyc",
+      "wallets-first-withdraw",
+      "wallets-inheritance-multisig"
+    ],
+    "sources": "Change heuristics."
+  },
+  {
+    "id": "wallets-kyc",
+    "category": "wallets",
+    "question": "What is KYC in bitcoin buying?",
+    "alts": [
+      "In simple words, what is KYC in bitcoin buying?",
+      "What is KYC in bitcoin buying, briefly?",
+      "Help me understand: what is KYC in bitcoin buying?"
+    ],
+    "answer": "KYC means a company checks your identity because a law tells it to, or because its bank tells it to. The bitcoin network does not require that check. Once you withdraw to your own keys, the coins move by signature.",
+    "topics": [
+      "privacy-nonkyc",
+      "regulation",
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-first-withdraw",
+      "wallets-inheritance-multisig",
+      "wallets-timelock-inherit"
+    ],
+    "sources": "KYC is a company rule."
+  },
+  {
+    "id": "wallets-first-withdraw",
+    "category": "wallets",
+    "question": "What is the point of a first withdrawal?",
+    "alts": [
+      "In simple words, what is the point of a first withdrawal?",
+      "What is the point of a first withdrawal, briefly?",
+      "Help me understand: what is the point of a first withdrawal?"
+    ],
+    "answer": "Moving coins from an exchange to your own wallet is how you practice custody while the amount is still small. You confirm you hold the backup before you rely on it. This is a skill, not a trading signal.",
+    "topics": [
+      "self-custody",
+      "use-cases",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "wallets-inheritance-multisig",
+      "wallets-timelock-inherit",
+      "wallets-seed-never-type"
+    ],
+    "sources": "Practice withdrawals."
+  },
+  {
+    "id": "wallets-inheritance-multisig",
+    "category": "wallets",
+    "question": "How can multisig help heirs?",
+    "alts": [
+      "In simple words, how can multisig help heirs?",
+      "How can multisig help heirs, briefly?",
+      "Help me understand: how can multisig help heirs?"
+    ],
+    "answer": "One key can sit with you, one in a safe place, and one with a trusted person or a recovery service you actually understand. An heir plus one other key can move the coins if you are gone. Write the policy in plain language so they are not guessing.",
+    "topics": [
+      "self-custody",
+      "smart-contracts",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-timelock-inherit",
+      "wallets-seed-never-type",
+      "wallets-collaborative"
+    ],
+    "sources": "Heir multisig. Not legal advice."
+  },
+  {
+    "id": "wallets-timelock-inherit",
+    "category": "wallets",
+    "question": "How do timelocks appear in inheritance plans?",
+    "alts": [
+      "In simple words, how do timelocks appear in inheritance plans?",
+      "How do timelocks appear in inheritance plans, briefly?",
+      "Help me understand: how do timelocks appear in inheritance plans?"
+    ],
+    "answer": "A script can allow a recovery key to spend only after a delay, so the owner can cancel if they are still around. The details belong in a wallet that shows you the policy clearly. A mistake in the lock is hard to undo.",
+    "topics": [
+      "time",
+      "self-custody",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "wallets-seed-never-type",
+      "wallets-collaborative",
+      "wallets-spending-savings"
+    ],
+    "sources": "Delayed recovery."
+  },
+  {
+    "id": "wallets-seed-never-type",
+    "category": "wallets",
+    "question": "Where should a seed never be typed?",
+    "alts": [
+      "In simple words, where should a seed never be typed?",
+      "Where should a seed never be typed, briefly?",
+      "Help me understand: where should a seed never be typed?"
+    ],
+    "answer": "Never type a seed into a browser, a support chat, a form, or a phone app you opened from an ad. The only place for a restore is a wallet you chose and checked. A site that asks for the words is taking the coins.",
+    "topics": [
+      "self-custody",
+      "risks__threats__attack_vectors__weaknes",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-collaborative",
+      "wallets-spending-savings",
+      "wallets-no-photo"
+    ],
+    "sources": "Seed phishing."
+  },
+  {
+    "id": "wallets-collaborative",
+    "category": "wallets",
+    "question": "What is a collaborative custody setup?",
+    "alts": [
+      "In simple words, what is a collaborative custody setup?",
+      "What is a collaborative custody setup, briefly?",
+      "Help me understand: what is a collaborative custody setup?"
+    ],
+    "answer": "Collaborative custody usually means you hold a key and a company holds another, and a third key is a backup, so neither you nor they can move funds alone. You are not fully independent, and you are not fully dependent. Read which key can do what.",
+    "topics": [
+      "self-custody",
+      "smart-contracts",
+      "apps-tools"
+    ],
+    "followUps": [
+      "wallets-spending-savings",
+      "wallets-no-photo",
+      "wallets-2of3"
+    ],
+    "sources": "Collaborative multisig."
+  },
+  {
+    "id": "wallets-spending-savings",
+    "category": "wallets",
+    "question": "Why split spending money and savings?",
+    "alts": [
+      "In simple words, why split spending money and savings?",
+      "Why split spending money and savings, briefly?",
+      "Help me understand: why split spending money and savings?"
+    ],
+    "answer": "Spending money sits in a hot wallet you use often. Savings sit in a colder setup you touch rarely. The split limits how much a phone problem can take.",
+    "topics": [
+      "self-custody",
+      "hardware",
+      "use-cases"
+    ],
+    "followUps": [
+      "wallets-no-photo",
+      "wallets-2of3",
+      "wallets-psbt-flow"
+    ],
+    "sources": "Hot and cold amounts."
+  },
+  {
+    "id": "wallets-no-photo",
+    "category": "wallets",
+    "question": "Why is a photo of a seed a bad backup?",
+    "alts": [
+      "In simple words, why is a photo of a seed a bad backup?",
+      "Why is a photo of a seed a bad backup, briefly?",
+      "Help me understand: why is a photo of a seed a bad backup?"
+    ],
+    "answer": "A photo often lands in a camera roll that syncs to a cloud account. Whoever later opens that account can copy the words and move the coins. Paper or metal kept offline avoids that copy.",
+    "topics": [
+      "self-custody",
+      "derivation_path",
+      "public_key_vs_private_key"
+    ],
+    "followUps": [
+      "wallets-2of3",
+      "wallets-psbt-flow",
+      "wallets-desc-why"
+    ],
+    "sources": "Cloud-synced photos."
+  },
+  {
+    "id": "wallets-2of3",
+    "category": "wallets",
+    "question": "How does a 2 of 3 savings setup work?",
+    "alts": [
+      "In simple words, how does a 2 of 3 savings setup work?",
+      "How does a 2 of 3 savings setup work, briefly?",
+      "Help me understand: how does a 2 of 3 savings setup work?"
+    ],
+    "answer": "A 2 of 3 setup needs any two of three keys to spend, so one lost key does not trap the coins and one stolen key is not enough. Each key should live in a different place. It is still your policy to design, and this is not legal advice.",
+    "topics": [
+      "self-custody",
+      "public_key_vs_private_key"
+    ],
+    "followUps": [
+      "wallets-psbt-flow",
+      "wallets-desc-why",
+      "wallets-offline"
+    ],
+    "sources": "Threshold multisig. Not legal advice."
+  },
+  {
+    "id": "wallets-psbt-flow",
+    "category": "wallets",
+    "question": "How does a PSBT move between devices?",
+    "alts": [
+      "In simple words, how does a PSBT move between devices?",
+      "How does a PSBT move between devices, briefly?",
+      "Help me understand: how does a PSBT move between devices?"
+    ],
+    "answer": "One device builds a partially signed transaction and passes that file to a signer, often by SD card, QR, or a cable. The signer adds a signature without exposing the seed. The finished transaction is what gets broadcast.",
+    "topics": [
+      "self-custody",
+      "hardware"
+    ],
+    "followUps": [
+      "wallets-desc-why",
+      "wallets-offline",
+      "wallets-copies"
+    ],
+    "sources": "BIP174 flow."
+  },
+  {
+    "id": "wallets-desc-why",
+    "category": "wallets",
+    "question": "Why do output descriptors matter?",
+    "alts": [
+      "In simple words, why do output descriptors matter?",
+      "Why do output descriptors matter, briefly?",
+      "Help me understand: why do output descriptors matter?"
+    ],
+    "answer": "A descriptor is a compact recipe for the addresses a wallet will create, including the script type and the path. Backing up the descriptor plus the seed restores modern wallets more reliably than the seed alone in some setups. It does not replace keeping the seed offline.",
+    "topics": [
+      "derivation_path",
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-offline",
+      "wallets-copies",
+      "wallets-heir-lock"
+    ],
+    "sources": "Output descriptors."
+  },
+  {
+    "id": "wallets-offline",
+    "category": "wallets",
+    "question": "What is offline signing?",
+    "alts": [
+      "In simple words, what is offline signing?",
+      "What is offline signing, briefly?",
+      "Help me understand: what is offline signing?"
+    ],
+    "answer": "Offline signing builds the transaction on an online machine and signs it on a machine that does not need the network. The seed stays on the offline side. Only the signed transaction crosses back.",
+    "topics": [
+      "self-custody",
+      "hardware"
+    ],
+    "followUps": [
+      "wallets-copies",
+      "wallets-heir-lock",
+      "wallets-duress"
+    ],
+    "sources": "Air-gapped signing."
+  },
+  {
+    "id": "wallets-copies",
+    "category": "wallets",
+    "question": "How should seed copies be separated?",
+    "alts": [
+      "In simple words, how should seed copies be separated?",
+      "How should seed copies be separated, briefly?",
+      "Help me understand: how should seed copies be separated?"
+    ],
+    "answer": "Keep more than one copy if losing a single page would ruin you, and keep those copies in different places. Do not leave a copy with someone who could use it alone unless that is the plan. This is practical storage, not legal advice.",
+    "topics": [
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-heir-lock",
+      "wallets-duress",
+      "wallets-spend-policy"
+    ],
+    "sources": "Separated backups. Not legal advice."
+  },
+  {
+    "id": "wallets-heir-lock",
+    "category": "wallets",
+    "question": "How can a timelock help an heir?",
+    "alts": [
+      "In simple words, how can a timelock help an heir?",
+      "How can a timelock help an heir, briefly?",
+      "Help me understand: how can a timelock help an heir?"
+    ],
+    "answer": "A script can require a long delay before an heir key works, while your own key works immediately. If you are still around, you move the coins before the delay. The exact script needs a careful wallet, and this is not legal or tax advice.",
+    "topics": [
+      "self-custody",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "wallets-duress",
+      "wallets-spend-policy",
+      "wallets-receive-check"
+    ],
+    "sources": "Relative or absolute timelock. Not legal advice."
+  },
+  {
+    "id": "wallets-duress",
+    "category": "wallets",
+    "question": "What is a duress PIN on a signer?",
+    "alts": [
+      "In simple words, what is a duress PIN on a signer?",
+      "What is a duress PIN on a signer, briefly?",
+      "Help me understand: what is a duress PIN on a signer?"
+    ],
+    "answer": "Some hardware signers offer a second PIN that opens a decoy wallet or wipes the device. That is a product feature, not a Bitcoin consensus rule. Read that device's own guide before relying on it.",
+    "topics": [
+      "hardware",
+      "self-custody"
+    ],
+    "followUps": [
+      "wallets-spend-policy",
+      "wallets-receive-check",
+      "wallets-not-your-keys"
+    ],
+    "sources": "Product feature, not consensus."
+  },
+  {
+    "id": "wallets-spend-policy",
+    "category": "wallets",
+    "question": "What is a spending policy?",
+    "alts": [
+      "In simple words, what is a spending policy?",
+      "What is a spending policy, briefly?",
+      "Help me understand: what is a spending policy?"
+    ],
+    "answer": "A spending policy is the set of keys, delays, and conditions that must be met before coins move. Miniscript is one way to write those conditions in a structured form. The chain enforces the script, not a written wish.",
+    "topics": [
+      "self-custody",
+      "op-codes"
+    ],
+    "followUps": [
+      "wallets-receive-check",
+      "wallets-not-your-keys",
+      "wallets-why-custody"
+    ],
+    "sources": "Script policy."
+  },
+  {
+    "id": "wallets-receive-check",
+    "category": "wallets",
+    "question": "What should you read before a large receive?",
+    "alts": [
+      "In simple words, what should you read before a large receive?",
+      "What should you read before a large receive, briefly?",
+      "Help me understand: what should you read before a large receive?"
+    ],
+    "answer": "Confirm the address on the device that holds the keys, not only on a computer screen that could be swapped. A small test payment is a common habit for a new destination. The habit does not make an exchange into self-custody.",
+    "topics": [
+      "self-custody",
+      "hardware"
+    ],
+    "followUps": [
+      "wallets-not-your-keys",
+      "wallets-why-custody",
+      "wallets-exchange"
+    ],
+    "sources": "On-device check."
+  }
+]

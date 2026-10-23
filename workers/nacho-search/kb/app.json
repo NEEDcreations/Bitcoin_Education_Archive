@@ -1,0 +1,3908 @@
+[
+  {
+    "id": "app-favor-exact",
+    "category": "app",
+    "question": "What is Satoshi's Favor?",
+    "alts": [
+      "In simple words, what is Satoshi's Favor?",
+      "What is Satoshi's Favor, briefly?",
+      "Help me understand: what is Satoshi's Favor?"
+    ],
+    "answer": "Satoshi's Favor is the community mining game in Quest Hub. You contribute points, then hash during a window for a chance at the prize. Open Quest Hub, then Favor, or open the miner. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "favor",
+      "quest-hub"
+    ],
+    "followUps": [
+      "app-xp-earn",
+      "app-raffle-here",
+      "app-questhub-exact"
+    ],
+    "sources": "features.registry.js entry favor."
+  },
+  {
+    "id": "app-xp-earn",
+    "category": "app",
+    "question": "How do I earn XP on Bitcoin Quest?",
+    "alts": [
+      "In simple words, how do I earn XP on Bitcoin Quest?",
+      "How do I earn XP on Bitcoin Quest, briefly?",
+      "Help me understand: how do I earn XP on Bitcoin Quest?"
+    ],
+    "answer": "XP is how you rank up on Bitcoin Quest. Daily XP is full through 500, half through 900, then a quarter until 1,000, and each tier rounds down. You earn points by reading, quests, chat, and badges. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "xp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-raffle-here",
+      "app-questhub-exact",
+      "app-2fa-on"
+    ],
+    "sources": "features.registry.js entry xp."
+  },
+  {
+    "id": "app-raffle-here",
+    "category": "app",
+    "question": "How do raffles work here?",
+    "alts": [
+      "In simple words, how do raffles work here?",
+      "How do raffles work here, briefly?",
+      "Help me understand: how do raffles work here?"
+    ],
+    "answer": "The raffle takes Orange Ticket entries bought in the Nook. A winner is drawn on the 1st. More entries improve the odds, and this is a game inside the app. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "raffle",
+      "nook",
+      "tickets"
+    ],
+    "followUps": [
+      "app-questhub-exact",
+      "app-2fa-on",
+      "app-orange-what"
+    ],
+    "sources": "features.registry.js entry raffle."
+  },
+  {
+    "id": "app-questhub-exact",
+    "category": "app",
+    "question": "What is the Quest Hub?",
+    "alts": [
+      "In simple words, what is the Quest Hub?",
+      "What is the Quest Hub, briefly?",
+      "Help me understand: what is the Quest Hub?"
+    ],
+    "answer": "Quest Hub holds the daily quiz, trivia, poll, Flex, Favor, raid, charity, the community challenge, and the Nook. Open it from the menu and pick a tab along the top. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "quest-hub",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-2fa-on",
+      "app-orange-what",
+      "app-quiz-what"
+    ],
+    "sources": "features.registry.js entry quest-hub."
+  },
+  {
+    "id": "app-2fa-on",
+    "category": "app",
+    "question": "How do I turn on two-factor auth?",
+    "alts": [
+      "In simple words, how do I turn on two-factor auth?",
+      "How do I turn on two-factor auth, briefly?",
+      "Help me understand: how do I turn on two-factor auth?"
+    ],
+    "answer": "Open Settings, then Security, and turn on 2FA with an authenticator app or the phone option. The Security page also covers your password, linked accounts, blocking, and account deletion. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "security",
+      "settings"
+    ],
+    "followUps": [
+      "app-orange-what",
+      "app-quiz-what",
+      "app-gifts-exact"
+    ],
+    "sources": "features.registry.js entry security."
+  },
+  {
+    "id": "app-orange-what",
+    "category": "app",
+    "question": "What are Orange Tickets?",
+    "alts": [
+      "In simple words, what are Orange Tickets?",
+      "What are Orange Tickets, briefly?",
+      "Help me understand: what are Orange Tickets?"
+    ],
+    "answer": "Orange Tickets are the shop currency in Bitcoin Quest. You earn them from the daily spin, activity, and referrals, and you spend them in the Nook. Your balance is under Settings, then Account. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tickets",
+      "nook"
+    ],
+    "followUps": [
+      "app-quiz-what",
+      "app-gifts-exact",
+      "app-powalk"
+    ],
+    "sources": "features.registry.js entry tickets."
+  },
+  {
+    "id": "app-quiz-what",
+    "category": "app",
+    "question": "What is the daily quiz?",
+    "alts": [
+      "In simple words, what is the daily quiz?",
+      "What is the daily quiz, briefly?",
+      "Help me understand: what is the daily quiz?"
+    ],
+    "answer": "The daily quiz is a Quest Hub tab with one scored run a day. Open Quest Hub and choose the Quiz tab. The server checks the reward. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-quiz",
+      "quest-hub"
+    ],
+    "followUps": [
+      "app-gifts-exact",
+      "app-powalk",
+      "app-ln-withdraw"
+    ],
+    "sources": "features.registry.js entry qh-quiz."
+  },
+  {
+    "id": "app-gifts-exact",
+    "category": "app",
+    "question": "How do gifts work in the app?",
+    "alts": [
+      "In simple words, how do gifts work in the app?",
+      "How do gifts work in the app, briefly?",
+      "Help me understand: how do gifts work in the app?"
+    ],
+    "answer": "Gifts come from the daily spin wheel. You open them for keys, locked ciphers, tickets, XP, or a rare prize, on the post-spin screen or from Settings, then Account, then Peers. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "gifts",
+      "wheel"
+    ],
+    "followUps": [
+      "app-powalk",
+      "app-ln-withdraw",
+      "app-xp-cap"
+    ],
+    "sources": "features.registry.js entry gifts."
+  },
+  {
+    "id": "app-powalk",
+    "category": "app",
+    "question": "What is Proof of Walk?",
+    "alts": [
+      "In simple words, what is Proof of Walk?",
+      "What is Proof of Walk, briefly?",
+      "Help me understand: what is Proof of Walk?"
+    ],
+    "answer": "Proof of Walk connects Strava so a walk can earn XP. Open Proof of Walk and connect Strava, and if the feature is paused the page says so. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "proof-of-walk",
+      "health"
+    ],
+    "followUps": [
+      "app-ln-withdraw",
+      "app-xp-cap",
+      "app-nook-exact"
+    ],
+    "sources": "features.registry.js entry proof-of-walk."
+  },
+  {
+    "id": "app-ln-withdraw",
+    "category": "app",
+    "question": "How do Lightning withdrawals work here?",
+    "alts": [
+      "In simple words, how do Lightning withdrawals work here?",
+      "How do Lightning withdrawals work here, briefly?",
+      "Help me understand: how do Lightning withdrawals work here?"
+    ],
+    "answer": "Lightning withdrawals pay a saved Lightning address that looks like an email, and the address is treated as permanent unless support changes it. A claim needs a verified email, an account at least 7 days old, at least 10 topics read, and at least 100 claimable sats, which the app treats as 1,000 unclaimed XP. The lifetime cap in the code is 15,000 sats, or 21,000 with premium, as of 2026, and the Lightning page can also connect with WebLN or NWC. This describes an app rule, not income and not financial advice.",
+    "topics": [
+      "sats",
+      "ln-address",
+      "lightning-wallet"
+    ],
+    "followUps": [
+      "app-xp-cap",
+      "app-nook-exact",
+      "app-cipher-what"
+    ],
+    "sources": "ranking.js claim flow and lightning.js connect options, as of 2026."
+  },
+  {
+    "id": "app-xp-cap",
+    "category": "app",
+    "question": "What is the daily XP cap?",
+    "alts": [
+      "In simple words, what is the daily XP cap?",
+      "What is the daily XP cap, briefly?",
+      "Help me understand: what is the daily XP cap?"
+    ],
+    "answer": "The daily XP cap on Bitcoin Quest is 1,000. Gains are full through 500, half through 900, then a quarter until 1,000, and extra XP is not saved. The Today card shows the day's progress. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "xp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-nook-exact",
+      "app-cipher-what",
+      "app-keys-exact"
+    ],
+    "sources": "features.registry.js entry xp."
+  },
+  {
+    "id": "app-nook-exact",
+    "category": "app",
+    "question": "What is Nacho's Nook?",
+    "alts": [
+      "In simple words, what is Nacho's Nook?",
+      "What is Nacho's Nook, briefly?",
+      "Help me understand: what is Nacho's Nook?"
+    ],
+    "answer": "Nacho's Nook is the shop inside Quest Hub where you spend Orange Tickets. Open Quest Hub, then the Nook, to buy items such as raffle entries. Inventory is the side that holds what you own. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "nook",
+      "tickets"
+    ],
+    "followUps": [
+      "app-cipher-what",
+      "app-keys-exact",
+      "app-spin-what"
+    ],
+    "sources": "features.registry.js entry nook."
+  },
+  {
+    "id": "app-cipher-what",
+    "category": "app",
+    "question": "What is a locked cipher in the app?",
+    "alts": [
+      "In simple words, what is a locked cipher in the app?",
+      "What is a locked cipher in the app, briefly?",
+      "Help me understand: what is a locked cipher in the app?"
+    ],
+    "answer": "A locked cipher opens when you use a key that has the same label. Open Quest Hub, then Nook or Inventory, pick the cipher, and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "ciphers",
+      "keys"
+    ],
+    "followUps": [
+      "app-keys-exact",
+      "app-spin-what",
+      "app-tctv-what"
+    ],
+    "sources": "features.registry.js entry ciphers."
+  },
+  {
+    "id": "app-keys-exact",
+    "category": "app",
+    "question": "How do cipher keys work here?",
+    "alts": [
+      "In simple words, how do cipher keys work here?",
+      "How do cipher keys work here, briefly?",
+      "Help me understand: how do cipher keys work here?"
+    ],
+    "answer": "Cipher keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. Keys live in Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "keys",
+      "peers"
+    ],
+    "followUps": [
+      "app-spin-what",
+      "app-tctv-what",
+      "app-badges-exact"
+    ],
+    "sources": "features.registry.js entry keys."
+  },
+  {
+    "id": "app-spin-what",
+    "category": "app",
+    "question": "What is the daily spin?",
+    "alts": [
+      "In simple words, what is the daily spin?",
+      "What is the daily spin, briefly?",
+      "Help me understand: what is the daily spin?"
+    ],
+    "answer": "The daily spin wheel gives one free spin for tickets, XP, or a gift. Open it from the home row and take today's spin. A gift you land can be opened next. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "wheel",
+      "gifts"
+    ],
+    "followUps": [
+      "app-tctv-what",
+      "app-badges-exact",
+      "app-pleb-what"
+    ],
+    "sources": "features.registry.js entry wheel."
+  },
+  {
+    "id": "app-tctv-what",
+    "category": "app",
+    "question": "What is Timechain TV on this site?",
+    "alts": [
+      "In simple words, what is Timechain TV on this site?",
+      "What is Timechain TV on this site, briefly?",
+      "Help me understand: what is Timechain TV on this site?"
+    ],
+    "answer": "Timechain TV plays Bitcoin videos around the clock. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket. Open Timechain TV and pick a channel. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tv",
+      "tctv-watch"
+    ],
+    "followUps": [
+      "app-badges-exact",
+      "app-pleb-what",
+      "app-home-what"
+    ],
+    "sources": "features.registry.js entries tv and tctv-watch."
+  },
+  {
+    "id": "app-badges-exact",
+    "category": "app",
+    "question": "What are badges in the app?",
+    "alts": [
+      "In simple words, what are badges in the app?",
+      "What are badges in the app, briefly?",
+      "Help me understand: what are badges in the app?"
+    ],
+    "answer": "Badges mark things you have done, from chat to quests to hidden goals. Open the leaderboard to see progress. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "badges",
+      "leaderboard"
+    ],
+    "followUps": [
+      "app-pleb-what",
+      "app-home-what",
+      "app-home-how"
+    ],
+    "sources": "features.registry.js entry badges."
+  },
+  {
+    "id": "app-pleb-what",
+    "category": "app",
+    "question": "What is PlebTalk?",
+    "alts": [
+      "In simple words, what is PlebTalk?",
+      "What is PlebTalk, briefly?",
+      "Help me understand: what is PlebTalk?"
+    ],
+    "answer": "PlebTalk is the forum, and articles are the long-form tab inside it. A new top-level post can show up in Global Chat. Open PlebTalk to read or start a discussion. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "forum",
+      "global-chat"
+    ],
+    "followUps": [
+      "app-home-what",
+      "app-home-how",
+      "app-channels-what"
+    ],
+    "sources": "features.registry.js entry forum."
+  },
+  {
+    "id": "app-home-what",
+    "category": "app",
+    "question": "What is Home page in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Home page in Bitcoin Quest?",
+      "What is Home page in Bitcoin Quest, briefly?",
+      "Help me understand: what is Home page in Bitcoin Quest?"
+    ],
+    "answer": "Home is the front page where the sidebar, search, and main features live. Tap the Bitcoin logo or use the Home control to get back to the home page. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "home",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-home-how",
+      "app-channels-what",
+      "app-channels-how"
+    ],
+    "sources": "features.registry.js entry home."
+  },
+  {
+    "id": "app-home-how",
+    "category": "app",
+    "question": "How do I use Home page in the app?",
+    "alts": [
+      "In simple words, how do I use Home page in the app?",
+      "How do I use Home page in the app, briefly?",
+      "Help me understand: how do I use Home page in the app?"
+    ],
+    "answer": "Home is the front page where the sidebar, search, and main features live. Tap the Bitcoin logo or use the Home control to get back to the home page. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "home",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-channels-what",
+      "app-channels-how",
+      "app-one-stop-shop-what"
+    ],
+    "sources": "features.registry.js entry home."
+  },
+  {
+    "id": "app-channels-what",
+    "category": "app",
+    "question": "What is Education channels in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Education channels in Bitcoin Quest?",
+      "What is Education channels in Bitcoin Quest, briefly?",
+      "Help me understand: what is Education channels in Bitcoin Quest?"
+    ],
+    "answer": "The sidebar lists the education channels, including the Lightning Network. Open the sidebar and tap a channel. The Lightning Network channel covers instant Bitcoin payments. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "channels",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-channels-how",
+      "app-one-stop-shop-what",
+      "app-one-stop-shop-how"
+    ],
+    "sources": "features.registry.js entry channels."
+  },
+  {
+    "id": "app-channels-how",
+    "category": "app",
+    "question": "How do I use Education channels in the app?",
+    "alts": [
+      "In simple words, how do I use Education channels in the app?",
+      "How do I use Education channels in the app, briefly?",
+      "Help me understand: how do I use Education channels in the app?"
+    ],
+    "answer": "The sidebar lists the education channels, including the Lightning Network. Open the sidebar and tap a channel. The Lightning Network channel covers instant Bitcoin payments. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "channels",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-one-stop-shop-what",
+      "app-one-stop-shop-how",
+      "app-random-what"
+    ],
+    "sources": "features.registry.js entry channels."
+  },
+  {
+    "id": "app-one-stop-shop-what",
+    "category": "app",
+    "question": "What is Brand new? One Stop Shop in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Brand new? One Stop Shop in Bitcoin Quest?",
+      "What is Brand new? One Stop Shop in Bitcoin Quest, briefly?",
+      "Help me understand: what is Brand new? One Stop Shop in Bitcoin Quest?"
+    ],
+    "answer": "One Stop Shop is the brand-new starting channel. Open the One Stop Shop channel when you are brand new and want one place to start. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-one-stop-shop-how",
+      "app-random-what",
+      "app-random-how"
+    ],
+    "sources": "features.registry.js entry one-stop-shop."
+  },
+  {
+    "id": "app-one-stop-shop-how",
+    "category": "app",
+    "question": "How do I use Brand new? One Stop Shop in the app?",
+    "alts": [
+      "In simple words, how do I use Brand new? One Stop Shop in the app?",
+      "How do I use Brand new? One Stop Shop in the app, briefly?",
+      "Help me understand: how do I use Brand new? One Stop Shop in the app?"
+    ],
+    "answer": "One Stop Shop is the brand-new starting channel. Open the One Stop Shop channel when you are brand new and want one place to start. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-random-what",
+      "app-random-how",
+      "app-trails-what"
+    ],
+    "sources": "features.registry.js entry one-stop-shop."
+  },
+  {
+    "id": "app-random-what",
+    "category": "app",
+    "question": "What is Random meme in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Random meme in Bitcoin Quest?",
+      "What is Random meme in Bitcoin Quest, briefly?",
+      "Help me understand: what is Random meme in Bitcoin Quest?"
+    ],
+    "answer": "Jump to a random channel, meme, art piece, or graphic. Ask for a random meme and Nacho opens one. Random channel, art, and graphic work the same way. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "random",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-random-how",
+      "app-trails-what",
+      "app-trails-how"
+    ],
+    "sources": "features.registry.js entry random."
+  },
+  {
+    "id": "app-random-how",
+    "category": "app",
+    "question": "How do I use Random meme in the app?",
+    "alts": [
+      "In simple words, how do I use Random meme in the app?",
+      "How do I use Random meme in the app, briefly?",
+      "Help me understand: how do I use Random meme in the app?"
+    ],
+    "answer": "Jump to a random channel, meme, art piece, or graphic. Ask for a random meme and Nacho opens one. Random channel, art, and graphic work the same way. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "random",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-trails-what",
+      "app-trails-how",
+      "app-learning-quests-what"
+    ],
+    "sources": "features.registry.js entry random."
+  },
+  {
+    "id": "app-trails-what",
+    "category": "app",
+    "question": "What is Nacho's Trails in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Nacho's Trails in Bitcoin Quest?",
+      "What is Nacho's Trails in Bitcoin Quest, briefly?",
+      "Help me understand: what is Nacho's Trails in Bitcoin Quest?"
+    ],
+    "answer": "Nacho's Trails are guided learning paths: Meadow, Mountain, and Summit. Open Trails and start a trail. Read the topics, then take the exam at the end. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "trails",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-trails-how",
+      "app-learning-quests-what",
+      "app-learning-quests-how"
+    ],
+    "sources": "features.registry.js entry trails."
+  },
+  {
+    "id": "app-trails-how",
+    "category": "app",
+    "question": "How do I use Nacho's Trails in the app?",
+    "alts": [
+      "In simple words, how do I use Nacho's Trails in the app?",
+      "How do I use Nacho's Trails in the app, briefly?",
+      "Help me understand: how do I use Nacho's Trails in the app?"
+    ],
+    "answer": "Nacho's Trails are guided learning paths: Meadow, Mountain, and Summit. Open Trails and start a trail. Read the topics, then take the exam at the end. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "trails",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-learning-quests-what",
+      "app-learning-quests-how",
+      "app-first-purchase-what"
+    ],
+    "sources": "features.registry.js entry trails."
+  },
+  {
+    "id": "app-learning-quests-what",
+    "category": "app",
+    "question": "What is Learning Quests in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Learning Quests in Bitcoin Quest?",
+      "What is Learning Quests in Bitcoin Quest, briefly?",
+      "Help me understand: what is Learning Quests in Bitcoin Quest?"
+    ],
+    "answer": "Learning Quests are short lesson slideshows with a quiz at the end. Open Learning Quests and pick a lesson. Each one is a slideshow plus a quiz. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "learning-quests",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-learning-quests-how",
+      "app-first-purchase-what",
+      "app-first-purchase-how"
+    ],
+    "sources": "features.registry.js entry learning-quests."
+  },
+  {
+    "id": "app-learning-quests-how",
+    "category": "app",
+    "question": "How do I use Learning Quests in the app?",
+    "alts": [
+      "In simple words, how do I use Learning Quests in the app?",
+      "How do I use Learning Quests in the app, briefly?",
+      "Help me understand: how do I use Learning Quests in the app?"
+    ],
+    "answer": "Learning Quests are short lesson slideshows with a quiz at the end. Open Learning Quests and pick a lesson. Each one is a slideshow plus a quiz. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "learning-quests",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-first-purchase-what",
+      "app-first-purchase-how",
+      "app-flashcards-what"
+    ],
+    "sources": "features.registry.js entry learning-quests."
+  },
+  {
+    "id": "app-first-purchase-what",
+    "category": "app",
+    "question": "What is Your First Bitcoin Purchase in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Your First Bitcoin Purchase in Bitcoin Quest?",
+      "What is Your First Bitcoin Purchase in Bitcoin Quest, briefly?",
+      "Help me understand: what is Your First Bitcoin Purchase in Bitcoin Quest?"
+    ],
+    "answer": "A step-by-step guide for your first Bitcoin purchase. Open Your First Bitcoin Purchase. It walks through how to buy, region by region. This is education, not financial advice. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "first-purchase",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-first-purchase-how",
+      "app-flashcards-what",
+      "app-flashcards-how"
+    ],
+    "sources": "features.registry.js entry first-purchase."
+  },
+  {
+    "id": "app-first-purchase-how",
+    "category": "app",
+    "question": "How do I use Your First Bitcoin Purchase in the app?",
+    "alts": [
+      "In simple words, how do I use Your First Bitcoin Purchase in the app?",
+      "How do I use Your First Bitcoin Purchase in the app, briefly?",
+      "Help me understand: how do I use Your First Bitcoin Purchase in the app?"
+    ],
+    "answer": "A step-by-step guide for your first Bitcoin purchase. Open Your First Bitcoin Purchase. It walks through how to buy, region by region. This is education, not financial advice. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "first-purchase",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-flashcards-what",
+      "app-flashcards-how",
+      "app-scholar-what"
+    ],
+    "sources": "features.registry.js entry first-purchase."
+  },
+  {
+    "id": "app-flashcards-what",
+    "category": "app",
+    "question": "What is Flashcards in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Flashcards in Bitcoin Quest?",
+      "What is Flashcards in Bitcoin Quest, briefly?",
+      "Help me understand: what is Flashcards in Bitcoin Quest?"
+    ],
+    "answer": "Flashcards help you study Bitcoin topics. Open Settings, then the Scholar page, and start the flashcards. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "flashcards",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-flashcards-how",
+      "app-scholar-what",
+      "app-scholar-how"
+    ],
+    "sources": "features.registry.js entry flashcards."
+  },
+  {
+    "id": "app-flashcards-how",
+    "category": "app",
+    "question": "How do I use Flashcards in the app?",
+    "alts": [
+      "In simple words, how do I use Flashcards in the app?",
+      "How do I use Flashcards in the app, briefly?",
+      "Help me understand: how do I use Flashcards in the app?"
+    ],
+    "answer": "Flashcards help you study Bitcoin topics. Open Settings, then the Scholar page, and start the flashcards. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "flashcards",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-scholar-what",
+      "app-scholar-how",
+      "app-signal-what"
+    ],
+    "sources": "features.registry.js entry flashcards."
+  },
+  {
+    "id": "app-scholar-what",
+    "category": "app",
+    "question": "What is Scholar certification in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Scholar certification in Bitcoin Quest?",
+      "What is Scholar certification in Bitcoin Quest, briefly?",
+      "Help me understand: what is Scholar certification in Bitcoin Quest?"
+    ],
+    "answer": "The Scholar and technical certifications, plus shareable certificates. Open Settings → Scholar and take the exam. A passing certificate gets a public #cert link. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "scholar",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-scholar-how",
+      "app-signal-what",
+      "app-signal-how"
+    ],
+    "sources": "features.registry.js entry scholar."
+  },
+  {
+    "id": "app-scholar-how",
+    "category": "app",
+    "question": "How do I use Scholar certification in the app?",
+    "alts": [
+      "In simple words, how do I use Scholar certification in the app?",
+      "How do I use Scholar certification in the app, briefly?",
+      "Help me understand: how do I use Scholar certification in the app?"
+    ],
+    "answer": "The Scholar and technical certifications, plus shareable certificates. Open Settings → Scholar and take the exam. A passing certificate gets a public #cert link. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "scholar",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-signal-what",
+      "app-signal-how",
+      "app-story-what"
+    ],
+    "sources": "features.registry.js entry scholar."
+  },
+  {
+    "id": "app-signal-what",
+    "category": "app",
+    "question": "What is The Signal newsletter in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is The Signal newsletter in Bitcoin Quest?",
+      "What is The Signal newsletter in Bitcoin Quest, briefly?",
+      "Help me understand: what is The Signal newsletter in Bitcoin Quest?"
+    ],
+    "answer": "The Signal is the weekly newsletter of curated Bitcoin reading. Open Settings → Scholar. The Signal newsletter lives on that page. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "signal",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-signal-how",
+      "app-story-what",
+      "app-story-how"
+    ],
+    "sources": "features.registry.js entry signal."
+  },
+  {
+    "id": "app-signal-how",
+    "category": "app",
+    "question": "How do I use The Signal newsletter in the app?",
+    "alts": [
+      "In simple words, how do I use The Signal newsletter in the app?",
+      "How do I use The Signal newsletter in the app, briefly?",
+      "Help me understand: how do I use The Signal newsletter in the app?"
+    ],
+    "answer": "The Signal is the weekly newsletter of curated Bitcoin reading. Open Settings → Scholar. The Signal newsletter lives on that page. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "signal",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-story-what",
+      "app-story-how",
+      "app-nacho-mode-what"
+    ],
+    "sources": "features.registry.js entry signal."
+  },
+  {
+    "id": "app-story-what",
+    "category": "app",
+    "question": "What is Nacho's Story in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Nacho's Story in Bitcoin Quest?",
+      "What is Nacho's Story in Bitcoin Quest, briefly?",
+      "Help me understand: what is Nacho's Story in Bitcoin Quest?"
+    ],
+    "answer": "Nacho's Story unlocks one new chapter a day. Open Nacho's Story from Nacho and read today's chapter. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "story",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-story-how",
+      "app-nacho-mode-what",
+      "app-nacho-mode-how"
+    ],
+    "sources": "features.registry.js entry story."
+  },
+  {
+    "id": "app-story-how",
+    "category": "app",
+    "question": "How do I use Nacho's Story in the app?",
+    "alts": [
+      "In simple words, how do I use Nacho's Story in the app?",
+      "How do I use Nacho's Story in the app, briefly?",
+      "Help me understand: how do I use Nacho's Story in the app?"
+    ],
+    "answer": "Nacho's Story unlocks one new chapter a day. Open Nacho's Story from Nacho and read today's chapter. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "story",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-nacho-mode-what",
+      "app-nacho-mode-how",
+      "app-mini-nacho-what"
+    ],
+    "sources": "features.registry.js entry story."
+  },
+  {
+    "id": "app-nacho-mode-what",
+    "category": "app",
+    "question": "What is Nacho Mode in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Nacho Mode in Bitcoin Quest?",
+      "What is Nacho Mode in Bitcoin Quest, briefly?",
+      "Help me understand: what is Nacho Mode in Bitcoin Quest?"
+    ],
+    "answer": "Nacho Mode is the full-screen chat with Nacho. Open Nacho Mode with the button or by pressing N. The little bubble is a smaller version of the same chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "nacho-mode",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-nacho-mode-how",
+      "app-mini-nacho-what",
+      "app-mini-nacho-how"
+    ],
+    "sources": "features.registry.js entry nacho-mode."
+  },
+  {
+    "id": "app-nacho-mode-how",
+    "category": "app",
+    "question": "How do I use Nacho Mode in the app?",
+    "alts": [
+      "In simple words, how do I use Nacho Mode in the app?",
+      "How do I use Nacho Mode in the app, briefly?",
+      "Help me understand: how do I use Nacho Mode in the app?"
+    ],
+    "answer": "Nacho Mode is the full-screen chat with Nacho. Open Nacho Mode with the button or by pressing N. The little bubble is a smaller version of the same chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "nacho-mode",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-mini-nacho-what",
+      "app-mini-nacho-how",
+      "app-quiz-me-what"
+    ],
+    "sources": "features.registry.js entry nacho-mode."
+  },
+  {
+    "id": "app-mini-nacho-what",
+    "category": "app",
+    "question": "What is Mini Nacho bubble in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Mini Nacho bubble in Bitcoin Quest?",
+      "What is Mini Nacho bubble in Bitcoin Quest, briefly?",
+      "Help me understand: what is Mini Nacho bubble in Bitcoin Quest?"
+    ],
+    "answer": "Mini Nacho is the bubble you tap to ask a question without leaving the page. Tap Nacho, then ask. The same answers show up here and in Nacho Mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "mini-nacho",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-mini-nacho-how",
+      "app-quiz-me-what",
+      "app-quiz-me-how"
+    ],
+    "sources": "features.registry.js entry mini-nacho."
+  },
+  {
+    "id": "app-mini-nacho-how",
+    "category": "app",
+    "question": "How do I use Mini Nacho bubble in the app?",
+    "alts": [
+      "In simple words, how do I use Mini Nacho bubble in the app?",
+      "How do I use Mini Nacho bubble in the app, briefly?",
+      "Help me understand: how do I use Mini Nacho bubble in the app?"
+    ],
+    "answer": "Mini Nacho is the bubble you tap to ask a question without leaving the page. Tap Nacho, then ask. The same answers show up here and in Nacho Mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "mini-nacho",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-quiz-me-what",
+      "app-quiz-me-how",
+      "app-closet-what"
+    ],
+    "sources": "features.registry.js entry mini-nacho."
+  },
+  {
+    "id": "app-quiz-me-what",
+    "category": "app",
+    "question": "What is Quiz Me in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Quiz Me in Bitcoin Quest?",
+      "What is Quiz Me in Bitcoin Quest, briefly?",
+      "Help me understand: what is Quiz Me in Bitcoin Quest?"
+    ],
+    "answer": "Quiz Me is Nacho's quick Bitcoin quiz. Say \"quiz me\" and Nacho starts a short quiz. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "quiz-me",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-quiz-me-how",
+      "app-closet-what",
+      "app-closet-how"
+    ],
+    "sources": "features.registry.js entry quiz-me."
+  },
+  {
+    "id": "app-quiz-me-how",
+    "category": "app",
+    "question": "How do I use Quiz Me in the app?",
+    "alts": [
+      "In simple words, how do I use Quiz Me in the app?",
+      "How do I use Quiz Me in the app, briefly?",
+      "Help me understand: how do I use Quiz Me in the app?"
+    ],
+    "answer": "Quiz Me is Nacho's quick Bitcoin quiz. Say \"quiz me\" and Nacho starts a short quiz. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "quiz-me",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-closet-what",
+      "app-closet-how",
+      "app-eli5-what"
+    ],
+    "sources": "features.registry.js entry quiz-me."
+  },
+  {
+    "id": "app-closet-what",
+    "category": "app",
+    "question": "What is Nacho's Closet in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Nacho's Closet in Bitcoin Quest?",
+      "What is Nacho's Closet in Bitcoin Quest, briefly?",
+      "Help me understand: what is Nacho's Closet in Bitcoin Quest?"
+    ],
+    "answer": "Nacho's Closet is where you dress Nacho in outfits you unlock. Open Settings and the Nacho section to change the outfit. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "closet",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-closet-how",
+      "app-eli5-what",
+      "app-eli5-how"
+    ],
+    "sources": "features.registry.js entry closet."
+  },
+  {
+    "id": "app-closet-how",
+    "category": "app",
+    "question": "How do I use Nacho's Closet in the app?",
+    "alts": [
+      "In simple words, how do I use Nacho's Closet in the app?",
+      "How do I use Nacho's Closet in the app, briefly?",
+      "Help me understand: how do I use Nacho's Closet in the app?"
+    ],
+    "answer": "Nacho's Closet is where you dress Nacho in outfits you unlock. Open Settings and the Nacho section to change the outfit. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "closet",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-eli5-what",
+      "app-eli5-how",
+      "app-quest-hub-what"
+    ],
+    "sources": "features.registry.js entry closet."
+  },
+  {
+    "id": "app-eli5-what",
+    "category": "app",
+    "question": "What is ELI5 mode in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is ELI5 mode in Bitcoin Quest?",
+      "What is ELI5 mode in Bitcoin Quest, briefly?",
+      "Help me understand: what is ELI5 mode in Bitcoin Quest?"
+    ],
+    "answer": "ELI5 mode makes Nacho explain like you are five. In Nacho Mode, open ELI5 and turn it on. Answers stay short and simple. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "eli5",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-eli5-how",
+      "app-quest-hub-what",
+      "app-quest-hub-how"
+    ],
+    "sources": "features.registry.js entry eli5."
+  },
+  {
+    "id": "app-eli5-how",
+    "category": "app",
+    "question": "How do I use ELI5 mode in the app?",
+    "alts": [
+      "In simple words, how do I use ELI5 mode in the app?",
+      "How do I use ELI5 mode in the app, briefly?",
+      "Help me understand: how do I use ELI5 mode in the app?"
+    ],
+    "answer": "ELI5 mode makes Nacho explain like you are five. In Nacho Mode, open ELI5 and turn it on. Answers stay short and simple. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "eli5",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-quest-hub-what",
+      "app-quest-hub-how",
+      "app-qh-quiz-what"
+    ],
+    "sources": "features.registry.js entry eli5."
+  },
+  {
+    "id": "app-quest-hub-what",
+    "category": "app",
+    "question": "What is Quest Hub in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Quest Hub in Bitcoin Quest?",
+      "What is Quest Hub in Bitcoin Quest, briefly?",
+      "Help me understand: what is Quest Hub in Bitcoin Quest?"
+    ],
+    "answer": "Quest Hub holds the daily quiz, trivia, poll, Flex, Favor, raid, charity, community challenge, and the Nook. Open Quest Hub from the menu. Pick a tab along the top. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "quest-hub",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-quest-hub-how",
+      "app-qh-quiz-what",
+      "app-qh-quiz-how"
+    ],
+    "sources": "features.registry.js entry quest-hub."
+  },
+  {
+    "id": "app-quest-hub-how",
+    "category": "app",
+    "question": "How do I use Quest Hub in the app?",
+    "alts": [
+      "In simple words, how do I use Quest Hub in the app?",
+      "How do I use Quest Hub in the app, briefly?",
+      "Help me understand: how do I use Quest Hub in the app?"
+    ],
+    "answer": "Quest Hub holds the daily quiz, trivia, poll, Flex, Favor, raid, charity, community challenge, and the Nook. Open Quest Hub from the menu. Pick a tab along the top. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "quest-hub",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-quiz-what",
+      "app-qh-quiz-how",
+      "app-qh-trivia-what"
+    ],
+    "sources": "features.registry.js entry quest-hub."
+  },
+  {
+    "id": "app-qh-quiz-what",
+    "category": "app",
+    "question": "What is Daily quiz in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Daily quiz in Bitcoin Quest?",
+      "What is Daily quiz in Bitcoin Quest, briefly?",
+      "Help me understand: what is Daily quiz in Bitcoin Quest?"
+    ],
+    "answer": "The daily quiz is a Quest Hub tab. Open Quest Hub and choose the Quiz tab. You get one scored run a day. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-quiz",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-quiz-how",
+      "app-qh-trivia-what",
+      "app-qh-trivia-how"
+    ],
+    "sources": "features.registry.js entry qh-quiz."
+  },
+  {
+    "id": "app-qh-quiz-how",
+    "category": "app",
+    "question": "How do I use Daily quiz in the app?",
+    "alts": [
+      "In simple words, how do I use Daily quiz in the app?",
+      "How do I use Daily quiz in the app, briefly?",
+      "Help me understand: how do I use Daily quiz in the app?"
+    ],
+    "answer": "The daily quiz is a Quest Hub tab. Open Quest Hub and choose the Quiz tab. You get one scored run a day. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-quiz",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-trivia-what",
+      "app-qh-trivia-how",
+      "app-qh-poll-what"
+    ],
+    "sources": "features.registry.js entry qh-quiz."
+  },
+  {
+    "id": "app-qh-trivia-what",
+    "category": "app",
+    "question": "What is Daily trivia in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Daily trivia in Bitcoin Quest?",
+      "What is Daily trivia in Bitcoin Quest, briefly?",
+      "Help me understand: what is Daily trivia in Bitcoin Quest?"
+    ],
+    "answer": "Daily trivia lives in Quest Hub. Open Quest Hub and choose the Trivia tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-trivia",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-trivia-how",
+      "app-qh-poll-what",
+      "app-qh-poll-how"
+    ],
+    "sources": "features.registry.js entry qh-trivia."
+  },
+  {
+    "id": "app-qh-trivia-how",
+    "category": "app",
+    "question": "How do I use Daily trivia in the app?",
+    "alts": [
+      "In simple words, how do I use Daily trivia in the app?",
+      "How do I use Daily trivia in the app, briefly?",
+      "Help me understand: how do I use Daily trivia in the app?"
+    ],
+    "answer": "Daily trivia lives in Quest Hub. Open Quest Hub and choose the Trivia tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-trivia",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-poll-what",
+      "app-qh-poll-how",
+      "app-qh-flex-what"
+    ],
+    "sources": "features.registry.js entry qh-trivia."
+  },
+  {
+    "id": "app-qh-poll-what",
+    "category": "app",
+    "question": "What is Daily poll in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Daily poll in Bitcoin Quest?",
+      "What is Daily poll in Bitcoin Quest, briefly?",
+      "Help me understand: what is Daily poll in Bitcoin Quest?"
+    ],
+    "answer": "The daily poll is a Quest Hub tab. Open Quest Hub and choose the Poll tab to cast today's vote. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-poll",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-poll-how",
+      "app-qh-flex-what",
+      "app-qh-flex-how"
+    ],
+    "sources": "features.registry.js entry qh-poll."
+  },
+  {
+    "id": "app-qh-poll-how",
+    "category": "app",
+    "question": "How do I use Daily poll in the app?",
+    "alts": [
+      "In simple words, how do I use Daily poll in the app?",
+      "How do I use Daily poll in the app, briefly?",
+      "Help me understand: how do I use Daily poll in the app?"
+    ],
+    "answer": "The daily poll is a Quest Hub tab. Open Quest Hub and choose the Poll tab to cast today's vote. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-poll",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-flex-what",
+      "app-qh-flex-how",
+      "app-favor-what"
+    ],
+    "sources": "features.registry.js entry qh-poll."
+  },
+  {
+    "id": "app-qh-flex-what",
+    "category": "app",
+    "question": "What is Flex in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Flex in Bitcoin Quest?",
+      "What is Flex in Bitcoin Quest, briefly?",
+      "Help me understand: what is Flex in Bitcoin Quest?"
+    ],
+    "answer": "Flex is the Quest Hub tab of healthy Bitcoiner habits. Open Quest Hub → Flex. Each habit is a small action worth XP, and the list resets on the daily schedule. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-flex",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-qh-flex-how",
+      "app-favor-what",
+      "app-favor-how"
+    ],
+    "sources": "features.registry.js entry qh-flex."
+  },
+  {
+    "id": "app-qh-flex-how",
+    "category": "app",
+    "question": "How do I use Flex in the app?",
+    "alts": [
+      "In simple words, how do I use Flex in the app?",
+      "How do I use Flex in the app, briefly?",
+      "Help me understand: how do I use Flex in the app?"
+    ],
+    "answer": "Flex is the Quest Hub tab of healthy Bitcoiner habits. Open Quest Hub → Flex. Each habit is a small action worth XP, and the list resets on the daily schedule. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "qh-flex",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-favor-what",
+      "app-favor-how",
+      "app-raid-what"
+    ],
+    "sources": "features.registry.js entry qh-flex."
+  },
+  {
+    "id": "app-favor-what",
+    "category": "app",
+    "question": "What is Satoshi's Favor in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Satoshi's Favor in Bitcoin Quest?",
+      "What is Satoshi's Favor in Bitcoin Quest, briefly?",
+      "Help me understand: what is Satoshi's Favor in Bitcoin Quest?"
+    ],
+    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a window. Open Quest Hub → Favor, or open the miner. Hash during the window for a chance at the prize. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "favor",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-favor-how",
+      "app-raid-what",
+      "app-raid-how"
+    ],
+    "sources": "features.registry.js entry favor."
+  },
+  {
+    "id": "app-favor-how",
+    "category": "app",
+    "question": "How do I use Satoshi's Favor in the app?",
+    "alts": [
+      "In simple words, how do I use Satoshi's Favor in the app?",
+      "How do I use Satoshi's Favor in the app, briefly?",
+      "Help me understand: how do I use Satoshi's Favor in the app?"
+    ],
+    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a window. Open Quest Hub → Favor, or open the miner. Hash during the window for a chance at the prize. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "favor",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-raid-what",
+      "app-raid-how",
+      "app-citadel-what"
+    ],
+    "sources": "features.registry.js entry favor."
+  },
+  {
+    "id": "app-raid-what",
+    "category": "app",
+    "question": "What is Raid Boss in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Raid Boss in Bitcoin Quest?",
+      "What is Raid Boss in Bitcoin Quest, briefly?",
+      "Help me understand: what is Raid Boss in Bitcoin Quest?"
+    ],
+    "answer": "The raid boss is a community fight. You deal damage by earning badges and doing activities. Open Quest Hub → Raid to see the boss, your damage, and the prize. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "raid",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-raid-how",
+      "app-citadel-what",
+      "app-citadel-how"
+    ],
+    "sources": "features.registry.js entry raid."
+  },
+  {
+    "id": "app-raid-how",
+    "category": "app",
+    "question": "How do I use Raid Boss in the app?",
+    "alts": [
+      "In simple words, how do I use Raid Boss in the app?",
+      "How do I use Raid Boss in the app, briefly?",
+      "Help me understand: how do I use Raid Boss in the app?"
+    ],
+    "answer": "The raid boss is a community fight. You deal damage by earning badges and doing activities. Open Quest Hub → Raid to see the boss, your damage, and the prize. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "raid",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-citadel-what",
+      "app-citadel-how",
+      "app-charity-what"
+    ],
+    "sources": "features.registry.js entry raid."
+  },
+  {
+    "id": "app-citadel-what",
+    "category": "app",
+    "question": "What is Citadel in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Citadel in Bitcoin Quest?",
+      "What is Citadel in Bitcoin Quest, briefly?",
+      "Help me understand: what is Citadel in Bitcoin Quest?"
+    ],
+    "answer": "The Citadel is the coming-soon place to spend XP. Open Quest Hub → Citadel. It is marked coming soon, so you can look but not spend yet. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "citadel",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-citadel-how",
+      "app-charity-what",
+      "app-charity-how"
+    ],
+    "sources": "features.registry.js entry citadel."
+  },
+  {
+    "id": "app-citadel-how",
+    "category": "app",
+    "question": "How do I use Citadel in the app?",
+    "alts": [
+      "In simple words, how do I use Citadel in the app?",
+      "How do I use Citadel in the app, briefly?",
+      "Help me understand: how do I use Citadel in the app?"
+    ],
+    "answer": "The Citadel is the coming-soon place to spend XP. Open Quest Hub → Citadel. It is marked coming soon, so you can look but not spend yet. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "citadel",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-charity-what",
+      "app-charity-how",
+      "app-community-what"
+    ],
+    "sources": "features.registry.js entry citadel."
+  },
+  {
+    "id": "app-charity-what",
+    "category": "app",
+    "question": "What is Charity in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Charity in Bitcoin Quest?",
+      "What is Charity in Bitcoin Quest, briefly?",
+      "Help me understand: what is Charity in Bitcoin Quest?"
+    ],
+    "answer": "Charity lets you donate XP. Your faction (Honey Badger or Cyber Hornet) is on the same screen. Open Quest Hub → Charity, pick an amount of XP, and donate. This is separate from donating to the site. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "charity",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-charity-how",
+      "app-community-what",
+      "app-community-how"
+    ],
+    "sources": "features.registry.js entry charity."
+  },
+  {
+    "id": "app-charity-how",
+    "category": "app",
+    "question": "How do I use Charity in the app?",
+    "alts": [
+      "In simple words, how do I use Charity in the app?",
+      "How do I use Charity in the app, briefly?",
+      "Help me understand: how do I use Charity in the app?"
+    ],
+    "answer": "Charity lets you donate XP. Your faction (Honey Badger or Cyber Hornet) is on the same screen. Open Quest Hub → Charity, pick an amount of XP, and donate. This is separate from donating to the site. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "charity",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-community-what",
+      "app-community-how",
+      "app-nook-what"
+    ],
+    "sources": "features.registry.js entry charity."
+  },
+  {
+    "id": "app-community-what",
+    "category": "app",
+    "question": "What is Community Challenge in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Community Challenge in Bitcoin Quest?",
+      "What is Community Challenge in Bitcoin Quest, briefly?",
+      "Help me understand: what is Community Challenge in Bitcoin Quest?"
+    ],
+    "answer": "The community challenge is a shared weekly goal in Quest Hub. Open Quest Hub → Community to see the goal and chip in. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "community",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-community-how",
+      "app-nook-what",
+      "app-nook-how"
+    ],
+    "sources": "features.registry.js entry community."
+  },
+  {
+    "id": "app-community-how",
+    "category": "app",
+    "question": "How do I use Community Challenge in the app?",
+    "alts": [
+      "In simple words, how do I use Community Challenge in the app?",
+      "How do I use Community Challenge in the app, briefly?",
+      "Help me understand: how do I use Community Challenge in the app?"
+    ],
+    "answer": "The community challenge is a shared weekly goal in Quest Hub. Open Quest Hub → Community to see the goal and chip in. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "community",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-nook-what",
+      "app-nook-how",
+      "app-inventory-what"
+    ],
+    "sources": "features.registry.js entry community."
+  },
+  {
+    "id": "app-nook-what",
+    "category": "app",
+    "question": "What is Nacho's Nook in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Nacho's Nook in Bitcoin Quest?",
+      "What is Nacho's Nook in Bitcoin Quest, briefly?",
+      "Help me understand: what is Nacho's Nook in Bitcoin Quest?"
+    ],
+    "answer": "Nacho's Nook is the shop inside Quest Hub. You spend Orange Tickets there. Open Quest Hub → Nook/Inventory and use the shop side to buy items. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "nook",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-nook-how",
+      "app-inventory-what",
+      "app-inventory-how"
+    ],
+    "sources": "features.registry.js entry nook."
+  },
+  {
+    "id": "app-nook-how",
+    "category": "app",
+    "question": "How do I use Nacho's Nook in the app?",
+    "alts": [
+      "In simple words, how do I use Nacho's Nook in the app?",
+      "How do I use Nacho's Nook in the app, briefly?",
+      "Help me understand: how do I use Nacho's Nook in the app?"
+    ],
+    "answer": "Nacho's Nook is the shop inside Quest Hub. You spend Orange Tickets there. Open Quest Hub → Nook/Inventory and use the shop side to buy items. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "nook",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-inventory-what",
+      "app-inventory-how",
+      "app-double-xp-what"
+    ],
+    "sources": "features.registry.js entry nook."
+  },
+  {
+    "id": "app-inventory-what",
+    "category": "app",
+    "question": "What is Inventory in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Inventory in Bitcoin Quest?",
+      "What is Inventory in Bitcoin Quest, briefly?",
+      "Help me understand: what is Inventory in Bitcoin Quest?"
+    ],
+    "answer": "Inventory is the Nook tab that holds items you own, including keys and locked ciphers. Open Quest Hub → Nook/Inventory and switch to Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "inventory",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-inventory-how",
+      "app-double-xp-what",
+      "app-double-xp-how"
+    ],
+    "sources": "features.registry.js entry inventory."
+  },
+  {
+    "id": "app-inventory-how",
+    "category": "app",
+    "question": "How do I use Inventory in the app?",
+    "alts": [
+      "In simple words, how do I use Inventory in the app?",
+      "How do I use Inventory in the app, briefly?",
+      "Help me understand: how do I use Inventory in the app?"
+    ],
+    "answer": "Inventory is the Nook tab that holds items you own, including keys and locked ciphers. Open Quest Hub → Nook/Inventory and switch to Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "inventory",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-double-xp-what",
+      "app-double-xp-how",
+      "app-hint-token-what"
+    ],
+    "sources": "features.registry.js entry inventory."
+  },
+  {
+    "id": "app-double-xp-what",
+    "category": "app",
+    "question": "What is Double XP charge in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Double XP charge in Bitcoin Quest?",
+      "What is Double XP charge in Bitcoin Quest, briefly?",
+      "Help me understand: what is Double XP charge in Bitcoin Quest?"
+    ],
+    "answer": "A Double XP charge doubles XP for a while after you use it. Buy it in the Nook, then use it from Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "double-xp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-double-xp-how",
+      "app-hint-token-what",
+      "app-hint-token-how"
+    ],
+    "sources": "features.registry.js entry double-xp."
+  },
+  {
+    "id": "app-double-xp-how",
+    "category": "app",
+    "question": "How do I use Double XP charge in the app?",
+    "alts": [
+      "In simple words, how do I use Double XP charge in the app?",
+      "How do I use Double XP charge in the app, briefly?",
+      "Help me understand: how do I use Double XP charge in the app?"
+    ],
+    "answer": "A Double XP charge doubles XP for a while after you use it. Buy it in the Nook, then use it from Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "double-xp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-hint-token-what",
+      "app-hint-token-how",
+      "app-streak-freeze-what"
+    ],
+    "sources": "features.registry.js entry double-xp."
+  },
+  {
+    "id": "app-hint-token-what",
+    "category": "app",
+    "question": "What is Hint tokens in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Hint tokens in Bitcoin Quest?",
+      "What is Hint tokens in Bitcoin Quest, briefly?",
+      "Help me understand: what is Hint tokens in Bitcoin Quest?"
+    ],
+    "answer": "Hint tokens remove a wrong answer during a quiz. Buy hint tokens in the Nook, then use one on a quiz question. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "hint-token",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-hint-token-how",
+      "app-streak-freeze-what",
+      "app-streak-freeze-how"
+    ],
+    "sources": "features.registry.js entry hint-token."
+  },
+  {
+    "id": "app-hint-token-how",
+    "category": "app",
+    "question": "How do I use Hint tokens in the app?",
+    "alts": [
+      "In simple words, how do I use Hint tokens in the app?",
+      "How do I use Hint tokens in the app, briefly?",
+      "Help me understand: how do I use Hint tokens in the app?"
+    ],
+    "answer": "Hint tokens remove a wrong answer during a quiz. Buy hint tokens in the Nook, then use one on a quiz question. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "hint-token",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-streak-freeze-what",
+      "app-streak-freeze-how",
+      "app-hash-booster-what"
+    ],
+    "sources": "features.registry.js entry hint-token."
+  },
+  {
+    "id": "app-streak-freeze-what",
+    "category": "app",
+    "question": "What is Streak freeze in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Streak freeze in Bitcoin Quest?",
+      "What is Streak freeze in Bitcoin Quest, briefly?",
+      "Help me understand: what is Streak freeze in Bitcoin Quest?"
+    ],
+    "answer": "A streak freeze protects your visit streak if you miss a day. Buy a streak freeze in the Nook. You can see whether one is saved under Settings → Data. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "streak-freeze",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-streak-freeze-how",
+      "app-hash-booster-what",
+      "app-hash-booster-how"
+    ],
+    "sources": "features.registry.js entry streak-freeze."
+  },
+  {
+    "id": "app-streak-freeze-how",
+    "category": "app",
+    "question": "How do I use Streak freeze in the app?",
+    "alts": [
+      "In simple words, how do I use Streak freeze in the app?",
+      "How do I use Streak freeze in the app, briefly?",
+      "Help me understand: how do I use Streak freeze in the app?"
+    ],
+    "answer": "A streak freeze protects your visit streak if you miss a day. Buy a streak freeze in the Nook. You can see whether one is saved under Settings → Data. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "streak-freeze",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-hash-booster-what",
+      "app-hash-booster-how",
+      "app-raffle-what"
+    ],
+    "sources": "features.registry.js entry streak-freeze."
+  },
+  {
+    "id": "app-hash-booster-what",
+    "category": "app",
+    "question": "What is Hash booster in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Hash booster in Bitcoin Quest?",
+      "What is Hash booster in Bitcoin Quest, briefly?",
+      "Help me understand: what is Hash booster in Bitcoin Quest?"
+    ],
+    "answer": "A hash booster grants extra hashes in Satoshi's Favor. A second rig is the bigger version in the same shop. Buy a hash booster or second rig in the Nook, then use it when a Favor window is open. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "hash-booster",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-hash-booster-how",
+      "app-raffle-what",
+      "app-raffle-how"
+    ],
+    "sources": "features.registry.js entry hash-booster."
+  },
+  {
+    "id": "app-hash-booster-how",
+    "category": "app",
+    "question": "How do I use Hash booster in the app?",
+    "alts": [
+      "In simple words, how do I use Hash booster in the app?",
+      "How do I use Hash booster in the app, briefly?",
+      "Help me understand: how do I use Hash booster in the app?"
+    ],
+    "answer": "A hash booster grants extra hashes in Satoshi's Favor. A second rig is the bigger version in the same shop. Buy a hash booster or second rig in the Nook, then use it when a Favor window is open. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "hash-booster",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-raffle-what",
+      "app-raffle-how",
+      "app-gift-bag-what"
+    ],
+    "sources": "features.registry.js entry hash-booster."
+  },
+  {
+    "id": "app-raffle-what",
+    "category": "app",
+    "question": "What is Orange ticket raffle in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Orange ticket raffle in Bitcoin Quest?",
+      "What is Orange ticket raffle in Bitcoin Quest, briefly?",
+      "Help me understand: what is Orange ticket raffle in Bitcoin Quest?"
+    ],
+    "answer": "The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st. Open the Nook and buy raffle entries. More entries, better odds. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "raffle",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-raffle-how",
+      "app-gift-bag-what",
+      "app-gift-bag-how"
+    ],
+    "sources": "features.registry.js entry raffle."
+  },
+  {
+    "id": "app-raffle-how",
+    "category": "app",
+    "question": "How do I use Orange ticket raffle in the app?",
+    "alts": [
+      "In simple words, how do I use Orange ticket raffle in the app?",
+      "How do I use Orange ticket raffle in the app, briefly?",
+      "Help me understand: how do I use Orange ticket raffle in the app?"
+    ],
+    "answer": "The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st. Open the Nook and buy raffle entries. More entries, better odds. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "raffle",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-gift-bag-what",
+      "app-gift-bag-how",
+      "app-wheel-what"
+    ],
+    "sources": "features.registry.js entry raffle."
+  },
+  {
+    "id": "app-gift-bag-what",
+    "category": "app",
+    "question": "What is Gift bag in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Gift bag in Bitcoin Quest?",
+      "What is Gift bag in Bitcoin Quest, briefly?",
+      "Help me understand: what is Gift bag in Bitcoin Quest?"
+    ],
+    "answer": "The gift bag is a shop keepsake in the Nook. It is not the same as opening a gift from the wheel. Open the Nook to see the gift bag. Gifts from the wheel open right away, and keys live in Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "gift-bag",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-gift-bag-how",
+      "app-wheel-what",
+      "app-wheel-how"
+    ],
+    "sources": "features.registry.js entry gift-bag."
+  },
+  {
+    "id": "app-gift-bag-how",
+    "category": "app",
+    "question": "How do I use Gift bag in the app?",
+    "alts": [
+      "In simple words, how do I use Gift bag in the app?",
+      "How do I use Gift bag in the app, briefly?",
+      "Help me understand: how do I use Gift bag in the app?"
+    ],
+    "answer": "The gift bag is a shop keepsake in the Nook. It is not the same as opening a gift from the wheel. Open the Nook to see the gift bag. Gifts from the wheel open right away, and keys live in Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "gift-bag",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-wheel-what",
+      "app-wheel-how",
+      "app-gifts-what"
+    ],
+    "sources": "features.registry.js entry gift-bag."
+  },
+  {
+    "id": "app-wheel-what",
+    "category": "app",
+    "question": "What is Daily spin wheel in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Daily spin wheel in Bitcoin Quest?",
+      "What is Daily spin wheel in Bitcoin Quest, briefly?",
+      "Help me understand: what is Daily spin wheel in Bitcoin Quest?"
+    ],
+    "answer": "The daily spin wheel gives a free spin for tickets, XP, or a gift. Open the daily spin wheel and take today's spin. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "wheel",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-wheel-how",
+      "app-gifts-what",
+      "app-gifts-how"
+    ],
+    "sources": "features.registry.js entry wheel."
+  },
+  {
+    "id": "app-wheel-how",
+    "category": "app",
+    "question": "How do I use Daily spin wheel in the app?",
+    "alts": [
+      "In simple words, how do I use Daily spin wheel in the app?",
+      "How do I use Daily spin wheel in the app, briefly?",
+      "Help me understand: how do I use Daily spin wheel in the app?"
+    ],
+    "answer": "The daily spin wheel gives a free spin for tickets, XP, or a gift. Open the daily spin wheel and take today's spin. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "wheel",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-gifts-what",
+      "app-gifts-how",
+      "app-ciphers-what"
+    ],
+    "sources": "features.registry.js entry wheel."
+  },
+  {
+    "id": "app-gifts-what",
+    "category": "app",
+    "question": "What is Gifts in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Gifts in Bitcoin Quest?",
+      "What is Gifts in Bitcoin Quest, briefly?",
+      "Help me understand: what is Gifts in Bitcoin Quest?"
+    ],
+    "answer": "Gifts come from the spin wheel. You open them for keys, locked ciphers, tickets, XP, or a rare prize. Spin the wheel, then open the gift on the post-spin screen. You can also open gifts from Settings → Account → Peers. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "gifts",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-gifts-how",
+      "app-ciphers-what",
+      "app-ciphers-how"
+    ],
+    "sources": "features.registry.js entry gifts."
+  },
+  {
+    "id": "app-gifts-how",
+    "category": "app",
+    "question": "How do I use Gifts in the app?",
+    "alts": [
+      "In simple words, how do I use Gifts in the app?",
+      "How do I use Gifts in the app, briefly?",
+      "Help me understand: how do I use Gifts in the app?"
+    ],
+    "answer": "Gifts come from the spin wheel. You open them for keys, locked ciphers, tickets, XP, or a rare prize. Spin the wheel, then open the gift on the post-spin screen. You can also open gifts from Settings → Account → Peers. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "gifts",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-ciphers-what",
+      "app-ciphers-how",
+      "app-keys-what"
+    ],
+    "sources": "features.registry.js entry gifts."
+  },
+  {
+    "id": "app-ciphers-what",
+    "category": "app",
+    "question": "What is Locked ciphers in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Locked ciphers in Bitcoin Quest?",
+      "What is Locked ciphers in Bitcoin Quest, briefly?",
+      "Help me understand: what is Locked ciphers in Bitcoin Quest?"
+    ],
+    "answer": "A locked cipher opens when you use a key that has the same label. Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "ciphers",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-ciphers-how",
+      "app-keys-what",
+      "app-keys-how"
+    ],
+    "sources": "features.registry.js entry ciphers."
+  },
+  {
+    "id": "app-ciphers-how",
+    "category": "app",
+    "question": "How do I use Locked ciphers in the app?",
+    "alts": [
+      "In simple words, how do I use Locked ciphers in the app?",
+      "How do I use Locked ciphers in the app, briefly?",
+      "Help me understand: how do I use Locked ciphers in the app?"
+    ],
+    "answer": "A locked cipher opens when you use a key that has the same label. Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "ciphers",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-keys-what",
+      "app-keys-how",
+      "app-peers-what"
+    ],
+    "sources": "features.registry.js entry ciphers."
+  },
+  {
+    "id": "app-keys-what",
+    "category": "app",
+    "question": "What is Cipher keys in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Cipher keys in Bitcoin Quest?",
+      "What is Cipher keys in Bitcoin Quest, briefly?",
+      "Help me understand: what is Cipher keys in Bitcoin Quest?"
+    ],
+    "answer": "Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "keys",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-keys-how",
+      "app-peers-what",
+      "app-peers-how"
+    ],
+    "sources": "features.registry.js entry keys."
+  },
+  {
+    "id": "app-keys-how",
+    "category": "app",
+    "question": "How do I use Cipher keys in the app?",
+    "alts": [
+      "In simple words, how do I use Cipher keys in the app?",
+      "How do I use Cipher keys in the app, briefly?",
+      "Help me understand: how do I use Cipher keys in the app?"
+    ],
+    "answer": "Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "keys",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-peers-what",
+      "app-peers-how",
+      "app-partnership-what"
+    ],
+    "sources": "features.registry.js entry keys."
+  },
+  {
+    "id": "app-peers-what",
+    "category": "app",
+    "question": "What is Peers in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Peers in Bitcoin Quest?",
+      "What is Peers in Bitcoin Quest, briefly?",
+      "Help me understand: what is Peers in Bitcoin Quest?"
+    ],
+    "answer": "Peers are people you connect with so you can send keys and grow a partnership. Open Settings → Account → Peers. Send a peer request, and accept the ones you want. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "peers",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-peers-how",
+      "app-partnership-what",
+      "app-partnership-how"
+    ],
+    "sources": "features.registry.js entry peers."
+  },
+  {
+    "id": "app-peers-how",
+    "category": "app",
+    "question": "How do I use Peers in the app?",
+    "alts": [
+      "In simple words, how do I use Peers in the app?",
+      "How do I use Peers in the app, briefly?",
+      "Help me understand: how do I use Peers in the app?"
+    ],
+    "answer": "Peers are people you connect with so you can send keys and grow a partnership. Open Settings → Account → Peers. Send a peer request, and accept the ones you want. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "peers",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-partnership-what",
+      "app-partnership-how",
+      "app-shoutout-what"
+    ],
+    "sources": "features.registry.js entry peers."
+  },
+  {
+    "id": "app-partnership-what",
+    "category": "app",
+    "question": "What is Partnership levels in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Partnership levels in Bitcoin Quest?",
+      "What is Partnership levels in Bitcoin Quest, briefly?",
+      "Help me understand: what is Partnership levels in Bitcoin Quest?"
+    ],
+    "answer": "Partnership levels grow when you open a cipher with a key a peer sent you, from Opening Channel up to Wumbo. Open Settings → Account → Peers to see the partnership level with each peer. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "partnership",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-partnership-how",
+      "app-shoutout-what",
+      "app-shoutout-how"
+    ],
+    "sources": "features.registry.js entry partnership."
+  },
+  {
+    "id": "app-partnership-how",
+    "category": "app",
+    "question": "How do I use Partnership levels in the app?",
+    "alts": [
+      "In simple words, how do I use Partnership levels in the app?",
+      "How do I use Partnership levels in the app, briefly?",
+      "Help me understand: how do I use Partnership levels in the app?"
+    ],
+    "answer": "Partnership levels grow when you open a cipher with a key a peer sent you, from Opening Channel up to Wumbo. Open Settings → Account → Peers to see the partnership level with each peer. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "partnership",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-shoutout-what",
+      "app-shoutout-how",
+      "app-tickets-what"
+    ],
+    "sources": "features.registry.js entry partnership."
+  },
+  {
+    "id": "app-shoutout-what",
+    "category": "app",
+    "question": "What is Nacho shoutout in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Nacho shoutout in Bitcoin Quest?",
+      "What is Nacho shoutout in Bitcoin Quest, briefly?",
+      "Help me understand: what is Nacho shoutout in Bitcoin Quest?"
+    ],
+    "answer": "A Nacho shoutout is a rare gift prize. Nacho posts it in Global Chat. Win one by opening gifts from the wheel. If it hits, the shoutout shows up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "shoutout",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-shoutout-how",
+      "app-tickets-what",
+      "app-tickets-how"
+    ],
+    "sources": "features.registry.js entry shoutout."
+  },
+  {
+    "id": "app-shoutout-how",
+    "category": "app",
+    "question": "How do I use Nacho shoutout in the app?",
+    "alts": [
+      "In simple words, how do I use Nacho shoutout in the app?",
+      "How do I use Nacho shoutout in the app, briefly?",
+      "Help me understand: how do I use Nacho shoutout in the app?"
+    ],
+    "answer": "A Nacho shoutout is a rare gift prize. Nacho posts it in Global Chat. Win one by opening gifts from the wheel. If it hits, the shoutout shows up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "shoutout",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tickets-what",
+      "app-tickets-how",
+      "app-xp-what"
+    ],
+    "sources": "features.registry.js entry shoutout."
+  },
+  {
+    "id": "app-tickets-what",
+    "category": "app",
+    "question": "What is Orange tickets in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Orange tickets in Bitcoin Quest?",
+      "What is Orange tickets in Bitcoin Quest, briefly?",
+      "Help me understand: what is Orange tickets in Bitcoin Quest?"
+    ],
+    "answer": "Orange Tickets are the shop currency. You earn them from the daily spin, activity, and referrals. Your balance is in Settings → Account. Spend tickets in the Nook. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tickets",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tickets-how",
+      "app-xp-what",
+      "app-xp-how"
+    ],
+    "sources": "features.registry.js entry tickets."
+  },
+  {
+    "id": "app-tickets-how",
+    "category": "app",
+    "question": "How do I use Orange tickets in the app?",
+    "alts": [
+      "In simple words, how do I use Orange tickets in the app?",
+      "How do I use Orange tickets in the app, briefly?",
+      "Help me understand: how do I use Orange tickets in the app?"
+    ],
+    "answer": "Orange Tickets are the shop currency. You earn them from the daily spin, activity, and referrals. Your balance is in Settings → Account. Spend tickets in the Nook. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tickets",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-xp-what",
+      "app-xp-how",
+      "app-badges-what"
+    ],
+    "sources": "features.registry.js entry tickets."
+  },
+  {
+    "id": "app-xp-what",
+    "category": "app",
+    "question": "What is XP and points in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is XP and points in Bitcoin Quest?",
+      "What is XP and points in Bitcoin Quest, briefly?",
+      "Help me understand: what is XP and points in Bitcoin Quest?"
+    ],
+    "answer": "XP (points) is how you rank up. Daily XP is full through 500, half through 900, then a quarter until 1,000. Earn points by reading, quests, chat, and badges. The Today card shows today’s XP: full through 500, half through 900, then a quarter until 1,000. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "xp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-xp-how",
+      "app-badges-what",
+      "app-badges-how"
+    ],
+    "sources": "features.registry.js entry xp."
+  },
+  {
+    "id": "app-xp-how",
+    "category": "app",
+    "question": "How do I use XP and points in the app?",
+    "alts": [
+      "In simple words, how do I use XP and points in the app?",
+      "How do I use XP and points in the app, briefly?",
+      "Help me understand: how do I use XP and points in the app?"
+    ],
+    "answer": "XP (points) is how you rank up. Daily XP is full through 500, half through 900, then a quarter until 1,000. Earn points by reading, quests, chat, and badges. The Today card shows today’s XP: full through 500, half through 900, then a quarter until 1,000. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "xp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-badges-what",
+      "app-badges-how",
+      "app-referral-what"
+    ],
+    "sources": "features.registry.js entry xp."
+  },
+  {
+    "id": "app-badges-what",
+    "category": "app",
+    "question": "What is Badges in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Badges in Bitcoin Quest?",
+      "What is Badges in Bitcoin Quest, briefly?",
+      "Help me understand: what is Badges in Bitcoin Quest?"
+    ],
+    "answer": "Badges mark things you have done, from chat to quests to hidden goals. Open the leaderboard to see badge progress, and the Nacho section of Settings for what you have equipped. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "badges",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-badges-how",
+      "app-referral-what",
+      "app-referral-how"
+    ],
+    "sources": "features.registry.js entry badges."
+  },
+  {
+    "id": "app-badges-how",
+    "category": "app",
+    "question": "How do I use Badges in the app?",
+    "alts": [
+      "In simple words, how do I use Badges in the app?",
+      "How do I use Badges in the app, briefly?",
+      "Help me understand: how do I use Badges in the app?"
+    ],
+    "answer": "Badges mark things you have done, from chat to quests to hidden goals. Open the leaderboard to see badge progress, and the Nacho section of Settings for what you have equipped. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "badges",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-referral-what",
+      "app-referral-how",
+      "app-sats-what"
+    ],
+    "sources": "features.registry.js entry badges."
+  },
+  {
+    "id": "app-referral-what",
+    "category": "app",
+    "question": "What is Invite friends in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Invite friends in Bitcoin Quest?",
+      "What is Invite friends in Bitcoin Quest, briefly?",
+      "Help me understand: what is Invite friends in Bitcoin Quest?"
+    ],
+    "answer": "Share your referral link from the home page. When a friend you refer reaches Maxi, you both get 50 orange tickets. Open Invite friends. Copy or share your referral link. Your friend signs up with it, reaches Maxi (2,140 XP), and you both get 50 orange tickets automatically. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "referral",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-referral-how",
+      "app-sats-what",
+      "app-sats-how"
+    ],
+    "sources": "features.registry.js entry referral."
+  },
+  {
+    "id": "app-referral-how",
+    "category": "app",
+    "question": "How do I use Invite friends in the app?",
+    "alts": [
+      "In simple words, how do I use Invite friends in the app?",
+      "How do I use Invite friends in the app, briefly?",
+      "Help me understand: how do I use Invite friends in the app?"
+    ],
+    "answer": "Share your referral link from the home page. When a friend you refer reaches Maxi, you both get 50 orange tickets. Open Invite friends. Copy or share your referral link. Your friend signs up with it, reaches Maxi (2,140 XP), and you both get 50 orange tickets automatically. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "referral",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-sats-what",
+      "app-sats-how",
+      "app-ln-address-what"
+    ],
+    "sources": "features.registry.js entry referral."
+  },
+  {
+    "id": "app-sats-what",
+    "category": "app",
+    "question": "What is Claim sats in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Claim sats in Bitcoin Quest?",
+      "What is Claim sats in Bitcoin Quest, briefly?",
+      "Help me understand: what is Claim sats in Bitcoin Quest?"
+    ],
+    "answer": "The faucet lets you claim sats. The exact checks stay vague so it stays fair for real learners. Open Settings → Sats and claim when you are eligible. Those details stay vague on purpose. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "sats",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-sats-how",
+      "app-ln-address-what",
+      "app-ln-address-how"
+    ],
+    "sources": "features.registry.js entry sats."
+  },
+  {
+    "id": "app-sats-how",
+    "category": "app",
+    "question": "How do I use Claim sats in the app?",
+    "alts": [
+      "In simple words, how do I use Claim sats in the app?",
+      "How do I use Claim sats in the app, briefly?",
+      "Help me understand: how do I use Claim sats in the app?"
+    ],
+    "answer": "The faucet lets you claim sats. The exact checks stay vague so it stays fair for real learners. Open Settings → Sats and claim when you are eligible. Those details stay vague on purpose. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "sats",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-ln-address-what",
+      "app-ln-address-how",
+      "app-predictions-what"
+    ],
+    "sources": "features.registry.js entry sats."
+  },
+  {
+    "id": "app-ln-address-what",
+    "category": "app",
+    "question": "What is Lightning address in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Lightning address in Bitcoin Quest?",
+      "What is Lightning address in Bitcoin Quest, briefly?",
+      "Help me understand: what is Lightning address in Bitcoin Quest?"
+    ],
+    "answer": "Your Lightning address is where tips are sent. Open Settings → Account and save a Lightning address that looks like an email (name@wallet). This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "ln-address",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-ln-address-how",
+      "app-predictions-what",
+      "app-predictions-how"
+    ],
+    "sources": "features.registry.js entry ln-address."
+  },
+  {
+    "id": "app-ln-address-how",
+    "category": "app",
+    "question": "How do I use Lightning address in the app?",
+    "alts": [
+      "In simple words, how do I use Lightning address in the app?",
+      "How do I use Lightning address in the app, briefly?",
+      "Help me understand: how do I use Lightning address in the app?"
+    ],
+    "answer": "Your Lightning address is where tips are sent. Open Settings → Account and save a Lightning address that looks like an email (name@wallet). This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "ln-address",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-predictions-what",
+      "app-predictions-how",
+      "app-pvp-what"
+    ],
+    "sources": "features.registry.js entry ln-address."
+  },
+  {
+    "id": "app-predictions-what",
+    "category": "app",
+    "question": "What is Price prediction in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Price prediction in Bitcoin Quest?",
+      "What is Price prediction in Bitcoin Quest, briefly?",
+      "Help me understand: what is Price prediction in Bitcoin Quest?"
+    ],
+    "answer": "Price prediction is a 24-hour game: you guess whether Bitcoin goes up or down. Open Price Prediction, pick up or down, and check back in 24 hours. It is a game, not financial advice. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "predictions",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-predictions-how",
+      "app-pvp-what",
+      "app-pvp-how"
+    ],
+    "sources": "features.registry.js entry predictions."
+  },
+  {
+    "id": "app-predictions-how",
+    "category": "app",
+    "question": "How do I use Price prediction in the app?",
+    "alts": [
+      "In simple words, how do I use Price prediction in the app?",
+      "How do I use Price prediction in the app, briefly?",
+      "Help me understand: how do I use Price prediction in the app?"
+    ],
+    "answer": "Price prediction is a 24-hour game: you guess whether Bitcoin goes up or down. Open Price Prediction, pick up or down, and check back in 24 hours. It is a game, not financial advice. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "predictions",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-pvp-what",
+      "app-pvp-how",
+      "app-proof-of-play-what"
+    ],
+    "sources": "features.registry.js entry predictions."
+  },
+  {
+    "id": "app-pvp-what",
+    "category": "app",
+    "question": "What is PvP trivia battles in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is PvP trivia battles in Bitcoin Quest?",
+      "What is PvP trivia battles in Bitcoin Quest, briefly?",
+      "Help me understand: what is PvP trivia battles in Bitcoin Quest?"
+    ],
+    "answer": "The PvP lobby is a live trivia battle against another player. Join the lobby and wait, or jump in when someone is already waiting. Open the PvP lobby (#pvp) from search or Nacho, or tap Join lobby on the alert. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "pvp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-pvp-how",
+      "app-proof-of-play-what",
+      "app-proof-of-play-how"
+    ],
+    "sources": "features.registry.js entry pvp."
+  },
+  {
+    "id": "app-pvp-how",
+    "category": "app",
+    "question": "How do I use PvP trivia battles in the app?",
+    "alts": [
+      "In simple words, how do I use PvP trivia battles in the app?",
+      "How do I use PvP trivia battles in the app, briefly?",
+      "Help me understand: how do I use PvP trivia battles in the app?"
+    ],
+    "answer": "The PvP lobby is a live trivia battle against another player. Join the lobby and wait, or jump in when someone is already waiting. Open the PvP lobby (#pvp) from search or Nacho, or tap Join lobby on the alert. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "pvp",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-proof-of-play-what",
+      "app-proof-of-play-how",
+      "app-proof-of-walk-what"
+    ],
+    "sources": "features.registry.js entry pvp."
+  },
+  {
+    "id": "app-proof-of-play-what",
+    "category": "app",
+    "question": "What is Proof of Play arcade in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Proof of Play arcade in Bitcoin Quest?",
+      "What is Proof of Play arcade in Bitcoin Quest, briefly?",
+      "Help me understand: what is Proof of Play arcade in Bitcoin Quest?"
+    ],
+    "answer": "Proof of Play is the arcade of Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "proof-of-play",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-proof-of-play-how",
+      "app-proof-of-walk-what",
+      "app-proof-of-walk-how"
+    ],
+    "sources": "features.registry.js entry proof-of-play."
+  },
+  {
+    "id": "app-proof-of-play-how",
+    "category": "app",
+    "question": "How do I use Proof of Play arcade in the app?",
+    "alts": [
+      "In simple words, how do I use Proof of Play arcade in the app?",
+      "How do I use Proof of Play arcade in the app, briefly?",
+      "Help me understand: how do I use Proof of Play arcade in the app?"
+    ],
+    "answer": "Proof of Play is the arcade of Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "proof-of-play",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-proof-of-walk-what",
+      "app-proof-of-walk-how",
+      "app-pow-support-what"
+    ],
+    "sources": "features.registry.js entry proof-of-play."
+  },
+  {
+    "id": "app-proof-of-walk-what",
+    "category": "app",
+    "question": "What is Proof of Walk in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Proof of Walk in Bitcoin Quest?",
+      "What is Proof of Walk in Bitcoin Quest, briefly?",
+      "Help me understand: what is Proof of Walk in Bitcoin Quest?"
+    ],
+    "answer": "Proof of Walk connects Strava so a walk can earn XP. The support page is separate. Open Proof of Walk and connect Strava. If the feature is paused, the page says so. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "proof-of-walk",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-proof-of-walk-how",
+      "app-pow-support-what",
+      "app-pow-support-how"
+    ],
+    "sources": "features.registry.js entry proof-of-walk."
+  },
+  {
+    "id": "app-proof-of-walk-how",
+    "category": "app",
+    "question": "How do I use Proof of Walk in the app?",
+    "alts": [
+      "In simple words, how do I use Proof of Walk in the app?",
+      "How do I use Proof of Walk in the app, briefly?",
+      "Help me understand: how do I use Proof of Walk in the app?"
+    ],
+    "answer": "Proof of Walk connects Strava so a walk can earn XP. The support page is separate. Open Proof of Walk and connect Strava. If the feature is paused, the page says so. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "proof-of-walk",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-pow-support-what",
+      "app-pow-support-how",
+      "app-leaderboard-what"
+    ],
+    "sources": "features.registry.js entry proof-of-walk."
+  },
+  {
+    "id": "app-pow-support-what",
+    "category": "app",
+    "question": "What is Proof of Walk support in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Proof of Walk support in Bitcoin Quest?",
+      "What is Proof of Walk support in Bitcoin Quest, briefly?",
+      "Help me understand: what is Proof of Walk support in Bitcoin Quest?"
+    ],
+    "answer": "The Proof of Walk support page explains the Strava connection. Open the support page from its link. The walk feature itself is Proof of Walk. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "proof-of-walk",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-pow-support-how",
+      "app-leaderboard-what",
+      "app-leaderboard-how"
+    ],
+    "sources": "features.registry.js entry pow-support."
+  },
+  {
+    "id": "app-pow-support-how",
+    "category": "app",
+    "question": "How do I use Proof of Walk support in the app?",
+    "alts": [
+      "In simple words, how do I use Proof of Walk support in the app?",
+      "How do I use Proof of Walk support in the app, briefly?",
+      "Help me understand: how do I use Proof of Walk support in the app?"
+    ],
+    "answer": "The Proof of Walk support page explains the Strava connection. Open the support page from its link. The walk feature itself is Proof of Walk. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "proof-of-walk",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-leaderboard-what",
+      "app-leaderboard-how",
+      "app-global-chat-what"
+    ],
+    "sources": "features.registry.js entry pow-support."
+  },
+  {
+    "id": "app-leaderboard-what",
+    "category": "app",
+    "question": "What is Leaderboard in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Leaderboard in Bitcoin Quest?",
+      "What is Leaderboard in Bitcoin Quest, briefly?",
+      "Help me understand: what is Leaderboard in Bitcoin Quest?"
+    ],
+    "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "leaderboard",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-leaderboard-how",
+      "app-global-chat-what",
+      "app-global-chat-how"
+    ],
+    "sources": "features.registry.js entry leaderboard."
+  },
+  {
+    "id": "app-leaderboard-how",
+    "category": "app",
+    "question": "How do I use Leaderboard in the app?",
+    "alts": [
+      "In simple words, how do I use Leaderboard in the app?",
+      "How do I use Leaderboard in the app, briefly?",
+      "Help me understand: how do I use Leaderboard in the app?"
+    ],
+    "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "leaderboard",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-global-chat-what",
+      "app-global-chat-how",
+      "app-say-hi-what"
+    ],
+    "sources": "features.registry.js entry leaderboard."
+  },
+  {
+    "id": "app-global-chat-what",
+    "category": "app",
+    "question": "What is Global chat in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Global chat in Bitcoin Quest?",
+      "What is Global chat in Bitcoin Quest, briefly?",
+      "Help me understand: what is Global chat in Bitcoin Quest?"
+    ],
+    "answer": "Global chat is the live room, with a Telegram bridge. Open the chat button and stay on the Global tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "global-chat",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-global-chat-how",
+      "app-say-hi-what",
+      "app-say-hi-how"
+    ],
+    "sources": "features.registry.js entry global-chat."
+  },
+  {
+    "id": "app-global-chat-how",
+    "category": "app",
+    "question": "How do I use Global chat in the app?",
+    "alts": [
+      "In simple words, how do I use Global chat in the app?",
+      "How do I use Global chat in the app, briefly?",
+      "Help me understand: how do I use Global chat in the app?"
+    ],
+    "answer": "Global chat is the live room, with a Telegram bridge. Open the chat button and stay on the Global tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "global-chat",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-say-hi-what",
+      "app-say-hi-how",
+      "app-dms-what"
+    ],
+    "sources": "features.registry.js entry global-chat."
+  },
+  {
+    "id": "app-say-hi-what",
+    "category": "app",
+    "question": "What is Say hi to the community in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Say hi to the community in Bitcoin Quest?",
+      "What is Say hi to the community in Bitcoin Quest, briefly?",
+      "Help me understand: what is Say hi to the community in Bitcoin Quest?"
+    ],
+    "answer": "Say hi in Global Chat once a day for 50 XP and 1 Orange Ticket. On the home page, tap Say hi next to the daily spin. Global Chat opens. Send a message and the reward lands once per day. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "say-hi",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-say-hi-how",
+      "app-dms-what",
+      "app-dms-how"
+    ],
+    "sources": "features.registry.js entry say-hi."
+  },
+  {
+    "id": "app-say-hi-how",
+    "category": "app",
+    "question": "How do I use Say hi to the community in the app?",
+    "alts": [
+      "In simple words, how do I use Say hi to the community in the app?",
+      "How do I use Say hi to the community in the app, briefly?",
+      "Help me understand: how do I use Say hi to the community in the app?"
+    ],
+    "answer": "Say hi in Global Chat once a day for 50 XP and 1 Orange Ticket. On the home page, tap Say hi next to the daily spin. Global Chat opens. Send a message and the reward lands once per day. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "say-hi",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-dms-what",
+      "app-dms-how",
+      "app-buddy-what"
+    ],
+    "sources": "features.registry.js entry say-hi."
+  },
+  {
+    "id": "app-dms-what",
+    "category": "app",
+    "question": "What is Direct messages in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Direct messages in Bitcoin Quest?",
+      "What is Direct messages in Bitcoin Quest, briefly?",
+      "Help me understand: what is Direct messages in Bitcoin Quest?"
+    ],
+    "answer": "Direct messages are private chats. Open the inbox, or the DMs tab in the chat hub. New accounts need a little XP and time before sending, to slow down scammers. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "dms",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-dms-how",
+      "app-buddy-what",
+      "app-buddy-how"
+    ],
+    "sources": "features.registry.js entry dms."
+  },
+  {
+    "id": "app-dms-how",
+    "category": "app",
+    "question": "How do I use Direct messages in the app?",
+    "alts": [
+      "In simple words, how do I use Direct messages in the app?",
+      "How do I use Direct messages in the app, briefly?",
+      "Help me understand: how do I use Direct messages in the app?"
+    ],
+    "answer": "Direct messages are private chats. Open the inbox, or the DMs tab in the chat hub. New accounts need a little XP and time before sending, to slow down scammers. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "dms",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-buddy-what",
+      "app-buddy-how",
+      "app-forum-what"
+    ],
+    "sources": "features.registry.js entry dms."
+  },
+  {
+    "id": "app-buddy-what",
+    "category": "app",
+    "question": "What is Bitcoin Buddy in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Bitcoin Buddy in Bitcoin Quest?",
+      "What is Bitcoin Buddy in Bitcoin Quest, briefly?",
+      "Help me understand: what is Bitcoin Buddy in Bitcoin Quest?"
+    ],
+    "answer": "Bitcoin Buddy matches you with a learning partner. Open the buddy finder from the chat hub. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "buddy",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-buddy-how",
+      "app-forum-what",
+      "app-forum-how"
+    ],
+    "sources": "features.registry.js entry buddy."
+  },
+  {
+    "id": "app-buddy-how",
+    "category": "app",
+    "question": "How do I use Bitcoin Buddy in the app?",
+    "alts": [
+      "In simple words, how do I use Bitcoin Buddy in the app?",
+      "How do I use Bitcoin Buddy in the app, briefly?",
+      "Help me understand: how do I use Bitcoin Buddy in the app?"
+    ],
+    "answer": "Bitcoin Buddy matches you with a learning partner. Open the buddy finder from the chat hub. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "buddy",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-forum-what",
+      "app-forum-how",
+      "app-marketplace-what"
+    ],
+    "sources": "features.registry.js entry buddy."
+  },
+  {
+    "id": "app-forum-what",
+    "category": "app",
+    "question": "What is PlebTalk forum in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is PlebTalk forum in Bitcoin Quest?",
+      "What is PlebTalk forum in Bitcoin Quest, briefly?",
+      "Help me understand: what is PlebTalk forum in Bitcoin Quest?"
+    ],
+    "answer": "PlebTalk is the forum. Articles are the long-form tab inside it. Nacho posts a new discussion in Global Chat. Open PlebTalk to read or start a discussion. A new top-level post can show up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "forum",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-forum-how",
+      "app-marketplace-what",
+      "app-marketplace-how"
+    ],
+    "sources": "features.registry.js entry forum."
+  },
+  {
+    "id": "app-forum-how",
+    "category": "app",
+    "question": "How do I use PlebTalk forum in the app?",
+    "alts": [
+      "In simple words, how do I use PlebTalk forum in the app?",
+      "How do I use PlebTalk forum in the app, briefly?",
+      "Help me understand: how do I use PlebTalk forum in the app?"
+    ],
+    "answer": "PlebTalk is the forum. Articles are the long-form tab inside it. Nacho posts a new discussion in Global Chat. Open PlebTalk to read or start a discussion. A new top-level post can show up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "forum",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-marketplace-what",
+      "app-marketplace-how",
+      "app-irl-what"
+    ],
+    "sources": "features.registry.js entry forum."
+  },
+  {
+    "id": "app-marketplace-what",
+    "category": "app",
+    "question": "What is LightningMart marketplace in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is LightningMart marketplace in Bitcoin Quest?",
+      "What is LightningMart marketplace in Bitcoin Quest, briefly?",
+      "Help me understand: what is LightningMart marketplace in Bitcoin Quest?"
+    ],
+    "answer": "LightningMart is the marketplace for buying and selling with sats. Nacho posts a new listing in Global Chat. Open the marketplace to browse listings or post one. A new public listing can show up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "marketplace",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-marketplace-how",
+      "app-irl-what",
+      "app-irl-how"
+    ],
+    "sources": "features.registry.js entry marketplace."
+  },
+  {
+    "id": "app-marketplace-how",
+    "category": "app",
+    "question": "How do I use LightningMart marketplace in the app?",
+    "alts": [
+      "In simple words, how do I use LightningMart marketplace in the app?",
+      "How do I use LightningMart marketplace in the app, briefly?",
+      "Help me understand: how do I use LightningMart marketplace in the app?"
+    ],
+    "answer": "LightningMart is the marketplace for buying and selling with sats. Nacho posts a new listing in Global Chat. Open the marketplace to browse listings or post one. A new public listing can show up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "marketplace",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-irl-what",
+      "app-irl-how",
+      "app-meetup-builder-what"
+    ],
+    "sources": "features.registry.js entry marketplace."
+  },
+  {
+    "id": "app-irl-what",
+    "category": "app",
+    "question": "What is IRL Sync meetups in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is IRL Sync meetups in Bitcoin Quest?",
+      "What is IRL Sync meetups in Bitcoin Quest, briefly?",
+      "Help me understand: what is IRL Sync meetups in Bitcoin Quest?"
+    ],
+    "answer": "IRL Sync lists Bitcoin meetups, and Meetup-in-a-Box has ready-made agendas. Open IRL Sync to find a meetup or host one. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "irl",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-irl-how",
+      "app-meetup-builder-what",
+      "app-meetup-builder-how"
+    ],
+    "sources": "features.registry.js entry irl."
+  },
+  {
+    "id": "app-irl-how",
+    "category": "app",
+    "question": "How do I use IRL Sync meetups in the app?",
+    "alts": [
+      "In simple words, how do I use IRL Sync meetups in the app?",
+      "How do I use IRL Sync meetups in the app, briefly?",
+      "Help me understand: how do I use IRL Sync meetups in the app?"
+    ],
+    "answer": "IRL Sync lists Bitcoin meetups, and Meetup-in-a-Box has ready-made agendas. Open IRL Sync to find a meetup or host one. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "irl",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-meetup-builder-what",
+      "app-meetup-builder-how",
+      "app-sats-vs-bits-what"
+    ],
+    "sources": "features.registry.js entry irl."
+  },
+  {
+    "id": "app-meetup-builder-what",
+    "category": "app",
+    "question": "What is Meetup Builder in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Meetup Builder in Bitcoin Quest?",
+      "What is Meetup Builder in Bitcoin Quest, briefly?",
+      "Help me understand: what is Meetup Builder in Bitcoin Quest?"
+    ],
+    "answer": "Meetup Builder helps you plan, share, and discover Bitcoin meetups. Open Meetup Builder, add the details, and share the plan. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "meetup-builder",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-meetup-builder-how",
+      "app-sats-vs-bits-what",
+      "app-sats-vs-bits-how"
+    ],
+    "sources": "features.registry.js entry meetup-builder."
+  },
+  {
+    "id": "app-meetup-builder-how",
+    "category": "app",
+    "question": "How do I use Meetup Builder in the app?",
+    "alts": [
+      "In simple words, how do I use Meetup Builder in the app?",
+      "How do I use Meetup Builder in the app, briefly?",
+      "Help me understand: how do I use Meetup Builder in the app?"
+    ],
+    "answer": "Meetup Builder helps you plan, share, and discover Bitcoin meetups. Open Meetup Builder, add the details, and share the plan. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "meetup-builder",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-sats-vs-bits-what",
+      "app-sats-vs-bits-how",
+      "app-tips-what"
+    ],
+    "sources": "features.registry.js entry meetup-builder."
+  },
+  {
+    "id": "app-sats-vs-bits-what",
+    "category": "app",
+    "question": "What is Sats vs Bits in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Sats vs Bits in Bitcoin Quest?",
+      "What is Sats vs Bits in Bitcoin Quest, briefly?",
+      "Help me understand: what is Sats vs Bits in Bitcoin Quest?"
+    ],
+    "answer": "Sats vs Bits is the live vote on what to call the small unit. Open the chat hub and vote sats or bits. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "sats-vs-bits",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-sats-vs-bits-how",
+      "app-tips-what",
+      "app-tips-how"
+    ],
+    "sources": "features.registry.js entry sats-vs-bits."
+  },
+  {
+    "id": "app-sats-vs-bits-how",
+    "category": "app",
+    "question": "How do I use Sats vs Bits in the app?",
+    "alts": [
+      "In simple words, how do I use Sats vs Bits in the app?",
+      "How do I use Sats vs Bits in the app, briefly?",
+      "Help me understand: how do I use Sats vs Bits in the app?"
+    ],
+    "answer": "Sats vs Bits is the live vote on what to call the small unit. Open the chat hub and vote sats or bits. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "sats-vs-bits",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tips-what",
+      "app-tips-how",
+      "app-lightning-wallet-what"
+    ],
+    "sources": "features.registry.js entry sats-vs-bits."
+  },
+  {
+    "id": "app-tips-what",
+    "category": "app",
+    "question": "What is Lightning tips in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Lightning tips in Bitcoin Quest?",
+      "What is Lightning tips in Bitcoin Quest, briefly?",
+      "Help me understand: what is Lightning tips in Bitcoin Quest?"
+    ],
+    "answer": "You can tip another user with Lightning sats if they have an address. Open a profile and use Tip. This is a tip to a person, not a donation to the site. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tips",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tips-how",
+      "app-lightning-wallet-what",
+      "app-lightning-wallet-how"
+    ],
+    "sources": "features.registry.js entry tips."
+  },
+  {
+    "id": "app-tips-how",
+    "category": "app",
+    "question": "How do I use Lightning tips in the app?",
+    "alts": [
+      "In simple words, how do I use Lightning tips in the app?",
+      "How do I use Lightning tips in the app, briefly?",
+      "Help me understand: how do I use Lightning tips in the app?"
+    ],
+    "answer": "You can tip another user with Lightning sats if they have an address. Open a profile and use Tip. This is a tip to a person, not a donation to the site. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tips",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-lightning-wallet-what",
+      "app-lightning-wallet-how",
+      "app-tctv-watch-what"
+    ],
+    "sources": "features.registry.js entry tips."
+  },
+  {
+    "id": "app-lightning-wallet-what",
+    "category": "app",
+    "question": "What is Lightning wallet page in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Lightning wallet page in Bitcoin Quest?",
+      "What is Lightning wallet page in Bitcoin Quest, briefly?",
+      "Help me understand: what is Lightning wallet page in Bitcoin Quest?"
+    ],
+    "answer": "The Lightning wallet page is where you connect a wallet for tips and payments. Open the Lightning page and connect with a Lightning address, WebLN, or NWC. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "lightning-wallet",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-lightning-wallet-how",
+      "app-tctv-watch-what",
+      "app-tctv-watch-how"
+    ],
+    "sources": "features.registry.js entry lightning-wallet."
+  },
+  {
+    "id": "app-lightning-wallet-how",
+    "category": "app",
+    "question": "How do I use Lightning wallet page in the app?",
+    "alts": [
+      "In simple words, how do I use Lightning wallet page in the app?",
+      "How do I use Lightning wallet page in the app, briefly?",
+      "Help me understand: how do I use Lightning wallet page in the app?"
+    ],
+    "answer": "The Lightning wallet page is where you connect a wallet for tips and payments. Open the Lightning page and connect with a Lightning address, WebLN, or NWC. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "lightning-wallet",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tctv-watch-what",
+      "app-tctv-watch-how",
+      "app-tv-what"
+    ],
+    "sources": "features.registry.js entry lightning-wallet."
+  },
+  {
+    "id": "app-tctv-watch-what",
+    "category": "app",
+    "question": "What is Watch 10 minutes of Timechain TV in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Watch 10 minutes of Timechain TV in Bitcoin Quest?",
+      "What is Watch 10 minutes of Timechain TV in Bitcoin Quest, briefly?",
+      "Help me understand: what is Watch 10 minutes of Timechain TV in Bitcoin Quest?"
+    ],
+    "answer": "Watch 10 minutes of Timechain TV in a day to earn 100 XP and 1 orange ticket. Tap Watch TV next to the daily spin. It opens Timechain TV and starts playback. The button shows minutes watched, then Done. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tctv-watch",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tctv-watch-how",
+      "app-tv-what",
+      "app-tv-how"
+    ],
+    "sources": "features.registry.js entry tctv-watch."
+  },
+  {
+    "id": "app-tctv-watch-how",
+    "category": "app",
+    "question": "How do I use Watch 10 minutes of Timechain TV in the app?",
+    "alts": [
+      "In simple words, how do I use Watch 10 minutes of Timechain TV in the app?",
+      "How do I use Watch 10 minutes of Timechain TV in the app, briefly?",
+      "Help me understand: how do I use Watch 10 minutes of Timechain TV in the app?"
+    ],
+    "answer": "Watch 10 minutes of Timechain TV in a day to earn 100 XP and 1 orange ticket. Tap Watch TV next to the daily spin. It opens Timechain TV and starts playback. The button shows minutes watched, then Done. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tctv-watch",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tv-what",
+      "app-tv-how",
+      "app-beats-what"
+    ],
+    "sources": "features.registry.js entry tctv-watch."
+  },
+  {
+    "id": "app-tv-what",
+    "category": "app",
+    "question": "What is Timechain TV in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Timechain TV in Bitcoin Quest?",
+      "What is Timechain TV in Bitcoin Quest, briefly?",
+      "Help me understand: what is Timechain TV in Bitcoin Quest?"
+    ],
+    "answer": "Timechain TV plays Bitcoin videos around the clock. Open Timechain TV and pick a channel. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tv",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-tv-how",
+      "app-beats-what",
+      "app-beats-how"
+    ],
+    "sources": "features.registry.js entry tv."
+  },
+  {
+    "id": "app-tv-how",
+    "category": "app",
+    "question": "How do I use Timechain TV in the app?",
+    "alts": [
+      "In simple words, how do I use Timechain TV in the app?",
+      "How do I use Timechain TV in the app, briefly?",
+      "Help me understand: how do I use Timechain TV in the app?"
+    ],
+    "answer": "Timechain TV plays Bitcoin videos around the clock. Open Timechain TV and pick a channel. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "tv",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-beats-what",
+      "app-beats-how",
+      "app-hot-topics-what"
+    ],
+    "sources": "features.registry.js entry tv."
+  },
+  {
+    "id": "app-beats-what",
+    "category": "app",
+    "question": "What is Bitcoin Beats in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Bitcoin Beats in Bitcoin Quest?",
+      "What is Bitcoin Beats in Bitcoin Quest, briefly?",
+      "Help me understand: what is Bitcoin Beats in Bitcoin Quest?"
+    ],
+    "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "beats",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-beats-how",
+      "app-hot-topics-what",
+      "app-hot-topics-how"
+    ],
+    "sources": "features.registry.js entry beats."
+  },
+  {
+    "id": "app-beats-how",
+    "category": "app",
+    "question": "How do I use Bitcoin Beats in the app?",
+    "alts": [
+      "In simple words, how do I use Bitcoin Beats in the app?",
+      "How do I use Bitcoin Beats in the app, briefly?",
+      "Help me understand: how do I use Bitcoin Beats in the app?"
+    ],
+    "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "beats",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-hot-topics-what",
+      "app-hot-topics-how",
+      "app-dashboard-what"
+    ],
+    "sources": "features.registry.js entry beats."
+  },
+  {
+    "id": "app-hot-topics-what",
+    "category": "app",
+    "question": "What is Hot Topics in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Hot Topics in Bitcoin Quest?",
+      "What is Hot Topics in Bitcoin Quest, briefly?",
+      "Help me understand: what is Hot Topics in Bitcoin Quest?"
+    ],
+    "answer": "Hot Topics is the weekly list in the sidebar. Go home and scroll the sidebar to the Hot Topics section. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "hot-topics",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-hot-topics-how",
+      "app-dashboard-what",
+      "app-dashboard-how"
+    ],
+    "sources": "features.registry.js entry hot-topics."
+  },
+  {
+    "id": "app-hot-topics-how",
+    "category": "app",
+    "question": "How do I use Hot Topics in the app?",
+    "alts": [
+      "In simple words, how do I use Hot Topics in the app?",
+      "How do I use Hot Topics in the app, briefly?",
+      "Help me understand: how do I use Hot Topics in the app?"
+    ],
+    "answer": "Hot Topics is the weekly list in the sidebar. Go home and scroll the sidebar to the Hot Topics section. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "hot-topics",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-dashboard-what",
+      "app-dashboard-how",
+      "app-notifications-what"
+    ],
+    "sources": "features.registry.js entry hot-topics."
+  },
+  {
+    "id": "app-dashboard-what",
+    "category": "app",
+    "question": "What is Bitcoin dashboard in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Bitcoin dashboard in Bitcoin Quest?",
+      "What is Bitcoin dashboard in Bitcoin Quest, briefly?",
+      "Help me understand: what is Bitcoin dashboard in Bitcoin Quest?"
+    ],
+    "answer": "The dashboard shows mempool, fees, hashrate, and other network stats. Open the Bitcoin dashboard from the menu or the network link. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "dashboard",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-dashboard-how",
+      "app-notifications-what",
+      "app-notifications-how"
+    ],
+    "sources": "features.registry.js entry dashboard."
+  },
+  {
+    "id": "app-dashboard-how",
+    "category": "app",
+    "question": "How do I use Bitcoin dashboard in the app?",
+    "alts": [
+      "In simple words, how do I use Bitcoin dashboard in the app?",
+      "How do I use Bitcoin dashboard in the app, briefly?",
+      "Help me understand: how do I use Bitcoin dashboard in the app?"
+    ],
+    "answer": "The dashboard shows mempool, fees, hashrate, and other network stats. Open the Bitcoin dashboard from the menu or the network link. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "dashboard",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-notifications-what",
+      "app-notifications-how",
+      "app-settings-what"
+    ],
+    "sources": "features.registry.js entry dashboard."
+  },
+  {
+    "id": "app-notifications-what",
+    "category": "app",
+    "question": "What is Notifications in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Notifications in Bitcoin Quest?",
+      "What is Notifications in Bitcoin Quest, briefly?",
+      "Help me understand: what is Notifications in Bitcoin Quest?"
+    ],
+    "answer": "The bell opens your notifications. Tap the bell icon to open the notifications panel. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "notifications",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-notifications-how",
+      "app-settings-what",
+      "app-settings-how"
+    ],
+    "sources": "features.registry.js entry notifications."
+  },
+  {
+    "id": "app-notifications-how",
+    "category": "app",
+    "question": "How do I use Notifications in the app?",
+    "alts": [
+      "In simple words, how do I use Notifications in the app?",
+      "How do I use Notifications in the app, briefly?",
+      "Help me understand: how do I use Notifications in the app?"
+    ],
+    "answer": "The bell opens your notifications. Tap the bell icon to open the notifications panel. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "notifications",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-settings-what",
+      "app-settings-how",
+      "app-faction-what"
+    ],
+    "sources": "features.registry.js entry notifications."
+  },
+  {
+    "id": "app-settings-what",
+    "category": "app",
+    "question": "What is Settings in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Settings in Bitcoin Quest?",
+      "What is Settings in Bitcoin Quest, briefly?",
+      "Help me understand: what is Settings in Bitcoin Quest?"
+    ],
+    "answer": "Settings has Account, Scholar, Sats, Prefs, Security, and Data. Open Settings and pick a page along the top. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "settings",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-settings-how",
+      "app-faction-what",
+      "app-faction-how"
+    ],
+    "sources": "features.registry.js entry settings."
+  },
+  {
+    "id": "app-settings-how",
+    "category": "app",
+    "question": "How do I use Settings in the app?",
+    "alts": [
+      "In simple words, how do I use Settings in the app?",
+      "How do I use Settings in the app, briefly?",
+      "Help me understand: how do I use Settings in the app?"
+    ],
+    "answer": "Settings has Account, Scholar, Sats, Prefs, Security, and Data. Open Settings and pick a page along the top. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "settings",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-faction-what",
+      "app-faction-how",
+      "app-security-what"
+    ],
+    "sources": "features.registry.js entry settings."
+  },
+  {
+    "id": "app-faction-what",
+    "category": "app",
+    "question": "What is Faction in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Faction in Bitcoin Quest?",
+      "What is Faction in Bitcoin Quest, briefly?",
+      "Help me understand: what is Faction in Bitcoin Quest?"
+    ],
+    "answer": "Your faction is Honey Badger or Cyber Hornet. It shows on the leaderboard and on charity. Open Settings → Account and pick a faction. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faction",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-faction-how",
+      "app-security-what",
+      "app-security-how"
+    ],
+    "sources": "features.registry.js entry faction."
+  },
+  {
+    "id": "app-faction-how",
+    "category": "app",
+    "question": "How do I use Faction in the app?",
+    "alts": [
+      "In simple words, how do I use Faction in the app?",
+      "How do I use Faction in the app, briefly?",
+      "Help me understand: how do I use Faction in the app?"
+    ],
+    "answer": "Your faction is Honey Badger or Cyber Hornet. It shows on the leaderboard and on charity. Open Settings → Account and pick a faction. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faction",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-security-what",
+      "app-security-how",
+      "app-prefs-what"
+    ],
+    "sources": "features.registry.js entry faction."
+  },
+  {
+    "id": "app-security-what",
+    "category": "app",
+    "question": "What is Security and 2FA in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Security and 2FA in Bitcoin Quest?",
+      "What is Security and 2FA in Bitcoin Quest, briefly?",
+      "Help me understand: what is Security and 2FA in Bitcoin Quest?"
+    ],
+    "answer": "The Security page has 2FA, your password, linked accounts, blocking, and account deletion. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "security",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-security-how",
+      "app-prefs-what",
+      "app-prefs-how"
+    ],
+    "sources": "features.registry.js entry security."
+  },
+  {
+    "id": "app-security-how",
+    "category": "app",
+    "question": "How do I use Security and 2FA in the app?",
+    "alts": [
+      "In simple words, how do I use Security and 2FA in the app?",
+      "How do I use Security and 2FA in the app, briefly?",
+      "Help me understand: how do I use Security and 2FA in the app?"
+    ],
+    "answer": "The Security page has 2FA, your password, linked accounts, blocking, and account deletion. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "security",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-prefs-what",
+      "app-prefs-how",
+      "app-export-what"
+    ],
+    "sources": "features.registry.js entry security."
+  },
+  {
+    "id": "app-prefs-what",
+    "category": "app",
+    "question": "What is Preferences in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Preferences in Bitcoin Quest?",
+      "What is Preferences in Bitcoin Quest, briefly?",
+      "Help me understand: what is Preferences in Bitcoin Quest?"
+    ],
+    "answer": "Preferences cover theme, dark mode, OLED, font size, language, the price ticker, Nacho, and experience mode. Open Settings → Prefs and switch the theme to dark mode or light mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "prefs",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-prefs-how",
+      "app-export-what",
+      "app-export-how"
+    ],
+    "sources": "features.registry.js entry prefs."
+  },
+  {
+    "id": "app-prefs-how",
+    "category": "app",
+    "question": "How do I use Preferences in the app?",
+    "alts": [
+      "In simple words, how do I use Preferences in the app?",
+      "How do I use Preferences in the app, briefly?",
+      "Help me understand: how do I use Preferences in the app?"
+    ],
+    "answer": "Preferences cover theme, dark mode, OLED, font size, language, the price ticker, Nacho, and experience mode. Open Settings → Prefs and switch the theme to dark mode or light mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "prefs",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-export-what",
+      "app-export-how",
+      "app-signin-what"
+    ],
+    "sources": "features.registry.js entry prefs."
+  },
+  {
+    "id": "app-export-what",
+    "category": "app",
+    "question": "What is Export my data in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Export my data in Bitcoin Quest?",
+      "What is Export my data in Bitcoin Quest, briefly?",
+      "Help me understand: what is Export my data in Bitcoin Quest?"
+    ],
+    "answer": "Export downloads a copy of your data. Open Settings → Data and use Export. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "export",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-export-how",
+      "app-signin-what",
+      "app-signin-how"
+    ],
+    "sources": "features.registry.js entry export."
+  },
+  {
+    "id": "app-export-how",
+    "category": "app",
+    "question": "How do I use Export my data in the app?",
+    "alts": [
+      "In simple words, how do I use Export my data in the app?",
+      "How do I use Export my data in the app, briefly?",
+      "Help me understand: how do I use Export my data in the app?"
+    ],
+    "answer": "Export downloads a copy of your data. Open Settings → Data and use Export. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "export",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-signin-what",
+      "app-signin-how",
+      "app-donate-what"
+    ],
+    "sources": "features.registry.js entry export."
+  },
+  {
+    "id": "app-signin-what",
+    "category": "app",
+    "question": "What is Sign in in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Sign in in Bitcoin Quest?",
+      "What is Sign in in Bitcoin Quest, briefly?",
+      "Help me understand: what is Sign in in Bitcoin Quest?"
+    ],
+    "answer": "Sign in with email, a social account, or Nostr so progress syncs. Open the sign-in window and pick email, Google, or Nostr. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "signin",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-signin-how",
+      "app-donate-what",
+      "app-donate-how"
+    ],
+    "sources": "features.registry.js entry signin."
+  },
+  {
+    "id": "app-signin-how",
+    "category": "app",
+    "question": "How do I use Sign in in the app?",
+    "alts": [
+      "In simple words, how do I use Sign in in the app?",
+      "How do I use Sign in in the app, briefly?",
+      "Help me understand: how do I use Sign in in the app?"
+    ],
+    "answer": "Sign in with email, a social account, or Nostr so progress syncs. Open the sign-in window and pick email, Google, or Nostr. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "signin",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-donate-what",
+      "app-donate-how",
+      "app-onboarding-intro-what"
+    ],
+    "sources": "features.registry.js entry signin."
+  },
+  {
+    "id": "app-donate-what",
+    "category": "app",
+    "question": "What is Donate to the archive in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Donate to the archive in Bitcoin Quest?",
+      "What is Donate to the archive in Bitcoin Quest, briefly?",
+      "Help me understand: what is Donate to the archive in Bitcoin Quest?"
+    ],
+    "answer": "Donate sends sats to the archive itself. Open the donate window and pick a method. Donating XP to charity is a different screen in Quest Hub. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "donate",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-donate-how",
+      "app-onboarding-intro-what",
+      "app-onboarding-intro-how"
+    ],
+    "sources": "features.registry.js entry donate."
+  },
+  {
+    "id": "app-donate-how",
+    "category": "app",
+    "question": "How do I use Donate to the archive in the app?",
+    "alts": [
+      "In simple words, how do I use Donate to the archive in the app?",
+      "How do I use Donate to the archive in the app, briefly?",
+      "Help me understand: how do I use Donate to the archive in the app?"
+    ],
+    "answer": "Donate sends sats to the archive itself. Open the donate window and pick a method. Donating XP to charity is a different screen in Quest Hub. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "donate",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-onboarding-intro-what",
+      "app-onboarding-intro-how",
+      "app-faq-what"
+    ],
+    "sources": "features.registry.js entry donate."
+  },
+  {
+    "id": "app-onboarding-intro-what",
+    "category": "app",
+    "question": "What is Welcome tour in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Welcome tour in Bitcoin Quest?",
+      "What is Welcome tour in Bitcoin Quest, briefly?",
+      "Help me understand: what is Welcome tour in Bitcoin Quest?"
+    ],
+    "answer": "The welcome tour is a short summary of what you can do here. It shows once. Replay it from Settings or Help. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "onboarding-intro",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-onboarding-intro-how",
+      "app-faq-what",
+      "app-faq-how"
+    ],
+    "sources": "features.registry.js entry onboarding-intro."
+  },
+  {
+    "id": "app-onboarding-intro-how",
+    "category": "app",
+    "question": "How do I use Welcome tour in the app?",
+    "alts": [
+      "In simple words, how do I use Welcome tour in the app?",
+      "How do I use Welcome tour in the app, briefly?",
+      "Help me understand: how do I use Welcome tour in the app?"
+    ],
+    "answer": "The welcome tour is a short summary of what you can do here. It shows once. Replay it from Settings or Help. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "onboarding-intro",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-faq-what",
+      "app-faq-how",
+      "app-shortcuts-what"
+    ],
+    "sources": "features.registry.js entry onboarding-intro."
+  },
+  {
+    "id": "app-faq-what",
+    "category": "app",
+    "question": "What is FAQ and guide in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is FAQ and guide in Bitcoin Quest?",
+      "What is FAQ and guide in Bitcoin Quest, briefly?",
+      "Help me understand: what is FAQ and guide in Bitcoin Quest?"
+    ],
+    "answer": "The FAQ and the guide answer common questions about the app. Open the FAQ for short answers, or the guide for the walkthrough. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-faq-how",
+      "app-shortcuts-what",
+      "app-shortcuts-how"
+    ],
+    "sources": "features.registry.js entry faq."
+  },
+  {
+    "id": "app-faq-how",
+    "category": "app",
+    "question": "How do I use FAQ and guide in the app?",
+    "alts": [
+      "In simple words, how do I use FAQ and guide in the app?",
+      "How do I use FAQ and guide in the app, briefly?",
+      "Help me understand: how do I use FAQ and guide in the app?"
+    ],
+    "answer": "The FAQ and the guide answer common questions about the app. Open the FAQ for short answers, or the guide for the walkthrough. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-shortcuts-what",
+      "app-shortcuts-how",
+      "app-exploration-map-what"
+    ],
+    "sources": "features.registry.js entry faq."
+  },
+  {
+    "id": "app-shortcuts-what",
+    "category": "app",
+    "question": "What is Keyboard shortcuts in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Keyboard shortcuts in Bitcoin Quest?",
+      "What is Keyboard shortcuts in Bitcoin Quest, briefly?",
+      "Help me understand: what is Keyboard shortcuts in Bitcoin Quest?"
+    ],
+    "answer": "Keyboard shortcuts: press ? for the full list. H is home, N is Nacho Mode. Open the shortcut help, or press ? on your keyboard. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "shortcuts",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-shortcuts-how",
+      "app-exploration-map-what",
+      "app-exploration-map-how"
+    ],
+    "sources": "features.registry.js entry shortcuts."
+  },
+  {
+    "id": "app-shortcuts-how",
+    "category": "app",
+    "question": "How do I use Keyboard shortcuts in the app?",
+    "alts": [
+      "In simple words, how do I use Keyboard shortcuts in the app?",
+      "How do I use Keyboard shortcuts in the app, briefly?",
+      "Help me understand: how do I use Keyboard shortcuts in the app?"
+    ],
+    "answer": "Keyboard shortcuts: press ? for the full list. H is home, N is Nacho Mode. Open the shortcut help, or press ? on your keyboard. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "shortcuts",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-exploration-map-what",
+      "app-exploration-map-how",
+      "app-online-status-what"
+    ],
+    "sources": "features.registry.js entry shortcuts."
+  },
+  {
+    "id": "app-exploration-map-what",
+    "category": "app",
+    "question": "What is Exploration Map in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Exploration Map in Bitcoin Quest?",
+      "What is Exploration Map in Bitcoin Quest, briefly?",
+      "Help me understand: what is Exploration Map in Bitcoin Quest?"
+    ],
+    "answer": "The Exploration Map shows which topics you have visited. Go home and open the Exploration Map to see your coverage. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "exploration-map",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-exploration-map-how",
+      "app-online-status-what",
+      "app-online-status-how"
+    ],
+    "sources": "features.registry.js entry exploration-map."
+  },
+  {
+    "id": "app-exploration-map-how",
+    "category": "app",
+    "question": "How do I use Exploration Map in the app?",
+    "alts": [
+      "In simple words, how do I use Exploration Map in the app?",
+      "How do I use Exploration Map in the app, briefly?",
+      "Help me understand: how do I use Exploration Map in the app?"
+    ],
+    "answer": "The Exploration Map shows which topics you have visited. Go home and open the Exploration Map to see your coverage. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "exploration-map",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-online-status-what",
+      "app-online-status-how",
+      "app-profile-picture-what"
+    ],
+    "sources": "features.registry.js entry exploration-map."
+  },
+  {
+    "id": "app-online-status-what",
+    "category": "app",
+    "question": "What is Online Status in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Online Status in Bitcoin Quest?",
+      "What is Online Status in Bitcoin Quest, briefly?",
+      "Help me understand: what is Online Status in Bitcoin Quest?"
+    ],
+    "answer": "Online Status lets you show or hide whether you are online to other people. Open Settings → Prefs and change your online status. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "online-status",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-online-status-how",
+      "app-profile-picture-what",
+      "app-profile-picture-how"
+    ],
+    "sources": "features.registry.js entry online-status."
+  },
+  {
+    "id": "app-online-status-how",
+    "category": "app",
+    "question": "How do I use Online Status in the app?",
+    "alts": [
+      "In simple words, how do I use Online Status in the app?",
+      "How do I use Online Status in the app, briefly?",
+      "Help me understand: how do I use Online Status in the app?"
+    ],
+    "answer": "Online Status lets you show or hide whether you are online to other people. Open Settings → Prefs and change your online status. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "online-status",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-profile-picture-what",
+      "app-profile-picture-how",
+      "app-audio-what"
+    ],
+    "sources": "features.registry.js entry online-status."
+  },
+  {
+    "id": "app-profile-picture-what",
+    "category": "app",
+    "question": "What is Profile Picture in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Profile Picture in Bitcoin Quest?",
+      "What is Profile Picture in Bitcoin Quest, briefly?",
+      "Help me understand: what is Profile Picture in Bitcoin Quest?"
+    ],
+    "answer": "Your profile picture is the photo other people see on your account. Open Settings → Account and upload or change your profile picture. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "profile-picture",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-profile-picture-how",
+      "app-audio-what",
+      "app-audio-how"
+    ],
+    "sources": "features.registry.js entry profile-picture."
+  },
+  {
+    "id": "app-profile-picture-how",
+    "category": "app",
+    "question": "How do I use Profile Picture in the app?",
+    "alts": [
+      "In simple words, how do I use Profile Picture in the app?",
+      "How do I use Profile Picture in the app, briefly?",
+      "Help me understand: how do I use Profile Picture in the app?"
+    ],
+    "answer": "Your profile picture is the photo other people see on your account. Open Settings → Account and upload or change your profile picture. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "profile-picture",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-audio-what",
+      "app-audio-how",
+      "app-favor-exact"
+    ],
+    "sources": "features.registry.js entry profile-picture."
+  },
+  {
+    "id": "app-audio-what",
+    "category": "app",
+    "question": "What is Sound effects in Bitcoin Quest?",
+    "alts": [
+      "In simple words, what is Sound effects in Bitcoin Quest?",
+      "What is Sound effects in Bitcoin Quest, briefly?",
+      "Help me understand: what is Sound effects in Bitcoin Quest?"
+    ],
+    "answer": "Sound effects can be turned on or off. Use the sound toggle or press M. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-audio-how",
+      "app-favor-exact",
+      "app-xp-earn"
+    ],
+    "sources": "features.registry.js entry audio."
+  },
+  {
+    "id": "app-audio-how",
+    "category": "app",
+    "question": "How do I use Sound effects in the app?",
+    "alts": [
+      "In simple words, how do I use Sound effects in the app?",
+      "How do I use Sound effects in the app, briefly?",
+      "Help me understand: how do I use Sound effects in the app?"
+    ],
+    "answer": "Sound effects can be turned on or off. Use the sound toggle or press M. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-favor-exact",
+      "app-xp-earn",
+      "app-raffle-here"
+    ],
+    "sources": "features.registry.js entry audio."
+  }
+]

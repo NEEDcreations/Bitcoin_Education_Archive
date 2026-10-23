@@ -1,0 +1,746 @@
+[
+  {
+    "id": "privacy-coinjoin",
+    "category": "privacy",
+    "question": "What is a coinjoin?",
+    "alts": [
+      "In simple words, what is a coinjoin?",
+      "What is a coinjoin, briefly?",
+      "Help me understand: what is a coinjoin?"
+    ],
+    "answer": "A coinjoin is a transaction built by several people so inputs are harder to match to outputs. Equal output amounts are a common pattern. It is collaboration, not a custodian mixing coins in secret.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "taproot"
+    ],
+    "followUps": [
+      "privacy-payjoin",
+      "privacy-silent",
+      "privacy-reuse"
+    ],
+    "sources": "Coinjoin."
+  },
+  {
+    "id": "privacy-payjoin",
+    "category": "privacy",
+    "question": "What is payjoin?",
+    "alts": [
+      "In simple words, what is payjoin?",
+      "What is payjoin, briefly?",
+      "Help me understand: what is payjoin?"
+    ],
+    "answer": "Payjoin, described in BIP78, lets the receiver add an input to a payment. That breaks the guess that every input belongs to the sender. Both wallets have to support it.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "cryptography"
+    ],
+    "followUps": [
+      "privacy-silent",
+      "privacy-reuse",
+      "privacy-analysis"
+    ],
+    "sources": "BIP78."
+  },
+  {
+    "id": "privacy-silent",
+    "category": "privacy",
+    "question": "What are silent payments?",
+    "alts": [
+      "In simple words, what are silent payments?",
+      "What are silent payments, briefly?",
+      "Help me understand: what are silent payments?"
+    ],
+    "answer": "BIP352 silent payments let a sender create a fresh address from a key the receiver published, without asking first. The receiver scans for those payments. Wallet support was still spreading as of 2026.",
+    "topics": [
+      "privacy-nonkyc",
+      "cryptography",
+      "taproot"
+    ],
+    "followUps": [
+      "privacy-reuse",
+      "privacy-analysis",
+      "privacy-common-input"
+    ],
+    "sources": "BIP352. Support was incomplete as of 2026."
+  },
+  {
+    "id": "privacy-reuse",
+    "category": "privacy",
+    "question": "Why is address reuse harmful?",
+    "alts": [
+      "In simple words, why is address reuse harmful?",
+      "Why is address reuse harmful, briefly?",
+      "Help me understand: why is address reuse harmful?"
+    ],
+    "answer": "Paying the same address twice ties those payments to one continued identity. Analysts and the public can see the link. A new address per payment is the basic habit.",
+    "topics": [
+      "privacy-nonkyc",
+      "utxos",
+      "coin_mixing_coinjoin_coin_control_utxo"
+    ],
+    "followUps": [
+      "privacy-analysis",
+      "privacy-common-input",
+      "privacy-change-guess"
+    ],
+    "sources": "Address reuse."
+  },
+  {
+    "id": "privacy-analysis",
+    "category": "privacy",
+    "question": "What is chain analysis?",
+    "alts": [
+      "In simple words, what is chain analysis?",
+      "What is chain analysis, briefly?",
+      "Help me understand: what is chain analysis?"
+    ],
+    "answer": "Chain analysis uses public transactions plus outside clues to guess who owns which output. The ledger is the raw material. It is probabilistic, and it is a real industry.",
+    "topics": [
+      "privacy-nonkyc",
+      "risks__threats__attack_vectors__weaknes",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "privacy-common-input",
+      "privacy-change-guess",
+      "privacy-lightning-diff"
+    ],
+    "sources": "Chain analysis."
+  },
+  {
+    "id": "privacy-common-input",
+    "category": "privacy",
+    "question": "What is the common-input heuristic?",
+    "alts": [
+      "In simple words, what is the common-input heuristic?",
+      "What is the common-input heuristic, briefly?",
+      "Help me understand: what is the common-input heuristic?"
+    ],
+    "answer": "If several inputs are in one transaction, analysts often guess one person owned all of them. Coinjoins exist partly to break that guess. The heuristic is not a law, and it is widely used.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "utxos"
+    ],
+    "followUps": [
+      "privacy-change-guess",
+      "privacy-lightning-diff",
+      "privacy-amounts-public"
+    ],
+    "sources": "Common-input ownership heuristic."
+  },
+  {
+    "id": "privacy-change-guess",
+    "category": "privacy",
+    "question": "How do analysts guess change?",
+    "alts": [
+      "In simple words, how do analysts guess change?",
+      "How do analysts guess change, briefly?",
+      "Help me understand: how do analysts guess change?"
+    ],
+    "answer": "They look for round payment amounts, address types, and outputs that return to a new address of the sender. They are often right and sometimes wrong. Wallet behavior shapes how easy the guess is.",
+    "topics": [
+      "privacy-nonkyc",
+      "utxos",
+      "coin_mixing_coinjoin_coin_control_utxo"
+    ],
+    "followUps": [
+      "privacy-lightning-diff",
+      "privacy-amounts-public",
+      "privacy-kyc-link"
+    ],
+    "sources": "Change detection."
+  },
+  {
+    "id": "privacy-lightning-diff",
+    "category": "privacy",
+    "question": "Is Lightning more private than on-chain bitcoin?",
+    "alts": [
+      "In simple words, is Lightning more private than on-chain bitcoin?",
+      "Is Lightning more private than on-chain bitcoin, briefly?",
+      "Help me understand: is Lightning more private than on-chain bitcoin?"
+    ],
+    "answer": "On-chain amounts are public forever. A Lightning hop hides the full path from most nodes, and the recipient still sees the payment. It is a different leak, not invisibility.",
+    "topics": [
+      "layer-2-lightning",
+      "privacy-nonkyc",
+      "lightning_node"
+    ],
+    "followUps": [
+      "privacy-amounts-public",
+      "privacy-kyc-link",
+      "privacy-postmix-spend"
+    ],
+    "sources": "Lightning privacy."
+  },
+  {
+    "id": "privacy-amounts-public",
+    "category": "privacy",
+    "question": "Can you hide a bitcoin amount on chain?",
+    "alts": [
+      "In simple words, can you hide a bitcoin amount on chain?",
+      "Can you hide a bitcoin amount on chain, briefly?",
+      "Help me understand: can you hide a bitcoin amount on chain?"
+    ],
+    "answer": "Ordinary bitcoin amounts are visible. Coinjoin and payjoin change the interpretation, and they do not encrypt the number. Confidential amounts are a different design and not how mainnet bitcoin works.",
+    "topics": [
+      "privacy-nonkyc",
+      "blockchain-timechain",
+      "cryptography"
+    ],
+    "followUps": [
+      "privacy-kyc-link",
+      "privacy-postmix-spend",
+      "privacy-cluster"
+    ],
+    "sources": "Amounts are public."
+  },
+  {
+    "id": "privacy-kyc-link",
+    "category": "privacy",
+    "question": "How does an exchange identity meet the chain?",
+    "alts": [
+      "In simple words, how does an exchange identity meet the chain?",
+      "How does an exchange identity meet the chain, briefly?",
+      "Help me understand: how does an exchange identity meet the chain?"
+    ],
+    "answer": "If you withdraw from a company that knows your name, that company can link the withdrawal address to you. Later merges of those coins can extend the link. Self-custody does not erase the history from before the withdrawal.",
+    "topics": [
+      "privacy-nonkyc",
+      "regulation",
+      "self-custody"
+    ],
+    "followUps": [
+      "privacy-postmix-spend",
+      "privacy-cluster",
+      "privacy-labeling"
+    ],
+    "sources": "KYC linkage."
+  },
+  {
+    "id": "privacy-postmix-spend",
+    "category": "privacy",
+    "question": "What is a post-mix spend mistake?",
+    "alts": [
+      "In simple words, what is a post-mix spend mistake?",
+      "What is a post-mix spend mistake, briefly?",
+      "Help me understand: what is a post-mix spend mistake?"
+    ],
+    "answer": "After a coinjoin, spending the private output together with a doxxed coin can undo the work. Coin control is how you avoid that merge. The tool does not save a careless later transaction.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "utxos"
+    ],
+    "followUps": [
+      "privacy-cluster",
+      "privacy-labeling",
+      "privacy-ip"
+    ],
+    "sources": "Merging mixed and unmixed coins."
+  },
+  {
+    "id": "privacy-cluster",
+    "category": "privacy",
+    "question": "What is an address cluster?",
+    "alts": [
+      "In simple words, what is an address cluster?",
+      "What is an address cluster, briefly?",
+      "Help me understand: what is an address cluster?"
+    ],
+    "answer": "A cluster is a set of addresses an analyst treats as one entity. Heuristics and labeled deposits build the cluster. It can be wrong, and it is still how surveillance companies work.",
+    "topics": [
+      "privacy-nonkyc",
+      "blockchain-timechain",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "privacy-labeling",
+      "privacy-ip",
+      "privacy-coin-control-why"
+    ],
+    "sources": "Clustering."
+  },
+  {
+    "id": "privacy-labeling",
+    "category": "privacy",
+    "question": "How do exchanges get labeled on explorers?",
+    "alts": [
+      "In simple words, how do exchanges get labeled on explorers?",
+      "How do exchanges get labeled on explorers, briefly?",
+      "Help me understand: how do exchanges get labeled on explorers?"
+    ],
+    "answer": "Companies, researchers, and leaks attach names to addresses that were used by known services. The chain does not contain the name. The label is an outside claim.",
+    "topics": [
+      "informational-sites",
+      "privacy-nonkyc",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "privacy-ip",
+      "privacy-coin-control-why",
+      "privacy-paynym-careful"
+    ],
+    "sources": "Address labels."
+  },
+  {
+    "id": "privacy-ip",
+    "category": "privacy",
+    "question": "Does the chain show your IP address?",
+    "alts": [
+      "In simple words, does the chain show your IP address?",
+      "Does the chain show your IP address, briefly?",
+      "Help me understand: does the chain show your IP address?"
+    ],
+    "answer": "The transaction does not include your IP address. The node that first broadcasts it might be seen by a peer. Tor and your own node reduce that leak, and they do not hide amounts.",
+    "topics": [
+      "privacy-nonkyc",
+      "nodes",
+      "secure"
+    ],
+    "followUps": [
+      "privacy-coin-control-why",
+      "privacy-paynym-careful",
+      "privacy-stealth-not-silent"
+    ],
+    "sources": "Network privacy versus ledger privacy."
+  },
+  {
+    "id": "privacy-coin-control-why",
+    "category": "privacy",
+    "question": "Why does coin control matter for privacy?",
+    "alts": [
+      "In simple words, why does coin control matter for privacy?",
+      "Why does coin control matter for privacy, briefly?",
+      "Help me understand: why does coin control matter for privacy?"
+    ],
+    "answer": "Each input you add tells a story that those coins were spendable together. Choosing inputs lets you avoid combining unrelated parts of your life. It also changes the fee.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "transaction_fees"
+    ],
+    "followUps": [
+      "privacy-paynym-careful",
+      "privacy-stealth-not-silent",
+      "privacy-wasabi-idea"
+    ],
+    "sources": "Input selection."
+  },
+  {
+    "id": "privacy-paynym-careful",
+    "category": "privacy",
+    "question": "What is a reusable payment code?",
+    "alts": [
+      "In simple words, what is a reusable payment code?",
+      "What is a reusable payment code, briefly?",
+      "Help me understand: what is a reusable payment code?"
+    ],
+    "answer": "Some wallets use a reusable code so senders can derive fresh addresses without a new request each time. Silent payments are a newer standard in that family. The code is public, and the individual addresses need not be announced.",
+    "topics": [
+      "privacy-nonkyc",
+      "cryptography",
+      "apps-tools"
+    ],
+    "followUps": [
+      "privacy-stealth-not-silent",
+      "privacy-wasabi-idea",
+      "privacy-equal-output"
+    ],
+    "sources": "Reusable payment codes and BIP352."
+  },
+  {
+    "id": "privacy-stealth-not-silent",
+    "category": "privacy",
+    "question": "Are stealth addresses the same as silent payments?",
+    "alts": [
+      "In simple words, are stealth addresses the same as silent payments?",
+      "Are stealth addresses the same as silent payments, briefly?",
+      "Help me understand: are stealth addresses the same as silent payments?"
+    ],
+    "answer": "Older stealth-address ideas also create one-time destinations from a published key. Silent payments are the specific BIP352 design for Bitcoin. The goal is similar, and the details differ.",
+    "topics": [
+      "privacy-nonkyc",
+      "cryptography",
+      "faq-glossary"
+    ],
+    "followUps": [
+      "privacy-wasabi-idea",
+      "privacy-equal-output",
+      "privacy-taproot-look"
+    ],
+    "sources": "BIP352 versus earlier ideas."
+  },
+  {
+    "id": "privacy-wasabi-idea",
+    "category": "privacy",
+    "question": "What problem are coinjoin coordinators solving?",
+    "alts": [
+      "In simple words, what problem are coinjoin coordinators solving?",
+      "What problem are coinjoin coordinators solving, briefly?",
+      "Help me understand: what problem are coinjoin coordinators solving?"
+    ],
+    "answer": "Strangers need a way to find each other and build one transaction without a single custodian taking the coins. A coordinator can match them and still be designed so it cannot steal. You should understand the exact trust of the software you run.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "apps-tools"
+    ],
+    "followUps": [
+      "privacy-equal-output",
+      "privacy-taproot-look",
+      "privacy-lightning-receiver"
+    ],
+    "sources": "Coordination versus custody."
+  },
+  {
+    "id": "privacy-equal-output",
+    "category": "privacy",
+    "question": "Why are coinjoin outputs often equal?",
+    "alts": [
+      "In simple words, why are coinjoin outputs often equal?",
+      "Why are coinjoin outputs often equal, briefly?",
+      "Help me understand: why are coinjoin outputs often equal?"
+    ],
+    "answer": "Equal amounts stop an observer from matching a unique input amount to a unique output amount. The leftover is usually an unequal change output that is less private. The equal outputs are the point of the pattern.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "utxos"
+    ],
+    "followUps": [
+      "privacy-taproot-look",
+      "privacy-lightning-receiver",
+      "privacy-ecash-blind"
+    ],
+    "sources": "Amount matching."
+  },
+  {
+    "id": "privacy-taproot-look",
+    "category": "privacy",
+    "question": "Does Taproot hide all scripts?",
+    "alts": [
+      "In simple words, does Taproot hide all scripts?",
+      "Does Taproot hide all scripts, briefly?",
+      "Help me understand: does Taproot hide all scripts?"
+    ],
+    "answer": "A cooperative Taproot spend looks like a single key spend, so the script is not revealed. If you use the script path, the script becomes public. Privacy is better when the common path is the key path.",
+    "topics": [
+      "taproot",
+      "privacy-nonkyc",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "privacy-lightning-receiver",
+      "privacy-ecash-blind",
+      "privacy-no-mix-magic"
+    ],
+    "sources": "Key path privacy."
+  },
+  {
+    "id": "privacy-lightning-receiver",
+    "category": "privacy",
+    "question": "Who learns about a Lightning payment?",
+    "alts": [
+      "In simple words, who learns about a Lightning payment?",
+      "Who learns about a Lightning payment, briefly?",
+      "Help me understand: who learns about a Lightning payment?"
+    ],
+    "answer": "The sender and the receiver learn it, and intermediate hops learn their own forwarding. The whole network does not see a public amount on a ledger forever. Logs on a custodian can still exist.",
+    "topics": [
+      "layer-2-lightning",
+      "privacy-nonkyc",
+      "lightning_node"
+    ],
+    "followUps": [
+      "privacy-ecash-blind",
+      "privacy-no-mix-magic",
+      "privacy-surveillance"
+    ],
+    "sources": "Lightning observers."
+  },
+  {
+    "id": "privacy-ecash-blind",
+    "category": "privacy",
+    "question": "How does blinded ecash hide a payment?",
+    "alts": [
+      "In simple words, how does blinded ecash hide a payment?",
+      "How does blinded ecash hide a payment, briefly?",
+      "Help me understand: how does blinded ecash hide a payment?"
+    ],
+    "answer": "The mint signs a note without learning its identifier, using a blind signature. When the note is redeemed, the mint cannot easily link it to the withdrawal. The mint still holds the bitcoin, so privacy is not the same as self-custody.",
+    "topics": [
+      "chaumian_e-cash_and_blind_signatures",
+      "privacy-nonkyc",
+      "fedimints"
+    ],
+    "followUps": [
+      "privacy-no-mix-magic",
+      "privacy-surveillance",
+      "privacy-donation"
+    ],
+    "sources": "Blind signatures."
+  },
+  {
+    "id": "privacy-no-mix-magic",
+    "category": "privacy",
+    "question": "Can a mixer promise perfect anonymity?",
+    "alts": [
+      "In simple words, can a mixer promise perfect anonymity?",
+      "Can a mixer promise perfect anonymity, briefly?",
+      "Help me understand: can a mixer promise perfect anonymity?"
+    ],
+    "answer": "No tool erases a public history or fixes a later mistake. Custodial mixers add theft risk because they hold coins. Prefer designs you can explain, and never send a seed to a mixing site.",
+    "topics": [
+      "privacy-nonkyc",
+      "risks__threats__attack_vectors__weaknes",
+      "self-custody"
+    ],
+    "followUps": [
+      "privacy-surveillance",
+      "privacy-donation",
+      "privacy-salary"
+    ],
+    "sources": "Limits of mixing."
+  },
+  {
+    "id": "privacy-surveillance",
+    "category": "privacy",
+    "question": "Why do people care about bitcoin privacy?",
+    "alts": [
+      "In simple words, why do people care about bitcoin privacy?",
+      "Why do people care about bitcoin privacy, briefly?",
+      "Help me understand: why do people care about bitcoin privacy?"
+    ],
+    "answer": "A public ledger plus an identity at an exchange can expose salary, donations, or a political payment. Privacy is a safety property, not a confession. The chain is transparent by default, so habits matter.",
+    "topics": [
+      "privacy-nonkyc",
+      "human_rights__social_justice_and_freedo",
+      "philosophy"
+    ],
+    "followUps": [
+      "privacy-donation",
+      "privacy-salary",
+      "privacy-select-witness"
+    ],
+    "sources": "Why privacy matters."
+  },
+  {
+    "id": "privacy-donation",
+    "category": "privacy",
+    "question": "How can a public donation address hurt?",
+    "alts": [
+      "In simple words, how can a public donation address hurt?",
+      "How can a public donation address hurt, briefly?",
+      "Help me understand: how can a public donation address hurt?"
+    ],
+    "answer": "A single address for all donations lets anyone total the receipts and watch where they are spent. Fresh addresses or silent payments reduce that. The cause can still publish a statement without publishing one forever address.",
+    "topics": [
+      "privacy-nonkyc",
+      "use-cases",
+      "human_rights__social_justice_and_freedo"
+    ],
+    "followUps": [
+      "privacy-salary",
+      "privacy-select-witness",
+      "privacy-freeze"
+    ],
+    "sources": "Donation address hygiene."
+  },
+  {
+    "id": "privacy-salary",
+    "category": "privacy",
+    "question": "Should a paycheck use a fresh address?",
+    "alts": [
+      "In simple words, should a paycheck use a fresh address?",
+      "Should a paycheck use a fresh address, briefly?",
+      "Help me understand: should a paycheck use a fresh address?"
+    ],
+    "answer": "Yes, if the employer pays on chain, a new address each time avoids a permanent public wage stream. The employer still knows they paid you. The rest of the world does not need a single address to watch.",
+    "topics": [
+      "privacy-nonkyc",
+      "use-cases",
+      "utxos"
+    ],
+    "followUps": [
+      "privacy-select-witness",
+      "privacy-freeze",
+      "privacy-whirl-idea"
+    ],
+    "sources": "Wage payments."
+  },
+  {
+    "id": "privacy-select-witness",
+    "category": "privacy",
+    "question": "Does SegWit change privacy by itself?",
+    "alts": [
+      "In simple words, does SegWit change privacy by itself?",
+      "Does SegWit change privacy by itself, briefly?",
+      "Help me understand: does SegWit change privacy by itself?"
+    ],
+    "answer": "SegWit changes where signatures sit and can make some heuristics differ by address type. It is not a privacy protocol. Mixing address types in one wallet can even mark change.",
+    "topics": [
+      "privacy-nonkyc",
+      "cryptography",
+      "utxos"
+    ],
+    "followUps": [
+      "privacy-freeze",
+      "privacy-whirl-idea",
+      "privacy-future"
+    ],
+    "sources": "Address-type heuristics."
+  },
+  {
+    "id": "privacy-freeze",
+    "category": "privacy",
+    "question": "Can analysis get coins frozen?",
+    "alts": [
+      "In simple words, can analysis get coins frozen?",
+      "Can analysis get coins frozen, briefly?",
+      "Help me understand: can analysis get coins frozen?"
+    ],
+    "answer": "Analysis companies label coins, and exchanges may refuse a deposit that touches a label they dislike. The coins are not frozen on the protocol if you hold the keys. The freeze is the company's policy.",
+    "topics": [
+      "privacy-nonkyc",
+      "regulation",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "privacy-whirl-idea",
+      "privacy-future",
+      "privacy-bip78"
+    ],
+    "sources": "Exchange compliance filters."
+  },
+  {
+    "id": "privacy-whirl-idea",
+    "category": "privacy",
+    "question": "What is the point of equal-output pools?",
+    "alts": [
+      "In simple words, what is the point of equal-output pools?",
+      "What is the point of equal-output pools, briefly?",
+      "Help me understand: what is the point of equal-output pools?"
+    ],
+    "answer": "Pools of equal outputs make a spend look like many possible senders. The anonymity is only as large as the set that actually matches. A pool you do not understand is not automatically safe.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc",
+      "math"
+    ],
+    "followUps": [
+      "privacy-future",
+      "privacy-bip78",
+      "privacy-vpn"
+    ],
+    "sources": "Anonymity sets."
+  },
+  {
+    "id": "privacy-future",
+    "category": "privacy",
+    "question": "Will Bitcoin become fully private by default?",
+    "alts": [
+      "In simple words, will Bitcoin become fully private by default?",
+      "Will Bitcoin become fully private by default, briefly?",
+      "Help me understand: will Bitcoin become fully private by default?"
+    ],
+    "answer": "There is no active rule that hides every amount. Research and wallet habits improve the edges. Expect transparency on the base layer unless a future soft fork, widely adopted, changes that, and do not assume the date.",
+    "topics": [
+      "privacy-nonkyc",
+      "the_future",
+      "governance"
+    ],
+    "followUps": [
+      "privacy-bip78",
+      "privacy-vpn",
+      "privacy-no-percent"
+    ],
+    "sources": "No hidden amounts today."
+  },
+  {
+    "id": "privacy-bip78",
+    "category": "privacy",
+    "question": "What is BIP78?",
+    "alts": [
+      "In simple words, what is BIP78?",
+      "What is BIP78, briefly?",
+      "Help me understand: what is BIP78?"
+    ],
+    "answer": "BIP78 describes payjoin, a payment where the receiver adds an input so the transfer does not look like one person paying another. Both sides need wallet support. It is optional, and it does not hide the amounts.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "privacy-vpn",
+      "privacy-no-percent",
+      "privacy-fresh"
+    ],
+    "sources": "BIP78 payjoin."
+  },
+  {
+    "id": "privacy-vpn",
+    "category": "privacy",
+    "question": "Does a VPN hide an on-chain payment?",
+    "alts": [
+      "In simple words, does a VPN hide an on-chain payment?",
+      "Does a VPN hide an on-chain payment, briefly?",
+      "Help me understand: does a VPN hide an on-chain payment?"
+    ],
+    "answer": "A VPN can hide your home IP from the node you connect to. It does not hide amounts, addresses, or links between inputs once a transaction is in a block. Network privacy and ledger privacy are different problems.",
+    "topics": [
+      "privacy-nonkyc",
+      "nodes"
+    ],
+    "followUps": [
+      "privacy-no-percent",
+      "privacy-fresh",
+      "privacy-coinjoin"
+    ],
+    "sources": "IP versus ledger."
+  },
+  {
+    "id": "privacy-no-percent",
+    "category": "privacy",
+    "question": "Why not quote a privacy score?",
+    "alts": [
+      "In simple words, why not quote a privacy score?",
+      "Why not quote a privacy score, briefly?",
+      "Help me understand: why not quote a privacy score?"
+    ],
+    "answer": "A single percentage would pretend that chain analysis is a fixed science. Heuristics change, and a wallet's leaks depend on how you use it. This archive describes tools and limits instead of a score.",
+    "topics": [
+      "privacy-nonkyc",
+      "coin_mixing_coinjoin_coin_control_utxo"
+    ],
+    "followUps": [
+      "privacy-fresh",
+      "privacy-coinjoin",
+      "privacy-payjoin"
+    ],
+    "sources": "No invented percentage."
+  },
+  {
+    "id": "privacy-fresh",
+    "category": "privacy",
+    "question": "Why create a fresh address per payment?",
+    "alts": [
+      "In simple words, why create a fresh address per payment?",
+      "Why create a fresh address per payment, briefly?",
+      "Help me understand: why create a fresh address per payment?"
+    ],
+    "answer": "Reusing an address links those payments for anyone reading the chain. A fresh address does not make you anonymous, and it removes that easy link. Many wallets do this unless you override them.",
+    "topics": [
+      "privacy-nonkyc",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "privacy-coinjoin",
+      "privacy-payjoin",
+      "privacy-silent"
+    ],
+    "sources": "Address reuse."
+  }
+]

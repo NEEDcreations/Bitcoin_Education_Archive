@@ -1,0 +1,1490 @@
+[
+  {
+    "id": "money-fixed-supply",
+    "category": "monetary",
+    "question": "Why is the supply capped at 21 million?",
+    "alts": [
+      "In simple words, why is the supply capped at 21 million?",
+      "Why is the supply capped at 21 million, briefly?",
+      "Help me understand: why is the supply capped at 21 million?"
+    ],
+    "answer": "The issuance math is a shrinking subsidy every 210,000 blocks, and the series adds up to just under 21 million bitcoin. Nodes reject a block that creates more than the schedule. The cap is a rule, not a company policy.",
+    "topics": [
+      "scarce",
+      "money",
+      "time"
+    ],
+    "followUps": [
+      "money-just-under",
+      "money-sats-supply",
+      "money-subsidy"
+    ],
+    "sources": "210,000 block epochs and the geometric subsidy."
+  },
+  {
+    "id": "money-just-under",
+    "category": "monetary",
+    "question": "Is the cap exactly 21 million?",
+    "alts": [
+      "In simple words, is the cap exactly 21 million?",
+      "Is the cap exactly 21 million, briefly?",
+      "Help me understand: is the cap exactly 21 million?"
+    ],
+    "answer": "People say 21 million as the design cap. Because amounts are counted in integer sats, the schedule finishes just under that round number. It does not creep upward later.",
+    "topics": [
+      "scarce",
+      "math",
+      "money"
+    ],
+    "followUps": [
+      "money-sats-supply",
+      "money-subsidy",
+      "money-halving-interval"
+    ],
+    "sources": "Integer satoshi accounting."
+  },
+  {
+    "id": "money-sats-supply",
+    "category": "monetary",
+    "question": "How many sats will there be at most?",
+    "alts": [
+      "In simple words, how many sats will there be at most?",
+      "How many sats will there be at most, briefly?",
+      "Help me understand: how many sats will there be at most?"
+    ],
+    "answer": "There are 100 million sats in a bitcoin, and the supply schedule stops just shy of 21 million bitcoin. The protocol counts integer sats, not fractions of a sat. That is the whole supply.",
+    "topics": [
+      "scarce",
+      "math",
+      "sats__or__bits"
+    ],
+    "followUps": [
+      "money-subsidy",
+      "money-halving-interval",
+      "money-halving-meaning"
+    ],
+    "sources": "1 bitcoin = 1e8 sats."
+  },
+  {
+    "id": "money-subsidy",
+    "category": "monetary",
+    "question": "What is the block subsidy?",
+    "alts": [
+      "In simple words, what is the block subsidy?",
+      "What is the block subsidy, briefly?",
+      "Help me understand: what is the block subsidy?"
+    ],
+    "answer": "The subsidy is the new bitcoin a miner may create in a valid block. It started at 50 bitcoin and is cut in half every 210,000 blocks. Fees are extra and are not new coins.",
+    "topics": [
+      "scarce",
+      "mining",
+      "money"
+    ],
+    "followUps": [
+      "money-halving-interval",
+      "money-halving-meaning",
+      "money-first-reward"
+    ],
+    "sources": "Subsidy schedule."
+  },
+  {
+    "id": "money-halving-interval",
+    "category": "monetary",
+    "question": "How often is the subsidy cut?",
+    "alts": [
+      "In simple words, how often is the subsidy cut?",
+      "How often is the subsidy cut, briefly?",
+      "Help me understand: how often is the subsidy cut?"
+    ],
+    "answer": "The subsidy is cut every 210,000 blocks. At the ten minute target, that is about four years. The calendar date moves if blocks are faster or slower.",
+    "topics": [
+      "scarce",
+      "time",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "money-halving-meaning",
+      "money-first-reward",
+      "money-halving-2012"
+    ],
+    "sources": "210,000 block halving interval."
+  },
+  {
+    "id": "money-halving-meaning",
+    "category": "monetary",
+    "question": "What does a halving change?",
+    "alts": [
+      "In simple words, what does a halving change?",
+      "What does a halving change, briefly?",
+      "Help me understand: what does a halving change?"
+    ],
+    "answer": "A halving cuts the new coins in each block by half. It does not change the coins already issued, and it does not set the exchange price. Demand and fees are separate from that rule.",
+    "topics": [
+      "scarce",
+      "mining",
+      "cyles"
+    ],
+    "followUps": [
+      "money-first-reward",
+      "money-halving-2012",
+      "money-halving-2016"
+    ],
+    "sources": "Halving rule. Price is not part of the rule."
+  },
+  {
+    "id": "money-first-reward",
+    "category": "monetary",
+    "question": "What was the original block reward?",
+    "alts": [
+      "In simple words, what was the original block reward?",
+      "What was the original block reward, briefly?",
+      "Help me understand: what was the original block reward?"
+    ],
+    "answer": "The first blocks could create 50 new bitcoin. That was the starting subsidy, before any halvings. Fees could be included on top.",
+    "topics": [
+      "history",
+      "scarce",
+      "mining"
+    ],
+    "followUps": [
+      "money-halving-2012",
+      "money-halving-2016",
+      "money-halving-2020"
+    ],
+    "sources": "Initial subsidy of 50 BTC."
+  },
+  {
+    "id": "money-halving-2012",
+    "category": "monetary",
+    "question": "When was the first halving?",
+    "alts": [
+      "In simple words, when was the first halving?",
+      "When was the first halving, briefly?",
+      "Help me understand: when was the first halving?"
+    ],
+    "answer": "The first halving was in November 2012, at block 210,000. The subsidy fell from 50 bitcoin to 25. The date followed the block count, not a vote.",
+    "topics": [
+      "history",
+      "scarce",
+      "cyles"
+    ],
+    "followUps": [
+      "money-halving-2016",
+      "money-halving-2020",
+      "money-halving-2024"
+    ],
+    "sources": "Block 210,000, November 2012."
+  },
+  {
+    "id": "money-halving-2016",
+    "category": "monetary",
+    "question": "When was the second halving?",
+    "alts": [
+      "In simple words, when was the second halving?",
+      "When was the second halving, briefly?",
+      "Help me understand: when was the second halving?"
+    ],
+    "answer": "The second halving was in July 2016, at block 420,000. The subsidy fell from 25 bitcoin to 12.5. It was the same automatic rule as the first cut.",
+    "topics": [
+      "history",
+      "scarce",
+      "cyles"
+    ],
+    "followUps": [
+      "money-halving-2020",
+      "money-halving-2024",
+      "money-next-halving"
+    ],
+    "sources": "Block 420,000, July 2016."
+  },
+  {
+    "id": "money-halving-2020",
+    "category": "monetary",
+    "question": "When was the third halving?",
+    "alts": [
+      "In simple words, when was the third halving?",
+      "When was the third halving, briefly?",
+      "Help me understand: when was the third halving?"
+    ],
+    "answer": "The third halving was in May 2020, at block 630,000. The subsidy fell from 12.5 bitcoin to 6.25. No committee announced the number.",
+    "topics": [
+      "history",
+      "scarce",
+      "cyles"
+    ],
+    "followUps": [
+      "money-halving-2024",
+      "money-next-halving",
+      "money-stock-flow"
+    ],
+    "sources": "Block 630,000, May 2020."
+  },
+  {
+    "id": "money-halving-2024",
+    "category": "monetary",
+    "question": "When was the fourth halving?",
+    "alts": [
+      "In simple words, when was the fourth halving?",
+      "When was the fourth halving, briefly?",
+      "Help me understand: when was the fourth halving?"
+    ],
+    "answer": "The fourth halving was in April 2024, at block 840,000. The subsidy fell from 6.25 bitcoin to 3.125. Later cuts keep following the same block interval.",
+    "topics": [
+      "history",
+      "scarce",
+      "cyles"
+    ],
+    "followUps": [
+      "money-next-halving",
+      "money-stock-flow",
+      "money-no-price-model"
+    ],
+    "sources": "Block 840,000, April 2024."
+  },
+  {
+    "id": "money-next-halving",
+    "category": "monetary",
+    "question": "When is the next halving scheduled?",
+    "alts": [
+      "In simple words, when is the next halving scheduled?",
+      "When is the next halving scheduled, briefly?",
+      "Help me understand: when is the next halving scheduled?"
+    ],
+    "answer": "The next cut is at block 1,050,000, when the subsidy falls again by half. The calendar day depends on how fast blocks actually arrive, so it is not a fixed holiday. Expect it around 2028 only if blocks stay near ten minutes.",
+    "topics": [
+      "scarce",
+      "time",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "money-stock-flow",
+      "money-no-price-model",
+      "money-divisible"
+    ],
+    "sources": "Block 1,050,000. Date is not fixed."
+  },
+  {
+    "id": "money-stock-flow",
+    "category": "monetary",
+    "question": "What is stock and flow in Bitcoin?",
+    "alts": [
+      "In simple words, what is stock and flow in Bitcoin?",
+      "What is stock and flow in Bitcoin, briefly?",
+      "Help me understand: what is stock and flow in Bitcoin?"
+    ],
+    "answer": "Stock is the coins already issued. Flow is the new coins still being created. Halvings cut the flow while the stock remains, which is why people compare it with scarce commodities.",
+    "topics": [
+      "scarce",
+      "money",
+      "cyles"
+    ],
+    "followUps": [
+      "money-no-price-model",
+      "money-divisible",
+      "money-portable"
+    ],
+    "sources": "Stock-to-flow as a description, not a price model."
+  },
+  {
+    "id": "money-no-price-model",
+    "category": "monetary",
+    "question": "Does the halving guarantee a higher price?",
+    "alts": [
+      "In simple words, does the halving guarantee a higher price?",
+      "Does the halving guarantee a higher price, briefly?",
+      "Help me understand: does the halving guarantee a higher price?"
+    ],
+    "answer": "No. A halving changes issuance, not the order book on an exchange. People have stories about past cycles, and those stories are not a rule and not a promise. This is not financial advice.",
+    "topics": [
+      "scarce",
+      "cyles",
+      "predictions"
+    ],
+    "followUps": [
+      "money-divisible",
+      "money-portable",
+      "money-durable"
+    ],
+    "sources": "Issuance rule versus market price."
+  },
+  {
+    "id": "money-divisible",
+    "category": "monetary",
+    "question": "Why divide bitcoin into sats?",
+    "alts": [
+      "In simple words, why divide bitcoin into sats?",
+      "Why divide bitcoin into sats, briefly?",
+      "Help me understand: why divide bitcoin into sats?"
+    ],
+    "answer": "Small units let people pay and save in tiny amounts even if one bitcoin trades for a lot of local currency. The protocol already has the precision. The exchange price does not change the number of sats you hold.",
+    "topics": [
+      "sats__or__bits",
+      "money",
+      "math"
+    ],
+    "followUps": [
+      "money-portable",
+      "money-durable",
+      "money-recognizable"
+    ],
+    "sources": "1e8 divisibility."
+  },
+  {
+    "id": "money-portable",
+    "category": "monetary",
+    "question": "Why is bitcoin easy to move compared with gold?",
+    "alts": [
+      "In simple words, why is bitcoin easy to move compared with gold?",
+      "Why is bitcoin easy to move compared with gold, briefly?",
+      "Help me understand: why is bitcoin easy to move compared with gold?"
+    ],
+    "answer": "A key can travel in a wallet or a backup, and a payment is a message on a network. You do not ship a bar across a border to settle with someone far away. You still have to protect the key.",
+    "topics": [
+      "money",
+      "use-cases",
+      "supranational"
+    ],
+    "followUps": [
+      "money-durable",
+      "money-recognizable",
+      "money-salability"
+    ],
+    "sources": "Comparison with physical commodity money."
+  },
+  {
+    "id": "money-durable",
+    "category": "monetary",
+    "question": "Can bitcoin wear out?",
+    "alts": [
+      "In simple words, can bitcoin wear out?",
+      "Can bitcoin wear out, briefly?",
+      "Help me understand: can bitcoin wear out?"
+    ],
+    "answer": "The coins do not rust or tear. You can lose the keys, and then the coins sit unspent forever. Durability is about the record, not about a careless backup.",
+    "topics": [
+      "money",
+      "self-custody",
+      "secure"
+    ],
+    "followUps": [
+      "money-recognizable",
+      "money-salability",
+      "money-medium"
+    ],
+    "sources": "Ledger durability versus key loss."
+  },
+  {
+    "id": "money-recognizable",
+    "category": "monetary",
+    "question": "How do you know a bitcoin is real?",
+    "alts": [
+      "In simple words, how do you know a bitcoin is real?",
+      "How do you know a bitcoin is real, briefly?",
+      "Help me understand: how do you know a bitcoin is real?"
+    ],
+    "answer": "A node checks the signatures and the supply rules. A coin that fails those checks is not accepted. You do not need a specialist with acid and a scale, which is the old problem with metal coins.",
+    "topics": [
+      "money",
+      "nodes",
+      "secure"
+    ],
+    "followUps": [
+      "money-salability",
+      "money-medium",
+      "money-store"
+    ],
+    "sources": "Verification by rules."
+  },
+  {
+    "id": "money-salability",
+    "category": "monetary",
+    "question": "What is salability?",
+    "alts": [
+      "In simple words, what is salability?",
+      "What is salability, briefly?",
+      "Help me understand: what is salability?"
+    ],
+    "answer": "Salability means something can be sold or traded without a huge loss or delay. Bitcoin is easy to split and to send, which helps salability across distance. Local rules and fees still affect a particular payment.",
+    "topics": [
+      "money",
+      "use-cases",
+      "austrian_school_of_economics"
+    ],
+    "followUps": [
+      "money-medium",
+      "money-store",
+      "money-unit-account"
+    ],
+    "sources": "Monetary goods and salability."
+  },
+  {
+    "id": "money-medium",
+    "category": "monetary",
+    "question": "Is bitcoin a medium of exchange?",
+    "alts": [
+      "In simple words, is bitcoin a medium of exchange?",
+      "Is bitcoin a medium of exchange, briefly?",
+      "Help me understand: is bitcoin a medium of exchange?"
+    ],
+    "answer": "Some people spend it directly, and some save it and spend local currency. Lightning is one way small payments are attempted. Whether it is your daily medium depends on the people you trade with, not on a slogan.",
+    "topics": [
+      "money",
+      "use-cases",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "money-store",
+      "money-unit-account",
+      "money-fiat-contrast"
+    ],
+    "sources": "Medium of exchange as a use, not a guarantee."
+  },
+  {
+    "id": "money-store",
+    "category": "monetary",
+    "question": "Is bitcoin a store of value?",
+    "alts": [
+      "In simple words, is bitcoin a store of value?",
+      "Is bitcoin a store of value, briefly?",
+      "Help me understand: is bitcoin a store of value?"
+    ],
+    "answer": "A store of value is money people are willing to hold. Bitcoin's supply is constrained, and its exchange price has also been volatile. Calling it a store of value describes a hope and a use, not a promise that purchasing power only rises.",
+    "topics": [
+      "money",
+      "scarce",
+      "time_preference"
+    ],
+    "followUps": [
+      "money-unit-account",
+      "money-fiat-contrast",
+      "money-1971"
+    ],
+    "sources": "No price promise."
+  },
+  {
+    "id": "money-unit-account",
+    "category": "monetary",
+    "question": "Is bitcoin a unit of account?",
+    "alts": [
+      "In simple words, is bitcoin a unit of account?",
+      "Is bitcoin a unit of account, briefly?",
+      "Help me understand: is bitcoin a unit of account?"
+    ],
+    "answer": "A unit of account is what you use to price groceries and wages. Most places still price those in a national currency. Bitcoin can be a savings asset before it is the unit on every tag.",
+    "topics": [
+      "money",
+      "problems-of-money",
+      "use-cases"
+    ],
+    "followUps": [
+      "money-fiat-contrast",
+      "money-1971",
+      "money-gold-compare"
+    ],
+    "sources": "Unit of account is empirical."
+  },
+  {
+    "id": "money-fiat-contrast",
+    "category": "monetary",
+    "question": "How is bitcoin different from fiat money?",
+    "alts": [
+      "In simple words, how is bitcoin different from fiat money?",
+      "How is bitcoin different from fiat money, briefly?",
+      "Help me understand: how is bitcoin different from fiat money?"
+    ],
+    "answer": "Fiat money is issued by a state or its banking system, and the supply can be expanded. Bitcoin's new supply follows code that nodes enforce. Neither fact is a forecast of the next exchange rate.",
+    "topics": [
+      "problems-of-money",
+      "money",
+      "politics"
+    ],
+    "followUps": [
+      "money-1971",
+      "money-gold-compare",
+      "money-silver"
+    ],
+    "sources": "Issuer discretion versus a schedule."
+  },
+  {
+    "id": "money-1971",
+    "category": "monetary",
+    "question": "What happened to the dollar in 1971?",
+    "alts": [
+      "In simple words, what happened to the dollar in 1971?",
+      "What happened to the dollar in 1971, briefly?",
+      "Help me understand: what happened to the dollar in 1971?"
+    ],
+    "answer": "In 1971 the United States ended the dollar's convertibility into gold for foreign governments. The dollar then rested on law and policy rather than a metal window. That history is one reason people study money with a hard cap.",
+    "topics": [
+      "problems-of-money",
+      "history",
+      "geopolitics___macroeconomics"
+    ],
+    "followUps": [
+      "money-gold-compare",
+      "money-silver",
+      "money-cantillon"
+    ],
+    "sources": "End of dollar-gold convertibility, 1971."
+  },
+  {
+    "id": "money-gold-compare",
+    "category": "monetary",
+    "question": "How does bitcoin compare with gold as money?",
+    "alts": [
+      "In simple words, how does bitcoin compare with gold as money?",
+      "How does bitcoin compare with gold as money, briefly?",
+      "Help me understand: how does bitcoin compare with gold as money?"
+    ],
+    "answer": "Gold is scarce and has a long history, and it is heavy to move and awkward to check. Bitcoin is scarce by rule and cheap to verify across a network. Gold does not have a known hard cap in the way bitcoin's schedule does.",
+    "topics": [
+      "money",
+      "scarce",
+      "problems-of-money"
+    ],
+    "followUps": [
+      "money-silver",
+      "money-cantillon",
+      "money-time-pref"
+    ],
+    "sources": "Monetary comparison, not a trading call."
+  },
+  {
+    "id": "money-silver",
+    "category": "monetary",
+    "question": "Why do people mention silver next to bitcoin?",
+    "alts": [
+      "In simple words, why do people mention silver next to bitcoin?",
+      "Why do people mention silver next to bitcoin, briefly?",
+      "Help me understand: why do people mention silver next to bitcoin?"
+    ],
+    "answer": "Silver was money in many places and is also an industrial metal. Its supply can rise when price makes mining worth it. Bitcoin's flow is cut by code even if the exchange price rises.",
+    "topics": [
+      "money",
+      "scarce",
+      "mining"
+    ],
+    "followUps": [
+      "money-cantillon",
+      "money-time-pref",
+      "money-lost-coins"
+    ],
+    "sources": "Commodity supply response versus a schedule."
+  },
+  {
+    "id": "money-cantillon",
+    "category": "monetary",
+    "question": "What is a Cantillon effect?",
+    "alts": [
+      "In simple words, what is a Cantillon effect?",
+      "What is a Cantillon effect, briefly?",
+      "Help me understand: what is a Cantillon effect?"
+    ],
+    "answer": "A Cantillon effect is the idea that new money helps whoever receives it first, before prices adjust. Fiat issuance has a first receiver, often close to the banking system. Bitcoin's new coins go to miners as a known reward, and the amount is capped.",
+    "topics": [
+      "austrian_school_of_economics",
+      "problems-of-money",
+      "money"
+    ],
+    "followUps": [
+      "money-time-pref",
+      "money-lost-coins",
+      "money-tail"
+    ],
+    "sources": "Cantillon, as taught in monetary history."
+  },
+  {
+    "id": "money-time-pref",
+    "category": "monetary",
+    "question": "How does money relate to saving?",
+    "alts": [
+      "In simple words, how does money relate to saving?",
+      "How does money relate to saving, briefly?",
+      "Help me understand: how does money relate to saving?"
+    ],
+    "answer": "Money that people trust not to be expanded without limit is easier to save. Bitcoin's schedule is the part you can verify. The market price can still fall, so saving in it is a choice with risk, not advice to buy.",
+    "topics": [
+      "time_preference",
+      "money",
+      "scarce"
+    ],
+    "followUps": [
+      "money-lost-coins",
+      "money-tail",
+      "money-fees-future"
+    ],
+    "sources": "Saving versus a purchase recommendation."
+  },
+  {
+    "id": "money-lost-coins",
+    "category": "monetary",
+    "question": "What happens to lost bitcoin?",
+    "alts": [
+      "In simple words, what happens to lost bitcoin?",
+      "What happens to lost bitcoin, briefly?",
+      "Help me understand: what happens to lost bitcoin?"
+    ],
+    "answer": "If keys are lost, those coins are not spent, so the circulating amount is smaller than the issued amount. The protocol does not recycle them. Estimates of lost coins are research, not a field in the block.",
+    "topics": [
+      "scarce",
+      "self-custody",
+      "money"
+    ],
+    "followUps": [
+      "money-tail",
+      "money-fees-future",
+      "money-21-why"
+    ],
+    "sources": "Unspent outputs with lost keys."
+  },
+  {
+    "id": "money-tail",
+    "category": "monetary",
+    "question": "What is tail emission?",
+    "alts": [
+      "In simple words, what is tail emission?",
+      "What is tail emission, briefly?",
+      "Help me understand: what is tail emission?"
+    ],
+    "answer": "Tail emission means still creating a little new money forever so miners have a subsidy. Bitcoin's design lets the subsidy shrink toward zero and relies more on fees later. Some other chains chose a tail. Bitcoin did not.",
+    "topics": [
+      "tail_emission",
+      "scarce",
+      "mining"
+    ],
+    "followUps": [
+      "money-fees-future",
+      "money-21-why",
+      "money-epoch"
+    ],
+    "sources": "No perpetual subsidy in Bitcoin."
+  },
+  {
+    "id": "money-fees-future",
+    "category": "monetary",
+    "question": "What pays miners when the subsidy is tiny?",
+    "alts": [
+      "In simple words, what pays miners when the subsidy is tiny?",
+      "What pays miners when the subsidy is tiny, briefly?",
+      "Help me understand: what pays miners when the subsidy is tiny?"
+    ],
+    "answer": "Fees that people pay to get into a block are the long-term security budget in the design. Whether those fees will be enough in the far future is an open question. It is not a reason to quietly raise the cap.",
+    "topics": [
+      "transaction_fees",
+      "mining",
+      "tail_emission"
+    ],
+    "followUps": [
+      "money-21-why",
+      "money-epoch",
+      "money-supply-check"
+    ],
+    "sources": "Fee market as the long-run budget. Outcome not promised."
+  },
+  {
+    "id": "money-21-why",
+    "category": "monetary",
+    "question": "Why was 21 million chosen?",
+    "alts": [
+      "In simple words, why was 21 million chosen?",
+      "Why was 21 million chosen, briefly?",
+      "Help me understand: why was 21 million chosen?"
+    ],
+    "answer": "Satoshi picked a schedule that lands near 21 million and said the number was a guess at a fit with world commerce if it were very successful. The interesting part is that the number is fixed and checkable. A different round number would not change the idea.",
+    "topics": [
+      "scarce",
+      "history",
+      "math"
+    ],
+    "followUps": [
+      "money-epoch",
+      "money-supply-check",
+      "money-no-bailout"
+    ],
+    "sources": "Satoshi's own comment that the cap was a reasoned guess."
+  },
+  {
+    "id": "money-epoch",
+    "category": "monetary",
+    "question": "What is a halving epoch?",
+    "alts": [
+      "In simple words, what is a halving epoch?",
+      "What is a halving epoch, briefly?",
+      "Help me understand: what is a halving epoch?"
+    ],
+    "answer": "An epoch here is a stretch of 210,000 blocks that share one subsidy. When the epoch ends, the allowed new coins per block fall by half. Nodes know the epoch from the block height.",
+    "topics": [
+      "scarce",
+      "blockchain-timechain",
+      "math"
+    ],
+    "followUps": [
+      "money-supply-check",
+      "money-no-bailout",
+      "money-denomination-bias"
+    ],
+    "sources": "Height divided into 210,000-block spans."
+  },
+  {
+    "id": "money-supply-check",
+    "category": "monetary",
+    "question": "How can you check the supply?",
+    "alts": [
+      "In simple words, how can you check the supply?",
+      "How can you check the supply, briefly?",
+      "Help me understand: how can you check the supply?"
+    ],
+    "answer": "A full node adds up the subsidy rules from genesis to the current height. You do not need a company's report. Explorers show a number, and your node can disagree if they are wrong.",
+    "topics": [
+      "scarce",
+      "nodes",
+      "math"
+    ],
+    "followUps": [
+      "money-no-bailout",
+      "money-denomination-bias",
+      "money-purchasing-power"
+    ],
+    "sources": "Supply is a function of height."
+  },
+  {
+    "id": "money-no-bailout",
+    "category": "monetary",
+    "question": "Can Bitcoin be bailed out by printing?",
+    "alts": [
+      "In simple words, can Bitcoin be bailed out by printing?",
+      "Can Bitcoin be bailed out by printing, briefly?",
+      "Help me understand: can Bitcoin be bailed out by printing?"
+    ],
+    "answer": "Not inside the rules nodes enforce. Creating extra coins makes a block invalid. A government can help a company with fiat, and that does not change the ledger.",
+    "topics": [
+      "scarce",
+      "politics",
+      "decentralized"
+    ],
+    "followUps": [
+      "money-denomination-bias",
+      "money-purchasing-power",
+      "money-velocity"
+    ],
+    "sources": "Invalidity of extra subsidy."
+  },
+  {
+    "id": "money-denomination-bias",
+    "category": "monetary",
+    "question": "Does a high unit price mean bitcoin is expensive to use?",
+    "alts": [
+      "In simple words, does a high unit price mean bitcoin is expensive to use?",
+      "Does a high unit price mean bitcoin is expensive to use, briefly?",
+      "Help me understand: does a high unit price mean bitcoin is expensive to use?"
+    ],
+    "answer": "The unit price is about one whole bitcoin. You can buy, hold, and send a fraction, down to a sat, subject to fees. A high price per coin is not a minimum purchase in the protocol.",
+    "topics": [
+      "sats__or__bits",
+      "money",
+      "use-cases"
+    ],
+    "followUps": [
+      "money-purchasing-power",
+      "money-velocity",
+      "money-gresham"
+    ],
+    "sources": "Divisibility."
+  },
+  {
+    "id": "money-purchasing-power",
+    "category": "monetary",
+    "question": "Does a fixed supply freeze the economy?",
+    "alts": [
+      "In simple words, does a fixed supply freeze the economy?",
+      "Does a fixed supply freeze the economy, briefly?",
+      "Help me understand: does a fixed supply freeze the economy?"
+    ],
+    "answer": "A fixed supply does not stop people from spending when they want something more than the money. Credit and prices can still move. Bitcoin's schedule is not a forecast that prices of goods must fall forever.",
+    "topics": [
+      "money",
+      "austrian_school_of_economics",
+      "problems-of-money"
+    ],
+    "followUps": [
+      "money-velocity",
+      "money-gresham",
+      "money-thiers"
+    ],
+    "sources": "Supply rule versus a deflation-spiral claim."
+  },
+  {
+    "id": "money-velocity",
+    "category": "monetary",
+    "question": "What is velocity of money?",
+    "alts": [
+      "In simple words, what is velocity of money?",
+      "What is velocity of money, briefly?",
+      "Help me understand: what is velocity of money?"
+    ],
+    "answer": "Velocity is how often a unit of money is spent in a period. It is an economic measurement, not a field miners set. Bitcoin can be saved a long time and still be spent later.",
+    "topics": [
+      "money",
+      "austrian_school_of_economics",
+      "use-cases"
+    ],
+    "followUps": [
+      "money-gresham",
+      "money-thiers",
+      "money-legal-tender"
+    ],
+    "sources": "Standard monetary definition."
+  },
+  {
+    "id": "money-gresham",
+    "category": "monetary",
+    "question": "What is Gresham's law?",
+    "alts": [
+      "In simple words, what is Gresham's law?",
+      "What is Gresham's law, briefly?",
+      "Help me understand: what is Gresham's law?"
+    ],
+    "answer": "Gresham's law says people tend to spend the money they think is softer and hold the money they think is harder, when both must be accepted. It is a teaching story about parallel monies. It is not a bitcoin price model.",
+    "topics": [
+      "money",
+      "problems-of-money",
+      "austrian_school_of_economics"
+    ],
+    "followUps": [
+      "money-thiers",
+      "money-legal-tender",
+      "money-token"
+    ],
+    "sources": "Classical monetary observation."
+  },
+  {
+    "id": "money-thiers",
+    "category": "monetary",
+    "question": "What is Thiers' law?",
+    "alts": [
+      "In simple words, what is Thiers' law?",
+      "What is Thiers' law, briefly?",
+      "Help me understand: what is Thiers' law?"
+    ],
+    "answer": "Thiers' law is the other side of that story: if sellers can refuse the weaker money, the stronger one gets spent too. Both are historical patterns, not laws of physics. They help explain why parallel currencies behave differently under legal tender rules.",
+    "topics": [
+      "money",
+      "politics",
+      "austrian_school_of_economics"
+    ],
+    "followUps": [
+      "money-legal-tender",
+      "money-token",
+      "money-rejoice-cap"
+    ],
+    "sources": "Monetary history."
+  },
+  {
+    "id": "money-legal-tender",
+    "category": "monetary",
+    "question": "Does bitcoin need to be legal tender to function?",
+    "alts": [
+      "In simple words, does bitcoin need to be legal tender to function?",
+      "Does bitcoin need to be legal tender to function, briefly?",
+      "Help me understand: does bitcoin need to be legal tender to function?"
+    ],
+    "answer": "The network functions wherever nodes and miners run, whether or not a state names it legal tender. Legal tender means a creditor must accept it for debts under that state's law. Those are different ideas.",
+    "topics": [
+      "politics",
+      "regulation",
+      "money"
+    ],
+    "followUps": [
+      "money-token",
+      "money-rejoice-cap",
+      "money-coinbase-tx"
+    ],
+    "sources": "Protocol versus legal tender."
+  },
+  {
+    "id": "money-token",
+    "category": "monetary",
+    "question": "Is bitcoin a token on another chain?",
+    "alts": [
+      "In simple words, is bitcoin a token on another chain?",
+      "Is bitcoin a token on another chain, briefly?",
+      "Help me understand: is bitcoin a token on another chain?"
+    ],
+    "answer": "On its own network, bitcoin is the native asset, not a token issued by a contract. Wrapped versions on other chains are IOUs managed by someone else. The native coin is the one your node understands.",
+    "topics": [
+      "money",
+      "sidechains",
+      "evidence-against-alts"
+    ],
+    "followUps": [
+      "money-rejoice-cap",
+      "money-coinbase-tx",
+      "money-maturity"
+    ],
+    "sources": "Native asset versus wrapped IOUs."
+  },
+  {
+    "id": "money-rejoice-cap",
+    "category": "monetary",
+    "question": "Can the community vote to raise the supply?",
+    "alts": [
+      "In simple words, can the community vote to raise the supply?",
+      "Can the community vote to raise the supply, briefly?",
+      "Help me understand: can the community vote to raise the supply?"
+    ],
+    "answer": "Anyone can publish software that issues more coins. Nodes that follow today's rules will ignore those blocks. A higher cap would be a different network unless the people who validate actually switch.",
+    "topics": [
+      "governance",
+      "scarce",
+      "consensus"
+    ],
+    "followUps": [
+      "money-coinbase-tx",
+      "money-maturity",
+      "money-fees-not-supply"
+    ],
+    "sources": "Rule changes require node adoption."
+  },
+  {
+    "id": "money-coinbase-tx",
+    "category": "monetary",
+    "question": "What is a coinbase transaction?",
+    "alts": [
+      "In simple words, what is a coinbase transaction?",
+      "What is a coinbase transaction, briefly?",
+      "Help me understand: what is a coinbase transaction?"
+    ],
+    "answer": "The coinbase is the first transaction in a block, where the miner claims the subsidy and the fees. It has no parent output. It is called coinbase because it creates coins, not because of any company.",
+    "topics": [
+      "mining",
+      "scarce",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "money-maturity",
+      "money-fees-not-supply",
+      "money-burn"
+    ],
+    "sources": "Coinbase transaction structure."
+  },
+  {
+    "id": "money-maturity",
+    "category": "monetary",
+    "question": "When can a miner spend the new coins?",
+    "alts": [
+      "In simple words, when can a miner spend the new coins?",
+      "When can a miner spend the new coins, briefly?",
+      "Help me understand: when can a miner spend the new coins?"
+    ],
+    "answer": "The subsidy in a coinbase cannot be spent for 100 blocks. That maturity rule reduces the damage if the block is soon orphaned. Fees follow the same delay because they are in that same transaction.",
+    "topics": [
+      "mining",
+      "scarce",
+      "consensus"
+    ],
+    "followUps": [
+      "money-fees-not-supply",
+      "money-burn",
+      "money-op-return-not-burn"
+    ],
+    "sources": "100-block coinbase maturity."
+  },
+  {
+    "id": "money-fees-not-supply",
+    "category": "monetary",
+    "question": "Do fees increase the supply?",
+    "alts": [
+      "In simple words, do fees increase the supply?",
+      "Do fees increase the supply, briefly?",
+      "Help me understand: do fees increase the supply?"
+    ],
+    "answer": "Fees are coins the sender already had, paid to the miner. They are not new issuance. Only the subsidy creates new coins, and only on the schedule.",
+    "topics": [
+      "transaction_fees",
+      "scarce",
+      "mining"
+    ],
+    "followUps": [
+      "money-burn",
+      "money-op-return-not-burn",
+      "money-auditable"
+    ],
+    "sources": "Fees are a transfer."
+  },
+  {
+    "id": "money-burn",
+    "category": "monetary",
+    "question": "What does it mean to burn bitcoin?",
+    "alts": [
+      "In simple words, what does it mean to burn bitcoin?",
+      "What does it mean to burn bitcoin, briefly?",
+      "Help me understand: what does it mean to burn bitcoin?"
+    ],
+    "answer": "Burning usually means sending coins to an output nobody can spend, such as a made-up address with no known key. Those coins stay in the supply math and do not circulate. The protocol has no separate burn button that deletes them from history.",
+    "topics": [
+      "burn_bitcoin",
+      "scarce",
+      "utxos"
+    ],
+    "followUps": [
+      "money-op-return-not-burn",
+      "money-auditable",
+      "money-distribution"
+    ],
+    "sources": "Unspendable outputs."
+  },
+  {
+    "id": "money-op-return-not-burn",
+    "category": "monetary",
+    "question": "Does OP_RETURN destroy coins?",
+    "alts": [
+      "In simple words, does OP_RETURN destroy coins?",
+      "Does OP_RETURN destroy coins, briefly?",
+      "Help me understand: does OP_RETURN destroy coins?"
+    ],
+    "answer": "OP_RETURN is a way to put a small unspendable note in a transaction. The coins in a normal payment are not destroyed by the existence of that note. A true burn is an output that cannot be unlocked.",
+    "topics": [
+      "op-codes",
+      "burn_bitcoin",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "money-auditable",
+      "money-distribution",
+      "money-sat-per-bitcoin"
+    ],
+    "sources": "OP_RETURN versus a burn output."
+  },
+  {
+    "id": "money-auditable",
+    "category": "monetary",
+    "question": "Why does a known supply matter?",
+    "alts": [
+      "In simple words, why does a known supply matter?",
+      "Why does a known supply matter, briefly?",
+      "Help me understand: why does a known supply matter?"
+    ],
+    "answer": "If you can audit issuance, a leader cannot quietly water the money. Bitcoin makes that audit a node function. Trust in a person's promise is replaced by a check you can run.",
+    "topics": [
+      "scarce",
+      "nodes",
+      "decentralized"
+    ],
+    "followUps": [
+      "money-distribution",
+      "money-sat-per-bitcoin",
+      "money-ticker"
+    ],
+    "sources": "Local supply audit."
+  },
+  {
+    "id": "money-distribution",
+    "category": "monetary",
+    "question": "Were all bitcoin distributed fairly in practice?",
+    "alts": [
+      "In simple words, were all bitcoin distributed fairly in practice?",
+      "Were all bitcoin distributed fairly in practice, briefly?",
+      "Help me understand: were all bitcoin distributed fairly in practice?"
+    ],
+    "answer": "Mining was open, and early miners received the large early subsidies because few people were mining. That is a real concentration from history, not a secret premine. Later coins keep coming only through the shrinking subsidy and only to whoever mines.",
+    "topics": [
+      "history",
+      "mining",
+      "scarce"
+    ],
+    "followUps": [
+      "money-sat-per-bitcoin",
+      "money-ticker",
+      "money-not-stable"
+    ],
+    "sources": "Early subsidy versus premine."
+  },
+  {
+    "id": "money-sat-per-bitcoin",
+    "category": "monetary",
+    "question": "How many satoshis are in one bitcoin?",
+    "alts": [
+      "In simple words, how many satoshis are in one bitcoin?",
+      "How many satoshis are in one bitcoin, briefly?",
+      "Help me understand: how many satoshis are in one bitcoin?"
+    ],
+    "answer": "There are 100 million satoshis in one bitcoin. Wallets multiply and divide by that number when they switch units. The chain stores the satoshi count.",
+    "topics": [
+      "sats__or__bits",
+      "math",
+      "money"
+    ],
+    "followUps": [
+      "money-ticker",
+      "money-not-stable",
+      "money-monetary-premium"
+    ],
+    "sources": "1 BTC = 100,000,000 sats."
+  },
+  {
+    "id": "money-ticker",
+    "category": "monetary",
+    "question": "What is the BTC ticker?",
+    "alts": [
+      "In simple words, what is the BTC ticker?",
+      "What is the BTC ticker, briefly?",
+      "Help me understand: what is the BTC ticker?"
+    ],
+    "answer": "BTC is the common ticker for bitcoin on exchanges. XBT is another code some places use. The protocol does not contain a ticker symbol.",
+    "topics": [
+      "faq-glossary",
+      "market_cap",
+      "money"
+    ],
+    "followUps": [
+      "money-not-stable",
+      "money-monetary-premium",
+      "money-proof-of-reserves-contrast"
+    ],
+    "sources": "Market convention."
+  },
+  {
+    "id": "money-not-stable",
+    "category": "monetary",
+    "question": "Does the supply cap make the price stable?",
+    "alts": [
+      "In simple words, does the supply cap make the price stable?",
+      "Does the supply cap make the price stable, briefly?",
+      "Help me understand: does the supply cap make the price stable?"
+    ],
+    "answer": "No. A fixed supply can still meet demand that jumps around, so the exchange price can move a lot. Stability would be a market outcome, and it is not guaranteed. This is not financial advice.",
+    "topics": [
+      "scarce",
+      "market_cap",
+      "predictions"
+    ],
+    "followUps": [
+      "money-monetary-premium",
+      "money-proof-of-reserves-contrast",
+      "money-subsidy-epoch"
+    ],
+    "sources": "Supply rule is not a volatility promise."
+  },
+  {
+    "id": "money-monetary-premium",
+    "category": "monetary",
+    "question": "What is a monetary premium?",
+    "alts": [
+      "In simple words, what is a monetary premium?",
+      "What is a monetary premium, briefly?",
+      "Help me understand: what is a monetary premium?"
+    ],
+    "answer": "A monetary premium is value something has because people hold it as money, beyond a direct industrial use. Gold has had that, and bitcoin's use is almost entirely monetary. It is a description, not a forecast.",
+    "topics": [
+      "money",
+      "austrian_school_of_economics",
+      "scarce"
+    ],
+    "followUps": [
+      "money-proof-of-reserves-contrast",
+      "money-subsidy-epoch",
+      "money-span"
+    ],
+    "sources": "Monetary premium as a concept."
+  },
+  {
+    "id": "money-proof-of-reserves-contrast",
+    "category": "monetary",
+    "question": "Why not just audit a bank's vault?",
+    "alts": [
+      "In simple words, why not just audit a bank's vault?",
+      "Why not just audit a bank's vault, briefly?",
+      "Help me understand: why not just audit a bank's vault?"
+    ],
+    "answer": "A vault audit is a visit you trust, and it can be outdated the next day. Bitcoin's supply audit is a rule every node can rerun. Custodians who hold bitcoin for you are a different question, because then you hold a claim.",
+    "topics": [
+      "scarce",
+      "self-custody",
+      "nodes"
+    ],
+    "followUps": [
+      "money-subsidy-epoch",
+      "money-span",
+      "money-tiny"
+    ],
+    "sources": "Protocol audit versus custodian audit."
+  },
+  {
+    "id": "money-subsidy-epoch",
+    "category": "monetary",
+    "question": "What is a subsidy epoch?",
+    "alts": [
+      "In simple words, what is a subsidy epoch?",
+      "What is a subsidy epoch, briefly?",
+      "Help me understand: what is a subsidy epoch?"
+    ],
+    "answer": "A subsidy epoch is a span of 210,000 blocks that share the same new-coin reward. The reward starts at 50 bitcoin and halves each epoch. The epoch is counted in blocks, not on a government calendar.",
+    "topics": [
+      "scarce",
+      "money",
+      "mining"
+    ],
+    "followUps": [
+      "money-span",
+      "money-tiny",
+      "money-split"
+    ],
+    "sources": "210,000-block epochs."
+  },
+  {
+    "id": "money-span",
+    "category": "monetary",
+    "question": "Why does the subsidy change every 210000 blocks?",
+    "alts": [
+      "In simple words, why does the subsidy change every 210000 blocks?",
+      "Why does the subsidy change every 210000 blocks, briefly?",
+      "Help me understand: why does the subsidy change every 210000 blocks?"
+    ],
+    "answer": "The software divides issuance into 210,000-block spans, about four years if blocks average ten minutes. That spacing is a choice in the code. Nodes enforce it, so a miner cannot shorten it alone.",
+    "topics": [
+      "scarce",
+      "mining"
+    ],
+    "followUps": [
+      "money-tiny",
+      "money-split",
+      "money-overflow"
+    ],
+    "sources": "Issuance span."
+  },
+  {
+    "id": "money-tiny",
+    "category": "monetary",
+    "question": "When does the new-coin subsidy become tiny?",
+    "alts": [
+      "In simple words, when does the new-coin subsidy become tiny?",
+      "When does the new-coin subsidy become tiny, briefly?",
+      "Help me understand: when does the new-coin subsidy become tiny?"
+    ],
+    "answer": "After many halvings the new-coin reward becomes a tiny fraction of a bitcoin and then zero in the integer unit. Fees are the remaining payment to miners. The calendar year depends on real block times, so it is not a dated promise.",
+    "topics": [
+      "scarce",
+      "tail_emission",
+      "transaction_fees"
+    ],
+    "followUps": [
+      "money-split",
+      "money-overflow",
+      "money-lost-cap"
+    ],
+    "sources": "Halving schedule. No calendar promise."
+  },
+  {
+    "id": "money-split",
+    "category": "monetary",
+    "question": "Why can one bitcoin be split so far?",
+    "alts": [
+      "In simple words, why can one bitcoin be split so far?",
+      "Why can one bitcoin be split so far, briefly?",
+      "Help me understand: why can one bitcoin be split so far?"
+    ],
+    "answer": "Each bitcoin is divisible into 100 million units in the protocol. Splitting the unit does not create more bitcoin. It only lets people price smaller amounts.",
+    "topics": [
+      "money",
+      "scarce",
+      "sats__or__bits"
+    ],
+    "followUps": [
+      "money-overflow",
+      "money-lost-cap",
+      "money-speed"
+    ],
+    "sources": "100 million base units."
+  },
+  {
+    "id": "money-overflow",
+    "category": "monetary",
+    "question": "What was the 2010 value overflow?",
+    "alts": [
+      "In simple words, what was the 2010 value overflow?",
+      "What was the 2010 value overflow, briefly?",
+      "Help me understand: what was the 2010 value overflow?"
+    ],
+    "answer": "In August 2010 a bug allowed a transaction to create outputs far beyond the intended supply, and upgraded nodes rejected that chain. The bad history was replaced by a valid chain. The incident shows why the client people run matters.",
+    "topics": [
+      "history",
+      "scarce",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "money-lost-cap",
+      "money-speed",
+      "money-estimate"
+    ],
+    "sources": "August 2010 value overflow."
+  },
+  {
+    "id": "money-lost-cap",
+    "category": "monetary",
+    "question": "Do lost coins still count toward the cap?",
+    "alts": [
+      "In simple words, do lost coins still count toward the cap?",
+      "Do lost coins still count toward the cap, briefly?",
+      "Help me understand: do lost coins still count toward the cap?"
+    ],
+    "answer": "Coins with lost keys still count toward the 21 million cap, because the protocol cannot tell a lost key from a quiet holder. They simply are not spent. The spendable amount can be smaller than the cap without a rule change.",
+    "topics": [
+      "scarce",
+      "money"
+    ],
+    "followUps": [
+      "money-speed",
+      "money-estimate",
+      "money-labels"
+    ],
+    "sources": "Lost keys remain in the cap."
+  },
+  {
+    "id": "money-speed",
+    "category": "monetary",
+    "question": "Who can speed up bitcoin issuance?",
+    "alts": [
+      "In simple words, who can speed up bitcoin issuance?",
+      "Who can speed up bitcoin issuance, briefly?",
+      "Help me understand: who can speed up bitcoin issuance?"
+    ],
+    "answer": "No miner, exchange, or developer can speed the issuance schedule unless nodes accept different software. A block that pays the wrong subsidy is invalid. The schedule is checked, not set by the exchange price.",
+    "topics": [
+      "scarce",
+      "consensus",
+      "governance"
+    ],
+    "followUps": [
+      "money-estimate",
+      "money-labels",
+      "money-sats-habit"
+    ],
+    "sources": "Subsidy is validated."
+  },
+  {
+    "id": "money-estimate",
+    "category": "monetary",
+    "question": "Why is a halving date only an estimate?",
+    "alts": [
+      "In simple words, why is a halving date only an estimate?",
+      "Why is a halving date only an estimate, briefly?",
+      "Help me understand: why is a halving date only an estimate?"
+    ],
+    "answer": "A halving happens at a block height, and the calendar day assumes blocks average ten minutes. Real blocks are sometimes faster or slower until difficulty retargets. Treat a printed date as an estimate.",
+    "topics": [
+      "scarce",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "money-labels",
+      "money-sats-habit",
+      "money-stock"
+    ],
+    "sources": "Height, not a civil date."
+  },
+  {
+    "id": "money-labels",
+    "category": "monetary",
+    "question": "Why do wallets show different unit names?",
+    "alts": [
+      "In simple words, why do wallets show different unit names?",
+      "Why do wallets show different unit names, briefly?",
+      "Help me understand: why do wallets show different unit names?"
+    ],
+    "answer": "Wallets may label amounts as BTC, sats, or bits. Those are display choices over the same integer units. The chain does not store the label.",
+    "topics": [
+      "sats__or__bits",
+      "money"
+    ],
+    "followUps": [
+      "money-sats-habit",
+      "money-stock",
+      "money-flow"
+    ],
+    "sources": "Display units."
+  },
+  {
+    "id": "money-sats-habit",
+    "category": "monetary",
+    "question": "Why do many people count in sats?",
+    "alts": [
+      "In simple words, why do many people count in sats?",
+      "Why do many people count in sats, briefly?",
+      "Help me understand: why do many people count in sats?"
+    ],
+    "answer": "Counting in sats avoids decimals and matches the integer the protocol uses. One sat is the smallest unit. The habit is practical, and it is not a second coin.",
+    "topics": [
+      "sats__or__bits",
+      "money"
+    ],
+    "followUps": [
+      "money-stock",
+      "money-flow",
+      "money-audit"
+    ],
+    "sources": "Integer units."
+  },
+  {
+    "id": "money-stock",
+    "category": "monetary",
+    "question": "What is the stock of bitcoin?",
+    "alts": [
+      "In simple words, what is the stock of bitcoin?",
+      "What is the stock of bitcoin, briefly?",
+      "Help me understand: what is the stock of bitcoin?"
+    ],
+    "answer": "The stock is the coins that already exist. New subsidy adds to that stock on a schedule. Lost keys do not delete those coins from the historical cap.",
+    "topics": [
+      "scarce",
+      "money"
+    ],
+    "followUps": [
+      "money-flow",
+      "money-audit",
+      "money-fixed-supply"
+    ],
+    "sources": "Existing coins."
+  },
+  {
+    "id": "money-flow",
+    "category": "monetary",
+    "question": "What is the flow of new bitcoin?",
+    "alts": [
+      "In simple words, what is the flow of new bitcoin?",
+      "What is the flow of new bitcoin, briefly?",
+      "Help me understand: what is the flow of new bitcoin?"
+    ],
+    "answer": "The flow is the new coins a valid block may create. Halvings cut that flow. Flow is not the exchange price.",
+    "topics": [
+      "scarce",
+      "mining"
+    ],
+    "followUps": [
+      "money-audit",
+      "money-fixed-supply",
+      "money-just-under"
+    ],
+    "sources": "New issuance."
+  },
+  {
+    "id": "money-audit",
+    "category": "monetary",
+    "question": "How can a person audit issuance?",
+    "alts": [
+      "In simple words, how can a person audit issuance?",
+      "How can a person audit issuance, briefly?",
+      "Help me understand: how can a person audit issuance?"
+    ],
+    "answer": "A full node adds up the subsidy rules and rejects a block that mints too much. You do not need an exchange report for that check. The audit is validation itself.",
+    "topics": [
+      "nodes",
+      "scarce"
+    ],
+    "followUps": [
+      "money-fixed-supply",
+      "money-just-under",
+      "money-sats-supply"
+    ],
+    "sources": "Full-node validation."
+  }
+]

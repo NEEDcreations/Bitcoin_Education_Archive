@@ -1,0 +1,1190 @@
+[
+  {
+    "id": "crypto-steer-generic",
+    "category": "crypto-steer",
+    "question": "What is crypto?",
+    "alts": [
+      "What does the word crypto mean here?",
+      "Is crypto the same as Bitcoin?",
+      "Why do people say crypto?"
+    ],
+    "answer": "Crypto is a loose nickname for many unrelated tokens, and Bitcoin is one network with one asset. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-ethereum",
+    "category": "crypto-steer",
+    "question": "What is Ethereum?",
+    "alts": [
+      "Tell me about the ether token.",
+      "Explain Ethereum simply.",
+      "How is Ethereum different from Bitcoin?"
+    ],
+    "answer": "Ethereum is a separate network for general programs, it moved to proof of stake in the Merge of September 2022, and its coins began with a 2014 crowdsale. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-eth-better",
+    "category": "crypto-steer",
+    "question": "Is Ethereum better than Bitcoin?",
+    "alts": [
+      "Should I pick Ethereum instead of Bitcoin?",
+      "Is ether a better money?",
+      "Why not use Ethereum as money?"
+    ],
+    "answer": "Ethereum optimizes for general programs and has changed its monetary policy and its consensus by social decision, while Bitcoin optimizes for simple money that many independent nodes can check. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-solana",
+    "category": "crypto-steer",
+    "question": "What is Solana?",
+    "alts": [
+      "Explain Solana.",
+      "Is Solana Bitcoin?",
+      "What is the SOL token?"
+    ],
+    "answer": "Solana is a separate high-throughput network, and it has had periods when block production stopped, so a live status would go stale. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-xrp",
+    "category": "crypto-steer",
+    "question": "What is XRP?",
+    "alts": [
+      "What is Ripple?",
+      "Is XRP Bitcoin?",
+      "Explain the XRP token."
+    ],
+    "answer": "XRP is a token tied to the company Ripple, and its supply was created by its issuer rather than by open mining like bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-doge",
+    "category": "crypto-steer",
+    "question": "What is Dogecoin?",
+    "alts": [
+      "Is Dogecoin Bitcoin?",
+      "Explain Dogecoin.",
+      "Does Dogecoin have a cap?"
+    ],
+    "answer": "Dogecoin began in 2013 as a joke coin, and it does not have a fixed cap near 21 million because new coins keep being issued. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-cardano",
+    "category": "crypto-steer",
+    "question": "What is Cardano?",
+    "alts": [
+      "Tell me about the ADA token.",
+      "Is Cardano Bitcoin?",
+      "Explain Cardano."
+    ],
+    "answer": "Cardano is a separate proof-of-stake network associated with a foundation and a company, not with open bitcoin mining. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-bnb",
+    "category": "crypto-steer",
+    "question": "What is BNB?",
+    "alts": [
+      "What is the Binance coin?",
+      "Is BNB Bitcoin?",
+      "Explain BNB."
+    ],
+    "answer": "BNB is a token associated with the Binance exchange, so its fate is tied to that company in a way bitcoin is not tied to any exchange. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-avax",
+    "category": "crypto-steer",
+    "question": "What is Avalanche?",
+    "alts": [
+      "What is AVAX?",
+      "Is Avalanche Bitcoin?",
+      "Explain Avalanche."
+    ],
+    "answer": "Avalanche is a separate proof-of-stake network with its own token, not a layer of Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-dot",
+    "category": "crypto-steer",
+    "question": "What is Polkadot?",
+    "alts": [
+      "What is DOT?",
+      "Is Polkadot Bitcoin?",
+      "Explain Polkadot."
+    ],
+    "answer": "Polkadot is a separate network designed to connect other chains, associated with the Web3 Foundation, and it is not Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-link",
+    "category": "crypto-steer",
+    "question": "What is Chainlink?",
+    "alts": [
+      "What is LINK?",
+      "Is Chainlink Bitcoin?",
+      "Explain Chainlink."
+    ],
+    "answer": "Chainlink is an oracle network that feeds outside data to other chains, and it is not the bitcoin asset. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-ltc",
+    "category": "crypto-steer",
+    "question": "What is Litecoin?",
+    "alts": [
+      "Is Litecoin Bitcoin?",
+      "Explain Litecoin.",
+      "Who started Litecoin?"
+    ],
+    "answer": "Litecoin is a separate chain launched in 2011 by Charlie Lee, with a different hashing algorithm and its own coin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-bch",
+    "category": "crypto-steer",
+    "question": "What is Bitcoin Cash?",
+    "alts": [
+      "Is Bitcoin Cash the same as Bitcoin?",
+      "Explain Bitcoin Cash.",
+      "What was the 2017 fork?"
+    ],
+    "answer": "Bitcoin Cash is a hard fork that split off on 1 August 2017 with a larger block-size rule, and its coins are not the bitcoin this archive teaches. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-bsv",
+    "category": "crypto-steer",
+    "question": "What is Bitcoin SV?",
+    "alts": [
+      "Is Bitcoin SV Bitcoin?",
+      "Explain Bitcoin SV.",
+      "What is BSV?"
+    ],
+    "answer": "Bitcoin SV is a minority fork with its own rules and leadership fights, and it is not the chain with the widest bitcoin node agreement. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-polygon",
+    "category": "crypto-steer",
+    "question": "What is Polygon?",
+    "alts": [
+      "What is MATIC or POL?",
+      "Is Polygon Bitcoin?",
+      "Explain Polygon."
+    ],
+    "answer": "Polygon is a separate network positioned as scaling for Ethereum, and it is not a Bitcoin layer. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-shib",
+    "category": "crypto-steer",
+    "question": "What is Shiba Inu coin?",
+    "alts": [
+      "What is SHIB?",
+      "Is Shiba Inu Bitcoin?",
+      "Explain the SHIB token."
+    ],
+    "answer": "Shiba Inu is a meme token whose supply was issued by its creators, and it is not bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-pepe",
+    "category": "crypto-steer",
+    "question": "What is a Pepe coin?",
+    "alts": [
+      "What is PEPE?",
+      "Are meme frog coins Bitcoin?",
+      "Explain Pepe tokens."
+    ],
+    "answer": "Pepe coins are meme tokens issued on other networks, and they are not bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-tron",
+    "category": "crypto-steer",
+    "question": "What is Tron?",
+    "alts": [
+      "What is TRX?",
+      "Is Tron Bitcoin?",
+      "Explain Tron."
+    ],
+    "answer": "Tron is a separate network associated with a known founder, and its token is not bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-monero",
+    "category": "crypto-steer",
+    "question": "What is Monero?",
+    "alts": [
+      "What is XMR?",
+      "Is Monero Bitcoin?",
+      "How is Monero different?"
+    ],
+    "answer": "Monero is a separate network that hides sender, receiver, and amount by default, while bitcoin amounts stay visible, and Nacho does not teach how to hide proceeds. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-ton",
+    "category": "crypto-steer",
+    "question": "What is TON?",
+    "alts": [
+      "What is Toncoin?",
+      "Is TON Bitcoin?",
+      "Explain the Open Network."
+    ],
+    "answer": "TON is a separate network that grew from a project started by Telegram's founders, and it is not Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-sui",
+    "category": "crypto-steer",
+    "question": "What is Sui?",
+    "alts": [
+      "Is Sui Bitcoin?",
+      "Explain Sui.",
+      "What is the SUI token?"
+    ],
+    "answer": "Sui is a newer proof-of-stake network with its own token, not a bitcoin layer. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-aptos",
+    "category": "crypto-steer",
+    "question": "What is Aptos?",
+    "alts": [
+      "Is Aptos Bitcoin?",
+      "Explain Aptos.",
+      "What is the APT token?"
+    ],
+    "answer": "Aptos is a newer proof-of-stake network with its own token, not Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-near",
+    "category": "crypto-steer",
+    "question": "What is NEAR?",
+    "alts": [
+      "Is NEAR Bitcoin?",
+      "Explain the NEAR protocol.",
+      "What is the NEAR token?"
+    ],
+    "answer": "NEAR is a separate proof-of-stake network, and it is not Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-filecoin",
+    "category": "crypto-steer",
+    "question": "What is Filecoin?",
+    "alts": [
+      "What is FIL?",
+      "Is Filecoin Bitcoin?",
+      "Explain Filecoin."
+    ],
+    "answer": "Filecoin pays participants to store files on its own network, and that token is not bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-atom",
+    "category": "crypto-steer",
+    "question": "What is Cosmos?",
+    "alts": [
+      "What is ATOM?",
+      "Is Cosmos Bitcoin?",
+      "Explain the Cosmos hub."
+    ],
+    "answer": "Cosmos is a family of chains built to interoperate, with ATOM as a hub token, and it is not Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-algo",
+    "category": "crypto-steer",
+    "question": "What is Algorand?",
+    "alts": [
+      "What is ALGO?",
+      "Is Algorand Bitcoin?",
+      "Explain Algorand."
+    ],
+    "answer": "Algorand is a separate proof-of-stake network, and it is not Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-xlm",
+    "category": "crypto-steer",
+    "question": "What is Stellar?",
+    "alts": [
+      "What is XLM?",
+      "Is Stellar Bitcoin?",
+      "Explain Stellar."
+    ],
+    "answer": "Stellar is a payments network with its own token, associated with a foundation, and it is not Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-hbar",
+    "category": "crypto-steer",
+    "question": "What is Hedera?",
+    "alts": [
+      "What is HBAR?",
+      "Is Hedera Bitcoin?",
+      "Explain Hedera."
+    ],
+    "answer": "Hedera uses a council of organizations rather than open mining, and its token is not bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-uni",
+    "category": "crypto-steer",
+    "question": "What is Uniswap?",
+    "alts": [
+      "Is Uniswap Bitcoin?",
+      "Explain Uniswap.",
+      "What does a swap app do?"
+    ],
+    "answer": "Uniswap is an app on Ethereum for swapping tokens with a pool of deposits, and it is not part of Bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-aave",
+    "category": "crypto-steer",
+    "question": "What is Aave?",
+    "alts": [
+      "Is Aave Bitcoin?",
+      "Explain Aave.",
+      "What is crypto lending?"
+    ],
+    "answer": "Aave is a lending app on other chains, so a deposit there is a contract risk on that chain, not a bitcoin UTXO. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-usdt",
+    "category": "crypto-steer",
+    "question": "What is Tether?",
+    "alts": [
+      "Tell me about the dollar token USDT.",
+      "Is Tether Bitcoin?",
+      "Explain the USDT token."
+    ],
+    "answer": "Tether is a company-issued token that aims to track the US dollar, and it depends on the issuer rather than on bitcoin's supply schedule. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-usdc",
+    "category": "crypto-steer",
+    "question": "What is USDC?",
+    "alts": [
+      "Is USDC Bitcoin?",
+      "Explain USDC.",
+      "What is Circle's dollar token?"
+    ],
+    "answer": "USDC is a dollar token issued by a company, and holding it is a claim on that issuer, not a bitcoin key. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-stable",
+    "category": "crypto-steer",
+    "question": "What is a stablecoin?",
+    "alts": [
+      "Are stablecoins Bitcoin?",
+      "Explain stablecoins.",
+      "Do stablecoins have a fixed bitcoin supply?"
+    ],
+    "answer": "A stablecoin tries to hold a fiat price and depends on reserves or collateral, and it is not bitcoin. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-wbtc",
+    "category": "crypto-steer",
+    "question": "What is wrapped bitcoin?",
+    "alts": [
+      "What is WBTC?",
+      "Is wrapped bitcoin the same as bitcoin?",
+      "Explain WBTC."
+    ],
+    "answer": "Wrapped bitcoin is an IOU on another chain that depends on a custodian, and it is not a bitcoin UTXO you hold with your own keys. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-nft",
+    "category": "crypto-steer",
+    "question": "What is an NFT?",
+    "alts": [
+      "Are NFTs Bitcoin?",
+      "Explain NFTs.",
+      "Should Nacho track NFT prices?"
+    ],
+    "answer": "An NFT is a token that points at a record or a file on some system, and collectible markets are not what this archive teaches. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-defi",
+    "category": "crypto-steer",
+    "question": "What is DeFi?",
+    "alts": [
+      "Is DeFi Bitcoin?",
+      "Explain decentralized finance.",
+      "Are DeFi tokens bitcoin?"
+    ],
+    "answer": "DeFi usually means token apps on other chains for trading or lending, and those contracts can fail or be governed by a key. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-meme",
+    "category": "crypto-steer",
+    "question": "What is a memecoin?",
+    "alts": [
+      "What is a meme coin?",
+      "Are memecoins Bitcoin?",
+      "Explain memecoins."
+    ],
+    "answer": "A memecoin is a token whose main story is a joke, and the class does not share bitcoin's fixed issuance or its lack of an issuer. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-which",
+    "category": "crypto-steer",
+    "question": "Which altcoin should I buy?",
+    "alts": [
+      "Which coin should I buy?",
+      "What is the best altcoin?",
+      "Which crypto should I buy?"
+    ],
+    "answer": "Nacho will not pick an altcoin for you to buy, because that is a sales pitch rather than an explanation of money. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-moon",
+    "category": "crypto-steer",
+    "question": "Which coin will moon?",
+    "alts": [
+      "What coin will go up the most?",
+      "Which crypto will explode?",
+      "What should I buy to get rich?"
+    ],
+    "answer": "Nobody honest knows which token will rise, and a moon story is not a plan. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-stake",
+    "category": "crypto-steer",
+    "question": "What is staking on other chains?",
+    "alts": [
+      "Should I stake coins?",
+      "What is proof-of-stake yield?",
+      "Is staking the same as bitcoin mining?"
+    ],
+    "answer": "Staking locks a token to take part in proof of stake, and bitcoin does not pay you for locking coins because it uses proof of work instead. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-airdrop",
+    "category": "crypto-steer",
+    "question": "What is an airdrop?",
+    "alts": [
+      "Are airdrops free bitcoin?",
+      "Explain airdrops.",
+      "Should I claim every airdrop?"
+    ],
+    "answer": "An airdrop sends a new token to addresses to promote a project, and the token is not bitcoin and the claim site may be hostile. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-ico",
+    "category": "crypto-steer",
+    "question": "What was an ICO?",
+    "alts": [
+      "What is an initial coin offering?",
+      "Are ICOs how Bitcoin started?",
+      "Explain ICOs."
+    ],
+    "answer": "An ICO sold a new token to the public, a pattern that peaked around 2017, and Bitcoin did not start that way. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-presale",
+    "category": "crypto-steer",
+    "question": "What is a token presale?",
+    "alts": [
+      "Should I join a presale?",
+      "What is a crypto presale?",
+      "Are presales a bitcoin thing?"
+    ],
+    "answer": "A presale asks you to pay before a token trades in public, which is a favorite shape for scams and is not how bitcoin was issued. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-yield",
+    "category": "crypto-steer",
+    "question": "What is yield farming?",
+    "alts": [
+      "What is crypto yield?",
+      "Should I farm yields?",
+      "Explain yield farming."
+    ],
+    "answer": "Yield farming chases token rewards by depositing into contracts, and the reward can be inflation of that token or a loss if the contract fails. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-diversify",
+    "category": "crypto-steer",
+    "question": "Should I diversify into altcoins?",
+    "alts": [
+      "Should I hold many coins?",
+      "Is a crypto basket safer?",
+      "Should my savings be in several tokens?"
+    ],
+    "answer": "Owning many tokens is not the same as understanding money, and Nacho will not build a basket for you. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-killers",
+    "category": "crypto-steer",
+    "question": "What is an Ethereum killer?",
+    "alts": [
+      "Which chain will replace Ethereum?",
+      "What are layer-1 alternatives?",
+      "Will a new chain replace Bitcoin?"
+    ],
+    "answer": "Ethereum killer is a marketing phrase for newer chains, and none of them replaces bitcoin's role as money with no issuer. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-l1",
+    "category": "crypto-steer",
+    "question": "What is an alternative layer 1?",
+    "alts": [
+      "What is another base chain?",
+      "Are other layer 1s Bitcoin?",
+      "Explain alt layer 1s."
+    ],
+    "answer": "An alternative layer 1 is another base chain with its own token and its own trust assumptions, and this site teaches Bitcoin's base layer. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-pos",
+    "category": "crypto-steer",
+    "question": "What is proof of stake?",
+    "alts": [
+      "How does proof of stake work?",
+      "Is proof of stake Bitcoin?",
+      "Why not switch Bitcoin to proof of stake?"
+    ],
+    "answer": "Proof of stake picks block producers from holders who lock the coin, and Bitcoin keeps proof of work so a large balance is not the right to write history. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-multi-wallet",
+    "category": "crypto-steer",
+    "question": "What is a multi-coin wallet?",
+    "alts": [
+      "Should I use one wallet for every coin?",
+      "What is a crypto wallet?",
+      "Can one app hold every token safely?"
+    ],
+    "answer": "A multi-coin wallet speaks many networks and adds many kinds of contract risk, while a bitcoin-only wallet has a smaller job you can understand. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-season",
+    "category": "crypto-steer",
+    "question": "What is memecoin season?",
+    "alts": [
+      "Is memecoin season a plan?",
+      "When is meme season?",
+      "Should I trade meme season?"
+    ],
+    "answer": "Memecoin season is a nickname for a stretch when joke tokens get attention, and it is a story about crowds, not a calendar. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-nft-bitcoin",
+    "category": "crypto-steer",
+    "question": "Are NFTs the same as bitcoin ordinals?",
+    "alts": [
+      "Should I buy NFTs?",
+      "How are NFTs different from inscriptions?",
+      "Do NFTs live on Bitcoin?"
+    ],
+    "answer": "Most NFTs are tokens on other chains, while ordinal inscriptions are data inside bitcoin transactions, and neither one is the bitcoin money supply. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-eth-fees",
+    "category": "crypto-steer",
+    "question": "Why are Ethereum fees different?",
+    "alts": [
+      "What is an Ethereum gas fee?",
+      "Are ETH fees bitcoin fees?",
+      "Explain gas."
+    ],
+    "answer": "Ethereum charges gas for its own programs under its own rules, and those numbers are not bitcoin transaction fees. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-sol-fees",
+    "category": "crypto-steer",
+    "question": "Are Solana fees bitcoin fees?",
+    "alts": [
+      "Why is Solana cheap?",
+      "Do Solana fees apply to bitcoin?",
+      "Explain Solana fees."
+    ],
+    "answer": "Solana's low posted fees belong to that chain's design and its validator set, and they are not the market for bitcoin block space. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  },
+  {
+    "id": "crypto-steer-buy-eth",
+    "category": "crypto-steer",
+    "question": "Should I buy Ethereum?",
+    "alts": [
+      "Is buying ether something you recommend?",
+      "Is ETH a good buy?",
+      "Ought I to buy Ethereum?"
+    ],
+    "answer": "Nacho will not tell you to buy ether. A purchase is your decision, and the lesson here is how bitcoin's supply and custody differ. Nacho focuses on Bitcoin because it has no company behind it, no premine, a fixed supply in the code, and proof-of-work security that has run in public since 2009. The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.",
+    "topics": [
+      "evidence-against-alts",
+      "decentralized",
+      "scarce"
+    ],
+    "followUps": [
+      "basics-what-is-bitcoin",
+      "money-fixed-supply",
+      "mining-proof-of-work"
+    ],
+    "sources": "Educational comparison only. Not an offer to buy or sell."
+  }
+]
