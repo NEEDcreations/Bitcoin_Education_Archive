@@ -13,7 +13,7 @@ const tipConfirm = require('./tipConfirm');
 const doubleXp = require('./doubleXp');
 const referrals = require('./referrals');
 const { assertPublicHost } = require('./publicHost');
-const { splitDailyXp } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const { paymentHashFromDecoded, rewardBlocked } = require('./cipherClaim');
 const tipBadge = require('./tipBadge');
 
@@ -346,7 +346,7 @@ async function confirmTipSent(data, context) {
         const senderLedger = senderLedgerDoc && senderLedgerDoc.exists ? (senderLedgerDoc.data() || {}) : {};
         const split = rewardBlocked(user, senderLedger)
             ? { awarded: 0, overflowAdded: 0, capped: false }
-            : splitDailyXp(dailyUsed, boost.points);
+            : planDailyXp(dailyUsed, boost.points);
         const userUpdate = { tipConfirmedDate: today };
         if (call.challengeCompleted) userUpdate.tipChallengeDate = today;
         if (split.awarded > 0) {

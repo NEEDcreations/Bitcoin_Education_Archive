@@ -585,7 +585,7 @@ test('callable source ignores client XP and enforces App Check', function () {
     assert.strictEqual(src.includes('user.created'), false);
     assert.strictEqual(src.includes('createdAt'), false);
     assert.ok(src.includes('runTransaction'));
-    assert.ok(src.includes('splitDailyXp'));
+    assert.ok(src.includes('planDailyXp'));
     assert.ok(!src.includes('data.xp'));
     assert.ok(!src.includes('data.first'));
     assert.ok(!src.includes('data.text'));

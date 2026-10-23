@@ -451,8 +451,9 @@ queue.push(test('each activity family grants one Favor point from its server rec
     const flex = progressBadges.progressSpec({}, 'flex_action', { flexId: 'findq' }, '2026-10-22');
     assert.strictEqual(flex.inc['flexTotals.findq'], 1);
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
-    const quest = index.slice(index.indexOf('exports.gradeQuest'), index.indexOf('exports.issueCertificate'));
-    assert.ok(quest.includes('questsPassed'));
+    const questSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'questCallables.js'), 'utf8');
+    assert.ok(questSrc.includes('questsPassed'));
+    assert.ok(questSrc.includes("familyFor('questsPassed')"));
     const spin = index.slice(index.indexOf('exports.dailySpin'), index.indexOf('exports.pvpStoreAnswerKey'));
     assert.ok(spin.includes('spinDays'));
     assert.ok(spin.includes('spinHitRare'));
@@ -638,7 +639,8 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.ok(award.indexOf('triviaGrade') < award.indexOf('progressBadges.progressSpec'));
     assert.ok(!award.includes("source: 'combo_bonus'"));
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
-    assert.ok(quests.includes('triviaChoice: chosenIdx'));
+    assert.ok(quests.includes("httpsCallable('answerTrivia')"));
+    assert.ok(quests.includes('chosen: chosenText'));
 }));
 
 queue.push(test('the scholar badge and the client read the exam record, not a profile flag', function () {

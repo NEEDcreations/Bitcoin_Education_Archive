@@ -58,8 +58,9 @@ function answersFor(topicKey, questIndex, pick) {
 }
 
 test('daily quiz and trivia use the shared 1000 cap', function() {
-    assert.strictEqual(reward.DAILY_QUIZ_XP_CAP, 1000);
-    assert.strictEqual(dailyXp.DAILY_POINTS_CAP, 1000);
+    assert.strictEqual(reward.DAILY_QUIZ_XP_CAP, undefined);
+    assert.strictEqual(dailyXp.DAILY_CAP, 1000);
+    assert.strictEqual(dailyXp.DAILY_POINTS_CAP, dailyXp.DAILY_CAP);
     assert.strictEqual(dailyXp.TAPER_FULL_UNTIL, 600);
     assert.strictEqual(reward.offsetDateKey(NOW), '2026-10-22');
     if (reward.triviaLength() === 158) {

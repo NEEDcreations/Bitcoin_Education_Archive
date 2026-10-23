@@ -1,12 +1,11 @@
 'use strict';
 
 const POLL_BANK = require('./pollBank.json');
-const { splitDailyXp } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily, offsetDateKey } = require('./grantBadge');
 
 const POLL_XP = 50;
-const POLL_CAP = 1000;
 
 function pollForDay(day) {
     const len = POLL_BANK.length;
@@ -57,7 +56,7 @@ function createPollVote(opts) {
             while (prevVotes.length < 4) prevVotes.push(0);
             prevVotes[chosen] = Number(prevVotes[chosen] || 0) + 1;
             const dailyUsed = dailySnap.exists ? Number(dailySnap.data().total || 0) : 0;
-            const split = splitDailyXp(dailyUsed, POLL_XP, POLL_CAP);
+            const split = planDailyXp(dailyUsed, POLL_XP);
             const update = { pollDays: admin.firestore.FieldValue.increment(1), lastPollDate: day };
             if (split.awarded > 0) {
                 update.points = admin.firestore.FieldValue.increment(split.awarded);

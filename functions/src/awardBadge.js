@@ -6,14 +6,13 @@
 // A badge the profile already shows gets an award row with 0 XP and no pool point.
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
-const { splitDailyXp } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
 const { profileHoldsBadge } = require('./badgeProfile');
 
-const BADGE_DAILY_CAP = 1000;
 const ALIASES = { country_set: 'global_citizen' };
 
 function cleanId(raw) {
@@ -122,7 +121,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0)
         );
         const dailyUsed = dailySnap.exists ? Number((dailySnap.data() || {}).total || 0) : 0;
-        const split = splitDailyXp(dailyUsed, catalogXp, BADGE_DAILY_CAP);
+        const split = planDailyXp(dailyUsed, catalogXp);
         const xp = split.awarded > 0 ? split.awarded : 0;
 
         const update = {
@@ -226,5 +225,4 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 module.exports = {
     awardBadge: awardBadge,
     cleanId: cleanId,
-    BADGE_DAILY_CAP: BADGE_DAILY_CAP,
 };

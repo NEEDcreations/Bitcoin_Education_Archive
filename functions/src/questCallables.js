@@ -14,6 +14,7 @@ const admin = require('firebase-admin');
 const reward = require('./questReward');
 const rewardNotify = require('./rewardNotify');
 const { DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
+const { grantFamily, familyFor } = require('./grantBadge');
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
@@ -197,14 +198,19 @@ const gradeQuest = onCall(async (data, context) => {
     const completionRef = partKey
         ? userRef.collection('quest_completions').doc(partKey)
         : null;
+    const passKey = graded.ok && graded.topicKey && Number.isInteger(graded.questIndex) && graded.questIndex >= 0
+        ? reward.questCompletionKey(graded.topicKey, graded.questIndex)
+        : '';
+    const passRef = passKey ? userRef.collection('quest_passes').doc(passKey) : null;
 
-    return db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx) => {
         const rateDoc = await tx.get(rateRef);
         const userDoc = await tx.get(userRef);
         const ledgerDoc = await tx.get(ledgerRef);
         const questCountDoc = await tx.get(dailyQuestRef);
         const dailyDoc = await tx.get(dailyPtsRef);
         const completionDoc = completionRef ? await tx.get(completionRef) : null;
+        const passDoc = passRef ? await tx.get(passRef) : null;
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
         const banned = reward.isRewardBanned(user, ledgerDoc.exists ? ledgerDoc.data() : null);
@@ -247,12 +253,23 @@ const gradeQuest = onCall(async (data, context) => {
             }, { merge: true });
         }
         const userUpdate = {};
+        let questsPassed = false;
         if (settled.countQuest) {
             const yesterday = reward.previousDateKey(dayKey);
             userUpdate.lastQuizDate = dayKey;
             userUpdate.quizStreak = reward.nextActivityStreak(user.lastQuizDate || '', user.quizStreak || 0, dayKey, yesterday);
             userUpdate.quizAnswered = FieldValue.increment(5);
             if ((settled.score || 0) > 0) userUpdate.quizCorrect = FieldValue.increment(settled.score);
+            if ((settled.score || 0) >= 3 && !banned && passRef && !(passDoc && passDoc.exists)) {
+                questsPassed = true;
+                userUpdate.questsPassed = FieldValue.increment(1);
+                tx.set(passRef, {
+                    topicKey: graded.topicKey,
+                    questIndex: graded.questIndex,
+                    score: settled.score,
+                    at: FieldValue.serverTimestamp(),
+                });
+            }
         }
         if (settled.awarded > 0) {
             userUpdate.points = FieldValue.increment(settled.awarded);
@@ -298,8 +315,14 @@ const gradeQuest = onCall(async (data, context) => {
             graded: true,
             questsToday: questsToday + (settled.countQuest ? 1 : 0),
             dailyQuestLimit: reward.DAILY_QUEST_LIMIT,
+            questsPassed: questsPassed,
         }, meterFrom(dailyUsed, settled.awarded || 0));
     });
+    if (result && result.questsPassed) {
+        try { await grantFamily(db, admin, uid, familyFor('questsPassed')); }
+        catch (questBadgeErr) { console.warn('[gradeQuest] badges', questBadgeErr && questBadgeErr.message); }
+    }
+    return result;
 });
 
 // Older clients still call this before gradeQuest. It no longer stores the

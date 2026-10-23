@@ -10,7 +10,7 @@
 // account under a day old, a missing linked provider, a banned replier, or
 // a banned original author gets nothing.
 
-const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const {
     timestampMs,
     offsetDateKey,
@@ -149,7 +149,7 @@ function assessReplyBonus(input) {
 
     const first = src.firstClaimed !== true;
     const nominal = first ? FIRST_REPLY_XP : LATER_REPLY_XP;
-    const split = splitDailyXp(Number(src.dailyUsed) || 0, nominal, DAILY_POINTS_CAP);
+    const split = planDailyXp(Number(src.dailyUsed) || 0, nominal);
     return {
         ok: true,
         code: 'ok',
@@ -422,7 +422,6 @@ module.exports = {
     DAILY_REPLY_CAP: DAILY_REPLY_CAP,
     MAX_AGE_MS: MAX_AGE_MS,
     MIN_ACCOUNT_AGE_MS: MIN_ACCOUNT_AGE_MS,
-    DAILY_POINTS_CAP: DAILY_POINTS_CAP,
     validMessageId: validMessageId,
     isMirrorOrBot: isMirrorOrBot,
     pairDocId: pairDocId,

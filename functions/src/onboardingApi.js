@@ -317,7 +317,6 @@ function registerOnboarding(deps) {
         }
         const anonRef = db.collection('users').doc(anonUid);
         const destRef = db.collection('users').doc(uid);
-        const today = offsetDateKey(Date.now());
         const nowMs = Date.now();
         let guestHadQuiz = false;
         try {
@@ -332,8 +331,6 @@ function registerOnboarding(deps) {
             const freshDest = await tx.get(destRef);
             const ledgerSnap = await tx.get(db.collection('faucet_ledger').doc(uid));
             const anonLedgerSnap = await tx.get(db.collection('faucet_ledger').doc(anonUid));
-            const dailyRef = destRef.collection('daily_points').doc(today);
-            const dailySnap = await tx.get(dailyRef);
             const nachoSnap = await tx.get(anonRef.collection('onboarding_evidence').doc('nacho'));
             const quizSnap = await tx.get(anonRef.collection('onboarding_evidence').doc('quiz'));
             const row = freshAnon.exists ? (freshAnon.data() || {}) : {};

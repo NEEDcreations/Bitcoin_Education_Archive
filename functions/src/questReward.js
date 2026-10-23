@@ -10,7 +10,7 @@
 
 const crypto = require('crypto');
 const banks = require('../reward-banks.json');
-const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 
 // Previous published bank. build-reward-banks.js writes this when the
 // client banks change, with validUntil 72 hours later. Grading uses it
@@ -22,7 +22,6 @@ try {
     prevDoc = null;
 }
 
-const DAILY_QUIZ_XP_CAP = DAILY_POINTS_CAP;
 const TRIVIA_CORRECT_XP = 50;
 const QUEST_PERFECT_XP = 100;
 const QUEST_PARTIAL_XP = 50;
@@ -276,7 +275,7 @@ function gradeTrivia(input) {
         return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected };
     }
     const pts = correct ? TRIVIA_CORRECT_XP : 0;
-    const split = splitDailyXp(src.dailyUsed || 0, pts, DAILY_QUIZ_XP_CAP);
+    const split = planDailyXp(src.dailyUsed || 0, pts);
     return {
         ok: true,
         correct: correct,
@@ -424,7 +423,7 @@ function settleQuizReward(input) {
     // when this call will not write the completion doc.
     const already = src.alreadyPerfect === true;
     const pts = already ? 0 : (graded.pts || 0);
-    const split = splitDailyXp(src.dailyUsed || 0, pts, DAILY_QUIZ_XP_CAP);
+    const split = planDailyXp(src.dailyUsed || 0, pts);
     return {
         awarded: split.awarded,
         overflowAdded: split.overflowAdded,
@@ -439,7 +438,6 @@ function settleQuizReward(input) {
 }
 
 module.exports = {
-    DAILY_QUIZ_XP_CAP: DAILY_QUIZ_XP_CAP,
     TRIVIA_CORRECT_XP: TRIVIA_CORRECT_XP,
     QUEST_PERFECT_XP: QUEST_PERFECT_XP,
     QUEST_PARTIAL_XP: QUEST_PARTIAL_XP,

@@ -316,7 +316,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     const logic = read('functions/src/tctvWatch.js');
     assert.ok(logic.includes("onceKey: 'tctv_watch_' + cleanDay"));
     assert.ok(logic.includes('rewardNotify.plan'));
-    assert.ok(logic.includes('splitDailyXp'));
+    assert.ok(logic.includes('planDailyXp'));
     assert.ok(logic.includes('offsetDateKey'));
     assert.ok(src.includes('runTransaction'));
     assert.ok(src.includes('orangeTickets'));

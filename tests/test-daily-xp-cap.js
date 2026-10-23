@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { planDailyXp, taperAward, splitDailyXp, DAILY_CAP, TAPER_FULL_UNTIL } = require('../functions/src/dailyXp');
+const { offsetDateKey } = require('../functions/src/offsetDay');
 const sayHi = require('../functions/src/sayHi');
 const { isRewardBanned } = require('../functions/src/questReward');
 const awardActions = require('../functions/src/awardActions');
@@ -85,6 +86,58 @@ test('no pendingOverflow writes in function sources', function () {
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     ['lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect', 'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt'].forEach(function (field) {
         assert.ok(rules.includes("'" + field + "'"), field);
+    });
+});
+
+test('the shared counter rolls over at 5 AM UTC', function () {
+    const before = Date.parse('2026-10-23T04:59:59.000Z');
+    const after = Date.parse('2026-10-23T05:00:00.000Z');
+    assert.strictEqual(offsetDateKey(before), '2026-10-22');
+    assert.strictEqual(offsetDateKey(after), '2026-10-23');
+    assert.notStrictEqual(offsetDateKey(before), offsetDateKey(after));
+    assert.strictEqual(planDailyXp(1000, 50).awarded, 0);
+    assert.strictEqual(sayHi.planSayHiXp(0, 0, offsetDateKey(before), offsetDateKey(after)).awarded, 50);
+    assert.strictEqual(planDailyXp(599, 2).dailyXp, 600);
+    assert.strictEqual(planDailyXp(0, 2).awarded, 2);
+});
+
+test('every XP path calls planDailyXp and the old per-source caps are gone', function () {
+    const callers = [
+        'functions/index.js',
+        'functions/src/awardActions.js',
+        'functions/src/questReward.js',
+        'functions/src/sayHi.js',
+        'functions/src/replyBonus.js',
+        'functions/src/gifting.js',
+        'functions/src/tipService.js',
+        'functions/src/tctvWatch.js',
+        'functions/src/onboardingQuest.js',
+        'functions/src/pollVote.js',
+        'functions/src/awardBadge.js',
+        'functions/src/dailyFive.js',
+        'functions/src/predictionJobs.js',
+        'functions/src/peerLevel.js',
+    ];
+    callers.forEach(function (rel) {
+        const src = fs.readFileSync(path.join(root, rel), 'utf8');
+        assert.ok(src.includes('planDailyXp'), rel);
+    });
+    const gone = ['SAY_HI_DAILY_CAP', 'POLL_CAP', 'WATCH_DAILY_CAP', 'BADGE_DAILY_CAP', 'TRIVIA_QUIZ_CAP', 'DAILY_QUIZ_XP_CAP'];
+    const files = walk(path.join(root, 'functions'), []);
+    const hits = [];
+    files.forEach(function (file) {
+        const src = fs.readFileSync(file, 'utf8');
+        gone.forEach(function (name) {
+            if (src.includes(name)) hits.push(path.relative(root, file) + ' ' + name);
+        });
+    });
+    assert.deepStrictEqual(hits, []);
+    const api = fs.readFileSync(path.join(root, 'functions', 'src', 'onboardingApi.js'), 'utf8');
+    assert.strictEqual(api.includes('planDailyXp'), false);
+    assert.ok(api.includes('Guest points were already earned'));
+    ['scripts/xp-bank-payout.js', 'scripts/backfill-badge-favor.js', 'functions/backfill-prediction-stats.js', 'functions/backfill_referrals.js', 'functions/scripts/backfill_user_sf_points.js'].forEach(function (rel) {
+        const src = fs.readFileSync(path.join(root, rel), 'utf8');
+        assert.strictEqual(src.includes('planDailyXp'), false, rel);
     });
 });
 

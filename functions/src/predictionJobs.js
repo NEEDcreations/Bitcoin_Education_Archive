@@ -4,6 +4,9 @@
  */
 const ps = require('./predictionStats');
 const rewardNotify = require('./rewardNotify');
+const { planDailyXp } = require('./dailyXp');
+const { offsetDateKey } = require('./offsetDay');
+const { rewardBlocked } = require('./cipherClaim');
 
 function createPredictionJobs(db, admin, hooks) {
     const pushHooks = hooks || {};
@@ -142,6 +145,11 @@ function createPredictionJobs(db, admin, hooks) {
                 tx.delete(activeRef);
                 return { duplicate: true };
             }
+            const dayKey = offsetDateKey(now);
+            const dailyRef = userRef.collection('daily_points').doc(dayKey);
+            const ledgerRef = db.collection('faucet_ledger').doc(liveUid);
+            const dailySnap = await tx.get(dailyRef);
+            const ledgerSnap = await tx.get(ledgerRef);
             const serverRecord = serverSnap.exists ? (serverSnap.data() || null) : null;
             const decision = ps.resolutionDecision(live, serverRecord);
             const prediction = { direction: live.direction, time: liveTime };
@@ -169,7 +177,12 @@ function createPredictionJobs(db, admin, hooks) {
             });
             tx.delete(activeRef);
             const pointsBefore = userSnap.exists ? (Number(userSnap.data().points) || 0) : 0;
-            const xp = (applied.correct && userSnap.exists) ? ps.CORRECT_XP : 0;
+            const user = userSnap.exists ? (userSnap.data() || {}) : {};
+            const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : null;
+            const dailyUsed = dailySnap.exists ? Number((dailySnap.data() || {}).total || 0) : 0;
+            let xp = (applied.correct && userSnap.exists) ? ps.CORRECT_XP : 0;
+            if (rewardBlocked(user, ledger)) xp = 0;
+            else if (xp > 0) xp = planDailyXp(dailyUsed, xp).awarded;
             if (xp > 0) {
                 const inc = admin.firestore.FieldValue.increment;
                 tx.update(userRef, {
@@ -177,6 +190,10 @@ function createPredictionJobs(db, admin, hooks) {
                     weeklyXP: inc(xp),
                     monthlyXP: inc(xp)
                 });
+                tx.set(dailyRef, {
+                    total: dailyUsed + xp,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
             }
             return {
                 correct: applied.correct === true,

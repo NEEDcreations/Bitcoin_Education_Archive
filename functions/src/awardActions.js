@@ -5,8 +5,6 @@
 // Tickets are never granted here. Every action shares the 600 / 1,000 taper.
 
 const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
-// Kept so older callers can still read the name. It is not a separate ceiling.
-const TRIVIA_QUIZ_CAP = DAILY_CAP;
 
 const ALLOWED_ACTION_KEYS = {
     flex_action: true,
@@ -589,7 +587,6 @@ function applyAward(mem, uid, data, opts) {
 
 module.exports = {
     DAILY_CAP: DAILY_CAP,
-    TRIVIA_QUIZ_CAP: TRIVIA_QUIZ_CAP,
     FLEX_IDS: FLEX_IDS,
     FLEX_DAY_GOAL: FLEX_DAY_GOAL,
     LQ_TITLES: LQ_TITLES,

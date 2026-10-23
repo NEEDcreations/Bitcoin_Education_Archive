@@ -4,7 +4,7 @@
 // message id. The day, the button press, the text, and the reward are all
 // decided here. One claim per uid per server day, inside one transaction.
 
-const { splitDailyXp } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily } = require('./grantBadge');
 const dailyFive = require('./dailyFive');
@@ -12,8 +12,6 @@ const { offsetDateKey } = require('./offsetDay');
 
 const SAY_HI_XP = 50;
 const SAY_HI_TICKETS = 1;
-// Shared 600 full / 1,000 cap. The ticket is still granted when XP is 0.
-const SAY_HI_DAILY_CAP = 1000;
 // "hi" is the shortest real greeting this button asks for. One character is not.
 const MIN_SAY_HI_CHARS = 2;
 const MAX_SAY_HI_CHARS = 300;
@@ -93,7 +91,7 @@ function planSayHiXp(dailyUsed, pendingOverflow, lastOverflowDate, today) {
     void pendingOverflow;
     void lastOverflowDate;
     void today;
-    const split = splitDailyXp(Number(dailyUsed) || 0, SAY_HI_XP, SAY_HI_DAILY_CAP);
+    const split = planDailyXp(Number(dailyUsed) || 0, SAY_HI_XP);
     return {
         awarded: split.awarded,
         overflowAdded: 0,
@@ -409,7 +407,6 @@ function bindSayHi(functionsV1, admin, db) {
 module.exports = {
     SAY_HI_XP: SAY_HI_XP,
     SAY_HI_TICKETS: SAY_HI_TICKETS,
-    SAY_HI_DAILY_CAP: SAY_HI_DAILY_CAP,
     MIN_SAY_HI_CHARS: MIN_SAY_HI_CHARS,
     SAY_HI_RATE_MS: SAY_HI_RATE_MS,
     offsetDateKey: offsetDateKey,

@@ -1691,6 +1691,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // One pass per quiz part. gradeQuest writes this so questsPassed cannot be farmed.
+    match /users/{userId}/quest_passes/{docId} {
+      allow read, write: if false;
+    }
+
     // Server-side badge award deduplication (Cloud Function only)
     match /users/{userId}/badge_awards/{docId} {
       allow read, write: if false;

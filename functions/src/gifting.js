@@ -14,7 +14,7 @@ const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
-const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 const rewardNotify = require('./rewardNotify');
 const doubleXp = require('./doubleXp');
 const {
@@ -342,7 +342,7 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
             if (rewardBlocked(user, ledger)) xp = 0;
             else {
                 const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
-                xp = splitDailyXp(used, xp).awarded;
+                xp = planDailyXp(used, xp).awarded;
                 if (xp > 0) {
                     t.set(dailyRef, {
                         total: used + xp,
@@ -564,7 +564,7 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         if (already.indexOf(recipientUid) === -1) already.push(recipientUid);
         const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
         const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
-        const xpSplit = splitDailyXp(dailyUsed, keyXp, DAILY_POINTS_CAP);
+        const xpSplit = planDailyXp(dailyUsed, keyXp);
         xpAwarded = xpSplit.awarded;
         const senderUpdate = {
             keysSentDate: todayUtc,
@@ -711,7 +711,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             if (rewardBlocked(user, ledger)) xp = 0;
             else {
                 const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
-                xp = splitDailyXp(used, xp).awarded;
+                xp = planDailyXp(used, xp).awarded;
                 if (xp > 0) {
                     t.set(dailyRef, {
                         total: used + xp,
