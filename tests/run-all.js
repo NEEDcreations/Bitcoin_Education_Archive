@@ -26,6 +26,7 @@ const TESTS = [
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
+    { name: 'Push Notifications', file: 'test-push.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
@@ -34,6 +35,7 @@ const TESTS = [
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
+    { name: 'Satoshi Favor Announce', file: 'test-favor-announce.js' },
 ];
 
 let allPassed = true;

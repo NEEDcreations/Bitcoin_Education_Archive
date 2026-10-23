@@ -473,7 +473,7 @@ test('show/open/enter navigation openers are in the registry', function () {
         'showDMGifPicker', 'showDMImagePreview', 'showDMWindow', 'showDeleteAccountConfirm',
         'showEmojiPicker', 'showFloatingBtn', 'showFriendsInDistressWarning', 'showGifPicker',
         'showGuideBanner', 'showGuideReturnBtn', 'showImagePreview', 'showLevelUpCelebration',
-        'showMinerModal', 'showOverlayBtn', 'showPWAAuthFallback', 'showPartnershipLevelUpPopup',
+        'showMinerModal', 'showOverlayBtn', 'showPWAAuthFallback', 'showPartnershipLevelUpPopup', 'showOptInCard', 'openNotificationSettings',
         'showPostSpinGiftModal', 'showQuestFinalResults', 'showReactPicker', 'showSignInOnly',
         'showSignInPrompt', 'showSkeletonLoader', 'showSpinReward', 'showToast', 'showTrendingTopics',
         'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername',

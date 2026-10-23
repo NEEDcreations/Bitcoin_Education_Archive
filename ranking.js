@@ -2259,6 +2259,13 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
 
 async function awardVisitPoints() {
     if (!currentUser) return;
+    // Snapshot the previous visit before recordDailyVisit overwrites it,
+    // so the push prompt can tell a 7-day return from a same-day reload.
+    try {
+        if (!sessionStorage.getItem('btc_push_prev_visit') && currentUser.lastVisit) {
+            sessionStorage.setItem('btc_push_prev_visit', String(currentUser.lastVisit));
+        }
+    } catch (e) {}
     // Use 5 AM UTC offset key - matches getDailyKey() and server getOffsetDateKey()
     const RESET_HOUR_UTC = 5;
     const today = new Date(Date.now() - RESET_HOUR_UTC * 3600000).toISOString().split('T')[0];
@@ -5850,24 +5857,8 @@ function showSettingsPage(tab) {
             '<div><span style="color:var(--text);font-size:0.85rem;">Show online status</span><div style="color:var(--text-faint);font-size:0.7rem;">Other users can see when you\'re active</div></div>' +
             '<button onclick="localStorage.setItem(\'btc_online_status\',localStorage.getItem(\'btc_online_status\')===\'false\'?\'true\':\'false\');if(typeof toggleOnlineStatus===\'function\')toggleOnlineStatus();showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (onlineStatusOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (onlineStatusOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (onlineStatusOn ? 'ON' : 'OFF') + '</button></div></div>';
 
-        // Push Notifications
-        const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔔 Push Notifications</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Off by default. We respect your attention.</div>' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
-            '<span style="color:var(--text);font-size:0.85rem;">Notifications</span>' +
-            '<button id="pushToggleBtn" onclick="togglePushNotifications()" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pushEnabled ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pushEnabled ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pushEnabled ? 'ON' : 'OFF') + '</button></div>' +
-            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.75rem;color:var(--text-muted);line-height:1.5;">' +
-                '<strong style="color:var(--text);">What you\'ll get:</strong><br>' +
-                '🎡 <strong>Spin reminders</strong> - a couple times a week, never daily<br>' +
-                '🔥 <strong>Streak alerts</strong> - don\'t lose your streak!<br>' +
-                '📰 <strong>New content</strong> - when we add major new topics<br>' +
-                 +
-                '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
-            '</div>' +
-            '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
-            '</div>';
+        // Push notification prefs are filled by notifications.js (server-backed).
+        html += '<div id="settings-notifications"></div>';
 
         // Signal Ticker
         var _tickerPref = localStorage.getItem('btc_ticker_enabled'); const tickerOn = _tickerPref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _tickerPref === 'true';
@@ -6441,6 +6432,30 @@ function showSettingsPage(tab) {
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
     modal.classList.add('open');
+    if (settingsTab === 'prefs') {
+        setTimeout(function() {
+            var fill = function() {
+                if (typeof window.renderNotificationSettings !== 'function') return;
+                window.renderNotificationSettings();
+                if (window._highlightNotifSettings) {
+                    window._highlightNotifSettings = false;
+                    var sec = document.getElementById('settings-notifications');
+                    if (sec) {
+                        sec.classList.add('notif-flash');
+                        try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { sec.scrollIntoView(true); }
+                    }
+                }
+            };
+            if (typeof window.renderNotificationSettings === 'function') {
+                fill();
+                return;
+            }
+            var s = document.createElement('script');
+            s.src = 'notifications.js?v=20261022_push';
+            s.onload = fill;
+            document.body.appendChild(s);
+        }, 0);
+    }
     if (fillSettingsPred) fillSettingsPred();
 
     // Auto-focus key inputs after render
@@ -7354,6 +7369,22 @@ window._acceptTos = async function() {
 };
 
 async function signOutUser() {
+    // Drop this device's push token before the session ends. Otherwise the
+    // next person on a shared phone keeps receiving the previous account's
+    // notifications, including DM previews.
+    var pushUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
+    var pushDevice = '';
+    try { pushDevice = localStorage.getItem('btc_push_device') || ''; } catch (e) {}
+    try {
+        if (pushUid && /^[A-Za-z0-9_-]{8,64}$/.test(pushDevice) && typeof db !== 'undefined') {
+            await db.collection('push_tokens').doc(pushUid).collection('devices').doc(pushDevice).delete();
+        }
+    } catch (e) {}
+    try {
+        if (typeof firebase !== 'undefined' && firebase.messaging) {
+            await firebase.messaging().deleteToken();
+        }
+    } catch (e) {}
     // [AUDIT FIX M5] Clear caches on sign-out for shared device security
     if ('caches' in window) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
@@ -7366,7 +7397,10 @@ async function signOutUser() {
 // --- RESTORING DELETED GLOBAL HANDLERS ---
 window.hideUsernamePrompt = function() {
     const modal = document.getElementById('usernameModal');
-    if (modal) modal.classList.remove('open');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.zIndex = '';
+    }
     // Show guide return button if user navigated from the guide
     if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
         showGuideReturnBtn();
@@ -7645,7 +7679,19 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
         setTimeout(function() { btn.textContent = 'Save New Username'; btn.style.background = 'var(--accent)'; }, 2000);
     }
 };
-window.togglePushNotifications = async function() { try { if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; } var permission = await Notification.requestPermission(); if (permission === 'granted') { localStorage.setItem('btc_push_enabled', 'true'); showToast('🔔 Notifications Enabled!'); } else { localStorage.setItem('btc_push_enabled', 'false'); showToast('❌ Notification permission denied'); } showSettingsPage('prefs'); } catch(e) { console.error(e); } };
+window.togglePushNotifications = function() {
+    var run = function() {
+        if (typeof window.enablePushFromTap !== 'function') return;
+        window.enablePushFromTap().then(function() {
+            if (typeof window.renderNotificationSettings === 'function') window.renderNotificationSettings();
+        });
+    };
+    if (typeof window.enablePushFromTap === 'function') { run(); return; }
+    var s = document.createElement('script');
+    s.src = 'notifications.js?v=20261022_push';
+    s.onload = run;
+    document.body.appendChild(s);
+};
 if (typeof sendEmailVerification === 'undefined') window.sendEmailVerification = function() { if (auth && auth.currentUser && auth.currentUser.sendEmailVerification) { auth.currentUser.sendEmailVerification().then(function() { showToast('📧 Verification email sent!'); }).catch(function() { showToast('Could not send verification email'); }); } };
 // ===== PHONE 2FA ENROLLMENT =====
 // Uses Firebase Phone MFA (compat SDK v9)

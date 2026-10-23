@@ -34,6 +34,7 @@ window._checkNWCSecurityAlert = function() {
     }
     // 60-second sticky dismissible banner
     if (document.getElementById('nwcSecAlert')) return;
+    if (typeof window.claimSessionPopup === 'function') window.claimSessionPopup('nwc');
     var timeLeft = 60;
     var banner = document.createElement('div');
     banner.id = 'nwcSecAlert';
@@ -86,6 +87,9 @@ window.initNotifications = function() {
 
     // NWC security alert — fires once per device if NWC wallet is connected
     setTimeout(window._checkNWCSecurityAlert, 3000);
+    if (typeof window.syncPushRegistration === 'function') window.syncPushRegistration();
+    if (typeof window.schedulePushPrompt === 'function') window.schedulePushPrompt();
+    window._pushSnapReady = false;
 
     // Listen for unread notifications
     window._notifUnsub = db.collection('notifications')
@@ -109,7 +113,14 @@ window.initNotifications = function() {
                 if (nd.type === 'peer_level_up') {
                     showPartnershipLevelUpPopup(nd);
                 }
+                // Skip the initial unread backlog. Later arrivals are high-value moments.
+                if (window._pushSnapReady && typeof window.notePushMoment === 'function') {
+                    var pt = nd.type;
+                    if (pt === 'leaderboard_reward' || pt === 'tip' || pt === 'sats') window.notePushMoment('win');
+                    if (pt === 'keys_received' || pt === 'peer_request' || pt === 'peer_accepted' || pt === 'peer_level_up' || pt === 'gift_received') window.notePushMoment('gift');
+                }
             });
+            window._pushSnapReady = true;
         }, function(err) { console.warn('[notif] Listener error:', err); });
 
     // Listen for unread DMs via onSnapshot (replaces 30s polling — saves ~2800 reads/user/day)
@@ -566,6 +577,10 @@ var _notifOverlayOpen = false;
 
 function createNotifOverlay() {
     if (document.getElementById('notifOverlayBtn')) return;
+    try {
+        var _ph = location.hostname;
+        if ((_ph === 'localhost' || _ph === '127.0.0.1') && /previewPush=/.test(location.search || '')) return;
+    } catch (e) {}
 
     var btn = document.createElement('button');
     btn.id = 'notifOverlayBtn';
@@ -1061,6 +1076,7 @@ window.showPartnershipLevelUpPopup = function(notifData) {
     var guardKey = peerId + '_lvl' + levelNum;
     if (_shownPartnershipPopups.has(guardKey)) return;
     _shownPartnershipPopups.add(guardKey);
+    if (typeof window.claimSessionPopup === 'function') window.claimSessionPopup('levelup');
 
     var LEVEL_META = {
         2: { emoji: '🟨', color: '#eab308', glow: 'rgba(234,179,8,0.35)',  xp: '3,000',   subtitle: 'First exchange. The channel is opening.' },
@@ -1221,3 +1237,755 @@ function _installClientAwardNotices() {
 }
 _installClientAwardNotices();
 setInterval(_installClientAwardNotices, 2000);
+// ---- Web push: token, settings, soft opt-in ----
+// The browser permission prompt runs only from a button tap.
+// Public VAPID key only. Senders and prefs checks live on the server.
+(function() {
+    var VAPID = 'BF_YipiWF9DWsA4HA44xJwYOZkHuLZ1lE9nBxiF96Ba7mgGgWA3IsG4aUjEnc_PoLuYpsxRLsmjsHSjEvL_Xt-E';
+    var FALLBACK_DEFAULTS = {
+        rewards: true, gifts: true, favor: true, pvp: true, predictions: true,
+        mentions: true, dms: true, plebtalk: false, reminders: true, news: false, referrals: true
+    };
+    var CATS = [
+        ['rewards', 'Rewards & wins', 'Sats, tickets, raffles, and weekly wins'],
+        ['gifts', 'Peer keys & gifts', 'Keys, gifts, and friendship level-ups'],
+        ['favor', "Satoshi's Favor", 'When a Favor window opens'],
+        ['pvp', 'PvP lobby', 'Challenges and open lobbies'],
+        ['predictions', 'Prediction results', 'Hits, misses, and ticket payouts'],
+        ['mentions', 'Chat mentions', 'When someone @mentions you'],
+        ['dms', 'Direct messages', 'New direct messages'],
+        ['plebtalk', 'PlebTalk & Marketplace', 'Marketplace messages'],
+        ['reminders', 'Daily reminders', 'Streak, spin, and quest reminders'],
+        ['news', 'News & Hot Topics', 'Hot Topics digests'],
+        ['referrals', 'Referrals', 'When a referral pays off']
+    ];
+    var CONTEXT_COPY = {
+        win: 'You just won something. Want a heads-up next time? \uD83D\uDD14',
+        gift: 'A peer just sent you something. Want to know next time? \uD83D\uDD14',
+        favor: "Satoshi's Favor is open. Want a heads-up for the next window? \uD83D\uDD14",
+        pvp: 'A PvP lobby is live. Want a challenge notice next time? \uD83D\uDD14'
+    };
+    var _promptStarted = false;
+    var _considering = false;
+    var _cachedUser = null;
+
+    function prefsApi() { return window.PushPrefs || null; }
+
+    function defaults() {
+        var api = prefsApi();
+        return (api && api.DEFAULTS) || FALLBACK_DEFAULTS;
+    }
+
+    function num(v) {
+        var n = typeof v === 'number' ? v : parseInt(v, 10);
+        return isFinite(n) ? n : 0;
+    }
+
+    function signedIn() {
+        return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+    }
+
+    function uid() {
+        return signedIn() ? auth.currentUser.uid : '';
+    }
+
+    function isIos() {
+        var ua = navigator.userAgent || '';
+        if (/iPad|iPhone|iPod/.test(ua)) return true;
+        return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    }
+
+    function isStandalone() {
+        try {
+            if (window.navigator.standalone === true) return true;
+            return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+        } catch (e) { return false; }
+    }
+
+    function iosNeedsInstall() {
+        return isIos() && !isStandalone();
+    }
+
+    function permissionState() {
+        if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return 'unsupported';
+        return Notification.permission || 'default';
+    }
+
+    function uiBusy() {
+        var quest = document.getElementById('questModal');
+        if (quest && (quest.classList.contains('open') || (quest.style.display && quest.style.display !== 'none' && quest.offsetParent !== null))) return true;
+        var userModal = document.getElementById('usernameModal');
+        if (userModal && userModal.classList.contains('open')) return true;
+        var tos = document.getElementById('tosModal');
+        if (tos && (tos.classList.contains('open') || tos.style.display === 'flex' || tos.style.display === 'block')) return true;
+        if (window._giftOpening || window._pvpActive || window._examActive) return true;
+        try { if (localStorage.getItem('btc_onboarding_active') === '1') return true; } catch (e) {}
+        return false;
+    }
+
+    function popupTaken() {
+        try { return !!sessionStorage.getItem('btc_session_popup'); } catch (e) { return false; }
+    }
+
+    window.claimSessionPopup = function(name) {
+        try {
+            if (sessionStorage.getItem('btc_session_popup')) return false;
+            sessionStorage.setItem('btc_session_popup', String(name || '1').slice(0, 24));
+            return true;
+        } catch (e) { return false; }
+    };
+
+    function deviceId() {
+        var existing = '';
+        try { existing = localStorage.getItem('btc_push_device') || ''; } catch (e) {}
+        if (/^[A-Za-z0-9_-]{8,64}$/.test(existing)) return existing;
+        var id = '';
+        try {
+            var bytes = new Uint8Array(12);
+            crypto.getRandomValues(bytes);
+            id = Array.prototype.map.call(bytes, function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        } catch (e2) {
+            id = 'd' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
+        id = String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32);
+        if (id.length < 8) id = ('device' + Date.now().toString(36)).slice(0, 16);
+        try { localStorage.setItem('btc_push_device', id); } catch (e3) {}
+        return id;
+    }
+
+    function platformLabel() {
+        var label = 'web';
+        if (isIos()) label = 'ios';
+        else if (/Android/i.test(navigator.userAgent || '')) label = 'android';
+        if (isStandalone()) label += '-pwa';
+        return label.slice(0, 40);
+    }
+
+    function readLocalPrompt() {
+        try { return JSON.parse(localStorage.getItem('btc_notif_prompt') || '{}') || {}; }
+        catch (e) { return {}; }
+    }
+
+    function mergePrompt(server) {
+        var local = readLocalPrompt();
+        var remote = server || {};
+        return {
+            count: Math.max(num(local.count), num(remote.count)),
+            lastAsked: Math.max(num(local.lastAsked), num(remote.lastAsked)),
+            stopped: local.stopped === true || remote.stopped === true,
+            dontAsk: local.dontAsk === true || remote.dontAsk === true
+        };
+    }
+
+    function persistPrompt(next) {
+        var prev = mergePrompt(_cachedUser && _cachedUser.notifPrompt);
+        var stored = {
+            count: Math.max(prev.count, Math.max(0, Math.min(3, num(next.count)))),
+            lastAsked: Math.max(prev.lastAsked, num(next.lastAsked)),
+            stopped: prev.stopped === true || next.stopped === true,
+            dontAsk: prev.dontAsk === true || next.dontAsk === true
+        };
+        try { localStorage.setItem('btc_notif_prompt', JSON.stringify(stored)); } catch (e) {}
+        if (!signedIn() || typeof db === 'undefined' || !firebase || !firebase.firestore) return;
+        db.collection('users').doc(uid()).set({ notifPrompt: stored }, { merge: true }).catch(function() {});
+    }
+
+    function bumpSession() {
+        try {
+            if (sessionStorage.getItem('btc_push_session_marked') === '1') {
+                return Math.max(1, num(localStorage.getItem('btc_push_sessions')) || 1);
+            }
+            sessionStorage.setItem('btc_push_session_marked', '1');
+            var n = num(localStorage.getItem('btc_push_sessions')) + 1;
+            localStorage.setItem('btc_push_sessions', String(n));
+            return n;
+        } catch (e) { return 1; }
+    }
+
+    function daysSinceVisit(user) {
+        var raw = '';
+        try { raw = sessionStorage.getItem('btc_push_prev_visit') || ''; } catch (e) {}
+        if (!raw && user && user.lastVisit) raw = String(user.lastVisit);
+        var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw || '');
+        if (!m) return 0;
+        var then = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+        var shifted = new Date(Date.now() - 5 * 3600000);
+        var today = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
+        var diff = Math.floor((today - then) / 86400000);
+        return diff > 0 ? diff : 0;
+    }
+
+    function loadUser() {
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) {
+            _cachedUser = currentUser;
+        }
+        if (!signedIn() || typeof db === 'undefined') return Promise.resolve(_cachedUser || {});
+        return db.collection('users').doc(uid()).get().then(function(snap) {
+            _cachedUser = snap.exists ? (snap.data() || {}) : {};
+            return _cachedUser;
+        }).catch(function() { return _cachedUser || {}; });
+    }
+
+    function ensureStyles() {
+        if (document.getElementById('pushSettingsCss')) return;
+        var st = document.createElement('style');
+        st.id = 'pushSettingsCss';
+        st.textContent = ''
+            + '#settings-notifications{scroll-margin-top:72px;text-align:left;}'
+            + '#settings-notifications.notif-flash{outline:2px solid var(--accent);outline-offset:4px;border-radius:14px;}'
+            + '.push-settings{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin:0 0 16px;color:var(--text);}'
+            + '.push-kicker{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}'
+            + '.push-status{color:var(--text-muted);font-size:0.95rem;line-height:1.45;margin:0 0 12px;}'
+            + '.push-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);}'
+            + '.push-row b{display:block;color:var(--text);font-size:1rem;font-weight:700;}'
+            + '.push-row span{display:block;color:var(--text-muted);font-size:0.85rem;line-height:1.35;margin-top:2px;}'
+            + '.push-settings button,.push-opt-card button{font-family:inherit;font-size:16px;min-height:44px;border-radius:10px;cursor:pointer;touch-action:manipulation;}'
+            + '.push-switch{padding:8px 16px;border:1px solid var(--border);background:var(--bg-side);color:var(--text-muted);font-weight:700;}'
+            + '.push-switch.on{background:#22c55e;color:#fff;border-color:#22c55e;}'
+            + '.push-switch.blocked{background:var(--bg-side);color:#ef4444;border-color:#ef4444;}'
+            + '.push-help{background:var(--bg-side);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text-muted);font-size:0.9rem;line-height:1.45;margin-top:8px;}'
+            + '.push-test{width:100%;margin-top:12px;background:var(--accent);color:#fff;border:none;font-weight:800;}'
+            + '#pushOptIn{position:fixed;inset:0;z-index:480000;background:var(--overlay);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));}'
+            + '@media(min-width:720px){#pushOptIn{align-items:center;}}'
+            + '.push-opt-card{width:100%;max-width:420px;background:var(--bg-side);color:var(--text);border:1px solid var(--border);border-radius:18px;padding:22px 18px 16px;box-shadow:0 20px 50px rgba(0,0,0,0.35);position:relative;}'
+            + '.push-opt-card h2{font-size:1.25rem;line-height:1.3;margin:0 28px 10px 0;color:var(--heading,#fff);}'
+            + '.push-opt-card ul,.push-opt-card ol{margin:0 0 14px 1.1rem;padding:0;color:var(--text);font-size:1rem;line-height:1.45;}'
+            + '.push-opt-card li{margin:4px 0;}'
+            + '.push-opt-card .push-primary,.push-opt-card .push-secondary,.push-opt-card .push-quiet{display:block;width:100%;margin-top:8px;}'
+            + '.push-primary{background:var(--accent);color:#fff;border:none;font-weight:800;}'
+            + '.push-secondary{background:var(--card-bg);color:var(--text);border:1px solid var(--border);font-weight:700;}'
+            + '.push-quiet{background:transparent;color:var(--text-muted);border:none;font-weight:600;}'
+            + '.push-x{position:absolute;top:8px;right:8px;width:44px;min-height:44px;background:transparent;color:var(--text-muted);border:none;font-size:1.2rem;}';
+        document.head.appendChild(st);
+    }
+
+    function catChecked(map, key) {
+        if (map && Object.prototype.hasOwnProperty.call(map, key)) return map[key] === true;
+        return defaults()[key] === true;
+    }
+
+    function masterMode(map) {
+        var perm = permissionState();
+        if (perm === 'unsupported') return 'unsupported';
+        if (perm === 'denied') return 'blocked';
+        if (perm === 'granted' && map && map.master === true) return 'on';
+        return 'off';
+    }
+
+    function toast(msg) {
+        if (typeof showToast === 'function') showToast(msg);
+    }
+
+    function plain(s) {
+        return String(s || '').replace(/[<>&]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+    }
+
+    function savePref(key, value) {
+        if (window._pushPreview) {
+            window._pushPreviewPrefs = window._pushPreviewPrefs || {};
+            window._pushPreviewPrefs[key] = value === true;
+            return Promise.resolve();
+        }
+        if (!signedIn() || typeof db === 'undefined') {
+            toast('Sign in to save notification settings');
+            return Promise.resolve();
+        }
+        var nest = {};
+        nest[key] = value === true;
+        var patch = {};
+        patch['notificationPrefs.' + key] = value === true;
+        return db.collection('users').doc(uid()).update(patch).catch(function() {
+            return db.collection('users').doc(uid()).set({ notificationPrefs: nest }, { merge: true }).catch(function() {
+                toast('Could not save that setting');
+            });
+        });
+    }
+
+    function unregisterMessagingWorkers() {
+        if (!navigator.serviceWorker || !navigator.serviceWorker.getRegistrations) return Promise.resolve();
+        return navigator.serviceWorker.getRegistrations().then(function(list) {
+            var jobs = [];
+            list.forEach(function(reg) {
+                var worker = reg.active || reg.installing || reg.waiting;
+                var url = worker && worker.scriptURL ? worker.scriptURL : '';
+                if (url.indexOf('firebase-messaging-sw.js') !== -1) jobs.push(reg.unregister());
+            });
+            return Promise.all(jobs);
+        }).catch(function() {});
+    }
+
+    function swRegistration() {
+        return unregisterMessagingWorkers().then(function() {
+            return navigator.serviceWorker.register('/sw.js');
+        });
+    }
+
+    function registerPushToken(opts) {
+        var silent = opts && opts.silent;
+        if (!signedIn() || typeof db === 'undefined' || typeof firebase === 'undefined' || !firebase.messaging) {
+            if (!silent) toast('Sign in on this device to turn notifications on');
+            return Promise.resolve(false);
+        }
+        return swRegistration().then(function(reg) {
+            return firebase.messaging().getToken({ vapidKey: VAPID, serviceWorkerRegistration: reg });
+        }).then(function(token) {
+            if (!token || token.length < 20) throw new Error('no-token');
+            var parent = db.collection('push_tokens').doc(uid());
+            var ref = parent.collection('devices').doc(deviceId());
+            return parent.set({
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(function() {
+                return ref.set({
+                    token: token,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    platform: platformLabel(),
+                    ua: String(navigator.userAgent || '').slice(0, 160)
+                });
+            });
+        }).then(function() {
+            return savePref('master', true);
+        }).then(function() {
+            bindForeground();
+            if (!silent) toast('Notifications on for this device');
+            return true;
+        }).catch(function() {
+            if (!silent) toast('Could not register this device for notifications');
+            return false;
+        });
+    }
+
+    function disableThisDevice() {
+        var jobs = [savePref('master', false)];
+        if (signedIn() && typeof db !== 'undefined') {
+            jobs.push(db.collection('push_tokens').doc(uid()).collection('devices').doc(deviceId()).delete().catch(function() {}));
+        }
+        if (typeof firebase !== 'undefined' && firebase.messaging) {
+            try { jobs.push(firebase.messaging().deleteToken().catch(function() {})); } catch (e) {}
+        }
+        return Promise.all(jobs);
+    }
+
+    window.enablePushFromTap = function() {
+        if (window._pushPreview) return Promise.resolve(false);
+        if (iosNeedsInstall()) {
+            showOptInCard({ show: true, kind: 'install', askIndex: 1, showDontAsk: false, reason: 'settings' }, true);
+            return Promise.resolve(false);
+        }
+        if (permissionState() === 'unsupported') {
+            toast('This browser cannot show notifications');
+            return Promise.resolve(false);
+        }
+        if (permissionState() === 'denied') {
+            toast('Notifications are blocked in the browser settings');
+            return Promise.resolve(false);
+        }
+        var ask = permissionState() === 'granted'
+            ? Promise.resolve('granted')
+            : Notification.requestPermission();
+        return Promise.resolve(ask).then(function(result) {
+            if (result === 'granted') return registerPushToken();
+            persistPrompt({ count: mergePrompt(_cachedUser && _cachedUser.notifPrompt).count, lastAsked: Date.now(), stopped: true, dontAsk: false });
+            toast('Notifications stay off');
+            return false;
+        });
+    };
+
+    function bindForeground() {
+        if (window._pushFgBound || typeof firebase === 'undefined' || !firebase.messaging) return;
+        try {
+            firebase.messaging().onMessage(function(payload) {
+                var n = (payload && payload.notification) || {};
+                var d = (payload && payload.data) || {};
+                var title = plain(n.title || d.title || 'Bitcoin Quest');
+                var body = plain(n.body || d.body || '');
+                toast(body ? (title + ': ' + body) : title);
+            });
+            window._pushFgBound = true;
+        } catch (e) {}
+    }
+
+    function bindNav() {
+        if (window._pushNavBound || !navigator.serviceWorker) return;
+        window._pushNavBound = true;
+        navigator.serviceWorker.addEventListener('message', function(ev) {
+            var data = ev.data || {};
+            if (data.type !== 'PUSH_NAV' || !data.url) return;
+            try {
+                var u = new URL(data.url, location.origin);
+                if (u.origin !== location.origin) return;
+                location.href = u.pathname + u.search + u.hash;
+            } catch (e) {}
+        });
+    }
+    bindNav();
+
+    function el(tag, cls, text) {
+        var node = document.createElement(tag);
+        if (cls) node.className = cls;
+        if (text != null) node.textContent = text;
+        return node;
+    }
+
+    function renderInto(root, map) {
+        ensureStyles();
+        root.textContent = '';
+        var box = el('div', 'push-settings');
+        box.appendChild(el('div', 'push-kicker', 'Notifications'));
+        if (!signedIn() && !window._pushPreview) {
+            box.appendChild(el('p', 'push-status', 'Sign in to choose what this device can tell you about.'));
+            root.appendChild(box);
+            return;
+        }
+        var mode = masterMode(map);
+        var perm = permissionState();
+        var permWord = perm === 'granted' ? 'allowed' : (perm === 'denied' ? 'blocked' : (perm === 'unsupported' ? 'unavailable' : 'not asked yet'));
+        var paused = false;
+        if (prefsApi() && prefsApi().categoryAllowed && map && map.master === false) {
+            paused = prefsApi().categoryAllowed({ notificationPrefs: map }, 'rewards') === false;
+        }
+        box.appendChild(el('p', 'push-status', 'Browser permission: ' + permWord + (paused ? '. The master switch is pausing every category.' : '.')));
+        var masterRow = el('div', 'push-row');
+        var masterCopy = el('div');
+        masterCopy.appendChild(el('b', '', 'All notifications'));
+        masterCopy.appendChild(el('span', '', mode === 'blocked' ? 'Blocked in this browser' : 'Master switch for this account'));
+        var masterBtn = el('button', 'push-switch' + (mode === 'on' ? ' on' : '') + (mode === 'blocked' ? ' blocked' : ''));
+        masterBtn.type = 'button';
+        masterBtn.id = 'pushMasterBtn';
+        masterBtn.textContent = mode === 'on' ? 'On' : (mode === 'blocked' ? 'Blocked' : (mode === 'unsupported' ? 'Unavailable' : 'Off'));
+        masterBtn.addEventListener('click', function() {
+            if (mode === 'blocked' || mode === 'unsupported' || iosNeedsInstall()) {
+                var help = document.getElementById('pushBlockedHelp');
+                if (help) help.hidden = false;
+                if (iosNeedsInstall()) {
+                    showOptInCard({ show: true, kind: 'install', askIndex: 1, showDontAsk: false, reason: 'settings' }, true);
+                }
+                return;
+            }
+            var next = mode !== 'on';
+            var job = next ? window.enablePushFromTap() : disableThisDevice();
+            Promise.resolve(job).then(function() { window.renderNotificationSettings(); });
+        });
+        masterRow.appendChild(masterCopy);
+        masterRow.appendChild(masterBtn);
+        box.appendChild(masterRow);
+
+        var help = el('div', 'push-help');
+        help.id = 'pushBlockedHelp';
+        help.hidden = mode !== 'blocked' && !iosNeedsInstall();
+        if (iosNeedsInstall()) {
+            help.textContent = 'Add to Home Screen to get notifications. In Safari, tap Share, then Add to Home Screen, then open Bitcoin Quest from that icon. Push works for installed apps on iOS 16.4 or newer.';
+        } else {
+            help.textContent = 'Notifications are blocked. In Chrome or Edge, click the lock icon, set Notifications to Allow, and reload. In Firefox, click the lock and clear the block. On iPhone, install the Home Screen app and turn notifications on in Settings, then Notifications.';
+        }
+        box.appendChild(help);
+
+        CATS.forEach(function(row) {
+            var key = row[0];
+            var on = catChecked(map, key);
+            var line = el('div', 'push-row');
+            var copy = el('div');
+            copy.appendChild(el('b', '', row[1]));
+            copy.appendChild(el('span', '', row[2]));
+            var btn = el('button', 'push-switch' + (on ? ' on' : ''));
+            btn.type = 'button';
+            btn.setAttribute('data-push-cat', key);
+            btn.textContent = on ? 'On' : 'Off';
+            btn.addEventListener('click', function() {
+                var turningOn = btn.textContent !== 'On';
+                savePref(key, turningOn).then(function() { window.renderNotificationSettings(); });
+            });
+            line.appendChild(copy);
+            line.appendChild(btn);
+            box.appendChild(line);
+        });
+
+        var testBtn = el('button', 'push-test', 'Send me a test notification');
+        testBtn.type = 'button';
+        testBtn.id = 'pushTestBtn';
+        testBtn.addEventListener('click', function() {
+            if (window._pushPreview) { toast('Preview only'); return; }
+            if (!signedIn() || typeof firebase === 'undefined' || !firebase.functions) {
+                toast('Sign in to send a test');
+                return;
+            }
+            if (permissionState() !== 'granted') {
+                toast('Turn notifications on first');
+                return;
+            }
+            testBtn.disabled = true;
+            firebase.functions().httpsCallable('sendTestPush')({ uid: uid() }).then(function(res) {
+                var data = (res && res.data) || {};
+                if (data.ok) toast('Test sent. Check your notifications.');
+                else if (data.reason === 'rate') toast('Test limit reached. Try again later.');
+                else if (data.reason === 'no-token') toast('This device is not registered yet.');
+                else toast('Test did not send.');
+            }).catch(function() {
+                toast('Test did not send.');
+            }).then(function() { testBtn.disabled = false; });
+        });
+        box.appendChild(testBtn);
+        root.appendChild(box);
+    }
+
+    window.renderNotificationSettings = function() {
+        var root = document.getElementById('settings-notifications');
+        if (!root) return;
+        if (window._pushPreview) {
+            renderInto(root, window._pushPreviewPrefs || {});
+            return;
+        }
+        renderInto(root, (_cachedUser && _cachedUser.notificationPrefs) || {});
+        loadUser().then(function(user) {
+            if (!document.getElementById('settings-notifications')) return;
+            renderInto(document.getElementById('settings-notifications'), (user && user.notificationPrefs) || {});
+        });
+    };
+
+    function closeOptIn() {
+        var node = document.getElementById('pushOptIn');
+        if (node) node.remove();
+        document.removeEventListener('keydown', onOptInKey);
+    }
+
+    function onOptInKey(ev) {
+        if (ev.key === 'Escape') closeOptIn();
+    }
+
+    function showOptInCard(decision, preview) {
+        if (!decision || !decision.show) return;
+        if (document.getElementById('pushOptIn')) return;
+        ensureStyles();
+        var install = decision.kind === 'install';
+        var overlay = el('div');
+        overlay.id = 'pushOptIn';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'pushOptInTitle');
+        var card = el('div', 'push-opt-card');
+        var closer = el('button', 'push-x', '\u2715');
+        closer.type = 'button';
+        closer.setAttribute('aria-label', 'Close');
+        closer.addEventListener('click', closeOptIn);
+        card.appendChild(closer);
+        var title = (decision.kind === 'context' && CONTEXT_COPY[decision.context])
+            || 'Want a heads-up when something good happens? \uD83D\uDD14';
+        if (install) title = 'Add to Home Screen to get notifications';
+        var h = el('h2');
+        h.id = 'pushOptInTitle';
+        h.textContent = title;
+        card.appendChild(h);
+        if (install) {
+            var steps = document.createElement('ol');
+            ['Tap the Share button in Safari.', 'Tap Add to Home Screen.', 'Open Bitcoin Quest from the new icon. Push works on iOS 16.4 or newer.'].forEach(function(step) {
+                steps.appendChild(el('li', '', step));
+            });
+            card.appendChild(steps);
+        } else {
+            var list = document.createElement('ul');
+            ['Sats wins and reward drops', 'Peer keys and gifts', "Satoshi's Favor windows and PvP challenges"].forEach(function(item) {
+                list.appendChild(el('li', '', item));
+            });
+            card.appendChild(list);
+        }
+        function finish(extra) {
+            closeOptIn();
+            if (preview) return;
+            if (extra) persistPrompt(extra);
+        }
+        if (install) {
+            var got = el('button', 'push-primary', 'Got it');
+            got.type = 'button';
+            got.addEventListener('click', function() { finish(null); });
+            card.appendChild(got);
+        } else {
+            var turn = el('button', 'push-primary', 'Turn on');
+            turn.type = 'button';
+            turn.addEventListener('click', function() {
+                closeOptIn();
+                if (preview) return;
+                window.enablePushFromTap();
+            });
+            card.appendChild(turn);
+        }
+        var choose = el('button', 'push-secondary', 'Choose what I get');
+        choose.type = 'button';
+        choose.addEventListener('click', function() {
+            closeOptIn();
+            if (!preview) window.openNotificationSettings();
+        });
+        card.appendChild(choose);
+        var later = el('button', 'push-quiet', 'Not now');
+        later.type = 'button';
+        later.addEventListener('click', function() { finish(null); });
+        card.appendChild(later);
+        if (decision.showDontAsk) {
+            var never = el('button', 'push-quiet', "Don't ask again");
+            never.type = 'button';
+            never.addEventListener('click', function() {
+                finish({ stopped: true, dontAsk: true, count: decision.askIndex || 2, lastAsked: Date.now() });
+            });
+            card.appendChild(never);
+        }
+        overlay.addEventListener('click', function(ev) { if (ev.target === overlay) finish(null); });
+        card.addEventListener('click', function(ev) { ev.stopPropagation(); });
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        document.addEventListener('keydown', onOptInKey);
+    }
+
+    function probeContext(stored) {
+        if (window._pushMoment) return Promise.resolve(window._pushMoment);
+        if (!stored || num(stored.count) < 1 || stored.stopped || stored.dontAsk) return Promise.resolve(null);
+        var api = prefsApi();
+        var gap = api ? api.REASK_MS : (30 * 86400000);
+        if (!stored.lastAsked || (Date.now() - stored.lastAsked) < gap) return Promise.resolve(null);
+        if (!signedIn() || typeof db === 'undefined') return Promise.resolve(null);
+        return db.collection('satoshiFavor').doc('current').get().then(function(snap) {
+            if (snap.exists && snap.data() && snap.data().favorActive === true) return 'favor';
+            return null;
+        }).catch(function() { return null; }).then(function(found) {
+            if (found) return found;
+            return db.collection('pvp_lobby').where('status', '==', 'waiting').limit(1).get().then(function(lobby) {
+                return lobby.empty ? null : 'pvp';
+            }).catch(function() { return null; });
+        });
+    }
+
+    function considerPrompt() {
+        if (window._pushPreview || _considering) return;
+        if (!prefsApi() || !signedIn()) return;
+        try { if (sessionStorage.getItem('btc_push_prompt_shown') === '1') return; } catch (e) {}
+        _considering = true;
+        var sessionCount = bumpSession();
+        loadUser().then(function(user) {
+            var stored = mergePrompt(user && user.notifPrompt);
+            if (permissionState() === 'denied' && stored.stopped !== true) {
+                persistPrompt({ count: stored.count, lastAsked: stored.lastAsked, stopped: true, dontAsk: stored.dontAsk });
+            }
+            return probeContext(stored).then(function(context) {
+                var decision = prefsApi().decidePrompt({
+                    now: Date.now(),
+                    permission: permissionState(),
+                    prompt: stored,
+                    sessionCount: sessionCount,
+                    totalVisits: num(user && (user.totalVisits || (typeof currentUser !== 'undefined' && currentUser && currentUser.totalVisits))),
+                    daysSinceVisit: daysSinceVisit(user || (typeof currentUser !== 'undefined' ? currentUser : null)),
+                    context: context,
+                    iosNeedsInstall: iosNeedsInstall(),
+                    busy: uiBusy(),
+                    popupTaken: popupTaken()
+                });
+                if (!decision.show) return;
+                if (uiBusy() || popupTaken()) return;
+                if (!window.claimSessionPopup('push')) return;
+                try { sessionStorage.setItem('btc_push_prompt_shown', '1'); } catch (e2) {}
+                persistPrompt({
+                    count: stored.count + 1,
+                    lastAsked: Date.now(),
+                    stopped: stored.stopped,
+                    dontAsk: stored.dontAsk
+                });
+                showOptInCard(decision, false);
+            });
+        }).catch(function() {}).then(function() { _considering = false; });
+    }
+
+    window.notePushMoment = function(kind) {
+        if (kind !== 'win' && kind !== 'gift' && kind !== 'favor' && kind !== 'pvp') return;
+        window._pushMoment = kind;
+        considerPrompt();
+    };
+
+    window.openNotificationSettings = function() {
+        window._highlightNotifSettings = true;
+        var modal = document.getElementById('usernameModal');
+        if (modal) modal.style.zIndex = '700000';
+        if (typeof window.showSettings === 'function') window.showSettings();
+        if (typeof showSettingsPage === 'function' && signedIn()) {
+            showSettingsPage('prefs');
+            return;
+        }
+        setTimeout(function() {
+            if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
+        }, 700);
+    };
+
+    window.syncPushRegistration = function() {
+        if (!signedIn() || permissionState() !== 'granted') return;
+        loadUser().then(function(user) {
+            var map = user && user.notificationPrefs;
+            if (!map || map.master !== true) return;
+            registerPushToken({ silent: true });
+        });
+    };
+
+    window.schedulePushPrompt = function() {
+        try {
+            if (sessionStorage.getItem('btc_open_notif_settings') === '1') {
+                sessionStorage.removeItem('btc_open_notif_settings');
+                setTimeout(window.openNotificationSettings, 500);
+            }
+        } catch (e) {}
+        if (_promptStarted) return;
+        _promptStarted = true;
+        setTimeout(considerPrompt, 4000);
+        setTimeout(considerPrompt, 20000);
+        setTimeout(considerPrompt, 60000);
+    };
+
+    function mountSettingsPreview() {
+        ensureStyles();
+        window._pushPreview = true;
+        window._pushPreviewPrefs = { rewards: true, gifts: true, dms: true };
+        var modal = document.getElementById('usernameModal');
+        var box = modal && modal.querySelector('.username-box');
+        if (!modal || !box) {
+            modal = document.createElement('div');
+            modal.id = 'pushPreviewSettings';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:800000;background:var(--overlay);overflow:auto;padding:16px;';
+            box = document.createElement('div');
+            box.style.cssText = 'background:var(--bg-side);color:var(--text);border:1px solid var(--border);border-radius:24px;padding:20px 16px;max-width:440px;width:100%;margin:10px auto;';
+            modal.appendChild(box);
+            document.body.appendChild(modal);
+        } else {
+            modal.classList.add('open');
+            modal.style.display = 'block';
+            modal.style.zIndex = '800000';
+            box.style.textAlign = 'left';
+            box.style.maxWidth = '440px';
+        }
+        box.textContent = '';
+        var kicker = el('div', 'push-kicker', 'Preferences');
+        box.appendChild(kicker);
+        var host = el('div');
+        host.id = 'settings-notifications';
+        box.appendChild(host);
+        window.renderNotificationSettings();
+    }
+
+    function bootPreview() {
+        var host = location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') return;
+        var params;
+        try { params = new URLSearchParams(location.search); } catch (e) { return; }
+        var mode = params.get('previewPush');
+        if (!mode) return;
+        if (params.get('theme') === 'light') document.body.setAttribute('data-theme', 'light');
+        document.body.style.opacity = '1';
+        window._pushPreview = true;
+        if (mode === 'settings') mountSettingsPreview();
+        else {
+            showOptInCard({
+                show: true,
+                kind: mode === 'install' ? 'install' : (mode === 'reask' ? 'context' : 'standard'),
+                context: mode === 'reask' ? 'win' : null,
+                askIndex: mode === 'reask' ? 2 : 1,
+                showDontAsk: mode === 'reask',
+                reason: 'preview'
+            }, true);
+        }
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootPreview);
+    else bootPreview();
+})();

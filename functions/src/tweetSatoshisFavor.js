@@ -96,7 +96,10 @@ async function postTweet(text) {
 
 // ── Cloud Function ────────────────────────────────────────────────────────
 
-exports.tweetSatoshisFavor = onDocumentWritten('satoshiFavor/current', async (event) => {
+exports.tweetSatoshisFavor = onDocumentWritten({
+  document: 'satoshiFavor/current',
+  timeoutSeconds: 540,
+}, async (event) => {
     const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
     const before = change.before.exists ? change.before.data() : null;
     const after  = change.after.exists  ? change.after.data()  : null;
@@ -132,6 +135,20 @@ exports.tweetSatoshisFavor = onDocumentWritten('satoshiFavor/current', async (ev
     } catch (e) {
       console.error(`[TWEET] Failed to post tweet:`, e.message);
       // Don't throw — we don't want a tweet failure to cause Firestore retries
+    }
+
+    try {
+      const { broadcastCategory } = require('./push');
+      const pushed = await broadcastCategory('favor', async function () {
+        return {
+          title: "Satoshi's Favor is open",
+          body: 'A mining window just started. Hash while it is live.',
+          url: 'https://bitcoineducation.quest/#questhub'
+        };
+      });
+      console.log('[TWEET] favor push', JSON.stringify(pushed));
+    } catch (e) {
+      console.error('[TWEET] favor push failed:', e.message);
     }
 
     return null;

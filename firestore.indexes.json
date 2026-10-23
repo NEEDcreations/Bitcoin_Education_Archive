@@ -275,6 +275,20 @@
       ]
     },
     {
+      "collectionGroup": "session_hashes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cycleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastHash",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "global_chat",
       "queryScope": "COLLECTION",
       "fields": [
@@ -593,6 +607,24 @@
         {
           "order": "DESCENDING",
           "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "devices",
+      "fieldPath": "token",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
         }
       ]
     }
