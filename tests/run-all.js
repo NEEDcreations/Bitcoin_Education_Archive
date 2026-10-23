@@ -29,6 +29,8 @@ const TESTS = [
     { name: 'Timechain TV Daily Watch', file: 'test-tctv-watch.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
+    { name: 'Push Notifications', file: 'test-push.js' },
+    { name: 'Push Opt-in Migration', file: 'test-push-optin-migration.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },

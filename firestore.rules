@@ -44,6 +44,58 @@ service cloud.firestore {
       return untouched || firstSet || keepLocked;
     }
 
+    // notificationPrefs: owner booleans only, fixed keys. Missing keys use server defaults.
+    function notificationPrefsOk() {
+      return !('notificationPrefs' in request.resource.data) || (
+        request.resource.data.notificationPrefs is map
+        && request.resource.data.notificationPrefs.keys().hasOnly([
+          'master', 'rewards', 'gifts', 'favor', 'pvp', 'predictions',
+          'mentions', 'dms', 'plebtalk', 'reminders', 'news', 'referrals'
+        ])
+        && (!('master' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.master is bool)
+        && (!('rewards' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.rewards is bool)
+        && (!('gifts' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.gifts is bool)
+        && (!('favor' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.favor is bool)
+        && (!('pvp' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.pvp is bool)
+        && (!('predictions' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.predictions is bool)
+        && (!('mentions' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.mentions is bool)
+        && (!('dms' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.dms is bool)
+        && (!('plebtalk' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.plebtalk is bool)
+        && (!('reminders' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.reminders is bool)
+        && (!('news' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.news is bool)
+        && (!('referrals' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.referrals is bool)
+      );
+    }
+
+    // Prompt state can only move forward. stopped and dontAsk latch on.
+    function notifPromptOk() {
+      return !('notifPrompt' in request.resource.data) || (
+        request.resource.data.notifPrompt is map
+        && request.resource.data.notifPrompt.keys().hasOnly(['count', 'lastAsked', 'stopped', 'dontAsk'])
+        && (!('count' in request.resource.data.notifPrompt) || (
+          request.resource.data.notifPrompt.count is int
+          && request.resource.data.notifPrompt.count >= 0
+          && request.resource.data.notifPrompt.count <= 3
+        ))
+        && (!('lastAsked' in request.resource.data.notifPrompt) || (
+          request.resource.data.notifPrompt.lastAsked is int
+          && request.resource.data.notifPrompt.lastAsked >= 0
+        ))
+        && (!('stopped' in request.resource.data.notifPrompt) || request.resource.data.notifPrompt.stopped is bool)
+        && (!('dontAsk' in request.resource.data.notifPrompt) || request.resource.data.notifPrompt.dontAsk is bool)
+        && (
+          !('notifPrompt' in resource.data)
+          || !(resource.data.notifPrompt is map)
+          || (
+            (!('count' in request.resource.data.notifPrompt) || !('count' in resource.data.notifPrompt) || !(resource.data.notifPrompt.count is int) || request.resource.data.notifPrompt.count >= resource.data.notifPrompt.count)
+            && (!('lastAsked' in request.resource.data.notifPrompt) || !('lastAsked' in resource.data.notifPrompt) || !(resource.data.notifPrompt.lastAsked is int) || request.resource.data.notifPrompt.lastAsked >= resource.data.notifPrompt.lastAsked)
+            && (!(resource.data.notifPrompt.stopped == true) || request.resource.data.notifPrompt.stopped == true)
+            && (!(resource.data.notifPrompt.dontAsk == true) || request.resource.data.notifPrompt.dontAsk == true)
+          )
+        )
+      );
+    }
+
     // =============================================
     // USERS COLLECTION
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
@@ -180,7 +232,9 @@ service cloud.firestore {
                         // Guest-link nonce and the one-time merge marker.
                         'guestLinkNonce', 'guestLinkNonceAt', 'mergedInto', 'mergedFromGuest',
                         'usernameChangedAt',
-                        'totpEnabled', 'phoneVerified'
+                        'totpEnabled', 'phoneVerified',
+                        // Push tokens stay in push_tokens/{uid}/devices, never on the profile
+                        'fcmToken', 'pushToken', 'pushEnabled'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
@@ -212,7 +266,9 @@ service cloud.firestore {
                     && (!('beatsShowUncensored' in request.resource.data)
                         || request.resource.data.beatsShowUncensored == true
                         || request.resource.data.beatsShowUncensored == false)
-                    && lightningLockOk();
+                    && lightningLockOk()
+                    && notificationPrefsOk()
+                    && notifPromptOk();
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
       // create after delete could re-seed with anything). Server (Admin SDK) can still delete.
@@ -534,10 +590,36 @@ service cloud.firestore {
     // =============================================
     // PUSH TOKENS
     // =============================================
-    match /push_tokens/{tokenId} {
-      allow read: if false;
-      allow create, update: if request.auth != null
-                            && request.auth.uid == tokenId;
+    // Per-user token index. The parent doc is server-managed.
+    // Devices are owner-only: another user cannot read or write the token.
+    match /push_tokens/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      // The parent doc must exist so broadcasts can list devices.
+      // Clients may only touch updatedAt. Tokens live on devices/{deviceId}.
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(['updatedAt'])
+                    && request.resource.data.updatedAt == request.time;
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
+                    && request.resource.data.updatedAt == request.time;
+
+      match /devices/{deviceId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null
+                              && request.auth.uid == uid
+                              && deviceId.matches('^[A-Za-z0-9_\\-]{8,64}$')
+                              && request.resource.data.keys().hasOnly(['token', 'updatedAt', 'platform', 'ua'])
+                              && request.resource.data.token is string
+                              && request.resource.data.token.size() >= 20
+                              && request.resource.data.token.size() <= 512
+                              && request.resource.data.updatedAt == request.time
+                              && request.resource.data.platform is string
+                              && request.resource.data.platform.size() <= 40
+                              && request.resource.data.ua is string
+                              && request.resource.data.ua.size() <= 160;
+      }
     }
 
     // =============================================

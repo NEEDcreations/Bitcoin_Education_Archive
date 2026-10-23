@@ -181,6 +181,24 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
         }))
       );
     }
+    try {
+      const { sendUserPush } = require('./push');
+      const levelBody = 'Your peer friendship reached ' + newLevel.name + '.';
+      await Promise.all([
+        sendUserPush(senderUid, 'gifts', {
+          title: 'Friendship level up',
+          body: levelBody,
+          url: 'https://bitcoineducation.quest/#questhub'
+        }),
+        sendUserPush(recipientUid, 'gifts', {
+          title: 'Friendship level up',
+          body: levelBody,
+          url: 'https://bitcoineducation.quest/#questhub'
+        })
+      ]);
+    } catch (e) {
+      console.warn('[peerLevel] push failed:', e.message);
+    }
 
     console.log(
       `[peerLevel] Level-up! pair=${uidA}_${uidB} → ${newLevel.name} ` +
