@@ -13,7 +13,26 @@ const { rewardBlocked } = require('./cipherClaim');
 const { classifyHeld } = require('../../scripts/backfill-badge-favor');
 const { planLevelFavor, levelNameForPoints } = require('./satoshiFavor');
 
+function legacyZero(award) {
+    return !!(award && award.source === 'legacy'
+        && Object.prototype.hasOwnProperty.call(award, 'xp')
+        && Number(award.xp) === 0);
+}
+
+function cappedZero(award) {
+    return !!(award && award.source !== 'legacy'
+        && Object.prototype.hasOwnProperty.call(award, 'xp')
+        && award.xp != null
+        && Number(award.xp) === 0);
+}
+
 function alreadyPaid(award, badgeId) {
+    // A legacy row records 0 because the profile already held the badge.
+    // That grant was the old table amount, so only the difference is new.
+    if (legacyZero(award)) {
+        const old = badgeXp.oldXpOf(badgeId);
+        return old == null ? 0 : old;
+    }
     if (award && Object.prototype.hasOwnProperty.call(award, 'xp') && award.xp != null) {
         return Number(award.xp) || 0;
     }
@@ -72,16 +91,24 @@ function planUserBadges(input) {
         if (newXp <= 0) return;
         const paid = alreadyPaid(award, id);
         const topUp = Math.max(0, newXp - paid);
+        const zeroedByCap = cappedZero(award);
         if (markers[id]) {
-            topUps.push({ badgeId: id, newXp: newXp, alreadyPaid: paid, topUp: 0, skip: 'marker' });
+            topUps.push({ badgeId: id, newXp: newXp, alreadyPaid: paid, topUp: 0, skip: 'marker', cappedZero: false });
             return;
         }
         if (topUp <= 0) {
-            topUps.push({ badgeId: id, newXp: newXp, alreadyPaid: paid, topUp: 0, skip: 'paid' });
+            topUps.push({ badgeId: id, newXp: newXp, alreadyPaid: paid, topUp: 0, skip: 'paid', cappedZero: false });
             return;
         }
         points += topUp;
-        topUps.push({ badgeId: id, newXp: newXp, alreadyPaid: paid, topUp: topUp, skip: '' });
+        topUps.push({
+            badgeId: id,
+            newXp: newXp,
+            alreadyPaid: paid,
+            topUp: topUp,
+            skip: '',
+            cappedZero: zeroedByCap,
+        });
     });
     const levelUps = planLevelFavor(pointsBefore, points).filter(function (row) {
         return !credited[row.name];

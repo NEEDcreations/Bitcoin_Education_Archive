@@ -845,6 +845,10 @@ queue.push(test('badge XP tapers at 600 and 1,000 and the backfill bypasses it',
     assert.ok(!backfill.includes('monthlyXP'));
     assert.ok(!backfill.includes("doc('current').set"));
     assert.ok(!backfill.includes('favorActive'));
+    assert.ok(!backfill.includes('level: plan.level'));
+    assert.ok(backfill.includes('favor cyber_hornets:'));
+    assert.ok(backfill.includes('capped-at-zero badges:'));
+    assert.ok(backfill.includes('capped-at-zero xp:'));
 }));
 
 queue.push(test('badge XP backfill tops up fixtures without clawing back or paying fakes', function () {
@@ -911,6 +915,21 @@ queue.push(test('badge XP backfill tops up fixtures without clawing back or payi
     assert.strictEqual(already.xp, 100);
     assert.strictEqual(already.favorPoints, 0);
     assert.strictEqual(already.levelUps.length, 0);
+    const legacy = planUserBadges({
+        user: { points: 0, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 0, source: 'legacy', requestedXp: 0 } },
+    });
+    assert.strictEqual(legacy.topUps[0].alreadyPaid, 50);
+    assert.strictEqual(legacy.xp, 100);
+    assert.strictEqual(legacy.topUps[0].cappedZero, false);
+    const capped = planUserBadges({
+        user: { points: 0, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 0, source: 'awardBadge', requestedXp: 150 } },
+    });
+    assert.strictEqual(capped.xp, 150);
+    assert.strictEqual(capped.topUps[0].cappedZero, true);
 }));
 
 Promise.all(queue).then(function () {
