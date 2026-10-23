@@ -882,6 +882,18 @@ window._checkAndAwardTitles = function(earnedBadgeIds) {
 // Major badges that deserve a share prompt
 const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100', 'cert_scholar', 'cert_tech', 'cert_double', 'all_certs'];
 
+// Displayed XP is the shared table (window.BADGE_CATALOG, generated from
+// functions/src/badge-xp.json). The badge object's own pts is only a fallback.
+function badgeShownXp(badge) {
+    if (!badge) return 0;
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG[badge.id] : null;
+    if (cat && typeof cat.xp === 'number') return cat.xp;
+    if (typeof badge.xp === 'number') return badge.xp;
+    if (typeof badge.displayPts === 'number') return badge.displayPts;
+    if (typeof badge.pts === 'number') return badge.pts;
+    return 0;
+}
+
 function showBadgeToast(badge) {
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
@@ -893,7 +905,7 @@ function showBadgeToast(badge) {
     // Minor badges: small toast + Option D (Bitcoin ding — bright fifth, ~300ms)
     if (!isMajor) {
         if (typeof showToast === 'function') {
-            showToast(badge.emoji + ' Badge: ' + badge.name + ' (+' + (badge.displayPts || badge.pts || 20) + ' XP)');
+            showToast(badge.emoji + ' Badge: ' + badge.name + ' (+' + badgeShownXp(badge) + ' XP)');
         }
         try {
             if ((typeof canPlaySound !== 'function' || canPlaySound()) && (typeof audioEnabled === 'undefined' || audioEnabled)) {
@@ -945,7 +957,7 @@ function showBadgeToast(badge) {
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">🎉 Badge Earned!</div>' +
         '<div style="color:var(--heading);font-size:1.4rem;font-weight:900;margin-bottom:8px;">' + badge.name + '</div>' +
         '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">' + badge.desc + '</div>' +
-        '<div style="color:var(--accent);font-size:0.9rem;font-weight:700;">+' + (badge.displayPts || badge.pts || 20) + ' XP</div>' +
+        '<div style="color:var(--accent);font-size:0.9rem;font-weight:700;">+' + badgeShownXp(badge) + ' XP</div>' +
         shareHtml +
         '<button onclick="document.getElementById(\'badgeCelebration\').remove()" style="margin-top:20px;padding:10px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Awesome! ✨</button>' +
         '</div>';
@@ -1164,13 +1176,13 @@ function getBadgeHTML() {
         _sec += '<div id="' + _bcId + '" class="badges-grid" style="display:none;">';
         for (const badge of badgeList) {
             const earned = earnedBadges.has(badge.id);
-            const pts = badge.pts || 20;
-            const shownPts = badge.displayPts || pts; // displayPts overrides for display only (e.g. cert badges where exam awards the bulk)
+            const shownPts = badgeShownXp(badge);
             const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
             const tip = earned ? '✅ ' + badge.desc + ' (+' + shownPts + ' XP)' : '🔒 Locked — ' + badge.desc + ' <span style="color:var(--accent);font-weight:700;">(+' + shownPts + ' XP)</span>';
             _sec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="' + escapeHtml(catName) + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
                 '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
                 '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
+                '<div class="badge-xp" style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">+' + shownPts + ' XP</div>' +
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
             '</div>';
         }
@@ -1205,9 +1217,11 @@ function getBadgeHTML() {
                 var earned = earnedBadges.has(bid);
                 var bname = a.name + ' ×' + m;
                 var bdesc = 'Did "' + a.name + '" ' + m + ' time' + (m === 1 ? '' : 's');
+                var flexBadge = { id: bid, name: bname, desc: bdesc, emoji: a.emoji };
                 _flexSec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + bid + '" data-badge-cat="' + escapeHtml(_flexCatName) + '" title="' + escapeHtml(bdesc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (earned ? a.emoji : '🔘') + '</div>' +
                     '<div style="font-size:0.65rem;font-weight:700;color:' + (earned ? 'var(--heading)' : 'var(--text-faint)') + ';text-align:center;line-height:1.2;">' + escapeHtml(bname) + '</div>' +
+                    '<div class="badge-xp" style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">+' + badgeShownXp(flexBadge) + ' XP</div>' +
                     '</div>';
             });
         });
@@ -1241,8 +1255,9 @@ function getBadgeHTML() {
                 _gsec += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🎯 Goals" style="position:relative;padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;" onclick="window._showBadgeTip(event,this)">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '🔒') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + badge.name + '</div>' +
+                    '<div class="badge-xp" style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">+' + badgeShownXp(badge) + ' XP</div>' +
                     (progressText ? '<div style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">' + progressText + '</div>' : '') +
-                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 ' + badge.desc + (hintText ? ' — ' + hintText : '') + ' <span style="color:var(--accent);font-weight:700;">(+' + badge.pts + ' XP)</span>') + '</div>' +
+                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badgeShownXp(badge) + ' XP)' : '🔒 ' + badge.desc + (hintText ? ' — ' + hintText : '') + ' <span style="color:var(--accent);font-weight:700;">(+' + badgeShownXp(badge) + ' XP)</span>') + '</div>' +
                 '</div>';
             }
             _gsec += '</div></div>';
@@ -1271,7 +1286,8 @@ function getBadgeHTML() {
                 _ssec += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🔮 Secret Badges" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '❓') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (unlocked ? badge.name : '???') + '</div>' +
-                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 Keep exploring!') + '</div>' +
+                    (unlocked ? '<div class="badge-xp" style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">+' + badgeShownXp(badge) + ' XP</div>' : '') +
+                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badgeShownXp(badge) + ' XP)' : '🔒 Keep exploring!') + '</div>' +
                 '</div>';
             }
         } else {
@@ -1857,7 +1873,7 @@ window._badgeSearchRecords = function() {
         var earned = false;
         try { earned = (window.getEarnedBadges ? window.getEarnedBadges() : earnedBadges).has(b.id); } catch (e) {}
         if (hidden && !earned) return;
-        var xp = typeof cat.xp === 'number' ? cat.xp : (typeof b.pts === 'number' ? b.pts : 0);
+        var xp = typeof badgeShownXp === 'function' ? badgeShownXp(b) : (typeof cat.xp === 'number' ? cat.xp : (typeof b.pts === 'number' ? b.pts : 0));
         list.push({
             id: b.id,
             name: cat.name || b.name || b.id,

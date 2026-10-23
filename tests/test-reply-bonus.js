@@ -615,13 +615,14 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261023_v2324'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2333'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261023_v2332'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
-    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2332'"));
+    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2333'"));
+    assert.ok(!fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes('btc-archive-v2332'));
     assert.ok(!fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes('btc-archive-v2331'));
     assert.ok(!fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
