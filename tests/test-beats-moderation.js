@@ -374,7 +374,12 @@ queue.push(test('server and chat announcements are always censored', function() 
     const beats = read('beats.js');
     const notes = read('patch-notes.html');
     assert.ok(functions.includes("if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');"));
-    assert.ok(functions.includes('const { beatsCensor } = require(\'../beats-censor.js\');'));
+    assert.ok(functions.includes('const { beatsCensor } = require(\'./src/beats-censor.js\');'));
+    assert.ok(!functions.includes('require(\'../beats-censor.js\')'));
+    const importer = read('functions/scripts/beats_import.js');
+    assert.ok(importer.includes('require(\'../src/beats-censor.js\')'));
+    assert.ok(!importer.includes('require(\'../../beats-censor.js\')'));
+    assert.ok(!importer.includes('require(\'../beats-censor.js\')'));
     assert.strictEqual((functions.match(/if \(t\.hidden === true\) return;/g) || []).length, 2);
     assert.ok(functions.includes('const publicTitle = beatsCensor(track.title || \'Untitled\');'));
     assert.ok(functions.includes('const publicArtist = beatsCensor(track.artist || track.authorName || \'Unknown\');'));
@@ -395,8 +400,17 @@ queue.push(test('server and chat announcements are always censored', function() 
     assert.ok(searchAt !== -1 && titleAt > searchAt);
     assert.ok(notes.includes('Beats now hides strong language in titles by default, with a switch to show it.'));
     assert.ok(notes.includes('Moderated Beats tracks are now hidden everywhere.'));
+    assert.ok(notes.includes('Importing a Beats track can never un-hide a moderated one.'));
+    assert.ok(notes.indexOf('Beats now hides strong language in titles by default, with a switch to show it.') < notes.indexOf('Moderated Beats tracks are now hidden everywhere.'));
+    assert.ok(notes.indexOf('Moderated Beats tracks are now hidden everywhere.') < notes.indexOf('Updated education topics with current facts and fixed broken links and images.'));
     assert.ok(read('privacy.html').includes('beatsShowUncensored'));
-    assert.ok(read('firestore.rules').includes('beatsShowUncensored'));
+    const rules = read('firestore.rules');
+    assert.ok(rules.includes('beatsShowUncensored'));
+    const beatsRules = rules.slice(rules.indexOf('match /beats_tracks/{trackId}'), rules.indexOf('match /beats_artists/{artistId}'));
+    assert.ok(beatsRules.includes("resource.data.get('hidden', false) != true"));
+    assert.ok(beatsRules.includes('request.resource.data.hidden == true'));
+    assert.ok(beatsRules.includes('isAdmin()'));
+    assert.ok(beatsRules.indexOf('request.resource.data.hidden == true') < beatsRules.indexOf('allow delete:'));
     const title = 'Digital Gold (Fuck Your Control)';
     const artist = 'Shit Artist';
     sandbox._beatsShowUncensored = true;
@@ -404,6 +418,13 @@ queue.push(test('server and chat announcements are always censored', function() 
     assert.ok(announcement.includes('F**k Your Control'));
     assert.ok(announcement.includes('S**t Artist'));
     assert.ok(!announcement.includes('Fuck'));
+}));
+
+queue.push(test('client and functions beats-censor copies are identical', function() {
+    assert.strictEqual(read('beats-censor.js'), read('functions/src/beats-censor.js'));
+    const deployed = require('../functions/src/beats-censor.js');
+    assert.strictEqual(typeof deployed.beatsCensor, 'function');
+    assert.strictEqual(deployed.beatsCensor('Fuck', true), beatsCensor('Fuck', true));
 }));
 
 queue.reduce(function(chain, next) {

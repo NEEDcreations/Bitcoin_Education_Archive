@@ -435,6 +435,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2317'"));
+    assert.strictEqual(sw.includes('btc-archive-v2311'), false);
     assert.strictEqual(sw.includes('btc-archive-v2295'), false);
     assert.strictEqual(sw.includes('btc-archive-v2293'), false);
     assert.strictEqual(sw.includes('btc-archive-v2277'), false);

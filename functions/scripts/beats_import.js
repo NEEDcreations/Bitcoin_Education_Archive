@@ -15,7 +15,7 @@
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
-const { beatsCensor } = require('../../beats-censor.js');
+const { beatsCensor } = require('../src/beats-censor.js');
 
 const DEFAULT_FLAG_ARTISTS = ['Falz'];
 

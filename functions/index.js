@@ -6,7 +6,6 @@ const admin = require('firebase-admin');
 const { authenticator } = require("otplib");
 const QRCode = require('qrcode');
 const fetch = require('node-fetch');
-const { beatsCensor } = require('../beats-censor.js');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -34,6 +33,7 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     db.settings({ preferRest: true });
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
+const { beatsCensor } = require('./src/beats-censor.js');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin);
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
