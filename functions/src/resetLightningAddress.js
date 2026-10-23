@@ -151,6 +151,7 @@ function createResetHandlers(deps) {
                 const lockOwner = lockDoc.exists ? String((lockDoc.data() || {}).uid || '') : '';
                 let lockOwnerBanned = false;
                 let otherBanned = false;
+                let otherInUse = false;
                 if (lockOwner && lockOwner !== uid) {
                     const otherDoc = await t.get(db.collection('users').doc(lockOwner));
                     const otherLedger = await t.get(db.collection('faucet_ledger').doc(lockOwner));
@@ -169,6 +170,7 @@ function createResetHandlers(deps) {
                     });
                     const ids = Object.keys(seen);
                     for (let i = 0; i < ids.length; i++) {
+                        otherInUse = true;
                         const led = await t.get(db.collection('faucet_ledger').doc(ids[i]));
                         if (seen[ids[i]].satsDisabled === true || (led.exists && (led.data() || {}).banned === true)) {
                             otherBanned = true;
@@ -183,6 +185,7 @@ function createResetHandlers(deps) {
                     lockOwner: lockOwner,
                     lockOwnerBanned: lockOwnerBanned,
                     otherBanned: otherBanned,
+                    otherInUse: otherInUse,
                 });
                 if (!decision.ok) {
                     const err = new Error('FAUCET_USER:' + decision.error);
