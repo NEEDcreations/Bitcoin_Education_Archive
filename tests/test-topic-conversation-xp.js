@@ -98,6 +98,15 @@ function createMemoryDb() {
                     staged.set(docRef.path, Object.assign({}, clone(base), clone(data)));
                     deleted.delete(docRef.path);
                 },
+                update: function(docRef, data) {
+                    if (deleted.has(docRef.path) || (!staged.has(docRef.path) && !docs.has(docRef.path))) {
+                        const err = new Error('NOT_FOUND');
+                        err.code = 5;
+                        throw err;
+                    }
+                    const base = staged.has(docRef.path) ? staged.get(docRef.path) : docs.get(docRef.path);
+                    staged.set(docRef.path, Object.assign({}, clone(base), clone(data)));
+                },
                 delete: function(docRef) {
                     deleted.add(docRef.path);
                     staged.delete(docRef.path);
@@ -441,6 +450,12 @@ test('rules, terms, and the client toast come from the server payload', () => {
 
         h.advance(31000);
         seedUser(h.db, 'cy', { username: 'Cy' });
+        h.db.seed('forum_replies/forumreplycy1', {
+            postId: root.forumPostId,
+            body: 'Forum reply long enough to earn the origin award',
+            authorId: 'cy',
+            authorName: 'Forged',
+        });
         const first = await forum.mirrorForumReplyToTopic({
             db: h.db,
             admin: h.admin,

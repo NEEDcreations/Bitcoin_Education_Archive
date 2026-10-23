@@ -359,6 +359,25 @@ function forumRenderPosts(posts, container) {
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
 window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
+function forumTopicContinueLink(p) {
+    if (!p || p.origin !== 'topic') return '';
+    var channel = String(p.topicChannel || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var post = String(p.topicPost || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : '';
+    if (!href && /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(String(p.topicLink || ''))) href = String(p.topicLink);
+    if (!href) return '';
+    var name = '';
+    var title = String(p.title || '').replace(/[\u0000-\u001F]/g, '').trim();
+    if (title.indexOf('Discussion: ') === 0) name = title.slice('Discussion: '.length).trim();
+    if (!name) {
+        var slug = channel || href.split('/')[1] || '';
+        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this';
+    }
+    name = name.replace(/\s+/g, ' ').trim();
+    if (name.length > 80) name = name.slice(0, 80).trim();
+    return '<a href="' + fEsc(href) + '" style="display:inline-block;margin:0 0 12px;color:var(--accent);font-size:0.9rem;font-weight:800;text-decoration:none;white-space:nowrap;">Continue in the ' + fEsc(name) + ' topic</a>';
+}
+
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
@@ -404,7 +423,10 @@ window.forumViewPost = async function(postId, fromPopState) {
             html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;overflow-x:hidden;">' + bodyHtml + '</div>';
         }
 
-        if (p.link) {
+        var topicContinue = forumTopicContinueLink(p);
+        if (topicContinue) {
+            html += topicContinue;
+        } else if (p.link) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
@@ -483,6 +505,7 @@ async function forumLoadReplies(postId) {
         var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
         var replies = [];
         snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        replies = replies.filter(function(r) { return r.deleted !== true && r.hidden !== true; });
 
         if (replies.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">No replies yet. Be the first!</div>';

@@ -7111,6 +7111,25 @@ function forumRenderPosts(posts, container) {
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
 window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
+function forumTopicContinueLink(p) {
+    if (!p || p.origin !== 'topic') return '';
+    var channel = String(p.topicChannel || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var post = String(p.topicPost || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : '';
+    if (!href && /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(String(p.topicLink || ''))) href = String(p.topicLink);
+    if (!href) return '';
+    var name = '';
+    var title = String(p.title || '').replace(/[\u0000-\u001F]/g, '').trim();
+    if (title.indexOf('Discussion: ') === 0) name = title.slice('Discussion: '.length).trim();
+    if (!name) {
+        var slug = channel || href.split('/')[1] || '';
+        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this';
+    }
+    name = name.replace(/\s+/g, ' ').trim();
+    if (name.length > 80) name = name.slice(0, 80).trim();
+    return '<a href="' + fEsc(href) + '" style="display:inline-block;margin:0 0 12px;color:var(--accent);font-size:0.9rem;font-weight:800;text-decoration:none;white-space:nowrap;">Continue in the ' + fEsc(name) + ' topic</a>';
+}
+
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
@@ -7156,7 +7175,10 @@ window.forumViewPost = async function(postId, fromPopState) {
             html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;overflow-x:hidden;">' + bodyHtml + '</div>';
         }
 
-        if (p.link) {
+        var topicContinue = forumTopicContinueLink(p);
+        if (topicContinue) {
+            html += topicContinue;
+        } else if (p.link) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
@@ -7235,6 +7257,7 @@ async function forumLoadReplies(postId) {
         var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
         var replies = [];
         snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        replies = replies.filter(function(r) { return r.deleted !== true && r.hidden !== true; });
 
         if (replies.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">No replies yet. Be the first!</div>';
@@ -22615,7 +22638,7 @@ window.toggleAITools = function() {
             '.td-name{font-weight:800;font-size:0.82rem;color:var(--heading,#fff);}',
             '.td-name.td-nacho{color:#22c55e;}',
             '.td-time,.td-anchor{font-size:0.72rem;color:var(--text-faint,#64748b);white-space:nowrap;}',
-            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:14px 0;padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
+            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:12px 0 8px;padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
             '.td-convo-btn:hover,.td-convo-btn:focus-visible{background:rgba(249,115,22,0.16);outline:2px solid var(--accent,#f97316);outline-offset:2px;}',
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
@@ -22631,7 +22654,7 @@ window.toggleAITools = function() {
             '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
-            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:12px 0;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
+            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 6px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -22968,23 +22991,27 @@ window.toggleAITools = function() {
     function showCrossPostNote(text) {
         var body = document.getElementById('topic-discussion-body');
         if (!body) return;
+        var notice = document.getElementById('td-forum-crosspost-notice');
         var note = document.getElementById('td-crosspost-note');
         if (!text) {
-            if (note && note.parentNode) note.parentNode.removeChild(note);
+            if (note && note !== notice && note.parentNode) note.parentNode.removeChild(note);
             return;
         }
-        if (!note) {
-            note = el('p', 'td-forum-notice');
-            note.id = 'td-crosspost-note';
+        var target = notice || note;
+        if (!target) {
+            target = el('p', 'td-forum-notice');
             var composer = document.getElementById('topic-discussion-composer');
-            if (composer && composer.parentNode === body) body.insertBefore(note, composer);
-            else body.appendChild(note);
+            if (composer && composer.parentNode === body) body.insertBefore(target, composer);
+            else body.appendChild(target);
         }
-        note.textContent = text;
+        target.id = 'td-crosspost-note';
+        target.textContent = text;
     }
+    window.bqShowCrossPostNote = showCrossPostNote;
 
     function forumCrossPostNotice() {
         var notice = el('p', 'td-forum-notice');
+        notice.id = 'td-forum-crosspost-notice';
         notice.textContent = 'Your message will also be posted publicly to the Pleb Talk forum.';
         return notice;
     }
@@ -23480,12 +23507,20 @@ window.toggleAITools = function() {
         });
         return button;
     }
+    function tightenPromptGap(button) {
+        var next = button && button.nextSibling;
+        if (!next || next.nodeType !== 3) return;
+        var value = String(next.nodeValue || '');
+        var trimmed = value.replace(/^\n+/, '');
+        if (trimmed !== value) next.nodeValue = trimmed;
+    }
     function insertPromptAt(end, button) {
         if (!end) return;
         if (end.after) {
             if (!end.after.parentNode || insideBlocked(end.after)) return;
             if (end.after.nextSibling) end.after.parentNode.insertBefore(button, end.after.nextSibling);
             else end.after.parentNode.appendChild(button);
+            tightenPromptGap(button);
             return;
         }
         var node = end.node;
@@ -23494,10 +23529,12 @@ window.toggleAITools = function() {
         if (node.nodeValue && offset < node.nodeValue.length) {
             var right = node.splitText(offset);
             node.parentNode.insertBefore(button, right);
+            tightenPromptGap(button);
             return;
         }
         if (node.nextSibling) node.parentNode.insertBefore(button, node.nextSibling);
         else node.parentNode.appendChild(button);
+        tightenPromptGap(button);
     }
     function injectTopicPrompts() {
         var root = document.getElementById('msgs');

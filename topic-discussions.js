@@ -124,7 +124,7 @@
             '.td-name{font-weight:800;font-size:0.82rem;color:var(--heading,#fff);}',
             '.td-name.td-nacho{color:#22c55e;}',
             '.td-time,.td-anchor{font-size:0.72rem;color:var(--text-faint,#64748b);white-space:nowrap;}',
-            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:14px 0;padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
+            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:12px 0 8px;padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
             '.td-convo-btn:hover,.td-convo-btn:focus-visible{background:rgba(249,115,22,0.16);outline:2px solid var(--accent,#f97316);outline-offset:2px;}',
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
@@ -140,7 +140,7 @@
             '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
-            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:12px 0;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
+            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 6px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -477,23 +477,27 @@
     function showCrossPostNote(text) {
         var body = document.getElementById('topic-discussion-body');
         if (!body) return;
+        var notice = document.getElementById('td-forum-crosspost-notice');
         var note = document.getElementById('td-crosspost-note');
         if (!text) {
-            if (note && note.parentNode) note.parentNode.removeChild(note);
+            if (note && note !== notice && note.parentNode) note.parentNode.removeChild(note);
             return;
         }
-        if (!note) {
-            note = el('p', 'td-forum-notice');
-            note.id = 'td-crosspost-note';
+        var target = notice || note;
+        if (!target) {
+            target = el('p', 'td-forum-notice');
             var composer = document.getElementById('topic-discussion-composer');
-            if (composer && composer.parentNode === body) body.insertBefore(note, composer);
-            else body.appendChild(note);
+            if (composer && composer.parentNode === body) body.insertBefore(target, composer);
+            else body.appendChild(target);
         }
-        note.textContent = text;
+        target.id = 'td-crosspost-note';
+        target.textContent = text;
     }
+    window.bqShowCrossPostNote = showCrossPostNote;
 
     function forumCrossPostNotice() {
         var notice = el('p', 'td-forum-notice');
+        notice.id = 'td-forum-crosspost-notice';
         notice.textContent = 'Your message will also be posted publicly to the Pleb Talk forum.';
         return notice;
     }
@@ -989,12 +993,20 @@
         });
         return button;
     }
+    function tightenPromptGap(button) {
+        var next = button && button.nextSibling;
+        if (!next || next.nodeType !== 3) return;
+        var value = String(next.nodeValue || '');
+        var trimmed = value.replace(/^\n+/, '');
+        if (trimmed !== value) next.nodeValue = trimmed;
+    }
     function insertPromptAt(end, button) {
         if (!end) return;
         if (end.after) {
             if (!end.after.parentNode || insideBlocked(end.after)) return;
             if (end.after.nextSibling) end.after.parentNode.insertBefore(button, end.after.nextSibling);
             else end.after.parentNode.appendChild(button);
+            tightenPromptGap(button);
             return;
         }
         var node = end.node;
@@ -1003,10 +1015,12 @@
         if (node.nodeValue && offset < node.nodeValue.length) {
             var right = node.splitText(offset);
             node.parentNode.insertBefore(button, right);
+            tightenPromptGap(button);
             return;
         }
         if (node.nextSibling) node.parentNode.insertBefore(button, node.nextSibling);
         else node.parentNode.appendChild(button);
+        tightenPromptGap(button);
     }
     function injectTopicPrompts() {
         var root = document.getElementById('msgs');

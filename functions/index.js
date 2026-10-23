@@ -8964,11 +8964,15 @@ exports.onForumReplyToTopic = onDocumentCreated({
 }, async (event) => {
     if (!event.data) return null;
     try {
+        const fresh = await db.collection('forum_replies').doc(event.params.replyId).get();
+        if (!fresh.exists) return null;
+        const data = fresh.data() || {};
+        if (data.deleted === true || data.hidden === true) return null;
         await topicForumMirror.mirrorForumReplyToTopic({
             db: db,
             admin: admin,
             replyId: event.params.replyId,
-            data: event.data.data(),
+            data: data,
         });
     } catch (e) {
         console.warn('[onForumReplyToTopic]', e && e.message ? e.message : '');

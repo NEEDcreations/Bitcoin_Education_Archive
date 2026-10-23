@@ -113,8 +113,15 @@ function placeholderSummary(title, text) {
     return line.slice(0, SUMMARY_MAX);
 }
 
+function stripSummaryNoise(text) {
+    return String(text || '')
+        .replace(/https?:\/\/\S+/gi, ' ')
+        .replace(/\bwww\.\S+/gi, ' ')
+        .replace(/@[A-Za-z0-9_][A-Za-z0-9_.-]{0,39}/g, ' ');
+}
+
 function acceptSummary(raw, fallback) {
-    let s = escapeForumPlain(raw);
+    let s = escapeForumPlain(stripSummaryNoise(raw));
     if (!s || s.length < 8 || /^skip$/i.test(s)) return fallback;
     if (ADVICE_RE.test(s) || INJECTION_RE.test(s)) return fallback;
     if (s.length > SUMMARY_MAX) s = s.slice(0, SUMMARY_MAX - 1).trim() + '…';
@@ -196,17 +203,34 @@ async function patchForumSummary(opts) {
         return { patched: false, reason: 'timeout' };
     }
     summary = acceptSummary(summary, placeholderSummary(o.title, o.text));
-    const again = await ref.get();
-    if (!again.exists) return { patched: false, reason: 'missing' };
-    const latest = again.data() || {};
-    if (latest.deleted === true || latest.hidden === true) return { patched: false, reason: 'removed' };
     const body = forumBodyFor(summary, channelId, postId);
-    await ref.set({
+    const patch = {
         summary: summary,
         body: body,
         mirrorSync: mirrorSyncOf(body, false, false),
-    }, { merge: true });
-    return { patched: true, summary: summary };
+    };
+    let wrote = { patched: false, reason: 'missing' };
+    try {
+        await o.db.runTransaction(async function(tx) {
+            const snap = await tx.get(ref);
+            if (!snap.exists) {
+                wrote = { patched: false, reason: 'missing' };
+                return;
+            }
+            const latest = snap.data() || {};
+            if (latest.deleted === true || latest.hidden === true) {
+                wrote = { patched: false, reason: 'removed' };
+                return;
+            }
+            tx.update(ref, patch);
+            wrote = { patched: true, summary: summary };
+        });
+    } catch (err) {
+        const code = err && (err.code || err.status);
+        if (code === 5 || code === 'not-found' || code === 'NOT_FOUND') return { patched: false, reason: 'missing' };
+        throw err;
+    }
+    return wrote;
 }
 
 function forumTitleFor(topicTitle) {
@@ -216,9 +240,10 @@ function forumTitleFor(topicTitle) {
     return title;
 }
 
-function forumBodyFor(summary, channelId, postId) {
-    const link = topicPublicLink(channelId, postId);
-    const body = String(summary || excerptSummary('')) + '\n\nThis discussion is about the topic. Continue it here: ' + link;
+function forumBodyFor(summary) {
+    // The topic link is a short labeled anchor in the forum renderer.
+    // The body stays plain text so a raw URL is not wrapped mid-word.
+    const body = String(summary || excerptSummary(''));
     return body.slice(0, FORUM_BODY_MAX);
 }
 
@@ -429,8 +454,6 @@ async function mirrorForumReplyToTopic(opts) {
     const who = await authorProfile(db, data.authorId, nowMs);
     if (!who.ok) return { mirrored: false, reason: who.code === 'banned' ? 'banned' : who.code };
     const api = topicApi();
-    const prepared = api.preparePostText(data.body);
-    if (!prepared.ok) return { mirrored: false, reason: 'filter' };
     const topicId = topicPostIdForForumReply(replyId);
     const topicRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(topicId);
     const rootRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(rootId);
@@ -438,10 +461,25 @@ async function mirrorForumReplyToTopic(opts) {
     const forumReplyRef = db.collection('forum_replies').doc(replyId);
     let result = { mirrored: false, reason: 'exists', topicPostId: topicId };
     await db.runTransaction(async function(tx) {
+        const replySnap = await tx.get(forumReplyRef);
         const existing = await tx.get(topicRef);
-        if (existing.exists) return;
         const limitSnap = await tx.get(limitRef);
         const rootSnap = await tx.get(rootRef);
+        if (!replySnap.exists) {
+            result = { mirrored: false, reason: 'missing' };
+            return;
+        }
+        const live = replySnap.data() || {};
+        if (live.deleted === true || live.hidden === true) {
+            result = { mirrored: false, reason: 'removed' };
+            return;
+        }
+        const prepared = api.preparePostText(live.body == null ? data.body : live.body);
+        if (!prepared.ok) {
+            result = { mirrored: false, reason: 'filter' };
+            return;
+        }
+        if (existing.exists) return;
         if (!rootSnap.exists) {
             result = { mirrored: false, reason: 'no_root' };
             return;

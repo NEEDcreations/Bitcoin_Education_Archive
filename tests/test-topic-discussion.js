@@ -111,6 +111,15 @@ function createMemoryDb() {
                     staged.set(docRef.path, Object.assign({}, clone(base), clone(data)));
                     deleted.delete(docRef.path);
                 },
+                update: function(docRef, data) {
+                    if (deleted.has(docRef.path) || (!staged.has(docRef.path) && !docs.has(docRef.path))) {
+                        const err = new Error('NOT_FOUND');
+                        err.code = 5;
+                        throw err;
+                    }
+                    const base = staged.has(docRef.path) ? staged.get(docRef.path) : docs.get(docRef.path);
+                    staged.set(docRef.path, Object.assign({}, clone(base), clone(data)));
+                },
                 delete: function(docRef) {
                     deleted.add(docRef.path);
                     staged.delete(docRef.path);
@@ -224,8 +233,11 @@ test('ATTACK rules deny client writes and keep limits private', () => {
     assert.ok(groups.some(function(idx) {
         return idx.queryScope === 'COLLECTION_GROUP' && idx.fields[0].fieldPath === 'uid';
     }));
-    assert.ok(read('global-chat.js').includes('topic\\/[A-Za-z0-9_-]+\\/[A-Za-z0-9_-]+'));
-    assert.ok(read('global-chat.js').includes('window.bqOpenTopicPost'));
+    const chat = read('global-chat.js');
+    assert.ok(chat.includes('topic\\/[A-Za-z0-9_-]+\\/[A-Za-z0-9_-]+'));
+    assert.ok(chat.includes('window.bqOpenTopicPost'));
+    const inApp = chat.slice(chat.indexOf('_inAppLinks.push'), chat.indexOf('_inAppLinks.push') + 500);
+    assert.ok(inApp.includes('white-space:nowrap'));
     assert.strictEqual(td.topicStickyScrollDelta(100, 54, 54), 38);
     assert.ok(read('terms.html').includes('11a. Topic discussions'));
     assert.ok(read('privacy.html').includes('topic discussion'));
@@ -566,9 +578,13 @@ test('conversation buttons open the discussion and posts show server date-time',
         assert.strictEqual(button.type, 'button');
         assert.strictEqual(button.textContent, '💬 Start a conversation');
         assert.strictEqual(button.getAttribute('aria-label'), 'Start a conversation about 🌋mining');
+        var following = button.nextSibling;
+        if (following && following.nodeType === 3) assert.ok(!/^\n/.test(String(following.nodeValue || '')));
         button.focus();
         assert.strictEqual(plan.document.activeElement, button);
     });
+    assert.ok(read('topic-discussions.js').includes('margin:12px 0 8px'));
+    assert.ok(read('topic-discussions.js').includes('function tightenPromptGap'));
     ['UL', 'OL', 'PRE', 'TABLE', 'BLOCKQUOTE', 'IFRAME'].forEach(function(tag) {
         topic.text.childNodes.forEach(function(child) {
             if (child.tagName === tag) assert.strictEqual(buttonsIn(child).length, 0);
@@ -609,6 +625,24 @@ test('conversation buttons open the discussion and posts show server date-time',
     assert.ok(notice);
     assert.strictEqual(notice.textContent, 'Your message will also be posted publicly to the Pleb Talk forum.');
     assert.ok(notice.compareDocumentPosition(area) & 2);
+    function countNotices(root) {
+        var n = 0;
+        function walk(node) {
+            if (!node) return;
+            if (node.classList && node.classList.contains('td-forum-notice')) n += 1;
+            (node.childNodes || []).forEach(walk);
+        }
+        walk(root);
+        return n;
+    }
+    assert.strictEqual(countNotices(plan.document.body), 1);
+    plan.bqShowCrossPostNote('Your message was posted in this topic. It was not cross-posted to Pleb Talk.');
+    assert.strictEqual(countNotices(plan.document.body), 1);
+    var replaced = plan.document.getElementById('td-crosspost-note');
+    assert.ok(replaced);
+    assert.ok(replaced.classList.contains('td-forum-notice'));
+    assert.strictEqual(replaced.textContent, 'Your message was posted in this topic. It was not cross-posted to Pleb Talk.');
+    assert.strictEqual(plan.document.getElementById('td-forum-crosspost-notice'), null);
 
     var guest = bootTopicClient({ signedIn: false, reduceMotion: false });
     var guestTopic = hostTopic(guest, paras);
