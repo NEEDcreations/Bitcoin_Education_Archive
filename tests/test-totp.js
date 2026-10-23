@@ -132,6 +132,7 @@ test('the app asks the server, and every sign-in method can reach a challenge or
     assert.ok(client.includes('mfaRetryOnce'));
     assert.ok(client.includes('Sign out other devices'));
     assert.ok(client.includes('function mfaIsTransientError'));
+    const src = read('functions/src/secondFactor.js');
     assert.ok(src.includes('trusted_devices'));
     assert.ok(src.includes('enforceAppCheck: true'));
     assert.ok(src.includes('const totpResumeDevice = onCallApp'));

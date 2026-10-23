@@ -157,14 +157,6 @@ const parts = emu.split(':');
         await expect('ATTACK polls vote doc', function () {
             return setDoc(doc(user, 'polls', '2026-10-22', 'votes', 'user1'), { chosenIdx: 0 });
         }, false);
-        await env.withSecurityRulesDisabled(async function (ctx) {
-            await setDoc(doc(ctx.firestore(), 'trusted_devices', 'dev1'), {
-                uid: 'user1', tokenHash: 'abc', label: 'Chrome on macOS',
-            });
-            await setDoc(doc(ctx.firestore(), 'totp_fresh_proofs', 'user1_deleteAccount'), {
-                uid: 'user1', action: 'deleteAccount', proofId: 'ab'.repeat(16),
-            });
-        });
         await expect('ATTACK trusted device write', function () {
             return setDoc(doc(user, 'trusted_devices', 'dev1'), { uid: 'user1', tokenHash: 'forged' });
         }, false);
