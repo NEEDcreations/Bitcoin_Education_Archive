@@ -170,6 +170,13 @@
             height: 100%;
             width: 0;
             background: var(--accent);
+            transition: width 0.9s linear;
+        }
+        .tctv-watch-chip.is-done {
+            border-color: #22c55e;
+        }
+        .tctv-watch-chip.is-done .tctv-watch-chip-fill {
+            background: #22c55e;
         }
 
         /* TCTV fixed UI elements high z-index Fix */
@@ -1746,7 +1753,7 @@
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261023_v2340" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261023_v2339" defer></script>
-    <script src="tctv-watch.js?v=20261022_v2301" defer></script>
+    <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261023_v2330" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>

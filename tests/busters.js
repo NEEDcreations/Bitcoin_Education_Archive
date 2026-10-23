@@ -5,7 +5,7 @@
 // today-card.js and scholar.js stay 20261023_v2330.
 // quests.js is 20261023_v2334. learning-quests.js and modules.js stay 20261023_v2324.
 // lightning.js and satoshi-favor.js stay 20261023_v2323.
-// tctv-watch.js stays on v2301.
+// tctv-watch.js is 20261023_v2340.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
 const assert = require('assert');
@@ -89,6 +89,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes("fetch('/sw.js'"));
     assert.ok(!html.includes("const CACHE_NAME = 'btc-archive-v2279'"));
     var swVersion = read('sw.js').match(/CACHE_NAME\s*=\s*'btc-archive-(v\d+)'/);
+    assert.ok(html.includes('tctv-watch.js?v=20261023_v2340'));
+    assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
+    assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('today-card.js?v=20261023_v2330'));
     assert.ok(!html.includes('today-card.js?v=20261023_v2323'));
     assert.ok(html.includes('satoshi-favor.js?v=20261023_v2323'));
@@ -143,6 +146,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Google sign-in stays on this page and works on Android with the app installed.'));
+    assert.ok(notes.includes('The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.'));
+    assert.ok(!notes.includes('Latest: The TCTV'));
     assert.ok(notes.includes('Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.'));
     assert.ok(!notes.includes('Latest: Daily XP'));
     assert.ok(notes.includes('Badge XP now follows how long a badge takes to earn, from 10 up to 2,000. Cosmetic badges show 0.'));
