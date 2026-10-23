@@ -707,10 +707,16 @@
         @media (max-width: 900px) {
             #todayMorePanel { padding-bottom: 160px; }
         }
+        #todayInviteGuest { display: none; margin: 0 auto 16px; border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.75rem; line-height: 1.3; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; max-width: 100%; }
+        body:has(#inviteCard[data-state="guest"][data-show="1"]) #todayInviteGuest { display: inline-flex; align-self: center; }
+        body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteCard { display: none !important; }
         @media (max-width: 480px) {
             #em-quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-            #todayFavorTitle { font-size: 1.02rem; }
-            #todayEarnFavor { margin-left: 0; }
+            #todayFavorStrip { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; }
+            #todayFavorTitle { grid-column: 1 / -1; font-size: 1.02rem; }
+            #todayFavorCountdown { justify-self: end; }
+            #todayEarnFavor { grid-column: 1 / -1; width: 100%; margin-left: 0; }
+            #todayFavorStrip:not(:has(#todayFavorCountdown:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
         }
 
         /* Mobile breakpoint */
@@ -1352,6 +1358,7 @@
                         </div>
                     </div>
                 </section>
+                <button type="button" id="todayInviteGuest" onclick="if(window.inviteGuestSignup)window.inviteGuestSignup()">Sign up to get your invite link</button>
                 <script>if(localStorage.getItem('btc_today_more_open')==='1'){var _tmp=document.getElementById('todayMorePanel');var _tmb=document.getElementById('todayMoreToggle');if(_tmp)_tmp.hidden=false;if(_tmb)_tmb.setAttribute('aria-expanded','true');}</script>
                 <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px;margin-bottom:10px;">
                         <!-- Create Account / Sign In -->
