@@ -13055,140 +13055,118 @@ function renderExplorationMap() {
 window.renderExplorationMap = renderExplorationMap;
 
 // ---- DAILY BITCOIN QUOTE ----
-var BITCOIN_QUOTES = [
-    { text: "If you don't believe it or don't get it, I don't have the time to try to convince you, sorry.", author: "Satoshi Nakamoto", channel: 'satoshi-nakamoto' },
-    { text: "The root problem with conventional currency is all the trust that's required to make it work.", author: "Satoshi Nakamoto", channel: 'satoshi-nakamoto' },
-    { text: "It might make sense just to get some in case it catches on.", author: "Satoshi Nakamoto", channel: 'satoshi-nakamoto' },
-    { text: "Running bitcoin.", author: "Hal Finney", channel: 'history' },
-    { text: "Bitcoin is a remarkable cryptographic achievement and the ability to create something that is not duplicable in the digital world has enormous value.", author: "Eric Schmidt", channel: 'dominant' },
-    { text: "Bitcoin is a technological tour de force.", author: "Bill Gates", channel: 'one-stop-shop' },
-    { text: "I think the internet is going to be one of the major forces for reducing the role of government. The one thing that's missing, but that will soon be developed, is a reliable e-cash.", author: "Milton Friedman (1999)", channel: 'videos' },
-    { text: "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.", author: "Bitcoin Genesis Block", channel: 'history' },
-    { text: "Not your keys, not your coins.", author: "Bitcoin Proverb", channel: 'self-custody' },
-    { text: "Stay humble, stack sats.", author: "Bitcoin Community", channel: 'investment-strategy' },
-    { text: "In the long run, hard money is superior to soft money.", author: "Gigi, 21 Lessons", channel: 'articles-threads' },
-    { text: "Bitcoin is the first truly digital solution to the problem of money.", author: "Saifedean Ammous", channel: 'books' },
-    { text: "Fix the money, fix the world.", author: "Bitcoin Mantra", channel: 'problems-of-money' },
-    { text: "The supply of Bitcoin is limited. Period. No central bank is going to come along and print more.", author: "Andreas Antonopoulos", channel: 'scarce' },
-    { text: "Everyone is a scammer until proven otherwise. Don't trust, verify.", author: "Bitcoin Culture", channel: 'secure' },
-    { text: "Bitcoin makes money great again. It lets you transact freely, save freely, and live freely.", author: "Michael Saylor", channel: 'giga-chad' },
-    { text: "There is no second best.", author: "Michael Saylor", channel: 'maximalism' },
-    { text: "I don't think there's anything more important in my lifetime to work on.", author: "Jack Dorsey", channel: 'giga-chad' },
-    { text: "Bitcoin is the most important invention in the history of the world since the internet.", author: "Roger Ver (before he fell off)", channel: 'history' },
-    { text: "The computer can be used as a tool to liberate and protect people, rather than to control them.", author: "Hal Finney", channel: 'cryptography' },
-    { text: "One of the greatest things that Satoshi did was disappear.", author: "Gigi, 21 Lessons", channel: 'satoshi-nakamoto' },
-    { text: "Bitcoin has no CEO, no marketing department, no headquarters. It has math.", author: "Bitcoin Education Archive", channel: 'decentralized' },
-    { text: "We are all Satoshi.", author: "Bitcoin Community", channel: 'satoshi-nakamoto' },
-    { text: "Cypherpunks write code.", author: "Eric Hughes", channel: 'cryptography' },
-    { text: "Privacy is necessary for an open society in the electronic age.", author: "Eric Hughes, A Cypherpunk's Manifesto", channel: 'privacy-nonkyc' },
-    { text: "Money is a tool for trading human time.", author: "Robert Breedlove", channel: 'articles-threads' },
-    { text: "Bitcoin is Time.", author: "Gigi", channel: 'time' },
-    { text: "The root cause of the housing crisis, student debt crisis, and healthcare crisis is the money crisis.", author: "Saifedean Ammous", channel: 'problems-of-money' },
-    { text: "Tick tock, next block.", author: "Bitcoin Community", channel: 'blockchain-timechain' },
-    { text: "The difficulty adjustment is the most elegant feature of Bitcoin.", author: "Bitcoin Educators", channel: 'difficulty-adjustment' },
-    { text: "Every informed person needs to know about Bitcoin because it might be one of the world's most important developments.", author: "Leon Luow", channel: 'one-stop-shop' },
-    { text: "Bitcoin is the only commodity in the world that the more demand there is, the more supply does NOT increase.", author: "Parker Lewis", channel: 'scarce' },
-    { text: "Gradually, then suddenly.", author: "Parker Lewis / Ernest Hemingway", channel: 'articles-threads' },
-    { text: "You can't stop an idea whose time has come.", author: "Victor Hugo (on Bitcoin)", channel: 'organic' },
-    { text: "Bitcoin is a hedge against the entire system.", author: "Lyn Alden", channel: 'investment-strategy' },
-    { text: "The question isn't what Bitcoin's price will be. The question is what the dollar's price will be.", author: "Bitcoiners", channel: 'problems-of-money' },
-    { text: "I was once told that nobody ever lost money saving in Bitcoin for 4+ years. I checked. It's true.", author: "Anonymous Bitcoiner", channel: 'investment-strategy' },
-    { text: "Bitcoin is the exit.", author: "Bitcoin Maximalists", channel: 'maximalism' },
-    { text: "Don't trust, verify.", author: "Bitcoin Ethos", channel: 'nodes' },
-    { text: "Number go up technology.", author: "Bitcoin Twitter", channel: 'fun-facts' },
-    { text: "Energy is the universal currency. Bitcoin makes that literal.", author: "Bitcoin Mining Community", channel: 'energy' },
-    { text: "Bitcoin is not an investment — it is a savings technology.", author: "Bitcoin Educators", channel: 'money' },
-    { text: "Fiat currency always returns to its intrinsic value — zero.", author: "Voltaire", channel: 'problems-of-money' },
-    { text: "Give me control of a nation's money supply, and I care not who makes its laws.", author: "Mayer Amschel Rothschild", channel: 'problems-of-money' },
-    { text: "Inflation is taxation without legislation.", author: "Milton Friedman", channel: 'problems-of-money' },
-    { text: "Bitcoin is for enemies. That's the whole point.", author: "Bitcoin Community", channel: 'game_theory' },
-    { text: "When you understand Bitcoin, you understand everything else differently.", author: "Many Bitcoiners", channel: 'philosophy' },
-    { text: "Bitcoin doesn't care about your feelings.", author: "Bitcoin Proverb", channel: 'fun-facts' },
-    { text: "Stack sats and stay humble.", author: "Matt Odell", channel: 'investment-strategy' },
-    { text: "Number go up because money printer go brr.", author: "Bitcoin Memes", channel: 'memes-funny' },
-
-    // Freedom & Sovereignty
-    { text: "Those who would give up essential liberty, to purchase a little temporary safety, deserve neither liberty nor safety.", author: "Benjamin Franklin", channel: 'human_rights__social_justice_and_freedo' },
-    { text: "Freedom is never more than one generation away from extinction.", author: "Ronald Reagan", channel: 'human_rights__social_justice_and_freedo' },
-    { text: "The only way to deal with an unfree world is to become so absolutely free that your very existence is an act of rebellion.", author: "Albert Camus", channel: 'philosophy' },
-    { text: "If the American people ever allow private banks to control the issue of their currency, first by inflation, then by deflation, the banks and corporations that will grow up around them will deprive the people of all property.", author: "Thomas Jefferson", channel: 'problems-of-money' },
-    { text: "It is well enough that people of the nation do not understand our banking and monetary system, for if they did, I believe there would be a revolution before tomorrow morning.", author: "Henry Ford", channel: 'problems-of-money' },
-    { text: "The most dangerous man to any government is the man who is able to think things out for himself.", author: "H.L. Mencken", channel: 'philosophy' },
-    { text: "In a time of deceit, telling the truth is a revolutionary act.", author: "George Orwell", channel: 'philosophy' },
-    { text: "The urge to save humanity is almost always a false front for the urge to rule it.", author: "H.L. Mencken", channel: 'philosophy' },
-    { text: "A society that puts equality before freedom will get neither. A society that puts freedom before equality will get a high degree of both.", author: "Milton Friedman", channel: 'philosophy' },
-    { text: "The state is that great fiction by which everyone tries to live at the expense of everyone else.", author: "Frédéric Bastiat", channel: 'austrian_school_of_economics' },
-
-    // Austrian Economics & Sound Money
-    { text: "There is no means of avoiding the final collapse of a boom brought about by credit expansion.", author: "Ludwig von Mises", channel: 'austrian_school_of_economics' },
-    { text: "The first panacea for a mismanaged nation is inflation of the currency; the second is war. Both bring a temporary prosperity; both bring a permanent ruin.", author: "Ernest Hemingway", channel: 'problems-of-money' },
-    { text: "Gold is money. Everything else is credit.", author: "J.P. Morgan", channel: 'money' },
-    { text: "We don't have a trillion-dollar debt because we haven't taxed enough; we have a trillion-dollar debt because we spend too much.", author: "Ronald Reagan", channel: 'problems-of-money' },
-    { text: "Government is the only institution that can take a valuable commodity like paper, and make it worthless by applying ink.", author: "Ludwig von Mises", channel: 'problems-of-money' },
-    { text: "Whenever destroyers appear among men, they start by destroying money.", author: "Ayn Rand", channel: 'problems-of-money' },
-    { text: "The way to crush the bourgeoisie is to grind them between the millstones of taxation and inflation.", author: "Vladimir Lenin", channel: 'problems-of-money' },
-    { text: "Savings represent goods produced but not yet consumed. That's what real wealth is — not digits in a bank database.", author: "Saifedean Ammous", channel: 'money' },
-    { text: "Civilization is in a race between education and catastrophe. Let us learn the truth and spread it as far and wide as our circumstances allow.", author: "H.G. Wells", channel: 'one-stop-shop' },
-    { text: "Paper money eventually returns to its intrinsic value — zero.", author: "Voltaire", channel: 'problems-of-money' },
-
-    // Bitcoin Wisdom
-    { text: "Bitcoin is the separation of money and state.", author: "Bitcoin Community", channel: 'maximalism' },
-    { text: "Bitcoin is the first money in the history of the world where the supply is entirely unaffected by an increase in demand.", author: "Jeff Booth", channel: 'scarce' },
-    { text: "In a world where everything is printed, scarcity is the ultimate feature.", author: "Bitcoin Educators", channel: 'scarce' },
-    { text: "Bitcoin is hope for humanity.", author: "Jack Mallers", channel: 'one-stop-shop' },
-    { text: "The cost of Bitcoin is measured in electricity. The cost of fiat is measured in human freedom.", author: "Bitcoin Community", channel: 'energy' },
-    { text: "Your savings should not be someone else's liability.", author: "Bitcoin Educators", channel: 'self-custody' },
-    { text: "Bitcoin is the peaceful protest that cannot be silenced.", author: "Alex Gladstein", channel: 'human_rights__social_justice_and_freedo' },
-    { text: "Bitcoin gives us the ability to opt out of a system that was designed to extract value from us.", author: "Many Bitcoiners", channel: 'problems-of-money' },
-    { text: "Proof of work means proof of energy. Energy is the one thing that cannot be faked.", author: "Bitcoin Mining Community", channel: 'mining' },
-    { text: "The Bitcoin network processes more value per year than Visa. Without a CEO.", author: "Bitcoin Stats", channel: 'decentralized' },
-    { text: "If Bitcoin is a bubble, it's the only bubble that reflated itself five times in a row.", author: "Bitcoin Community", channel: 'fun-facts' },
-    { text: "Bitcoin has died 474 times according to the media. It's still here.", author: "Bitcoin Obituaries", channel: 'misconceptions-fud' },
-    { text: "Your grandchildren will ask you why you didn't buy Bitcoin when it was under six figures.", author: "Bitcoin Twitter", channel: 'predictions' },
-    { text: "The next 4 years are going to be very exciting for Bitcoin.", author: "Every Bitcoiner, Every Year", channel: 'fun-facts' },
-    { text: "Bitcoin isn't getting more expensive. Your dollars are getting cheaper.", author: "Bitcoin Community", channel: 'problems-of-money' },
-    { text: "If you can't hold it, you don't own it. If you didn't earn it, you'll lose it.", author: "Bitcoin Wisdom", channel: 'self-custody' },
-    { text: "Think in sats, not dollars.", author: "Bitcoin Community", channel: 'sats__or__bits' },
-    { text: "The best time to buy Bitcoin was 10 years ago. The second best time is now.", author: "Bitcoin Proverb", channel: 'investment-strategy' },
-    { text: "Work is the transfer of energy over time. Money should measure exactly that.", author: "Jason Lowery", channel: 'energy' },
-    { text: "Bitcoin is not anti-government. Bitcoin is anti-fraud.", author: "Bitcoin Educators", channel: 'regulation' },
-
-    // Technology & Cypherpunk
-    { text: "We must defend our own privacy if we expect to have any.", author: "Eric Hughes, A Cypherpunk's Manifesto", channel: 'privacy-nonkyc' },
-    { text: "Cryptography is the ultimate form of non-violent direct action.", author: "Julian Assange", channel: 'cryptography' },
-    { text: "Strong cryptography can resist an unlimited application of violence.", author: "Jacob Appelbaum", channel: 'cryptography' },
-    { text: "The Net interprets censorship as damage and routes around it.", author: "John Gilmore", channel: 'privacy-nonkyc' },
-    { text: "Bitcoin is a weapon of peace.", author: "Jason Lowery, Softwar", channel: 'geopolitics___macroeconomics' },
-    { text: "Running a node means nobody can change the rules on you.", author: "Bitcoin Node Runners", channel: 'nodes' },
-    { text: "Hashrate is the heartbeat of Bitcoin. As long as miners mine, Bitcoin lives.", author: "Bitcoin Mining Community", channel: 'mining' },
-    { text: "Lightning is what makes Bitcoin usable for 8 billion people.", author: "Lightning Network Community", channel: 'layer-2-lightning' },
-    { text: "2,099,999,997,690,000 satoshis. That's all there will ever be.", author: "The Bitcoin Protocol", channel: 'scarce' },
-    { text: "Code is speech. Math is law. Cryptography is defense.", author: "Cypherpunks", channel: 'cryptography' },
-
-    // Historical Perspective
-    { text: "I predict the Internet will go spectacularly supernova and in 1996 catastrophically collapse.", author: "Robert Metcalfe (1995) — They said this about Bitcoin too", channel: 'misconceptions-fud' },
-    { text: "Every generation needs a new revolution.", author: "Thomas Jefferson", channel: 'philosophy' },
-    { text: "First they ignore you, then they laugh at you, then they fight you, then you win.", author: "Often attributed to Gandhi", channel: 'organic' },
-    { text: "I do not think there is any other quality so essential to success of any kind as the quality of perseverance.", author: "John D. Rockefeller", channel: 'philosophy' },
-    { text: "The world is a dangerous place, not because of those who do evil, but because of those who look on and do nothing.", author: "Albert Einstein", channel: 'philosophy' },
-    { text: "Hard times create strong men. Strong men create good times. Good times create weak men. Weak men create hard times.", author: "G. Michael Hopf", channel: 'time_preference' },
-    { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin", channel: 'one-stop-shop' },
+// Full list lives in data/quotes.json so the main bundle stays small.
+// These three are a subset of that file, used only if the fetch fails.
+var QOTD_FALLBACK = [
+    {
+        "text": "The root problem with conventional currency is all the trust that's required to make it work.",
+        "author": "Satoshi Nakamoto",
+        "year": 2009,
+        "source": "Bitcoin open source implementation of P2P currency",
+        "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+        "channel": "satoshi-nakamoto"
+    },
+    {
+        "text": "Running bitcoin",
+        "author": "Hal Finney",
+        "year": 2009,
+        "source": "Twitter @halfin, 10 Jan 2009",
+        "url": "https://web.archive.org/web/20170328054440/https://twitter.com/halfin/status/1110302988",
+        "channel": "history"
+    },
+    {
+        "text": "Cypherpunks write code.",
+        "author": "Eric Hughes",
+        "year": 1993,
+        "source": "A Cypherpunk's Manifesto",
+        "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+        "channel": "cryptography"
+    }
 ];
 
+// QOTD-PURE-START
+function qotdMulberry32(seed) {
+    return function() {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+function qotdOrder(length) {
+    var order = [];
+    var i;
+    for (i = 0; i < length; i++) order.push(i);
+    var rand = qotdMulberry32(0x51544F44);
+    for (i = length - 1; i > 0; i--) {
+        var j = Math.floor(rand() * (i + 1));
+        var tmp = order[i];
+        order[i] = order[j];
+        order[j] = tmp;
+    }
+    return order;
+}
+function qotdDayNumber(date) {
+    var d = date || new Date();
+    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+}
+function qotdIndex(length, date) {
+    if (!length || length < 1) return 0;
+    var order = qotdOrder(length);
+    var day = qotdDayNumber(date);
+    var n = ((day % length) + length) % length;
+    return order[n];
+}
+// QOTD-PURE-END
+
+function qotdHttps(url) {
+    if (!url || typeof url !== 'string') return '';
+    var t = url.trim();
+    if (!/^https:\/\/[^\s<>"']+$/i.test(t)) return '';
+    return t;
+}
+
+function qotdPaint(el, list) {
+    if (!el || !list || !list.length) return;
+    var quote = list[qotdIndex(list.length)];
+    if (!quote || !quote.text) return;
+    var channel = (quote.channel && /^[a-z0-9_-]+$/.test(quote.channel)) ? quote.channel : 'one-stop-shop';
+    var href = qotdHttps(quote.url);
+    var sourceLine = '';
+    if (href && quote.source) {
+        var label = String(quote.source);
+        if (quote.year) label += ' \u00b7 ' + quote.year;
+        sourceLine = '<div style="margin-top:6px;font-size:0.68rem;line-height:1.35;font-weight:400;">' +
+            '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" style="color:var(--text-dim);text-decoration:none;border-bottom:1px solid rgba(148,163,184,0.45);">' +
+            escapeHtml(label) + '</a></div>';
+    }
+    el.innerHTML = '<div onclick="if(typeof go===\'function\')go(\'' + channel + '\')" style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">\uD83D\uDCAC Quote of the Day</div>' +
+        '<div style="color:var(--text);font-size:0.95rem;font-style:italic;line-height:1.6;margin-bottom:8px;">"' + escapeHtml(quote.text) + '"</div>' +
+        '<div style="color:var(--accent);font-size:0.8rem;font-weight:600;">\u2014 ' + escapeHtml(quote.author || '') + '</div>' +
+        sourceLine +
+    '</div>';
+}
+
+var qotdCache = null;
 window.renderDailyQuote = function() {
     var el = document.getElementById('quoteOfDay');
     if (!el) return;
-    // Pick quote based on day of year
-    var now = new Date();
-    var dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
-    var quote = BITCOIN_QUOTES[dayOfYear % BITCOIN_QUOTES.length];
-    if (!quote) return;
-
-    el.innerHTML = '<div onclick="if(typeof go===\'function\')go(\'' + (quote.channel || 'one-stop-shop') + '\')" style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💬 Quote of the Day</div>' +
-        '<div style="color:var(--text);font-size:0.95rem;font-style:italic;line-height:1.6;margin-bottom:8px;">"' + quote.text + '"</div>' +
-        '<div style="color:var(--accent);font-size:0.8rem;font-weight:600;">— ' + quote.author + '</div>' +
-    '</div>';
+    if (qotdCache) { qotdPaint(el, qotdCache); return; }
+    fetch('data/quotes.json?v=20261022_v2321', { credentials: 'same-origin' })
+        .then(function(r) {
+            if (!r.ok) throw new Error('quotes');
+            return r.json();
+        })
+        .then(function(data) {
+            if (!data || !data.length) throw new Error('quotes');
+            qotdCache = data;
+            qotdPaint(el, data);
+        })
+        .catch(function() {
+            qotdPaint(el, QOTD_FALLBACK);
+        });
 };
 
 // ---- RESTORED MISSING FUNCTIONS ----
@@ -16900,7 +16878,7 @@ document.addEventListener('btcProfileSaved', function() {
                         html += '<div class="msg-text">' + t + '</div>';
                     }
                     if (m.imgs) m.imgs.forEach(img => {
-                        if (m.link) {
+                        if (m.link && String(img).indexOf('images/') !== 0) {
                             html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'"></a>';
                         } else {
                             html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
@@ -20724,7 +20702,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 html += ageNoteBadge(m);
                     html += updatedNoteBadge(m);
                 if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
-                if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
+                if (m.imgs) m.imgs.forEach(img => { if (m.link && String(img).indexOf('images/') !== 0) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
                 html += '</div>';
             });
             btn.insertAdjacentHTML('beforebegin', html);
@@ -20783,6 +20761,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             '</div>';
             msgs.insertAdjacentHTML('beforeend', sentimentHtml);
         }
+
+        if (typeof window.mountTopicDiscussion === 'function') window.mountTopicDiscussion(id);
 
         // Track channel open time for trivia delay
         window._lastChannelOpenTime = Date.now();
@@ -21897,6 +21877,24 @@ if (locked) {
                 if (typeof window.bqOpenMarketListing === 'function' && window.bqOpenMarketListing(_mlId)) return;
                 return;
             }
+
+            var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)$/)
+                || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)$/);
+            if (_topicDeep) {
+                if (typeof CHANNELS === 'undefined' || typeof go !== 'function') {
+                    waited += 200;
+                    setTimeout(tryRoute, 200);
+                    return;
+                }
+                if (!CHANNELS[_topicDeep[1]]) return;
+                window._topicDeepLink = { channelId: _topicDeep[1], postId: _topicDeep[2], done: false };
+                if (window.currentChannelId === _topicDeep[1] && document.getElementById('topic-discussion-live')) {
+                    if (typeof window._topicDiscussionFocus === 'function') window._topicDiscussionFocus();
+                    return;
+                }
+                go(_topicDeep[1]);
+                return;
+            }
             
             switch(hash) {
                 case 'faq':
@@ -22288,6 +22286,635 @@ window.toggleAITools = function() {
     } else {
         injectAIToolsBtn();
     }
+})();
+// Live community discussion under each educational topic.
+// Legacy Discord replies (a later cleanup) mount in #community-discussion-archive
+// [data-legacy="discord"]. Live posts render in #topic-discussion-live, in the
+// same collapsible Community discussion section. Post text is textContent only.
+(function() {
+    var PAGE = 20;
+    var REPLIES = 30;
+    var MAX_PAGES = 5;
+
+    function topicStickyScrollDelta(elTop, containerTop, stickyCover) {
+        var visibleTop = Math.max(containerTop, stickyCover);
+        return elTop - visibleTop - 8;
+    }
+
+    function el(tag, className) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        return node;
+    }
+
+    function btn(label, className, onClick) {
+        var node = el('button', className || 'td-btn');
+        node.type = 'button';
+        node.textContent = label;
+        node.addEventListener('click', onClick);
+        return node;
+    }
+
+    function toast(message) {
+        if (typeof showToast === 'function') showToast(message);
+    }
+
+    function viewer() {
+        var user = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+        if (!user || user.isAnonymous) {
+            return { signedIn: false, guest: !!(user && user.isAnonymous), uid: '', name: '', admin: false };
+        }
+        var name = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username) : '';
+        return {
+            signedIn: true,
+            guest: false,
+            uid: user.uid,
+            name: name,
+            admin: window._isAdminClaim === true
+        };
+    }
+
+    function timeLabel(ts) {
+        var ms = 0;
+        if (!ts) return '';
+        if (typeof ts.toDate === 'function') ms = ts.toDate().getTime();
+        else if (typeof ts.toMillis === 'function') ms = ts.toMillis();
+        else if (typeof ts === 'number') ms = ts;
+        if (!ms) return '';
+        var sec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+        if (sec < 60) return 'just now';
+        if (sec < 3600) return Math.floor(sec / 60) + 'm';
+        if (sec < 86400) return Math.floor(sec / 3600) + 'h';
+        return Math.floor(sec / 86400) + 'd';
+    }
+
+    function postsCol(channelId) {
+        return db.collection('topic_discussions').doc(channelId).collection('posts');
+    }
+
+    function callFn(name, payload) {
+        return firebase.functions().httpsCallable(name)(payload);
+    }
+
+    function errorText(err, fallback) {
+        var message = err && (err.message || (err.details && err.details.message));
+        if (message && message.indexOf('internal') === -1 && message.length < 180) return message;
+        return fallback;
+    }
+
+    function injectStyle() {
+        if (document.getElementById('topic-discussion-style')) return;
+        var style = el('style');
+        style.id = 'topic-discussion-style';
+        style.textContent = [
+            '.td-section{margin:28px 16px 36px;border:1px solid var(--border,#1e293b);border-radius:16px;background:var(--card-bg,rgba(255,255,255,0.03));overflow:hidden;}',
+            '.td-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:none;border:none;color:var(--heading,#fff);font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;text-align:left;}',
+            '.td-toggle small{font-weight:600;color:var(--text-muted,#94a3b8);font-size:0.75rem;}',
+            '.td-body{padding:0 16px 16px;}',
+            '.td-body[hidden]{display:none;}',
+            '.td-archive{margin-bottom:12px;}',
+            '.td-live{display:flex;flex-direction:column;gap:10px;}',
+            '.td-post{display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border,#1e293b);border-radius:12px;background:rgba(0,0,0,0.15);}',
+            '.td-post.td-reply{margin-left:28px;}',
+            '.td-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;object-fit:cover;background:#111;}',
+            '.td-avatar-fallback{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#1e293b;color:#fdba74;font-weight:800;font-size:0.85rem;}',
+            '.td-main{flex:1;min-width:0;}',
+            '.td-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin-bottom:4px;}',
+            '.td-name{font-weight:800;font-size:0.82rem;color:var(--heading,#fff);}',
+            '.td-name.td-nacho{color:#22c55e;}',
+            '.td-time,.td-anchor{font-size:0.68rem;color:var(--text-faint,#64748b);}',
+            '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
+            '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
+            '.td-btn{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#1e293b);background:none;color:var(--text-muted,#94a3b8);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;}',
+            '.td-compose{display:flex;flex-direction:column;gap:8px;margin-top:12px;}',
+            '.td-compose textarea{width:100%;box-sizing:border-box;min-height:72px;max-height:180px;padding:12px;border-radius:12px;border:1px solid var(--border,#1e293b);background:var(--input-bg,#020617);color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;resize:vertical;}',
+            '.td-compose-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}',
+            '.td-send{padding:10px 16px;border:none;border-radius:10px;background:var(--accent,#f97316);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;}',
+            '.td-send:disabled{opacity:0.55;cursor:default;}',
+            '.td-note{font-size:0.75rem;color:var(--text-muted,#94a3b8);line-height:1.4;}',
+            '.td-fallback{padding:10px 12px;border-radius:10px;background:rgba(249,115,22,0.08);color:var(--text-muted,#94a3b8);font-size:0.85rem;margin-bottom:10px;}',
+            '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
+            '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
+            '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
+            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}}'
+        ].join('');
+        document.head.appendChild(style);
+    }
+
+    function avatarFor(post) {
+        if (post && post.isNacho) {
+            var img = el('img', 'td-avatar');
+            img.src = 'nacho-deer.svg';
+            img.alt = '';
+            img.width = 32;
+            img.height = 32;
+            return img;
+        }
+        var fallback = el('div', 'td-avatar-fallback');
+        var name = post && post.name ? String(post.name) : '?';
+        fallback.textContent = name.trim().charAt(0).toUpperCase() || '?';
+        return fallback;
+    }
+
+    function renderPost(post, ctx) {
+        var who = ctx.viewer || viewer();
+        var row = el('article', 'td-post' + (post.parentId ? ' td-reply' : ''));
+        row.id = 'td-post-' + post.id;
+        row.setAttribute('data-post-id', post.id);
+        row.appendChild(avatarFor(post));
+        var main = el('div', 'td-main');
+        var meta = el('div', 'td-meta');
+        var name = el('span', 'td-name' + (post.isNacho ? ' td-nacho' : ''));
+        name.textContent = post.isNacho ? 'Nacho' : (post.name || 'Member');
+        meta.appendChild(name);
+        var time = el('span', 'td-time');
+        time.textContent = timeLabel(post.createdAt || post.createdAtMs);
+        meta.appendChild(time);
+        if (post.anchorIndex != null && post.anchorIndex !== '') {
+            var anchor = el('span', 'td-anchor');
+            anchor.textContent = 'On note #' + post.anchorIndex;
+            meta.appendChild(anchor);
+        }
+        if (post.hidden) {
+            var hidden = el('span', 'td-anchor');
+            hidden.textContent = 'Hidden';
+            meta.appendChild(hidden);
+        }
+        if (who.admin && post.reportCount) {
+            var reports = el('span', 'td-anchor');
+            reports.textContent = 'Reports ' + post.reportCount;
+            meta.appendChild(reports);
+        }
+        main.appendChild(meta);
+        var text = el('div', 'td-text');
+        if (post.deleted) text.textContent = 'Comment removed';
+        else if (post.hidden && !who.admin) text.textContent = '';
+        else text.textContent = post.text || '';
+        main.appendChild(text);
+        var actions = el('div', 'td-actions');
+        if (!post.deleted && !post.parentId && who.signedIn) {
+            actions.appendChild(btn('Reply', 'td-btn', function() { ctx.onReply(post); }));
+        }
+        if (!post.deleted && who.signedIn && who.uid && who.uid !== post.uid) {
+            actions.appendChild(btn('Report', 'td-btn', function() { ctx.onReport(post); }));
+        }
+        if (!post.deleted && who.uid && who.uid === post.uid && !post.isNacho) {
+            actions.appendChild(btn('Delete', 'td-btn', function() { ctx.onDelete(post); }));
+        }
+        if (who.admin && !post.deleted) {
+            if (post.hidden) actions.appendChild(btn('Unhide', 'td-btn', function() { ctx.onModerate(post, 'unhide'); }));
+            else actions.appendChild(btn('Hide', 'td-btn', function() { ctx.onModerate(post, 'hide'); }));
+            actions.appendChild(btn('Remove', 'td-btn', function() { ctx.onModerate(post, 'delete'); }));
+        }
+        if (!post.parentId && !post.deleted) {
+            actions.appendChild(btn(post._open ? 'Hide replies' : 'Replies', 'td-btn', function() { ctx.onToggleReplies(post); }));
+        }
+        if (actions.childNodes.length) main.appendChild(actions);
+        if (post._replies && post._replies.length) {
+            var thread = el('div', 'td-replies');
+            post._replies.forEach(function(reply) {
+                thread.appendChild(renderPost(reply, ctx));
+            });
+            main.appendChild(thread);
+        }
+        row.appendChild(main);
+        return row;
+    }
+
+    window._topicDiscussionRenderPost = renderPost;
+
+    function stickyCoverPx() {
+        var bar = document.querySelector('.mobile-bar');
+        if (!bar || !window.getComputedStyle) return 0;
+        var cs = window.getComputedStyle(bar);
+        if (cs.display === 'none' || cs.position !== 'fixed') return 0;
+        return bar.getBoundingClientRect().height || 0;
+    }
+
+    function scrollPostIntoView(node) {
+        if (!node || !node.getBoundingClientRect) return;
+        var rect = node.getBoundingClientRect();
+        var cover = stickyCoverPx();
+        var main = document.getElementById('main');
+        if (main && typeof main.scrollTo === 'function') {
+            var delta = topicStickyScrollDelta(rect.top, main.getBoundingClientRect().top, cover);
+            main.scrollTo({ top: Math.max(0, main.scrollTop + delta), behavior: 'smooth' });
+        } else {
+            var deltaWin = topicStickyScrollDelta(rect.top, 0, cover);
+            window.scrollTo({ top: Math.max(0, window.scrollY + deltaWin), behavior: 'smooth' });
+        }
+        node.classList.add('topic-post-highlight');
+        setTimeout(function() { node.classList.remove('topic-post-highlight'); }, 2800);
+    }
+
+    function visiblePost(post, who) {
+        if (!post) return false;
+        if (post.deleted && !(post.replyCount > 0)) return false;
+        if (post.hidden && !(who && who.admin)) return false;
+        return true;
+    }
+
+    var state = {
+        channelId: '',
+        unsub: null,
+        replyUnsubs: {},
+        posts: [],
+        cursor: null,
+        pages: 1,
+        parentId: '',
+        replyName: ''
+    };
+
+    function setOpen(open) {
+        var body = document.getElementById('topic-discussion-body');
+        var toggle = document.getElementById('community-discussion-toggle');
+        if (!body || !toggle) return;
+        body.hidden = !open;
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        try { sessionStorage.setItem('td_open_' + state.channelId, open ? '1' : '0'); } catch (e) {}
+    }
+
+    function showFallback(message) {
+        var body = document.getElementById('topic-discussion-body');
+        if (!body) return;
+        setOpen(true);
+        var note = document.getElementById('topic-discussion-fallback');
+        if (!note) {
+            note = el('div', 'td-fallback');
+            note.id = 'topic-discussion-fallback';
+            body.insertBefore(note, body.firstChild);
+        }
+        note.textContent = message || 'That comment was removed.';
+    }
+
+    function paint() {
+        var live = document.getElementById('topic-discussion-live');
+        var count = document.getElementById('topic-discussion-count');
+        if (!live) return;
+        var who = viewer();
+        var shown = state.posts.filter(function(post) { return visiblePost(post, who); });
+        if (count) count.textContent = shown.length ? String(shown.length) : '';
+        while (live.firstChild) live.removeChild(live.firstChild);
+        if (!shown.length) {
+            var empty = el('div', 'td-note');
+            empty.textContent = 'No comments yet. Ask a question about this topic.';
+            live.appendChild(empty);
+        }
+        var ctx = {
+            viewer: who,
+            onReply: function(post) {
+                state.parentId = post.id;
+                state.replyName = post.name || 'this comment';
+                renderComposer();
+                setOpen(true);
+                var area = document.getElementById('topic-discussion-input');
+                if (area) area.focus();
+            },
+            onReport: function(post) {
+                if (!confirm('Report this comment to the moderators?')) return;
+                callFn('reportTopicComment', { channelId: state.channelId, postId: post.id }).then(function() {
+                    toast('Reported. Thank you.');
+                }).catch(function(err) { toast(errorText(err, 'Could not report that comment.')); });
+            },
+            onDelete: function(post) {
+                if (!confirm('Delete your comment?')) return;
+                callFn('deleteTopicComment', { channelId: state.channelId, postId: post.id }).then(function() {
+                    toast('Comment deleted.');
+                }).catch(function(err) { toast(errorText(err, 'Could not delete that comment.')); });
+            },
+            onModerate: function(post, action) {
+                var label = action === 'delete' ? 'Remove this comment?' : (action === 'hide' ? 'Hide this comment?' : 'Unhide this comment?');
+                if (!confirm(label)) return;
+                callFn('moderateTopicPost', { channelId: state.channelId, postId: post.id, action: action }).then(function() {
+                    toast('Updated.');
+                }).catch(function(err) { toast(errorText(err, 'Could not update that comment.')); });
+            },
+            onToggleReplies: function(post) {
+                post._open = !post._open;
+                if (!post._open) {
+                    if (state.replyUnsubs[post.id]) { state.replyUnsubs[post.id](); delete state.replyUnsubs[post.id]; }
+                    post._replies = [];
+                    paint();
+                    return;
+                }
+                watchReplies(post.id);
+            }
+        };
+        shown.forEach(function(post) { live.appendChild(renderPost(post, ctx)); });
+        var more = document.getElementById('topic-discussion-more');
+        if (more) more.hidden = state.pages >= MAX_PAGES || !state.cursor;
+    }
+
+    function upsert(list, post) {
+        var next = list.filter(function(item) { return item.id !== post.id; });
+        next.push(post);
+        next.sort(function(a, b) {
+            var am = a.createdAtMs || 0;
+            var bm = b.createdAtMs || 0;
+            return bm - am;
+        });
+        return next;
+    }
+
+    function fromDoc(doc) {
+        var data = doc.data() || {};
+        data.id = doc.id;
+        if (!data.createdAtMs && data.createdAt && typeof data.createdAt.toMillis === 'function') {
+            data.createdAtMs = data.createdAt.toMillis();
+        }
+        return data;
+    }
+
+    function watchTop() {
+        if (state.unsub) { state.unsub(); state.unsub = null; }
+        if (typeof db === 'undefined' || !db) return;
+        state.unsub = postsCol(state.channelId)
+            .where('parentId', '==', '')
+            .orderBy('createdAt', 'desc')
+            .limit(PAGE)
+            .onSnapshot(function(snap) {
+                var incoming = [];
+                snap.forEach(function(doc) { incoming.push(fromDoc(doc)); });
+                var prev = {};
+                state.posts.forEach(function(post) { prev[post.id] = post; });
+                incoming.forEach(function(post) {
+                    var old = prev[post.id];
+                    if (!old) return;
+                    if (old._open) post._open = true;
+                    if (old._replies) post._replies = old._replies;
+                });
+                var older = state.posts.filter(function(post) {
+                    return !incoming.some(function(item) { return item.id === post.id; }) && post._paged;
+                });
+                state.posts = incoming.concat(older);
+                if (snap.docs && snap.docs.length) state.cursor = snap.docs[snap.docs.length - 1];
+                paint();
+                focusPending();
+            }, function() {
+                var live = document.getElementById('topic-discussion-live');
+                if (live) {
+                    while (live.firstChild) live.removeChild(live.firstChild);
+                    var note = el('div', 'td-note');
+                    note.textContent = 'Discussion is unavailable right now.';
+                    live.appendChild(note);
+                }
+            });
+    }
+
+    function watchReplies(parentId) {
+        if (state.replyUnsubs[parentId]) return;
+        var keys = Object.keys(state.replyUnsubs);
+        if (keys.length >= 3) {
+            state.replyUnsubs[keys[0]]();
+            delete state.replyUnsubs[keys[0]];
+        }
+        state.replyUnsubs[parentId] = postsCol(state.channelId)
+            .where('parentId', '==', parentId)
+            .orderBy('createdAt', 'asc')
+            .limit(REPLIES)
+            .onSnapshot(function(snap) {
+                var replies = [];
+                snap.forEach(function(doc) { replies.push(fromDoc(doc)); });
+                state.posts.forEach(function(post) {
+                    if (post.id === parentId) {
+                        post._open = true;
+                        post._replies = replies;
+                    }
+                });
+                paint();
+                focusPending();
+            }, function() {});
+    }
+
+    function loadEarlier() {
+        if (!state.cursor || state.pages >= MAX_PAGES || typeof db === 'undefined') return;
+        postsCol(state.channelId)
+            .where('parentId', '==', '')
+            .orderBy('createdAt', 'desc')
+            .startAfter(state.cursor)
+            .limit(PAGE)
+            .get()
+            .then(function(snap) {
+                state.pages += 1;
+                var last = null;
+                snap.forEach(function(doc) {
+                    var post = fromDoc(doc);
+                    post._paged = true;
+                    state.posts = upsert(state.posts, post);
+                    last = doc;
+                });
+                if (last) state.cursor = last;
+                else state.cursor = null;
+                paint();
+            })
+            .catch(function() { toast('Could not load earlier comments.'); });
+    }
+
+    function renderComposer() {
+        var host = document.getElementById('topic-discussion-composer');
+        if (!host) return;
+        var who = viewer();
+        while (host.firstChild) host.removeChild(host.firstChild);
+        if (!who.signedIn) {
+            var note = el('p', 'td-note');
+            note.textContent = who.guest
+                ? 'You are browsing as a guest. Create an account to ask a question. You can still read the discussion.'
+                : 'Sign in to ask a question or leave a comment. Anyone can read.';
+            host.appendChild(note);
+            host.appendChild(btn('Sign in', 'td-send', function() {
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            }));
+            return;
+        }
+        if (state.parentId) {
+            var banner = el('div', 'td-note');
+            banner.textContent = 'Replying to ' + (state.replyName || 'this comment');
+            var cancel = btn('Cancel', 'td-btn', function() {
+                state.parentId = '';
+                state.replyName = '';
+                renderComposer();
+            });
+            var row = el('div', 'td-compose-row');
+            row.appendChild(banner);
+            row.appendChild(cancel);
+            host.appendChild(row);
+        }
+        var area = el('textarea');
+        area.id = 'topic-discussion-input';
+        area.maxLength = 500;
+        area.placeholder = 'Ask a question or leave a comment';
+        area.setAttribute('aria-label', 'Comment on this topic');
+        var count = el('span', 'td-note');
+        count.textContent = '0/500';
+        area.addEventListener('input', function() { count.textContent = String(area.value.length) + '/500'; });
+        host.appendChild(area);
+        var controls = el('div', 'td-compose-row');
+        var hint = el('span', 'td-note');
+        hint.textContent = 'Nacho may answer questions. Posting does not earn XP or tickets.';
+        var send = btn('Post', 'td-send', function() { submit(area, send); });
+        controls.appendChild(hint);
+        controls.appendChild(count);
+        controls.appendChild(send);
+        host.appendChild(controls);
+    }
+
+    function submit(area, send) {
+        var text = area.value.trim();
+        if (!text) { toast('Write a comment first.'); return; }
+        var who = viewer();
+        if (!who.signedIn) { toast('Sign in to join the discussion.'); return; }
+        if (!who.name || who.name.length < 2) { toast('Set a username first.'); return; }
+        send.disabled = true;
+        var payload = { channelId: state.channelId, text: text };
+        if (state.parentId) payload.parentId = state.parentId;
+        var anchor = window._topicAnchorIndex;
+        if (anchor != null && anchor !== '' && !payload.parentId) payload.anchorIndex = anchor;
+        callFn('postTopicComment', payload).then(function() {
+            area.value = '';
+            state.parentId = '';
+            state.replyName = '';
+            renderComposer();
+            setOpen(true);
+        }).catch(function(err) {
+            toast(errorText(err, 'Could not post that comment.'));
+        }).then(function() { send.disabled = false; });
+    }
+
+    function ensurePost(postId) {
+        var who = viewer();
+        var found = null;
+        state.posts.forEach(function(post) {
+            if (post.id === postId) found = post;
+            (post._replies || []).forEach(function(reply) { if (reply.id === postId) found = reply; });
+        });
+        if (found) {
+            if (!visiblePost(found, who) && found.deleted) return Promise.resolve('removed');
+            if (found.parentId) watchReplies(found.parentId);
+            return Promise.resolve('ok');
+        }
+        return postsCol(state.channelId).doc(postId).get().then(function(snap) {
+            if (!snap.exists) return 'removed';
+            var post = fromDoc(snap);
+            if (post.deleted || (post.hidden && !who.admin)) return 'removed';
+            if (post.parentId) {
+                watchReplies(post.parentId);
+                return 'ok';
+            }
+            post._paged = true;
+            state.posts = upsert(state.posts, post);
+            paint();
+            return 'ok';
+        }).catch(function() { return 'removed'; });
+    }
+
+    function focusPending() {
+        var link = window._topicDeepLink;
+        if (!link || link.done || link.channelId !== state.channelId) return;
+        setOpen(true);
+        ensurePost(link.postId).then(function(result) {
+            if (!window._topicDeepLink || window._topicDeepLink.postId !== link.postId) return;
+            if (result === 'removed') {
+                window._topicDeepLink.done = true;
+                showFallback('That comment was removed.');
+                return;
+            }
+            var node = document.getElementById('td-post-' + link.postId);
+            if (!node) return;
+            window._topicDeepLink.done = true;
+            scrollPostIntoView(node);
+            try {
+                history.replaceState({ channel: link.channelId, topicPost: link.postId }, '', '#topic=' + link.channelId + '&post=' + link.postId);
+            } catch (e) {}
+        });
+    }
+
+    window._topicDiscussionFocus = focusPending;
+
+    function shell(channelId) {
+        injectStyle();
+        var legacy = document.getElementById('community-discussion-archive');
+        var section = document.getElementById('community-discussion');
+        if (section && section.getAttribute('data-channel-id') !== channelId) {
+            section.parentNode.removeChild(section);
+            section = null;
+        }
+        if (!section) {
+            section = el('section', 'td-section');
+            section.id = 'community-discussion';
+            section.setAttribute('data-channel-id', channelId);
+            var toggle = btn('Community discussion', 'td-toggle', function() {
+                var body = document.getElementById('topic-discussion-body');
+                setOpen(body && body.hidden);
+            });
+            toggle.id = 'community-discussion-toggle';
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-controls', 'topic-discussion-body');
+            var label = el('span');
+            label.textContent = 'Community discussion';
+            var count = el('small');
+            count.id = 'topic-discussion-count';
+            toggle.textContent = '';
+            toggle.appendChild(label);
+            toggle.appendChild(count);
+            section.appendChild(toggle);
+            var body = el('div', 'td-body');
+            body.id = 'topic-discussion-body';
+            body.hidden = true;
+            var archive = legacy || el('div', 'td-archive');
+            archive.id = 'community-discussion-archive';
+            archive.className = 'td-archive';
+            archive.setAttribute('data-legacy', 'discord');
+            var live = el('div', 'td-live');
+            live.id = 'topic-discussion-live';
+            var more = btn('Earlier comments', 'td-btn', loadEarlier);
+            more.id = 'topic-discussion-more';
+            more.hidden = true;
+            var composer = el('div', 'td-compose');
+            composer.id = 'topic-discussion-composer';
+            body.appendChild(archive);
+            body.appendChild(live);
+            body.appendChild(more);
+            body.appendChild(composer);
+            section.appendChild(body);
+        }
+        return section;
+    }
+
+    window.mountTopicDiscussion = function(channelId) {
+        if (!channelId || typeof document === 'undefined') return;
+        state.channelId = channelId;
+        state.posts = [];
+        state.cursor = null;
+        state.pages = 1;
+        state.parentId = '';
+        Object.keys(state.replyUnsubs).forEach(function(id) { state.replyUnsubs[id](); });
+        state.replyUnsubs = {};
+        var msgs = document.getElementById('msgs');
+        if (!msgs) return;
+        var section = shell(channelId);
+        if (section.parentNode !== msgs) msgs.appendChild(section);
+        var open = false;
+        try { open = sessionStorage.getItem('td_open_' + channelId) === '1'; } catch (e) {}
+        if (window._topicDeepLink && window._topicDeepLink.channelId === channelId) open = true;
+        setOpen(open);
+        renderComposer();
+        watchTop();
+        if (typeof auth !== 'undefined' && auth && auth.onAuthStateChanged && !window._tdAuthHook) {
+            window._tdAuthHook = true;
+            auth.onAuthStateChanged(function() { renderComposer(); paint(); });
+        }
+    };
+
+    window.bqOpenTopicPost = function(channelId, postId) {
+        if (!/^[A-Za-z0-9_-]+$/.test(channelId || '') || !/^[A-Za-z0-9_-]+$/.test(postId || '')) return false;
+        window._topicDeepLink = { channelId: channelId, postId: postId, done: false };
+        if (window.currentChannelId === channelId && document.getElementById('topic-discussion-live')) {
+            focusPending();
+            return true;
+        }
+        if (typeof window.go === 'function') window.go(channelId);
+        return true;
+    };
 })();
 // =============================================
 // Bitcoin Education Archive — UX Improvement Patches

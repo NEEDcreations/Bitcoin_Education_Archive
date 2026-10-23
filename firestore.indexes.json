@@ -426,67 +426,124 @@
       "collectionGroup": "locked_ciphers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "status",  "order": "ASCENDING" }
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "locked_ciphers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerId",   "order": "ASCENDING" },
-        { "fieldPath": "status",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "keys",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "status",  "order": "ASCENDING" }
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "keys",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerId",   "order": "ASCENDING" },
-        { "fieldPath": "status",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "keys",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "status",  "order": "ASCENDING" },
-        { "fieldPath": "label",   "order": "ASCENDING" }
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "label",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "keys",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "sentTo",  "order": "ASCENDING" },
-        { "fieldPath": "status",  "order": "ASCENDING" }
+        {
+          "fieldPath": "sentTo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "key_send_pairs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "senderUid", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "ASCENDING" }
+        {
+          "fieldPath": "senderUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "cipher_wins",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "uid", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -521,35 +578,128 @@
       "collectionGroup": "prediction_stats",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "qualifiesAllTime", "order": "ASCENDING" },
-        { "fieldPath": "predAccuracy", "order": "DESCENDING" },
-        { "fieldPath": "predCorrect", "order": "DESCENDING" },
-        { "fieldPath": "predTotal", "order": "DESCENDING" },
-        { "fieldPath": "reachedSort", "order": "ASCENDING" }
+        {
+          "fieldPath": "qualifiesAllTime",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predAccuracy",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "predCorrect",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "predTotal",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "reachedSort",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "prediction_stats",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "weekKey", "order": "ASCENDING" },
-        { "fieldPath": "qualifiesWeek", "order": "ASCENDING" },
-        { "fieldPath": "weekAccuracy", "order": "DESCENDING" },
-        { "fieldPath": "weekCorrect", "order": "DESCENDING" },
-        { "fieldPath": "weekTotal", "order": "DESCENDING" },
-        { "fieldPath": "weekReachedSort", "order": "ASCENDING" }
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "qualifiesWeek",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAccuracy",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "weekCorrect",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "weekTotal",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "weekReachedSort",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "prediction_stats",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "monthKey", "order": "ASCENDING" },
-        { "fieldPath": "qualifiesMonth", "order": "ASCENDING" },
-        { "fieldPath": "monthAccuracy", "order": "DESCENDING" },
-        { "fieldPath": "monthCorrect", "order": "DESCENDING" },
-        { "fieldPath": "monthTotal", "order": "DESCENDING" },
-        { "fieldPath": "monthReachedSort", "order": "ASCENDING" }
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "qualifiesMonth",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAccuracy",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "monthCorrect",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "monthReachedSort",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "parentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "parentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
@@ -622,30 +772,84 @@
       "collectionGroup": "winners",
       "fieldPath": "uid",
       "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" },
-        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
       ]
     },
     {
       "collectionGroup": "participants",
       "fieldPath": "uid",
       "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" },
-        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
       ]
     },
     {
       "collectionGroup": "participants",
       "fieldPath": "username",
       "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" },
-        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "devices",
+      "fieldPath": "token",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
       ]
     }
   ]

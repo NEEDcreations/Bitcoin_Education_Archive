@@ -5,7 +5,8 @@
 const ps = require('./predictionStats');
 const rewardNotify = require('./rewardNotify');
 
-function createPredictionJobs(db, admin) {
+function createPredictionJobs(db, admin, hooks) {
+    const pushHooks = hooks || {};
     async function readChunked(refs) {
         const out = [];
         for (let i = 0; i < refs.length; i += 10) {
@@ -273,6 +274,20 @@ function createPredictionJobs(db, admin) {
                                 ? ('📊 Your price prediction was correct. Bitcoin went ' + went + '.')
                                 : ('📊 Your price prediction missed. Bitcoin did not go ' + went + '.'),
                         }));
+                        if (pushHooks.sendPush) {
+                            try {
+                                await pushHooks.sendPush(result.uid, 'predictions', {
+                                    title: result.correct ? 'Your prediction hit' : 'Prediction result',
+                                    body: result.correct
+                                        ? 'You called the move. XP is on your profile.'
+                                        : 'That window closed. A new one will open.',
+                                    url: 'https://bitcoineducation.quest/#questhub',
+                                    type: 'predictions'
+                                });
+                            } catch (pushErr) {
+                                console.warn('[predict] push failed', pushErr.message);
+                            }
+                        }
                     }
                 }
             } catch (e) {
@@ -297,11 +312,11 @@ function createPredictionJobs(db, admin) {
         const userRef = db.collection('users').doc(winner.uid);
         const ledgerRef = db.collection('faucet_ledger').doc(winner.uid);
         const label = (period === 'weekly' ? 'This Week' : 'This Month') + ' Top Predictors #' + winner.rank;
-        await db.runTransaction(async function(tx) {
+        const awardedNow = await db.runTransaction(async function(tx) {
             const existing = await tx.get(winnerRef);
             const userSnap = await tx.get(userRef);
             const ledgerSnap = await tx.get(ledgerRef);
-            if (existing.exists) return;
+            if (existing.exists) return false;
             const skip = ps.winnerSkipReason(
                 userSnap.exists,
                 userSnap.exists ? userSnap.data() : null,
@@ -314,7 +329,7 @@ function createPredictionJobs(db, admin) {
                     tickets: 0,
                     awardedAt: Date.now()
                 });
-                return;
+                return false;
             }
             tx.set(winnerRef, {
                 rank: winner.rank,
@@ -342,7 +357,20 @@ function createPredictionJobs(db, admin) {
                 read: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
+            return true;
         });
+        if (awardedNow && pushHooks.sendPush) {
+            try {
+                await pushHooks.sendPush(winner.uid, 'predictions', {
+                    title: 'Predictor reward',
+                    body: label + ' — ' + winner.tickets + ' Orange Tickets were added.',
+                    url: 'https://bitcoineducation.quest/#questhub',
+                    type: 'predictions'
+                });
+            } catch (pushErr) {
+                console.warn('[predict] winner push failed', pushErr.message);
+            }
+        }
     }
 
     async function resetPeriod(period, endedKey, currentKey) {

@@ -311,6 +311,14 @@
     {
       "text": "All things bitcoin privacy aggregated into one site",
       "link": "https://bitcoiner.guide/privacy/"
+    },
+    {
+      "text": "Bitpost: a no-KYC, non-custodial marketplace for buying items with bitcoin over Lightning.\nhttps://bitpost.shop",
+      "link": "https://bitpost.shop"
+    },
+    {
+      "text": "vp.net: a VPN designed so the provider cannot see your traffic (verify claims yourself before relying on it).\nhttps://vp.net/l/en-US/",
+      "link": "https://vp.net/l/en-US/"
     }
   ]
 }

@@ -30,14 +30,6 @@ const COMBO_AMOUNTS = {
     combo_legend: { 250: 250, 500: 250 },
 };
 
-const NACHO_QUESTS = {
-    pick_topic: { 25: 25, 50: 50 },
-    send_chat: { 25: 25, 50: 50 },
-    spin_wheel: { 25: 25, 50: 50 },
-    find_nacho: { 25: 25, 50: 50 },
-    first_quiz: { 50: 50, 100: 100 },
-};
-
 const LQ_TITLES = new Set([
     'What is Bitcoin?',
     'Mining & Proof of Work',
@@ -150,6 +142,10 @@ function resolvePhrase(action, ctx) {
     const clientPts = ctx.clientPts;
     const badgeId = ctx.badgeId;
     const channelId = ctx.channelId;
+
+    // Onboarding quest XP is claimOnboardingQuestStep only. awardPoints must
+    // not pay a client-supplied quest phrase.
+    if (/nacho quest|onboarding quest/i.test(action)) return unknown();
 
     if (action === 'badge_earned' || /^(?:Badge|🎖️ Badge|🏅 Badge): \S/.test(action)) {
         if (action.indexOf('Hidden Badge:') === 0) return unknown();
@@ -352,30 +348,6 @@ function resolvePhrase(action, ctx) {
         });
     }
 
-    const quest = /^🦌 Nacho Quest: ([a-z0-9_]+)$/.exec(action);
-    if (quest) {
-        const amounts = NACHO_QUESTS[quest[1]];
-        if (!amounts) return unknown();
-        const base = {};
-        const doubled = {};
-        Object.keys(amounts).forEach(function(key) {
-            const n = parseInt(key, 10);
-            const half = n / 2;
-            if (Object.prototype.hasOwnProperty.call(amounts, half)) doubled[n] = amounts[n];
-            else base[n] = amounts[n];
-        });
-        const choice = payChoice(clientPts, base, doubled);
-        if (!choice) return unknown();
-        return done({
-            id: 'nacho_quest',
-            xp: choice.xp,
-            requiresDoubleXp: choice.requiresDoubleXp,
-            scope: 'once',
-            dailyLimit: 5,
-            dedupGroup: 'nacho_quest',
-            target: quest[1],
-        });
-    }
 
     return unknown();
 }

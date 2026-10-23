@@ -35,8 +35,11 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     db.settings({ preferRest: true });
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
+const { beatsCensor } = require('./src/beats-censor.js');
+const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOthers, capUserDevices } = require('./src/push');
+const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
-const predictionJobs = createPredictionJobs(db, admin);
+const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -179,385 +182,108 @@ const FAUCET = {
     NWC_URL: process.env.NWC_URL || ''
 };
 
-// ── TOTP secret encryption (AES-256-GCM) ────────────────────────────────────
-// Secrets are stored encrypted at rest. Key is in TOTP_ENCRYPTION_KEY env var
-// (32-byte hex string). If key is absent, falls back to plaintext for backwards
-// compatibility, but logs a warning on startup.
-const TOTP_KEY_HEX = process.env.TOTP_ENCRYPTION_KEY || '';
-if (!TOTP_KEY_HEX) {
-    console.warn('[TOTP] TOTP_ENCRYPTION_KEY is not set — secrets stored plaintext. Set a 32-byte hex key in Firebase env config.');
-}
-function encryptTotpSecret(secret) {
-    if (!TOTP_KEY_HEX) return { enc: false, value: secret };
-    const key = Buffer.from(TOTP_KEY_HEX, 'hex');
-    const iv = require('crypto').randomBytes(12);
-    const cipher = require('crypto').createCipheriv('aes-256-gcm', key, iv);
-    const enc = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return {
-        enc: true,
-        value: iv.toString('hex') + ':' + enc.toString('hex') + ':' + tag.toString('hex')
-    };
-}
-function decryptTotpSecret(stored) {
-    if (!stored || !stored.enc) return stored ? stored.value : null;
-    if (!TOTP_KEY_HEX) {
-        // Key disappeared after storage — cannot decrypt
-        throw new Error('TOTP_ENCRYPTION_KEY not set but secret is encrypted');
-    }
-    const key = Buffer.from(TOTP_KEY_HEX, 'hex');
-    const parts = stored.value.split(':');
-    if (parts.length !== 3) throw new Error('Invalid encrypted TOTP format');
-    const iv = Buffer.from(parts[0], 'hex');
-    const encBuf = Buffer.from(parts[1], 'hex');
-    const tag = Buffer.from(parts[2], 'hex');
-    const decipher = require('crypto').createDecipheriv('aes-256-gcm', key, iv);
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(encBuf), decipher.final()]).toString('utf8');
-}
-
-// Generate TOTP secret and QR code for user
-exports.totpSetup = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const uid = context.auth.uid;
-    const email = context.auth.token.email || 'user';
-
-    // Generate secret
-    const secret = authenticator.generateSecret();
-
-    // Store temporarily (not verified yet), encrypted at rest
-    const encPending = encryptTotpSecret(secret);
-    await db.collection('totp_pending').doc(uid).set({
-        secretEnc: encPending.enc,
-        secret: encPending.value,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    // Generate QR code
-    const otpauth = authenticator.keyuri(email, "Bitcoin Education Archive", secret);
-    const qrDataUrl = await QRCode.toDataURL(otpauth);
-
-    return { qr: qrDataUrl, secret: secret };
+// Authenticator sessions are totp_sessions/{uid}_{sessionId}.
+// New setups fail closed until TOTP_ENCRYPTION_KEY is a 64-hex secret.
+// Existing plaintext secrets still verify. Deploy the bound functions, then
+// run migrate-totp-secrets.js (dry run, then --apply).
+const { initSecondFactor } = require('./src/secondFactor');
+const secondFactor = initSecondFactor({
+    db: db,
+    admin: admin,
+    HttpsError: functionsV1.https.HttpsError,
+    authenticator: authenticator,
+    QRCode: QRCode,
 });
-
-// Verify TOTP code and enable it
-exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Code required');
-
-    const uid = context.auth.uid;
-
-    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
-    const rlRef = db.collection('totp_rate_limits').doc(uid + '_verify');
-    await db.runTransaction(async (tx) => {
-        const rlDoc = await tx.get(rlRef);
-        if (rlDoc.exists) {
-            const rd = rlDoc.data();
-            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-            if (ws && (Date.now() - ws.getTime()) < 120000) {
-                if ((rd.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
-                tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
-            } else {
-                tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-            }
-        } else {
-            tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-        }
-    });
-
-    // Get pending secret
-    const pending = await db.collection('totp_pending').doc(uid).get();
-    if (!pending.exists) throw new functionsV1.https.HttpsError('not-found', 'No pending TOTP setup. Start setup first.');
-
-    const pd = pending.data();
-    const secret = decryptTotpSecret({ enc: pd.secretEnc === true, value: pd.secret });
-
-    // Verify the code
-    var isValid = authenticator.verify({ token: data.code, secret: secret });
-    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
-
-    // Store verified secret encrypted at rest
-    const encSecret = encryptTotpSecret(secret);
-    await db.collection('totp_secrets').doc(uid).set({
-        secretEnc: encSecret.enc,
-        secret: encSecret.value,
-        enabled: true,
-        enabledAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    // Update user doc
-    await db.collection('users').doc(uid).update({ totpEnabled: true });
-
-    // Clean up pending
-    await db.collection('totp_pending').doc(uid).delete();
-
-    return { success: true };
-});
-
-// Validate TOTP code on sign-in
-exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Code required');
-
-    const uid = context.auth.uid;
-
-    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction to prevent race condition)
-    const totpRateRef = db.collection('totp_rate_limits').doc(uid);
-    await db.runTransaction(async (t) => {
-        const doc = await t.get(totpRateRef);
-        const now = Date.now();
-        if (doc.exists) {
-            const d = doc.data();
-            const ws = d.windowStart ? (d.windowStart.toDate ? d.windowStart.toDate() : new Date(d.windowStart)) : null;
-            if (ws && (now - ws.getTime()) < 120000) {
-                if ((d.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
-                t.set(totpRateRef, { attempts: (d.attempts || 0) + 1, windowStart: d.windowStart }, { merge: true });
-            } else {
-                t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-            }
-        } else {
-            t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-        }
-    });
-
-    const doc = await db.collection('totp_secrets').doc(uid).get();
-    if (!doc.exists || !doc.data().enabled) {
-        throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
-    }
-
-    const dd = doc.data();
-    const secret = decryptTotpSecret({ enc: dd.secretEnc === true, value: dd.secret });
-    var isValid = authenticator.verify({ token: data.code, secret: secret });
-
-    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code');
-
-    // Reset rate limit on success
-    await totpRateRef.delete().catch(function() {});
-
-    // Mark session as verified
-    await db.collection('totp_sessions').doc(uid).set({
-        verified: true,
-        verifiedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    return { success: true };
-});
-
-// Disable TOTP
-exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Enter your current code to disable');
-
-    const uid = context.auth.uid;
-
-    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
-    const rlRef = db.collection('totp_rate_limits').doc(uid + '_disable');
-    await db.runTransaction(async (tx) => {
-        const rlDoc = await tx.get(rlRef);
-        if (rlDoc.exists) {
-            const rd = rlDoc.data();
-            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-            if (ws && (Date.now() - ws.getTime()) < 120000) {
-                if ((rd.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
-                tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
-            } else {
-                tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-            }
-        } else {
-            tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-        }
-    });
-
-    const doc = await db.collection('totp_secrets').doc(uid).get();
-    if (!doc.exists) throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
-
-    // Verify code before disabling
-    const dd2 = doc.data();
-    const secretForDisable = decryptTotpSecret({ enc: dd2.secretEnc === true, value: dd2.secret });
-    var isValid = authenticator.verify({ token: data.code, secret: secretForDisable });
-    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
-
-    await db.collection('totp_secrets').doc(uid).delete();
-    await db.collection('totp_sessions').doc(uid).delete();
-    await db.collection('users').doc(uid).update({ totpEnabled: false });
-
-    return { success: true };
-});
-
-// Check if user has TOTP enabled
-exports.totpStatus = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const uid = context.auth.uid;
-    const doc = await db.collection('totp_secrets').doc(uid).get();
-    const sessionDoc = await db.collection('totp_sessions').doc(uid).get();
-
-    return {
-        enabled: doc.exists && doc.data().enabled === true,
-        sessionVerified: sessionDoc.exists && sessionDoc.data().verified === true
-    };
-});
+exports.totpSetup = secondFactor.totpSetup;
+exports.totpVerify = secondFactor.totpVerify;
+exports.totpCheck = secondFactor.totpCheck;
+exports.totpDisable = secondFactor.totpDisable;
+exports.totpStatus = secondFactor.totpStatus;
+exports.totpRevokeSession = secondFactor.totpRevokeSession;
+exports.issueRecoveryCodes = secondFactor.issueRecoveryCodes;
+exports.regenerateRecoveryCodes = secondFactor.regenerateRecoveryCodes;
+exports.useRecoveryCode = secondFactor.useRecoveryCode;
+exports.phoneFactorRemoved = secondFactor.phoneFactorRemoved;
+exports.adminResetSecondFactor = secondFactor.adminResetSecondFactor;
 
 // =============================================
 // Streak Reminder Push Notifications
-// Runs daily at 8pm UTC (adjustable)
+// Fires at midnight UTC = 7 PM ET, warning users before the 5 AM UTC reset.
+// Category "reminders". broadcastCategory checks each user's pref.
 // =============================================
-// Fires at midnight UTC = 7 PM ET, warning users 5h before the 5 AM UTC (midnight ET) streak reset
-exports.streakReminder = onSchedule({ schedule: '0 0 * * *', timeZone: 'UTC' }, async (event) => {
-        const today = getOffsetDateKey(); // offset key — warns about the correct reset boundary
-
-        // Find users with push tokens who visited yesterday but NOT today
-        // (their streak is about to expire at midnight)
-        const tokensSnap = await db.collection('push_tokens').get();
-        if (tokensSnap.empty) return null;
-
-        const messages = [];
-
-        for (const tokenDoc of tokensSnap.docs) {
-            const uid = tokenDoc.id;
-            const token = tokenDoc.data().token;
-            if (!token) continue;
-
-            // Get user data
-            try {
-                const userDoc = await db.collection('users').doc(uid).get();
-                if (!userDoc.exists) continue;
-
-                const userData = userDoc.data();
-                const lastVisit = userData.lastVisit;
-                const streak = userData.streak || 0;
-
-                // Only notify if they have an active streak (2+) and haven't visited today
-                if (streak >= 2 && lastVisit && lastVisit !== today) {
-                    messages.push({
-                        token: token,
-                        notification: {
-                            title: '🔥 Your ' + streak + '-day streak is about to expire!',
-                            body: 'Visit the Bitcoin Education Archive before midnight to keep it alive. Don\'t lose your progress!'
-                        },
-                        data: {
-                            url: 'https://bitcoineducation.quest'
-                        },
-                        webpush: {
-                            fcmOptions: {
-                                link: 'https://bitcoineducation.quest'
-                            }
-                        }
-                    });
-                }
-            } catch (e) {
-                console.log('Error checking user ' + uid + ':', e.message);
-            }
-        }
-
-        if (messages.length === 0) return null;
-
-        // Send notifications (batch up to 500)
-        const batches = [];
-        for (let i = 0; i < messages.length; i += 500) {
-            batches.push(messages.slice(i, i + 500));
-        }
-
-        let sent = 0;
-        let failed = 0;
-        for (const batch of batches) {
-            const results = await admin.messaging().sendEach(batch);
-            results.responses.forEach((resp, idx) => {
-                if (resp.success) {
-                    sent++;
-                } else {
-                    failed++;
-                    // Remove invalid tokens
-                    if (resp.error && (
-                        resp.error.code === 'messaging/invalid-registration-token' ||
-                        resp.error.code === 'messaging/registration-token-not-registered'
-                    )) {
-                        const uid = batches[0][idx] ? null : null; // Can't easily get UID here
-                        // We'll clean up stale tokens separately
-                    }
-                }
-            });
-        }
-
-        console.log('Streak reminders sent: ' + sent + ', failed: ' + failed);
+exports.streakReminder = onSchedule({ schedule: '0 0 * * *', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
+        const today = getOffsetDateKey();
+        const result = await broadcastCategory('reminders', async function (uid, userData) {
+            const streak = userData.streak || 0;
+            const lastVisit = userData.lastVisit;
+            if (streak < 2 || !lastVisit || lastVisit === today) return null;
+            return {
+                title: 'Your ' + streak + '-day streak is about to expire',
+                body: 'Open Bitcoin Quest before the reset to keep it alive.',
+                url: 'https://bitcoineducation.quest/'
+            };
+        });
+        console.log('Streak reminders', JSON.stringify(result));
         return null;
     });
 
 // =============================================
 // Weekly Quest Reminder (every Monday 3 PM UTC)
 // =============================================
-exports.weeklyQuestReminder = onSchedule({ schedule: '0 15 * * 1', timeZone: 'UTC' }, async (event) => {
-        const tokensSnap = await db.collection('push_tokens').get();
-        if (tokensSnap.empty) return null;
-
-        const messages = [];
-        for (const tokenDoc of tokensSnap.docs) {
-            const token = tokenDoc.data().token;
-            if (!token) continue;
-            messages.push({
-                token: token,
-                notification: {
-                    title: '⚡ Start your Quest!',
-                    body: 'Learn more about Bitcoin! New questions and channels are waiting for you.'
-                },
-                data: { url: 'https://bitcoineducation.quest' },
-                webpush: { fcmOptions: { link: 'https://bitcoineducation.quest' } }
-            });
-        }
-
-        if (messages.length === 0) return null;
-
-        let sent = 0, failed = 0;
-        for (let i = 0; i < messages.length; i += 500) {
-            const batch = messages.slice(i, i + 500);
-            const results = await admin.messaging().sendEach(batch);
-            results.responses.forEach(r => { if (r.success) sent++; else failed++; });
-        }
-
-        console.log('Weekly quest reminders sent: ' + sent + ', failed: ' + failed);
+exports.weeklyQuestReminder = onSchedule({ schedule: '0 15 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
+        const result = await broadcastCategory('reminders', async function () {
+            return {
+                title: 'Start your Quest',
+                body: 'New Bitcoin questions and channels are waiting.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            };
+        });
+        console.log('Weekly quest reminders', JSON.stringify(result));
         return null;
     });
 
 // =============================================
 // Clean up stale/invalid push tokens (weekly)
+// Dry-run probes each device token and deletes the ones FCM rejects.
 // =============================================
-exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' }, async (event) => {
-        const tokensSnap = await db.collection('push_tokens').get();
-        let cleaned = 0;
-
-        for (const tokenDoc of tokensSnap.docs) {
-            const token = tokenDoc.data().token;
-            if (!token) {
-                await tokenDoc.ref.delete();
-                cleaned++;
-                continue;
-            }
-
-            // Try a dry-run send to check if token is still valid
-            try {
-                await admin.messaging().send({
-                    token: token,
-                    data: { test: 'true' }
-                }, true); // dry run
-            } catch (e) {
-                if (e.code === 'messaging/invalid-registration-token' ||
-                    e.code === 'messaging/registration-token-not-registered') {
-                    await tokenDoc.ref.delete();
-                    // Also remove from user doc
-                    try {
-                        await db.collection('users').doc(tokenDoc.id).update({
-                            pushToken: admin.firestore.FieldValue.delete()
-                        });
-                    } catch (e2) {}
-                    cleaned++;
-                }
-            }
-        }
-
+exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
+        const cleaned = await cleanStaleTokens();
         console.log('Cleaned ' + cleaned + ' stale push tokens');
         return null;
     });
+
+// Admin claim can target any uid. Anyone else can target only themselves.
+// The body is fixed server-side so a caller cannot put text in the notification.
+exports.sendTestPush = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    const caller = context.auth.uid;
+    const isAdmin = context.auth.token && context.auth.token.admin === true;
+    const target = String((data && data.uid) || caller).trim();
+    if (!/^[A-Za-z0-9_-]{4,128}$/.test(target)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'uid required');
+    }
+    if (!testPushTargetAllowed(caller, target, isAdmin)) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const result = await sendUserPush(target, 'rewards', {
+        title: 'Bitcoin Quest test',
+        body: 'Push is working on this device.',
+        url: 'https://bitcoineducation.quest/#settings-notifications',
+        type: 'test'
+    }, {
+        ignorePrefs: true,
+        rateCategory: 'test',
+        rateMax: isAdmin ? 20 : 3
+    });
+    return {
+        ok: (result.sent || 0) > 0,
+        sent: result.sent || 0,
+        failed: result.failed || 0,
+        reason: result.reason || ''
+    };
+});
 
 // =============================================
 // Nostr Sign-In (NIP-07)
@@ -572,8 +298,8 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
 
     // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction).
     // The doc id is a keyed hash. The address is not stored.
-    const nostrIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    if (nostrIP !== 'unknown') {
+    const nostrIP = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    if (nostrIP) {
         const { networkRateDocId } = require('./src/rateLimitSalt');
         const nostrNow = Date.now();
         const nostrRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'nostr_', nostrIP, nostrNow));
@@ -725,8 +451,8 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
 exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
     // Rate limiting: max 10 challenges per IP per hour (atomic transaction).
     // The doc id is a keyed hash. The address is not stored.
-    const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    if (lnIP !== 'unknown') {
+    const lnIP = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    if (lnIP) {
         const { networkRateDocId } = require('./src/rateLimitSalt');
         const lnNow = Date.now();
         const lnRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'lnauth_', lnIP, lnNow));
@@ -1315,49 +1041,20 @@ exports.onMarketplaceShoutoutUpdated = onDocumentUpdated({
 exports.spinReminder = onSchedule({
     schedule: 'every monday,wednesday,friday 10:00',
     timeZone: 'America/New_York',
+    timeoutSeconds: 540,
     retryCount: 0,
 }, async (event) => {
     try {
-        // Get all users with push enabled
-        const usersSnap = await db.collection('users')
-            .where('pushEnabled', '==', true)
-            .limit(500)
-            .get();
-
-        if (usersSnap.empty) return null;
-
-        // Get their push tokens
-        const messages = [];
-        for (const userDoc of usersSnap.docs) {
-            const tokenDoc = await db.collection('push_tokens').doc(userDoc.id).get();
-            if (tokenDoc.exists && tokenDoc.data().token) {
-                messages.push({
-                    token: tokenDoc.data().token,
-                    notification: {
-                        title: '🎡 Your daily spin is ready!',
-                        body: 'Spin the wheel for free Orange Tickets! 🎫',
-                    },
-                    webpush: {
-                        fcmOptions: {
-                            link: 'https://bitcoineducation.quest',
-                        },
-                    },
-                });
-            }
-        }
-
-        // Send in batches of 500
-        if (messages.length > 0) {
-            const messaging = admin.messaging();
-            for (let i = 0; i < messages.length; i += 500) {
-                const batch = messages.slice(i, i + 500);
-                await messaging.sendEach(batch);
-            }
-            console.log('Sent spin reminders to ' + messages.length + ' users');
-        }
-
+        const result = await broadcastCategory('reminders', async function () {
+            return {
+                title: 'Your spin is ready',
+                body: 'Spin the wheel for free Orange Tickets.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            };
+        });
+        console.log('Spin reminders', JSON.stringify(result));
         return null;
-    } catch(e) {
+    } catch (e) {
         console.error('Spin reminder error:', e);
         return null;
     }
@@ -1459,6 +1156,17 @@ exports.nachoFeedbackReport = onSchedule({
 exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const result = await referralService.payIfQualified(context.auth.uid);
+    if (result && result.paid && result.referrerUid) {
+        try {
+            await sendUserPush(result.referrerUid, 'referrals', {
+                title: 'Referral reward',
+                body: 'Someone you invited reached Maxi. 50 Orange Tickets were added.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            });
+        } catch (e) {
+            console.warn('[verifyReferral] push failed', e.message);
+        }
+    }
     return {
         success: !!(result && result.paid),
         reason: result && result.reason,
@@ -1728,6 +1436,7 @@ exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
 }).https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -2872,6 +2581,13 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         await batch.commit();
+        try {
+            await sendUserPush(targetUid, 'gifts', {
+                title: 'Peer request',
+                body: (ud.username || 'A Bitcoiner') + ' sent you a peer request.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            });
+        } catch (e) { console.warn('[managePeer] push failed', e.message); }
         return { success: true };
     }
 
@@ -2907,6 +2623,14 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         await batch.commit();
+
+        try {
+            await sendUserPush(targetUid, 'gifts', {
+                title: 'Peer request accepted',
+                body: (ud.username || 'A Bitcoiner') + ' accepted your peer request.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            });
+        } catch (e) { console.warn('[managePeer] accept push failed', e.message); }
 
         // Award badges if applicable (non-blocking)
         try {
@@ -2984,6 +2708,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
 exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -3297,6 +3022,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     // Keyword and substring matching used to let any client phrase containing
     // "ticket" collect Orange Tickets. Amounts, per-day limits, and dedup keys
     // now come from awardActions. Client ticket counts are ignored.
+    if (actionKey === 'onboarding_quest' || /nacho quest|onboarding quest/i.test(String(action || ''))) {
+        return { success: false, error: 'Unknown action', awarded: 0, tickets: 0 };
+    }
     const resolved = awardActions.resolveAction({
         actionKey: actionKey,
         action: action,
@@ -4145,6 +3873,7 @@ exports.pvpTimeoutOpponent = functionsV1.runWith({ enforceAppCheck: true }).http
 
 // ---- Daily Spin (server-side validation + reward) ----
 exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
@@ -4365,6 +4094,8 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     // against each other simultaneously.
     const lobbyRef = db.collection('pvp_lobby').doc(lobbyDocId);
     const matchRef = db.collection('pvp_matches').doc(); // pre-generate ID
+    let challengedUid = '';
+    let challengerName = 'A Bitcoiner';
 
     await db.runTransaction(async (tx) => {
         const lobbySnap = await tx.get(lobbyRef);
@@ -4392,6 +4123,8 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         const p1Name = pvpFlow.safeDisplayName(p1User.exists ? p1User.data().username : lobbyData.name);
         const p2Name = pvpFlow.safeDisplayName(p2User.exists ? p2User.data().username : (player2 && player2.name));
         const p2Pic = pvpSafePic(player2 && player2.profilePic);
+        challengedUid = p1Uid;
+        challengerName = p2Name;
 
         // Create the match document
         tx.set(matchRef, {
@@ -4434,6 +4167,16 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
             opponentProfilePic: p2Pic
         });
     });
+
+    if (challengedUid) {
+        try {
+            await sendUserPush(challengedUid, 'pvp', {
+                title: 'PvP challenge',
+                body: challengerName + ' is ready in the lobby.',
+                url: 'https://bitcoineducation.quest/#pvp'
+            });
+        } catch (e) { console.warn('[pvpCreateMatch] push failed', e.message); }
+    }
 
     return { matchId: matchRef.id };
 });
@@ -4859,10 +4602,122 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
                 chatMessages: admin.firestore.FieldValue.increment(1)
             }, { merge: true });
         } catch (e) { console.error('[onChatMessageCreated] failed:', e); }
+        const mentioned = data.mentionUid;
+        if (mentioned && mentioned !== data.uid && /^[A-Za-z0-9_-]{4,128}$/.test(String(mentioned))) {
+            try {
+                await sendUserPush(mentioned, 'mentions', {
+                    title: 'You were mentioned',
+                    body: (data.name || 'Someone') + ' mentioned you in chat.',
+                    url: 'https://bitcoineducation.quest/#chat'
+                });
+            } catch (e) { console.warn('[onChatMessageCreated] mention push failed', e.message); }
+        }
         return null;
     });
 
-// PVP match reaches a terminal status → count it once and settle rewards once.
+function _pushUidOk(id) {
+    return /^[A-Za-z0-9_-]{4,128}$/.test(String(id || ''));
+}
+
+function _pushDisplayName(data, fallback) {
+    const name = data && typeof data.username === 'string' ? data.username.trim() : '';
+    return name || fallback;
+}
+
+function _pushSenderBlocked(recipientData, senderUid) {
+    const blocked = recipientData && Array.isArray(recipientData.blockedUsers) ? recipientData.blockedUsers : [];
+    return blocked.indexOf(senderUid) !== -1;
+}
+
+// Banned accounts and guests never get a push attributed to them.
+function _pushSenderEligible(data) {
+    if (!data) return false;
+    if (data.banned === true) return false;
+    if (data.anonymous === true) return false;
+    return true;
+}
+
+// DM created under a conversation. The recipient's "dms" pref gates delivery.
+// The display name is the sender's server username. Client-written senderName is ignored.
+exports.onDmMessageCreated = onDocumentCreated('dm_conversations/{cid}/messages/{mid}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const msg = snap.data() || {};
+    const sender = String(msg.senderUid || '');
+    if (!_pushUidOk(sender)) return null;
+    try {
+        const convo = await db.collection('dm_conversations').doc(event.params.cid).get();
+        if (!convo.exists) return null;
+        const participants = convo.data().participants || [];
+        if (participants.indexOf(sender) === -1) return null;
+        const recipient = participants.find(function (id) { return id && id !== sender; });
+        if (!_pushUidOk(recipient)) return null;
+        const senderSnap = await db.collection('users').doc(sender).get();
+        if (!senderSnap.exists || !_pushSenderEligible(senderSnap.data())) return null;
+        const recipientSnap = await db.collection('users').doc(recipient).get();
+        const recipientData = recipientSnap.exists ? (recipientSnap.data() || {}) : {};
+        if (_pushSenderBlocked(recipientData, sender)) return null;
+        const preview = msg.imageUrl ? 'Sent you an image' : (msg.text || 'New message');
+        await sendUserPush(recipient, 'dms', {
+            title: 'Message from ' + _pushDisplayName(senderSnap.data(), 'a Bitcoiner'),
+            body: preview,
+            url: 'https://bitcoineducation.quest/#dms'
+        });
+    } catch (e) {
+        console.warn('[onDmMessageCreated] push failed', e.message);
+    }
+    return null;
+});
+
+// Marketplace message. The listing document is the source of the seller.
+// Client-written sellerUid and buyerName are ignored.
+exports.onMarketplaceMessageCreated = onDocumentCreated('marketplace_messages/{id}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const msg = snap.data() || {};
+    const listingId = String(msg.listingId || '');
+    const buyer = String(msg.buyerUid || '');
+    if (!listingId || listingId.length > 128 || !_pushUidOk(buyer)) return null;
+    try {
+        const listing = await db.collection('marketplace').doc(listingId).get();
+        if (!listing.exists) return null;
+        const seller = String((listing.data() || {}).sellerUid || '');
+        if (!_pushUidOk(seller) || seller === buyer) return null;
+        const buyerSnap = await db.collection('users').doc(buyer).get();
+        if (!buyerSnap.exists || !_pushSenderEligible(buyerSnap.data())) return null;
+        const sellerSnap = await db.collection('users').doc(seller).get();
+        const sellerData = sellerSnap.exists ? (sellerSnap.data() || {}) : {};
+        if (_pushSenderBlocked(sellerData, buyer)) return null;
+        await sendUserPush(seller, 'plebtalk', {
+            title: 'Marketplace message',
+            body: _pushDisplayName(buyerSnap.data(), 'Someone') + ' messaged you about a listing.',
+            url: 'https://bitcoineducation.quest/#marketplace'
+        });
+    } catch (e) {
+        console.warn('[onMarketplaceMessageCreated] push failed', e.message);
+    }
+    return null;
+});
+
+// Last registration of a token wins. Also keep at most 10 devices, oldest first.
+exports.onPushDeviceWritten = onDocumentWritten({
+    document: 'push_tokens/{uid}/devices/{deviceId}',
+    timeoutSeconds: 60
+}, async (event) => {
+    const after = event.data && event.data.after;
+    if (!after || !after.exists) return null;
+    const uid = String(event.params.uid || '');
+    if (!_pushUidOk(uid)) return null;
+    try {
+        const token = after.get('token');
+        if (token) await releaseTokenFromOthers(uid, String(token));
+        await capUserDevices(uid, String(event.params.deviceId || ''));
+    } catch (e) {
+        console.warn('[onPushDeviceWritten]', e.message);
+    }
+    return null;
+});
+
 exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (event) => {
     const before = (event.data.before && event.data.before.data()) || {};
     const after = (event.data.after && event.data.after.data()) || {};
@@ -6242,6 +6097,7 @@ exports.setTelegramWebhook = setTelegramWebhook;
 
 // ===== DONATE XP FOR CHARITY =====
 exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth || !context.auth.uid) throw new functionsV1.https.HttpsError('unauthenticated', 'Sign in to donate.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Create an account to donate.');
@@ -6499,6 +6355,7 @@ exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
 // Returns: { invoices: [{name, split, amountSats, invoice, qr}], totalSats }
 // ================================================================
 exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     // SECURITY: auth required — unauthenticated callers could use this as a free SSRF oracle
     // via fetchLnurlInvoice and read internal service responses from the reflected pr field.
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Sign in required.');
@@ -6533,6 +6390,7 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
     const trackDoc = await admin.firestore().collection('beats_tracks').doc(trackId).get();
     if (!trackDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const track    = trackDoc.data();
+    if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const splits   = (track.v4vSplits || []).filter(s => s.split > 0);
 
     if (splits.length === 0) throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
@@ -6559,7 +6417,7 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
         try {
             if (payType === 'lnaddress' && ln.includes('@')) {
                 // Standard LNURL-pay Lightning address — fetch invoice server-side
-                paymentRequest = await fetchLnurlInvoice(ln, recipMsats, `V4V: ${track.title}`);
+                paymentRequest = await fetchLnurlInvoice(ln, recipMsats, `V4V: ${beatsCensor(track.title)}`);
                 displayAddress = ln;
             } else if (payType === 'keysend_wavlake') {
                 // Wavlake keysend — use client-side webln.keysend
@@ -6865,6 +6723,13 @@ async function _awardTicketsToUser(uid, ticketCount, reason) {
         type: 'leaderboard_reward',
         onceKey: 'lb_' + Date.now(),
     }));
+    try {
+        await sendUserPush(uid, 'rewards', {
+            title: 'You won a reward',
+            body: reason + ' — ' + ticketCount + ' Orange Tickets were added.',
+            url: 'https://bitcoineducation.quest/#questhub'
+        });
+    } catch (e) { console.warn('[leaderboard] push failed', e.message); }
 }
 
 async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
@@ -7067,6 +6932,13 @@ exports.monthlyRaffleDraw = onSchedule({ schedule: '0 18 1 * *', timeZone: 'UTC'
         icon: '🏆',
         message: '🏆 You won the ' + monthLabel + ' raffle! Phil will arrange your 21,000 sats prize.',
     }));
+    try {
+        await sendUserPush(winner.uid, 'rewards', {
+            title: 'Raffle win',
+            body: 'You won this month\'s Orange Ticket raffle.',
+            url: 'https://bitcoineducation.quest/#questhub'
+        });
+    } catch (e) { console.warn('[RAFFLE DRAW] push failed', e.message); }
 
     // 6. Reset all raffleEntries to 0 — new month starts clean
     const allWithEntries = await db.collection('users').where('raffleEntries', '>', 0).get();
@@ -7098,6 +6970,7 @@ exports.monthlyRaffleDraw = onSchedule({ schedule: '0 18 1 * *', timeZone: 'UTC'
 // ══════════════════════════════════════════════════════════════════════
 
 exports.spendTicketsForFreeze = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot purchase freezes');
@@ -7277,6 +7150,13 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
                         pointsDelta: 100,
                         onceKey: 'weekly_hero_' + weekKey,
                     }));
+                    try {
+                        await sendUserPush(puid, 'rewards', {
+                            title: 'Weekly challenge complete',
+                            body: 'You earned the weekly hero badge and 100 XP.',
+                            url: 'https://bitcoineducation.quest/#questhub'
+                        });
+                    } catch (pushErr) { console.warn('[WEEKLY CHALLENGE] push failed', pushErr.message); }
                 }
             } catch (e) { console.error('[WEEKLY CHALLENGE] participant award error', puid, e); }
         }
@@ -7309,6 +7189,7 @@ const NOOK_SHOP_ITEMS = {
 };
 
 exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use the shop');
@@ -7461,6 +7342,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot convert XP');
@@ -7558,6 +7440,7 @@ exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) 
 });
 
 exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
@@ -7605,6 +7488,7 @@ exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => 
 });
 
 exports.useHintToken = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use hint tokens');
@@ -7644,6 +7528,7 @@ exports.useHintToken = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate Double XP');
@@ -7699,6 +7584,7 @@ exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.useBonusSpin = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use bonus spins');
@@ -7750,6 +7636,22 @@ exports.useBonusSpin = functionsV1.https.onCall(async (data, context) => {
 const { onSchedule: onScheduleV2 } = require('firebase-functions/v2/scheduler');
 const hotTopics = require('./src/hotTopics');
 
+async function _pushHotTopics(result) {
+    if (!result || !result.saved || !result.topics || !result.topics.length) return;
+    const headline = result.topics[0].title || 'This week\'s Bitcoin topics are in.';
+    try {
+        await broadcastCategory('news', async function () {
+            return {
+                title: 'Hot Topics',
+                body: headline,
+                url: 'https://bitcoineducation.quest/'
+            };
+        });
+    } catch (e) {
+        console.warn('[HotTopics] push failed', e.message);
+    }
+}
+
 // Trigger: Sunday 10 PM Eastern (America/New_York handles DST automatically).
 // Deploying this function updates the Cloud Scheduler job to the new cron.
 // The quality gate still rejects template topics.
@@ -7763,13 +7665,14 @@ exports.refreshHotTopics = onScheduleV2({
 }, async () => {
     console.log('[HotTopics] Starting weekly refresh...');
     try {
-        await hotTopics.runHotTopicsJob({
+        const hotResult = await hotTopics.runHotTopicsJob({
             mode: 'schedule',
             env: process.env,
             db: db,
             admin: admin,
             listAdminUids: _listAdminClaimUids,
         });
+        await _pushHotTopics(hotResult);
     } catch (err) {
         console.error('[HotTopics] Fatal error:', err);
     }
@@ -7792,6 +7695,7 @@ exports.refreshHotTopicsHttp = functionsV1.runWith({
             admin: admin,
             listAdminUids: _listAdminClaimUids,
         });
+        await _pushHotTopics(result);
         res.json({
             ok: true,
             topicsCount: result.topics.length,
@@ -7818,6 +7722,7 @@ exports.refreshHotTopicsForce = functionsV1.runWith({
             admin: admin,
             listAdminUids: _listAdminClaimUids,
         });
+        await _pushHotTopics(result);
         res.json({
             ok: true,
             topicsCount: result.topics.length,
@@ -8125,67 +8030,11 @@ async function settlePvpMatch(matchId, after) {
     }
 }
 
+const { createLobbyPush } = require('./src/pvpLobbyPush');
+const lobbyPush = createLobbyPush({ db: db, pvpFlow: pvpFlow, sendUserPush: sendUserPush });
+
 async function pushPvpLobby(joinerUid, name) {
-    const now = Date.now();
-    const globalRef = db.collection('pvp_rate').doc('global');
-    const globalSnap = await globalRef.get();
-    const room = pvpFlow.lobbyGlobalRoom(globalSnap.exists ? globalSnap.data() : {}, now);
-    if (!room.push) return;
-    const order = pvpFlow.pushShardOrder(Math.floor(Math.random() * 10));
-    const messages = [];
-    for (let s = 0; s < order.length && !messages.length; s++) {
-        const usersSnap = await db.collection('users').where('pvpPushShard', '==', order[s]).limit(40).get();
-        const docs = usersSnap.docs.slice();
-        for (let i = docs.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            const tmp = docs[i];
-            docs[i] = docs[j];
-            docs[j] = tmp;
-        }
-        for (const userDoc of docs) {
-            const uid = userDoc.id;
-            const data = userDoc.data() || {};
-            if (data.pvpPushEnabled !== true) continue;
-            const rateRef = db.collection('pvp_rate').doc(uid);
-            const rate = await rateRef.get();
-            const rateData = rate.exists ? rate.data() : {};
-            const decision = pvpFlow.decidePvpPush({
-                uid: uid,
-                joinerUid: joinerUid,
-                optedIn: true,
-                muted: data.pvpAlertsMuted === true,
-                lastPushMs: rateData.lastPvpPushMs,
-                pushTimes: rateData.pvpPushTimes || [],
-                nowMs: now,
-            });
-            if (!decision.send) continue;
-            const tokenDoc = await db.collection('push_tokens').doc(uid).get();
-            if (!tokenDoc.exists || !tokenDoc.data().token) continue;
-            const prev = Array.isArray(rateData.pvpPushTimes) ? rateData.pvpPushTimes.filter(function (t) {
-                return typeof t === 'number' && (now - t) < pvpFlow.PUSH_WEEK_MS;
-            }) : [];
-            prev.push(now);
-            await rateRef.set({ lastPvpPushMs: now, pvpPushTimes: prev.slice(-5) }, { merge: true });
-            messages.push({
-                token: tokenDoc.data().token,
-                notification: {
-                    title: '⚔️ PvP lobby',
-                    body: pvpFlow.safeDisplayName(name) + ' is waiting for a PvP match!',
-                },
-                data: { url: 'https://bitcoineducation.quest/#pvp' },
-                webpush: { fcmOptions: { link: 'https://bitcoineducation.quest/#pvp' } },
-            });
-            if (messages.length >= 20) break;
-        }
-    }
-    if (!messages.length) return;
-    await globalRef.set({
-        windowStart: room.windowStart,
-        shoutCount: room.shoutCount,
-        pushCount: room.pushCount + 1,
-        lastPushWaveMs: now,
-    }, { merge: true });
-    await admin.messaging().sendEach(messages);
+    return lobbyPush.pushPvpLobby(joinerUid, name);
 }
 
 async function syncPvpLobbyLive(docId, before, after) {
@@ -8397,6 +8246,22 @@ exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 5 minutes', timeZo
         await pvpHousekeepMatches(now);
     } catch (e) {
         console.error('[PVP CLEANUP] Error:', e.message);
+    }
+    try {
+        const expiredSessions = await db.collection('totp_sessions').where('expireAt', '<', new Date()).limit(200).get();
+        if (!expiredSessions.empty) {
+            const sessionBatch = db.batch();
+            expiredSessions.docs.forEach(function (doc) { sessionBatch.delete(doc.ref); });
+            await sessionBatch.commit();
+        }
+        const expiredAttempts = await db.collection('totp_rate_limits').where('expireAt', '<', new Date()).limit(200).get();
+        if (!expiredAttempts.empty) {
+            const attemptBatch = db.batch();
+            expiredAttempts.docs.forEach(function (doc) { attemptBatch.delete(doc.ref); });
+            await attemptBatch.commit();
+        }
+    } catch (e) {
+        console.error('[MFA CLEANUP] Error:', e.message);
     }
     try {
         const { deleteExpiredRateRows } = require('./src/rateLimitSalt');
@@ -8676,6 +8541,7 @@ const { updatePeerLevelAfterGift } = require('./src/peerLevel');
 // visibleBadges (server-side, deduplicated, validated against BADGE_VALUES catalog).
 // No XP is re-awarded — badge records are written directly via Admin SDK.
 exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -8905,6 +8771,7 @@ exports.nachoRadioTick = onSchedule({
     let candidates = [];
     snap.forEach(d => {
         const t = d.data();
+        if (t.hidden === true) return;
         if (
             t.audioUrl &&
             (t.duration || 0) >= 60 &&
@@ -8921,6 +8788,7 @@ exports.nachoRadioTick = onSchedule({
         candidates = [];
         snap.forEach(d => {
             const t = d.data();
+            if (t.hidden === true) return;
             if (t.audioUrl && (t.duration || 0) >= 60 && t.genre !== 'podcast') {
                 candidates.push({ id: d.id, ...t });
             }
@@ -8934,6 +8802,8 @@ exports.nachoRadioTick = onSchedule({
     }
 
     const track    = candidates[Math.floor(Math.random() * candidates.length)];
+    const publicTitle = beatsCensor(track.title || 'Untitled');
+    const publicArtist = beatsCensor(track.artist || track.authorName || 'Unknown');
     const wasActive = dj.active === true;
     const songCount = (radio.songCount || 0) + 1;
     const newPlayed = [...playedRecently, track.id];
@@ -8947,8 +8817,8 @@ exports.nachoRadioTick = onSchedule({
         isNachoDJ:      true,
         active:         true,
         trackId:        track.id,
-        trackTitle:     track.title     || 'Untitled',
-        trackArtist:    track.artist    || track.authorName || 'Unknown',
+        trackTitle:     publicTitle,
+        trackArtist:    publicArtist,
         trackAudioUrl:  track.audioUrl,
         trackCoverArt:  track.coverArt  || track.coverUrl  || '',
         trackDuration:  track.duration  || 180,
@@ -8974,8 +8844,8 @@ exports.nachoRadioTick = onSchedule({
     const shouldAnnounce = !wasActive || (songCount % 10 === 1);
     if (shouldAnnounce) {
         const msg = wasActive
-            ? `🦌 Nacho Radio: "${track.title || 'Untitled'}" by ${track.artist || track.authorName || 'Unknown'} is up next 🎵 Tune in!`
-            : `🦌 **Nacho Radio** is live! Spinning beats from the Bitcoin Beats library. Now playing: "${track.title || 'Untitled'}" by ${track.artist || track.authorName || 'Unknown'} 🎵 Tune in!`;
+            ? `🦌 Nacho Radio: "${publicTitle}" by ${publicArtist} is up next 🎵 Tune in!`
+            : `🦌 **Nacho Radio** is live! Spinning beats from the Bitcoin Beats library. Now playing: "${publicTitle}" by ${publicArtist} 🎵 Tune in!`;
         await db.collection('global_chat').add({
             uid:          'nacho-dj',
             name:         '🦌 Nacho',
@@ -9024,6 +8894,9 @@ exports.claimSayHi = sayHiFns.claimSayHi;
 const { bindReplyBonus } = require('./src/replyBonus');
 const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
 exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
+// claimOnboardingQuestStep, prepareGuestLink, linkGuestAccount, and setUsername.
+const { registerOnboarding } = require('./src/onboardingApi');
+Object.assign(exports, registerOnboarding({ db: db, admin: admin, functionsV1: functionsV1 }));
 
 // Account deletion. Owner (recent sign-in) or admin. Admin SDK writes only.
 const { bindDeleteAccount } = require('./src/deleteAccount');
@@ -9034,3 +8907,16 @@ exports.deleteAccount = deleteAccountFns.deleteAccount;
 // tctvAggregatePresence; this callable only credits watch time.
 const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
 exports.tctvWatchHeartbeat = tctvWatchHeartbeat;
+
+// Topic discussions. Clients read topic_discussions; these callables are the
+// only writers. postTopicComment awaits Nacho's reply before returning.
+const { createTopicDiscussion } = require('./src/topicDiscussion');
+const topicDiscussion = createTopicDiscussion({
+    db: db,
+    admin: admin,
+    HttpsError: functionsV1.https.HttpsError,
+});
+exports.postTopicComment = functionsV1.runWith({ timeoutSeconds: 30, memory: '256MB' }).https.onCall(topicDiscussion.postTopicComment);
+exports.reportTopicComment = functionsV1.https.onCall(topicDiscussion.reportTopicComment);
+exports.moderateTopicPost = functionsV1.https.onCall(topicDiscussion.moderateTopicPost);
+exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopicComment);

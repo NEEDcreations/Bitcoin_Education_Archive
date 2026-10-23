@@ -8,6 +8,23 @@ const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const del = require(path.join(root, 'functions', 'src', 'deleteAccount'));
+const { initSecondFactor } = require(path.join(root, 'functions', 'src', 'secondFactor'));
+const _createDeleteAccountHandlers = del.createDeleteAccountHandlers;
+del.createDeleteAccountHandlers = function(opts) {
+    const handlers = _createDeleteAccountHandlers(opts);
+    const inner = handlers.deleteAccount;
+    handlers.deleteAccount = async function(data, context) {
+        initSecondFactor({
+            db: opts.db,
+            admin: { auth: function() { return opts.authApi; } },
+            HttpsError: opts.HttpsError,
+            authenticator: { generateSecret: function() { return 'x'; }, keyuri: function() { return 'otpauth'; }, checkDelta: function() { return null; }, options: {} },
+            QRCode: { toDataURL: async function() { return ''; } },
+        });
+        return inner(data, context);
+    };
+    return handlers;
+};
 
 let passed = 0;
 let failed = 0;
@@ -465,7 +482,8 @@ function auth(uid, extras) {
 
 (async function() {
     execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'deleteAccount.js')], { stdio: 'pipe' });
-    execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'requireSecondFactor.js')], { stdio: 'pipe' });
+    execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'secondFactor.js')], { stdio: 'pipe' });
+    execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'rateLimitSalt.js')], { stdio: 'pipe' });
 
     test('owner needs a recent sign-in, and only an admin can name another uid', function() {
         const now = 1000 + del.REAUTH_MAX_AGE_SEC;
@@ -847,8 +865,11 @@ function auth(uid, extras) {
     test('the client calls the server wipe and does not delete Firestore itself', function() {
         const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
         assert.ok(ranking.includes("httpsCallable('deleteAccount', { timeout: 540000 })"));
-        assert.ok(ranking.includes('window._promptDeleteAccountTotp'));
-        assert.ok(ranking.includes('Enter your 2FA code, then try again.'));
+        assert.ok(ranking.includes('_isMfaBlock'));
+        assert.ok(ranking.includes('_showTotpSignInChallenge'));
+        assert.ok(ranking.includes('Enter your authenticator code first.'));
+        assert.strictEqual(ranking.includes('_promptDeleteAccountTotp'), false);
+        assert.ok(fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8').includes('secondFactor.requireSecondFactor(secondFactor.stamp(data, context))'));
         assert.ok(ranking.includes("httpsCallable('totpCheck')"));
         assert.ok(ranking.includes('user.delete()'));
         assert.ok(ranking.includes('auth/user-not-found'));
@@ -907,6 +928,7 @@ function auth(uid, extras) {
             'comments.authorId',
             'participants.uid',
             'participants.username',
+            'posts.uid',
             'winners.uid',
         ]);
         del.INDEX_AUDIT.collectionQueries.forEach(function(query) {
@@ -1189,6 +1211,8 @@ function auth(uid, extras) {
 
     await testAsync('authenticator 2FA is required for the owner and skipped for an admin', async function() {
         const now = 1000 + del.REAUTH_MAX_AGE_SEC;
+        const sessionId = 'ab'.repeat(32);
+        const expiresAtMs = Date.now() + (12 * 60 * 60 * 1000);
         function handlers(db) {
             return del.createDeleteAccountHandlers({
                 db: db,
@@ -1201,8 +1225,8 @@ function auth(uid, extras) {
                 ipSecret: 'unit-secret',
             });
         }
-        function call(db, auth) {
-            return handlers(db).deleteAccount({}, { auth: auth, rawRequest: { headers: {} } });
+        function call(db, auth, data) {
+            return handlers(db).deleteAccount(data || {}, { auth: auth, rawRequest: { headers: {} } });
         }
         const blocked = createFakeDb({
             'users/u1': { username: 'Alice' },
@@ -1210,7 +1234,7 @@ function auth(uid, extras) {
         });
         await assert.rejects(
             call(blocked, { uid: 'u1', token: { auth_time: 1000 } }),
-            function(err) { return err.code === 'failed-precondition' && /2FA code/.test(err.message); }
+            function(err) { return err.code === 'failed-precondition' && /Authenticator session required/.test(err.message); }
         );
         assert.ok(blocked.docs.has('users/u1'));
         for (const key of blocked.docs.keys()) {
@@ -1223,19 +1247,34 @@ function auth(uid, extras) {
             'totp_sessions/u1': { verified: true, verifiedAt: 999000 },
         });
         await assert.rejects(
-            call(stale, { uid: 'u1', token: { auth_time: 1000 } }),
-            function(err) { return err.code === 'failed-precondition' && /2FA code/.test(err.message); }
+            call(stale, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId }),
+            function(err) { return err.code === 'failed-precondition' && /Authenticator session required/.test(err.message); }
         );
         assert.ok(stale.docs.has('users/u1'));
+        assert.ok(stale.docs.has('totp_sessions/u1'));
 
         const fresh = createFakeDb({
             'users/u1': { username: 'Alice' },
             'totp_secrets/u1': { enabled: true },
-            'totp_sessions/u1': { verified: true, verifiedAt: 1000000 },
+            'totp_pending/u1': { secret: 'pending' },
+            'recovery_codes/u1': { codes: [{ used: false }] },
+            'totp_rate_limits/u1_regen': { attempts: 1 },
+            ['totp_sessions/u1_' + sessionId]: {
+                uid: 'u1',
+                sessionId: sessionId,
+                expiresAtMs: expiresAtMs,
+                expireAt: new Date(expiresAtMs),
+                revoked: false,
+            },
         });
-        const freshResult = await call(fresh, { uid: 'u1', token: { auth_time: 1000 } });
+        const freshResult = await call(fresh, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId });
         assert.strictEqual(freshResult.authDeleted, true);
         assert.strictEqual(fresh.docs.has('users/u1'), false);
+        assert.strictEqual(fresh.docs.has('totp_secrets/u1'), false);
+        assert.strictEqual(fresh.docs.has('totp_pending/u1'), false);
+        assert.strictEqual(fresh.docs.has('recovery_codes/u1'), false);
+        assert.strictEqual(fresh.docs.has('totp_rate_limits/u1_regen'), false);
+        assert.strictEqual(fresh.docs.has('totp_sessions/u1_' + sessionId), false);
 
         const off = createFakeDb({ 'users/u1': { username: 'Alice' } });
         const offResult = await call(off, { uid: 'u1', token: { auth_time: 1000 } });
@@ -1261,6 +1300,8 @@ function auth(uid, extras) {
             'users/u2': { username: 'Bob' },
             'totp_secrets/admin': { enabled: true },
             'totp_secrets/u2': { enabled: true },
+            'recovery_codes/u2': { codes: [] },
+            'totp_sessions/u2_deadbeef': { uid: 'u2', sessionId: 'deadbeef', expiresAtMs: expiresAtMs },
         });
         const adminResult = await handlers(adminDb).deleteAccount(
             { uid: 'u2' },
@@ -1269,6 +1310,9 @@ function auth(uid, extras) {
         assert.strictEqual(adminResult.byAdmin, true);
         assert.strictEqual(adminResult.authDeleted, true);
         assert.strictEqual(adminDb.docs.has('users/u2'), false);
+        assert.strictEqual(adminDb.docs.has('totp_secrets/u2'), false);
+        assert.strictEqual(adminDb.docs.has('recovery_codes/u2'), false);
+        assert.strictEqual(adminDb.docs.has('totp_sessions/u2_deadbeef'), false);
         assert.ok(adminDb.docs.has('totp_secrets/admin'));
     });
 

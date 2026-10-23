@@ -59,6 +59,7 @@
         <li><strong>Meetup Builder</strong> — resources, platforms, and guides for organizing Bitcoin meetups</li>
         <li>Bookmarks and favorites synced across devices via Firestore</li>
         <li>An in-app notifications inbox (sats, DMs, mentions, tips, gifts, streaks, and similar alerts). Web push can be turned on per device from Settings</li>
+        <li>Optional push notifications. A device stays opted in only after you turn them on, or when it already had a push token and you had not turned notifications off. Turn them off anytime in Settings.</li>
         <li><strong>Say hi</strong> — a once-a-day Global Chat greeting that can award XP and an Orange Ticket</li>
         <li>Gifts, keys, and locked ciphers between peers</li>
         <li>A short onboarding guide for new visitors</li>
@@ -97,6 +98,9 @@
         <li>Not use your account to harass, scam, or deceive other users</li>
     </ul>
     <p>If you register with an email address, a verification magic link will be sent to your inbox. Nostr sign-in requires a NIP-07 compatible browser extension (Alby, nos2x). Lightning sign-in uses LNURL-auth — scan a QR code with a compatible Lightning wallet. Accounts that violate these terms may be suspended or deleted.</p>
+    <p>Usernames are reserved on the server. A name must be unique, 3 to 20 characters, and may use letters, numbers, spaces, underscores, hyphens, and periods. Names that contain HTML or profanity are rejected. Names that impersonate the site are reserved, including Nacho, admin, moderator, support, official, Satoshi, NEEDcreations, Bitcoin Quest, and system, and look-alike spellings of those names. You can change your username once a day. A name you give up stays held for you for 30 days. Your browser cannot write the username onto your account by itself.</p>
+    <p>If you browse as a guest and then sign in with a login that is new, we upgrade that same guest account so you keep your XP, username, badges, and streak. If that login already belongs to another account, the server can copy the guest's progress once instead. The copy uses a code that expires after 30 minutes, works once, and only for that guest. An account can receive one guest copy. Guest sessions older than about 7 days are not copied. Copied points count toward the daily XP cap. After a copy, the guest's points, weekly XP, monthly XP, orange tickets, and channel visits are cleared. The browser cannot set those totals.</p>
+    <p>The welcome tour is shown once. For a signed-in account we store that you have seen it. For a guest, that fact stays in this browser only. You can open the tour again from Settings or Help. The first quest records each finished step and its XP and tickets on the server. Quest XP counts toward the daily points cap and the weekly and monthly totals. When that quest asks you to talk to Nacho, we store only that a question was asked, plus its length and the time. We do not store the question text for the quest.</p>
 
     <h2>4. Orange Tickets, Referral Program & Nacho's Nook</h2>
     <ul>
@@ -344,6 +348,18 @@
         <li>Nacho may automatically respond to questions posted in Global Chat</li>
     </ul>
 
+    <h2>11a. Topic discussions</h2>
+    <ul>
+        <li>Each educational topic has a Community discussion where signed-in users can post a comment or a question</li>
+        <li>Comments are visible to anyone, including guests. Guests can read. Only a signed-in, non-guest account with a username can post</li>
+        <li>Posting a comment or a question does not award XP, tickets, or sats</li>
+        <li>Nacho may reply when a post is a question. Those replies are educational, can be wrong, and are <strong>not financial, investment, or legal advice</strong></li>
+        <li>A short, censored snippet of a new top-level post may be announced in Global Chat with a link back to that comment. Announcements are throttled</li>
+        <li>You can delete your own comment. You can report someone else's comment. Moderators can hide or remove comments</li>
+        <li>Shortened links, invite links, phone numbers, and email addresses are not allowed. Other links are removed. Hate, scams, spam, and harassment are refused</li>
+        <li>Content rules from Section 6 (PlebTalk) and Section 19 apply to topic discussions</li>
+    </ul>
+
     <h2>11. DJ Mode</h2>
     <ul>
         <li>DJ Mode allows a signed-in user to broadcast music from Bitcoin Beats to Global Chat listeners</li>
@@ -445,7 +461,7 @@
         <li>Signed-in users have a public profile visible to other signed-in users</li>
         <li>Profiles display: username, profile picture, level, points, badges, tickets, streak, channels visited, forum posts, and join date</li>
         <li>Profile pictures are optional (resized to 128px JPEG, stored in Firestore)</li>
-        <li>You may enable <strong>two-factor authentication (TOTP)</strong> in Settings → Security for additional account security</li>
+        <li>You may turn on an authenticator app or phone verification in Settings. If you lose the device, a one-time recovery code gets you back in and turns that verification off. Support can turn it off after confirming it is you, and that action is logged</li>
         <li>Online status is tracked by default: green (active in last 5 min), yellow (15 min), or offline</li>
         <li>Online status updates every 60 seconds while you're on the Site</li>
         <li>You can <strong>disable online status</strong> in Settings → Prefs → Online Status (you will appear offline to all users)</li>
@@ -482,10 +498,10 @@
     <p>The Site curates and links to third-party content. We do not claim ownership of linked articles, tweets, videos, or images — they belong to their respective creators.</p>
     <p>The name "Bitcoin Education Archive," the Nacho character and all associated artwork, the Site design, code, branding, logos, and all original content are © 2026 603BTC LLC. All rights reserved. "Bitcoin Education Archive" is a trademark (™) of 603BTC LLC.</p>
     <p>You may not use, reproduce, or distribute our trademarks, branding, or original content without prior written permission from 603BTC LLC.</p>
-    <p>By posting content on PlebTalk, LightningMart, or Bitcoin Beats, you grant us a non-exclusive, royalty-free license to display, distribute, stream, and moderate that content on the Site. You retain ownership of your content. For music uploaded to Bitcoin Beats, see the specific <a href="#bitcoin-beats">Copyright & Takedown Policy</a> in Section 9.</p>
+    <p>By posting content on PlebTalk, LightningMart, Bitcoin Beats, or a topic discussion, you grant us a non-exclusive, royalty-free license to display, distribute, stream, and moderate that content on the Site. You retain ownership of your content. For music uploaded to Bitcoin Beats, see the specific <a href="#bitcoin-beats">Copyright & Takedown Policy</a> in Section 9.</p>
 
     <h2>19. Content Moderation</h2>
-    <p>All user-generated content is subject to automated filtering. The following categories of content are <strong>automatically blocked</strong> across Global Chat, PlebTalk, DMs, usernames, and articles:</p>
+    <p>All user-generated content is subject to automated filtering. The following categories of content are <strong>automatically blocked</strong> across Global Chat, PlebTalk, topic discussions, DMs, usernames, and articles:</p>
     <ul>
         <li><strong>Hate speech & discrimination</strong> — racial slurs, ethnic slurs, homophobic language, antisemitic content, and all forms of bigotry</li>
         <li><strong>Sexual content</strong> — sexually explicit language, solicitation, pornographic references, and links to adult content</li>

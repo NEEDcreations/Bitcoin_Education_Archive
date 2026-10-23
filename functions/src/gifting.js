@@ -132,16 +132,28 @@ async function postNacho(text, mentionUid) {
     await db.collection('global_chat').add(msg);
 }
 
-// One chat message per prize. The doc id is the prize id, and the gift or
-// cipher is marked in the same transaction, so a retry cannot double-post.
-// Activity shoutouts use the same publishShoutoutOnce writer.
+// One chat message per prize. publishShoutoutOnce writes the chat doc and
+// returns whether this call actually posted it. The mention push runs only
+// then, so a retry does not notify twice. PlebTalk and Marketplace shoutouts
+// go through announceActivity and do not push.
 async function publishShoutout(markerRef, plan) {
-    await publishShoutoutOnce({
+    const published = await publishShoutoutOnce({
         db: db,
         admin: admin,
         markerRef: markerRef,
         plan: plan,
     });
+    if (published && published.wrote && plan.mentionUid && !plan.activityRef) {
+        try {
+            const { sendUserPush } = require('./push');
+            await sendUserPush(plan.mentionUid, 'mentions', {
+                title: 'Nacho mentioned you',
+                body: 'Your shoutout is in global chat.',
+                url: 'https://bitcoineducation.quest/#chat'
+            });
+        } catch (e) { console.warn('[shoutout] push failed:', e.message); }
+    }
+    return published;
 }
 
 async function maybeAnnounceShoutout(opts) {
@@ -258,6 +270,8 @@ const awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
 const OPEN_STATUSES = { unopened: true, inventory: true, sent: true };
 
 const openGift = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const giftId = (data.giftId || '').toString().trim();
     if (!giftId || giftId.length > 128) throw httpsError('invalid-argument', 'Invalid giftId');
@@ -435,6 +449,8 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
 // ─── Send keys (no client bypass; 1 send of up to 3 per recipient per UTC day)
 
 const sendKeys = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const recipientUid = (data.recipientUid || '').toString().trim();
     const keyIds = Array.isArray(data.keyIds) ? data.keyIds.map(function(k) { return String(k).trim(); }).filter(Boolean) : [];
@@ -549,20 +565,14 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
     });
 
     try {
-        const rSnap = await recipRef.get();
-        const rFcm = rSnap.exists ? (rSnap.data().fcmToken || null) : null;
-        if (rFcm) {
-            try {
-                await admin.messaging().send({
-                    token: rFcm,
-                    notification: {
-                        title: '🔑 Keys received!',
-                        body: senderName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '!',
-                    },
-                    data: { type: 'keys_received', senderUid: uid },
-                });
-            } catch (pushErr) { console.warn('[sendKeys] push failed:', pushErr.message); }
-        }
+        try {
+            const { sendUserPush } = require('./push');
+            await sendUserPush(recipientUid, 'gifts', {
+                title: 'Keys received',
+                body: senderName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            });
+        } catch (pushErr) { console.warn('[sendKeys] push failed:', pushErr.message); }
         const labelText = sentLabels.filter(Boolean).join(', ');
         const keyWord = sentLabels.length === 1 ? 'an ' + (labelText || 'key') : (labelText || (keyIds.length + ' keys'));
         await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
@@ -589,6 +599,8 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
 // ─── Open a cipher with a matching key (own or peer-sent) ────────────────────
 
 const decryptCipher = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const cipherId = (data.cipherId || '').toString().trim();
     const keyId = (data.keyId || '').toString().trim();
@@ -810,6 +822,8 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
 }
 
 const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
