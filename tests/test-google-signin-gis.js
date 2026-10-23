@@ -101,6 +101,74 @@ test('manifest scope stays ./ and CSP allows the GIS button', function () {
         assert.ok(worker.includes(src), src);
         assert.ok(hosting.includes(src), 'firebase.json ' + src);
     });
+    // style-src does not already allow the accounts.google.com host, so the
+    // path entry stays. A host source would match every path on that origin.
+    [worker, hosting].forEach(function (text) {
+        const styles = text.match(/style-src[^;]*/g) || [];
+        assert.ok(styles.length >= 1);
+        styles.forEach(function (style) {
+            assert.ok(style.includes('https://accounts.google.com/gsi/style'));
+            assert.ok(!/https:\/\/accounts\.google\.com(?!\/)/.test(style));
+        });
+    });
+});
+
+test('in-app browsers keep the help screen and do not render the GIS button', function () {
+    const src = read('ranking.js');
+    const render = src.slice(src.indexOf('function renderGoogleSignInButton'), src.indexOf('function mountGoogleSignInButton'));
+    const mount = src.slice(src.indexOf('function mountGoogleSignInButton'), src.indexOf('function installGoogleSignInButton'));
+    const install = src.slice(src.indexOf('function installGoogleSignInButton'), src.indexOf('window.signInWithGoogle'));
+    const signIn = src.slice(src.indexOf('window.signInWithGoogle = async function()'), src.indexOf("if (document.readyState === 'loading')"));
+    assert.ok(render.startsWith('function renderGoogleSignInButton() {\n    if (isInAppBrowser()) return;'));
+    assert.ok(render.indexOf('if (isInAppBrowser()) return;') < render.indexOf('google.accounts.id.renderButton'));
+    assert.ok(render.includes("theme: 'filled_black'"));
+    assert.ok(!render.includes("theme: 'outline'"));
+    assert.ok(mount.startsWith('function mountGoogleSignInButton() {\n    if (isInAppBrowser()) return;'));
+    assert.ok(mount.indexOf('if (isInAppBrowser()) return;') < mount.indexOf('loadGoogleIdentityScript'));
+    assert.ok(install.startsWith('function installGoogleSignInButton() {\n    if (isInAppBrowser()) return;'));
+    const iabAt = signIn.indexOf('if (isInAppBrowser())');
+    const providerAt = signIn.indexOf('signInWithProvider(new firebase.auth.GoogleAuthProvider())');
+    const mountAt = signIn.indexOf('mountGoogleSignInButton()');
+    assert.ok(iabAt > 0 && providerAt > iabAt && mountAt > providerAt);
+
+    const prompt = src.slice(src.indexOf('function showUsernamePrompt'), src.indexOf('function showAccountInfo'));
+    assert.ok(prompt.includes('if (isInAppBrowser()) {\n            window._showIABSignInModal();\n            return;\n        }'));
+    const provider = src.slice(src.indexOf('async function signInWithProvider'), src.indexOf('async function signInWithProvider') + 500);
+    assert.ok(provider.includes('if (isInAppBrowser()) {\n        window._showIABSignInModal();\n        return;\n    }'));
+    const modal = src.slice(src.indexOf('window._showIABSignInModal = function()'), src.indexOf('window._iabSendMagicLink'));
+    assert.ok(modal.includes('Create Your Account'));
+    assert.ok(modal.includes('Use email sign-in below - it works right here.<br>Or open in your browser for Google/Twitter.'));
+    assert.ok(modal.includes('id="_iabEmailInput"'));
+    assert.ok(modal.includes('Open in Chrome'));
+
+    let rendered = false;
+    const context = {
+        isInAppBrowser: function () { return true; },
+        document: {
+            getElementById: function () { throw new Error('GIS should not touch the page'); }
+        },
+        google: {
+            accounts: { id: { renderButton: function () { rendered = true; } } }
+        },
+        gisApiReady: function () { return true; },
+        ensureGoogleIdentityInit: function () { throw new Error('GIS should not initialize'); },
+        loadGoogleIdentityScript: function () { throw new Error('GIS script should not load'); }
+    };
+    vm.createContext(context);
+    vm.runInContext(render + '\n' + mount + '\nrenderGoogleSignInButton();\nmountGoogleSignInButton();', context);
+    assert.strictEqual(rendered, false);
+
+    let providerCalls = 0;
+    const signContext = {
+        window: { _captureSignupFormState: function () {} },
+        isInAppBrowser: function () { return true; },
+        firebase: { auth: { GoogleAuthProvider: function () { this.provider = 'google'; } } },
+        signInWithProvider: function () { providerCalls += 1; return Promise.resolve(); },
+        mountGoogleSignInButton: function () { throw new Error('GIS should not mount'); }
+    };
+    vm.createContext(signContext);
+    vm.runInContext(signIn + '\nwindow.signInWithGoogle();', signContext);
+    assert.strictEqual(providerCalls, 1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

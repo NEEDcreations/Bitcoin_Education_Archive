@@ -162,6 +162,9 @@ function buildCSP(nonce) {
 
         "font-src 'self' https://fonts.gstatic.com",
 
+        // accounts.google.com is not a style-src host, so this path is the
+        // smallest allow for the GIS button stylesheet. A host source would
+        // make the path redundant.
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
 
         "object-src 'none'",    // No Flash/plugins

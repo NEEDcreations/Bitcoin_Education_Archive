@@ -991,6 +991,7 @@ function googleButtonWidth(fallback) {
 }
 
 function renderGoogleSignInButton() {
+    if (isInAppBrowser()) return;
     var host = document.getElementById('gsiButtonHost');
     var fallback = document.getElementById('googleSignInFallback');
     if (!host || !gisApiReady()) return;
@@ -1006,7 +1007,7 @@ function renderGoogleSignInButton() {
     try {
         google.accounts.id.renderButton(host, {
             type: 'standard',
-            theme: 'outline',
+            theme: 'filled_black',
             size: 'large',
             text: 'signin_with',
             shape: 'rectangular',
@@ -1033,6 +1034,7 @@ function renderGoogleSignInButton() {
 }
 
 function mountGoogleSignInButton() {
+    if (isInAppBrowser()) return;
     var host = document.getElementById('gsiButtonHost');
     if (!host || window._gsiFailed) return;
     if (gisApiReady()) {
@@ -1054,6 +1056,7 @@ function mountGoogleSignInButton() {
 }
 
 function installGoogleSignInButton() {
+    if (isInAppBrowser()) return;
     var modal = document.getElementById('usernameModal');
     if (!modal || modal._gsiWatch) return;
     modal._gsiWatch = true;
@@ -1066,6 +1069,10 @@ function installGoogleSignInButton() {
 
 window.signInWithGoogle = async function() {
     window._captureSignupFormState();
+    if (isInAppBrowser()) {
+        await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+        return;
+    }
     if (!window._gsiFailed) {
         mountGoogleSignInButton();
         return;
