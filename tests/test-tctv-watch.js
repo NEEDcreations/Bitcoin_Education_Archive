@@ -325,7 +325,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     assert.strictEqual(src.includes('data.seconds'), false);
     assert.strictEqual(src.includes('data.elapsed'), false);
     assert.strictEqual(src.includes('data.minutes'), false);
-    const fn = src.slice(src.indexOf('return db.runTransaction'), src.indexOf('module.exports'));
+    const fn = src.slice(src.indexOf('await db.runTransaction'), src.indexOf('module.exports'));
     const dailyGet = fn.indexOf('tx.get(dailyRef)');
     const firstSet = fn.indexOf('tx.set(');
     assert.ok(dailyGet > 0 && firstSet > dailyGet, 'daily_points is read before any write');
@@ -400,7 +400,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2323'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2324'"));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -3,9 +3,15 @@
 // MASTER TEST RUNNER
 // Runs all test suites and reports results
 // Run: node tests/run-all.js
+// Installs tests/rules dependencies with npm ci first, so a fresh clone
+// can run the Firestore rules suites without a separate install step.
 // =============================================
 const { execSync } = require('child_process');
 const path = require('path');
+
+const rulesDir = path.join(__dirname, 'rules');
+console.log('Installing tests/rules dependencies (npm ci)…');
+execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
@@ -14,6 +20,8 @@ const TESTS = [
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Marketplace Client', file: 'test-marketplace.js' },
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
+    { name: 'Badge engine', file: 'test-badge-engine.js' },
+    { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
@@ -58,6 +66,7 @@ const TESTS = [
     { name: 'Email link and guest merge', file: 'test-email-link.js' },
     { name: 'Two-factor auth', file: 'test-totp.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
+    { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
 ];
 
 let allPassed = true;

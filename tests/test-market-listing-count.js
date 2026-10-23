@@ -141,7 +141,10 @@ queue.push(test('the client no longer increments marketListings and the trigger 
     assert.strictEqual(market.includes('marketListings: firebase.firestore.FieldValue.increment'), false);
     assert.ok(market.includes('function refreshMarketListingBadges(uid)'));
     assert.ok(index.includes('exports.onMarketplaceListingCount'));
-    assert.ok(rules.includes("'marketListings', 'marketMessages'"));
+    const profileKeys = rules.slice(rules.indexOf('function userProfileServerOnlyKeys()'), rules.indexOf('match /users/{userId}'));
+    assert.ok(profileKeys.includes("'marketListings'"));
+    assert.ok(profileKeys.includes("'marketMessages'"));
+    assert.ok(rules.includes('match /market_listing_daily/{docId}'));
     assert.ok(rules.includes('match /market_listing_counts/{listingId}'));
     assert.ok(rules.includes('allow read, write: if false'));
 }));

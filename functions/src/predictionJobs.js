@@ -503,6 +503,9 @@ function createPredictionJobs(db, admin, hooks) {
         }, { serverStartPrice: fetched, serverPriceSetAt: setAt });
         if (!next.predPending) return { pending: false };
         await statsRef.set({ predPending: next.predPending }, { merge: true });
+        try {
+            await require('./comboActivity').noteComboZone(db, admin, uid, 'prediction', require('./offsetDay').offsetDateKey(Date.now()));
+        } catch (comboErr) { /* zone note is not required for the prediction itself */ }
         return { pending: true, serverStartPrice: fetched, serverPriceSetAt: setAt };
     }
 

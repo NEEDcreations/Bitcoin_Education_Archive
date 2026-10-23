@@ -161,6 +161,15 @@ const tipService = require('./src/tipService');
 const { assertPublicHost } = require('./src/publicHost');
 const { resolveLnurlInvoice, normalizeLnAddress, RESOLVE_ERROR } = require('./src/lnurlResolve');
 const pvpFlow = require('./src/pvpFlow');
+const badgeRules = require('./src/badgeRules');
+const { grantFamily, familyFor } = require('./src/grantBadge');
+const { awardBadge } = require('./src/awardBadge');
+const dailyFive = require('./src/dailyFive');
+const { createPollVote } = require('./src/pollVote');
+const { countMarketplaceMessage, countMarketplaceSale } = require('./src/marketMessages');
+const activityCounters = require('./src/activityCounters');
+const { refreshBadgeDistribution } = require('./src/badgeDistribution');
+const progressBadges = require('./src/progressBadges');
 
 // ===== VALID CHANNEL CATALOG (server-authoritative) =====
 // Extracted from channel_index.js — used to reject fake channelId values
@@ -927,17 +936,167 @@ exports.onMarketplaceListingCount = onDocumentCreated({
         await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
     }
     try {
-        await countMarketplaceListing({
+        const counted = await countMarketplaceListing({
             db: db,
             admin: admin,
             listingId: event.params.listingId,
             data: event.data.data(),
         });
+        if (counted && counted.counted && counted.uid) {
+            await grantFamily(db, admin, counted.uid, familyFor('marketListings'));
+        }
     } catch (e) {
         console.error('[onMarketplaceListingCount] failed', e && e.message ? e.message : '');
         throw e;
     }
     return null;
+});
+
+
+exports.onMarketplaceMessageCount = onDocumentCreated({
+    document: 'marketplace_messages/{messageId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        const counted = await countMarketplaceMessage({ db: db, admin: admin, data: event.data.data() });
+        if (counted && counted.counted && counted.uid) {
+            await grantFamily(db, admin, counted.uid, familyFor('marketMessages'));
+        }
+    } catch (e) {
+        console.error('[onMarketplaceMessageCount] failed', e && e.message ? e.message : '');
+    }
+    return null;
+});
+
+exports.onMarketplaceSaleCount = onDocumentUpdated({
+    document: 'marketplace/{listingId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data || !event.data.after) return null;
+    try {
+        const counted = await countMarketplaceSale({
+            db: db,
+            admin: admin,
+            listingId: event.params.listingId,
+            before: event.data.before && event.data.before.exists ? event.data.before.data() : {},
+            after: event.data.after.exists ? event.data.after.data() : {},
+        });
+        if (counted && counted.counted && counted.uid) {
+            await grantFamily(db, admin, counted.uid, familyFor('marketSold'));
+        }
+    } catch (e) {
+        console.error('[onMarketplaceSaleCount] failed', e && e.message ? e.message : '');
+    }
+    return null;
+});
+
+exports.onChatBadgeCount = onDocumentCreated({
+    document: 'global_chat/{messageId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await activityCounters.recordChat(db, admin, event.data.data()); }
+    catch (e) { console.warn('[onChatBadgeCount]', e && e.message); }
+    return null;
+});
+
+exports.onDmBadgeCount = onDocumentCreated({
+    document: 'dm_conversations/{threadId}/messages/{messageId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await activityCounters.recordDm(db, admin, event.data.data()); }
+    catch (e) { console.warn('[onDmBadgeCount]', e && e.message); }
+    return null;
+});
+
+exports.onForumPostBadgeCount = onDocumentCreated({
+    document: 'forum_posts/{postId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await activityCounters.recordForumPost(db, admin, event.data.data()); }
+    catch (e) { console.warn('[onForumPostBadgeCount]', e && e.message); }
+    return null;
+});
+
+exports.onForumReplyBadgeCount = onDocumentCreated({
+    document: 'forum_replies/{replyId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await activityCounters.recordForumReply(db, admin, event.data.data()); }
+    catch (e) { console.warn('[onForumReplyBadgeCount]', e && e.message); }
+    return null;
+});
+
+exports.onBeatsUploadBadgeCount = onDocumentCreated({
+    document: 'beats_tracks/{trackId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await activityCounters.recordBeatsUpload(db, admin, event.data.data()); }
+    catch (e) { console.warn('[onBeatsUploadBadgeCount]', e && e.message); }
+    return null;
+});
+
+exports.onArticleBadgeCount = onDocumentCreated({
+    document: 'articles/{articleId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await activityCounters.recordArticle(db, admin, event.data.data()); }
+    catch (e) { console.warn('[onArticleBadgeCount]', e && e.message); }
+    return null;
+});
+
+exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
+    admin: admin,
+    db: db,
+    HttpsError: functionsV1.https.HttpsError,
+    afterVote: async function (uid, day) {
+        await dailyFive.maybeCompleteTrifecta({
+            db: db, admin: admin, uid: uid, day: day, creditDailyAllThree: require('./src/satoshiFavor').creditDailyAllThree,
+        });
+        await dailyFive.maybeCompleteDailyFive({ db: db, admin: admin, uid: uid, day: day });
+    },
+}));
+
+exports.reconcileDailyProofs = onSchedule({
+    schedule: '15 5 * * *',
+    timeZone: 'UTC',
+    memory: '512MiB',
+    timeoutSeconds: 540,
+}, async () => {
+    const day = dailyFive.previousOffsetDay(Date.now());
+    let cursor = null;
+    while (true) {
+        let q = db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(100);
+        if (cursor) q = q.startAfter(cursor);
+        const snap = await q.get();
+        if (snap.empty) break;
+        let found = { users: [] };
+        try { found = await admin.auth().getUsers(snap.docs.map(function (doc) { return { uid: doc.id }; })); }
+        catch (e) { found = { users: [] }; }
+        const byUid = {};
+        (found.users || []).forEach(function (rec) { byUid[rec.uid] = rec; });
+        for (let i = 0; i < snap.docs.length; i++) {
+            const doc = snap.docs[i];
+            const data = doc.data() || {};
+            const rec = byUid[doc.id];
+            if (!rec || !rec.providerData || rec.providerData.length === 0) continue;
+            if (data.ban_reason || data.banned === true || data.satsDisabled === true) continue;
+            try {
+                await dailyFive.maybeCompleteTrifecta({
+                    db: db, admin: admin, uid: doc.id, day: day, creditDailyAllThree: require('./src/satoshiFavor').creditDailyAllThree,
+                });
+                await dailyFive.maybeCompleteDailyFive({ db: db, admin: admin, uid: doc.id, day: day });
+            } catch (e) { console.warn('[reconcileDailyProofs]', doc.id, e && e.message); }
+        }
+        cursor = snap.docs[snap.docs.length - 1];
+        if (snap.size < 100) break;
+    }
 });
 
 exports.onIrlEventCreated = onDocumentCreated('irl_events/{eventId}', async (event) => {
@@ -1186,6 +1345,10 @@ exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) 
 
 exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
     return tipService.confirmTipSent(data, context);
+});
+
+exports.requestTipInvoice = functionsV1.https.onCall(async (data, context) => {
+    return tipService.requestTipInvoice(data, context);
 });
 
 exports.onUserReferral = onDocumentWritten({
@@ -1915,10 +2078,14 @@ exports.claimSats = functionsV1.runWith({
         } catch (e) {
             console.error('[FAUCET] paid but record failed:', e.message);
             await _notifyClaimedSats(uid, amount);
+        try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
+        catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
             return { success: true, amount: amount, preimage: decision.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
         console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid);
         await _notifyClaimedSats(uid, amount);
+        try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
+        catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
         return { success: true, amount: amount, preimage: decision.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
@@ -1960,10 +2127,14 @@ exports.claimSats = functionsV1.runWith({
         } catch (e) {
             console.error('[FAUCET] settled but record failed:', e.message);
             await _notifyClaimedSats(uid, amount);
+        try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
+        catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
             return { success: true, amount: amount, preimage: afterLookup.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
         console.log('[FAUCET] Lookup settled ' + amount + ' sats to ' + uid);
         await _notifyClaimedSats(uid, amount);
+        try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
+        catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
         return { success: true, amount: amount, preimage: afterLookup.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
@@ -2615,36 +2786,11 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             });
         } catch (e) { console.warn('[managePeer] accept push failed', e.message); }
 
-        // Award badges if applicable (non-blocking)
+        // Peer badges are badge_awards rows (peer_1 and up), not the legacy badges array.
         try {
-            const [uSnap, tSnap] = await Promise.all([userRef.get(), targetRef.get()]);
-            const uData = uSnap.exists ? uSnap.data() : {};
-            const tData = tSnap.exists ? tSnap.data() : {};
-            const badgeBatch = db.batch();
-            let hasBadgeWork = false;
-            const _awardIfMissing = (ref, field, badges, badgeUid) => {
-                if (!badges.includes(field)) {
-                    badgeBatch.update(ref, { badges: admin.firestore.FieldValue.arrayUnion(field) });
-                    rewardNotify.apply(badgeBatch, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-                        uid: badgeUid,
-                        badgeId: field,
-                    }));
-                    hasBadgeWork = true;
-                }
-            };
-            const PEER_BADGE_TIERS = [
-                [1,   'first_peer'],
-                [10,  'peer_network_10'],
-                [50,  'peer_network_50'],
-                [100, 'peer_network_100'],
-                [250, 'peer_network_250'],
-            ];
-            PEER_BADGE_TIERS.forEach(([min, id]) => {
-                if ((uData.peerCount || 0) >= min) _awardIfMissing(userRef,   id, uData.badges || [], uid);
-                if ((tData.peerCount || 0) >= min) _awardIfMissing(targetRef, id, tData.badges || [], targetUid);
-            });
-            if (hasBadgeWork) await badgeBatch.commit();
-        } catch(e) { console.warn('[managePeer] badge award failed:', e.message); }
+            await grantFamily(db, admin, uid, familyFor('peerCount'));
+            await grantFamily(db, admin, targetUid, familyFor('peerCount'));
+        } catch (peerBadgeErr) { console.warn('[managePeer] peer badges', peerBadgeErr && peerBadgeErr.message); }
 
         return { success: true };
     }
@@ -3025,13 +3171,38 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     let matchedAction = resolved.id;
     let badgeKnown = false;
     if (resolved.badge) {
-        if (!badgeId || !Object.prototype.hasOwnProperty.call(BADGE_VALUES, badgeId)) {
+        const badgeResult = await awardBadge(db, admin, uid, badgeId, {
+            day: getOffsetDateKey(),
+            source: 'awardPoints',
+            signedIn: !(context.auth.token && context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous'),
+        });
+        if (!badgeResult || badgeResult.reason === 'unknown' || !badgeRules.isKnown(badgeResult.badgeId || badgeId)) {
             console.warn('[awardPoints] badge_earned rejected: unknown badgeId:', badgeId, 'uid:', uid);
             return { success: false, error: 'Unknown badge', awarded: 0, tickets: 0 };
         }
-        pts = BADGE_VALUES[badgeId];
-        badgeKnown = true;
-        matchedAction = 'badge_earned';
+        if (badgeResult.cosmetic) {
+            return { success: true, cosmetic: true, awarded: 0, tickets: 0 };
+        }
+        if (badgeResult.reason === 'criteria') {
+            return { success: false, error: 'Badge condition not met', badgeConditionFailed: true, awarded: 0, tickets: 0 };
+        }
+        if (badgeResult.reason === 'banned') {
+            return { success: true, awarded: 0, tickets: 0, banned: true };
+        }
+        if (badgeResult.reason === 'already' || badgeResult.reason === 'legacy') {
+            return { success: false, error: 'Badge already awarded', badgeDuplicate: true, awarded: 0, tickets: 0 };
+        }
+        if (!badgeResult.granted) {
+            return { success: false, error: 'Badge condition not met', badgeConditionFailed: true, awarded: 0, tickets: 0 };
+        }
+        return {
+            success: true,
+            awarded: badgeResult.xp || 0,
+            tickets: 0,
+            capped: badgeResult.capped === true,
+            favor: !!badgeResult.favor,
+            badgeId: badgeResult.badgeId || badgeId,
+        };
     }
 
     const absMax = badgeKnown ? 100000 : 2200;
@@ -3045,6 +3216,13 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     const reason = action;
     const DAILY_CAP = awardActions.DAILY_CAP;
     const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
+    if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
+        const triviaGrade = require('./src/triviaBank').grade(offsetToday, data && data.triviaChoice);
+        if (matchedAction === 'trivia_correct' && !triviaGrade.correct) {
+            matchedAction = 'trivia_attempt';
+            pts = 10;
+        }
+    }
     const userRef = db.collection('users').doc(uid);
     const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
     const rewardGroup = rewardNotify.groupForAction(matchedAction);
@@ -3255,13 +3433,23 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: action });
                 userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
-            if (awarded > 0 && claimRef) {
+            const proofAction = matchedAction === 'flex_action' || matchedAction === 'trivia_correct' || matchedAction === 'lq_lesson';
+            let progress = null;
+            if (claimRef && (awarded > 0 || proofAction)) {
                 t.set(claimRef, {
                     action: matchedAction,
                     xp: awarded,
                     day: offsetToday,
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 });
+                progress = progressBadges.progressSpec(userData, matchedAction, resolved, offsetToday);
+                progressBadges.applySpec(userUpdate, admin, progress);
+                if (matchedAction === 'flex_action' && resolved.flexId) {
+                    t.set(userRef.collection('daily_action_counts').doc(offsetToday + '_flex_' + resolved.flexId), {
+                        actionId: resolved.flexId,
+                        day: offsetToday,
+                    }, { merge: true });
+                }
             }
             if (awarded > 0 || badgeAwardRef) {
                 t.set(countRef, {
@@ -3316,6 +3504,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 overflowRedeemed: 0,
                 pendingOverflow: userData.pendingOverflow || 0,
                 channelTracked: channelTracked,
+                progress: progress,
                 doubled: xpBoost.doubled,
                 doubleXpUntil: xpBoost.until || 0,
                 flexCount: flexMeta ? flexMeta.count : null,
@@ -3352,6 +3541,29 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         }
         console.error('[AWARD_POINTS_TRANS_ERR]', e);
         return { success: false, error: 'Internal error', awarded: 0, tickets: 0 };
+    }
+
+    if (transactionResult && transactionResult.channelTracked) {
+        try { await grantFamily(db, admin, uid, familyFor('channelsVisited')); }
+        catch (channelBadgeErr) { console.warn('[awardPoints] channel badges', channelBadgeErr && channelBadgeErr.message); }
+    }
+    if (transactionResult && transactionResult.progress) {
+        try { await progressBadges.grantProgress(db, admin, uid, transactionResult.progress); }
+        catch (progressErr) { console.warn('[awardPoints] progress badges', progressErr && progressErr.message); }
+    }
+    if (transactionResult && transactionResult.tickets > 0) {
+        try { await grantFamily(db, admin, uid, familyFor('orangeTickets')); }
+        catch (ticketBadgeErr) { console.warn('[awardPoints] ticket badges', ticketBadgeErr && ticketBadgeErr.message); }
+    }
+    if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
+        try {
+            const favorApi = require('./src/satoshiFavor');
+            await dailyFive.maybeCompleteTrifecta({
+                db: db, admin: admin, uid: uid, day: offsetToday, creditDailyAllThree: favorApi.creditDailyAllThree,
+            });
+        } catch (followErr) {
+            console.warn('[awardPoints] trifecta follow-up skipped', followErr && followErr.message);
+        }
     }
 
     return {
@@ -3675,6 +3887,7 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             }
             if (usedFreeze) {
                 updateData.streakFreezes = admin.firestore.FieldValue.increment(-1);
+                updateData.streakFreezesUsed = admin.firestore.FieldValue.increment(1);
             }
 
             t.update(userRef, updateData);
@@ -3706,6 +3919,12 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             };
         });
 
+        try {
+            const visitIds = familyFor('bestStreak').concat(['ghost_reader']);
+            if (result.usedFreeze) visitIds.push('streak_freeze');
+            await grantFamily(db, admin, uid, visitIds);
+        }
+        catch (streakBadgeErr) { console.warn('[VISIT] streak badges', streakBadgeErr && streakBadgeErr.message); }
         return { success: true, ...result };
     } catch (e) {
         console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
@@ -3971,12 +4190,21 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         const update = {};
         // Only stamp lastSpinDate for the regular daily spin — bonus spins must NOT
         // consume the user's daily spin slot.
-        if (!isBonusSpin) update.lastSpinDate = today;
+        if (!isBonusSpin) {
+            update.lastSpinDate = today;
+            update.spinDays = admin.firestore.FieldValue.increment(1);
+            const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            update.spinStreak = userData.lastSpinDate === yesterday
+                ? admin.firestore.FieldValue.increment(1)
+                : 1;
+        }
         // Clear the one-time bonus spin flag if it was set
         if (isBonusSpin) update.bonusSpinGranted = admin.firestore.FieldValue.delete();
         if (totalPts > 0) update.points = admin.firestore.FieldValue.increment(totalPts);
         if (totalTickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(totalTickets);
         if (totalFreezes > 0) update.streakFreezes = admin.firestore.FieldValue.increment(totalFreezes);
+        if (reward.rare) update.spinHitRare = true;
+        if (reward.closet) update.spinClosetAwards = admin.firestore.FieldValue.increment(1);
         const spinRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, totalPts);
         tx.update(userRef, update);
         try {
@@ -4013,8 +4241,20 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             rareLabel,
             doubled: spinDoubled,
             doubleXpUntil: doubleXp.untilMillis(userData) || 0,
+            countedDay: !isBonusSpin,
         };
     });
+
+    try {
+        const spinIds = result.countedDay ? familyFor('spinDays').concat(familyFor('spinStreak')) : [];
+        if (result.rare) spinIds.push.apply(spinIds, familyFor('spinHitRare'));
+        if (result.closet) spinIds.push.apply(spinIds, familyFor('spinClosetAwards'));
+        if (result.tickets > 0) spinIds.push.apply(spinIds, familyFor('orangeTickets'));
+        await grantFamily(db, admin, uid, spinIds);
+        if (result.countedDay) {
+            await require('./src/comboActivity').noteComboZone(db, admin, uid, 'spin', getOffsetDateKey());
+        }
+    } catch (spinBadgeErr) { console.warn('[SPIN] badges', spinBadgeErr && spinBadgeErr.message); }
 
     return { success: true, reward: result };
 });
@@ -4351,6 +4591,10 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         return { score, passed, type, pointsAwarded };
     });
 
+    if (result.passed && result.type !== 'technical') {
+        try { await grantFamily(db, admin, uid, ['scholar']); }
+        catch (scholarBadgeErr) { console.warn('[SCHOLAR] badge', scholarBadgeErr && scholarBadgeErr.message); }
+    }
     return { success: true, score: result.score, passed: result.passed, type: result.type, pointsAwarded: result.pointsAwarded || 0 };
 });
 
@@ -4453,6 +4697,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
         let capped = false;
         let dropped = 0;
         let doubled = false;
+        let passQuest = false;
         if (pts > 0) {
             const userDoc = await tx.get(userRef);
             const userData = userDoc.exists ? userDoc.data() : {};
@@ -4478,10 +4723,15 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                 dropped = grant.dropped;
                 const questRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, awarded);
                 if (awarded > 0) {
-                    tx.update(userRef, {
+                    const questUpdate = {
                         points: admin.firestore.FieldValue.increment(awarded),
                         activeDayKeys: referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now()),
-                    });
+                    };
+                    if (score >= 3 && !userData.ban_reason && userData.banned !== true && userData.satsDisabled !== true) {
+                        questUpdate.questsPassed = admin.firestore.FieldValue.increment(1);
+                        passQuest = true;
+                    }
+                    tx.update(userRef, questUpdate);
                     tx.set(dailyPtsRef, {
                         total: dailyUsed + awarded,
                         triviaQuiz: triviaQuizUsed + awarded,
@@ -4502,6 +4752,9 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                         console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
                     }
                 }
+                if (awarded <= 0 && score >= 3 && userData.banned !== true && userData.satsDisabled !== true) {
+                    passQuest = true;
+                }
             }
         }
 
@@ -4519,14 +4772,22 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
 
         // Perfect 5/5 on a topic quest: persist topic-based completion server-side
         if (score === 5 && quest.topicKey) {
-            tx.update(userRef, {
-                completedQuests: admin.firestore.FieldValue.arrayUnion('quest_' + quest.topicKey)
-            });
+            const perfect = {
+                completedQuests: admin.firestore.FieldValue.arrayUnion('quest_' + quest.topicKey),
+            };
+            if (passQuest && awarded <= 0) perfect.questsPassed = admin.firestore.FieldValue.increment(1);
+            tx.update(userRef, perfect);
+        } else if (passQuest && awarded <= 0) {
+            tx.update(userRef, { questsPassed: admin.firestore.FieldValue.increment(1) });
         }
 
-        return { score, pts, awarded, capped, doubled, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
+        return { score, pts, awarded, capped, doubled, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT, questsPassed: passQuest };
     });
 
+    if (result.questsPassed) {
+        try { await grantFamily(db, admin, uid, familyFor('questsPassed')); }
+        catch (questBadgeErr) { console.warn('[gradeQuest] badges', questBadgeErr && questBadgeErr.message); }
+    }
     return result;
 });
 
@@ -4752,6 +5013,16 @@ exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (e
     try {
         await settlePvpMatch(matchId, after);
     } catch (e) { console.error('[onPvpMatchFinished] settle failed:', e.message); }
+    if (becameFinished) {
+        try {
+            await activityCounters.recordPvpPlayed(db, admin, after);
+            const sides = [after.player1, after.player2];
+            for (let si = 0; si < sides.length; si++) {
+                const sideUid = sides[si] && sides[si].uid;
+                if (sideUid) await grantFamily(db, admin, sideUid, familyFor('pvpWins'));
+            }
+        } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
+    }
     return null;
 });
 
@@ -6199,13 +6470,6 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         };
         if (newBadges.length > 0) {
             userUpdate.donationBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
-            userUpdate.points = admin.firestore.FieldValue.increment(bonusPts);
-            userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
-            // Write badge_awards proof docs so contributeFavor SF proof-check passes
-            for (const badgeId of newBadges) {
-                const badgeAwardRef = userRef.collection('badge_awards').doc(badgeId);
-                tx.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'donation' });
-            }
         }
         if (donationTicket > 0) {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(donationTicket);
@@ -6224,18 +6488,6 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
             newBadges.forEach(function(badgeId) {
                 donatePlans.push.apply(donatePlans, rewardNotify.plan({ uid: uid, badgeId: badgeId }));
             });
-            if (bonusPts > 0) {
-                donatePlans.push.apply(donatePlans, rewardNotify.plan({
-                    uid: uid,
-                    onceKey: 'donate_bonus_' + Date.now(),
-                    xp: bonusPts,
-                    sourceLabel: 'donation badges',
-                    icon: '🏅',
-                    pointsBefore: points,
-                    pointsDelta: bonusPts,
-                    prevById: donateRankPrev,
-                }));
-            }
             rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), donatePlans);
         } catch (notifyErr) {
             console.warn('[DONATE] reward notify skipped:', notifyErr && notifyErr.message);
@@ -6265,6 +6517,16 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         };
         tx.update(statsRef, statsUpdate);
     });
+
+    bonusPts = 0;
+    try {
+        const grants = await grantFamily(db, admin, uid, familyFor('pointsDonated'));
+        (grants || []).forEach(function (grant) {
+            if (grant && grant.granted) bonusPts += grant.xp || 0;
+        });
+    } catch (donateBadgeErr) {
+        console.warn('[DONATE] badges', donateBadgeErr && donateBadgeErr.message);
+    }
 
     return { success: true, newBadges, bonusPts, donationTicket };
 });
@@ -7114,33 +7376,22 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
         const participants = Object.keys(updated.participants || {});
         for (const puid of participants.slice(0, 500)) { // limit to 500 participants
             try {
-                const pRef = db.collection('users').doc(puid);
-                const badgeRef = pRef.collection('badge_awards').doc('weekly_hero');
-                const badgeDoc = await badgeRef.get();
-                if (!badgeDoc.exists) {
-                    const heroSnap = await pRef.get();
-                    const heroBefore = heroSnap.exists ? (heroSnap.data().points || 0) : 0;
-                    await badgeRef.set({ awardedAt: admin.firestore.FieldValue.serverTimestamp() });
-                    await pRef.update({
-                        points: admin.firestore.FieldValue.increment(100),
-                        weeklyXP: admin.firestore.FieldValue.increment(100),
-                        monthlyXP: admin.firestore.FieldValue.increment(100),
-                        visibleBadges: admin.firestore.FieldValue.arrayUnion('weekly_hero'),
-                    });
-                    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-                        uid: puid,
-                        badgeId: 'weekly_hero',
-                        xp: 100,
-                        sourceLabel: 'the weekly challenge',
-                        icon: '🏆',
-                        pointsBefore: heroBefore,
-                        pointsDelta: 100,
-                        onceKey: 'weekly_hero_' + weekKey,
-                    }));
+                const hero = await awardBadge(db, admin, puid, 'weekly_hero', { verified: true, source: 'weekly_hero' });
+                if (hero && hero.granted) {
+                    try {
+                        await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                            uid: puid,
+                            badgeId: 'weekly_hero',
+                            xp: hero.xp || 0,
+                            sourceLabel: 'the weekly challenge',
+                            icon: '🏆',
+                            onceKey: 'weekly_hero_' + weekKey,
+                        }));
+                    } catch (notifyErr) { console.warn('[WEEKLY CHALLENGE] notify', notifyErr && notifyErr.message); }
                     try {
                         await sendUserPush(puid, 'rewards', {
                             title: 'Weekly challenge complete',
-                            body: 'You earned the weekly hero badge and 100 XP.',
+                            body: 'You earned the weekly hero badge.',
                             url: 'https://bitcoineducation.quest/#questhub'
                         });
                     } catch (pushErr) { console.warn('[WEEKLY CHALLENGE] push failed', pushErr.message); }
@@ -8355,50 +8606,12 @@ exports.recountCountryStats = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC
 // stats/badge_distribution. Runs nightly, also callable via HTTP.
 
 async function _refreshBadgeDistribution() {
-    let cursor = null;
-    const badgeCounts = {};
-    let totalUsers = 0;
-    const PAGE = 200;
-
-    while (true) {
-        let q = db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(PAGE);
-        if (cursor) q = q.startAfter(cursor);
-        const snap = await q.get();
-        if (snap.empty) break;
-
-        await Promise.all(snap.docs.map(async doc => {
-            try {
-                const bs = await doc.ref.collection('badge_awards').get();
-                bs.forEach(b => {
-                    let bid = b.id;
-                    // Random auto-generated IDs are 20+ alphanum chars; use badge field instead
-                    if (/^[A-Za-z0-9]{20,}$/.test(bid)) {
-                        const d = b.data();
-                        bid = d.badge || d.badgeId || null;
-                        if (!bid) return;
-                    }
-                    badgeCounts[bid] = (badgeCounts[bid] || 0) + 1;
-                });
-            } catch (e) { /* skip users with permission issues */ }
-        }));
-
-        totalUsers += snap.size;
-        cursor = snap.docs[snap.docs.length - 1];
-        if (snap.size < PAGE) break;
-    }
-
-    await db.collection('stats').doc('badge_distribution').set({
-        totalUsers,
-        counts: badgeCounts,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    console.log('[BADGE DIST] Done. Users: ' + totalUsers + ', Badges: ' + Object.keys(badgeCounts).length);
-    return { totalUsers, badgeCount: Object.keys(badgeCounts).length };
+    return refreshBadgeDistribution(db, admin);
 }
 
 exports.refreshBadgeDistribution = onScheduleV2({
-    schedule: 'every 48 hours',
-    timeZone: 'America/New_York',
+    schedule: '30 5 * * *',
+    timeZone: 'UTC',
     memory: '512MiB',
     timeoutSeconds: 540,
 }, async () => { await _refreshBadgeDistribution(); });
@@ -8536,142 +8749,40 @@ exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('failed-precondition', 'Cannot merge for anonymous account');
     }
-
-    // Validate + sanitize incoming badge array
-    const incoming = Array.isArray(data.anonBadges) ? data.anonBadges : [];
-    if (incoming.length === 0) return { merged: 0, skipped: 0 };
-    if (incoming.length > 500) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Too many badges in merge payload');
-    }
-
-    // Same BADGE_VALUES catalog as awardPoints — only known badges are accepted
-    const KNOWN_BADGE_IDS = new Set([
-        'first_channel', 'explorer_10', 'explorer_25', 'explorer_50', 'explorer_100', 'explorer_all',
-        'explorer_5', 'global_citizen',
-        'quest_1', 'quest_3', 'quest_5', 'quest_10', 'quest_25', 'quest_50', 'quest_100',
-        'cert_scholar', 'cert_tech', 'cert_double', 'all_certs',
-        'tctv_tuned_in', 'tctv_couch_potato', 'tctv_binge_watcher', 'tctv_couch_king', 'tctv_satellite',
-        'tctv_channel_hopper', 'tctv_remote_warrior', 'tctv_dial_spinner',
-        'tctv_signal_seeker', 'tctv_antenna_wizard', 'tctv_timechain_surfer',
-        'nacho_chatterbox', 'nacho_bestie', 'nacho_asked_10', 'nacho_asked_100',
-        'nacho_whisper', 'nacho_eli5', 'nacho_quester', 'nacho_dressed',
-        'chat_first', 'chat_10', 'chat_25', 'chat_50', 'chat_100', 'chat_200', 'chat_500', 'chat_1000',
-        'chat_streak_3', 'chat_streak_7', 'chat_streak_30',
-        'chat_lurker_5', 'chat_lurker_10', 'chat_lurker_50', 'chat_lurker_100', 'chat_lurker_500',
-        'lb_lurker_5', 'lb_lurker_10', 'lb_lurker_50', 'lb_lurker_100', 'lb_lurker_500',
-        'dj_first', 'dj_5', 'dj_25', 'dj_50', 'dj_songs_10', 'dj_songs_50', 'dj_songs_100',
-        'dj_listener', 'dj_listener_50', 'dj_listener_100',
-        'producer_1', 'producer_10',
-        'beats_first_listen', 'beats_50_plays', 'beats_100_plays', 'beats_200_plays', 'beats_500_plays',
-        'beats_liked_10', 'beats_liked_50', 'beats_comment_1',
-        'dm_first', 'dm_10', 'dm_25', 'dm_100', 'dm_buddy',
-        'react_5', 'react_10', 'react_50', 'react_100', 'react_200', 'react_500',
-        'pvp_first', 'pvp_5', 'pvp_25', 'pvp_50', 'pvp_100',
-        'pvp_played_1', 'pvp_played_10', 'pvp_played_50',
-        'pvp_win_streak_3', 'pvp_win_streak_5',
-        'referral_1', 'referral_5', 'referral_10', 'referral_25', 'referral_50', 'referral_100', 'referred',
-        'sf_first_hash', 'sf_10_hashes', 'sf_50_hashes', 'sf_100_hashes',
-        'sf_500_hashes', 'sf_1000_hashes', 'sf_10000_hashes', 'sf_100000_hashes',
-        'sf_low_hash', 'sf_ultra_low', 'sf_block_solver',
-        'sf_contributor', 'sf_contributor_10',
-        'sf_lucky_1', 'sf_lucky_5', 'sf_lucky_10', 'sf_lucky_50', 'sf_lucky_100', 'sf_lucky_1000',
-        'sf_unlucky_1', 'sf_unlucky_5', 'sf_unlucky_10', 'sf_unlucky_50', 'sf_unlucky_100', 'sf_unlucky_1000',
-        'raid_first', 'raid_5', 'raid_10', 'raid_25', 'raid_50', 'raid_100',
-        'raid_boss_slayer', 'raid_boss_slayer_5', 'raid_boss_slayer_10', 'raid_winner',
-        'trivia_first', 'trivia_correct_1', 'trivia_correct_10', 'trivia_correct_30', 'trivia_correct_100',
-        'trivia_streak_7', 'trivia_streak_30',
-        'poll_first', 'poll_10', 'poll_50', 'poll_100',
-        'daily_triple_1', 'daily_triple_7', 'daily_triple_30', 'daily_triple_90', 'daily_triple_365',
-        'daily_1', 'daily_5', 'daily_10', 'daily_25', 'daily_50', 'daily_100',
-        'market_browse', 'market_listed_1', 'market_listed_5', 'market_saved_5', 'market_message',
-        'bookmarks_1', 'bookmarks_10', 'favs_10', 'favs_25', 'bookworm',
-        'tip_first', 'tip_10', 'tip_magnet', 'tip_whale',
-        'tip_received_1', 'tip_received_50', 'tip_sats_10k',
-        'predict_1', 'predict_10', 'predict_50',
-        'predict_correct_5', 'predict_correct_25', 'predict_correct_100',
-        'predict_streak_3', 'predict_streak_10',
-        'irl_attend_1', 'irl_attend_5', 'irl_host', 'irl_host_5', 'irl_host_10',
-        'spin_1', 'spin_7', 'spin_30', 'spin_100',
-        'spin_closet_1', 'spin_closet_5',
-        'spin_streak_7', 'spin_streak_14', 'spin_streak_30', 'spin_jackpot',
-        'lightning_setup', 'lightning_address_set',
-        'forum_first', 'forum_5', 'forum_10', 'forum_25', 'forum_50', 'forum_100',
-        'forum_reply_1', 'forum_reply_10',
-        'article_1', 'article_5', 'article_10',
-        'first_purchase', 'first_save', 'ghost_mode',
-        'sats_first', 'sats_1k', 'sats_5k', 'sats_10k', 'sats_21k',
-        'streak_3', 'streak_7', 'streak_14', 'streak_21', 'streak_30', 'streak_60',
-        'streak_100', 'streak_200', 'streak_365',
-        'story_begun', 'story_halfway', 'story_complete',
-        'trail_started', 'trail_meadow', 'trail_mountain', 'trail_summit', 'trail_all',
-        'trail_double', 'trail_speed_3', 'trail_meadow_fast', 'trail_perfectionist', 'trail_revisit',
-        'lq_what_is_bitcoin', 'lq_mining', 'lq_nodes', 'lq_self_custody',
-        'lq_lightning', 'lq_scarcity', 'lq_bitcoin_only', 'lq_privacy', 'lq_graduate',
-        'flex_rookie', 'flex_committed', 'flex_athlete', 'flex_legend', 'flex_all_once',
-        'flex_all_1', 'flex_all_5', 'flex_all_50', 'flex_all_500',
-        'pow_first_step', 'pow_marathoner', 'pow_streak_3', 'pow_streak_7', 'pow_streak_30',
-        'pow_km_10', 'pow_km_50', 'pow_km_100', 'pow_km_500', 'pow_km_1000', 'pow_km_5000',
-        'hall_of_fame', 'the_archive', 'genesis_block', 'satoshis_ghost',
-        'block_250', 'the_hodler', 'satoshis_covenant', 'satoshis_cipher',
-        'combo_trio', 'combo_mega', 'combo_legend', 'weekly_hero',
-        'set_miner_complete', 'set_scholar_complete', 'set_social_complete',
-        'set_streak_complete', 'set_pvp_complete', 'set_builder_complete',
-        'set_explorer_complete', 'set_fun_complete',
-        'bio_author', 'profile_curious',
-        'profile_explorer_5', 'profile_explorer_10', 'profile_explorer_25',
-        'profile_explorer_50', 'profile_explorer_100',
-        'foundation_builder', 'experienced_pro', 'librarian',
-        'early_bird', 'night_owl',
-        'nacho_quester', 'nacho_dressed',
-    ]);
-
+    // Client badge ids are ignored. Badges are recomputed from server counters.
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
     if (!userDoc.exists) {
         throw new functionsV1.https.HttpsError('not-found', 'User document not found');
     }
-
-    const userData = userDoc.data();
-
-    // One-time guard: if already merged, return silently
-    if (userData.anonBadgesMerged) {
+    if (userDoc.data().anonBadgesMerged) {
+        if (!userDoc.data().mergedAnon) await userRef.update({ mergedAnon: true });
         return { merged: 0, skipped: 0, alreadyDone: true };
     }
-
-    const existing = new Set(Array.isArray(userData.visibleBadges) ? userData.visibleBadges : []);
-    const toAdd = [];
-    let skipped = 0;
-
-    for (const badge of incoming) {
-        if (typeof badge !== 'string') { skipped++; continue; }
-        const sanitized = badge.replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 60);
-        if (!sanitized || !KNOWN_BADGE_IDS.has(sanitized)) { skipped++; continue; }
-        if (existing.has(sanitized)) { skipped++; continue; }
-        toAdd.push(sanitized);
-        existing.add(sanitized);
+    const anonUid = data && typeof data.anonUid === 'string' ? data.anonUid : '';
+    let linkedAnon = false;
+    if (anonUid && anonUid !== uid && /^[A-Za-z0-9]{10,128}$/.test(anonUid)) {
+        try {
+            const rec = await admin.auth().getUser(anonUid);
+            linkedAnon = !rec.providerData || rec.providerData.length === 0;
+        } catch (e) {
+            linkedAnon = false;
+        }
     }
-
-    if (toAdd.length === 0) {
-        // Still mark as done so we don't try again
-        await userRef.update({ anonBadgesMerged: true });
-        return { merged: 0, skipped };
+    let merged = 0;
+    if (linkedAnon) {
+        const ids = badgeRules.verifiedIds();
+        for (let i = 0; i < ids.length; i++) {
+            try {
+                const granted = await require('./src/grantBadge').grantBadgeIfEarned(db, admin, uid, ids[i]);
+                if (granted && granted.granted) merged++;
+            } catch (e) { /* one badge must not abort the recompute */ }
+        }
     }
-
-    // Write all new badges atomically + set the one-time guard
-    await userRef.update({
-        visibleBadges: admin.firestore.FieldValue.arrayUnion(...toAdd),
-        anonBadgesMerged: true,
-    });
-    const mergedPlans = [];
-    toAdd.forEach(function(id) {
-        mergedPlans.push.apply(mergedPlans, rewardNotify.plan({ uid: uid, badgeId: id }));
-    });
-    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), mergedPlans);
-
-    console.log('[mergeAnonBadges] uid:', uid, 'merged:', toAdd.length, 'skipped:', skipped, 'badges:', toAdd.join(','));
-    return { merged: toAdd.length, skipped };
+    await userRef.update({ anonBadgesMerged: true, mergedAnon: true });
+    console.log('[mergeAnonBadges] recomputed', uid, 'linkedAnon', linkedAnon, 'merged', merged);
+    return { merged: merged, skipped: 0, recomputed: true };
 });
-
 
 // ── Daily Firestore Backup ────────────────────────────────────────────────────
 // Exports all collections to gs://bitcoin-education-archive-backups/

@@ -188,6 +188,9 @@ const DEFERRED_QUERIES = [
     ['reply_bonus_claims', 'uid', '==', []],
     ['reply_bonus_claims', 'targetUid', '==', []],
     ['market_listing_counts', 'sellerUid', '==', []],
+    ['market_listing_daily', 'uid', '==', []],
+    ['market_message_counts', 'buyerUid', '==', []],
+    ['market_sale_counts', 'sellerUid', '==', []],
 ];
 
 const COLLECTION_GROUP_QUERIES = [

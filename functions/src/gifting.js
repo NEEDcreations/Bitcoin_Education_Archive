@@ -658,6 +658,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const userUpdate = {
             ciphersDecryptedToday: decToday + 1,
             ciphersDecryptedDate: today,
+            ciphersSolved: admin.firestore.FieldValue.increment(1),
         };
         const now = admin.firestore.FieldValue.serverTimestamp();
         let winId = null;
@@ -742,6 +743,12 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         }
     }
 
+    try {
+        const { grantFamily, familyFor } = require('./grantBadge');
+        await grantFamily(db, admin, uid, familyFor('ciphersSolved'));
+    } catch (cipherBadgeErr) {
+        console.warn('[decryptCipher] badges', cipherBadgeErr && cipherBadgeErr.message);
+    }
     const pub = publicReward(applied.reward);
     pub.opensToday = applied.opensToday;
     pub.opensMax = CIPHER_OPENS_PER_DAY;

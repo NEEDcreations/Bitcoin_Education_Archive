@@ -305,27 +305,22 @@ function initRanking() {
                 const existData = existingDoc.data();
                 // Anti-abuse: only merge anonymous data once per account
                 // Anonymous data merge now handled minimally (points/visits are server-managed)
-                if (!existData.mergedAnon) {
-                    try { await existingDoc.ref.update({ mergedAnon: true }); } catch (e) {}
+                if (!existData.mergedAnon && !existData.anonBadgesMerged) {
                     if (typeof tryLinkGuest === 'function') {
                         try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
                     }
-                    // Merge anonymous badges into existing account's visibleBadges.
-                    // Anonymous users can't write to Firestore, so their badges are
-                    // localStorage-only. mergeAnonBadges CF validates + unions them
-                    // into the real account's visibleBadges, deduplicated server-side.
-                    // One-time only: CF sets anonBadgesMerged flag to prevent replay.
+                    // Anonymous badges live in localStorage. mergeAnonBadges
+                    // recomputes from server counters and sets mergedAnon.
+                    // The client cannot write that flag.
                     var _anonBadges = [];
                     try { _anonBadges = JSON.parse(localStorage.getItem('btc_badges') || '[]'); } catch(e) {}
-                    if (_anonBadges.length > 0) {
-                        try {
-                            var _mergeAnonBadgesFn = firebase.functions().httpsCallable('mergeAnonBadges');
-                            await _mergeAnonBadgesFn({ anonBadges: _anonBadges });
-                            console.log('[Auth] Merged', _anonBadges.length, 'anon badges into account');
-                        } catch(e) {
-                            if (_isMfaBlock(e)) window._pendingAnonBadges = _anonBadges;
-                            else console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
-                        }
+                    try {
+                        var _mergeAnonBadgesFn = firebase.functions().httpsCallable('mergeAnonBadges');
+                        await _mergeAnonBadgesFn({ anonBadges: _anonBadges, anonUid: anonUid || '' });
+                        console.log('[Auth] Merged anon progress into account');
+                    } catch(e) {
+                        if (_isMfaBlock(e)) window._pendingAnonBadges = _anonBadges;
+                        else console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
                     }
                 }
             }
@@ -2112,9 +2107,7 @@ async function loadUser(uid, prefetchedDoc) {
 
                 // Push any counters where local > server (fire-and-forget, non-fatal)
                 if (Object.keys(_bcPatch).length > 0) {
-                    db.collection('users').doc(uid).update(_bcPatch).catch(function(e) {
-                        console.warn('[loadUser] badgeCounters sync failed:', e.message);
-                    });
+                    /* badgeCounters is server-owned */
                 }
             })();
         }
@@ -2666,6 +2659,17 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
+function inferAwardActionKey(reason, badgeId, extra) {
+    if (badgeId) return '';
+    var text = String(reason || '');
+    if (text.indexOf('🎫') !== -1 || text.indexOf('\uD83C\uDFAB') !== -1) return '';
+    var more = extra && typeof extra === 'object' ? extra : {};
+    if ((/flex:/i.test(text) || /daily challenge:/i.test(text)) && more.flexActionId) return 'flex_action';
+    if (/trio combo|mega combo|legendary combo|daily 3 complete/i.test(text) && more.comboTier) return 'combo_bonus';
+    if (/^📖 Learning Quest: .+ lesson$/.test(text.trim())) return 'lq_lesson';
+    return '';
+}
+
 window._doubleXpUntilMs = function(u) {
     if (!u) return 0;
     var raw = u.doubleXpUntil != null && u.doubleXpUntil !== '' ? u.doubleXpUntil : u.doubleXPExpiry;
@@ -2836,6 +2840,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
         if (extra && typeof extra === 'object') Object.assign(payload, extra);
+        if (!payload.actionKey) {
+            var inferredKey = inferAwardActionKey(reason, badgeId, extra);
+            if (inferredKey) payload.actionKey = inferredKey;
+        }
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
             if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
@@ -6957,12 +6965,6 @@ function showSettingsPage(tab) {
                         if (typeof updateRankUI === 'function') updateRankUI();
                     }
                     if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
-                    // Announce earned badges to Global Chat via Satoshi's Favor
-                    var _satsBadges = result.data && result.data.newBadges || [];
-                    if (_satsBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
-                        var _satsDonorMap = { donor_100:1, donor_500:1, donor_1000:1, donor_5000:1, donor_10000:1, donor_25000:1, donor_50000:1, donor_100000:1 };
-                        _satsBadges.forEach(function(bid) { if (_satsDonorMap[bid]) window.contributeSatoshiFavor('badge_earned', bid).catch(function(){}); });
-                    }
                     // Reset charity stats cache so Quest Hub picks up fresh totals
                     if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
                     // Update available XP display in-place

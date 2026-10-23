@@ -3,6 +3,7 @@ functions/.env
 test.sh
 scripts/*
 !scripts/migrate-push-optin.js
+!scripts/backfill-badge-favor.js
 .keys/
 firebase-debug.log
 firestore-debug.log

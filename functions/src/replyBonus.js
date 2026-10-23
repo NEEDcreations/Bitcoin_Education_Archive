@@ -331,6 +331,7 @@ function createReplyBonusHandlers(opts) {
                 userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(decision.overflowAdded);
                 userUpdate.lastOverflowDate = today;
             }
+            userUpdate.replyBonusCount = admin.firestore.FieldValue.increment(1);
             if (Object.keys(userUpdate).length) tx.update(userRef, userUpdate);
 
             tx.set(stateRef, { firstClaimed: true, uid: uid }, { merge: true });
@@ -389,6 +390,14 @@ function createReplyBonusHandlers(opts) {
             return decision;
         });
 
+        if (result && result.ok) {
+            try {
+                const grantBadge = require('./grantBadge');
+                await grantBadge.grantFamily(db, admin, uid, grantBadge.familyFor('replyBonusCount'));
+            } catch (err) {
+                console.warn('[replyBonus] badges', err && err.message);
+            }
+        }
         if (result && result.code === 'signed-out') signedOut();
         return publicResult(result);
     };

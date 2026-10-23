@@ -41,7 +41,7 @@ const tctvWatchHeartbeat = functionsV1.runWith({
     const dailyRef = userRef.collection('daily_points').doc(today);
     const claimRef = userRef.collection('award_claims').doc(ticketGrants.claimId('tctv_watch_ticket', today));
 
-    return db.runTransaction(async (tx) => {
+    const watchResult = await db.runTransaction(async (tx) => {
         const watchSnap = await tx.get(watchRef);
         const userSnap = await tx.get(userRef);
         const ledgerSnap = await tx.get(ledgerRef);
@@ -173,6 +173,12 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             tickets: view.awarded ? ticketsOut : 0,
         };
     });
+    if (watchResult && watchResult.tickets > 0) {
+        try {
+            await require('./src/comboActivity').noteComboZone(db, admin, uid, 'tctv', today);
+        } catch (comboErr) { /* the watch reward already committed */ }
+    }
+    return watchResult;
 });
 
 module.exports = {

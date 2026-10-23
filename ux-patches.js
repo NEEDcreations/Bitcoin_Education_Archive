@@ -152,15 +152,6 @@
                             if (typeof startNewDM === 'function') startNewDM(sellerUid, data.sellerName || 'Seller');
                         }, 500);
                     }
-                    // Track for badge
-                    if (typeof db !== 'undefined' && auth.currentUser) {
-                        db.collection('users').doc(auth.currentUser.uid).update({
-                            marketMessages: firebase.firestore.FieldValue.increment(1)
-                        }).catch(function() {});
-                    }
-                    if (typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.marketMessages = (currentUser.marketMessages || 0) + 1;
-                    }
                     if (typeof showToast === 'function') showToast('💬 Opening chat with ' + (data.sellerName || 'seller') + '...');
                 });
             }

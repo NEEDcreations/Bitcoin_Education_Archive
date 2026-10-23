@@ -189,6 +189,34 @@ window.executeTip = async function() {
             return;
         }
 
+        // Server invoice is the only path that can earn a tip badge. A pre-made
+        // bolt11 above, and the client LNURL fetch below, stay social-only.
+        if (opts.recipientUid && typeof firebase !== 'undefined' && firebase.functions) {
+            try {
+                var invFn = firebase.functions().httpsCallable('requestTipInvoice');
+                var invRes = await invFn({ recipientUid: opts.recipientUid, amountSats: amount });
+                var invData = invRes && invRes.data ? invRes.data : null;
+                if (invData && invData.invoice) {
+                    opts._serverInvoice = true;
+                    window._tipServerInvoice = invData;
+                    window._tipVerifyUrl = invData.verifyUrl || null;
+                    if (method && typeof window.lnSendPaymentDirect === 'function') {
+                        try {
+                            await window.lnSendPaymentDirect(invData.invoice);
+                            showTipSuccess(amount, opts);
+                            return;
+                        } catch (walletErr) {
+                            console.warn('[TIP] Direct wallet payment failed, falling back to QR:', walletErr);
+                        }
+                    }
+                    showInvoiceCopy(invData.invoice, amount, opts);
+                    return;
+                }
+            } catch (serverErr) {
+                console.warn('[TIP] server invoice unavailable, social tip only:', serverErr && serverErr.message);
+            }
+        }
+
         // If no Lightning Address provided, try to look it up from Firestore
         if (!opts.lightningAddress && opts.recipientUid && typeof db !== 'undefined') {
             try {
@@ -306,7 +334,24 @@ function showTipSuccess(amount, opts) {
 
     if (typeof showToast === 'function') showToast('⚡ ' + amount.toLocaleString() + ' sats sent!');
     if (typeof awardPoints === 'function') awardPoints(10, 'Lightning tip sent');
+    if (opts && opts._serverInvoice) confirmServerTip(opts);
     if (typeof opts.onSuccess === 'function') opts.onSuccess(amount);
+}
+
+function confirmServerTip(opts) {
+    opts = opts || window._tipOpts || {};
+    if (!opts._serverInvoice || !opts.recipientUid) return Promise.resolve(null);
+    if (typeof firebase === 'undefined' || !firebase.functions) return Promise.resolve(null);
+    var inv = window._tipServerInvoice || {};
+    return firebase.functions().httpsCallable('confirmTipSent')({
+        recipientUid: opts.recipientUid,
+        paymentHash: inv.paymentHash || '',
+        verifyUrl: window._tipVerifyUrl || inv.verifyUrl || '',
+        invoice: inv.invoice || ''
+    }).catch(function (err) {
+        console.warn('[TIP] badge confirm failed:', err && err.message);
+        return null;
+    });
 }
 
 // ─── Invoice Copy Screen (fallback when no WebLN) ────────
@@ -358,9 +403,27 @@ function _showInvoicePending(amount, opts) {
             '<div style="color:#eab308;font-size:0.82rem;font-weight:600;">Pay the invoice in your Lightning wallet.</div>' +
             '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">Sats will arrive instantly once paid. ⚡</div>' +
         '</div>' +
-        '<button onclick="this.closest(\'[id=tipOverlay]\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Done ✓</button>' +
+        (opts && opts._serverInvoice
+            ? '<button id="tipPaidBtn" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">I\'ve paid ✓</button>'
+            : '<button onclick="this.closest(\'[id=tipOverlay]\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Done ✓</button>') +
     '</div>';
     if (typeof awardPoints === 'function') awardPoints(10, 'Lightning tip initiated');
+    var paidBtn = document.getElementById('tipPaidBtn');
+    if (paidBtn) {
+        paidBtn.addEventListener('click', function () {
+            paidBtn.disabled = true;
+            confirmServerTip(opts).then(function (res) {
+                var data = res && res.data ? res.data : null;
+                if (data && (data.verified || data.tipsCounted)) {
+                    var ov = document.getElementById('tipOverlay');
+                    if (ov) ov.remove();
+                    return;
+                }
+                paidBtn.disabled = false;
+                if (typeof showToast === 'function') showToast('Payment not seen yet. Pay the invoice, then check again.');
+            });
+        });
+    }
 }
 
 // ─── Quick Tip Button Generator ──────────────────────────

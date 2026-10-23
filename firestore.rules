@@ -95,6 +95,32 @@ service cloud.firestore {
     // USERS COLLECTION
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
     // =============================================
+
+    // Badge-engine fields denied on users/{uid} updates. The longer economy
+    // denylist lives in profileUpdateBlocked(), inside that match. referredBy
+    // stays out of this function: registerReferral owns it, and folding the
+    // deny into one long && chain re-checks every helper and hits the
+    // 1000-expression limit.
+    function userProfileServerOnlyKeys() {
+      return [
+        'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+        'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
+        'marketListings', 'marketMessages', 'marketSold',
+        'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
+        'sayHiArmedDay', 'sayHiDays', 'replyBonusCount',
+        'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak',
+        'purpleTickets', 'blueTickets', 'pollDays',
+        'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
+        'pvpPlayed', 'ciphersSolved', 'sfHashes', 'sfBlockSolver', 'sfContributions',
+        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'giftsSent', 'onboardingComplete',
+        'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult',
+        'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay',
+        'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',
+        'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived',
+        'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed'
+      ];
+    }
+
     match /users/{userId} {
       // Reads:
       //   - Own profile: always allowed for the authenticated owner (get or list)
@@ -144,11 +170,21 @@ service cloud.firestore {
                     // Signup, provider, Lightning, and Nostr profile creates send serverTimestamp().
                     && (!('created' in request.resource.data) || request.resource.data.created == request.time);
 
+      // A denied field used to keep evaluating the lock helpers (&& does not
+      // stop a long rule), which passes 1000 expressions. The ternary evaluates
+      // only the taken branch: a server field is a plain false, and a normal
+      // save validates just the keys in this write.
       allow update: if request.auth != null
                     && request.auth.uid == userId
-                    // [VULN-2 FIX 2026-06-26] Expanded denylist — all economy, rank, admin,
-                    // anti-fraud, and leaderboard fields must be server-only.
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                    && (profileUpdateBlocked() ? false : profileShapeOk());
+
+      function profileUpdateBlocked() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return changed.hasAny([
+            'referredBy', 'nachoQuestDone', 'introSeen', 'totpEnabled', 'introSeenAt', 'mergedAnon'
+          ])
+          || changed.hasAny(userProfileServerOnlyKeys())
+          || changed.hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
@@ -171,9 +207,7 @@ service cloud.firestore {
                         'bonusSpinGranted',
                         'ownedCosmetics', 'spinClosetItems',
                         // Badges (awardPoints CF)
-                        'badges', 'visibleBadges',
-                        // NOTE: 'hiddenBadges' intentionally omitted — client writes it
-                        // to toggle badge visibility preference (cosmetic, not gated).
+                        'badges', 'visibleBadges', 'hiddenBadges',
                         // Social / gamification counters (CF)
                         'forumPosts', 'forumReplies', 'lastSpinDate',
                         // Say-hi reward (armSayHi / claimSayHi). Server only.
@@ -237,40 +271,54 @@ service cloud.firestore {
                         'totpEnabled', 'phoneVerified',
                         // Push tokens stay in push_tokens/{uid}/devices, never on the profile
                         'fcmToken', 'pushToken', 'pushEnabled'
-                    ]))
-                    && (!('username' in request.resource.data)
-                        || (request.resource.data.username is string
-                            && request.resource.data.username.size() >= 3
-                            && request.resource.data.username.size() <= 20
-                            && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')))
-                    && (!('displayBadge' in request.resource.data)
-                        || request.resource.data.displayBadge == ''
-                        || (request.resource.data.displayBadge is string
-                            && request.resource.data.displayBadge.size() <= 50
-                            && request.resource.data.displayBadge.matches('^[a-zA-Z0-9_\\-]+$')))
-                    && (!('equippedBadge' in request.resource.data)
-                        || request.resource.data.equippedBadge == ''
-                        || (request.resource.data.equippedBadge is string
-                            && request.resource.data.equippedBadge.size() <= 50
-                            && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')))
-                    // XSS prevention: country must be valid country-name chars
-                    && (!('country' in request.resource.data)
-                        || request.resource.data.country == ''
-                        || (request.resource.data.country is string
-                            && request.resource.data.country.size() >= 2
-                            && request.resource.data.country.size() <= 60
-                            && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
-                    // Home invite card. Owner may only store open, minimized, or dismissed.
-                    && (!('inviteCard' in request.resource.data)
-                        || request.resource.data.inviteCard == 'open'
-                        || request.resource.data.inviteCard == 'min'
-                        || request.resource.data.inviteCard == 'off')
-                    && (!('beatsShowUncensored' in request.resource.data)
-                        || request.resource.data.beatsShowUncensored == true
-                        || request.resource.data.beatsShowUncensored == false)
-                    && lightningLockOk()
-                    && notificationPrefsOk()
-                    && notifPromptOk();
+          ])
+          // The client may clear a server-written leaderboard reward. It cannot set one.
+          || (changed.hasAny(['pendingLeaderboardReward'])
+              && 'pendingLeaderboardReward' in request.resource.data);
+      }
+
+      function profileShapeOk() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return (!changed.hasAny(['username'])
+            || !('username' in request.resource.data)
+            || (request.resource.data.username is string
+                && request.resource.data.username.size() >= 3
+                && request.resource.data.username.size() <= 20
+                && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')))
+          && (!changed.hasAny(['displayBadge'])
+            || !('displayBadge' in request.resource.data)
+            || request.resource.data.displayBadge == ''
+            || (request.resource.data.displayBadge is string
+                && request.resource.data.displayBadge.size() <= 50
+                && request.resource.data.displayBadge.matches('^[a-zA-Z0-9_\\-]+$')))
+          && (!changed.hasAny(['equippedBadge'])
+            || !('equippedBadge' in request.resource.data)
+            || request.resource.data.equippedBadge == ''
+            || (request.resource.data.equippedBadge is string
+                && request.resource.data.equippedBadge.size() <= 50
+                && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')))
+          // XSS prevention: country must be valid country-name chars
+          && (!changed.hasAny(['country'])
+            || !('country' in request.resource.data)
+            || request.resource.data.country == ''
+            || (request.resource.data.country is string
+                && request.resource.data.country.size() >= 2
+                && request.resource.data.country.size() <= 60
+                && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
+          // Home invite card. Owner may only store open, minimized, or dismissed.
+          && (!changed.hasAny(['inviteCard'])
+            || !('inviteCard' in request.resource.data)
+            || request.resource.data.inviteCard == 'open'
+            || request.resource.data.inviteCard == 'min'
+            || request.resource.data.inviteCard == 'off')
+          && (!changed.hasAny(['beatsShowUncensored'])
+            || !('beatsShowUncensored' in request.resource.data)
+            || request.resource.data.beatsShowUncensored == true
+            || request.resource.data.beatsShowUncensored == false)
+          && (!changed.hasAny(['lightning', 'lightningAddress', 'lnAddress']) || (true && lightningLockOk()))
+          && (!changed.hasAny(['notificationPrefs']) || notificationPrefsOk())
+          && (!changed.hasAny(['notifPrompt']) || notifPromptOk());
+      }
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
       // create after delete could re-seed with anything). Server (Admin SDK) can still delete.
@@ -567,6 +615,14 @@ service cloud.firestore {
 
     // Payment hashes that already earned tip XP. Admin SDK only.
     match /tip_hashes/{hashId} {
+      allow read, write: if false;
+    }
+
+    // Server-fetched tip invoices and the per-pair daily badge cap. Admin SDK only.
+    match /tip_invoices/{hashId} {
+      allow read, write: if false;
+    }
+    match /tip_pair_days/{docId} {
       allow read, write: if false;
     }
 
@@ -1764,45 +1820,12 @@ service cloud.firestore {
     }
 
     // Poll Quest votes — anyone can read, signed-in users can write
+    // Poll Quest votes. The tally is written by dailyPollVote. Clients can read it.
     match /poll_votes/{pollId} {
       allow read: if true;
-      // pollId must be alphanumeric/safe; field schema locked; voters[0] must be self
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
-                    && request.resource.data.votes is list
-                    && request.resource.data.votes.size() == 4
-                    && request.resource.data.voters is list
-                    && request.resource.data.voters.size() == 1
-                    && request.resource.data.voters[0] == request.auth.uid;
-      // [SECURITY FIX] votes: each slot can only increase by at most 1; total must increase
-      // by exactly 1 (one vote per update). Previously >= allowed unbounded inflation.
-      allow update: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
-                    && request.resource.data.votes is list
-                    && request.resource.data.votes.size() == 4
-                    // each slot: non-decreasing AND at most +1
-                    && request.resource.data.votes[0] >= resource.data.votes[0]
-                    && request.resource.data.votes[0] <= resource.data.votes[0] + 1
-                    && request.resource.data.votes[1] >= resource.data.votes[1]
-                    && request.resource.data.votes[1] <= resource.data.votes[1] + 1
-                    && request.resource.data.votes[2] >= resource.data.votes[2]
-                    && request.resource.data.votes[2] <= resource.data.votes[2] + 1
-                    && request.resource.data.votes[3] >= resource.data.votes[3]
-                    && request.resource.data.votes[3] <= resource.data.votes[3] + 1
-                    // total must increase by exactly 1 (exactly one option chosen)
-                    && (request.resource.data.votes[0] + request.resource.data.votes[1]
-                        + request.resource.data.votes[2] + request.resource.data.votes[3])
-                       == (resource.data.votes[0] + resource.data.votes[1]
-                           + resource.data.votes[2] + resource.data.votes[3]) + 1
-                    && request.resource.data.voters is list
-                    && request.resource.data.voters.size() == resource.data.voters.size() + 1
-                    && request.resource.data.voters.hasAll([request.auth.uid])
-                    && request.resource.data.question == resource.data.question
-                    && request.resource.data.pollId   == resource.data.pollId;
+      allow create, update, delete: if false;
     }
 
-    // Poll cumulative stats (all-time per question) — read public, increment only
     match /poll_cumulative/{pollId} {
       allow read: if true;
       allow create: if request.auth != null
@@ -2197,6 +2220,19 @@ service cloud.firestore {
     // client cannot forge a Nacho post or reset the cap.
     // One marker per listing so onMarketplaceListingCount cannot double-count.
     match /market_listing_counts/{listingId} {
+      allow read, write: if false;
+    }
+
+    match /market_listing_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /market_message_counts/{docId} {
+      allow read, write: if false;
+    }
+    match /market_sale_counts/{docId} {
+      allow read, write: if false;
+    }
+    match /polls/{dayId}/votes/{voteUid} {
       allow read, write: if false;
     }
 

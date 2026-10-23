@@ -541,9 +541,6 @@ function renderTrailExamResults() {
                 var _modBadgeId = mod.badgeId;
                 awardPoints(mod.pointsReward, 'Badge: ' + _modBadgeId, null, null, null, _modBadgeId)
                     .then(function(r) {
-                        var dup = r && r.data && r.data.badgeDuplicate;
-                        if (!dup && typeof window.contributeSatoshiFavor === 'function')
-                            window.contributeSatoshiFavor('badge_earned', _modBadgeId).catch(function(){});
                     }).catch(function(){});
             }
             // Award badge

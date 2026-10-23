@@ -114,7 +114,9 @@ test('rules allow the client create fields and block impersonation', () => {
     assert.ok(rules.includes("resource.data.get('moderated', false) != true"));
     assert.ok(rules.includes("resource.data.get('moderationHidden', false) != true"));
     assert.ok(rules.includes("resource.data.get('hidden', false) != true"));
-    assert.ok(rules.includes("'marketListings', 'marketMessages'"));
+    const profileKeys = rules.slice(rules.indexOf('function userProfileServerOnlyKeys()'), rules.indexOf('match /users/{userId}'));
+    assert.ok(profileKeys.includes("'marketListings'"));
+    assert.ok(profileKeys.includes("'marketMessages'"));
     assert.ok(rules.includes('match /market_listing_counts/{listingId}'));
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     assert.ok(index.includes('exports.onMarketplaceListingCount'));

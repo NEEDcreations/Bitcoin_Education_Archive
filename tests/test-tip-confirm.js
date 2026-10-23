@@ -105,5 +105,78 @@ test('LUD-21 settled verifies, and private or http URLs are refused', () => {
     assert.ok(service.indexOf('interpretNwcLookup(invoice, hash)') !== -1);
 });
 
+test('badge credit requires a server invoice and an allowlisted verify host', () => {
+    const tipBadge = require('../functions/src/tipBadge');
+    assert.ok(tipBadge.hostAllowed('api.walletofsatoshi.com'));
+    assert.ok(tipBadge.hostAllowed('strike.me'));
+    assert.ok(tipBadge.hostAllowed('getalby.com'));
+    assert.ok(tipBadge.hostAllowed('blink.sv'));
+    assert.ok(tipBadge.hostAllowed('zbd.gg'));
+    assert.ok(tipBadge.hostAllowed('primal.net'));
+    assert.ok(tipBadge.hostAllowed('coinos.io'));
+    assert.ok(tipBadge.hostAllowed('speed.app'));
+    assert.strictEqual(tipBadge.hostAllowed('attacker.example'), false);
+    assert.strictEqual(tipBadge.hostAllowed('lnbits.com'), true);
+    assert.strictEqual(tipBadge.hostAllowed('demo.lnbits.com'), false);
+    assert.strictEqual(tipBadge.hostAllowed('foo.lnbits.com'), false);
+    const stored = { senderUid: 'a', recipientUid: 'b', paymentHash: 'ab'.repeat(32), sats: 100, invoice: 'lnbc' };
+    const base = {
+        senderUid: 'a', recipientUid: 'b', stored: stored, decodedSats: 100,
+        sender: {}, recipient: {}, senderLedger: {}, recipientLedger: {},
+    };
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, { stored: null, verifyUrl: 'https://getalby.com/v' })).reason, 'no-server-invoice');
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, { verifyUrl: 'https://attacker.example/v' })).reason, 'verify-host');
+    const credited = tipBadge.decide(Object.assign({}, base, { verifyUrl: 'https://getalby.com/lnurl/verify' }));
+    assert.strictEqual(credited.credit, true);
+    assert.strictEqual(credited.sats, 100);
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, {
+        verifyUrl: 'https://getalby.com/v',
+        sender: { fingerprint: 'same' },
+        recipient: { fingerprint: 'same' },
+    })).reason, 'cluster');
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, {
+        verifyUrl: 'https://blink.sv/v',
+        sender: { fingerprint: 'only-one' },
+    })).credit, true);
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, {
+        verifyUrl: 'https://coinos.io/v',
+        sender: { known_ips: ['203.0.113.8'] },
+        recipient: { ipHash: '203.0.113.8' },
+    })).reason, 'cluster');
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, {
+        verifyUrl: 'https://primal.net/v', pairUsed: true,
+    })).reason, 'pair-cap');
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, {
+        verifyUrl: 'https://walletofsatoshi.com/v',
+        sender: { banned: true },
+    })).reason, 'banned');
+    assert.strictEqual(tipBadge.decide(Object.assign({}, base, {
+        recipientUid: 'a',
+        stored: Object.assign({}, stored, { recipientUid: 'a' }),
+        verifyUrl: 'https://strike.me/v',
+    })).reason, 'self');
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'tipService.js'), 'utf8');
+    assert.ok(service.includes('requestTipInvoice'));
+    assert.ok(service.includes("collection('tip_invoices')"));
+    assert.ok(service.includes('tipBadge.decide'));
+    assert.ok(service.includes('invoiceSats(stored.invoice)'));
+    assert.strictEqual(service.includes('invoiceSats(data && data.invoice)'), false);
+    const hops = service.slice(service.indexOf('const TIP_FETCH_HOPS'), service.indexOf('async function requestTipInvoice'));
+    assert.ok(hops.indexOf('hostAllowed') < hops.indexOf('fetch('));
+    assert.ok(hops.includes("redirect: 'manual'"));
+    assert.ok(hops.includes('assertPublicHost'));
+    assert.ok(hops.includes('TIP_FETCH_HOPS = 3'));
+    const request = service.slice(service.indexOf('async function requestTipInvoice'));
+    assert.ok(request.indexOf('takeTipInvoiceRate') < request.indexOf('fetchLnurlInvoice'));
+    const client = fs.readFileSync(path.join(__dirname, '..', 'lightning-tips.js.src'), 'utf8');
+    const serverAt = client.indexOf('requestTipInvoice');
+    assert.ok(serverAt > 0);
+    assert.ok(client.indexOf('opts.bolt11') < serverAt);
+    assert.ok(client.includes('confirmTipSent'));
+    assert.ok(client.includes('social tip only'));
+    const deployed = fs.readFileSync(path.join(__dirname, '..', 'lightning-tips.js'), 'utf8');
+    assert.ok(deployed.includes('requestTipInvoice'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

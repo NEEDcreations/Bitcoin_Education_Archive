@@ -177,7 +177,9 @@ test('openGift caps a stored shoutout and awardDailyGifts only rolls it', functi
     assert.ok(capAt !== -1 && announceAt > capAt);
     assert.ok(open.indexOf("rewardResult.rewardType === 'nacho_shoutout'") !== -1);
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    assert.ok(rules.indexOf("'lastShoutoutAt'") !== -1);
+    const keysFn = rules.slice(rules.indexOf('function userProfileServerOnlyKeys()'), rules.indexOf('match /users/{userId}'));
+    assert.ok(keysFn.indexOf("'lastShoutoutAt'") !== -1);
+    assert.ok(rules.indexOf('userProfileServerOnlyKeys()') !== -1);
     const client = fs.readFileSync(path.join(__dirname, '..', 'gifting.js'), 'utf8');
     assert.ok(client.indexOf('shoutoutConverted') !== -1);
     assert.ok(client.indexOf(SHOUTOUT_CONVERTED_MESSAGE) !== -1);

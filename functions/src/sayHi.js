@@ -6,6 +6,8 @@
 
 const { splitDailyXp } = require('./dailyXp');
 const { isSatsBanned } = require('./cipherClaim');
+const { grantFamily } = require('./grantBadge');
+const dailyFive = require('./dailyFive');
 const { offsetDateKey } = require('./offsetDay');
 
 const SAY_HI_XP = 50;
@@ -334,6 +336,7 @@ function createSayHiHandlers(opts) {
                 sayHiClaimedDay: bag.today,
                 sayHiClaimedMessageId: messageId,
                 sayHiToastSeen: true,
+                sayHiDays: admin.firestore.FieldValue.increment(1),
                 orangeTickets: admin.firestore.FieldValue.increment(xp.tickets),
             };
             const pointsOut = xp.awarded + xp.overflowRedeemed;
@@ -371,6 +374,18 @@ function createSayHiHandlers(opts) {
             };
         });
 
+        if (result.code === 'ok') {
+            try {
+                await grantFamily(db, admin, uid, ['say_hi_1', 'say_hi_7', 'say_hi_30', 'say_hi_100']);
+            } catch (grantErr) {
+                console.warn('[sayHi] badge grant skipped', grantErr && grantErr.message);
+            }
+            try {
+                await dailyFive.maybeCompleteDailyFive({ db: db, admin: admin, uid: uid, day: result.day });
+            } catch (fiveErr) {
+                console.warn('[sayHi] daily five skipped', fiveErr && fiveErr.message);
+            }
+        }
         if (result.code === 'signed-out') signedOut();
         return {
             success: result.code === 'ok' || result.alreadyClaimed === true,
