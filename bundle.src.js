@@ -17093,6 +17093,7 @@ document.addEventListener('btcProfileSaved', function() {
         msgsEl.innerHTML += navHtml;
 
         msgsEl.classList.add('fade-in');
+        if (!galleryMode && typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();
     }
 
     // Twitter/X embed
@@ -20858,6 +20859,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             });
             btn.insertAdjacentHTML('beforebegin', html);
             window._currentOffset = offset + 50;
+            if (typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();
             if (window._currentOffset >= msgs.length) { btn.remove(); window._scrollObserver && window._scrollObserver.disconnect(); }
             else { btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)'; }
         };
@@ -22485,19 +22487,49 @@ window.toggleAITools = function() {
         };
     }
 
-    function timeLabel(ts) {
-        var ms = 0;
-        if (!ts) return '';
-        if (typeof ts.toDate === 'function') ms = ts.toDate().getTime();
-        else if (typeof ts.toMillis === 'function') ms = ts.toMillis();
-        else if (typeof ts === 'number') ms = ts;
-        if (!ms) return '';
-        var sec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
-        if (sec < 60) return 'just now';
-        if (sec < 3600) return Math.floor(sec / 60) + 'm';
-        if (sec < 86400) return Math.floor(sec / 3600) + 'h';
-        return Math.floor(sec / 86400) + 'd';
+    function millisFromTimestamp(ts) {
+        if (ts == null || ts === '') return 0;
+        if (typeof ts.toMillis === 'function') {
+            try {
+                var fromMillis = Number(ts.toMillis());
+                if (fromMillis > 0 && isFinite(fromMillis)) return fromMillis;
+            } catch (e) {}
+        }
+        if (typeof ts.toDate === 'function') {
+            try {
+                var date = ts.toDate();
+                var fromDate = date && typeof date.getTime === 'function' ? date.getTime() : 0;
+                if (fromDate > 0 && isFinite(fromDate)) return fromDate;
+            } catch (e2) {}
+        }
+        if (typeof ts === 'object' && typeof ts.seconds === 'number') {
+            var fromSeconds = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
+            if (fromSeconds > 0 && isFinite(fromSeconds)) return fromSeconds;
+        }
+        if (typeof ts === 'number' && isFinite(ts) && ts > 0) return ts;
+        return 0;
     }
+
+    // Server timestamp only: Firestore createdAt, then the server-written createdAtMs.
+    function postInstant(post) {
+        if (!post || typeof post !== 'object') return 0;
+        var fromCreated = millisFromTimestamp(post.createdAt);
+        if (fromCreated) return fromCreated;
+        if (typeof post.createdAtMs === 'number' && isFinite(post.createdAtMs) && post.createdAtMs > 0) return post.createdAtMs;
+        return 0;
+    }
+
+    function formatTopicPostTime(post) {
+        var ms = postInstant(post);
+        if (!ms) return { text: 'Just now', iso: '', pending: true };
+        var date = new Date(ms);
+        if (isNaN(date.getTime())) return { text: 'Just now', iso: '', pending: true };
+        var datePart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+        var timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date);
+        return { text: datePart + ' · ' + timePart, iso: date.toISOString(), pending: false };
+    }
+
+    window.bqFormatTopicPostTime = formatTopicPostTime;
 
     function postsCol(channelId) {
         return db.collection('topic_discussions').doc(channelId).collection('posts');
@@ -22533,7 +22565,9 @@ window.toggleAITools = function() {
             '.td-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin-bottom:4px;}',
             '.td-name{font-weight:800;font-size:0.82rem;color:var(--heading,#fff);}',
             '.td-name.td-nacho{color:#22c55e;}',
-            '.td-time,.td-anchor{font-size:0.68rem;color:var(--text-faint,#64748b);}',
+            '.td-time,.td-anchor{font-size:0.72rem;color:var(--text-faint,#64748b);white-space:nowrap;}',
+            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:14px 0;padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
+            '.td-convo-btn:hover,.td-convo-btn:focus-visible{background:rgba(249,115,22,0.16);outline:2px solid var(--accent,#f97316);outline-offset:2px;}',
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
             '.td-btn{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#1e293b);background:none;color:var(--text-muted,#94a3b8);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;}',
@@ -22547,7 +22581,7 @@ window.toggleAITools = function() {
             '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
-            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}}'
+            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:12px 0;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -22578,8 +22612,13 @@ window.toggleAITools = function() {
         var name = el('span', 'td-name' + (post.isNacho ? ' td-nacho' : ''));
         name.textContent = post.isNacho ? 'Nacho' : (post.name || 'Member');
         meta.appendChild(name);
-        var time = el('span', 'td-time');
-        time.textContent = timeLabel(post.createdAt || post.createdAtMs);
+        var when = formatTopicPostTime(post);
+        if (when.pending) state.sawPending = true;
+        var time = el('time', 'td-time');
+        time.textContent = when.text;
+        if (when.iso) time.setAttribute('datetime', when.iso);
+        time.setAttribute('title', when.text);
+        if (when.pending) time.setAttribute('data-pending', '1');
         meta.appendChild(time);
         if (post.anchorIndex != null && post.anchorIndex !== '') {
             var anchor = el('span', 'td-anchor');
@@ -22673,7 +22712,10 @@ window.toggleAITools = function() {
         cursor: null,
         pages: 1,
         parentId: '',
-        replyName: ''
+        replyName: '',
+        pendingTimer: null,
+        pendingTries: 0,
+        sawPending: false
     };
 
     function setOpen(open) {
@@ -22698,10 +22740,20 @@ window.toggleAITools = function() {
         note.textContent = message || 'That comment was removed.';
     }
 
+    function schedulePendingRefresh() {
+        if (state.pendingTimer || state.pendingTries >= 5) return;
+        state.pendingTries += 1;
+        state.pendingTimer = setTimeout(function() {
+            state.pendingTimer = null;
+            paint();
+        }, 1000);
+    }
+
     function paint() {
         var live = document.getElementById('topic-discussion-live');
         var count = document.getElementById('topic-discussion-count');
         if (!live) return;
+        state.sawPending = false;
         var who = viewer();
         var shown = state.posts.filter(function(post) { return visiblePost(post, who); });
         if (count) count.textContent = shown.length ? String(shown.length) : '';
@@ -22754,6 +22806,8 @@ window.toggleAITools = function() {
         shown.forEach(function(post) { live.appendChild(renderPost(post, ctx)); });
         var more = document.getElementById('topic-discussion-more');
         if (more) more.hidden = state.pages >= MAX_PAGES || !state.cursor;
+        if (state.sawPending) schedulePendingRefresh();
+        else state.pendingTries = 0;
     }
 
     function upsert(list, post) {
@@ -22981,6 +23035,414 @@ window.toggleAITools = function() {
 
     window._topicDiscussionFocus = focusPending;
 
+    function isListLine(line) {
+        return /^([-*•]|\d+[.)])\s+\S/.test(line);
+    }
+    function isQuoteLine(line) {
+        return /^>/.test(line);
+    }
+    function isTableLine(line) {
+        return /^\|.+\|$/.test(line);
+    }
+    function isEmbedOnly(text) {
+        return /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?|youtu\.be\/|twitter\.com\/|x\.com\/)\S+$/i.test(String(text || '').trim());
+    }
+    function classifyBlock(text) {
+        var raw = String(text || '').split('\n');
+        var lines = [];
+        var rawLines = [];
+        raw.forEach(function(line) {
+            if (!line.trim()) return;
+            lines.push(line.trim());
+            rawLines.push(line);
+        });
+        if (!lines.length) return 'empty';
+        if (lines.every(isListLine)) return 'list';
+        if (lines.every(isQuoteLine)) return 'quote';
+        if (lines.every(isTableLine)) return 'table';
+        if (rawLines.every(function(line) { return /^ {4}\S/.test(line) || /^```/.test(line.trim()); })) return 'code';
+        if (lines.length === 1 && isEmbedOnly(lines[0])) return 'embed';
+        return 'prose';
+    }
+    function isContentKind(kind) {
+        return kind === 'prose' || kind === 'list' || kind === 'quote' || kind === 'code' || kind === 'table';
+    }
+    function mergeStructural(blocks) {
+        var out = [];
+        blocks.forEach(function(block) {
+            var prev = out[out.length - 1];
+            if (prev && prev.kind === block.kind && (block.kind === 'list' || block.kind === 'quote' || block.kind === 'table' || block.kind === 'code')) {
+                prev.end = block.end || prev.end;
+                prev.text = prev.text ? (prev.text + '\n' + (block.text || '')) : (block.text || '');
+                return;
+            }
+            out.push(block);
+        });
+        return out;
+    }
+    function blankLength(value, index) {
+        var rest = value.slice(index);
+        var match = /^(?:\r\n|\n)[ \t]*(?:\r\n|\n)+/.exec(rest);
+        return match ? match[0].length : 0;
+    }
+    function plainBlocks(text) {
+        var value = String(text || '').replace(/<br\s*\/?>/gi, '\n');
+        var blocks = [];
+        var buf = '';
+        var inCode = false;
+        var i = 0;
+        function flush(kind) {
+            if (!/\S/.test(buf)) { buf = ''; return; }
+            blocks.push({ kind: kind || (inCode ? 'code' : classifyBlock(buf)), text: buf.trim() });
+            buf = '';
+        }
+        while (i < value.length) {
+            if (!inCode && value.substr(i, 3) === '```') {
+                flush();
+                inCode = true;
+                buf = '```';
+                i += 3;
+                continue;
+            }
+            if (inCode && value.substr(i, 3) === '```') {
+                buf += '```';
+                i += 3;
+                flush('code');
+                inCode = false;
+                continue;
+            }
+            if (!inCode) {
+                var blank = blankLength(value, i);
+                if (blank) {
+                    flush();
+                    i += blank;
+                    continue;
+                }
+            }
+            buf += value.charAt(i);
+            i += 1;
+        }
+        flush(inCode ? 'code' : '');
+        return mergeStructural(blocks);
+    }
+    function contentParagraphsFromSource(html) {
+        var source = String(html || '');
+        source = source.replace(/<ul\b[^>]*>[\s\S]*?<\/ul>/gi, '\n\n- item\n');
+        source = source.replace(/<ol\b[^>]*>[\s\S]*?<\/ol>/gi, '\n\n1. item\n');
+        source = source.replace(/<pre\b[^>]*>[\s\S]*?<\/pre>/gi, '\n\n    code\n');
+        source = source.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, '\n\n| a | b |\n');
+        source = source.replace(/<blockquote\b[^>]*>[\s\S]*?<\/blockquote>/gi, '\n\n> quote\n');
+        source = source.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '\n\nhttps://www.youtube.com/watch?v=pending\n');
+        source = source.replace(/<[^>]+>/g, '');
+        return plainBlocks(source).filter(function(block) { return isContentKind(block.kind); });
+    }
+    function planTopicConversationButtons(count, useful) {
+        var slots = [];
+        count = count | 0;
+        if (count <= 0) return slots;
+        if (count <= 4) {
+            if (useful) slots.push(count - 1);
+            return slots;
+        }
+        var at;
+        for (at = 4; at <= count; at += 4) {
+            if (count - at < 2) break;
+            slots.push(at - 1);
+        }
+        if (!slots.length && count - 3 >= 2) slots.push(2);
+        return slots;
+    }
+    window.bqPlanTopicConversationButtons = planTopicConversationButtons;
+
+    function promptsUseful(paragraphs) {
+        if (!paragraphs || paragraphs.length >= 2) return paragraphs && paragraphs.length >= 2;
+        if (paragraphs.length === 1) {
+            var letters = String(paragraphs[0].text || '').replace(/[^A-Za-z0-9]/g, '');
+            return letters.length >= 40;
+        }
+        return false;
+    }
+    function topicTitle() {
+        var title = '';
+        var id = window.currentChannelId || '';
+        try {
+            if (typeof CHANNELS !== 'undefined' && CHANNELS && id && CHANNELS[id] && CHANNELS[id].title) {
+                title = String(CHANNELS[id].title);
+            }
+        } catch (e) {}
+        title = title.replace(/\s+/g, ' ').trim();
+        return title || 'this topic';
+    }
+    function atomicKind(node) {
+        if (!node || node.nodeType !== 1) return '';
+        if (node.classList && (node.classList.contains('yt-embed') || node.classList.contains('tw-preview') || node.classList.contains('td-convo-btn'))) {
+            return node.classList.contains('td-convo-btn') ? 'button' : 'embed';
+        }
+        var tag = node.tagName;
+        if (tag === 'IFRAME') return 'embed';
+        if (tag === 'UL' || tag === 'OL' || tag === 'LI') return 'list';
+        if (tag === 'PRE') return 'code';
+        if (tag === 'TABLE' || tag === 'THEAD' || tag === 'TBODY' || tag === 'TR' || tag === 'TD' || tag === 'TH') return 'table';
+        if (tag === 'BLOCKQUOTE') return 'quote';
+        return '';
+    }
+    function elementText(node) {
+        var out = '';
+        function walk(current) {
+            if (!current || atomicKind(current) === 'button') return;
+            if (current.nodeType === 3) { out += current.nodeValue || ''; return; }
+            var child = current.firstChild;
+            while (child) { walk(child); child = child.nextSibling; }
+        }
+        walk(node);
+        return out;
+    }
+    function insideBlocked(node) {
+        var el = node && node.parentNode;
+        while (el) {
+            if (el.classList && el.classList.contains('msg-text')) return false;
+            var kind = atomicKind(el);
+            if (kind === 'list' || kind === 'code' || kind === 'table' || kind === 'quote' || kind === 'embed') return true;
+            el = el.parentNode;
+        }
+        return false;
+    }
+    function removePrompts(root) {
+        var found = [];
+        function walk(node) {
+            if (!node) return;
+            if (node.nodeType === 1 && node.classList && node.classList.contains('td-convo-btn')) found.push(node);
+            var child = node.firstChild;
+            while (child) {
+                var next = child.nextSibling;
+                walk(child);
+                child = next;
+            }
+        }
+        walk(root);
+        found.forEach(function(node) {
+            if (node.parentNode) node.parentNode.removeChild(node);
+        });
+    }
+    function paragraphsInElement(el) {
+        var pieces = [];
+        function walk(node) {
+            if (!node || atomicKind(node) === 'button') return;
+            if (node.nodeType === 1) {
+                var kind = atomicKind(node);
+                if (kind) {
+                    pieces.push({ type: 'atomic', kind: kind, node: node });
+                    return;
+                }
+                var child = node.firstChild;
+                while (child) { walk(child); child = child.nextSibling; }
+                return;
+            }
+            if (node.nodeType === 3 && node.nodeValue) pieces.push({ type: 'text', node: node, value: node.nodeValue });
+        }
+        walk(el);
+        var blocks = [];
+        var buf = '';
+        var endAt = null;
+        var inCode = false;
+        function flush(kind) {
+            if (!/\S/.test(buf)) { buf = ''; endAt = null; return; }
+            blocks.push({ kind: kind || classifyBlock(buf), text: buf.trim(), end: endAt });
+            buf = '';
+            endAt = null;
+        }
+        pieces.forEach(function(piece) {
+            if (piece.type === 'atomic') {
+                flush();
+                if (piece.kind === 'button') return;
+                blocks.push({ kind: piece.kind, text: elementText(piece.node).trim(), end: { after: piece.node } });
+                return;
+            }
+            var value = piece.value;
+            var i = 0;
+            while (i < value.length) {
+                if (!inCode && value.substr(i, 3) === '```') {
+                    flush();
+                    inCode = true;
+                    buf = '```';
+                    endAt = { node: piece.node, offset: i + 3 };
+                    i += 3;
+                    continue;
+                }
+                if (inCode && value.substr(i, 3) === '```') {
+                    buf += '```';
+                    endAt = { node: piece.node, offset: i + 3 };
+                    i += 3;
+                    flush('code');
+                    inCode = false;
+                    continue;
+                }
+                if (!inCode) {
+                    var blank = blankLength(value, i);
+                    if (blank) {
+                        flush();
+                        i += blank;
+                        continue;
+                    }
+                }
+                buf += value.charAt(i);
+                endAt = { node: piece.node, offset: i + 1 };
+                i += 1;
+            }
+        });
+        flush(inCode ? 'code' : '');
+        return mergeStructural(blocks);
+    }
+    function messageNodes(root) {
+        var out = [];
+        var child = root.firstChild;
+        while (child) {
+            if (child.nodeType === 1 && child.classList && child.classList.contains('msg')) out.push(child);
+            child = child.nextSibling;
+        }
+        return out;
+    }
+    function messageTextEl(msg) {
+        var child = msg.firstChild;
+        while (child) {
+            if (child.nodeType === 1 && child.classList && child.classList.contains('msg-text')) return child;
+            child = child.nextSibling;
+        }
+        return null;
+    }
+    function bubbleEnd(end) {
+        if (!end || end.after || !end.node) return end;
+        if (!end.node.nodeValue || end.offset < end.node.nodeValue.length) return end;
+        var node = end.node;
+        while (node.parentNode && !(node.parentNode.classList && node.parentNode.classList.contains('msg-text'))) {
+            var parent = node.parentNode;
+            var tag = parent.tagName;
+            var inline = tag === 'B' || tag === 'STRONG' || tag === 'A' || tag === 'SPAN' || tag === 'EM' || tag === 'I' || tag === 'U' || tag === 'CODE' || tag === 'SMALL' || tag === 'SUP' || tag === 'SUB' || tag === 'MARK';
+            if (!inline || node.nextSibling) break;
+            node = parent;
+        }
+        if (node !== end.node) return { after: node };
+        return end;
+    }
+    function pendingContentCount(root) {
+        var msgs = window._currentMsgs;
+        var offset = window._currentOffset;
+        if (!msgs || !msgs.length || typeof offset !== 'number') return 0;
+        var rendered = messageNodes(root).length;
+        var start = offset < rendered ? rendered : offset;
+        var extra = 0;
+        var i;
+        for (i = start; i < msgs.length; i++) {
+            if (msgs[i] && msgs[i].text) extra += contentParagraphsFromSource(msgs[i].text).length;
+        }
+        return extra;
+    }
+    function scrollBehavior() {
+        try {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'auto';
+        } catch (e) {}
+        return 'smooth';
+    }
+    function scrollToDiscussion() {
+        var target = document.getElementById('community-discussion') || document.getElementById('topic-discussion-live');
+        if (!target) return;
+        var behavior = scrollBehavior();
+        var main = document.getElementById('main');
+        if (main && target.getBoundingClientRect && main.getBoundingClientRect && typeof main.scrollTo === 'function') {
+            var delta = topicStickyScrollDelta(target.getBoundingClientRect().top, main.getBoundingClientRect().top, stickyCoverPx());
+            main.scrollTo({ top: Math.max(0, (main.scrollTop || 0) + delta), behavior: behavior });
+            return;
+        }
+        if (typeof target.scrollIntoView === 'function') target.scrollIntoView({ behavior: behavior, block: 'start' });
+    }
+    function firstButton(node) {
+        var child = node && node.firstChild;
+        while (child) {
+            if (child.nodeType === 1 && child.tagName === 'BUTTON') return child;
+            if (child.nodeType === 1) {
+                var nested = firstButton(child);
+                if (nested) return nested;
+            }
+            child = child.nextSibling;
+        }
+        return null;
+    }
+    function focusComposer() {
+        var area = document.getElementById('topic-discussion-input');
+        if (area && typeof area.focus === 'function') {
+            area.focus();
+            return;
+        }
+        var composer = document.getElementById('topic-discussion-composer');
+        var signIn = composer ? firstButton(composer) : null;
+        if (signIn && typeof signIn.focus === 'function') signIn.focus();
+    }
+    function openTopicConversation() {
+        if (!document.getElementById('topic-discussion-live') && window.currentChannelId && typeof window.mountTopicDiscussion === 'function') {
+            window.mountTopicDiscussion(window.currentChannelId);
+        }
+        setOpen(true);
+        scrollToDiscussion();
+        focusComposer();
+    }
+    window.bqOpenTopicConversation = openTopicConversation;
+    function conversationButton() {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'td-convo-btn';
+        button.textContent = '💬 Start a conversation';
+        button.setAttribute('aria-label', 'Start a conversation about ' + topicTitle());
+        button.addEventListener('click', function(event) {
+            if (event && event.preventDefault) event.preventDefault();
+            if (event && event.stopPropagation) event.stopPropagation();
+            openTopicConversation();
+        });
+        return button;
+    }
+    function insertPromptAt(end, button) {
+        if (!end) return;
+        if (end.after) {
+            if (!end.after.parentNode || insideBlocked(end.after)) return;
+            if (end.after.nextSibling) end.after.parentNode.insertBefore(button, end.after.nextSibling);
+            else end.after.parentNode.appendChild(button);
+            return;
+        }
+        var node = end.node;
+        if (!node || !node.parentNode || insideBlocked(node)) return;
+        var offset = end.offset || 0;
+        if (node.nodeValue && offset < node.nodeValue.length) {
+            var right = node.splitText(offset);
+            node.parentNode.insertBefore(button, right);
+            return;
+        }
+        if (node.nextSibling) node.parentNode.insertBefore(button, node.nextSibling);
+        else node.parentNode.appendChild(button);
+    }
+    function injectTopicPrompts() {
+        var root = document.getElementById('msgs');
+        if (!root || root.classList && root.classList.contains('gallery-grid')) return;
+        injectStyle();
+        removePrompts(root);
+        var rendered = [];
+        messageNodes(root).forEach(function(msg) {
+            var textEl = messageTextEl(msg);
+            if (!textEl) return;
+            paragraphsInElement(textEl).forEach(function(block) {
+                if (isContentKind(block.kind)) rendered.push(block);
+            });
+        });
+        var pending = pendingContentCount(root);
+        var total = rendered.length + pending;
+        if (!total) return;
+        var slots = planTopicConversationButtons(total, promptsUseful(rendered));
+        var points = [];
+        slots.forEach(function(index) {
+            if (index >= 0 && index < rendered.length) points.push(bubbleEnd(rendered[index].end));
+        });
+        for (var s = points.length - 1; s >= 0; s--) insertPromptAt(points[s], conversationButton());
+    }
+    window.bqInjectTopicPrompts = injectTopicPrompts;
+
     function shell(channelId) {
         injectStyle();
         var legacy = document.getElementById('community-discussion-archive');
@@ -23038,6 +23500,8 @@ window.toggleAITools = function() {
         state.cursor = null;
         state.pages = 1;
         state.parentId = '';
+        state.pendingTries = 0;
+        if (state.pendingTimer) { clearTimeout(state.pendingTimer); state.pendingTimer = null; }
         Object.keys(state.replyUnsubs).forEach(function(id) { state.replyUnsubs[id](); });
         state.replyUnsubs = {};
         var msgs = document.getElementById('msgs');
@@ -23054,6 +23518,7 @@ window.toggleAITools = function() {
             window._tdAuthHook = true;
             auth.onAuthStateChanged(function() { renderComposer(); paint(); });
         }
+        injectTopicPrompts();
     };
 
     window.bqOpenTopicPost = function(channelId, postId) {

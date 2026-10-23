@@ -1,5 +1,5 @@
-// Cache-buster pin. This ship branch is btc-archive-v2331.
-// bundle.min.js is 20261023_v2325.
+// Cache-buster pin. This ship branch is btc-archive-v2336.
+// bundle.min.js is 20261023_v2336.
 // ranking.js is 20261023_v2330. global-chat.js, quests.js, learning-quests.js, and modules.js stay 20261023_v2324.
 // lightning.js, today-card.js, and satoshi-favor.js stay 20261023_v2323.
 // tctv-watch.js stays on v2301.
@@ -21,12 +21,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2331', () => {
+test('service worker cache is v2336', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2331'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2336'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -34,7 +34,8 @@ test('service worker cache is v2331', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2325/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2336/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261023_v2325'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2324'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2295'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2293'));
@@ -84,7 +85,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 4);
     assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
-    assert.ok(swVersion && swVersion[1] === 'v2331');
+    assert.ok(swVersion && swVersion[1] === 'v2336');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -121,7 +122,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The minimized Invite pill sits clear of the Bitcoin Quest title, and the Quest pill sits clear of the header buttons, the Invite pill, and the buttons along the bottom.'));
+    assert.ok(notes.includes('Latest: Topic pages include a Start a conversation button between the paragraphs, and each discussion post shows its date and time.'));
+    assert.ok(notes.includes('The minimized Invite pill sits clear of the Bitcoin Quest title, and the Quest pill sits clear of the header buttons, the Invite pill, and the buttons along the bottom.'));
     assert.ok(notes.includes('Scholar and Protocol Expert certificates, and the 2,100 exam XP, are issued only from a server-recorded passing exam. Clearing profile flags cannot grant them again.'));
     assert.ok(notes.includes('The minimized Invite pill sits on the right edge, midway down the screen, clear of the header, the ticker, and the buttons along the bottom.'));
     assert.ok(notes.includes('The homepage topics ring counts the channels you have opened, and the archive lists 145 topics.'));
