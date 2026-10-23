@@ -1,6 +1,7 @@
 'use strict';
 
-const BADGE_DAILY_CAP = 1000;
+const { DAILY_XP_CAP } = require('./applyDailyXp');
+const BADGE_DAILY_CAP = DAILY_XP_CAP;
 
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
