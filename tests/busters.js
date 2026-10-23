@@ -1,5 +1,6 @@
-// Cache-buster pin. This ship branch is btc-archive-v2324.
-// ranking.js, global-chat.js, quests.js, learning-quests.js, and modules.js are 20261023_v2324.
+// Cache-buster pin. This ship branch is btc-archive-v2325.
+// bundle.min.js is 20261023_v2325.
+// ranking.js, global-chat.js, quests.js, learning-quests.js, and modules.js stay 20261023_v2324.
 // lightning.js, today-card.js, and satoshi-favor.js stay 20261023_v2323.
 // tctv-watch.js stays on v2301.
 // index.html and 404.html must stay identical. The precache keeps the
@@ -20,12 +21,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2324', () => {
+test('service worker cache is v2325', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2324'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2325'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -33,7 +34,8 @@ test('service worker cache is v2324', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2324/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2325/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261023_v2324'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2295'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2293'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2279'));
@@ -80,7 +82,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 4);
     assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
-    assert.ok(swVersion && swVersion[1] === 'v2324');
+    assert.ok(swVersion && swVersion[1] === 'v2325');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -95,6 +97,29 @@ test('rebuilt bundle contains the marketplace save and delete payloads', () => {
     assert.ok(!bundle.includes('nacho-fly'));
     assert.ok(!src.includes('marketListings: firebase.firestore.FieldValue.increment'));
     assert.strictEqual(read('bundle.js'), bundle);
+});
+
+test('homepage topics ring counts explored channels and says 145', () => {
+    const ux = read('mobile-ux.js');
+    const start = ux.indexOf('window.renderProgressRings = function()');
+    const end = ux.indexOf('// ---- #13: Welcome Back Message from Nacho ----');
+    const fn = ux.slice(start, end);
+    assert.ok(start !== -1 && end > start);
+    assert.ok(fn.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
+    assert.ok(fn.includes('if (visited > totalChannels) visited = totalChannels;'));
+    assert.ok(!fn.includes('readChannels'));
+    assert.ok(!fn.includes('channelsVisited'));
+    const html = read('index.html');
+    assert.ok(!html.includes('146 topics'));
+    assert.strictEqual((html.match(/145 topics/g) || []).length, 4);
+    const app = read('app.js');
+    assert.ok(app.includes('A curated Bitcoin education archive with 145 topics, 8800+ messages, and community tools.'));
+    assert.ok(!app.includes('146 topics'));
+    const src = read('bundle.src.js');
+    assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
+    const notes = read('patch-notes.html');
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
+    assert.ok(notes.includes('Latest: The homepage topics ring counts the channels you have opened, and the archive lists 145 topics.'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
