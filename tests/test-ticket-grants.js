@@ -113,7 +113,16 @@ test('the server hooks grant each listed ticket and skip PvP', () => {
     ['forum_post_ticket', 'daily_chat_ticket', 'marketplace_listing_ticket', 'irl_listing_ticket', 'strava_connect_ticket', 'claimNachoChat'].forEach(function(name) {
         assert.ok(index.indexOf(name) > 0, name);
     });
-    assert.ok(index.indexOf('pvp_win_ticket') === -1);
+    // awardPoints and the ticket hooks never grant a PvP win. settlePvpMatch
+    // is the only writer, and it claims the ticket once per finished match.
+    const settleStart = index.indexOf('async function settlePvpMatch');
+    const settleEnd = index.indexOf('async function pushPvpLobby');
+    assert.ok(settleStart > 0 && settleEnd > settleStart);
+    assert.ok(index.slice(0, settleStart).indexOf('pvp_win_ticket') === -1);
+    assert.ok(index.slice(settleEnd).indexOf('pvp_win_ticket') === -1);
+    const settle = index.slice(settleStart, settleEnd);
+    assert.ok(settle.indexOf("action: 'pvp_win_ticket'") > 0);
+    assert.ok(settle.indexOf('_pvp_win_ticket') > 0);
     assert.ok(raid.indexOf("metric === 'flashcardCompletions' && effectiveAmount > 0") > 0);
     assert.ok(raid.indexOf('flashcard_ticket') > raid.indexOf('effectiveAmount > 0'));
     assert.ok(raid.indexOf('damage: scaledDamage') > 0);
@@ -129,7 +138,8 @@ test('the server hooks grant each listed ticket and skip PvP', () => {
     assert.ok(bundle.indexOf('Orange Ticket for posting a listing') === -1);
     assert.ok(bundle.indexOf('🎫 +1 Ticket — Keep watching') === -1);
     assert.ok(bundle.indexOf('Ticket + XP every 10 min') === -1);
-    assert.ok(bundle.indexOf('e.data.tickets>0') > 0);
+    assert.ok(bundle.indexOf('tctv_watch_10m') === -1);
+    assert.ok(bundle.indexOf('e.data.tickets>0') === -1);
     assert.ok(bundle.indexOf('awardOrangeTickets(5,"🎯 Daily challenge!")') === -1);
     const modules = fs.readFileSync(path.join(root, 'modules.js'), 'utf8');
     assert.ok(modules.indexOf('awardOrangeTickets') === -1);

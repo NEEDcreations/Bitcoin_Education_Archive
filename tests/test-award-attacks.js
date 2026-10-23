@@ -208,14 +208,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: '🦌 Nacho Quest: pick_topic', pts: 25 }, 25],
         [{ action: '🦌 Nacho Quest: first_quiz', pts: 50 }, 50],
         [{ action: '🦌 Nacho Quest: first_quiz', pts: 100 }, 100],
-        [{ action: '🧠 PVP Practice', pts: 10 }, 10],
-        [{ action: '⚔️ PVP Draw', pts: 5 }, 5],
-        [{ action: '⚔️ PVP Victory!', pts: 30 }, 30],
-        [{ action: '⚔️ PVP Victory!', pts: 60 }, 50],
-        [{ action: '⚔️ PVP Win (unranked vs guest)', pts: 15 }, 15],
-        [{ action: '⚔️ PVP Consolation', pts: 25 }, 25],
-        [{ action: '⚔️ PVP Consolation', pts: 40 }, 25],
-        [{ action: '⚔️ PVP Victory (opponent forfeited)', pts: 10 }, 10],
         [{ action: '📖 Learning Quest: What is Bitcoin? lesson', pts: 50, actionKey: 'lq_lesson' }, 50],
         [{ action: '🔥 Trio Combo! 3 features today', pts: 50, actionKey: 'combo_bonus', comboTier: 'combo_trio' }, 50],
         [{ action: '💥 MEGA COMBO! 5 features unlocked', pts: 200, actionKey: 'combo_bonus', comboTier: 'combo_mega' }, 200],
@@ -227,6 +219,25 @@ test('legit client phrases keep today amounts', function () {
         assert.strictEqual(resolved.xp, row[1], JSON.stringify(row[0]));
         assert.strictEqual(resolved.tickets, 0);
     });
+    [
+        { action: '🧠 PVP Practice', pts: 10 },
+        { action: '⚔️ PVP Draw', pts: 5 },
+        { action: '⚔️ PVP Victory!', pts: 30 },
+        { action: '⚔️ PVP Victory!', pts: 60 },
+        { action: '⚔️ PVP Win (unranked vs guest)', pts: 15 },
+        { action: '⚔️ PVP Consolation', pts: 25 },
+        { action: '⚔️ PVP Victory (opponent forfeited)', pts: 10 },
+        { actionKey: 'pvp_win_ticket', action: 'ticket', pts: 0 },
+        { action: 'free pvp xp please', pts: 50 },
+        { actionKey: 'pvp_victory', action: 'daily visit', pts: 50 },
+    ].forEach(function (row) {
+        const resolved = awardActions.resolveAction(row);
+        assert.strictEqual(resolved.ok, false, JSON.stringify(row));
+        assert.strictEqual(resolved.tickets, 0);
+    });
+    const badge = awardActions.resolveAction({ action: '🏅 Badge: pvp_first', badgeId: 'pvp_first', pts: 25 });
+    assert.strictEqual(badge.ok, true);
+    assert.strictEqual(badge.badge, true);
     awardActions.LQ_TITLES.forEach(function (title) {
         const phrase = '📖 Learning Quest: ' + title + ' lesson';
         assert.ok(phrase.length <= 100, phrase);

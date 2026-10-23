@@ -5908,11 +5908,23 @@ function showSettingsPage(tab) {
                 '🎡 <strong>Spin reminders</strong> - a couple times a week, never daily<br>' +
                 '🔥 <strong>Streak alerts</strong> - don\'t lose your streak!<br>' +
                 '📰 <strong>New content</strong> - when we add major new topics<br>' +
-                 +
                 '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
             '</div>' +
             '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
             '</div>';
+
+        var pvpPushOn = localStorage.getItem('btc_pvp_push') === '1';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚔️ PvP lobby push</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Lobby push</span><div style="color:var(--text-faint);font-size:0.7rem;">Off unless you turn this on. When on, at most 3 a week.</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_pvp_push\',localStorage.getItem(\'btc_pvp_push\')===\'1\'?\'0\':\'1\');if(window._pvpSyncPushOptIn)window._pvpSyncPushOptIn(localStorage.getItem(\'btc_pvp_push\')===\'1\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pvpPushOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pvpPushOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pvpPushOn ? 'ON' : 'OFF') + '</button></div></div>';
+        var pvpAlertsMuted = localStorage.getItem('btc_pvp_alerts_muted') === '1';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚔️ PvP alerts</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Mute PvP alerts</span><div style="color:var(--text-faint);font-size:0.7rem;">Hide the in-app lobby popup when someone is waiting</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_pvp_alerts_muted\',localStorage.getItem(\'btc_pvp_alerts_muted\')===\'1\'?\'0\':\'1\');if(window._pvpSyncAlertMute)window._pvpSyncAlertMute(localStorage.getItem(\'btc_pvp_alerts_muted\')===\'1\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pvpAlertsMuted ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pvpAlertsMuted ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pvpAlertsMuted ? 'ON' : 'OFF') + '</button></div></div>';
 
         // Signal Ticker
         var _tickerPref = localStorage.getItem('btc_ticker_enabled'); const tickerOn = _tickerPref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _tickerPref === 'true';

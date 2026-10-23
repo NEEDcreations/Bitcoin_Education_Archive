@@ -377,61 +377,6 @@ function resolvePhrase(action, ctx) {
         });
     }
 
-    if (action === '🧠 PVP Practice') {
-        return done({ id: 'pvp_practice', xp: 10, repeatable: true, dailyLimit: 100 });
-    }
-    if (action === '⚔️ PVP Draw') {
-        return done({ id: 'pvp_draw', xp: 5, repeatable: true, dailyLimit: 200 });
-    }
-    if (action === '⚔️ PVP Victory!') {
-        const choice = payChoice(clientPts, { 10: 10, 20: 20, 30: 30, 40: 40, 50: 50 }, { 60: 50, 80: 50, 100: 50 });
-        if (!choice) return unknown();
-        return done({
-            id: 'pvp_victory',
-            xp: choice.xp,
-            requiresDoubleXp: choice.requiresDoubleXp,
-            repeatable: true,
-            dailyLimit: 20,
-            dedupGroup: 'pvp_victory',
-        });
-    }
-    if (action === '⚔️ PVP Victory (opponent forfeited)') {
-        const choice = payChoice(clientPts, { 10: 10, 20: 20, 30: 30, 40: 40, 50: 50 }, { 60: 50, 80: 50, 100: 50 });
-        if (!choice) return unknown();
-        return done({
-            id: 'pvp_forfeit',
-            xp: choice.xp,
-            requiresDoubleXp: choice.requiresDoubleXp,
-            repeatable: true,
-            dailyLimit: 20,
-            dedupGroup: 'pvp_forfeit',
-        });
-    }
-    if (action === '⚔️ PVP Win (unranked vs guest)') {
-        const choice = payChoice(clientPts, { 5: 5, 10: 10, 15: 15, 20: 20, 25: 25 }, { 30: 30, 40: 40, 50: 50 });
-        if (!choice) return unknown();
-        return done({
-            id: 'pvp_unranked',
-            xp: choice.xp,
-            requiresDoubleXp: choice.requiresDoubleXp,
-            repeatable: true,
-            dailyLimit: 20,
-            dedupGroup: 'pvp_unranked',
-        });
-    }
-    if (action === '⚔️ PVP Consolation') {
-        const choice = payChoice(clientPts, { 5: 5, 10: 10, 15: 15, 20: 20, 25: 25 }, { 30: 25, 40: 25, 50: 25 });
-        if (!choice) return unknown();
-        return done({
-            id: 'pvp_consolation',
-            xp: choice.xp,
-            requiresDoubleXp: choice.requiresDoubleXp,
-            repeatable: true,
-            dailyLimit: 40,
-            dedupGroup: 'pvp_consolation',
-        });
-    }
-
     return unknown();
 }
 
@@ -451,6 +396,12 @@ function resolveAction(input) {
     // 100 XP and 1 orange ticket, once per offset day, from tctvWatchHeartbeat.
     if (action === 'tctv_watch_10m' || actionKey === 'tctv_watch_10m') {
         return { ok: false, error: 'Timechain TV watch rewards are granted by the server', awarded: 0, tickets: 0 };
+    }
+    // Match XP and the win ticket are settled in settlePvpMatch. A renamed
+    // reason still matches. Badge claims (badgeId pvp_first and similar) stay.
+    const badgeClaim = /^badge_earned$/i.test(action) || /^(?:Badge|🎖️ Badge|🏅 Badge):\s+\S/.test(action);
+    if (!badgeClaim && (/pvp/i.test(actionKey) || /pvp/i.test(action))) {
+        return { ok: false, error: 'PvP rewards are granted by the server', awarded: 0, tickets: 0 };
     }
     if (actionKey && !ALLOWED_ACTION_KEYS[actionKey]) return unknown();
 
