@@ -1446,7 +1446,7 @@
       "Explain BIP119?",
       "Describe BIP119?"
     ],
-    "answer": "BIP119 proposes OP_CHECKTEMPLATEVERIFY, also called CTV. CTV is a proposal and has not activated, so it is not a consensus rule as of 2026. Nodes that have not activated it reject spends that need it.",
+    "answer": "BIP119 proposes OP_CHECKTEMPLATEVERIFY, also called CTV. CTV is a proposal and has not activated, so it is not a consensus rule as of 2026. Under a soft fork, nodes that have not upgraded still accept a CTV spend as a valid anyone-can-spend-style NOP, and only upgraded nodes enforce the new rule.",
     "topics": [
       "bip119",
       "ctv-covenants"

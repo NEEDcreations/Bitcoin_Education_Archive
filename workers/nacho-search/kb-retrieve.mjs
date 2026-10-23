@@ -10,9 +10,9 @@ const B = 0.75;
 
 // Unambiguous coin and crypto names. Ordinary English words (near, ton, atom,
 // sol, ada, cosmos, stellar, ico) are not in this pattern.
-export const CRYPTO_RE = /\b(altcoins?|cryptocurrenc(?:y|ies)|ethereum|solana|\bxrp\b|ripple|dogecoin|cardano|memecoins?|\bnfts?\b|\bdefi\b|binance|\bbnb\b|polkadot|avalanche|\bavax\b|chainlink|litecoin|bitcoin cash|\bbch\b|shiba|\bpepe\b|\btron\b|monero|\bxmr\b|tether|\busdt\b|\busdc\b|stablecoins?|airdrops?|uniswap|aave|yield farming|which alt|which coin|which crypto|memecoin|token presale|wrapped bitcoin|\bwbtc\b|hedera|\bhbar\b|\bxlm\b|algorand|filecoin|\bsui\b|aptos|bitcoin sv|\bbsv\b)\b/i;
+export const CRYPTO_RE = /\b(altcoins?|cryptocurrenc(?:y|ies)|ethereum|solana|\bxrp\b|dogecoin|cardano|memecoins?|\bnfts?\b|\bdefi\b|binance|\bbnb\b|polkadot|avalanche|\bavax\b|chainlink|litecoin|bitcoin cash|\bbch\b|shiba|\bpepe\b|\btron\b|monero|\bxmr\b|tether|\busdt\b|\busdc\b|stablecoins?|airdrops?|uniswap|aave|yield farming|which alt|which coin|which crypto|memecoin|token presale|wrapped bitcoin|\bwbtc\b|hedera|\bhbar\b|\bxlm\b|algorand|filecoin|\bsui\b|aptos|bitcoin sv|\bbsv\b)\b/i;
 
-const AMBIGUOUS_RE = /\b(near|atom|sol|ada|cosmos|stellar|ton|icos?)\b/i;
+const AMBIGUOUS_RE = /\b(near|atom|sol|ada|cosmos|stellar|ton|icos?|ripple)\b/i;
 const CONTEXT_RE = /\b(protocol|coin|token|price)\b/i;
 
 const TOKEN_ID = new Map();

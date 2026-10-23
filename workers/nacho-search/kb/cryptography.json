@@ -50,7 +50,7 @@
     "alts": [
       "Explain how Bitcoin addresses work?",
       "Describe how Bitcoin addresses work?",
-      "What is the way Bitcoin addresses work?"
+      "In what way do Bitcoin addresses work?"
     ],
     "answer": "An address is a shareable encoding of a locking script. The sender's wallet pays that script, and the receiver later unlocks it with a signature or another condition. A fresh address for each payment avoids tying receipts together.",
     "topics": [
@@ -642,6 +642,9 @@
     "category": "cryptography",
     "question": "What is BIP39?",
     "alts": [
+      "How many words is a seed?",
+      "How many words are in a seed phrase?",
+      "What is the length of a seed?",
       "Define BIP39?",
       "Explain BIP39?",
       "Describe BIP39?"
@@ -686,6 +689,9 @@
     "category": "cryptography",
     "question": "What is a BIP39 passphrase?",
     "alts": [
+      "What is a passphrase on top of a seed?",
+      "What is an extra passphrase on a seed?",
+      "How does a passphrase sit on a seed?",
       "Define a BIP39 passphrase?",
       "Explain a BIP39 passphrase?",
       "Describe a BIP39 passphrase?"

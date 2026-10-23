@@ -663,11 +663,21 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         seedUser(mine.db, 'key');
         const asked = await mine.api.postTopicComment({ channelId: 'mining', text: 'what is my private key?' }, auth('key'));
         assert.strictEqual(asked.nacho, true);
-        assert.strictEqual(mine.calls.ask, 0);
+        assert.strictEqual(mine.calls.ask, 1);
         const note = postsOf(mine.db, 'mining').filter(function(post) { return post.isNacho; })[0];
-        assert.strictEqual(note.text, td.SECRET_NOTE);
+        assert.strictEqual(note.text, 'A block header includes a nonce that miners change while hashing.');
+        assert.ok(!/antlers are telling me|no hacking these antlers/i.test(note.text));
         const userPost = postsOf(mine.db, 'mining').filter(function(post) { return post._id === asked.postId; })[0];
         assert.ok(userPost && userPost.text.indexOf('private key') !== -1);
+
+        const route = makeApi();
+        seedUser(route.db, 'route');
+        const routed = await route.api.postTopicComment({ channelId: 'mining', text: 'Can a lightning node act as a router?' }, auth('route'));
+        assert.strictEqual(routed.nacho, true);
+        assert.strictEqual(route.calls.ask, 1);
+        const routedReply = postsOf(route.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.strictEqual(routedReply.text, 'A block header includes a nonce that miners change while hashing.');
+        assert.notStrictEqual(routedReply.text, td.UNSURE);
 
         const timed = makeApi({
             answer: function() {

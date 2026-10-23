@@ -1040,7 +1040,7 @@
     "alts": [
       "Explain how wallets show bitcoin amounts?",
       "Describe how wallets show bitcoin amounts?",
-      "What is the way wallets show bitcoin amounts?"
+      "In what way do wallets show bitcoin amounts?"
     ],
     "answer": "Wallets may show bitcoin, bits, or sats. A sat is one hundred millionth of a bitcoin. The unit on the screen does not change how much you hold.",
     "topics": [
@@ -1566,8 +1566,9 @@
     "category": "basics",
     "question": "What is a recovery phrase?",
     "alts": [
+      "What is a mnemonic?",
+      "Explain a seed phrase?",
       "Define a recovery phrase?",
-      "Explain a recovery phrase?",
       "Describe a recovery phrase?"
     ],
     "answer": "A recovery phrase is a list of words that backs up the random number behind a wallet's keys. Anyone with the words can move the coins. It belongs offline, on paper or metal, and not in a chat or a website.",

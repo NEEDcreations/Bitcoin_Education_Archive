@@ -622,7 +622,7 @@
     "alts": [
       "Explain how commercial banks create money?",
       "Describe how commercial banks create money?",
-      "What is the way commercial banks create money?"
+      "In what way do commercial banks create money?"
     ],
     "answer": "In modern systems, banks create deposits when they lend, under regulation and central-bank rules. That money is a liability of the bank. Bitcoin deposits on an exchange are also a liability, while a UTXO you can sign is not.",
     "topics": [
@@ -710,7 +710,7 @@
     "alts": [
       "Explain how government deficits meet money?",
       "Describe how government deficits meet money?",
-      "What is the way government deficits meet money?"
+      "In what way do government deficits meet money?"
     ],
     "answer": "Governments that spend more than they tax often borrow, and central banks sometimes support that debt. The link to inflation is debated in degree and in timing. Bitcoin is outside that process, which is the point people are making.",
     "topics": [
@@ -754,7 +754,7 @@
     "alts": [
       "Explain how gold arguments transfer?",
       "Describe how gold arguments transfer?",
-      "What is the way gold arguments transfer?"
+      "In what way do gold arguments transfer?"
     ],
     "answer": "Arguments about scarcity, verification, and issuance transfer in part. Arguments about jewelry demand and mining supply response do not transfer cleanly. Bitcoin's flow does not rise when the price rises.",
     "topics": [
@@ -864,7 +864,7 @@
     "alts": [
       "Explain how people value bitcoin?",
       "Describe how people value bitcoin?",
-      "What is the way people value bitcoin?"
+      "In what way do people value bitcoin?"
     ],
     "answer": "They compare it with monetary metals, with network adoption, and with the cost of mining, and they still disagree. None of those methods is a consensus rule. Be wary of anyone who has the one true price.",
     "topics": [
@@ -1018,7 +1018,7 @@
     "alts": [
       "Explain how you measure purchasing power?",
       "Describe how you measure purchasing power?",
-      "What is the way you measure purchasing power?"
+      "In what way do you measure purchasing power?"
     ],
     "answer": "You compare the money with a basket of goods over time. Any basket is a choice. Bitcoin's exchange rate against one currency is not the whole basket.",
     "topics": [

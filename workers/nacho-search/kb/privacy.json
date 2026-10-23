@@ -138,7 +138,7 @@
     "alts": [
       "Explain how analysts guess change?",
       "Describe how analysts guess change?",
-      "What is the way analysts guess change?"
+      "In what way do analysts guess change?"
     ],
     "answer": "They look for round payment amounts, address types, and outputs that return to a new address of the sender. They are often right and sometimes wrong. Wallet behavior shapes how easy the guess is.",
     "topics": [
@@ -270,7 +270,7 @@
     "alts": [
       "Explain how exchanges get labeled on explorers?",
       "Describe how exchanges get labeled on explorers?",
-      "What is the way exchanges get labeled on explorers?"
+      "In what way do exchanges get labeled on explorers?"
     ],
     "answer": "Companies, researchers, and leaks attach names to addresses that were used by known services. The chain does not contain the name. The label is an outside claim.",
     "topics": [

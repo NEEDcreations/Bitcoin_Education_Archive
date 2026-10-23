@@ -893,12 +893,18 @@ function loadGoogleIdentityScript() {
 
 function googleSignInErrorMessage(e) {
     var code = (e && e.code) || '';
-    if (code === 'auth/unauthorized-domain') return '⚠️ This domain is not authorized for sign-in. Please contact support.';
-    if (code === 'auth/operation-not-allowed') return '⚠️ This sign-in method is not enabled. Try a different option.';
-    if (code === 'auth/account-exists-with-different-credential') return '⚠️ An account with this email exists using a different sign-in method. Try another option.';
-    if (code === 'auth/network-request-failed') return '⚠️ Network error. Check your connection and try again.';
-    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return '';
-    return 'Sign-in error (' + (code || 'unknown') + '). Please try again.';
+    if (code === 'auth/unauthorized-domain') return 'This domain is not authorized for sign-in. Please contact support.';
+    if (code === 'auth/operation-not-allowed') return 'This sign-in method is not enabled. Try a different option.';
+    if (code === 'auth/account-exists-with-different-credential') return 'This email already has an account with another sign-in method. Sign in that way, then link Google in settings.';
+    if (code === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
+    if (code === 'auth/popup-blocked') return 'The sign-in window was blocked. Allow popups and try again.';
+    if (code === 'auth/user-disabled') return 'This account is disabled. Please contact support.';
+    if (code === 'auth/too-many-requests') return 'Too many attempts. Wait a moment and try again.';
+    if (code === 'auth/web-storage-unsupported') return 'This browser is blocking sign-in storage. Try another browser.';
+    if (code === 'auth/invalid-credential' || code === 'auth/invalid-id-token' || code === 'auth/user-token-expired') return 'That sign-in was rejected. Please try again.';
+    if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') return 'This account already exists. Please try signing in again.';
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/user-cancelled') return '';
+    return 'Sign-in did not work. Please try again.';
 }
 
 function rememberGoogleMfaEmail(idToken) {
@@ -933,9 +939,17 @@ async function applyGoogleIdToken(idToken) {
                 resultUser = linked.user;
                 anonUid = null;
             } catch (linkErr) {
-                if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
-                    var signed = await auth.signInWithCredential(linkErr.credential);
+                var linkCode = linkErr && linkErr.code;
+                if (linkCode === 'auth/credential-already-in-use' || linkCode === 'auth/email-already-in-use') {
+                    // GIS ID-token credentials do not get .credential on this error.
+                    // Rebuild from the same token. Do not reuse the object the link call consumed.
+                    // anonUid stays set so the guest merge still runs.
+                    var signed = await auth.signInWithCredential(linkErr.credential || firebase.auth.GoogleAuthProvider.credential(idToken));
                     resultUser = signed.user;
+                } else if (linkCode === 'auth/account-exists-with-different-credential') {
+                    var differentMethod = new Error(googleSignInErrorMessage(linkErr));
+                    differentMethod.code = linkCode;
+                    throw differentMethod;
                 } else {
                     throw linkErr;
                 }
@@ -1192,8 +1206,10 @@ async function signInWithFBSDK() {
                     try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
                     return _handleSignInResultGlobal(linked.user, null, null).then(function() { return linked.user; });
                 }).catch(function(linkErr) {
-                    if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
-                        return auth.signInWithCredential(linkErr.credential).then(function(signed) {
+                    var linkCode = linkErr && linkErr.code;
+                    if (linkCode === 'auth/credential-already-in-use' || linkCode === 'auth/email-already-in-use') {
+                        var fbCred = linkErr.credential || firebase.auth.FacebookAuthProvider.credential(response.authResponse.accessToken);
+                        return auth.signInWithCredential(fbCred).then(function(signed) {
                             return _handleSignInResultGlobal(signed.user, anonUid, null).then(function() { return signed.user; });
                         });
                     }
@@ -1821,18 +1837,8 @@ async function signInWithProvider(provider) {
         // User intentionally closed popup - do nothing
         if (e.code === 'auth/popup-closed-by-user') return;
 
-        // Actionable error messages
-        if (e.code === 'auth/unauthorized-domain') {
-            showToast('⚠️ This domain is not authorized for sign-in. Please contact support.');
-        } else if (e.code === 'auth/operation-not-allowed') {
-            showToast('⚠️ This sign-in method is not enabled. Try a different option.');
-        } else if (e.code === 'auth/account-exists-with-different-credential') {
-            showToast('⚠️ An account with this email exists using a different sign-in method. Try another option.');
-        } else if (e.code === 'auth/network-request-failed') {
-            showToast('⚠️ Network error. Check your connection and try again.');
-        } else {
-            showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
-        }
+        var providerMsg = googleSignInErrorMessage(e);
+        if (providerMsg) showToast(providerMsg);
     }
 }
 

@@ -116,7 +116,10 @@
     "alts": [
       "Explain the halving?",
       "What is the halving?",
-      "What does the halving do?"
+      "What does the halving do?",
+      "Explain what a halving change?",
+      "Clarify what a halving change?",
+      "Describe what a halving change?"
     ],
     "answer": "A halving cuts the new coins in each block by half. It does not change the coins already issued, and it does not set the exchange price. Demand and fees are separate from that rule.",
     "topics": [
@@ -380,7 +383,7 @@
     "alts": [
       "Explain how you know a bitcoin is real?",
       "Describe how you know a bitcoin is real?",
-      "What is the way you know a bitcoin is real?"
+      "In what way do you know a bitcoin is real?"
     ],
     "answer": "A node checks the signatures and the supply rules. A coin that fails those checks is not accepted. You do not need a specialist with acid and a scale, which is the old problem with metal coins.",
     "topics": [

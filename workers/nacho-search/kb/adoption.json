@@ -94,7 +94,7 @@
     "alts": [
       "Explain how merchants take bitcoin?",
       "Describe how merchants take bitcoin?",
-      "What is the way merchants take bitcoin?"
+      "In what way do merchants take bitcoin?"
     ],
     "answer": "They can use a processor, a Lightning wallet, or their own node. Some convert to local currency immediately and some keep the coins. The tool they pick decides the custody.",
     "topics": [

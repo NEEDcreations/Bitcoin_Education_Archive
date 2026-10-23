@@ -250,7 +250,7 @@
       "Explain a Lightning offer?",
       "Describe a Lightning offer?"
     ],
-    "answer": "BOLT12 is a proposed reusable Lightning offer, not the same thing as a one-time BOLT11 invoice. Wallet support was still uneven as of 2026. It is not an activated Bitcoin consensus change.",
+    "answer": "BOLT12 offers were merged into the BOLT specification in 2024 and are supported by some Lightning implementations. A BOLT12 offer is reusable, unlike a one-time BOLT11 invoice. It is not an activated Bitcoin consensus change.",
     "topics": [
       "layer-2-lightning",
       "apps-tools",
@@ -261,7 +261,7 @@
       "layers-fedimint",
       "layers-cashu"
     ],
-    "sources": "BOLT12 is a proposal. Support varies as of 2026."
+    "sources": "BOLT12 offers, merged into the spec in 2024."
   },
   {
     "id": "layers-liquid",
@@ -622,7 +622,7 @@
     "alts": [
       "Explain how Lightning routing fees work?",
       "Describe how Lightning routing fees work?",
-      "What is the way Lightning routing fees work?"
+      "In what way do Lightning routing fees work?"
     ],
     "answer": "Each hop charges a small fee set by that node, often a base plus a fraction of the amount. The sender's wallet searches for a route it can afford. Those fees are different from on-chain sat-per-vbyte fees.",
     "topics": [
@@ -732,7 +732,7 @@
     "alts": [
       "Explain how Ark and Fedimint differ?",
       "Describe how Ark and Fedimint differ?",
-      "What is the way Ark and Fedimint differ?"
+      "In what way do Ark and Fedimint differ?"
     ],
     "answer": "A Fedimint issues ecash notes from a community of guardians. Ark is built around shared bitcoin transaction trees and virtual balances with an exit to the chain. Both add trust or new software, and neither replaces learning ordinary self-custody.",
     "topics": [
@@ -966,6 +966,9 @@
     "category": "layers",
     "question": "What is Lightning routing?",
     "alts": [
+      "Can a lightning node act as a router?",
+      "Does a lightning node route payments?",
+      "Can my node forward Lightning payments?",
       "Define Lightning routing?",
       "Explain Lightning routing?",
       "Describe Lightning routing?"

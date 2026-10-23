@@ -116,7 +116,9 @@
     "alts": [
       "How does difficulty work?",
       "Explain mining difficulty?",
-      "How does the difficulty adjustment work?"
+      "How does the difficulty adjustment work?",
+      "Define mining difficulty?",
+      "Describe mining difficulty?"
     ],
     "answer": "Difficulty is a way to write how hard the target is, compared with the easiest possible target. When more hash power shows up, difficulty rises. When hash power leaves, difficulty falls.",
     "topics": [

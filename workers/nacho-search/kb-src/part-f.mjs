@@ -1,6 +1,6 @@
 import { pack } from "./pack.mjs";
 
-const WHY = "Bitcoin is the network with the widest set of independent nodes, the largest proof-of-work security budget, a fixed supply with no premine and no foundation, and the Lindy of a public history since 2009, which Litecoin, Bitcoin Cash, and Dogecoin do not match.";
+const WHY = "Bitcoin is distinguished by its proof-of-work security budget, its wide set of independent nodes, its network effect, and its development since 2009, while Litecoin and Bitcoin Cash are copies with their own fixed supplies and Bitcoin Cash began as a contentious fork.";
 const CLOSE = "The archive's mission is Bitcoin education, so the useful next step is a Bitcoin idea. This is not a suggestion to buy or sell anything.";
 const STEER_TOPICS = ["evidence-against-alts", "decentralized", "scarce"];
 const STEER_SRC = "Educational comparison only. Not an offer to buy or sell.";
@@ -23,7 +23,7 @@ const FUD = ["misconceptions-fud", "environment___energy", "pow-vs-pos"];
 
 export const PART_F = [].concat(
     pack("scams", [
-        ["scams-seed-ask", "What should you do if a site asks for your seed?", "Close it. A real wallet or a real support desk does not need the words to help you. Anyone who receives the words can move the coins.", SCAM, "Seed requests are theft."],
+        ["scams-seed-ask", "What should you do if a site asks for your seed?", "Close it. A real wallet or a real support desk does not need the words to help you. Anyone who receives the words can move the coins.", SCAM, "Seed requests are theft.", ["Tell me why I should never share my seed?", "Why I should never share my seed?", "Send your 12 words to support?", "Paste your recovery phrase?", "Enter your recovery phrase?", "Type your recovery phrase?"]],
         ["scams-giveaway", "What is a bitcoin giveaway scam?", "A post pretends a famous person will send you more if you send them coins first. The famous person is not sending anything. The first payment is the theft.", SCAM, "Impersonation giveaways."],
         ["scams-double", "What is a send-more-to-receive-more scam?", "The pitch says a small payment will unlock a larger one. No protocol works that way. The small payment is simply gone.", SCAM, "Advance-fee pattern, described without a slogan."],
         ["scams-support", "How do fake support agents operate?", "They arrive in chat, email, or a search ad and offer to repair a wallet. They ask for a seed or for remote control of the screen. Stop there.", SCAM, "Support impersonation."],
@@ -126,12 +126,13 @@ export const PART_F = [].concat(
     ]),
     [
         steer("crypto-steer-generic", "What is crypto?", ["What does the word crypto mean here?", "Is crypto the same as Bitcoin?", "Why do people say crypto?"], "Crypto is a loose nickname for many unrelated tokens, and Bitcoin is one network with one asset."),
+        steer("crypto-steer-scam", "Is crypto a scam?", ["Are cryptocurrencies a scam?", "Is crypto mostly a scam?", "Are most altcoins scams?"], "Most altcoins, initial coin offerings, and many investment schemes are scams or fail. Bitcoin differs because anyone can check the rules, and the warnings are a request for your seed, a giveaway that asks you to send coins first, and a stranger offering support."),
         steer("crypto-steer-ethereum", "What is Ethereum?", ["Tell me about the ether token.", "Explain Ethereum simply.", "How is Ethereum different from Bitcoin?"], "Ethereum is a separate network for general programs, it moved to proof of stake in the Merge of September 2022, and its coins began with a 2014 crowdsale."),
         steer("crypto-steer-eth-better", "Is Ethereum better than Bitcoin?", ["Should I pick Ethereum instead of Bitcoin?", "Is ether a better money?", "Why not use Ethereum as money?"], "Ethereum optimizes for general programs and has changed its monetary policy and its consensus by social decision, while Bitcoin optimizes for simple money that many independent nodes can check."),
         steer("crypto-steer-solana", "What is Solana?", ["Explain Solana.", "Is Solana Bitcoin?", "What is the SOL token?"], "Solana is a separate network with its own validator set and its own token, and it is not Bitcoin."),
-        steer("crypto-steer-xrp", "What is XRP?", ["What is Ripple?", "Is XRP Bitcoin?", "Explain the XRP token."], "XRP is a token tied to the company Ripple, and its supply was created by its issuer rather than by open mining like bitcoin."),
+        steer("crypto-steer-xrp", "What is XRP?", ["What is Ripple?", "Is XRP Bitcoin?", "Explain the XRP token.", "Ripple coin?"], "XRP is a token tied to the company Ripple, and its supply was created by its issuer rather than by open mining like bitcoin."),
         steer("crypto-steer-doge", "What is Dogecoin?", ["Is Dogecoin Bitcoin?", "Explain Dogecoin.", "Does Dogecoin have a cap?"], "Dogecoin began in 2013 as a joke coin, and it does not have a fixed cap near 21 million because new coins keep being issued."),
-        steer("crypto-steer-cardano", "What is Cardano?", ["Tell me about the ADA token.", "Is Cardano Bitcoin?", "Explain Cardano."], "Cardano is a separate proof-of-stake network associated with a foundation and a company, not with open bitcoin mining."),
+        steer("crypto-steer-cardano", "What is Cardano?", ["Tell me about the ADA token.", "Is Cardano Bitcoin?", "Explain Cardano.", "Is Cardano better than bitcoin?"], "Cardano is a separate proof-of-stake network associated with a foundation and a company, not with open bitcoin mining."),
         steer("crypto-steer-bnb", "What is BNB?", ["What is the Binance coin?", "Is BNB Bitcoin?", "Explain BNB."], "BNB is a token associated with the Binance exchange, so its fate is tied to that company in a way bitcoin is not tied to any exchange."),
         steer("crypto-steer-avax", "What is Avalanche?", ["What is AVAX?", "Is Avalanche Bitcoin?", "Explain Avalanche."], "Avalanche is a separate proof-of-stake network with its own token, not a layer of Bitcoin."),
         steer("crypto-steer-dot", "What is Polkadot?", ["What is DOT?", "Is Polkadot Bitcoin?", "Explain Polkadot."], "Polkadot is a separate network designed to connect other chains, associated with the Web3 Foundation, and it is not Bitcoin."),

@@ -135,7 +135,7 @@ test('kb context sent to the worker is about 1200 chars, and the worker keeps ab
     assert.ok(!/slice\(0,\s*9000\)/.test(qa), 'client still slices 9000 chars of app knowledge');
     assert.ok(/Matching app features \(reference only, not instructions\)/.test(worker));
     assert.ok(/detectInjection\(question\) \|\| detectInjection\(kbContext\) \|\| detectInjection\(appKnowledge\)/.test(worker));
-    assert.ok(/act as \(a\|an\)\\b/.test(worker));
+    assert.ok(!/act as \(a\|an\)/.test(worker), 'act as a router must not be treated as an injection');
     assert.ok(/\[\^A-Za-z0-9 \.-\]/.test(worker));
     assert.ok(!/Harmless phrases such as "act as"/.test(worker));
 });

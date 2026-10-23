@@ -31,7 +31,43 @@ const APP_QUESTIONS = {
     "first-purchase": ["What is the first-purchase lesson?", "How do I open the first-purchase lesson?"],
     audio: ["What are sound effects in Bitcoin Quest?", "How do I control sound effects?"],
     "double-xp": ["What is a Double XP charge?", "How does a Double XP charge work?"],
-    "hash-booster": ["What is a hash booster?", "How does the hash booster differ from a second rig?"]
+    "hash-booster": ["What is a hash booster?", "How does the hash booster differ from a second rig?"],
+    "hint-token": ["What are hint tokens?", "How do I use a hint token?"],
+    "streak-freeze": ["What is a streak freeze?", "How do I use a streak freeze?"],
+    dms: ["What are direct messages?", "How do I open direct messages?"],
+    ciphers: ["What are locked ciphers?", "How do I open a locked cipher?"],
+    keys: ["What are cipher keys?", "How do I use a cipher key?"],
+    partnership: ["What are partnership levels?", "How do partnership levels work?"],
+    tickets: ["What are orange tickets used for?", "How do I earn orange tickets?"],
+    badges: ["What do badges do in Bitcoin Quest?", "How do I earn a badge?"],
+    pvp: ["What are PvP trivia battles?", "How do I start a PvP trivia battle?"],
+    irl: ["What are IRL Sync meetups?", "How do I find an IRL Sync meetup?"],
+    tips: ["What are Lightning tips?", "How do I send a Lightning tip?"],
+    "qh-quiz": ["What is the daily quiz in Quest Hub?", "How do I take the daily quiz?"],
+    "qh-trivia": ["What is the daily trivia?", "How do I play the daily trivia?"],
+    "qh-poll": ["What is the daily poll?", "How do I answer the daily poll?"],
+    signal: ["What is the Signal newsletter?", "How do I read the Signal newsletter?"],
+    "quest-hub": ["What does the Quest Hub contain?", "How do I open the Quest Hub?"],
+    "onboarding-intro": ["What is the welcome tour?", "How do I start the welcome tour?"],
+    faq: ["What is the FAQ and guide?", "How do I open the FAQ?"],
+    shortcuts: ["What are the keyboard shortcuts?", "How do I see the keyboard shortcuts?"],
+    "ln-address": ["What is a Lightning address in the app?", "How do I set a Lightning address?"],
+    predictions: ["What is the price prediction game?", "How do I play the price prediction game?"],
+    "global-chat": ["What is Global Chat?", "How do I open Global Chat?"],
+    marketplace: ["What is LightningMart?", "How do I use LightningMart?"],
+    "lightning-wallet": ["What is the Lightning wallet page?", "How do I open the Lightning wallet page?"],
+    shoutout: ["What is a Nacho shoutout?", "How do I get a Nacho shoutout?"],
+    "gift-bag": ["What is a gift bag?", "How do I open a gift bag?"],
+    raffle: ["What is the orange ticket raffle?", "How do I enter the orange ticket raffle?"],
+    wheel: ["What is the daily spin wheel?", "How do I spin the daily wheel?"],
+    "mini-nacho": ["What is the Mini Nacho bubble?", "How do I open the Mini Nacho bubble?"],
+    random: ["What is the random meme button?", "How do I open a random meme?"],
+    gifts: ["What is the gift feature?", "How do I send a gift?"],
+    favor: ["What does Satoshi's Favor do in the app?", "How do I open Satoshi's Favor?"],
+    nook: ["What is inside Nacho's Nook?", "How do I open Nacho's Nook?"],
+    tv: ["Where is Timechain TV in the app?", "How do I open Timechain TV?"],
+    buddy: ["What is Bitcoin Buddy?", "How do I find a Bitcoin buddy?"],
+    faction: ["What is a faction on Bitcoin Quest?", "How do I choose a faction?"]
 };
 
 function featureName(title) {
@@ -87,7 +123,7 @@ function makeAlts(question) {
         const rest = q.replace(/^How do /i, "");
         add("Explain how " + rest + "?");
         add("Describe how " + rest + "?");
-        add("What is the way " + rest + "?");
+        add("In what way do " + rest + "?");
     } else if (/^Why /i.test(q)) {
         const rest = q.replace(/^Why /i, "");
         add("Explain why " + rest + "?");
@@ -236,7 +272,21 @@ async function main() {
     const seenKey = new Set();
     const errors = [];
     entries.forEach(function (entry) {
-        entry.alts = (entry.alts && entry.alts.length >= 3) ? entry.alts.slice(0, 6) : chooseAlts(entry.question, foldKey, seenKey);
+        const ownKey = foldKey(entry.question);
+        const merged = [];
+        const local = new Set();
+        function addAlt(phrase) {
+            if (merged.length >= 6) return;
+            const fitted = fitQuestion(phrase);
+            if (!fitted) return;
+            const key = foldKey(fitted);
+            if (!key || key === ownKey || seenKey.has(key) || local.has(key)) return;
+            local.add(key);
+            merged.push(fitted);
+        }
+        (entry.alts || []).forEach(addAlt);
+        chooseAlts(entry.question, foldKey, seenKey).forEach(addAlt);
+        entry.alts = merged;
         if (!/^[a-z0-9-]{3,80}$/.test(entry.id)) errors.push("bad id " + entry.id);
         if (seenId.has(entry.id)) errors.push("dup id " + entry.id);
         seenId.add(entry.id);

@@ -4,9 +4,12 @@
     "category": "scams",
     "question": "What should you do if a site asks for your seed?",
     "alts": [
-      "Explain this: what should you do if a site asks for your seed?",
-      "Clarify this: what should you do if a site asks for your seed?",
-      "Unpack this: what should you do if a site asks for your seed?"
+      "Tell me why I should never share my seed?",
+      "Why I should never share my seed?",
+      "Send your 12 words to support?",
+      "Paste your recovery phrase?",
+      "Enter your recovery phrase?",
+      "Type your recovery phrase?"
     ],
     "answer": "Close it. A real wallet or a real support desk does not need the words to help you. Anyone who receives the words can move the coins.",
     "topics": [
@@ -72,7 +75,7 @@
     "alts": [
       "Explain how fake support agents operate?",
       "Describe how fake support agents operate?",
-      "What is the way fake support agents operate?"
+      "In what way do fake support agents operate?"
     ],
     "answer": "They arrive in chat, email, or a search ad and offer to repair a wallet. They ask for a seed or for remote control of the screen. Stop there.",
     "topics": [
@@ -138,7 +141,7 @@
     "alts": [
       "Explain how fake wallet apps steal coins?",
       "Describe how fake wallet apps steal coins?",
-      "What is the way fake wallet apps steal coins?"
+      "In what way do fake wallet apps steal coins?"
     ],
     "answer": "A lookalike app in a store or a search ad takes the seed during setup. Check the publisher and the install source. A wallet that appeared from an ad is a bad place to restore savings.",
     "topics": [
@@ -534,7 +537,7 @@
     "alts": [
       "Explain how you check a bitcoin claim?",
       "Describe how you check a bitcoin claim?",
-      "What is the way you check a bitcoin claim?"
+      "In what way do you check a bitcoin claim?"
     ],
     "answer": "See whether your own wallet or node shows the payment, and ignore screenshots. Screenshots are trivial to fake. The chain is the record.",
     "topics": [
@@ -644,7 +647,7 @@
     "alts": [
       "Explain how fake multisig setups steal funds?",
       "Describe how fake multisig setups steal funds?",
-      "What is the way fake multisig setups steal funds?"
+      "In what way do fake multisig setups steal funds?"
     ],
     "answer": "A helper creates the multisig and keeps enough keys to move the coins alone, or swaps a key in the quorum. Read the policy on a device you trust before depositing. If you do not know which keys exist, you do not control the coins.",
     "topics": [

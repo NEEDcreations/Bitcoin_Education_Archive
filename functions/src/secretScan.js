@@ -18,11 +18,13 @@ const HOMO = {
     '\u03b1': 'a', '\u03b5': 'e', '\u03bf': 'o', '\u03c1': 'p', '\u03c4': 't', '\u03c5': 'u', '\u03bd': 'v',
     '\u03ba': 'k', '\u03b9': 'i', '\u03b7': 'n', '\u03c7': 'x', '\u03b3': 'y', '\u03b2': 'b', '\u03c9': 'w',
 };
-const KEY_LABEL_RE = /\b(private key|secret key|privkey|priv key|priv|wif|secret|key)\b/g;
-const SECRET_ASK_RE = /\b(?:send|enter|share|paste|type|give|submit)\b[^.]{0,60}\b(?:your|the)\s+(?:seed(?:\s+phrase|\s+words)?|mnemonic|recovery(?:\s+phrase|\s+words)?|backup(?:\s+phrase|\s+words)?|12\s+words|24\s+words|private key|secret key|xprv|wif)\b/;
-const REVEAL_ASK_RE = /\b(?:show me|give me|reveal|dump|paste|tell me)\b[^.]{0,48}\b(?:my |your )?(?:private key|secret key|seed phrase|seed words|seed|recovery phrase|mnemonic|xprv|wif)\b/;
-const MY_SECRET_RE = /\b(?:what(?:'s| is)|where(?:'s| is))\s+my\s+(?:private key|secret key|seed phrase|seed words|seed|recovery phrase|xprv)\b/;
+const KEY_LABEL_RE = /\b(private[_\s-]?key|secret[_\s-]?key|privkey|priv[_\s-]?key|pk|priv|wif|secret|key)\b/g;
+const HANDOFF_VERB = 'send|share|give|dm|message|provide|import|enter|type|paste|upload|submit|tell';
+const HANDOFF_NOUN = 'seed(?:\\s+phrase|\\s+words)?|mnemonic|recovery\\s+phrase|12\\s+words|24\\s+words|private\\s+key|keys|wif|xprv';
+const HANDOFF_RE = new RegExp('\\b(?:' + HANDOFF_VERB + ')\\b([^.]{0,80})\\b(?:' + HANDOFF_NOUN + ')\\b', 'i');
 const XPRV_RE = /\b[tuvxyz]prv[1-9A-HJ-NP-Za-km-z]{10,}\b/i;
+const WIF_RE = /\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/;
+const MINIKEY_RE = /\bS[1-9A-HJ-NP-Za-km-z]{21}(?:[1-9A-HJ-NP-Za-km-z]{4}){0,2}\b/;
 const TX_LABEL_RE = /\b(txid|tx id|transaction(?: id| hash)?|block ?hash|blockhash)\b/g;
 
 function normalizeForScan(text) {
@@ -80,6 +82,17 @@ function clauseNegated(clause) {
     return /\b(not|no|never|without|avoid)\b/.test(cleaned) || /n't/.test(cleaned);
 }
 
+function normalizeForPhrases(text) {
+    const folded = normalizeForScan(text).replace(/[013457]/g, function (ch, index, source) {
+        const prev = source.charAt(index - 1);
+        const next = source.charAt(index + 1);
+        if (/[0-9]/.test(prev) || /[0-9]/.test(next)) return ch;
+        if (!/[a-z]/.test(prev) && !/[a-z]/.test(next)) return ch;
+        return ({ '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't' })[ch];
+    });
+    return folded.replace(/\bur\b/g, 'your');
+}
+
 function bareMatch(lower, re) {
     const flags = re.flags.indexOf('g') === -1 ? re.flags + 'g' : re.flags;
     const scan = new RegExp(re.source, flags);
@@ -103,41 +116,65 @@ function nearest(re, text) {
     return at;
 }
 
-function hasLabeledHexKey(text) {
+function hasHexSecret(text) {
     const lower = normalizeForScan(text);
-    const hex = /\b(?:0x)?[a-f0-9]{64}\b/g;
+    if (/\b0x[a-f0-9]{64}\b/.test(lower)) return true;
+    const hex = /\b[a-f0-9]{64}\b/g;
     let match;
     while ((match = hex.exec(lower))) {
         const before = lower.slice(Math.max(0, match.index - 80), match.index);
-        const after = lower.slice(match.index + match[0].length, match.index + match[0].length + 48);
         const keyAt = nearest(KEY_LABEL_RE, before);
         const txAt = nearest(TX_LABEL_RE, before);
-        if (keyAt >= 0 && keyAt > txAt) return true;
-        const keyAfter = /\b(private key|secret key|privkey|priv key|priv|wif|secret|key)\b/.test(after);
-        const txAfter = nearest(TX_LABEL_RE, before + ' ' + after);
-        if (keyAfter && txAfter < 0) return true;
+        if (txAt >= 0 && (keyAt < 0 || txAt > keyAt)) continue;
+        return true;
     }
     return false;
 }
 
-function containsSecret(text) {
+function containsKeyMaterial(text) {
     const raw = String(text || '');
     if (hasSeedPhrase(raw)) return true;
-    if (/\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/.test(raw)) return true;
+    if (WIF_RE.test(raw)) return true;
     if (XPRV_RE.test(raw)) return true;
-    if (/\b0x[a-f0-9]{64}\b/i.test(normalizeForScan(raw))) return true;
-    if (hasLabeledHexKey(raw)) return true;
+    if (MINIKEY_RE.test(raw)) return true;
+    if (hasHexSecret(raw)) return true;
     return false;
 }
 
-function solicitsSecrets(question) {
-    const q = String(question || '');
-    if (containsSecret(q)) return true;
-    const lower = normalizeForScan(q);
-    if (bareMatch(lower, SECRET_ASK_RE)) return true;
-    if (bareMatch(lower, REVEAL_ASK_RE)) return true;
-    if (bareMatch(lower, MY_SECRET_RE)) return true;
+function handsOverSecrets(text) {
+    const lower = normalizeForPhrases(text);
+    const scan = new RegExp(HANDOFF_RE.source, 'g');
+    let match;
+    while ((match = scan.exec(lower))) {
+        const between = match[1] || '';
+        if (/\b(how|why|what|where|when|which|about|whether)\b/.test(between)) continue;
+        if (clauseNegated(between) || clauseNegated(clauseBefore(lower, match.index))) {
+            if (match.index === scan.lastIndex) scan.lastIndex += 1;
+            continue;
+        }
+        return true;
+    }
     return false;
+}
+
+function scammy(text) {
+    const lower = normalizeForPhrases(text);
+    if (handsOverSecrets(text)) return true;
+    if (bareMatch(lower, /\bdouble your\b/)) return true;
+    if (bareMatch(lower, /\brisk[-\s]?free profit\b/)) return true;
+    if (bareMatch(lower, /\bguarant(?:e|eed|ees|ee)\b[^.]{0,40}\b(?:returns?|profits?|\d+\s*x)\b/)) return true;
+    if (bareMatch(lower, /get rich quick/)) return true;
+    if (bareMatch(lower, /\bsend\b[^.]{0,48}\b\d+(?:\.\d+)?\b[^.]{0,48}\bget\b[^.]{0,32}\b\d+(?:\.\d+)?\b/)) return true;
+    if (bareMatch(lower, /\bsend\b[^.]{0,60}\b(?:btc|bitcoin|\d+(?:\.\d+)?)\b[^.]{0,60}\b(?:get|receive)\b[^.]{0,40}\b(?:\d+(?:\.\d+)?|double|back|2x)\b/)) return true;
+    return false;
+}
+
+function containsSecret(text) {
+    return scammy(text) || containsKeyMaterial(text);
+}
+
+function solicitsSecrets(question) {
+    return containsKeyMaterial(question);
 }
 
 module.exports = {

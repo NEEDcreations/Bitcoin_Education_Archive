@@ -83,7 +83,7 @@
     "followUps": [
       "wallets-software",
       "wallets-hot-cold",
-      "wallets-backup"
+      "wallets-store-key"
     ],
     "sources": "Hardware signing devices."
   },
@@ -104,8 +104,8 @@
     ],
     "followUps": [
       "wallets-hot-cold",
-      "wallets-backup",
-      "wallets-metal"
+      "wallets-store-key",
+      "wallets-lost-seed"
     ],
     "sources": "Hot wallets."
   },
@@ -125,20 +125,73 @@
       "secure"
     ],
     "followUps": [
+      "wallets-store-key",
+      "wallets-lost-seed",
+      "wallets-backup"
+    ],
+    "sources": "Cold storage."
+  },
+  {
+    "id": "wallets-store-key",
+    "category": "wallets",
+    "question": "How do I store my private key?",
+    "alts": [
+      "Where should I store my private key?",
+      "How should a private key be stored?",
+      "Where does a private key belong?",
+      "How can I store my private key?",
+      "Show me how to store my private key?",
+      "What is the way to store my private key?"
+    ],
+    "answer": "Leave the private key inside the wallet that created it, and keep that wallet offline when the coins are savings. Do not type the key into a website, a photo, or a chat. A seed phrase is a different secret, and this is not a product recommendation.",
+    "topics": [
+      "self-custody",
+      "public_key_vs_private_key",
+      "secure"
+    ],
+    "followUps": [
+      "wallets-lost-seed",
+      "wallets-backup",
+      "wallets-metal"
+    ],
+    "sources": "Private keys stay in the wallet."
+  },
+  {
+    "id": "wallets-lost-seed",
+    "category": "wallets",
+    "question": "What happens if you lose a seed?",
+    "alts": [
+      "What happens if I lose my seed?",
+      "Can a lost seed be recovered?",
+      "What if the only seed copy is gone?",
+      "Explain this: what happens if you lose a seed?",
+      "Clarify this: what happens if you lose a seed?",
+      "Unpack this: what happens if you lose a seed?"
+    ],
+    "answer": "If every copy of the words is gone, the coins those words controlled cannot be recovered by a company or by miners. There is no reset. Write a backup before the only copy is the phone.",
+    "topics": [
+      "self-custody",
+      "secure",
+      "scarce"
+    ],
+    "followUps": [
       "wallets-backup",
       "wallets-metal",
       "wallets-inheritance"
     ],
-    "sources": "Cold storage."
+    "sources": "Lost seeds are not reset."
   },
   {
     "id": "wallets-backup",
     "category": "wallets",
     "question": "How should a seed phrase be backed up?",
     "alts": [
+      "Can you tell me how to back up my seed?",
+      "How do I protect my seed phrase?",
+      "How do I store my seed phrase safely?",
+      "How to back up my seed?",
       "Explain this: how should a seed phrase be backed up?",
-      "Clarify this: how should a seed phrase be backed up?",
-      "Unpack this: how should a seed phrase be backed up?"
+      "Clarify this: how should a seed phrase be backed up?"
     ],
     "answer": "Write the words on paper or metal and store them where fire, water, and strangers are unlikely. Do not photograph them, type them into a site, or put them in cloud notes. A second copy in a second place is common, and anyone with either copy can spend.",
     "topics": [
@@ -180,9 +233,12 @@
     "category": "wallets",
     "question": "How do people plan bitcoin inheritance?",
     "alts": [
+      "How do I pass my seed to my heirs?",
+      "How can heirs recover a seed?",
+      "How should a seed be left for heirs?",
       "Explain how people plan bitcoin inheritance?",
       "Describe how people plan bitcoin inheritance?",
-      "What is the way people plan bitcoin inheritance?"
+      "In what way do people plan bitcoin inheritance?"
     ],
     "answer": "A plan tells a trusted person how to find the backup later, without posting the words anywhere online. Multisig can require an heir and an advisor, or a timelock can open a path after a delay. This is education, not legal advice.",
     "topics": [
@@ -270,7 +326,7 @@
     "alts": [
       "Explain how you receive bitcoin?",
       "Describe how you receive bitcoin?",
-      "What is the way you receive bitcoin?"
+      "In what way do you receive bitcoin?"
     ],
     "answer": "You give the sender an address from your wallet, or a Lightning invoice if that is the network you mean. You wait until your wallet sees the payment confirmed to your standard. You do not need to share a seed to receive.",
     "topics": [
@@ -358,7 +414,7 @@
     "alts": [
       "Explain how you restore a wallet?",
       "Describe how you restore a wallet?",
-      "What is the way you restore a wallet?"
+      "In what way do you restore a wallet?"
     ],
     "answer": "You enter the seed into a wallet you trust, offline if it is a large amount, and you confirm the derivation path if the software asks. The new device derives the same keys. You should not restore a seed on a random website.",
     "topics": [
@@ -578,7 +634,7 @@
     "alts": [
       "Explain how wallets pick a fee?",
       "Describe how wallets pick a fee?",
-      "What is the way wallets pick a fee?"
+      "In what way do wallets pick a fee?"
     ],
     "answer": "They look at recent blocks and mempools and suggest a rate for a target wait. You can override it. The suggestion is a guess, and the next blocks can be fuller or emptier than expected.",
     "topics": [
@@ -952,7 +1008,7 @@
     "alts": [
       "Explain how wallets leak privacy by default?",
       "Describe how wallets leak privacy by default?",
-      "What is the way wallets leak privacy by default?"
+      "In what way do wallets leak privacy by default?"
     ],
     "answer": "A typical payment has one output to the recipient and one change output back to you. Analysts guess which output is change. Avoiding address reuse and using coin control are partial answers.",
     "topics": [
@@ -1040,7 +1096,7 @@
     "alts": [
       "Explain how timelocks appear in inheritance plans?",
       "Describe how timelocks appear in inheritance plans?",
-      "What is the way timelocks appear in inheritance plans?"
+      "In what way do timelocks appear in inheritance plans?"
     ],
     "answer": "A script can allow a recovery key to spend only after a delay, so the owner can cancel if they are still around. The details belong in a wallet that shows you the policy clearly. A mistake in the lock is hard to undo.",
     "topics": [
@@ -1126,6 +1182,9 @@
     "category": "wallets",
     "question": "Why is a photo of a seed a bad backup?",
     "alts": [
+      "Is it safe to photograph my seed?",
+      "Should I photograph my seed phrase?",
+      "Is a photo a safe seed backup?",
       "Explain why is a photo of a seed a bad backup?",
       "For what reason is a photo of a seed a bad backup?",
       "What is the reason is a photo of a seed a bad backup?"
