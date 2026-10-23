@@ -54,6 +54,7 @@
         <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), Lightning (LNURL-auth), email link, or a guest (anonymous) session</td></tr>
         <tr><td>Profile picture</td><td>Optional avatar upload (resized to 128px JPEG, stored in Firestore)</td></tr>
         <tr><td>TOTP 2FA secret</td><td>Encrypted TOTP secret for two-factor authentication (if enabled)</td></tr>
+        <tr><td>Remembered device</td><td>If you check “Remember this device for 30 days” after an authenticator code, we store only a hash of a random device token (not the token), a short browser and operating-system label, and the times the device was added, last used, and when the 30 days end. The 30 days are counted from the day you checked the box and do not slide forward. We do not store an IP address on that record. This browser keeps the token. You can remove a device, or sign out other devices, in Settings. Signing out revokes this device. Turning off two-factor authentication, using a recovery code, resetting a password, or an admin reset revokes every remembered device. Clients cannot read or write these records.</td></tr>
         <tr><td>Points & rank</td><td>Gamification and leaderboard</td></tr>
         <tr><td>Streak & visit count</td><td>Daily streak tracking and visit bonus</td></tr>
         <tr><td>Channels visited</td><td>Progress tracking and exploration map</td></tr>
@@ -361,7 +362,7 @@
         <li>Track daily price prediction accuracy for user profiles</li>
         <li>Forward Global Chat messages to/from a linked Telegram group via Cloud Function</li>
         <li>Display Bitcoin market indicators from public third-party APIs (no user data sent)</li>
-        <li>Enable two-factor authentication (TOTP) for account security</li>
+        <li>Enable two-factor authentication (TOTP) for account security, and remember a browser for 30 days when you ask us to. That record keeps a browser and system label and timestamps, not an IP address</li>
         <li>Verify Nostr and Lightning wallet signatures for authentication</li>
         <li>Enforce server-side daily point caps and prevent points manipulation</li>
         <li>Credit the daily Timechain TV watch reward from a server heartbeat (credited seconds and reward day on your account), so the app cannot invent watch time</li>
@@ -539,7 +540,7 @@
         <li>Files in Storage under your account: Beats audio (<code>beats/</code>), Beats cover art (<code>beats-covers/</code>), avatars (<code>avatars/</code>), chat images, DM images, article images, article covers, IRL photos, and meetup-builder uploads</li>
         <li>Notifications in your inbox and notifications you sent. You can mark a notice read. The app does not delete a single notice. Read and unread status is removed with the account</li>
         <li>Push tokens for the account, including <code>push_tokens/{uid}</code> and its <code>devices</code></li>
-        <li>Authenticator-app secrets and the authenticator session, presence, Timechain TV presence, view-day rows, and channel ratings, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
+        <li>Authenticator-app secrets, authenticator sessions, and remembered devices (the token hash, browser and system label, and timestamps), presence, Timechain TV presence, view-day rows, and channel ratings, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
         <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted. Pending gift-pair records that name your account are deleted after the sign-in is gone</li>
         <li>Nacho posts in Global Chat that tagged you have the tag removed and your name in that post replaced with <code>[deleted]</code>. Other people's names in the same post stay. Your account id is removed from reactions on the newest Global Chat messages and announcements (about the latest 2,000 of each). An older message can still list it</li>
         <li>Your username on raid participation rows, raid winner rows, and Satoshi's Favor contributor rows. The contribution count and the sats awarded stay. The same replacement is applied to raffle snapshots and leaderboard winner history. The payout record stays</li>

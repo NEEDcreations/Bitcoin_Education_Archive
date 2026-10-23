@@ -340,6 +340,8 @@ function world() {
         'global_chat_meta/live_dj/dj_queue/u1': { uid: 'u1', name: 'Alice' },
         'totp_secrets/u1': { secret: 'should-go' },
         'totp_sessions/u1': { verified: true, verifiedAt: 1 },
+        'trusted_devices/devu1': { uid: 'u1', tokenHash: 'abc', label: 'Chrome on macOS' },
+        'trusted_devices/devu2': { uid: 'u2', tokenHash: 'def', label: 'Firefox on Linux' },
         'nacho_feedback/f1': { uid: 'u1', question: 'what is a utxo' },
         'nacho_feedback/f2': { uid: 'u2', question: 'keep' },
         'nacho_misses/miss1': { uid: 'u1', question: 'missed' },
@@ -671,6 +673,8 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('certs/cert1'), false);
         assert.strictEqual(db.docs.has('totp_secrets/u1'), false);
         assert.strictEqual(db.docs.has('totp_sessions/u1'), false);
+        assert.strictEqual(db.docs.has('trusted_devices/devu1'), false);
+        assert.ok(db.docs.has('trusted_devices/devu2'));
         assert.strictEqual(db.docs.has('nacho_feedback/f1'), false);
         assert.ok(db.docs.has('nacho_feedback/f2'));
         assert.strictEqual(db.docs.has('nacho_misses/miss1'), false);
@@ -869,7 +873,7 @@ function auth(uid, extras) {
         assert.ok(ranking.includes('_showTotpSignInChallenge'));
         assert.ok(ranking.includes('Enter your authenticator code first.'));
         assert.strictEqual(ranking.includes('_promptDeleteAccountTotp'), false);
-        assert.ok(fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8').includes('secondFactor.requireSecondFactor(secondFactor.stamp(data, context))'));
+        assert.ok(fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8').includes("secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'deleteAccount')"));
         assert.ok(ranking.includes("httpsCallable('totpCheck')"));
         assert.ok(ranking.includes('user.delete()'));
         assert.ok(ranking.includes('auth/user-not-found'));
@@ -1234,7 +1238,7 @@ function auth(uid, extras) {
         });
         await assert.rejects(
             call(blocked, { uid: 'u1', token: { auth_time: 1000 } }),
-            function(err) { return err.code === 'failed-precondition' && /Authenticator session required/.test(err.message); }
+            function(err) { return err.code === 'failed-precondition' && /fresh authenticator/.test(err.message); }
         );
         assert.ok(blocked.docs.has('users/u1'));
         for (const key of blocked.docs.keys()) {
@@ -1248,11 +1252,28 @@ function auth(uid, extras) {
         });
         await assert.rejects(
             call(stale, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId }),
-            function(err) { return err.code === 'failed-precondition' && /Authenticator session required/.test(err.message); }
+            function(err) { return err.code === 'failed-precondition' && /fresh authenticator/.test(err.message); }
         );
         assert.ok(stale.docs.has('users/u1'));
         assert.ok(stale.docs.has('totp_sessions/u1'));
 
+        const proofId = 'cd'.repeat(16);
+        const sessionOnly = createFakeDb({
+            'users/u1': { username: 'Alice' },
+            'totp_secrets/u1': { enabled: true },
+            ['totp_sessions/u1_' + sessionId]: {
+                uid: 'u1',
+                sessionId: sessionId,
+                expiresAtMs: expiresAtMs,
+                expireAt: new Date(expiresAtMs),
+                revoked: false,
+            },
+        });
+        await assert.rejects(
+            call(sessionOnly, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId }),
+            function(err) { return err.code === 'failed-precondition' && /fresh authenticator/.test(err.message); }
+        );
+        assert.ok(sessionOnly.docs.has('users/u1'));
         const fresh = createFakeDb({
             'users/u1': { username: 'Alice' },
             'totp_secrets/u1': { enabled: true },
@@ -1266,8 +1287,17 @@ function auth(uid, extras) {
                 expireAt: new Date(expiresAtMs),
                 revoked: false,
             },
+            'totp_fresh_proofs/u1_deleteAccount': {
+                uid: 'u1',
+                action: 'deleteAccount',
+                proofId: proofId,
+                verifiedAtMs: Date.now(),
+                expiresAtMs: Date.now() + (5 * 60 * 1000),
+                consumed: false,
+            },
+            'trusted_devices/keepme': { uid: 'u1', tokenHash: 'abc', revoked: false },
         });
-        const freshResult = await call(fresh, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId });
+        const freshResult = await call(fresh, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId, freshProofId: proofId });
         assert.strictEqual(freshResult.authDeleted, true);
         assert.strictEqual(fresh.docs.has('users/u1'), false);
         assert.strictEqual(fresh.docs.has('totp_secrets/u1'), false);

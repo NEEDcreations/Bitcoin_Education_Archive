@@ -210,6 +210,12 @@ exports.totpCheck = secondFactor.totpCheck;
 exports.totpDisable = secondFactor.totpDisable;
 exports.totpStatus = secondFactor.totpStatus;
 exports.totpRevokeSession = secondFactor.totpRevokeSession;
+exports.totpResumeDevice = secondFactor.totpResumeDevice;
+exports.totpStepUp = secondFactor.totpStepUp;
+exports.totpListDevices = secondFactor.totpListDevices;
+exports.totpRevokeDevice = secondFactor.totpRevokeDevice;
+exports.totpSignOutOtherDevices = secondFactor.totpSignOutOtherDevices;
+exports.totpRevokeAllTrust = secondFactor.totpRevokeAllTrust;
 exports.issueRecoveryCodes = secondFactor.issueRecoveryCodes;
 exports.regenerateRecoveryCodes = secondFactor.regenerateRecoveryCodes;
 exports.useRecoveryCode = secondFactor.useRecoveryCode;
@@ -9012,7 +9018,7 @@ const resetLnFns = bindResetLightningAddress(functionsV1, {
     db: db,
     verifyTurnstile: verifyTurnstile,
     requireSecondFactor: function (data, context) {
-        return secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+        return secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'resetLightningAddress');
     },
 });
 exports.resetLightningAddressOnce = resetLnFns.resetLightningAddressOnce;

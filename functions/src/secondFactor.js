@@ -12,8 +12,16 @@ const faucetGuard = require('./faucetGuard');
 const { networkRateDocId } = require('./rateLimitSalt');
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const FRESH_TTL_MS = 5 * 60 * 1000;
 const RATE_WINDOW_MS = 120000;
 const RATE_MAX = 5;
+const FRESH_ACTIONS = {
+    resetLightningAddress: true,
+    disableTotp: true,
+    regenerateRecoveryCodes: true,
+    deleteAccount: true,
+};
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const STEP_MS = 30000;
@@ -140,6 +148,46 @@ function sha(value) {
     return crypto.createHash('sha256').update(String(value || '')).digest('hex').slice(0, 40);
 }
 
+// Browser and OS only. The raw User-Agent and any address in it are dropped.
+function deviceLabel(ua) {
+    const raw = String(ua || '').slice(0, 400);
+    const browsers = [
+        ['Edge', /Edg\//],
+        ['Opera', /OPR\/|Opera/],
+        ['Chrome', /Chrome\/|CriOS\//],
+        ['Firefox', /Firefox\/|FxiOS\//],
+        ['Safari', /Safari\//],
+    ];
+    const systems = [
+        ['iOS', /iPhone|iPad|iPod/],
+        ['Android', /Android/],
+        ['ChromeOS', /CrOS/],
+        ['Windows', /Windows/],
+        ['macOS', /Mac OS X|Macintosh/],
+        ['Linux', /Linux/],
+    ];
+    let browser = 'Browser';
+    let os = 'Unknown OS';
+    for (let i = 0; i < browsers.length; i++) {
+        if (browsers[i][1].test(raw)) { browser = browsers[i][0]; break; }
+    }
+    for (let i = 0; i < systems.length; i++) {
+        if (systems[i][1].test(raw)) { os = systems[i][0]; break; }
+    }
+    return (browser + ' on ' + os).slice(0, 40);
+}
+
+function hashDeviceToken(token) {
+    if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return '';
+    return crypto.createHash('sha256').update(Buffer.from(token, 'hex')).digest('hex');
+}
+
+function userAgentFrom(context) {
+    const req = context && context.rawRequest;
+    const headers = (req && req.headers) || {};
+    return String(headers['user-agent'] || headers['User-Agent'] || '').slice(0, 400);
+}
+
 function isAnon(context) {
     return !!(context && context.auth && context.auth.token && context.auth.token.firebase
         && context.auth.token.firebase.sign_in_provider === 'anonymous');
@@ -231,6 +279,10 @@ function initSecondFactor(deps) {
         const ctx = context || {};
         const raw = data && typeof data.mfaSessionId === 'string' ? data.mfaSessionId : '';
         ctx.mfaSessionId = /^[a-f0-9]{64}$/.test(raw) ? raw : '';
+        const proof = data && typeof data.freshProofId === 'string' ? data.freshProofId : '';
+        ctx.freshProofId = /^[a-f0-9]{32}$/.test(proof) ? proof : '';
+        const code = data && typeof data.code === 'string' ? data.code.trim() : '';
+        ctx.freshCode = /^\d{6}$/.test(code) ? code : '';
         return ctx;
     }
 
@@ -258,6 +310,182 @@ function initSecondFactor(deps) {
         });
         await db.collection('totp_sessions').doc(uid).delete().catch(function () {});
         return { sessionId: sessionId, expiresAtMs: expiresAtMs };
+    }
+
+    async function deviceByToken(token) {
+        const tokenHash = hashDeviceToken(token);
+        if (!tokenHash) return null;
+        const snap = await db.collection('trusted_devices').where('tokenHash', '==', tokenHash).limit(2).get();
+        if (snap.size !== 1) return null;
+        let found = null;
+        snap.forEach(function (doc) {
+            found = { ref: doc.ref, id: doc.id, row: doc.data() || {}, tokenHash: tokenHash };
+        });
+        return found;
+    }
+
+    // exceptHash keeps one device (sign out others). Empty revokes every device.
+    // The 30-day expiry is not touched. Revoked tokens never resume.
+    async function revokeTrustedDevices(uid, exceptHash) {
+        const snap = await db.collection('trusted_devices').where('uid', '==', uid).get();
+        const refs = [];
+        snap.forEach(function (doc) {
+            const row = doc.data() || {};
+            if (row.revoked === true) return;
+            if (exceptHash && row.tokenHash === exceptHash) return;
+            refs.push(doc.ref);
+        });
+        const nowMs = currentNow();
+        let revoked = 0;
+        for (let i = 0; i < refs.length; i += 400) {
+            const slice = refs.slice(i, i + 400);
+            if (!slice.length) continue;
+            const batch = db.batch();
+            slice.forEach(function (ref) {
+                batch.update(ref, { revoked: true, revokedAtMs: nowMs });
+            });
+            await batch.commit();
+            revoked += slice.length;
+        }
+        return revoked;
+    }
+
+    async function revokeOtherSessions(uid, keepSessionId) {
+        const snap = await db.collection('totp_sessions').where('uid', '==', uid).get();
+        const batch = db.batch();
+        let n = 0;
+        snap.forEach(function (doc) {
+            const row = doc.data() || {};
+            if (keepSessionId && (doc.id === uid + '_' + keepSessionId || row.sessionId === keepSessionId)) return;
+            batch.delete(doc.ref);
+            n += 1;
+        });
+        if (!keepSessionId) batch.delete(db.collection('totp_sessions').doc(uid));
+        if (n || !keepSessionId) await batch.commit();
+    }
+
+    async function issueTrustedDevice(uid, nowMs, context, previousToken) {
+        const tokenBuf = crypto.randomBytes(32);
+        const token = tokenBuf.toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(tokenBuf).digest('hex');
+        const id = crypto.randomBytes(16).toString('hex');
+        const expiresAtMs = nowMs + DEVICE_TTL_MS;
+        const label = deviceLabel(userAgentFrom(context));
+        await db.collection('trusted_devices').doc(id).set({
+            uid: uid,
+            tokenHash: tokenHash,
+            label: label,
+            createdAtMs: nowMs,
+            lastUsedAtMs: nowMs,
+            expiresAtMs: expiresAtMs,
+            revoked: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+            expiresAt: new Date(expiresAtMs),
+        });
+        if (previousToken && previousToken !== token) {
+            const old = await deviceByToken(previousToken);
+            if (old && old.row.uid === uid && old.tokenHash !== tokenHash && old.row.revoked !== true) {
+                await old.ref.update({ revoked: true, revokedAtMs: nowMs });
+            }
+        }
+        return token;
+    }
+
+    async function issueFreshProof(uid, action, nowMs) {
+        if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
+        const proofId = crypto.randomBytes(16).toString('hex');
+        const expiresAtMs = nowMs + FRESH_TTL_MS;
+        await db.collection('totp_fresh_proofs').doc(uid + '_' + action).set({
+            uid: uid,
+            action: action,
+            proofId: proofId,
+            verifiedAtMs: nowMs,
+            expiresAtMs: expiresAtMs,
+            consumed: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { proofId: proofId, expiresAtMs: expiresAtMs };
+    }
+
+    async function consumeFreshProof(uid, action, proofId, nowMs) {
+        if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
+        if (!/^[a-f0-9]{32}$/.test(proofId || '')) {
+            throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+        }
+        const ref = db.collection('totp_fresh_proofs').doc(uid + '_' + action);
+        const ok = await db.runTransaction(async function (tx) {
+            const snap = await tx.get(ref);
+            if (!snap.exists) return false;
+            const row = snap.data() || {};
+            if (row.uid !== uid) return false;
+            if (row.action !== action) return false;
+            if (row.proofId !== proofId) return false;
+            if (row.consumed === true) return false;
+            if (!(typeof row.verifiedAtMs === 'number' && row.verifiedAtMs <= nowMs && (nowMs - row.verifiedAtMs) <= FRESH_TTL_MS)) return false;
+            if (!(typeof row.expiresAtMs === 'number' && row.expiresAtMs > nowMs)) return false;
+            tx.update(ref, { consumed: true, consumedAtMs: nowMs });
+            return true;
+        });
+        if (!ok) throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+    }
+
+    // Sessions and trusted devices are ignored. A code verified in the last
+    // five minutes, bound to this action, is the only authenticator proof.
+    async function proveFreshCode(data, context, uid, action, nowMs) {
+        const secret = await secretRecord(uid);
+        if (!secret) {
+            const token = (context && context.auth && context.auth.token && context.auth.token.firebase) || {};
+            if (token.sign_in_second_factor) return 'phone';
+            throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+        }
+        const proofId = data && typeof data.freshProofId === 'string' ? data.freshProofId : '';
+        if (/^[a-f0-9]{32}$/.test(proofId)) {
+            await consumeFreshProof(uid, action, proofId, nowMs);
+            return 'proof';
+        }
+        const code = data && data.code ? String(data.code).trim() : '';
+        if (!/^\d{6}$/.test(code)) {
+            throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+        }
+        await acceptTotp(uid, code, nowMs);
+        return 'totp';
+    }
+
+    async function requireFreshStepUp(context, action) {
+        if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
+        if (!context || !context.auth || !context.auth.uid) {
+            throw httpError('unauthenticated', 'Must be signed in');
+        }
+        const uid = context.auth.uid;
+        const nowMs = currentNow();
+        const [secret, userSnap, phone] = await Promise.all([
+            secretRecord(uid),
+            db.collection('users').doc(uid).get(),
+            phoneInfo(uid),
+        ]);
+        const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+        if (secret) {
+            const proofId = context.freshProofId || '';
+            const code = context.freshCode || '';
+            if (/^[a-f0-9]{32}$/.test(proofId)) {
+                await consumeFreshProof(uid, action, proofId, nowMs);
+            } else if (/^\d{6}$/.test(code)) {
+                await takeAttempt(uid + '_step_' + action, nowMs);
+                await acceptTotp(uid, code, nowMs);
+                await clearAttempt(uid + '_step_' + action);
+            } else {
+                throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+            }
+        }
+        const phoneMust = phone.enrolled === true || (phone.missing === true && userData.phoneVerified === true);
+        if (phoneMust) {
+            const token = (context.auth.token && context.auth.token.firebase) || {};
+            if (!token.sign_in_second_factor) {
+                throw httpError('failed-precondition', 'Sign in again so your phone verification applies.');
+            }
+        }
+        return { uid: uid, totp: !!secret, phone: phone.enrolled === true };
     }
 
     async function revokeSessions(uid, sessionId) {
@@ -448,6 +676,7 @@ function initSecondFactor(deps) {
 
     async function clearTotp(uid) {
         await revokeSessions(uid, null);
+        await revokeTrustedDevices(uid, '');
         await db.collection('totp_secrets').doc(uid).delete().catch(function () {});
         await db.collection('totp_pending').doc(uid).delete().catch(function () {});
         await db.collection('users').doc(uid).set({ totpEnabled: false }, { merge: true });
@@ -562,9 +791,15 @@ function initSecondFactor(deps) {
         await acceptTotp(uid, String(data.code).trim(), nowMs);
         await clearAttempt(uid);
         const session = await issueSession(uid, nowMs);
+        let deviceToken = null;
+        if (data.rememberDevice === true) {
+            const previous = typeof data.previousDeviceToken === 'string' ? data.previousDeviceToken.trim() : '';
+            deviceToken = await issueTrustedDevice(uid, nowMs, context, previous);
+        }
         let recoveryCodes = null;
         if (await needsCodes(uid)) recoveryCodes = await storeRecoveryCodes(uid, 'totp');
         const body = { success: true, sessionId: session.sessionId, expiresAt: session.expiresAtMs };
+        if (deviceToken) body.deviceToken = deviceToken;
         if (recoveryCodes) body.recoveryCodes = recoveryCodes;
         return body;
     });
@@ -572,10 +807,14 @@ function initSecondFactor(deps) {
     const totpDisable = onCallWithKey(async function (data, context) {
         const uid = requireUser(context);
         rejectAnonymous(context);
-        if (!data || !data.code) throw httpError('invalid-argument', 'Enter your current code to disable');
         const nowMs = currentNow();
+        const proofId = data && typeof data.freshProofId === 'string' ? data.freshProofId : '';
+        const hasCode = !!(data && data.code && /^\d{6}$/.test(String(data.code).trim()));
+        if (!hasCode && !/^[a-f0-9]{32}$/.test(proofId)) {
+            throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+        }
         await takeAttempt(uid + '_disable', nowMs);
-        await acceptTotp(uid, String(data.code).trim(), nowMs);
+        await proveFreshCode(data, context, uid, 'disableTotp', nowMs);
         await clearAttempt(uid + '_disable');
         await clearTotp(uid);
         forgetPhone(uid);
@@ -647,7 +886,7 @@ function initSecondFactor(deps) {
         stamp(data, context);
         const nowMs = currentNow();
         await takeAttempt(uid + '_regen', nowMs);
-        const how = await proveCurrentFactor(data, context, uid, nowMs);
+        const how = await proveFreshCode(data, context, uid, 'regenerateRecoveryCodes', nowMs);
         await clearAttempt(uid + '_regen');
         const secret = await secretRecord(uid);
         const phone = await phoneInfo(uid);
@@ -721,6 +960,134 @@ function initSecondFactor(deps) {
         return { success: true, disabled: true, phoneCleared: phoneCleared };
     });
 
+    // App Check matches the other sensitive callables. The handler does not
+    // trust a session or a device token. Rate limit is per uid.
+    const onCallApp = functionsV1.runWith({ enforceAppCheck: true }).https.onCall;
+    const onCallAppKey = functionsV1.runWith({
+        secrets: ['TOTP_ENCRYPTION_KEY'],
+        enforceAppCheck: true,
+    }).https.onCall;
+
+    const totpResumeDevice = onCallApp(async function (data, context) {
+        const uid = requireUser(context);
+        const nowMs = currentNow();
+        await takeAttempt(uid + '_resume', nowMs);
+        const secret = await secretRecord(uid);
+        if (!secret) throw httpError('failed-precondition', 'Device is not trusted.');
+        const token = data && typeof data.deviceToken === 'string' ? data.deviceToken.trim() : '';
+        const found = await deviceByToken(token);
+        if (!found) throw httpError('failed-precondition', 'Device is not trusted.');
+        if (found.row.uid !== uid) throw httpError('permission-denied', 'Device is not trusted.');
+        if (found.row.revoked === true) throw httpError('failed-precondition', 'Device is not trusted.');
+        if (!(typeof found.row.expiresAtMs === 'number' && found.row.expiresAtMs > nowMs)) {
+            throw httpError('failed-precondition', 'Device is not trusted.');
+        }
+        const expiresAtMs = found.row.expiresAtMs;
+        const accepted = await db.runTransaction(async function (tx) {
+            const fresh = await tx.get(found.ref);
+            if (!fresh.exists) return false;
+            const row = fresh.data() || {};
+            if (row.uid !== uid || row.revoked === true) return false;
+            if (row.tokenHash !== found.tokenHash) return false;
+            if (!(typeof row.expiresAtMs === 'number' && row.expiresAtMs > nowMs)) return false;
+            if (row.expiresAtMs !== expiresAtMs) return false;
+            tx.update(found.ref, {
+                lastUsedAtMs: nowMs,
+                lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            return true;
+        });
+        if (!accepted) throw httpError('failed-precondition', 'Device is not trusted.');
+        const session = await issueSession(uid, nowMs);
+        await clearAttempt(uid + '_resume');
+        return { success: true, sessionId: session.sessionId, expiresAt: session.expiresAtMs };
+    });
+
+    const totpStepUp = onCallAppKey(async function (data, context) {
+        const uid = requireUser(context);
+        const action = String((data && data.action) || '');
+        if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
+        if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
+        const nowMs = currentNow();
+        await takeAttempt(uid + '_step_' + action, nowMs);
+        await acceptTotp(uid, String(data.code).trim(), nowMs);
+        await clearAttempt(uid + '_step_' + action);
+        const proof = await issueFreshProof(uid, action, nowMs);
+        return { success: true, action: action, freshProofId: proof.proofId, expiresAt: proof.expiresAtMs };
+    });
+
+    const totpListDevices = onCallApp(async function (data, context) {
+        const uid = requireUser(context);
+        const nowMs = currentNow();
+        const token = data && typeof data.deviceToken === 'string' ? data.deviceToken.trim() : '';
+        const currentHash = hashDeviceToken(token);
+        const snap = await db.collection('trusted_devices').where('uid', '==', uid).get();
+        const devices = [];
+        snap.forEach(function (doc) {
+            const row = doc.data() || {};
+            if (row.revoked === true) return;
+            if (!(typeof row.expiresAtMs === 'number' && row.expiresAtMs > nowMs)) return;
+            devices.push({
+                id: doc.id,
+                label: typeof row.label === 'string' ? row.label : 'Browser',
+                createdAtMs: row.createdAtMs || 0,
+                lastUsedAtMs: row.lastUsedAtMs || 0,
+                expiresAtMs: row.expiresAtMs,
+                current: !!(currentHash && row.tokenHash === currentHash),
+            });
+        });
+        return { devices: devices };
+    });
+
+    const totpRevokeDevice = onCallApp(async function (data, context) {
+        const uid = requireUser(context);
+        const nowMs = currentNow();
+        const token = data && typeof data.deviceToken === 'string' ? data.deviceToken.trim() : '';
+        if (/^[0-9a-f]{64}$/.test(token)) {
+            const found = await deviceByToken(token);
+            if (!found || found.row.uid !== uid) throw httpError('permission-denied', 'Device is not trusted.');
+            await found.ref.update({ revoked: true, revokedAtMs: nowMs });
+            return { success: true };
+        }
+        const deviceId = data && typeof data.deviceId === 'string' ? data.deviceId.trim() : '';
+        if (!/^[a-f0-9]{32}$/.test(deviceId)) throw httpError('invalid-argument', 'Device is not trusted.');
+        const snap = await db.collection('trusted_devices').doc(deviceId).get();
+        if (!snap.exists || (snap.data() || {}).uid !== uid) throw httpError('permission-denied', 'Device is not trusted.');
+        await snap.ref.update({ revoked: true, revokedAtMs: nowMs });
+        return { success: true };
+    });
+
+    const totpSignOutOtherDevices = onCallApp(async function (data, context) {
+        const uid = requireUser(context);
+        const nowMs = currentNow();
+        const token = data && typeof data.deviceToken === 'string' ? data.deviceToken.trim() : '';
+        let exceptHash = '';
+        if (/^[0-9a-f]{64}$/.test(token)) {
+            const found = await deviceByToken(token);
+            if (found && found.row.uid === uid && found.row.revoked !== true && found.row.expiresAtMs > nowMs) {
+                exceptHash = found.tokenHash;
+            }
+        }
+        const sessionId = data && typeof data.mfaSessionId === 'string' ? data.mfaSessionId : '';
+        let keepSession = '';
+        if (/^[a-f0-9]{64}$/.test(sessionId)) {
+            const session = await sessionValid(uid, sessionId, nowMs);
+            if (session) keepSession = sessionId;
+        }
+        await revokeTrustedDevices(uid, exceptHash);
+        await revokeOtherSessions(uid, keepSession);
+        return { success: true };
+    });
+
+    // No Firebase Auth blocking hook exists for password or email changes.
+    // The password-reset email control calls this and drops every device and session.
+    const totpRevokeAllTrust = onCallApp(async function (data, context) {
+        const uid = requireUser(context);
+        await revokeTrustedDevices(uid, '');
+        await revokeSessions(uid, null);
+        return { success: true };
+    });
+
     const phoneFactorRemoved = functionsV1.https.onCall(async function (data, context) {
         const uid = requireUser(context);
         forgetPhone(uid);
@@ -775,6 +1142,13 @@ function initSecondFactor(deps) {
         totpDisable: totpDisable,
         totpStatus: totpStatus,
         totpRevokeSession: totpRevokeSession,
+        totpResumeDevice: totpResumeDevice,
+        totpStepUp: totpStepUp,
+        totpListDevices: totpListDevices,
+        totpRevokeDevice: totpRevokeDevice,
+        totpSignOutOtherDevices: totpSignOutOtherDevices,
+        totpRevokeAllTrust: totpRevokeAllTrust,
+        requireFreshStepUp: requireFreshStepUp,
         issueRecoveryCodes: issueRecoveryCodes,
         regenerateRecoveryCodes: regenerateRecoveryCodes,
         useRecoveryCode: useRecoveryCode,
@@ -800,10 +1174,15 @@ function requireSecondFactor(context) {
     return requireReady().requireSecondFactor(context);
 }
 
+function requireFreshStepUp(context, action) {
+    return requireReady().requireFreshStepUp(context, action);
+}
+
 module.exports = {
     initSecondFactor: initSecondFactor,
     stamp: stamp,
     requireSecondFactor: requireSecondFactor,
+    requireFreshStepUp: requireFreshStepUp,
     encryptTotpSecret: encryptTotpSecret,
     decryptTotpSecret: decryptTotpSecret,
     encryptionKeyConfigured: encryptionKeyConfigured,
@@ -811,4 +1190,8 @@ module.exports = {
     normalizeRecoveryCode: normalizeRecoveryCode,
     hashRecoveryCode: hashRecoveryCode,
     SESSION_TTL_MS: SESSION_TTL_MS,
+    DEVICE_TTL_MS: DEVICE_TTL_MS,
+    FRESH_TTL_MS: FRESH_TTL_MS,
+    deviceLabel: deviceLabel,
+    hashDeviceToken: hashDeviceToken,
 };

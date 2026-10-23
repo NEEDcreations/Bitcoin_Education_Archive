@@ -60,6 +60,8 @@ test('server session, recovery hashes, and fail-closed key live in the second-fa
     const src = read('functions/src/secondFactor.js');
     const index = read('functions/index.js');
     ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStatus', 'totpRevokeSession',
+        'totpResumeDevice', 'totpStepUp', 'totpListDevices', 'totpRevokeDevice',
+        'totpSignOutOtherDevices', 'totpRevokeAllTrust',
         'issueRecoveryCodes', 'regenerateRecoveryCodes', 'useRecoveryCode', 'phoneFactorRemoved',
         'adminResetSecondFactor', 'deleteAccount'].forEach(function (name) {
         assert.ok(index.includes('exports.' + name), name);
@@ -98,7 +100,7 @@ test('server session, recovery hashes, and fail-closed key live in the second-fa
         assert.ok(read(file).includes('requireSecondFactor'), file);
     });
     const rules = read('firestore.rules');
-    ['totp_pending', 'totp_secrets', 'totp_rate_limits', 'totp_sessions', 'recovery_codes', 'mfa_admin_log'].forEach(function (col) {
+    ['totp_pending', 'totp_secrets', 'totp_rate_limits', 'totp_sessions', 'trusted_devices', 'totp_fresh_proofs', 'recovery_codes', 'mfa_admin_log'].forEach(function (col) {
         const at = rules.indexOf('match /' + col + '/');
         assert.ok(at > 0, col);
         assert.ok(rules.slice(at, at + 180).includes('allow read, write: if false'), col);
@@ -123,6 +125,19 @@ test('the app asks the server, and every sign-in method can reach a challenge or
     assert.ok(client.includes('mfaRecoveryEmail'));
     assert.ok(client.includes('_serverTotpAllows'));
     assert.ok(client.includes('btc_mfa_session_'));
+    assert.ok(client.includes('btc_mfa_device_'));
+    assert.ok(client.includes('Remember this device for 30 days'));
+    assert.ok(client.includes('totpRememberDevice'));
+    assert.ok(client.includes("httpsCallable('totpResumeDevice')"));
+    assert.ok(client.includes('mfaRetryOnce'));
+    assert.ok(client.includes('Sign out other devices'));
+    assert.ok(client.includes('function mfaIsTransientError'));
+    assert.ok(src.includes('trusted_devices'));
+    assert.ok(src.includes('enforceAppCheck: true'));
+    assert.ok(src.includes('const totpResumeDevice = onCallApp'));
+    assert.ok(src.includes('DEVICE_TTL_MS'));
+    assert.ok(src.includes('FRESH_TTL_MS'));
+    assert.ok(src.includes('Enter a fresh authenticator code for this action.'));
     assert.ok(!client.includes("getItem('btc_totp_verified_"));
     assert.ok(!client.includes('getItem("btc_totp_verified_'));
     assert.ok(client.includes("removeItem('btc_totp_verified_'"));
