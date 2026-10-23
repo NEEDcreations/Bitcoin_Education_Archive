@@ -82,7 +82,7 @@ Nothing in this deploy writes `plebTalkSessions`, so those claims fail closed. `
 
 `questDays` is written once per offset day in `gradeQuest` when the score is at least 3 and the account is not banned. `tctvWatchDays` increments when `tctvWatchHeartbeat` creates the daily ticket claim. `giftsSent` counts peer keys that were actually used. `onboardingComplete` is set when onboarding finishes. `pushEnabled` is set by `onPushDeviceWritten` after a device token is stored. `pushToken` is not the proof field. Scholar badges read `scholar_exam_keys`, not the client cert flags.
 
-Badge XP, the +5 comment grant, peer-key use, and a first accepted peer request go through `applyDailyXp`. That hook calls `planDailyXp` (`planBadgeDailyXp` is the same function). Full XP until the daily total is 500, half (floored) until 900, a quarter (floored) until 1,000, then 0. The day starts at 5:00 UTC. The rest is dropped. Nothing is banked. The +5 comment grant (at most 3 a day) skips a topic-conversation post and any mirrored copy: `channelId`, `topicChannel`, `origin`, `noAward`, or a `topic_discussions` document. Those messages are paid only by topic-conversation XP. The topic-comment badge counter increments the original topic post after it stays visible for 24 hours. A mirrored forum copy, or a reply mirrored back from Pleb Talk, does not increment it again. A comment that is not a topic-conversation post and not one of those mirrors can still earn that 5 XP. No writer in this deploy creates that kind of comment.
+Badge XP, a peer using your key, and a first accepted peer request go through `applyDailyXp`. That hook calls `planDailyXp` (`planBadgeDailyXp` is the same function). Full XP until the daily total is 500, half (floored) until 900, a quarter (floored) until 1,000, then 0. The day starts at 5:00 UTC. The rest is dropped. Nothing is banked. There is no separate +5 XP per topic comment. Every topic post is a topic conversation, and the reply payout is topic-conversation XP (+5, ledger source `topic_conversation`). Peer-key use writes `users/{uid}/xp_ledger/pk_{keyId}` with source `peer_key_use` (requested, awarded, and day). A first accepted peer request writes `pa_{pairId}_{uid}` with source `peer_accept`. The topic-comment badge counter increments the original topic post after it stays visible for 24 hours, at most 5 posts on the offset day the nightly job is running. Posts over that cap stay queued for a later day. A mirrored forum copy, or a reply mirrored back from Pleb Talk, does not increment the counter. `creditMatureTopicComments` reads only pending docs older than 24 hours, oldest first, and deletes a pending doc when the decision is final.
 
 ## Not revoked
 
@@ -93,6 +93,16 @@ Existing `badge_awards` and `visibleBadges` entries are left in place. `function
 ## Account deletion
 
 `deleteAccount` removes `market_listing_counts`, `market_listing_daily`, `market_message_counts`, and `market_sale_counts` for that user after the sign-in is deleted.
+
+## This badge deploy
+
+Deploy `firestore.rules` and `firestore.indexes.json` (the `topic_comment_pending` index on `open` + `createdAtMs`) before or with the functions. `sendKeys` reads `faucet_ledger/{uid}` inside its transaction and rejects with `permission-denied` when `rewardBlocked` is true, so a banned account cannot send keys or earn key-send XP.
+
+Functions: `awardPoints`, `openGift`, `sendKeys`, `decryptCipher`, `claimCipherWin`, `adminMarkCipherWinPaid`, `tctvWatchHeartbeat`, `gradeQuest`, `spendTickets`, `spendTicketsForFreeze`, `managePeer`, `monthlyRaffleDraw`, `payWeeklyPredictors`, `payMonthlyPredictors`, `totpVerify`, `chooseFaction`, `claimOnboardingQuestStep`, `onPushDeviceWritten`, `postTopicComment`, `moderateTopicPost`, `deleteTopicComment`, `creditMatureTopicComments`, `refreshBadgeDistribution`, `refreshBadgeDistributionHttp`, `mergeAnonBadges`.
+
+`refreshBadgeDistribution` and `refreshBadgeDistributionHttp` rebuild badge stats from `badgeRules.isKnown`. `mergeAnonBadges` recomputes with `verifiedIds`. Both need this deploy because the catalog gained badges. `creditMatureTopicComments` needs Cloud Scheduler (05:15 UTC).
+
+`functions/scripts/backfill_badge_counters.js` raises the new counters from existing records and writes badge rows only. Dry-run is the default. `--apply` writes. It skips banned users and does not write points. It has not been run. `functions/scripts/backfill_badge_xp.js` is a different script and is not part of this run.
 
 ## Deploy order
 

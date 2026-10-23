@@ -6,6 +6,7 @@ const badgeRules = require('../functions/src/badgeRules');
 const progress = require('../functions/src/badgeProgress');
 const { planBadgeDailyXp } = require('../functions/src/applyDailyXp');
 const { familyFor } = require('../functions/src/grantBadge');
+const counters = require('../functions/scripts/backfill_badge_counters');
 
 const root = path.join(__dirname, '..');
 let passed = 0;
@@ -292,7 +293,7 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
         day: '2026-10-22',
     });
     assert.strictEqual(other.credit, true);
-    assert.strictEqual(other.xp, 5);
+    assert.strictEqual(other.xp, 0);
     const capped = progress.planTopicCredit({
         post: post,
         user: person('ada', { topicCountDay: '2026-10-22', topicCountToday: 5 }),
@@ -300,6 +301,16 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
         day: '2026-10-22',
     });
     assert.strictEqual(capped.credit, false);
+    assert.strictEqual(capped.close, false);
+    assert.strictEqual(capped.reason, 'badge-cap');
+    const backlog = progress.planTopicCredit({
+        post: Object.assign({}, post, { dayKey: '2026-10-01' }),
+        user: person('ada', { topicCountDay: '2026-10-23', topicCountToday: 5 }),
+        nowMs: NOW,
+        day: '2026-10-23',
+    });
+    assert.strictEqual(backlog.credit, false);
+    assert.strictEqual(backlog.close, false);
     const hidden = progress.planTopicCredit({
         post: Object.assign({}, post, { hidden: true }),
         user: person('ada'),
@@ -325,6 +336,51 @@ test('the shared taper drops overflow instead of banking it', function () {
     const early = planBadgeDailyXp(590, 20);
     assert.strictEqual(early.awarded, 10);
     assert.strictEqual(early.dailyXp, 600);
+});
+
+test('sendKeys rejects a banned sender and the new grants write xp_ledger', function () {
+    const gifting = fs.readFileSync(path.join(root, 'functions/src/gifting.js'), 'utf8');
+    const keys = gifting.slice(gifting.indexOf('const sendKeys'), gifting.indexOf('const decryptCipher'));
+    assert.ok(keys.indexOf('faucet_ledger') !== -1);
+    assert.ok(keys.indexOf('rewardBlocked') !== -1);
+    assert.ok(keys.indexOf('permission-denied') !== -1);
+    const credit = fs.readFileSync(path.join(root, 'functions/src/badgeCredit.js'), 'utf8');
+    assert.ok(credit.indexOf("source: 'peer_key_use'") !== -1);
+    assert.ok(credit.indexOf("source: 'peer_accept'") !== -1);
+    assert.ok(credit.indexOf("xp_ledger") !== -1);
+    assert.ok(credit.indexOf(".where('createdAtMs', '<=', matureBefore)") !== -1);
+    assert.ok(credit.indexOf(".orderBy('createdAtMs', 'asc')") !== -1);
+    assert.ok(credit.indexOf('tx.delete(pendingRef)') !== -1);
+    const doc = fs.readFileSync(path.join(root, 'functions/src/BADGE_VERIFICATION.md'), 'utf8');
+    assert.ok(doc.indexOf('no separate +5') !== -1);
+    assert.ok(doc.indexOf('refreshBadgeDistributionHttp') !== -1);
+    assert.ok(doc.indexOf('mergeAnonBadges') !== -1);
+});
+
+test('counter backfill raises peersAtL3 and onboarding without paying XP', function () {
+    assert.strictEqual(counters.relationshipLevel({ giftsExchanged: 21, level: 1 }), 3);
+    assert.strictEqual(counters.levelForGifts(20), 2);
+    const hub = counters.planUser({ username: 'ada' }, { peersAtL3: 5, peerBestLevel: 3 }, []);
+    assert.strictEqual(hub.patch.peersAtL3, 5);
+    assert.strictEqual(hub.patch.peerBestLevel, 3);
+    assert.ok(hub.badges.indexOf('peer_hub_5') !== -1);
+    assert.ok(hub.badges.indexOf('peer_level_3') !== -1);
+    assert.strictEqual(hub.patch.points, undefined);
+    assert.strictEqual(hub.xp, hub.badges.reduce(function (sum, id) { return sum + (badgeRules.xpOf(id) || 0); }, 0));
+    assert.ok(hub.xp > 0);
+    const held = counters.planUser({ peersAtL3: 5, peerBestLevel: 3 }, { peersAtL3: 4, peerBestLevel: 2 }, ['peer_hub_5', 'peer_level_2', 'peer_level_3']);
+    assert.strictEqual(held.patch.peersAtL3, undefined);
+    assert.ok(held.badges.indexOf('peer_hub_5') === -1);
+    const aboard = counters.planUser({ nachoQuestDone: true }, {}, []);
+    assert.strictEqual(aboard.patch.onboardingComplete, true);
+    assert.ok(aboard.badges.indexOf('onboarding_complete') !== -1);
+    const again = counters.planUser({ nachoQuestDone: true, onboardingComplete: true }, {}, ['onboarding_complete']);
+    assert.strictEqual(again.patch.onboardingComplete, undefined);
+    assert.ok(again.badges.indexOf('onboarding_complete') === -1);
+    const script = fs.readFileSync(path.join(root, 'functions/scripts/backfill_badge_counters.js'), 'utf8');
+    assert.ok(script.indexOf('rewardBlocked') !== -1);
+    assert.ok(script.indexOf('--apply') !== -1);
+    assert.ok(script.indexOf('applyDailyXp') === -1);
 });
 
 test('rules deny the new counters and the cert fields', function () {

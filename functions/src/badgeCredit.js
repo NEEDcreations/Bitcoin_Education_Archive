@@ -47,6 +47,28 @@ function xpFields(adminSdk, awarded) {
     };
 }
 
+function xpLedgerRef(userRef, rawId) {
+    const id = String(rawId || 'grant').replace(/[^\w.-]/g, '_').slice(0, 700);
+    return userRef.collection('xp_ledger').doc(id);
+}
+
+function xpLedgerData(fields) {
+    const src = fields || {};
+    const awarded = Math.max(0, Math.floor(Number(src.awarded) || 0));
+    return {
+        source: src.source,
+        amount: awarded,
+        requested: Math.max(0, Math.floor(Number(src.requested) || 0)),
+        awarded: awarded,
+        day: src.day || '',
+        createdAtMs: Number(src.nowMs) || Date.now(),
+        uid: src.uid || '',
+        keyId: src.keyId || '',
+        pairId: src.pairId || '',
+        openerUid: src.openerUid || '',
+    };
+}
+
 async function creditPeerKeyUse(db, adminSdk, args) {
     const src = args || {};
     const openerUid = String(src.openerUid || '');
@@ -125,6 +147,20 @@ async function creditPeerKeyUse(db, adminSdk, args) {
             const prev = sender.keyGiftXpDay === day ? (Number(sender.keyGiftXpCount) || 0) : 0;
             senderUpdate.keyGiftXpDay = day;
             senderUpdate.keyGiftXpCount = prev + 1;
+            const ledgerId = keyId
+                ? ('pk_' + keyId)
+                : ('pk_' + senderUid + '_' + openerUid + '_' + (pairId || day));
+            tx.set(xpLedgerRef(senderRef, ledgerId), xpLedgerData({
+                source: 'peer_key_use',
+                uid: senderUid,
+                requested: plan.senderXp,
+                awarded: senderXp,
+                day: day,
+                nowMs: nowMs,
+                keyId: keyId,
+                pairId: pairId,
+                openerUid: openerUid,
+            }));
         }
         if (Object.keys(openerUpdate).length) tx.update(openerRef, openerUpdate);
         if (Object.keys(senderUpdate).length) tx.update(senderRef, senderUpdate);
@@ -248,6 +284,28 @@ async function creditPeerAcceptXp(db, adminSdk, leftUid, rightUid, nowMs) {
             rightUpdate.peerXpDay = day;
             rightUpdate.peerXpCount = prev + 1;
         }
+        if (plan.leftXp > 0) {
+            tx.set(xpLedgerRef(leftRef, 'pa_' + pairId + '_' + leftUid), xpLedgerData({
+                source: 'peer_accept',
+                uid: leftUid,
+                requested: plan.leftXp,
+                awarded: leftAwarded,
+                day: day,
+                nowMs: now,
+                pairId: pairId,
+            }));
+        }
+        if (plan.rightXp > 0) {
+            tx.set(xpLedgerRef(rightRef, 'pa_' + pairId + '_' + rightUid), xpLedgerData({
+                source: 'peer_accept',
+                uid: rightUid,
+                requested: plan.rightXp,
+                awarded: rightAwarded,
+                day: day,
+                nowMs: now,
+                pairId: pairId,
+            }));
+        }
         if (Object.keys(leftUpdate).length) tx.update(leftRef, leftUpdate);
         if (Object.keys(rightUpdate).length) tx.update(rightRef, rightUpdate);
         tx.set(markerRef, {
@@ -313,19 +371,18 @@ async function creditOneTopic(db, adminSdk, pendingRef, nowMs) {
             user: userSnap && userSnap.exists ? userSnap.data() : {},
             ledger: ledgerSnap && ledgerSnap.exists ? ledgerSnap.data() : {},
             nowMs: now,
-            day: pending.dayKey || day,
+            day: day,
         });
         if (!plan.close) return plan;
         if (!plan.credit || !userRef || !userSnap || !userSnap.exists) {
-            tx.set(pendingRef, { open: false, reason: plan.reason }, { merge: true });
+            tx.delete(pendingRef);
             return plan;
         }
         const user = userSnap.data() || {};
-        const countDay = pending.dayKey || day;
-        const counted = user.topicCountDay === countDay ? (Number(user.topicCountToday) || 0) : 0;
+        const counted = user.topicCountDay === day ? (Number(user.topicCountToday) || 0) : 0;
         const update = {
             topicComments: adminSdk.firestore.FieldValue.increment(1),
-            topicCountDay: countDay,
+            topicCountDay: day,
             topicCountToday: counted + 1,
         };
         if (plan.channel) {
@@ -334,26 +391,11 @@ async function creditOneTopic(db, adminSdk, pendingRef, nowMs) {
             counts[plan.channel] = (Number(counts[plan.channel]) || 0) + 1;
             update.topicChannelCounts = counts;
         }
-        let awarded = 0;
-        if (plan.xp > 0) {
-            const grant = await applyDailyXp(uid, plan.xp, tx, { day: day, userRef: userRef });
-            awarded = grant.awarded;
-            Object.assign(update, xpFields(adminSdk, awarded));
-            if (awarded > 0 && grant.dailyRef) {
-                tx.set(grant.dailyRef, {
-                    total: dailyTotal(grant, awarded),
-                    lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
-                }, { merge: true });
-            }
-            const xpPrev = user.topicXpDay === day ? (Number(user.topicXpCount) || 0) : 0;
-            update.topicXpDay = day;
-            update.topicXpCount = xpPrev + 1;
-        }
         tx.update(userRef, update);
         tx.set(postRef, { badgeCounted: true }, { merge: true });
-        tx.set(pendingRef, { open: false, credited: true }, { merge: true });
+        tx.delete(pendingRef);
         plan.uid = uid;
-        plan.xpAwarded = awarded;
+        plan.xpAwarded = 0;
         return plan;
     });
     if (applied.credit && applied.uid) {
@@ -364,7 +406,14 @@ async function creditOneTopic(db, adminSdk, pendingRef, nowMs) {
 
 async function creditMatureTopicComments(db, adminSdk, nowMs, limit) {
     const now = Number(nowMs) || Date.now();
-    const snap = await db.collection('topic_comment_pending').where('open', '==', true).limit(limit || 200).get();
+    const matureBefore = now - progress.COMMENT_MATURE_MS;
+    const cap = Math.max(1, Math.min(Number(limit) || 200, 400));
+    const snap = await db.collection('topic_comment_pending')
+        .where('open', '==', true)
+        .where('createdAtMs', '<=', matureBefore)
+        .orderBy('createdAtMs', 'asc')
+        .limit(cap)
+        .get();
     let credited = 0;
     const docs = snap.docs || [];
     for (let i = 0; i < docs.length; i++) {

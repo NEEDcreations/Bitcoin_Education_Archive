@@ -202,8 +202,12 @@ function planTopicCredit(input) {
         out.reason = 'mirror';
         return out;
     }
+    if (!(post.createdAtMs > 0)) {
+        out.reason = 'undated';
+        return out;
+    }
     const age = (Number(src.nowMs) || 0) - (Number(post.createdAtMs) || 0);
-    if (!(post.createdAtMs > 0) || age < COMMENT_MATURE_MS) {
+    if (age < COMMENT_MATURE_MS) {
         out.close = false;
         out.reason = 'young-post';
         return out;
@@ -228,18 +232,20 @@ function planTopicCredit(input) {
     }
     const day = src.day || post.dayKey;
     const counted = dayCount(user, 'topicCountDay', 'topicCountToday', day);
-    const xpUsed = dayCount(user, 'topicXpDay', 'topicXpCount', day);
     if (counted >= COMMENT_BADGE_CAP) {
+        // Stay open. The nightly job caps against its own offset day, so a
+        // backlog from several post days cannot add more than 5 in one run,
+        // and the extras still count on a later day.
+        out.close = false;
         out.reason = 'badge-cap';
         return out;
     }
     out.credit = true;
     out.channel = String(post.channelId || '');
-    // Topic conversations already pay through topicConversationXp. This +5
-    // stays off any topic post and any mirrored copy, so one message has one
-    // award path. A comment with none of those markers can still earn it,
-    // up to 3 times a day.
-    if (!topicConversationMessage(post) && xpUsed < COMMENT_XP_CAP) out.xp = COMMENT_XP;
+    // Every topic post is a topic conversation. Reply XP is paid by
+    // topicConversationXp (+5, source topic_conversation). This path only
+    // counts the badge.
+    out.xp = 0;
     out.reason = 'credit';
     return out;
 }

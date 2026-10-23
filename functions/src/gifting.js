@@ -506,6 +506,8 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
     const canonicalRef = pairRefs[0];
     const senderRef = db.collection('users').doc(uid);
     const recipRef = db.collection('users').doc(recipientUid);
+    // Same ban doc openGift reads. There is no sats_ledger collection.
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const keyRefs = keyIds.map(function(id) { return db.collection('keys').doc(id); });
 
     let senderName = 'Someone';
@@ -517,17 +519,23 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         const docs = await Promise.all([
             t.get(senderRef),
             t.get(recipRef),
+            t.get(ledgerRef),
         ].concat(pairRefs.map(function(r) { return t.get(r); }), keyRefs.map(function(r) { return t.get(r); })));
 
         const senderDoc = docs[0];
         const recipDoc = docs[1];
-        const pairDocs = docs.slice(2, 2 + pairRefs.length);
-        const keyDocs = docs.slice(2 + pairRefs.length);
+        const ledgerDoc = docs[2];
+        const pairDocs = docs.slice(3, 3 + pairRefs.length);
+        const keyDocs = docs.slice(3 + pairRefs.length);
 
         if (!senderDoc.exists) throw httpsError('not-found', 'Sender not found');
         if (!recipDoc.exists) throw httpsError('not-found', 'Recipient not found');
 
         const sender = senderDoc.data();
+        const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
+        if (rewardBlocked(sender, ledger)) {
+            throw httpsError('permission-denied', 'Key sends are disabled on this account.');
+        }
         senderName = safeName(sender.username || 'Someone');
         senderPointsBefore = sender.points || 0;
         sentLabels = [];
