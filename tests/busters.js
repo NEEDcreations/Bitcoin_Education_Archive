@@ -1,8 +1,8 @@
-// Cache-buster pin. This ship branch is btc-archive-v2333.
+// Cache-buster pin. This ship branch is btc-archive-v2334.
 // bundle.min.js stays 20261023_v2325.
-// ranking.js is 20261023_v2333. features.registry.js and today-card.js stay 20261023_v2330.
+// ranking.js is 20261023_v2334. features.registry.js and today-card.js stay 20261023_v2330.
 // scholar.js is 20261023_v2330.
-// quests.js is 20261023_v2333. global-chat.js, learning-quests.js, and modules.js stay 20261023_v2324.
+// quests.js is 20261023_v2334. global-chat.js, learning-quests.js, and modules.js stay 20261023_v2324.
 // lightning.js and satoshi-favor.js stay 20261023_v2323.
 // tctv-watch.js stays on v2301.
 // index.html and 404.html must stay identical. The precache keeps the
@@ -23,12 +23,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2333', () => {
+test('service worker cache is v2334', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2333'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2334'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -47,7 +47,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2265'));
     assert.ok(html.includes('notifications.js?v=20261022_v2322'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
-    assert.ok(html.includes('ranking.js?v=20261023_v2333'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2334'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
@@ -86,11 +87,12 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2334/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 0);
     assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
-    assert.ok(swVersion && swVersion[1] === 'v2333');
+    assert.ok(swVersion && swVersion[1] === 'v2334');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
