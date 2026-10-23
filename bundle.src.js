@@ -18146,6 +18146,7 @@ document.addEventListener('btcProfileSaved', function() {
                 '.nm-nacho .nm-time { text-align:left; }' +
                 '.nm-user .nm-time { text-align:right; }' +
                 '@media(max-width:768px){.nm-hero-avatar{width:36px!important;height:36px!important;}.nm-hero-avatar img{width:36px!important;height:36px!important;}.nm-hero-title{font-size:0.9rem!important;letter-spacing:2px!important;}.nm-hero-bar{gap:4px!important;}}' +
+                '@media(max-width:900px){#nachoModeScreen{box-sizing:border-box;padding-bottom:calc(128px + env(safe-area-inset-bottom, 0px));}#nachoModeChat{scroll-padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));}}' +
             '</style>' +
             /* ===== COMPACT HEADER ===== */
             '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.06) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:8px 12px;position:relative;">' +
