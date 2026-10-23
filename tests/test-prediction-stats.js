@@ -472,9 +472,10 @@ test('client copy, aria hook, and server-only scoring are wired', function() {
     assert.ok(!/predictions\.total/.test(features));
     assert.ok(!/active_predictions'\)\.doc\([^)]*\)\.delete/.test(features));
     assert.ok(features.indexOf('awardPoints(25') === -1);
-    assert.ok(rules.indexOf("'predCorrect'") !== -1);
-    assert.ok(rules.indexOf("'predTotal'") !== -1);
-    assert.ok(rules.indexOf("'predLastResult'") !== -1);
+    const keysFn = rules.slice(rules.indexOf('function userProfileServerOnlyKeys()'), rules.indexOf('match /users/{userId}'));
+    ['predCorrect', 'predTotal', 'predLastResult'].forEach(function (field) {
+        assert.ok(keysFn.indexOf("'" + field + "'") !== -1, field);
+    });
     assert.ok(rules.indexOf('match /prediction_stats/{uid}') !== -1);
     const activeBlock = rules.split('match /active_predictions/{uid}')[1].split('match /')[0];
     assert.ok(/allow delete: if false;/.test(activeBlock));

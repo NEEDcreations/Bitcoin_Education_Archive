@@ -11,10 +11,19 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 
-const db = admin.firestore();
+// Resolved on first use so unit tests can import helpers before initializeApp().
+function firestoreDb() {
+  return admin.firestore();
+}
+const db = new Proxy({}, {
+  get: function (_target, prop) {
+    const real = firestoreDb();
+    const value = real[prop];
+    return typeof value === 'function' ? value.bind(real) : value;
+  },
+});
 const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
 const rewardNotify = require('./rewardNotify');
-
 // One-way hash of uid for public dedup (prevents uid exposure in readable docs)
 function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
@@ -168,8 +177,11 @@ const POINT_VALUES = {
   'level_up': 1,
   'level_up_5': 5,
   'level_up_10': 10,
-  'badge_earned': 1,
 };
+
+function favorSourceAllowed(source) {
+  return !!(source && Object.prototype.hasOwnProperty.call(POINT_VALUES, source));
+}
 
 /**
  * Helper: Get today's date string in YYYY-MM-DD format
@@ -243,6 +255,103 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
   return stateData;
 }
 
+// One Satoshi's Favor point for a proven daily trifecta.
+// Poll proof is the server vote doc, not a client awardPoints stamp.
+async function creditDailyAllThree(uid, day) {
+  if (!uid || !day) return { ok: false, reason: 'missing' };
+  const userRef = db.collection('users').doc(uid);
+  const base = userRef.collection('daily_action_counts');
+  const triviaRef = base.doc(day + '_trivia');
+  const questRef = base.doc(day + '_quest');
+  const pollRef = db.collection('polls').doc(day).collection('votes').doc(uid);
+  const stateRef = db.collection('satoshiFavor').doc('current');
+  const contributorRef = stateRef.collection('contributors').doc(uid + '_' + day + '_allthree');
+  const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+
+  const result = await db.runTransaction(async function (transaction) {
+    const [triviaDoc, questDoc, pollDoc, contributorDoc, stateDoc, userDoc] = await Promise.all([
+      transaction.get(triviaRef),
+      transaction.get(questRef),
+      transaction.get(pollRef),
+      transaction.get(contributorRef),
+      transaction.get(stateRef),
+      transaction.get(userRef),
+    ]);
+    if (!userDoc.exists) return { ok: false, reason: 'no_user' };
+    const userData = userDoc.data() || {};
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const ledgerDoc = await transaction.get(ledgerRef);
+    const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+    if (require('./cipherClaim').rewardBlocked(userData, ledger)) return { ok: false, reason: 'banned' };
+    const triviaOk = triviaDoc.exists;
+    const questOk = questDoc.exists && Number((questDoc.data() || {}).count || 0) >= 1;
+    const pollOk = pollDoc.exists;
+    if (!triviaOk || !questOk || !pollOk) {
+      return { ok: false, reason: 'incomplete', trivia: triviaOk, quest: questOk, poll: pollOk };
+    }
+    if (contributorDoc.exists) {
+      const stateData = stateDoc.exists ? stateDoc.data() : {};
+      return { ok: true, already: true, created: false, points: stateData.points || 0, favorActive: !!stateData.favorActive, bonusMinutes: stateData.bonusMinutes || 0, currentCycleId: stateData.currentCycleId || null };
+    }
+    let stateData = stateDoc.exists ? stateDoc.data() : {
+      points: 0, favorActive: false, favorStart: null, favorEndBase: null, bonusMinutes: 0,
+      lastReset: admin.firestore.Timestamp.now(), currentCycleId: null,
+    };
+    stateData = checkAndResetFavor(stateData, transaction, stateRef);
+    const faction = userData.faction || null;
+    transaction.set(contributorRef, {
+      uid: uid,
+      source: 'daily_all_three',
+      detail: null,
+      day: day,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      faction: faction,
+      pointsAdded: 1,
+    });
+    const factionField = faction === 'cyber_hornets' ? 'cyber_hornets' : faction === 'honey_badgers' ? 'honey_badgers' : 'unaffiliated';
+    transaction.set(totalsRef, {
+      [factionField]: admin.firestore.FieldValue.increment(1),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.update(userRef, {
+      trifectaDays: admin.firestore.FieldValue.increment(1),
+      sfContributions: admin.firestore.FieldValue.increment(1),
+    });
+    if (stateData.favorActive) {
+      const newBonus = Math.min((stateData.bonusMinutes || 0) + BONUS_MINUTES_PER_POINT, MAX_BONUS_MINUTES);
+      const updated = Object.assign({}, stateData, { bonusMinutes: newBonus });
+      transaction.set(stateRef, updated);
+      return { ok: true, created: true, points: updated.points, favorActive: true, bonusMinutes: newBonus, currentCycleId: updated.currentCycleId || null };
+    }
+    const newPoints = Math.min((stateData.points || 0) + 1, MAX_POINTS);
+    if (newPoints >= POINTS_TO_ACTIVATE) {
+      const overflowPoints = newPoints - POINTS_TO_ACTIVATE;
+      const now = admin.firestore.Timestamp.now();
+      const endBase = admin.firestore.Timestamp.fromMillis(now.toMillis() + FAVOR_DURATION_MINUTES * 60 * 1000);
+      const activated = {
+        points: newPoints,
+        favorActive: true,
+        favorStart: now,
+        favorEndBase: endBase,
+        bonusMinutes: overflowPoints * BONUS_MINUTES_PER_POINT,
+        totalHashes: 0,
+        lastReset: stateData.lastReset || null,
+        currentCycleId: 'cycle_' + Date.now(),
+        eraHashes: stateData.eraHashes || 0,
+      };
+      transaction.set(stateRef, activated);
+      return { ok: true, created: true, points: newPoints, favorActive: true, bonusMinutes: activated.bonusMinutes, currentCycleId: activated.currentCycleId };
+    }
+    const updated = Object.assign({}, stateData, { points: newPoints });
+    transaction.set(stateRef, updated);
+    return { ok: true, created: true, points: newPoints, favorActive: false, bonusMinutes: updated.bonusMinutes || 0, currentCycleId: updated.currentCycleId || null };
+  });
+  return result;
+}
+
+exports.creditDailyAllThree = creditDailyAllThree;
+exports.favorSourceAllowed = favorSourceAllowed;
+
 // Valid level names per source tier (server-side whitelist)
 const LEVEL_TIERS = {
   'level_up': ['Normie','Curious','Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
@@ -302,38 +411,35 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
   }
   const userData = userDoc.data();
 
-  // Server-side validation for daily_all_three
-  // [AUDIT FIX C-1] Validate against CF-written daily_action_counts records,
-  // NOT client-writable user doc fields (dailyAllThreeDate etc are now blocked in rules).
+  // The trifecta point is credited here, from server proof. The poll proof is
+  // polls/{day}/votes/{uid} written by pollVote. A client awardPoints stamp is not enough.
   if (source === 'daily_all_three') {
-    const dailyPtsBase = db.collection('users').doc(uid).collection('daily_action_counts');
-    let triviaDoc, pollDoc, questDoc;
+    let credited;
     try {
-      const results = await Promise.all([
-        dailyPtsBase.doc(today + '_trivia').get(),
-        dailyPtsBase.doc(today + '_poll_vote').get(),
-        dailyPtsBase.doc(today + '_quest').get(),
-      ]);
-      triviaDoc = results[0];
-      pollDoc   = results[1];
-      questDoc  = results[2];
+      credited = await creditDailyAllThree(uid, today);
     } catch (readErr) {
-      console.error('[SF] daily_all_three validation read failed:', readErr);
+      console.error('[SF] daily_all_three credit failed:', readErr);
       throw new HttpsError('internal', 'Could not verify completion — please try again.');
     }
-
-    const triviaComplete = triviaDoc && triviaDoc.exists;
-    const pollComplete   = pollDoc   && pollDoc.exists;
-    const questComplete  = questDoc  && questDoc.exists && (questDoc.data().count || 0) >= 1;
-
-    console.log(`[SF] daily_all_three check uid=${uid} today=${today} trivia=${triviaComplete} poll=${pollComplete} quest=${questComplete}`);
-
-    if (!triviaComplete || !pollComplete || !questComplete) {
+    if (!credited || credited.reason === 'incomplete') {
       throw new HttpsError(
         'failed-precondition',
-        `Must complete all three today: quiz=${questComplete}, trivia=${triviaComplete}, poll=${pollComplete}.`
+        'Must complete quiz, trivia, and a server-recorded poll vote today.'
       );
     }
+    if (credited.already) {
+      throw new HttpsError('already-exists', 'You have already contributed for this action.');
+    }
+    if (!credited.ok) {
+      throw new HttpsError('failed-precondition', 'Could not credit the daily trifecta.');
+    }
+    return {
+      success: true,
+      points: credited.points,
+      favorActive: credited.favorActive,
+      bonusMinutes: credited.bonusMinutes || 0,
+      currentCycleId: credited.currentCycleId || null,
+    };
   }
 
   // Server-side validation for level-ups
@@ -358,28 +464,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     }
   }
 
-  // Server-side validation for badge_earned
-  // [SECURITY] sanitizedBadge hoisted so it's accessible after the block for proof-of-earning check
-  let sanitizedBadge = null;
-  if (source === 'badge_earned') {
-    if (!detail || typeof detail !== 'string') {
-      throw new HttpsError('invalid-argument', 'Invalid badge detail.');
-    }
-    sanitizedBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
-    if (!VALID_BADGE_IDS.has(sanitizedBadge)) {
-      throw new HttpsError(
-        'invalid-argument',
-        `Unknown badge id: ${sanitizedBadge}`
-      );
-    }
-  }
-
-  // [SECURITY FIX] Proof-of-earning ref.
-  // badge_awards is written atomically by awardPoints CF when a badge is legitimately earned.
-  // We read this inside the transaction to block SF contributions for unearned badges.
-  const badgeProofRef = sanitizedBadge
-    ? db.collection('users').doc(uid).collection('badge_awards').doc(sanitizedBadge)
-    : null;
+  // badge_earned is not a client source. awardBadge writes the Favor point.
 
   // Build contributor key for dedup — server-controlled, NOT from client detail
   // Level-up and badge keys use today's date so they reset daily (not permanently blocked)
@@ -390,11 +475,6 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     // Dedup by uid + level name only — NO date, each rank is reached exactly once
     const validatedLevel = detail; // already validated above against whitelist
     contributorKey = `${uid}_level_${validatedLevel}`;
-  } else if (source === 'badge_earned') {
-    // [SECURITY FIX] Dedup by uid + badge id only — no date reset.
-    // Each badge can contribute to SF at most once per user ever.
-    // Combined with the badge_awards proof check below, this closes the activation exploit.
-    contributorKey = `${uid}_badge_${sanitizedBadge}`;
   } else {
     contributorKey = `${uid}_${source}_${today}`;
   }
@@ -404,10 +484,9 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
   // Run in a transaction for atomicity
   const result = await db.runTransaction(async (transaction) => {
     // Batch all reads before any writes (Firestore best practice for transactions)
-    const [contributorDoc, stateDoc, badgeProofDoc] = await Promise.all([
+    const [contributorDoc, stateDoc] = await Promise.all([
       transaction.get(contributorRef),
       transaction.get(stateRef),
-      badgeProofRef ? transaction.get(badgeProofRef) : Promise.resolve(null),
     ]);
 
     // Check dedup
@@ -416,19 +495,6 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
         'already-exists',
         'You have already contributed for this action.'
       );
-    }
-
-    // [SECURITY FIX] Verify badge ownership: badge_awards record must exist.
-    // This was written atomically by awardPoints when the badge was legitimately earned.
-    // Blocks activating SF mining windows with catalog badges the user never actually earned.
-    if (badgeProofRef) {
-      if (!badgeProofDoc || !badgeProofDoc.exists) {
-        console.warn(`[SF] badge_earned rejected — no badge_awards proof uid=${uid} badge=${sanitizedBadge}`);
-        throw new HttpsError(
-          'failed-precondition',
-          'Badge has not been earned. Complete the badge challenge first.'
-        );
-      }
     }
 
     let stateData = stateDoc.exists ? stateDoc.data() : {
@@ -745,14 +811,25 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   try {
     const userRef = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
-    const updatePayloadUser = { sfTotalHashes: admin.firestore.FieldValue.increment(1) };
+    const updatePayloadUser = {
+      sfTotalHashes: admin.firestore.FieldValue.increment(1),
+      sfHashes: admin.firestore.FieldValue.increment(1),
+    };
     if (userSnap.exists && !userSnap.data().firstHashAt) {
       updatePayloadUser.firstHashAt = admin.firestore.FieldValue.serverTimestamp();
     }
     if (isWinner) {
       updatePayloadUser.sfBlocksFound = admin.firestore.FieldValue.increment(1);
+      updatePayloadUser.sfBlockSolver = true;
     }
     await userRef.update(updatePayloadUser);
+    try {
+      const { grantFamily } = require('./grantBadge');
+      await grantFamily(db, admin, uid, require('./grantBadge').familyFor('sfHashes'));
+      if (isWinner) await grantFamily(db, admin, uid, ['sf_block_solver']);
+    } catch (grantErr) {
+      console.warn('[FAVOR] hash badges', grantErr && grantErr.message);
+    }
   } catch (e) {
     console.warn('[FAVOR] sfTotalHashes/firstHashAt/sfBlocksFound update failed:', e.message);
   }

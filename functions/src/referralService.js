@@ -442,6 +442,14 @@ async function payIfQualified(referredUid) {
         }));
         outcome = { paid: true, reason: 'paid', ticketsEach: tickets, referrerUid: referrerUid };
     });
+    if (outcome && outcome.paid && outcome.referrerUid) {
+        try {
+            const { grantFamily, familyFor } = require('./grantBadge');
+            await grantFamily(db(), admin, outcome.referrerUid, familyFor('referralCount'));
+        } catch (e) {
+            console.warn('[referral] badges', e && e.message ? e.message : e);
+        }
+    }
     return outcome;
 }
 

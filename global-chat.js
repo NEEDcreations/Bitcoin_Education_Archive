@@ -4259,6 +4259,12 @@ window._maybeClaimSayHi = function(messageId) {
         }
     }).catch(function() {
         window._sayHiClaiming = false;
+        if (!window._sayHiClaimRetried) {
+            window._sayHiClaimRetried = true;
+            setTimeout(function() { window._maybeClaimSayHi(messageId); }, 1500);
+            return;
+        }
+        if (typeof showToast === 'function') showToast('Say hi did not go through. Send your hello once more.');
     });
 };
 

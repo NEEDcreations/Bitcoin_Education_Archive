@@ -1006,11 +1006,6 @@ window.sendMarketMessage = function(listingId) {
                 }
             }).catch(function() {});
         }
-        // Track for badge
-        db.collection('users').doc(auth.currentUser.uid).update({
-            marketMessages: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(e) { console.error('[marketplace] Error:', e); });
-        if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketMessages = (currentUser.marketMessages || 0) + 1;
     }).catch(function() {
         showToast('Error sending message. Try again.');
     });

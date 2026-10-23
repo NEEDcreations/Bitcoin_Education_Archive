@@ -14,6 +14,8 @@ const TESTS = [
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Marketplace Client', file: 'test-marketplace.js' },
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
+    { name: 'Badge engine', file: 'test-badge-engine.js' },
+    { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },

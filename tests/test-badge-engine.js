@@ -1,0 +1,387 @@
+// Badge rule engine, trifecta proof, daily-five gate, listing cap, message dedup.
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const badgeRules = require('../functions/src/badgeRules');
+const { grantBadgeIfEarned } = require('../functions/src/grantBadge');
+const { awardBadge } = require('../functions/src/awardBadge');
+const { favorSourceAllowed } = require('../functions/src/satoshiFavor');
+const dailyFive = require('../functions/src/dailyFive');
+const { countMarketplaceListing } = require('../functions/src/marketListingCount');
+const { countMarketplaceMessage } = require('../functions/src/marketMessages');
+const { heldThatFail } = require('../functions/src/badgeDistribution');
+
+const root = path.join(__dirname, '..');
+let passed = 0;
+let failed = 0;
+
+function test(name, fn) {
+    const run = fn();
+    const ok = function () { console.log('✅ ' + name); passed++; };
+    const bad = function (e) { console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e)); failed++; };
+    if (run && typeof run.then === 'function') return run.then(ok, bad);
+    try { ok(); } catch (e) { bad(e); }
+    return Promise.resolve();
+}
+
+const admin = {
+    firestore: {
+        FieldValue: {
+            serverTimestamp: function () { return { _serverTimestamp: true }; },
+            increment: function (n) { return { _increment: n }; },
+            arrayUnion: function () { return { _arrayUnion: Array.prototype.slice.call(arguments) }; },
+        },
+    },
+};
+
+function memoryDb(seed) {
+    const docs = Object.assign({}, seed || {});
+    function ref(docPath) {
+        return {
+            path: docPath,
+            collection: function (name) {
+                return { doc: function (id) { return ref(docPath + '/' + name + '/' + id); } };
+            },
+            get: async function () {
+                const data = docs[docPath];
+                return { exists: data != null, data: function () { return data ? Object.assign({}, data) : undefined; } };
+            },
+        };
+    }
+    return {
+        docs: docs,
+        collection: function (name) {
+            return { doc: function (id) { return ref(name + '/' + id); } };
+        },
+        runTransaction: async function (fn) {
+            const staged = [];
+            const t = {
+                get: function (r) { return r.get(); },
+                set: function (r, data) { staged.push({ path: r.path, data: data }); },
+                update: function (r, data) { staged.push({ path: r.path, data: data, update: true }); },
+            };
+            const result = await fn(t);
+            staged.forEach(function (w) {
+                if (w.update) {
+                    const next = Object.assign({}, docs[w.path]);
+                    Object.keys(w.data).forEach(function (key) {
+                        const value = w.data[key];
+                        if (value && value._increment) next[key] = (next[key] || 0) + value._increment;
+                        else if (value && value._arrayUnion) {
+                            const cur = Array.isArray(next[key]) ? next[key].slice() : [];
+                            value._arrayUnion.forEach(function (item) {
+                                if (cur.indexOf(item) === -1) cur.push(item);
+                            });
+                            next[key] = cur;
+                        } else next[key] = value;
+                    });
+                    docs[w.path] = next;
+                } else {
+                    docs[w.path] = w.data;
+                }
+            });
+            return result;
+        },
+    };
+}
+
+const queue = [];
+
+queue.push(test('paying badges stay within the XP cap and cosmetic badges pay nothing', function () {
+    assert.strictEqual(badgeRules.xpOf('satoshis_cipher'), 5000);
+    assert.strictEqual(badgeRules.xpOf('donor_100000'), 5000);
+    assert.strictEqual(badgeRules.xpOf('donor_100'), 10);
+    assert.strictEqual(badgeRules.xpOf('flex_findq_1'), 0);
+    assert.strictEqual(badgeRules.isCosmetic('quest_1'), true);
+    assert.strictEqual(badgeRules.isCosmetic('night_owl'), true);
+    assert.strictEqual(badgeRules.isCosmetic('lq_mining'), true);
+    assert.ok(badgeRules.xpOf('satoshis_cipher') <= 5000);
+    const legend = badgeRules.ruleFor('chat_legend');
+    assert.ok(!legend || legend.cosmetic || !legend.source || legend.source.type !== 'counter');
+}));
+
+queue.push(test('market, hash, and peer rules read server counters', function () {
+    const market = badgeRules.ruleFor('market_listed_5');
+    assert.strictEqual(market.xp, 75);
+    assert.strictEqual(market.source.field, 'marketListings');
+    assert.strictEqual(badgeRules.meets(market, { marketListings: 5 }, {}), true);
+    assert.strictEqual(badgeRules.meets(market, { marketListings: 4 }, {}), false);
+    const hashes = badgeRules.ruleFor('sf_100000_hashes');
+    assert.strictEqual(hashes.xp, 5000);
+    assert.strictEqual(badgeRules.meets(hashes, { sfHashes: 100000 }, {}), true);
+    assert.strictEqual(badgeRules.meets(hashes, { totalHashes: 100000 }, {}), false);
+    assert.strictEqual(badgeRules.ruleFor('peer_1').xp, 25);
+    assert.strictEqual(badgeRules.ruleFor('say_hi_1').xp, 15);
+    assert.strictEqual(badgeRules.ruleFor('daily_five_1').xp, 50);
+    assert.strictEqual(badgeRules.ruleFor('set_daily_five').source.type, 'set');
+}));
+
+queue.push(test('a badge grant skips every ban flag', async function () {
+    async function grant(seed) {
+        const db = memoryDb(seed);
+        const result = await grantBadgeIfEarned(db, admin, 'u', 'say_hi_1', { day: '2026-10-22' });
+        return { result: result, award: db.docs['users/u/badge_awards/say_hi_1'] };
+    }
+    const paid = await grant({ 'users/u': { sayHiDays: 1, points: 0 } });
+    assert.strictEqual(paid.result.granted, true);
+    assert.ok(paid.award);
+    for (const seed of [
+        { 'users/u': { sayHiDays: 1, ban_reason: 'ledger' } },
+        { 'users/u': { sayHiDays: 1, banned: true } },
+        { 'users/u': { sayHiDays: 1, satsDisabled: true } },
+        { 'users/u': { sayHiDays: 1 }, 'faucet_ledger/u': { banned: true } },
+    ]) {
+        const blocked = await grant(seed);
+        assert.strictEqual(blocked.result.granted, false, JSON.stringify(seed));
+        assert.strictEqual(blocked.result.reason, 'banned');
+        assert.strictEqual(blocked.award, undefined);
+    }
+}));
+
+queue.push(test('the all-five badge pays from the TV claim and skips every ban', async function () {
+    assert.strictEqual(dailyFive.TCTV_WATCH_DEPLOYED, true);
+    assert.strictEqual(dailyFive.tctvClaimId('2026-10-22'), '2026-10-22_tctv_watch_ticket');
+    const off = await dailyFive.maybeCompleteDailyFive({ tctvWatchDeployed: false });
+    assert.strictEqual(off.reason, 'tctv_not_deployed');
+    const proofs = { trivia: true, quest: true, poll: true, sayHi: true, tctv: true };
+    const day = '2026-10-22';
+    async function run(seed) {
+        const db = memoryDb(seed);
+        const result = await dailyFive.maybeCompleteDailyFive({
+            db: db, admin: admin, uid: 'u', day: day, proofs: proofs,
+        });
+        return { result: result, db: db };
+    }
+    const paid = await run({ 'users/u': { points: 0, orangeTickets: 0 } });
+    assert.strictEqual(paid.result.ok, true);
+    assert.strictEqual(paid.result.result.awarded, 100);
+    assert.strictEqual(paid.db.docs['users/u'].orangeTickets, 1);
+    assert.strictEqual(paid.db.docs['users/u'].dailyFiveDays, 1);
+    assert.ok(paid.db.docs['users/u/daily_action_counts/' + day + '_daily_five']);
+    const claimDb = memoryDb({
+        'users/u/daily_action_counts/2026-10-22_trivia': { count: 1 },
+        'users/u/daily_action_counts/2026-10-22_quest': { count: 1 },
+        'polls/2026-10-22/votes/u': { chosenIdx: 0 },
+        'users/u/daily_action_counts/2026-10-22_say_hi': { count: 1 },
+        'users/u/award_claims/2026-10-22_tctv_watch_ticket': { action: 'tctv_watch_ticket', day: day },
+    });
+    const seen = await dailyFive.proofsFor(claimDb, 'u', day);
+    assert.strictEqual(seen.tctv, true);
+    const missingTv = Object.assign({}, proofs, { tctv: false });
+    const noTv = await dailyFive.maybeCompleteDailyFive({
+        db: memoryDb({ 'users/u': {} }), admin: admin, uid: 'u', day: day, proofs: missingTv,
+    });
+    assert.strictEqual(noTv.reason, 'incomplete');
+    for (const seed of [
+        { 'users/u': { ban_reason: 'ledger' } },
+        { 'users/u': { banned: true } },
+        { 'users/u': { satsDisabled: true } },
+        { 'users/u': {}, 'faucet_ledger/u': { banned: true } },
+    ]) {
+        const blocked = await run(seed);
+        assert.strictEqual(blocked.result.ok, false, JSON.stringify(seed));
+        assert.strictEqual(blocked.result.result.reason, 'banned');
+        assert.strictEqual(blocked.db.docs['users/u/daily_action_counts/' + day + '_daily_five'], undefined);
+    }
+    let called = 0;
+    const miss = await dailyFive.maybeCompleteTrifecta({
+        uid: 'u', day: '2026-10-22',
+        proofs: { trivia: true, quest: true, poll: false },
+        creditDailyAllThree: async function () { called++; return { created: true }; },
+    });
+    assert.strictEqual(miss.reason, 'incomplete');
+    assert.strictEqual(called, 0);
+    const hit = await dailyFive.maybeCompleteTrifecta({
+        uid: 'u', day: '2026-10-22',
+        proofs: { trivia: true, quest: true, poll: true },
+        creditDailyAllThree: async function () { called++; return { already: true }; },
+    });
+    assert.strictEqual(hit.ok, true);
+    assert.strictEqual(called, 1);
+}));
+
+queue.push(test('a seller counts at most three listings per server day', async function () {
+    const db = memoryDb({ 'users/seller1': { marketListings: 0 } });
+    for (let i = 1; i <= 3; i++) {
+        const result = await countMarketplaceListing({
+            db: db, admin: admin, listingId: 'list' + i, data: { sellerUid: 'seller1', status: 'active' }, nowMs: Date.parse('2026-10-22T12:00:00Z'),
+        });
+        assert.strictEqual(result.counted, true, 'listing ' + i);
+    }
+    const fourth = await countMarketplaceListing({
+        db: db, admin: admin, listingId: 'list4', data: { sellerUid: 'seller1', status: 'active' }, nowMs: Date.parse('2026-10-22T18:00:00Z'),
+    });
+    assert.strictEqual(fourth.counted, false);
+    assert.strictEqual(fourth.reason, 'daily_cap');
+    assert.strictEqual(db.docs['users/seller1'].marketListings, 3);
+    assert.strictEqual(db.docs['market_listing_counts/list4'].counted, false);
+}));
+
+queue.push(test('a buyer message counts once per listing', async function () {
+    const db = memoryDb({ 'users/buyer1': { marketMessages: 0 }, 'marketplace/list1': { sellerUid: 'seller1' } });
+    const data = { buyerUid: 'buyer1', senderUid: 'buyer1', listingId: 'list1' };
+    const first = await countMarketplaceMessage({ db: db, admin: admin, data: data });
+    const second = await countMarketplaceMessage({ db: db, admin: admin, data: data });
+    assert.strictEqual(first.counted, true);
+    assert.strictEqual(second.reason, 'already_counted');
+    assert.strictEqual(db.docs['users/buyer1'].marketMessages, 1);
+    const seller = await countMarketplaceMessage({
+        db: db, admin: admin, data: { buyerUid: 'buyer1', senderUid: 'seller1', listingId: 'list1' },
+    });
+    assert.strictEqual(seller.counted, false);
+}));
+
+queue.push(test('merge ignores client badge ids and awardPoints does not keyword-match', function () {
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const mergeAt = index.indexOf('exports.mergeAnonBadges');
+    const merge = index.slice(mergeAt, mergeAt + 1800);
+    assert.ok(merge.includes('Client badge ids are ignored'));
+    assert.ok(merge.includes('grantBadgeIfEarned'));
+    assert.ok(!merge.includes('data.anonBadges'));
+    const awardAt = index.indexOf('exports.awardPoints');
+    const awardEnd = index.indexOf('exports.getFaucetStats', awardAt);
+    const award = index.slice(awardAt, awardEnd);
+    assert.ok(award.includes('awardActions.resolveAction'));
+    assert.ok(award.includes('const tickets = 0'));
+    assert.ok(award.includes('awardBadge'));
+    assert.ok(award.includes('cosmetic: true'));
+    const awardBadgeSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'awardBadge.js'), 'utf8');
+    assert.ok(awardBadgeSrc.includes('badgeRules.meets'));
+    assert.ok(awardBadgeSrc.includes('rewardBlocked'));
+    assert.ok(awardBadgeSrc.includes("uid + '_badge_' + badgeId"));
+    assert.ok(!award.includes('ACTION_KEYWORDS'));
+    assert.ok(!award.includes('TICKET_CAPS'));
+    assert.ok(index.includes('exports.dailyPollVote'));
+    assert.ok(index.includes('BADGE_CONDITION_NOT_MET'));
+    assert.ok(index.includes("actionKey === 'prediction_correct'"));
+}));
+
+queue.push(test('user updates deny server fields and poll votes are server-only', function () {
+    const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    const fnAt = rules.indexOf('function userProfileServerOnlyKeys()');
+    assert.ok(fnAt > 0);
+    const fn = rules.slice(fnAt, rules.indexOf('match /users/{userId}'));
+    ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak'].forEach(function (field) {
+        assert.ok(fn.includes("'" + field + "'"), field + ' must stay server-only');
+    });
+    ['lqProgress', 'trailProgress', 'earnedTitles', 'nachoStoryProgress', 'spinCount', 'completedQuests', 'referredBy', 'notificationPrefs', 'beatsShowUncensored', 'bio'].forEach(function (field) {
+        assert.ok(!fn.includes("'" + field + "'"), field + ' is a live client save');
+    });
+    assert.ok(rules.includes('userProfileServerOnlyKeys()'));
+    const polls = rules.slice(rules.indexOf('match /poll_votes/{pollId}'), rules.indexOf('match /poll_cumulative/'));
+    assert.ok(polls.includes('allow read: if true'));
+    assert.ok(polls.includes('allow create, update, delete: if false'));
+    assert.ok(rules.includes('match /market_listing_daily/{docId}'));
+    assert.ok(rules.includes('match /market_message_counts/{docId}'));
+    assert.ok(rules.includes('match /market_sale_counts/{docId}'));
+    assert.ok(rules.includes('match /polls/{dayId}/votes/{voteUid}'));
+}));
+
+queue.push(test('every badge grant adds one Favor point once', async function () {
+    const now = 1700000000000;
+    const db = memoryDb({ 'users/u': { sayHiDays: 1, points: 0, faction: 'cyber_hornets' } });
+    const first = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now });
+    const second = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now + 1000 });
+    assert.strictEqual(first.granted, true);
+    assert.strictEqual(first.favor, true);
+    assert.strictEqual(first.xp, 15);
+    assert.strictEqual(second.reason, 'already');
+    assert.strictEqual(second.favor, false);
+    assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
+    assert.strictEqual(db.docs['satoshiFavor/current/contributors/u_badge_say_hi_1'].pointsAdded, 1);
+    assert.strictEqual(db.docs['satoshiFavor/factionTotals'].cyber_hornets, 1);
+    assert.ok(db.docs['users/u/badge_awards/say_hi_1']);
+    const banned = memoryDb({ 'users/u': { sayHiDays: 1, banned: true } });
+    const blocked = await awardBadge(banned, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now });
+    assert.strictEqual(blocked.reason, 'banned');
+    assert.strictEqual(banned.docs['users/u/badge_awards/say_hi_1'], undefined);
+    assert.strictEqual(banned.docs['satoshiFavor/current'], undefined);
+}));
+
+queue.push(test('an open Favor window extends and the caps hold', async function () {
+    const now = 1700000000000;
+    const hour = 60 * 60 * 1000;
+    function endAt(ms) { return { toMillis: function () { return ms; } }; }
+    const open = memoryDb({
+        'users/u': { sayHiDays: 7, points: 0 },
+        'satoshiFavor/current': { points: 25, favorActive: true, bonusMinutes: 0, favorEndBase: endAt(now + hour), favorStart: endAt(now) },
+    });
+    const extended = await awardBadge(open, admin, 'u', 'say_hi_7', { day: '2026-10-22', nowMs: now });
+    assert.strictEqual(extended.favor, true);
+    assert.strictEqual(open.docs['satoshiFavor/current'].bonusMinutes, 3);
+    assert.strictEqual(open.docs['satoshiFavor/current'].points, 25);
+    const cappedMin = memoryDb({
+        'users/u': { sayHiDays: 30, points: 0 },
+        'satoshiFavor/current': { points: 30, favorActive: true, bonusMinutes: 180, favorEndBase: endAt(now + hour), favorStart: endAt(now) },
+    });
+    await awardBadge(cappedMin, admin, 'u', 'say_hi_30', { day: '2026-10-22', nowMs: now });
+    assert.strictEqual(cappedMin.docs['satoshiFavor/current'].bonusMinutes, 180);
+    const cappedPts = memoryDb({
+        'users/u': { sayHiDays: 1, points: 0 },
+        'satoshiFavor/current': { points: 42, favorActive: false, bonusMinutes: 0 },
+    });
+    await awardBadge(cappedPts, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now });
+    assert.strictEqual(cappedPts.docs['satoshiFavor/current'].points, 42);
+    assert.strictEqual(cappedPts.docs['satoshiFavor/current'].favorActive, true);
+    const almost = memoryDb({
+        'users/u': { sayHiDays: 100, points: 0 },
+        'satoshiFavor/current': { points: 20, favorActive: false, bonusMinutes: 0 },
+    });
+    await awardBadge(almost, admin, 'u', 'say_hi_100', { day: '2026-10-22', nowMs: now });
+    const opened = almost.docs['satoshiFavor/current'];
+    assert.strictEqual(opened.points, 21);
+    assert.strictEqual(opened.favorActive, true);
+    assert.strictEqual(opened.favorEndBase.toMillis() - opened.favorStart.toMillis(), hour);
+    const stale = memoryDb({
+        'users/u': { peerCount: 1, points: 0 },
+        'satoshiFavor/current': { points: 30, favorActive: true, bonusMinutes: 10, favorEndBase: endAt(now - hour), favorStart: endAt(now - 2 * hour) },
+    });
+    await awardBadge(stale, admin, 'u', 'peer_1', { day: '2026-10-22', nowMs: now });
+    assert.strictEqual(stale.docs['satoshiFavor/current'].favorActive, false);
+    assert.strictEqual(stale.docs['satoshiFavor/current'].points, 1);
+}));
+
+queue.push(test('the daily XP cap still grants the badge and Favor', async function () {
+    const db = memoryDb({
+        'users/u': { sayHiDays: 1, points: 10 },
+        'users/u/daily_points/2026-10-22': { total: 1000 },
+    });
+    const result = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: 1700000000000 });
+    assert.strictEqual(result.granted, true);
+    assert.strictEqual(result.xp, 0);
+    assert.strictEqual(result.capped, true);
+    assert.strictEqual(result.favor, true);
+    assert.strictEqual(db.docs['users/u'].points, 10);
+    assert.ok(db.docs['users/u/badge_awards/say_hi_1']);
+    assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
+}));
+
+queue.push(test('clients cannot mint badge Favor or write hiddenBadges', function () {
+    assert.strictEqual(favorSourceAllowed('badge_earned'), false);
+    assert.strictEqual(favorSourceAllowed('daily_all_three'), true);
+    const favor = fs.readFileSync(path.join(root, 'functions', 'src', 'satoshiFavor.js'), 'utf8');
+    assert.ok(favor.includes('rewardBlocked'));
+    assert.ok(!favor.includes("'badge_earned': 1"));
+    ['badges.js', 'features.js', 'quests.js', 'ranking.js', 'learning-quests.js', 'modules.js'].forEach(function (name) {
+        const src = fs.readFileSync(path.join(root, name), 'utf8');
+        assert.ok(!src.includes("contributeSatoshiFavor('badge_earned'"), name);
+    });
+    const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    const fnAt = rules.indexOf('function userProfileServerOnlyKeys()');
+    const fn = rules.slice(fnAt, rules.indexOf('match /users/{userId}'));
+    assert.ok(fn.includes("'hiddenBadges'"));
+}));
+
+queue.push(test('the dry-run helper counts failing badges without printing people', function () {
+    const ids = ['market_listed_5', 'flex_findq_1', 'peer_1'];
+    const failedIds = heldThatFail({ marketListings: 0, peerCount: 0 }, ids);
+    assert.deepStrictEqual(failedIds, ['market_listed_5', 'peer_1']);
+    const src = fs.readFileSync(path.join(root, 'functions', 'dry-run-badge-criteria.js'), 'utf8');
+    assert.ok(src.includes('tally'));
+    assert.ok(!src.includes('console.log(uid'));
+}));
+
+Promise.all(queue).then(function () {
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+});

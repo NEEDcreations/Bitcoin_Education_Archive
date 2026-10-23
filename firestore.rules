@@ -95,6 +95,25 @@ service cloud.firestore {
     // USERS COLLECTION
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
     // =============================================
+
+    // Extra server-only profile fields. The inline list below stays the live
+    // denylist; this function adds the badge-engine fields and hiddenBadges.
+    function userProfileServerOnlyKeys() {
+      return [
+        'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+        'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
+        'marketListings', 'marketMessages', 'marketSold',
+        'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
+        'sayHiArmedDay', 'sayHiDays', 'replyBonusCount',
+        'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak',
+        'purpleTickets', 'blueTickets', 'pollDays',
+        'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
+        'pvpPlayed', 'ciphersSolved', 'sfHashes', 'sfBlockSolver', 'sfContributions',
+        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'giftsSent', 'onboardingComplete',
+        'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult'
+      ];
+    }
+
     match /users/{userId} {
       // Reads:
       //   - Own profile: always allowed for the authenticated owner (get or list)
@@ -148,6 +167,7 @@ service cloud.firestore {
                     && request.auth.uid == userId
                     // [VULN-2 FIX 2026-06-26] Expanded denylist — all economy, rank, admin,
                     // anti-fraud, and leaderboard fields must be server-only.
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(userProfileServerOnlyKeys())
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
@@ -171,9 +191,7 @@ service cloud.firestore {
                         'bonusSpinGranted',
                         'ownedCosmetics', 'spinClosetItems',
                         // Badges (awardPoints CF)
-                        'badges', 'visibleBadges',
-                        // NOTE: 'hiddenBadges' intentionally omitted — client writes it
-                        // to toggle badge visibility preference (cosmetic, not gated).
+                        'badges', 'visibleBadges', 'hiddenBadges',
                         // Social / gamification counters (CF)
                         'forumPosts', 'forumReplies', 'lastSpinDate',
                         // Say-hi reward (armSayHi / claimSayHi). Server only.
@@ -1764,45 +1782,12 @@ service cloud.firestore {
     }
 
     // Poll Quest votes — anyone can read, signed-in users can write
+    // Poll Quest votes. The tally is written by dailyPollVote. Clients can read it.
     match /poll_votes/{pollId} {
       allow read: if true;
-      // pollId must be alphanumeric/safe; field schema locked; voters[0] must be self
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
-                    && request.resource.data.votes is list
-                    && request.resource.data.votes.size() == 4
-                    && request.resource.data.voters is list
-                    && request.resource.data.voters.size() == 1
-                    && request.resource.data.voters[0] == request.auth.uid;
-      // [SECURITY FIX] votes: each slot can only increase by at most 1; total must increase
-      // by exactly 1 (one vote per update). Previously >= allowed unbounded inflation.
-      allow update: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
-                    && request.resource.data.votes is list
-                    && request.resource.data.votes.size() == 4
-                    // each slot: non-decreasing AND at most +1
-                    && request.resource.data.votes[0] >= resource.data.votes[0]
-                    && request.resource.data.votes[0] <= resource.data.votes[0] + 1
-                    && request.resource.data.votes[1] >= resource.data.votes[1]
-                    && request.resource.data.votes[1] <= resource.data.votes[1] + 1
-                    && request.resource.data.votes[2] >= resource.data.votes[2]
-                    && request.resource.data.votes[2] <= resource.data.votes[2] + 1
-                    && request.resource.data.votes[3] >= resource.data.votes[3]
-                    && request.resource.data.votes[3] <= resource.data.votes[3] + 1
-                    // total must increase by exactly 1 (exactly one option chosen)
-                    && (request.resource.data.votes[0] + request.resource.data.votes[1]
-                        + request.resource.data.votes[2] + request.resource.data.votes[3])
-                       == (resource.data.votes[0] + resource.data.votes[1]
-                           + resource.data.votes[2] + resource.data.votes[3]) + 1
-                    && request.resource.data.voters is list
-                    && request.resource.data.voters.size() == resource.data.voters.size() + 1
-                    && request.resource.data.voters.hasAll([request.auth.uid])
-                    && request.resource.data.question == resource.data.question
-                    && request.resource.data.pollId   == resource.data.pollId;
+      allow create, update, delete: if false;
     }
 
-    // Poll cumulative stats (all-time per question) — read public, increment only
     match /poll_cumulative/{pollId} {
       allow read: if true;
       allow create: if request.auth != null
@@ -2197,6 +2182,19 @@ service cloud.firestore {
     // client cannot forge a Nacho post or reset the cap.
     // One marker per listing so onMarketplaceListingCount cannot double-count.
     match /market_listing_counts/{listingId} {
+      allow read, write: if false;
+    }
+
+    match /market_listing_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /market_message_counts/{docId} {
+      allow read, write: if false;
+    }
+    match /market_sale_counts/{docId} {
+      allow read, write: if false;
+    }
+    match /polls/{dayId}/votes/{voteUid} {
       allow read, write: if false;
     }
 

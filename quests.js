@@ -1349,49 +1349,34 @@ function _markDailyActivity(type) {
     localStorage.setItem('btc_daily_activities', JSON.stringify(state));
 }
 
+function _announceDailyTrifecta() {
+    var state = _getDailyActivities();
+    if (state.announced) return;
+    state.announced = true;
+    localStorage.setItem('btc_daily_activities', JSON.stringify(state));
+    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
+        ? currentUser.username : null;
+    if (username && typeof window.nachoGlobalAnnounce === 'function') {
+        window.nachoGlobalAnnounce(
+            '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
+            (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : ''
+        );
+    }
+}
+
 function _checkDailyAllThree() {
     var state = _getDailyActivities();
     if (!(state.quiz && state.trivia && state.poll)) return;
-    if (state.sfAwarded) return; // already triggered this session
+    if (state.sfAwarded) return;
 
     state.sfAwarded = true;
     localStorage.setItem('btc_daily_activities', JSON.stringify(state));
 
-    // ── Immediate announcement in the News tab ──
-    // Fires right away, independent of the SF CF call.
-    // Uses a short delay (1s) so local state settles and global-chat is ready.
     setTimeout(function() {
-        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
-            ? currentUser.username : null;
-        if (username && typeof window.nachoGlobalAnnounce === 'function') {
-            window.nachoGlobalAnnounce(
-                '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
-                (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : ''
-            );
-        }
-    }, 1000);
-
-    // Award 1 orange ticket for completing the Daily Trifecta
-    setTimeout(function() {
-        if (typeof awardTickets === 'function') {
-            awardTickets(1, '🎯 Daily Trifecta');
-        }
+        if (typeof awardTickets === 'function') awardTickets(1, '🎯 Daily Trifecta');
     }, 500);
 
-    // Track cumulative daily triple completions
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({
-            dailyTripleCount: firebase.firestore.FieldValue.increment(1)
-        }).catch(function() {});
-    }
-
-    // ── SF point contribution (background, retried) ──
-    // Wait for gradeQuest + awardPoints CF writes to fully commit before
-    // contributeFavor reads daily_action_counts to validate all three docs exist.
-    // 8s gives CF writes more breathing room; retries handle remaining lag.
-    setTimeout(function() {
-        _triggerDailyAllThreeSF(0);
-    }, 8000);
+    setTimeout(function() { _triggerDailyAllThreeSF(0); }, 8000);
 }
 
 function _triggerDailyAllThreeSF(attempt) {
@@ -1402,12 +1387,13 @@ function _triggerDailyAllThreeSF(attempt) {
     }
     window.contributeSatoshiFavor('daily_all_three').then(function(data) {
         if (data) console.log('[DAILY] SF point awarded:', data);
+        _announceDailyTrifecta();
     }).catch(function(err) {
         var code = err && err.code;
         var msg  = err && (err.message || String(err));
         console.warn('[DAILY] contributeSatoshiFavor failed (attempt ' + attempt + '):', msg);
         // already-exists = dedup already recorded, silent success
-        if (code === 'already-exists') return;
+        if (code === 'already-exists') { _announceDailyTrifecta(); return; }
         // Retry on: docs not written yet (failed-precondition) or transient read error (internal)
         var shouldRetry = (code === 'failed-precondition' || code === 'internal') && attempt < 8;
         if (shouldRetry) {
@@ -2016,8 +2002,7 @@ async function submitQuest() {
 
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
-                questsCompletedToday: (qLog.count || 0),
-                lastQuestDate: todayQ
+                questsCompletedToday: (qLog.count || 0)
             }).catch(function(e) { console.error('Quest sync failed:', e); });
         }
     }
@@ -4647,24 +4632,6 @@ function _renderCharityTabInner(body) {
             if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
             // Show thank-you modal
             window._charityThankYou(amt, newBadges, result.data && result.data.bonusPts || 0);
-            // Announce earned badges to Global Chat via Satoshi's Favor
-            if (newBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
-                var _donorBadgeMap = {
-                    donor_100:    { emoji: '🫷', name: 'Giving Pleb' },
-                    donor_500:    { emoji: '💛', name: 'Stack Sharer' },
-                    donor_1000:   { emoji: '🧡', name: 'Community Builder' },
-                    donor_5000:   { emoji: '❤️', name: 'Archive Patron' },
-                    donor_10000:  { emoji: '🔥', name: 'Sats Saint' },
-                    donor_25000:  { emoji: '⚡', name: 'Lightning Philanthropist' },
-                    donor_50000:  { emoji: '🏆', name: "Satoshi's Steward" },
-                    donor_100000: { emoji: '👑', name: 'Legend of the Archive' },
-                };
-                newBadges.forEach(function(badgeId) {
-                    if (_donorBadgeMap[badgeId]) {
-                        window.contributeSatoshiFavor('badge_earned', badgeId).catch(function() {});
-                    }
-                });
-            }
             // Listeners are live for community totals; also refresh the donate
             // section so quick-pick amounts, available XP, and already-donated tally
             // all reflect the just-made donation immediately.
@@ -5024,30 +4991,8 @@ window.triviaAnswer = function(chosenIdx) {
     _markDailyActivity('trivia');
     _checkDailyAllThree();
 
-    // Also sync to Firestore for signed-in users
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        // Calculate trivia streak server-side-friendly: read lastTriviaDate, check if yesterday
-        var _yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
-            var data = doc.exists ? doc.data() : {};
-            var lastDate = data.lastTriviaDate || '';
-            var currentStreak = data.triviaStreak || 0;
-            var newStreak = (lastDate === _yesterday) ? currentStreak + 1 : (lastDate === todayKey ? currentStreak : 1);
-            return db.collection('users').doc(auth.currentUser.uid).update({
-                lastTriviaDate: todayKey,
-                triviaAnswered: firebase.firestore.FieldValue.increment(1),
-                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0),
-                triviaStreak: newStreak
-            });
-        }).catch(function() {
-            // Fallback: update without streak calc
-            db.collection('users').doc(auth.currentUser.uid).update({
-                lastTriviaDate: todayKey,
-                triviaAnswered: firebase.firestore.FieldValue.increment(1),
-                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
-            }).catch(function() {});
-        });
-    }
+    // lastTriviaDate and triviaStreak are written by awardPoints. A client
+    // date would let someone forge the streak.
 
     // Track answer distribution — cumulative doc (permanent, keyed by trivia index)
     if (typeof db !== 'undefined') {
@@ -5287,72 +5232,37 @@ window.pollVote = function(chosenIdx) {
     var pollId = (p.id ? p.id + '_' + todayKey : 'poll_day_' + todayKey);
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
 
-    // Server-side duplicate check + atomic vote via transaction
-    if (typeof db !== 'undefined' && uid) {
-        var pollRef = db.collection('poll_votes').doc(pollId);
-        db.runTransaction(function(tx) {
-            return tx.get(pollRef).then(function(doc) {
-                var data = doc.exists ? doc.data() : {};
-                var voters = data.voters || [];
-                // Server-side: reject if this user already voted on this poll
-                if (voters.indexOf(uid) !== -1) {
-                    return Promise.reject({ code: 'already-voted' });
-                }
-                var votes = data.votes || [0, 0, 0, 0];
-                votes[chosenIdx] = (votes[chosenIdx] || 0) + 1;
-                voters.push(uid);
-                tx.set(pollRef, {
-                    pollId: pollId,
-                    question: p.q,
-                    options: p.options,
-                    votes: votes,
-                    voters: voters,
-                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            });
-        }).then(function() {
-            // Vote succeeded - save local state + award XP
+    // The server records the vote, the XP, and the trifecta proof.
+    if (typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous) {
+        firebase.functions().httpsCallable('dailyPollVote')({ chosenIdx: chosenIdx }).then(function(res) {
+            var data = (res && res.data) || {};
             state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
             _setPollState(state);
-            if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
-            if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
-            if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(50);
-            if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
-
-            // Mark poll done for daily all-three check
-            _markDailyActivity('poll');
-            _checkDailyAllThree();
-
-            // Track on user doc
-            if (!auth.currentUser.isAnonymous) {
-                db.collection('users').doc(uid).update({
-                    lastPollDate: todayKey,
-                    pollsVoted: firebase.firestore.FieldValue.increment(1)
-                }).catch(function() {});
+            if (data.already) {
+                if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
+            } else {
+                var awarded = Number(data.awarded) || 0;
+                if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
+                if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
+                if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP') : '📊 Vote recorded!', 3000);
+                _markDailyActivity('poll');
+                _checkDailyAllThree();
             }
-
-            // Write cumulative poll stats (all-time totals for this question)
-            var _cumUpdate = { total: firebase.firestore.FieldValue.increment(1), pollId: p.id, question: p.q };
-            _cumUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-            db.collection('poll_cumulative').doc(p.id).set(_cumUpdate, { merge: true }).catch(function() {});
-
             var body = document.getElementById('questHubBody');
             if (body) _renderPollTab(body);
         }).catch(function(e) {
-            if (e && e.code === 'already-voted') {
-                // Already voted server-side - sync local state
+            var code = String((e && (e.code || e.message)) || '');
+            if (code.indexOf('already-exists') !== -1 || code.indexOf('already-voted') !== -1) {
                 state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
                 _setPollState(state);
                 if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
-            } else {
-                console.error('[POLL] Vote failed:', e);
-                if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
-                // Re-enable buttons on error
-                pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
+                var votedBody = document.getElementById('questHubBody');
+                if (votedBody) _renderPollTab(votedBody);
                 return;
             }
-            var body = document.getElementById('questHubBody');
-            if (body) _renderPollTab(body);
+            console.error('[POLL] Vote failed:', e);
+            if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
+            pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
         });
     } else {
         // No auth or offline - local-only vote (no XP, no server record)
@@ -6440,10 +6350,6 @@ function _flexClaimDayRewards(data) {
                     .then(function(result) {
                         var _alreadyAwarded = result && result.data &&
                             (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
-                        var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
-                        if (!serverRejected && fullDays === def.m && typeof window.contributeSatoshiFavor === 'function') {
-                            window.contributeSatoshiFavor('badge_earned', def.id).catch(function(){});
-                        }
                     }).catch(function() {});
             } else if (allAlreadyEarned && typeof earnedBadges !== 'undefined') {
                 earnedBadges.add(def.id);
@@ -6479,10 +6385,6 @@ function _flexCheckBadges(actionId, total) {
                     .then(function(result) {
                         var _alreadyAwarded = result && result.data &&
                             (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
-                        var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
-                        if (!serverRejected && total === m && typeof window.contributeSatoshiFavor === 'function') {
-                            window.contributeSatoshiFavor('badge_earned', badgeId).catch(function(){});
-                        }
                     }).catch(function() {});
             } else if (alreadyEarned && typeof earnedBadges !== 'undefined') {
                 // Sync localStorage badges into earnedBadges so future checks are fast

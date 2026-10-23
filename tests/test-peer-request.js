@@ -344,7 +344,7 @@ queue.push(test('managePeer send reads in one batch and writes the request with 
     assert.ok(accept.includes('revReqRef.get()') && accept.includes('userRef.get()'));
     assert.ok(accept.indexOf('Promise.all') < accept.indexOf('batch.update(revReqRef'));
     assert.ok(accept.includes("type: 'peer_accepted'"));
-    assert.ok(acceptCommit < accept.indexOf('userRef.get(), targetRef.get()'), 'badge reads stay after the accept commit');
+    assert.ok(acceptCommit < accept.indexOf("familyFor('peerCount')"), 'badge grants stay after the accept commit');
     const decline = fn.slice(fn.indexOf("if (action === 'decline')"), fn.indexOf("if (action === 'cancel')"));
     assert.ok(decline.includes('revReqRef.get()') && decline.includes('revReqRef.delete()'));
     const remove = fn.slice(fn.indexOf("if (action === 'remove')"));
@@ -398,7 +398,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261023_v2323'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2324'));
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.ok(html.includes('gifting.js?v=20261022_v2254'));
@@ -408,13 +408,13 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
-    assert.ok(html.includes('bundle.min.js?v=20261022_v2322'));
+    assert.ok(html.includes('bundle.min.js?v=20261023_v2324'));
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2295'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2293'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2279'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2271'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.ok(html.includes('global-chat.js?v=20261023_v2323'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2324'));
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2272'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2267'), false);
@@ -434,7 +434,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2265'), false);
     assert.ok(html.includes('satoshi-favor.js?v=20261023_v2323'));
     assert.strictEqual(html.includes('satoshi-favor.js?v=20261022_v2250'), false);
-    assert.strictEqual((html.match(/quests\.js\?v=20261023_v2323/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 4);
+    assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2279/g) || []).length, 0);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
     assert.ok(html.includes('lightning-tips.js?v=20261022_v2279'));
@@ -448,8 +449,9 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2323'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2324'"));
     assert.strictEqual(sw.includes('btc-archive-v2322'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2323'), false);
     assert.strictEqual(sw.includes('btc-archive-v2301'), false);
     assert.strictEqual(sw.includes('btc-archive-v2295'), false);
     assert.strictEqual(sw.includes('btc-archive-v2293'), false);

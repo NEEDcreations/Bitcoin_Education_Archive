@@ -1,0 +1,422 @@
+'use strict';
+
+// One badge rule table. Display rows live in badges.catalog.json (generated).
+// Whether a badge pays, and which server field proves it, is decided here.
+// Cosmetic badges pay 0 XP, write no badge_awards row, and do not count
+// toward milestone badges or Satoshi's Favor.
+
+const catalog = require('./badges.catalog.json');
+
+const XP_CAP = 5000;
+const SF_MIN_XP = 50;
+
+const XP_OVERRIDE = {
+    satoshis_cipher: 5000,
+    satoshis_covenant: 4000,
+    the_hodler: 3000,
+    block_250: 2500,
+    satoshis_ghost: 2100,
+    genesis_block: 1500,
+    the_archive: 1500,
+    donor_100: 10,
+    donor_500: 50,
+    donor_1000: 100,
+    donor_5000: 500,
+    donor_10000: 1000,
+    donor_25000: 2500,
+    donor_50000: 5000,
+    donor_100000: 5000,
+    referral_1: 50,
+    referral_5: 100,
+    referral_10: 200,
+    referral_25: 500,
+    referral_50: 1000,
+    referral_100: 2500,
+    daily_triple_1: 25,
+    daily_triple_7: 100,
+    daily_triple_30: 500,
+    daily_triple_90: 1500,
+    daily_triple_365: 5000,
+    market_listed_1: 30,
+    market_listed_5: 75,
+    market_listed_10: 150,
+    market_message: 20,
+    market_sold_1: 50,
+    market_sold_5: 200,
+    peer_1: 25,
+    peer_3: 75,
+    peer_10: 250,
+    peer_25: 750,
+    say_hi_1: 15,
+    say_hi_7: 75,
+    say_hi_30: 250,
+    say_hi_100: 750,
+    daily_five_1: 50,
+    daily_five_7: 150,
+    daily_five_30: 500,
+    daily_five_100: 1500,
+    daily_five_streak_7: 300,
+    poll_days_7: 50,
+    poll_days_30: 250,
+    poll_days_100: 1000,
+    quest_days_7: 50,
+    quest_days_30: 250,
+    quest_days_100: 1000,
+    sf_trifecta_10: 100,
+    sf_trifecta_50: 300,
+    sf_trifecta_100: 750,
+    cipher_1: 15,
+    cipher_10: 100,
+    cipher_50: 400,
+    cipher_200: 1500,
+    gift_sent_1: 25,
+    gift_sent_10: 150,
+    gift_sent_50: 600,
+    tctv_daily_1: 25,
+    tctv_daily_7: 100,
+    tctv_daily_30: 300,
+    tctv_daily_100: 1000,
+    reply_bonus_1: 15,
+    reply_bonus_25: 75,
+    reply_bonus_100: 250,
+    reply_bonus_500: 750,
+    plebtalk_1: 15,
+    plebtalk_10: 100,
+    plebtalk_50: 400,
+    onboarding_complete: 100,
+    push_enabled: 25,
+    profile_complete: 25,
+    jack_of_all: 1000,
+};
+
+const NAME_OVERRIDE = {
+    daily_triple_30: 'Trifecta Engine',
+    first_post: 'PlebTalk Voice',
+    market_seller: 'Shopkeeper',
+    market_listed_5: 'Merchant',
+};
+
+const SETS = {
+    set_daily_five: ['daily_five_1', 'daily_five_7', 'tctv_daily_1', 'say_hi_1', 'daily_triple_7'],
+    set_voice: ['say_hi_7', 'reply_bonus_25', 'chat_100', 'forum_reply_10'],
+    set_tv: ['tctv_daily_1', 'tctv_daily_7', 'tctv_daily_30', 'tctv_satellite'],
+    set_trader: ['market_listed_1', 'market_listed_5', 'market_message', 'market_sold_1'],
+    set_codebreaker: ['cipher_1', 'cipher_10', 'cipher_50'],
+    set_generous: ['gift_sent_1', 'gift_sent_10', 'tip_first', 'donor_1000'],
+    set_network: ['peer_1', 'peer_3', 'peer_10', 'referral_1', 'referral_5'],
+    set_gladiator: ['pvp_first', 'pvp_25', 'pvp_win_streak_5', 'pvp_played_50'],
+    set_scholar_daily: ['trivia_correct_50', 'quest_days_30', 'poll_days_30'],
+    set_newcomer: ['onboarding_complete', 'push_enabled', 'profile_complete', 'first_channel'],
+    set_favor: ['sf_trifecta_10', 'sf_contributor_10', 'sf_block_solver'],
+    set_explorer_complete: ['first_channel', 'explorer_5', 'explorer_10', 'explorer_25', 'explorer_50', 'explorer_100', 'explorer_all'],
+    set_streak_complete: ['streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_60', 'streak_100', 'streak_200', 'streak_365'],
+    set_trifecta_complete: ['daily_triple_1', 'daily_triple_7', 'daily_triple_30', 'daily_triple_90', 'daily_triple_365'],
+    set_social_complete: ['chat_first', 'chat_10', 'chat_50', 'chat_100', 'chat_200', 'dm_first', 'dm_10', 'peer_1'],
+    set_pvp_complete: ['pvp_first', 'pvp_5', 'pvp_25', 'pvp_50', 'pvp_100'],
+    set_builder_complete: ['producer_1', 'producer_10', 'forum_first', 'forum_10', 'market_listed_1'],
+};
+
+const MILESTONES = {
+    hall_of_fame: 50,
+    the_archive: 100,
+    genesis_block: 150,
+    satoshis_ghost: 200,
+    block_250: 250,
+    the_hodler: 300,
+    satoshis_covenant: 350,
+    satoshis_cipher: 400,
+};
+
+const ORANGE_CHANNELS = ['whitepaper', 'decentralized', 'scarce', 'secure', 'money', 'peaceful', 'dominant', 'organic', 'supranational', 'programmable', 'use-cases'];
+const PURPLE_CHANNELS = ['maximalism', 'problems-of-money', 'self-custody', 'privacy-nonkyc', 'nodes', 'mining', 'pow-vs-pos', 'energy', 'difficulty-adjustment', 'layer-2-lightning', 'fedi-ark', 'chaumian-mints', 'ctv-covenants', 'extension-blocks', 'op-codes', 'bitvm', 'layer-3-sidechains', 'stablecoins', 'smart-contracts', 'blockchain-timechain', 'regulation', 'cryptography', 'core-source-code', 'developers', 'investment-strategy', 'evidence-against-alts', 'consensus'];
+const BLUE_CHANNELS = ['one-stop-shop', 'faq-glossary', 'nostr', 'misconceptions-fud', 'books', 'videos', 'podcasts', 'articles-threads', 'informational-sites', 'curriculum', 'research-theses', 'games', 'music', 'movies-tv', 'hardware', 'poems-stories', 'apps-tools', 'projects-diy', 'art-inspiration', 'graphics', 'charts', 'swag-merch', 'jobs-earn', 'social-media', 'fun-facts', 'news-adoption', 'history', 'international', 'satoshi-nakamoto', 'giga-chad', 'health', 'web5', 'memes-funny'];
+
+const COSMETIC_PREFIXES = [
+    'flex_', 'lb_lurker_', 'chat_lurker_', 'fun_', 'chat_streak_', 'pvp_win_streak_',
+    'spin_', 'trail_', 'story_', 'nacho_', 'raid_', 'dj_', 'react_', 'irl_', 'pow_',
+    'cert_', 'lq_', 'beats_', 'tctv_tuned', 'tctv_couch', 'tctv_binge', 'tctv_channel',
+    'tctv_remote', 'tctv_dial', 'tctv_signal', 'tctv_antenna', 'tctv_timechain',
+];
+
+const COSMETIC_EXACT = new Set([
+    'ghost_mode', 'night_owl', 'early_bird', 'insomniac', 'weekend_warrior', 'early_adopter',
+    'market_browse', 'market_saved_5', 'bookworm', 'bookmark_collector', 'bookmarks_1', 'bookmarks_10',
+    'favs_10', 'favs_25', 'collector', 'speed_runner', 'scholar', 'marathon', 'triple_threat',
+    'pvp_streak', 'streak_freeze', 'nacho_closet_full', 'ghost_reader', 'whitepaper_pilgrim',
+    'contrarian', 'block_42', 'rabbit_hole', 'the_plebeian', 'dust_collector', 'hash_obsessed',
+    'search_sleuth', 'first_peer', 'peer_network_10', 'peer_network_50', 'peer_network_100', 'peer_network_250',
+    'market_seller', 'market_buyer', 'first_post', 'genesis', 'ticket_bronze', 'ticket_silver', 'ticket_gold',
+    'sf_lucky_1', 'sf_lucky_5', 'sf_lucky_10', 'sf_lucky_50', 'sf_lucky_100', 'sf_lucky_1000',
+    'sf_unlucky_1', 'sf_unlucky_5', 'sf_unlucky_10', 'sf_unlucky_50', 'sf_unlucky_100', 'sf_unlucky_1000',
+    'sf_low_hash', 'sf_ultra_low', 'combo_trio', 'combo_mega', 'combo_legend', 'weekly_hero',
+    'set_fun_complete', 'set_beats_complete', 'set_daily_complete', 'set_irl_complete',
+    'set_lightning_complete', 'set_pow_complete', 'set_profile_complete', 'set_spin_complete',
+    'set_tctv_complete', 'set_trails_complete', 'set_scholar_complete', 'set_miner_complete',
+    'tip_first', 'tip_10', 'tip_magnet', 'tip_whale', 'tip_received_1', 'tip_received_50', 'tip_sats_10k',
+    'quest_1', 'quest_3', 'quest_5', 'quest_10', 'quest_25', 'quest_50', 'quest_100', 'quest_legend',
+    'trivia_first', 'trivia_correct_1', 'trivia_correct_10', 'trivia_correct_30', 'trivia_correct_50',
+    'trivia_correct_100', 'trivia_correct_250', 'trivia_correct_1000', 'trivia_streak_7', 'trivia_streak_30',
+    'daily_1', 'daily_5', 'daily_10', 'daily_25', 'daily_50', 'daily_100',
+    'tctv_satellite', 'tctv_couch_king',
+]);
+
+// These stay in the catalog with real XP, but nothing in this deploy writes the
+// counter. Claims fail closed. Documented in BADGE_VERIFICATION.md.
+const WAITING_COUNTERS = {
+    quest_days_7: counter('questDays', 7),
+    quest_days_30: counter('questDays', 30),
+    quest_days_100: counter('questDays', 100),
+    reply_bonus_1: counter('replyBonusCount', 1),
+    reply_bonus_25: counter('replyBonusCount', 25),
+    reply_bonus_100: counter('replyBonusCount', 100),
+    reply_bonus_500: counter('replyBonusCount', 500),
+    plebtalk_1: counter('plebTalkSessions', 1),
+    plebtalk_10: counter('plebTalkSessions', 10),
+    plebtalk_50: counter('plebTalkSessions', 50),
+    onboarding_complete: { type: 'truthy', field: 'onboardingComplete' },
+    push_enabled: { type: 'truthy', field: 'pushToken' },
+    tctv_daily_1: counter('tctvWatchDays', 1),
+    tctv_daily_7: counter('tctvWatchDays', 7),
+    tctv_daily_30: counter('tctvWatchDays', 30),
+    tctv_daily_100: counter('tctvWatchDays', 100),
+    gift_sent_1: counter('giftsSent', 1),
+    gift_sent_10: counter('giftsSent', 10),
+    gift_sent_50: counter('giftsSent', 50),
+};
+
+function counter(field, gte) {
+    const n = Number(gte);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return { type: 'counter', field: field, gte: n };
+}
+
+function isCosmeticId(id) {
+    if (COSMETIC_EXACT.has(id)) return true;
+    for (let i = 0; i < COSMETIC_PREFIXES.length; i++) {
+        if (id.indexOf(COSMETIC_PREFIXES[i]) === 0) return true;
+    }
+    // Old Timechain TV minute badges are device-local. The new tctv_daily_* family is not.
+    if (id.indexOf('tctv_') === 0 && id.indexOf('tctv_daily_') !== 0) return true;
+    return false;
+}
+
+function numFromId(id) {
+    const m = String(id).match(/(\d+)_?$/);
+    if (!m) return null;
+    const n = Number(m[1]);
+    if (id.indexOf('_1k') !== -1) return 1000;
+    if (id.indexOf('_5k') !== -1) return 5000;
+    if (id.indexOf('_10k') !== -1) return 10000;
+    if (id.indexOf('_21k') !== -1) return 21000;
+    return n;
+}
+
+function sourceFor(id) {
+    if (WAITING_COUNTERS[id]) return WAITING_COUNTERS[id];
+    if (MILESTONES[id]) return { type: 'awards', gte: MILESTONES[id] };
+    if (id === 'jack_of_all') return { type: 'awards', gte: 25 };
+    if (SETS[id]) return { type: 'set', members: SETS[id] };
+    if (id.indexOf('set_') === 0 && id.lastIndexOf('_complete') === id.length - 9) {
+        return SETS[id] ? { type: 'set', members: SETS[id] } : null;
+    }
+    if (id === 'first_channel') return counter('channelsVisited', 1);
+    if (id === 'explorer_all') return counter('channelsVisited', catalog.channelCount || 146);
+    if (id.indexOf('explorer_') === 0) return counter('channelsVisited', numFromId(id));
+    if (id === 'foundation_builder') return { type: 'includes', field: 'visitedChannelsList', ids: ORANGE_CHANNELS };
+    if (id === 'experienced_pro') return { type: 'includes', field: 'visitedChannelsList', ids: PURPLE_CHANNELS };
+    if (id === 'librarian') return { type: 'includes', field: 'visitedChannelsList', ids: BLUE_CHANNELS };
+    if (id.indexOf('streak_') === 0) return counter('bestStreak', numFromId(id));
+    if (id === 'sats_first') return counter('satsWithdrawn', 1);
+    if (id === 'sats_maxed') return counter('satsWithdrawn', 15000);
+    if (id.indexOf('sats_') === 0) return counter('satsWithdrawn', numFromId(id));
+    if (id.indexOf('donor_') === 0) return counter('pointsDonated', numFromId(id));
+    if (id === 'silent_donor') return { type: 'silentDonor' };
+    if (id.indexOf('market_listed_') === 0) return counter('marketListings', numFromId(id));
+    if (id === 'market_message') return counter('marketMessages', 1);
+    if (id.indexOf('market_sold_') === 0) return counter('marketSold', numFromId(id));
+    if (id.indexOf('peer_') === 0) return counter('peerCount', numFromId(id));
+    if (id.indexOf('referral_') === 0) return counter('referralCount', numFromId(id));
+    if (id === 'referred') return { type: 'truthy', field: 'referredBy' };
+    if (id.indexOf('daily_triple_') === 0) return counter('trifectaDays', numFromId(id));
+    if (id.indexOf('sf_trifecta_') === 0) return counter('trifectaDays', numFromId(id));
+    if (id === 'daily_five_streak_7') return counter('dailyFiveStreak', 7);
+    if (id.indexOf('daily_five_') === 0) return counter('dailyFiveDays', numFromId(id));
+    if (id.indexOf('say_hi_') === 0) return counter('sayHiDays', numFromId(id));
+    if (id === 'poll_first') return counter('pollDays', 1);
+    if (id.indexOf('poll_days_') === 0) return counter('pollDays', numFromId(id));
+    if (id.indexOf('poll_') === 0) return counter('pollDays', numFromId(id));
+    if (id === 'chat_first') return counter('chatCount', 1);
+    if (id.indexOf('chat_') === 0) return counter('chatCount', numFromId(id));
+    if (id === 'dm_first' || id === 'dm_buddy') return counter('dmCount', id === 'dm_buddy' ? 5 : 1);
+    if (id.indexOf('dm_') === 0) return counter('dmCount', numFromId(id));
+    if (id === 'forum_first') return counter('forumPosts', 1);
+    if (id === 'forum_reply_1') return counter('forumReplies', 1);
+    if (id.indexOf('forum_reply_') === 0) return counter('forumReplies', numFromId(id));
+    if (id.indexOf('forum_') === 0) return counter('forumPosts', numFromId(id));
+    if (id.indexOf('producer_') === 0) return counter('beatsUploads', numFromId(id));
+    if (id === 'article_1') return counter('articlesPublished', 1);
+    if (id.indexOf('article_') === 0) return counter('articlesPublished', numFromId(id));
+    if (id === 'pvp_first') return counter('pvpWins', 1);
+    if (id.indexOf('pvp_played_') === 0) return counter('pvpPlayed', numFromId(id));
+    if (id.indexOf('pvp_') === 0) return counter('pvpWins', numFromId(id));
+    if (id.indexOf('cipher_') === 0) return counter('ciphersSolved', numFromId(id));
+    if (id === 'sf_first_hash') return counter('sfHashes', 1);
+    if (id === 'sf_100000_hashes') return counter('sfHashes', 100000);
+    if (id.indexOf('sf_') === 0 && id.indexOf('_hashes') !== -1) return counter('sfHashes', numFromId(id.replace('_hashes', '')));
+    if (id === 'sf_contributor') return counter('sfContributions', 1);
+    if (id === 'sf_contributor_10') return counter('sfContributions', 10);
+    if (id === 'sf_block_solver') return { type: 'truthy', field: 'sfBlockSolver' };
+    if (id === 'predict_1') return counter('predTotal', 1);
+    if (id.indexOf('predict_correct_') === 0) return counter('predCorrect', numFromId(id));
+    if (id.indexOf('predict_streak_') === 0) return counter('predBestStreak', numFromId(id));
+    if (id === 'predict_accuracy_70') return { type: 'accuracy', field: 'predAccuracy', gte: 70, minTotal: 10 };
+    if (id.indexOf('predict_') === 0) return counter('predTotal', numFromId(id));
+    if (id === 'first_save') return { type: 'signed-in' };
+    if (id === 'profile_complete') return { type: 'profile' };
+    if (id === 'bio_author') return { type: 'text', field: 'bio', min: 1 };
+    if (id === 'lightning_address_set' || id === 'lightning_setup') return { type: 'text', field: 'lightningAddress', min: 3 };
+    if (id === 'global_citizen') return { type: 'text', field: 'country', min: 2 };
+    return null;
+}
+
+function fairXp(id, raw, cosmetic) {
+    if (cosmetic) return 0;
+    if (Object.prototype.hasOwnProperty.call(XP_OVERRIDE, id)) return XP_OVERRIDE[id];
+    const n = Number(raw) || 0;
+    if (n > XP_CAP) return XP_CAP;
+    return n;
+}
+
+function ruleFor(id) {
+    if (!id || !catalog.badges[id]) return null;
+    const row = catalog.badges[id];
+    const cosmetic = isCosmeticId(id);
+    const source = cosmetic ? { type: 'cosmetic' } : sourceFor(id);
+    const pays = !cosmetic && !!source;
+    const xp = pays ? fairXp(id, row.xp, false) : 0;
+    return {
+        id: id,
+        name: NAME_OVERRIDE[id] || row.name || id,
+        emoji: row.emoji || '🏅',
+        desc: row.desc || '',
+        category: row.category || '',
+        hidden: row.hidden === true,
+        xp: xp,
+        displayXp: Object.prototype.hasOwnProperty.call(XP_OVERRIDE, id) ? XP_OVERRIDE[id] : (Number(row.displayXp != null ? row.displayXp : row.xp) || 0),
+        cosmetic: !pays,
+        source: source,
+        sf: pays && xp >= SF_MIN_XP,
+    };
+}
+
+function isKnown(id) {
+    return !!(id && catalog.badges[id]);
+}
+
+function xpOf(id) {
+    const rule = ruleFor(id);
+    return rule ? rule.xp : null;
+}
+
+function isCosmetic(id) {
+    const rule = ruleFor(id);
+    return !rule || rule.cosmetic;
+}
+
+function sfEligible(id) {
+    const rule = ruleFor(id);
+    return !!(rule && rule.sf);
+}
+
+function countPaying(ids) {
+    let n = 0;
+    ids.forEach(function (id) {
+        const rule = ruleFor(id);
+        if (rule && !rule.cosmetic) n += 1;
+    });
+    return n;
+}
+
+function meets(rule, user, ctx) {
+    if (!rule || rule.cosmetic || !rule.source) return false;
+    const src = rule.source;
+    const data = user || {};
+    const bag = ctx || {};
+    if (src.type === 'counter') {
+        let value = Number(data[src.field] || 0);
+        if (src.field === 'channelsVisited' && Array.isArray(data.visitedChannelsList)) {
+            value = Math.max(value, data.visitedChannelsList.length);
+        }
+        if (src.field === 'predTotal') value = Math.max(value, Number(data.predTotal || 0));
+        return value >= src.gte;
+    }
+    if (src.type === 'truthy') return typeof data[src.field] === 'string' ? data[src.field].length > 0 : !!data[src.field];
+    if (src.type === 'text') return typeof data[src.field] === 'string' && data[src.field].trim().length >= src.min;
+    if (src.type === 'includes') {
+        const list = Array.isArray(data[src.field]) ? data[src.field] : [];
+        return src.ids.every(function (channel) { return list.indexOf(channel) !== -1; });
+    }
+    if (src.type === 'awards') return (bag.payingCount || 0) >= src.gte;
+    if (src.type === 'set') {
+        const held = bag.awardSet;
+        if (!held) return false;
+        return src.members.every(function (member) {
+            const memberRule = ruleFor(member);
+            if (!memberRule || memberRule.cosmetic) return true;
+            return held.has(member);
+        }) && src.members.some(function (member) {
+            const memberRule = ruleFor(member);
+            return memberRule && !memberRule.cosmetic;
+        });
+    }
+    if (src.type === 'accuracy') {
+        return Number(data.predTotal || 0) >= src.minTotal && Number(data[src.field] || 0) >= src.gte;
+    }
+    if (src.type === 'silentDonor') {
+        return Number(data.pointsDonated || 0) >= 500 && Number(data.referralCount || 0) === 0;
+    }
+    if (src.type === 'profile') {
+        return typeof data.username === 'string' && data.username.length >= 3
+            && typeof data.bio === 'string' && data.bio.trim().length > 0
+            && typeof data.country === 'string' && data.country.length >= 2;
+    }
+    if (src.type === 'signed-in') return bag.signedIn === true;
+    return false;
+}
+
+function xpMap() {
+    const map = {};
+    Object.keys(catalog.badges).forEach(function (id) {
+        map[id] = xpOf(id);
+    });
+    return map;
+}
+
+function verifiedIds() {
+    return Object.keys(catalog.badges).filter(function (id) {
+        const rule = ruleFor(id);
+        return rule && !rule.cosmetic;
+    });
+}
+
+function allIds() {
+    return Object.keys(catalog.badges);
+}
+
+module.exports = {
+    XP_CAP: XP_CAP,
+    SF_MIN_XP: SF_MIN_XP,
+    SETS: SETS,
+    catalog: catalog,
+    ruleFor: ruleFor,
+    isKnown: isKnown,
+    xpOf: xpOf,
+    isCosmetic: isCosmetic,
+    sfEligible: sfEligible,
+    countPaying: countPaying,
+    meets: meets,
+    xpMap: xpMap,
+    verifiedIds: verifiedIds,
+    allIds: allIds,
+    isCosmeticId: isCosmeticId,
+};
