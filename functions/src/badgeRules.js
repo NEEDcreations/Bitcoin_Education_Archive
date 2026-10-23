@@ -2,8 +2,8 @@
 
 // One badge rule table. Display rows live in badges.catalog.json (generated).
 // Whether a badge pays, and which server field proves it, is decided here.
-// Cosmetic badges pay 0 XP, write no badge_awards row, and do not count
-// toward milestone badges or Satoshi's Favor.
+// A badge with a server source is granted by awardBadge, including one Favor
+// point. Cosmetic means there is no server proof: no badge_awards row, no Favor.
 
 const catalog = require('./badges.catalog.json');
 
@@ -132,30 +132,25 @@ const PURPLE_CHANNELS = ['maximalism', 'problems-of-money', 'self-custody', 'pri
 const BLUE_CHANNELS = ['one-stop-shop', 'faq-glossary', 'nostr', 'misconceptions-fud', 'books', 'videos', 'podcasts', 'articles-threads', 'informational-sites', 'curriculum', 'research-theses', 'games', 'music', 'movies-tv', 'hardware', 'poems-stories', 'apps-tools', 'projects-diy', 'art-inspiration', 'graphics', 'charts', 'swag-merch', 'jobs-earn', 'social-media', 'fun-facts', 'news-adoption', 'history', 'international', 'satoshi-nakamoto', 'giga-chad', 'health', 'web5', 'memes-funny'];
 
 const COSMETIC_PREFIXES = [
-    'flex_', 'lb_lurker_', 'chat_lurker_', 'fun_', 'chat_streak_', 'pvp_win_streak_',
-    'spin_', 'trail_', 'story_', 'nacho_', 'raid_', 'dj_', 'react_', 'irl_', 'pow_',
-    'cert_', 'lq_', 'beats_', 'tctv_tuned', 'tctv_couch', 'tctv_binge', 'tctv_channel',
+    'lb_lurker_', 'chat_lurker_', 'fun_', 'chat_streak_', 'pvp_win_streak_',
+    'trail_', 'story_', 'nacho_', 'dj_', 'react_', 'irl_', 'pow_',
+    'cert_', 'beats_', 'tctv_tuned', 'tctv_couch', 'tctv_binge', 'tctv_channel',
     'tctv_remote', 'tctv_dial', 'tctv_signal', 'tctv_antenna', 'tctv_timechain',
 ];
 
 const COSMETIC_EXACT = new Set([
     'ghost_mode', 'night_owl', 'early_bird', 'insomniac', 'weekend_warrior', 'early_adopter',
     'market_browse', 'market_saved_5', 'bookworm', 'bookmark_collector', 'bookmarks_1', 'bookmarks_10',
-    'favs_10', 'favs_25', 'collector', 'speed_runner', 'scholar', 'marathon', 'triple_threat',
-    'pvp_streak', 'streak_freeze', 'nacho_closet_full', 'ghost_reader', 'whitepaper_pilgrim',
-    'contrarian', 'block_42', 'rabbit_hole', 'the_plebeian', 'dust_collector', 'hash_obsessed',
-    'search_sleuth', 'first_peer', 'peer_network_10', 'peer_network_50', 'peer_network_100', 'peer_network_250',
-    'market_seller', 'market_buyer', 'first_post', 'genesis', 'ticket_bronze', 'ticket_silver', 'ticket_gold',
+    'favs_10', 'favs_25', 'collector', 'speed_runner', 'marathon', 'triple_threat',
+    'pvp_streak', 'nacho_closet_full', 'whitepaper_pilgrim',
+    'contrarian', 'block_42', 'rabbit_hole', 'the_plebeian', 'dust_collector',
+    'search_sleuth',
     'sf_lucky_1', 'sf_lucky_5', 'sf_lucky_10', 'sf_lucky_50', 'sf_lucky_100', 'sf_lucky_1000',
     'sf_unlucky_1', 'sf_unlucky_5', 'sf_unlucky_10', 'sf_unlucky_50', 'sf_unlucky_100', 'sf_unlucky_1000',
     'sf_low_hash', 'sf_ultra_low', 'combo_trio', 'combo_mega', 'combo_legend', 'weekly_hero',
     'set_fun_complete', 'set_beats_complete', 'set_daily_complete', 'set_irl_complete',
     'set_lightning_complete', 'set_pow_complete', 'set_profile_complete', 'set_spin_complete',
     'set_tctv_complete', 'set_trails_complete', 'set_scholar_complete', 'set_miner_complete',
-    'tip_first', 'tip_10', 'tip_magnet', 'tip_whale', 'tip_received_1', 'tip_received_50', 'tip_sats_10k',
-    'quest_1', 'quest_3', 'quest_5', 'quest_10', 'quest_25', 'quest_50', 'quest_100', 'quest_legend',
-    'trivia_first', 'trivia_correct_1', 'trivia_correct_10', 'trivia_correct_30', 'trivia_correct_50',
-    'trivia_correct_100', 'trivia_correct_250', 'trivia_correct_1000', 'trivia_streak_7', 'trivia_streak_30',
     'daily_1', 'daily_5', 'daily_10', 'daily_25', 'daily_50', 'daily_100',
     'tctv_satellite', 'tctv_couch_king',
 ]);
@@ -211,6 +206,84 @@ function numFromId(id) {
     return n;
 }
 
+const FLEX_SUM = { flex_rookie: 10, flex_committed: 50, flex_athlete: 200, flex_legend: 1000 };
+const FLEX_ALL_IDS = [
+    'steak', 'sunlight', 'dca', 'custody', 'lift', 'meetup', 'lightning', 'read',
+    'sleep', 'nokyc', 'node', 'cold', 'fast', 'walk', 'journal', 'meditate', 'teach',
+    'water', 'gratitude', 'verify', 'focus', 'risk', 'pattern', 'findq', 'noleverage',
+    'gunrange', 'sellchairs', 'starebtc', 'itoldyou', 'pumpndump',
+];
+const LQ_IDS = [
+    'lq_what_is_bitcoin', 'lq_mining', 'lq_nodes', 'lq_self_custody', 'lq_lightning',
+    'lq_scarcity', 'lq_bitcoin_only', 'lq_privacy',
+];
+
+function flexSource(id) {
+    if (FLEX_SUM[id]) return { type: 'flexSum', gte: FLEX_SUM[id] };
+    if (id === 'flex_all_once') return { type: 'flexAll', ids: FLEX_ALL_IDS };
+    const allDays = /^flex_all_(\d+)$/.exec(id);
+    if (allDays) return counter('flexAllDays', Number(allDays[1]));
+    const one = /^flex_([a-z0-9]+)_(\d+)$/.exec(id);
+    if (!one || FLEX_ALL_IDS.indexOf(one[1]) === -1) return null;
+    return { type: 'flex', action: one[1], gte: Number(one[2]) };
+}
+
+function spinSource(id) {
+    if (id === 'spin_jackpot') return { type: 'truthy', field: 'spinHitRare' };
+    const streak = /^spin_streak_(\d+)$/.exec(id);
+    if (streak) return counter('spinStreak', Number(streak[1]));
+    const closet = /^spin_closet_(\d+)$/.exec(id);
+    if (closet) return counter('spinClosetAwards', Number(closet[1]));
+    const days = /^spin_(\d+)$/.exec(id);
+    if (days) return counter('spinDays', Number(days[1]));
+    return null;
+}
+
+function raidSource(id) {
+    if (id === 'raid_winner') return counter('raidWins', 1);
+    if (id === 'raid_warlord') return counter('raidDamageAllTime', 100);
+    const slayer = /^raid_boss_slayer(?:_(\d+))?$/.exec(id);
+    if (slayer) return counter('raidBossesDefeated', slayer[1] ? Number(slayer[1]) : 1);
+    if (id === 'raid_first') return counter('raidDamageAllTime', 1);
+    const dmg = /^raid_(\d+)$/.exec(id);
+    if (dmg) return counter('raidDamageAllTime', Number(dmg[1]));
+    return null;
+}
+
+function tipSource(id) {
+    if (id === 'tip_first') return counter('tipsVerified', 1);
+    if (id === 'tip_10') return counter('tipsVerified', 10);
+    if (id === 'tip_whale') return counter('tipsSentSats', 1000);
+    if (id === 'tip_sats_10k') return counter('tipsSentSats', 10000);
+    if (id === 'tip_received_1') return counter('tipsReceived', 1);
+    if (id === 'tip_received_50') return counter('tipsReceived', 50);
+    if (id === 'tip_magnet') return counter('tipsReceived', 10);
+    return null;
+}
+
+function questSource(id) {
+    if (id === 'quest_legend') return counter('questsPassed', 100);
+    const m = /^quest_(\d+)$/.exec(id);
+    if (!m) return null;
+    return counter('questsPassed', Number(m[1]));
+}
+
+function triviaSource(id) {
+    if (id === 'trivia_first') return counter('triviaCorrect', 1);
+    if (id === 'trivia_titan') return counter('triviaCorrect', 1000);
+    const streak = /^trivia_streak_(\d+)$/.exec(id);
+    if (streak) return counter('triviaStreak', Number(streak[1]));
+    const correct = /^trivia_correct_(\d+)$/.exec(id);
+    if (correct) return counter('triviaCorrect', Number(correct[1]));
+    return null;
+}
+
+function lqSource(id) {
+    if (id === 'lq_graduate') return { type: 'includes', field: 'lqPassed', ids: LQ_IDS };
+    if (LQ_IDS.indexOf(id) === -1) return null;
+    return { type: 'includes', field: 'lqPassed', ids: [id] };
+}
+
 function sourceFor(id) {
     if (WAITING_COUNTERS[id]) return WAITING_COUNTERS[id];
     if (MILESTONES[id]) return { type: 'awards', gte: MILESTONES[id] };
@@ -225,7 +298,7 @@ function sourceFor(id) {
     if (id === 'foundation_builder') return { type: 'includes', field: 'visitedChannelsList', ids: ORANGE_CHANNELS };
     if (id === 'experienced_pro') return { type: 'includes', field: 'visitedChannelsList', ids: PURPLE_CHANNELS };
     if (id === 'librarian') return { type: 'includes', field: 'visitedChannelsList', ids: BLUE_CHANNELS };
-    if (id.indexOf('streak_') === 0) return counter('bestStreak', numFromId(id));
+    if (id.indexOf('streak_') === 0 && id !== 'streak_freeze') return counter('bestStreak', numFromId(id));
     if (id === 'sats_first') return counter('satsWithdrawn', 1);
     if (id === 'sats_maxed') return counter('satsWithdrawn', 15000);
     if (id.indexOf('sats_') === 0) return counter('satsWithdrawn', numFromId(id));
@@ -276,6 +349,33 @@ function sourceFor(id) {
     if (id === 'bio_author') return { type: 'text', field: 'bio', min: 1 };
     if (id === 'lightning_address_set' || id === 'lightning_setup') return { type: 'text', field: 'lightningAddress', min: 3 };
     if (id === 'global_citizen') return { type: 'text', field: 'country', min: 2 };
+    if (id === 'first_peer') return counter('peerCount', 1);
+    if (id === 'genesis') return { type: 'includes', field: 'visitedChannelsList', ids: ['whitepaper'] };
+    if (id === 'first_post') return counter('forumPosts', 1);
+    if (id === 'first_reply') return counter('forumReplies', 1);
+    if (id === 'market_seller') return counter('marketListings', 1);
+    if (id === 'market_buyer') return counter('marketMessages', 1);
+    if (id === 'ticket_bronze') return counter('orangeTickets', 25);
+    if (id === 'ticket_silver') return counter('orangeTickets', 50);
+    if (id === 'ticket_gold') return counter('orangeTickets', 100);
+    if (id === 'scholar') return { type: 'either', fields: ['certPassed_prop', 'scholar_exam_passed'] };
+    if (id === 'hash_obsessed') return counter('sfHashes', 25000);
+    if (id === 'streak_freeze') return counter('streakFreezesUsed', 1);
+    if (id === 'ghost_reader') return { type: 'ghostReader' };
+    const flex = flexSource(id);
+    if (flex) return flex;
+    const spin = spinSource(id);
+    if (spin) return spin;
+    const raid = raidSource(id);
+    if (raid) return raid;
+    const tip = tipSource(id);
+    if (tip) return tip;
+    const quest = questSource(id);
+    if (quest) return quest;
+    const trivia = triviaSource(id);
+    if (trivia) return trivia;
+    const lq = lqSource(id);
+    if (lq) return lq;
     return null;
 }
 
@@ -332,7 +432,7 @@ function countPaying(ids) {
     let n = 0;
     ids.forEach(function (id) {
         const rule = ruleFor(id);
-        if (rule && !rule.cosmetic) n += 1;
+        if (rule && !rule.cosmetic && rule.xp > 0) n += 1;
     });
     return n;
 }
@@ -348,9 +448,33 @@ function meets(rule, user, ctx) {
             value = Math.max(value, data.visitedChannelsList.length);
         }
         if (src.field === 'predTotal') value = Math.max(value, Number(data.predTotal || 0));
+        if (src.field === 'peerCount') {
+            const listed = Array.isArray(data.peers) ? data.peers.length : 0;
+            value = Math.max(value, listed);
+        }
         return value >= src.gte;
     }
+    if (src.type === 'flex') {
+        const totals = data.flexTotals && typeof data.flexTotals === 'object' ? data.flexTotals : {};
+        return (Number(totals[src.action]) || 0) >= src.gte;
+    }
+    if (src.type === 'flexSum') {
+        const totals = data.flexTotals && typeof data.flexTotals === 'object' ? data.flexTotals : {};
+        let n = 0;
+        Object.keys(totals).forEach(function (key) { n += Number(totals[key]) || 0; });
+        return n >= src.gte;
+    }
+    if (src.type === 'flexAll') {
+        const totals = data.flexTotals && typeof data.flexTotals === 'object' ? data.flexTotals : {};
+        return src.ids.every(function (action) { return (Number(totals[action]) || 0) >= 1; });
+    }
     if (src.type === 'truthy') return typeof data[src.field] === 'string' ? data[src.field].length > 0 : !!data[src.field];
+    if (src.type === 'either') {
+        return src.fields.some(function (field) {
+            const value = data[field];
+            return typeof value === 'string' ? value.length > 0 : !!value;
+        });
+    }
     if (src.type === 'text') return typeof data[src.field] === 'string' && data[src.field].trim().length >= src.min;
     if (src.type === 'includes') {
         const list = Array.isArray(data[src.field]) ? data[src.field] : [];
@@ -371,6 +495,9 @@ function meets(rule, user, ctx) {
     }
     if (src.type === 'accuracy') {
         return Number(data.predTotal || 0) >= src.minTotal && Number(data[src.field] || 0) >= src.gte;
+    }
+    if (src.type === 'ghostReader') {
+        return Number(data.streak || 0) >= 7 && Number(data.points || 0) === 0;
     }
     if (src.type === 'silentDonor') {
         return Number(data.pointsDonated || 0) >= 500 && Number(data.referralCount || 0) === 0;

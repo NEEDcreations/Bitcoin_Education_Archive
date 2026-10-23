@@ -110,7 +110,11 @@ service cloud.firestore {
         'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
         'pvpPlayed', 'ciphersSolved', 'sfHashes', 'sfBlockSolver', 'sfContributions',
         'questDays', 'plebTalkSessions', 'tctvWatchDays', 'giftsSent', 'onboardingComplete',
-        'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult'
+        'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult',
+        'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay',
+        'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',
+        'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived',
+        'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed'
       ];
     }
 

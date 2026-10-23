@@ -13,7 +13,7 @@ These counters are incremented only by Cloud Functions that already checked the 
 - `marketListings` — listing trigger, at most 3 counted listings per seller per server day
 - `marketMessages` — buyer message trigger, once per buyer per listing
 - `marketSold` — sale trigger, only after a counted buyer message
-- `peerCount` — accepted peer request
+- `peerCount` — accepted peer request. `meets()` uses the larger of `peerCount` and `peers.length`, so a legacy `first_peer` or `peer_network_*` holder still qualifies when the counter and the peer list have drifted. The grant writes `peer_1`, `peer_3`, `peer_10`, `peer_25`, `first_peer`, and `peer_network_10/50/100/250`
 - `referralCount` — referral verification
 - `trifectaDays` / `sfContributions` — trifecta credit. Proof is a trivia doc, a quest doc with count ≥ 1, and `polls/{day}/votes/{uid}`
 - `dailyFiveDays` / `dailyFiveStreak` — all five dailies. The TV step is `users/{uid}/award_claims/{day}_tctv_watch_ticket`, the claim `tctvWatchHeartbeat` writes. The reward is skipped when `ban_reason` is set, `banned` or `satsDisabled` is true, or `faucet_ledger/{uid}.banned` is true
@@ -26,17 +26,51 @@ These counters are incremented only by Cloud Functions that already checked the 
 - `predTotal`, `predCorrect`, `predBestStreak`, `predAccuracy` — prediction resolution
 - Profile text (`username`, `bio`, `country`, `lightningAddress`) — checked on the profile itself, once, via `badge_awards`
 - `referredBy` — non-empty string written by the referral function
-- Milestone and set badges — count of non-cosmetic `badge_awards`
+- `flexTotals.{actionId}` — incremented inside `awardPoints` when the flex `award_claims` doc is created, including a 0 XP cap hit. `flexAllDays` increments once when that day's claim exists for every flex id. The client `flexTotals` write is denied
+- `questsPassed` — `gradeQuest` when the score is at least 3. The quest doc `graded` flag makes it once per quest. `completedQuests` stays a client field and is not the proof
+- `triviaCorrect` / `triviaStreak` / `triviaStreakDay` — the once-per-day `trivia_correct` claim `awardPoints` already writes. The chosen answer is still compared in the browser before that call; the badge counts accepted claims, one per server day, and the streak continues only when `triviaStreakDay` is the previous UTC day
+- `lqPassed` — the one-time `lq_lesson` claim, mapped from the sanitized lesson title to the eight topic ids. The quiz score itself is still checked in the browser; the badge follows the same callable record the lesson XP uses. `lq_graduate` needs all eight ids
+- `spinDays` / `spinStreak` — the non-bonus `dailySpin` only. The older client field `spinCount` stays writable and is not the proof. `spinHitRare` is set when the server roll is rare. `spinClosetAwards` counts closet rolls, not unique items
+- `raidDamageAllTime` — `contributeRaid` after a counted contribution. On defeat, `users/{uid}/raid_credits/{bossId}` is written once per participant and increments `raidBossesDefeated`; winners also increment `raidWins`
+- `tipsVerified` / `tipsSentSats` / `tipsReceived` — a new `tip_hashes/{paymentHash}` doc from a verified tip. An unverified day lock does not count. Sats are added only when the bolt11 invoice has an amount, so amountless invoices wait on the whale badges. The recipient counter increments once per new hash
+- `orangeTickets` — ticket grants inside `awardPoints` and `dailySpin`. `ticket_bronze`, `ticket_silver`, and `ticket_gold` read it
+- `streakFreezesUsed` — `recordDailyVisit` when a freeze covers a missed day
+- `ghost_reader` — server `streak >= 7` and `points === 0`
+- `genesis` — `visitedChannelsList` contains `whitepaper`. `first_post`, `first_reply`, `market_seller`, `market_buyer`, `scholar` (`certPassed_prop` or `scholar_exam_passed`), and `hash_obsessed` (`sfHashes >= 25000`) read the same counters as their public twins
+- Milestone and set badges — count of non-cosmetic `badge_awards`. A set now requires any member that has a server source, including tip, trivia, and quest members
 
 `replyBonusCount` is incremented inside `claimReplyBonus` after that function's own checks (PR #46 is on this base).
 
-## Cosmetic (0 XP, no Favor unless a server path verifies them)
+## Cosmetic (0 XP, no Favor)
 
-Flex badges, Learning Quest badges, quest and trivia completion badges, secret and hidden badges that depend on localStorage, duplicate legacy ids (`first_peer`, `peer_network_*`, `market_seller`, `market_buyer`, `first_post`, hidden copies of explorer and night owl), and the set bonuses whose members are not server-verified. `awardPoints` does not grant these, so they add no Favor point. `country_set` is not a catalog id; the server treats it as `global_citizen`.
+These have no server proof. `awardBadge` returns `{ success: true, cosmetic: true, awarded: 0 }` and does not write `badge_awards` or Favor. `country_set` is not a catalog id; the server treats it as `global_citizen`.
 
-`weekly_hero` and the combo tiers (`combo_trio`, `combo_mega`, `combo_legend`) are cosmetic in the catalog. The weekly cron and the allowlisted `combo_bonus` action pass `verified: true`, so those grants pay the catalog display XP through the daily cap and add one Favor point. Combo Favor is that one grant. The client's follow-up call with the cosmetic id does not add a second point. Peer grants write `peer_1`, `peer_3`, `peer_10`, and `peer_25`. Old `badges` array entries are left in place and are not copied.
+`weekly_hero` and the combo tiers (`combo_trio`, `combo_mega`, `combo_legend`) stay cosmetic in the catalog. The weekly cron and the allowlisted `combo_bonus` action pass `verified: true`, so those grants pay the catalog display XP through the daily cap and add one Favor point. A later client call with the same id does not add a second point.
 
-Learning Quest rows still show their catalog XP in search. The grant is cosmetic until quest grading is server-side (PR #40). That is display only. Hidden-badge XP is no longer paid by the client, and Firestore rules deny client writes to `hiddenBadges` and the other badge fields.
+Trail exams (`trail_*`) are graded in the browser from the question bank. No callable stores a pass, and a client badge id is not accepted as one.
+
+These hidden and profile badges are pure client UI state. Nothing the server already does records them:
+
+- `speed_runner` — 15 channels opened in one browser session
+- `marathon` — a 30-minute session timer
+- `rabbit_hole` — a 3-hour session timer
+- `early_adopter`, `early_bird`, `night_owl`, `ghost_mode`, `insomniac`, `weekend_warrior` — the device clock or the weekend, not a server timestamp
+- `triple_threat` — sessionStorage flags for a quest, a chat, and a channel in one sitting
+- `search_sleuth` — which search boxes were opened
+- `block_42` — a local "found it" flag
+- `whitepaper_pilgrim` — a local count of whitepaper opens. Opening the channel once is `genesis`; the ten-session count is not stored
+- `contrarian` — a local minority-vote count. The poll vote is stored, but not whether it was the minority at the time
+- `dust_collector` — a local 21-day faucet streak. Paid invoices increment `satsWithdrawn`, which is a different badge
+- `the_plebeian` — client-computed leaderboard rank. Rank is not a field on the user
+- `nacho_*`, including `nacho_friend`, `nacho_curious`, `nacho_10q`, `nacho_20q`, `nacho_50q` — local click and question counts. No callable records a Nacho question
+- `bookmark_collector`, `collector`, `bookmarks_*`, `favs_*` — local bookmark and favorite lists
+- `nacho_closet_full` — the local closet item list. `spinClosetAwards` counts server closet rolls, which is a different badge
+- `pvp_streak` — a localStorage win streak. `settlePvpMatch` stores wins, not a streak
+- `market_browse`, `market_saved_5`, `bookworm` — local browsing and reading flags
+- `daily_1` through `daily_100` — old visit-count ids with no counter of their own. The streak and all-five badges are the server versions
+- Title duplicates with no criterion of their own (`spin_set_t`, `tip_magnet_t`, `flex_legend_t`) and the prefixed families `lb_lurker_`, `chat_lurker_`, `fun_`, `chat_streak_`, `pvp_win_streak_`, `story_`, `dj_`, `react_`, `irl_`, `pow_`, `cert_`, `beats_`, and the old Timechain TV minute badges
+
+Hidden-badge XP is no longer paid by the client. Firestore rules deny client writes to `hiddenBadges` and to the counters above. The client `spinCount` field stays writable and does not satisfy a spin badge.
 
 ## Waiting on another change
 
@@ -59,7 +93,7 @@ Existing `badge_awards` and `visibleBadges` entries are left in place. `function
 
 ## Deploy order
 
-1. `firestore.rules` — profile denylist of server-only fields (live client saves stay writable, including `notificationPrefs` and `beatsShowUncensored`; `lastTriviaDate`, `lastPollDate`, `lastQuestDate`, `hiddenBadges`, and badge counters are server-only), `poll_votes` client writes off, server-only `market_listing_daily`, `market_message_counts`, `market_sale_counts`, and `polls/{day}/votes`.
+1. `firestore.rules` — profile denylist of server-only fields (live client saves stay writable, including `notificationPrefs`, `beatsShowUncensored`, `completedQuests`, `lqProgress`, and the client `spinCount` field; `lastTriviaDate`, `lastPollDate`, `lastQuestDate`, `hiddenBadges`, and the family counters `flexTotals`, `flexAllDays`, `triviaCorrect`, `triviaStreakDay`, `questsPassed`, `lqPassed`, `spinDays`, `spinStreak`, `spinHitRare`, `spinClosetAwards`, `tipsVerified`, `tipsSentSats`, `tipsReceived`, `raidDamageAllTime`, `raidBossesDefeated`, `raidWins`, and `streakFreezesUsed` are server-only), `poll_votes` client writes off, server-only `market_listing_daily`, `market_message_counts`, `market_sale_counts`, and `polls/{day}/votes`.
 2. Functions — `awardBadge` on every grant path (badges, donations, weekly hero, peers, combos, counters), `contributeFavor` without `badge_earned`, `dailyPollVote`, listing cap, message and sale triggers, activity counters, `claimSayHi` / `armSayHi`, trifecta credit with `rewardBlocked`, nightly reconcile, distribution refresh, anon-badge recompute, donation cap, peer grants.
 3. Hosting. The service worker placeholder is `btc-archive-v2324` and is renumbered at merge. `index.html` and `404.html` stay identical.
 

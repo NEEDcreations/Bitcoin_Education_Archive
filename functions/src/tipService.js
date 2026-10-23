@@ -49,6 +49,21 @@ function hashFromInvoice(invoice) {
     }
 }
 
+function invoiceSats(invoice) {
+    const text = String(invoice || '').trim();
+    if (!text || text.length > 8000) return 0;
+    try {
+        const decoded = bolt11.decode(text);
+        let sats = 0;
+        if (decoded && Number(decoded.satoshis) > 0) sats = Math.floor(Number(decoded.satoshis));
+        else if (decoded && Number(decoded.millisatoshis) > 0) sats = Math.floor(Number(decoded.millisatoshis) / 1000);
+        if (!Number.isFinite(sats) || sats <= 0) return 0;
+        return Math.min(sats, 1000000000);
+    } catch (e) {
+        return 0;
+    }
+}
+
 async function tryLud21(verifyUrl, expectedHash) {
     const safe = String(verifyUrl || '');
     if (safe.indexOf('https://') !== 0) return { verified: false, reason: 'no-verify-url' };
@@ -245,16 +260,21 @@ async function confirmTipSent(data, context) {
     const hashRef = (verification.verified && verification.paymentHash)
         ? db().collection('tip_hashes').doc(verification.paymentHash)
         : null;
+    const recipientUid = String((data && data.recipientUid) || '').trim();
+    const recipientRef = (hashRef && recipientUid) ? db().collection('users').doc(recipientUid) : null;
+    const sats = hashRef ? invoiceSats(data && data.invoice) : 0;
     let result = null;
 
     await db().runTransaction(async function(t) {
         const reads = [t.get(userRef), t.get(lockRef), t.get(dailyRef)];
         if (hashRef) reads.push(t.get(hashRef));
+        if (recipientRef) reads.push(t.get(recipientRef));
         const docs = await Promise.all(reads);
         const userDoc = docs[0];
         const lockDoc = docs[1];
         const dailyDoc = docs[2];
         const hashDoc = hashRef ? docs[3] : null;
+        const recipientDoc = recipientRef ? docs[4] : null;
         if (hashDoc && hashDoc.exists) {
             result = {
                 success: false,
@@ -299,7 +319,18 @@ async function confirmTipSent(data, context) {
             userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(split.overflowAdded);
             userUpdate.lastOverflowDate = capDay;
         }
+        let tipsCounted = false;
+        if (hashRef) {
+            userUpdate.tipsVerified = admin.firestore.FieldValue.increment(1);
+            if (sats > 0) userUpdate.tipsSentSats = admin.firestore.FieldValue.increment(sats);
+            tipsCounted = true;
+        }
         t.update(userRef, userUpdate);
+        let creditedRecipient = '';
+        if (tipsCounted && recipientDoc && recipientDoc.exists) {
+            t.update(recipientRef, { tipsReceived: admin.firestore.FieldValue.increment(1) });
+            creditedRecipient = recipientUid;
+        }
         if (hashRef) {
             t.set(hashRef, {
                 uid: uid,
@@ -349,8 +380,24 @@ async function confirmTipSent(data, context) {
             verifyReason: verification.reason || 'confirmation',
             challengeCompleted: !!call.challengeCompleted,
             challengeId: challengeId,
+            tipsCounted: tipsCounted,
+            tipsSentSats: tipsCounted ? sats : 0,
+            recipientUid: creditedRecipient,
         };
     });
+    if (result && result.tipsCounted) {
+        try {
+            const { grantFamily, familyFor } = require('./grantBadge');
+            const ids = familyFor('tipsVerified').slice();
+            if (result.tipsSentSats > 0) ids.push.apply(ids, familyFor('tipsSentSats'));
+            await grantFamily(db(), admin, uid, ids);
+            if (result.recipientUid) {
+                await grantFamily(db(), admin, result.recipientUid, familyFor('tipsReceived'));
+            }
+        } catch (tipBadgeErr) {
+            console.warn('[TIP] badges', tipBadgeErr && tipBadgeErr.message);
+        }
+    }
     return result || { success: false, awarded: 0 };
 }
 

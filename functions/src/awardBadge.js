@@ -104,7 +104,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const update = {
             visibleBadges: adminSdk.firestore.FieldValue.arrayUnion(badgeId),
         };
-        if (!rule.cosmetic) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
+        if (!rule.cosmetic && rule.xp > 0) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
         if (xp > 0) {
             update.points = adminSdk.firestore.FieldValue.increment(xp);
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);

@@ -42,6 +42,52 @@ const METRIC_RULES = {
   streakUsers:          { maxAmount: 1,   dailyUserCap: 1   },  // once per day (fires at each 7-day streak milestone)
 };
 
+async function grantRaidFamily(uid, field) {
+  const { grantFamily, familyFor } = require('./grantBadge');
+  await grantFamily(db, admin, uid, familyFor(field));
+}
+
+async function creditRaidDefeat(bossId, participants, winnerUids) {
+  const winners = {};
+  (winnerUids || []).forEach(function (id) { winners[id] = true; });
+  for (let i = 0; i < participants.length; i++) {
+    const participantUid = participants[i] && participants[i].uid;
+    if (!participantUid) continue;
+    const userRef = db.collection('users').doc(participantUid);
+    const creditRef = userRef.collection('raid_credits').doc(bossId);
+    let outcome = { credited: false, won: false };
+    try {
+      outcome = await db.runTransaction(async function (tx) {
+        const credit = await tx.get(creditRef);
+        const user = await tx.get(userRef);
+        if (credit.exists || !user.exists) return { credited: false, won: false };
+        const won = !!winners[participantUid];
+        const update = { raidBossesDefeated: admin.firestore.FieldValue.increment(1) };
+        if (won) update.raidWins = admin.firestore.FieldValue.increment(1);
+        tx.set(creditRef, {
+          bossId: bossId,
+          winner: won,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        tx.update(userRef, update);
+        return { credited: true, won: won };
+      });
+    } catch (e) {
+      console.warn('[RAID] defeat credit', e && e.message);
+      continue;
+    }
+    if (!outcome || !outcome.credited) continue;
+    try {
+      const { grantFamily, familyFor } = require('./grantBadge');
+      const ids = familyFor('raidBossesDefeated').slice();
+      if (outcome.won) ids.push.apply(ids, familyFor('raidWins'));
+      await grantFamily(db, admin, participantUid, ids);
+    } catch (e) {
+      console.warn('[RAID] defeat badges', e && e.message);
+    }
+  }
+}
+
 exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
@@ -190,12 +236,18 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
   const { effectiveAmount, scaledDamage } = result;
 
   // Track all-time raid damage on user doc (outside transaction — not security-critical)
+  let damageRecorded = false;
   try {
     await db.collection('users').doc(uid).set({
       raidDamageAllTime: admin.firestore.FieldValue.increment(scaledDamage)
     }, { merge: true });
+    damageRecorded = scaledDamage > 0;
   } catch (e) {
     console.warn('[RAID] raidDamageAllTime update failed:', e.message);
+  }
+  if (damageRecorded) {
+    try { await grantRaidFamily(uid, 'raidDamageAllTime'); }
+    catch (e) { console.warn('[RAID] damage badges', e && e.message); }
   }
 
   // Fetch username
@@ -289,6 +341,11 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
     }
     await batch.commit();
     console.log(`[RAID] Boss "${activeBoss.name}" DEFEATED! Winners: ${winners.map(w => w.uid).join(', ')}`);
+    try {
+      await creditRaidDefeat(activeBossRef.id, participantUIDs, winners.map(function (winner) { return winner.uid; }));
+    } catch (e) {
+      console.warn('[RAID] defeat credit', e && e.message);
+    }
   } else {
     // Not defeated — update current count if we didn't already do so in the tx
     // (the tx handles this; this branch is a no-op safety fallback)

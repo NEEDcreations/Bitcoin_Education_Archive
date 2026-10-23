@@ -10,6 +10,7 @@ const dailyFive = require('../functions/src/dailyFive');
 const { countMarketplaceListing } = require('../functions/src/marketListingCount');
 const { countMarketplaceMessage } = require('../functions/src/marketMessages');
 const { heldThatFail } = require('../functions/src/badgeDistribution');
+const progressBadges = require('../functions/src/progressBadges');
 
 const root = path.join(__dirname, '..');
 let passed = 0;
@@ -91,10 +92,12 @@ queue.push(test('paying badges stay within the XP cap and cosmetic badges pay no
     assert.strictEqual(badgeRules.xpOf('satoshis_cipher'), 5000);
     assert.strictEqual(badgeRules.xpOf('donor_100000'), 5000);
     assert.strictEqual(badgeRules.xpOf('donor_100'), 10);
-    assert.strictEqual(badgeRules.xpOf('flex_findq_1'), 0);
-    assert.strictEqual(badgeRules.isCosmetic('quest_1'), true);
+    assert.strictEqual(badgeRules.xpOf('flex_findq_1'), 2);
+    assert.strictEqual(badgeRules.isCosmetic('quest_1'), false);
     assert.strictEqual(badgeRules.isCosmetic('night_owl'), true);
-    assert.strictEqual(badgeRules.isCosmetic('lq_mining'), true);
+    assert.strictEqual(badgeRules.isCosmetic('lq_mining'), false);
+    assert.strictEqual(badgeRules.isCosmetic('trail_meadow'), true);
+    assert.strictEqual(badgeRules.isCosmetic('speed_runner'), true);
     assert.ok(badgeRules.xpOf('satoshis_cipher') <= 5000);
     const legend = badgeRules.ruleFor('chat_legend');
     assert.ok(!legend || legend.cosmetic || !legend.source || legend.source.type !== 'counter');
@@ -261,7 +264,7 @@ queue.push(test('user updates deny server fields and poll votes are server-only'
     const fnAt = rules.indexOf('function userProfileServerOnlyKeys()');
     assert.ok(fnAt > 0);
     const fn = rules.slice(fnAt, rules.indexOf('match /users/{userId}'));
-    ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak'].forEach(function (field) {
+    ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak', 'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay', 'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare', 'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived', 'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed'].forEach(function (field) {
         assert.ok(fn.includes("'" + field + "'"), field + ' must stay server-only');
     });
     ['lqProgress', 'trailProgress', 'earnedTitles', 'nachoStoryProgress', 'spinCount', 'completedQuests', 'referredBy', 'notificationPrefs', 'beatsShowUncensored', 'bio'].forEach(function (field) {
@@ -372,10 +375,93 @@ queue.push(test('clients cannot mint badge Favor or write hiddenBadges', functio
     assert.ok(fn.includes("'hiddenBadges'"));
 }));
 
+queue.push(test('each activity family grants one Favor point from its server record', async function () {
+    const day = { day: '2026-10-22', nowMs: 1700000000000 };
+    async function earn(seed, id) {
+        const db = memoryDb({ 'users/u': Object.assign({ points: 0 }, seed) });
+        const result = await awardBadge(db, admin, 'u', id, day);
+        return { result: result, db: db };
+    }
+    const families = [
+        ['flex', { flexTotals: { findq: 1 } }, 'flex_findq_1', 2],
+        ['learning quest', { lqPassed: ['lq_mining'] }, 'lq_mining', 100],
+        ['quest', { questsPassed: 1 }, 'quest_1', 10],
+        ['trivia', { triviaCorrect: 1 }, 'trivia_first', 10],
+        ['spin', { spinDays: 1 }, 'spin_1', 10],
+        ['raid', { raidDamageAllTime: 1 }, 'raid_first', 10],
+        ['tip', { tipsVerified: 1 }, 'tip_first', 25],
+        ['legacy peer', { peerCount: 0, peers: ['a'] }, 'first_peer', 50],
+        ['genesis', { visitedChannelsList: ['whitepaper'] }, 'genesis', 75],
+        ['streak freeze', { streakFreezesUsed: 1 }, 'streak_freeze', 50],
+        ['ghost reader', { streak: 7, points: 0 }, 'ghost_reader', 500],
+    ];
+    for (let i = 0; i < families.length; i++) {
+        const row = families[i];
+        const paid = await earn(row[1], row[2]);
+        assert.strictEqual(paid.result.granted, true, row[0]);
+        assert.strictEqual(paid.result.favor, true, row[0]);
+        assert.strictEqual(paid.result.xp, row[3], row[0]);
+        assert.strictEqual(paid.db.docs['satoshiFavor/current'].points, 1, row[0]);
+        assert.ok(paid.db.docs['users/u/badge_awards/' + row[2]], row[0]);
+    }
+    const peers = [];
+    for (let n = 0; n < 10; n++) peers.push('p' + n);
+    const network = await earn({ peerCount: 0, peers: peers }, 'peer_network_10');
+    assert.strictEqual(network.result.granted, true);
+    assert.strictEqual(network.result.favor, true);
+    const zeroXp = await earn({ flexTotals: { steak: 10 } }, 'flex_steak_10');
+    assert.strictEqual(zeroXp.result.granted, true);
+    assert.strictEqual(zeroXp.result.xp, 0);
+    assert.strictEqual(zeroXp.result.favor, true);
+    assert.strictEqual(zeroXp.db.docs['users/u'].payingBadgeCount, undefined);
+    const clientSpin = await earn({ spinCount: 100 }, 'spin_100');
+    assert.strictEqual(clientSpin.result.granted, false);
+    assert.strictEqual(clientSpin.result.reason, 'criteria');
+    assert.strictEqual(clientSpin.db.docs['satoshiFavor/current'], undefined);
+    for (const id of ['trail_meadow', 'speed_runner', 'night_owl', 'marathon', 'nacho_friend']) {
+        const cosmetic = await earn({}, id);
+        assert.strictEqual(cosmetic.result.cosmetic, true, id);
+        assert.strictEqual(cosmetic.result.awarded, 0, id);
+        assert.strictEqual(cosmetic.db.docs['users/u/badge_awards/' + id], undefined, id);
+        assert.strictEqual(cosmetic.db.docs['satoshiFavor/current'], undefined, id);
+    }
+    const continued = progressBadges.progressSpec({ triviaStreakDay: '2026-10-21' }, 'trivia_correct', {}, '2026-10-22');
+    assert.strictEqual(continued.inc.triviaCorrect, 1);
+    assert.strictEqual(continued.inc.triviaStreak, 1);
+    const reset = progressBadges.progressSpec({ triviaStreakDay: '2026-10-01' }, 'trivia_correct', {}, '2026-10-22');
+    assert.strictEqual(reset.set.triviaStreak, 1);
+    const lesson = progressBadges.progressSpec({}, 'lq_lesson', { target: 'MiningProofofWork' }, '2026-10-22');
+    assert.strictEqual(lesson.union.lqPassed, 'lq_mining');
+    const flex = progressBadges.progressSpec({}, 'flex_action', { flexId: 'findq' }, '2026-10-22');
+    assert.strictEqual(flex.inc['flexTotals.findq'], 1);
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const quest = index.slice(index.indexOf('exports.gradeQuest'), index.indexOf('exports.issueCertificate'));
+    assert.ok(quest.includes('questsPassed'));
+    const spin = index.slice(index.indexOf('exports.dailySpin'), index.indexOf('exports.pvpStoreAnswerKey'));
+    assert.ok(spin.includes('spinDays'));
+    assert.ok(spin.includes('spinHitRare'));
+    assert.ok(index.includes('streakFreezesUsed'));
+    const tip = fs.readFileSync(path.join(root, 'functions', 'src', 'tipService.js'), 'utf8');
+    assert.ok(tip.includes('tipsVerified'));
+    assert.ok(tip.includes('tipsSentSats'));
+    assert.ok(tip.includes('tipsReceived'));
+    const raid = fs.readFileSync(path.join(root, 'functions', 'src', 'contributeRaid.js'), 'utf8');
+    assert.ok(raid.includes('raidDamageAllTime'));
+    assert.ok(raid.includes('raidBossesDefeated'));
+    assert.ok(raid.includes("collection('raid_credits')"));
+    assert.ok(raid.includes('raidWins'));
+    ['trail_meadow', 'speed_runner', 'marathon', 'rabbit_hole', 'early_adopter', 'weekend_warrior', 'early_bird', 'night_owl', 'ghost_mode', 'insomniac', 'triple_threat', 'search_sleuth', 'block_42', 'whitepaper_pilgrim', 'contrarian', 'dust_collector', 'nacho_friend', 'bookmark_collector', 'collector', 'nacho_closet_full', 'pvp_streak', 'the_plebeian', 'spin_set_t', 'tip_magnet_t'].forEach(function (id) {
+        assert.strictEqual(badgeRules.isCosmetic(id), true, id);
+    });
+    ['flex_findq_1', 'lq_mining', 'quest_1', 'trivia_first', 'spin_1', 'raid_first', 'tip_first', 'first_peer', 'peer_network_10', 'genesis', 'first_post', 'scholar', 'hash_obsessed', 'ticket_bronze', 'streak_freeze', 'ghost_reader'].forEach(function (id) {
+        assert.strictEqual(badgeRules.isCosmetic(id), false, id);
+    });
+}));
+
 queue.push(test('the dry-run helper counts failing badges without printing people', function () {
     const ids = ['market_listed_5', 'flex_findq_1', 'peer_1'];
     const failedIds = heldThatFail({ marketListings: 0, peerCount: 0 }, ids);
-    assert.deepStrictEqual(failedIds, ['market_listed_5', 'peer_1']);
+    assert.deepStrictEqual(failedIds, ['market_listed_5', 'flex_findq_1', 'peer_1']);
     const src = fs.readFileSync(path.join(root, 'functions', 'dry-run-badge-criteria.js'), 'utf8');
     assert.ok(src.includes('tally'));
     assert.ok(!src.includes('console.log(uid'));

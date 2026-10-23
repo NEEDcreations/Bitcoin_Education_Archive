@@ -169,6 +169,7 @@ const { createPollVote } = require('./src/pollVote');
 const { countMarketplaceMessage, countMarketplaceSale } = require('./src/marketMessages');
 const activityCounters = require('./src/activityCounters');
 const { refreshBadgeDistribution } = require('./src/badgeDistribution');
+const progressBadges = require('./src/progressBadges');
 
 // ===== VALID CHANNEL CATALOG (server-authoritative) =====
 // Extracted from channel_index.js — used to reject fake channelId values
@@ -3421,13 +3422,23 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: action });
                 userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
-            if (awarded > 0 && claimRef) {
+            const proofAction = matchedAction === 'flex_action' || matchedAction === 'trivia_correct' || matchedAction === 'lq_lesson';
+            let progress = null;
+            if (claimRef && (awarded > 0 || proofAction)) {
                 t.set(claimRef, {
                     action: matchedAction,
                     xp: awarded,
                     day: offsetToday,
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 });
+                progress = progressBadges.progressSpec(userData, matchedAction, resolved, offsetToday);
+                progressBadges.applySpec(userUpdate, admin, progress);
+                if (matchedAction === 'flex_action' && resolved.flexId) {
+                    t.set(userRef.collection('daily_action_counts').doc(offsetToday + '_flex_' + resolved.flexId), {
+                        actionId: resolved.flexId,
+                        day: offsetToday,
+                    }, { merge: true });
+                }
             }
             if (awarded > 0 || badgeAwardRef) {
                 t.set(countRef, {
@@ -3482,6 +3493,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 overflowRedeemed: 0,
                 pendingOverflow: userData.pendingOverflow || 0,
                 channelTracked: channelTracked,
+                progress: progress,
                 doubled: xpBoost.doubled,
                 doubleXpUntil: xpBoost.until || 0,
                 flexCount: flexMeta ? flexMeta.count : null,
@@ -3530,6 +3542,14 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     if (transactionResult && transactionResult.channelTracked) {
         try { await grantFamily(db, admin, uid, familyFor('channelsVisited')); }
         catch (channelBadgeErr) { console.warn('[awardPoints] channel badges', channelBadgeErr && channelBadgeErr.message); }
+    }
+    if (transactionResult && transactionResult.progress) {
+        try { await progressBadges.grantProgress(db, admin, uid, transactionResult.progress); }
+        catch (progressErr) { console.warn('[awardPoints] progress badges', progressErr && progressErr.message); }
+    }
+    if (transactionResult && transactionResult.tickets > 0) {
+        try { await grantFamily(db, admin, uid, familyFor('orangeTickets')); }
+        catch (ticketBadgeErr) { console.warn('[awardPoints] ticket badges', ticketBadgeErr && ticketBadgeErr.message); }
     }
     if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
         try {
@@ -3863,6 +3883,7 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             }
             if (usedFreeze) {
                 updateData.streakFreezes = admin.firestore.FieldValue.increment(-1);
+                updateData.streakFreezesUsed = admin.firestore.FieldValue.increment(1);
             }
 
             t.update(userRef, updateData);
@@ -3894,7 +3915,11 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             };
         });
 
-        try { await grantFamily(db, admin, uid, familyFor('bestStreak')); }
+        try {
+            const visitIds = familyFor('bestStreak').concat(['ghost_reader']);
+            if (result.usedFreeze) visitIds.push('streak_freeze');
+            await grantFamily(db, admin, uid, visitIds);
+        }
         catch (streakBadgeErr) { console.warn('[VISIT] streak badges', streakBadgeErr && streakBadgeErr.message); }
         return { success: true, ...result };
     } catch (e) {
@@ -4161,12 +4186,21 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         const update = {};
         // Only stamp lastSpinDate for the regular daily spin — bonus spins must NOT
         // consume the user's daily spin slot.
-        if (!isBonusSpin) update.lastSpinDate = today;
+        if (!isBonusSpin) {
+            update.lastSpinDate = today;
+            update.spinDays = admin.firestore.FieldValue.increment(1);
+            const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            update.spinStreak = userData.lastSpinDate === yesterday
+                ? admin.firestore.FieldValue.increment(1)
+                : 1;
+        }
         // Clear the one-time bonus spin flag if it was set
         if (isBonusSpin) update.bonusSpinGranted = admin.firestore.FieldValue.delete();
         if (totalPts > 0) update.points = admin.firestore.FieldValue.increment(totalPts);
         if (totalTickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(totalTickets);
         if (totalFreezes > 0) update.streakFreezes = admin.firestore.FieldValue.increment(totalFreezes);
+        if (reward.rare) update.spinHitRare = true;
+        if (reward.closet) update.spinClosetAwards = admin.firestore.FieldValue.increment(1);
         const spinRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, totalPts);
         tx.update(userRef, update);
         try {
@@ -4203,8 +4237,17 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             rareLabel,
             doubled: spinDoubled,
             doubleXpUntil: doubleXp.untilMillis(userData) || 0,
+            countedDay: !isBonusSpin,
         };
     });
+
+    try {
+        const spinIds = result.countedDay ? familyFor('spinDays').concat(familyFor('spinStreak')) : [];
+        if (result.rare) spinIds.push.apply(spinIds, familyFor('spinHitRare'));
+        if (result.closet) spinIds.push.apply(spinIds, familyFor('spinClosetAwards'));
+        if (result.tickets > 0) spinIds.push.apply(spinIds, familyFor('orangeTickets'));
+        await grantFamily(db, admin, uid, spinIds);
+    } catch (spinBadgeErr) { console.warn('[SPIN] badges', spinBadgeErr && spinBadgeErr.message); }
 
     return { success: true, reward: result };
 });
@@ -4541,6 +4584,10 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         return { score, passed, type, pointsAwarded };
     });
 
+    if (result.passed && result.type !== 'technical') {
+        try { await grantFamily(db, admin, uid, ['scholar']); }
+        catch (scholarBadgeErr) { console.warn('[SCHOLAR] badge', scholarBadgeErr && scholarBadgeErr.message); }
+    }
     return { success: true, score: result.score, passed: result.passed, type: result.type, pointsAwarded: result.pointsAwarded || 0 };
 });
 
@@ -4643,6 +4690,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
         let capped = false;
         let dropped = 0;
         let doubled = false;
+        let passQuest = false;
         if (pts > 0) {
             const userDoc = await tx.get(userRef);
             const userData = userDoc.exists ? userDoc.data() : {};
@@ -4668,10 +4716,15 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                 dropped = grant.dropped;
                 const questRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, awarded);
                 if (awarded > 0) {
-                    tx.update(userRef, {
+                    const questUpdate = {
                         points: admin.firestore.FieldValue.increment(awarded),
                         activeDayKeys: referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now()),
-                    });
+                    };
+                    if (score >= 3 && !userData.ban_reason && userData.banned !== true && userData.satsDisabled !== true) {
+                        questUpdate.questsPassed = admin.firestore.FieldValue.increment(1);
+                        passQuest = true;
+                    }
+                    tx.update(userRef, questUpdate);
                     tx.set(dailyPtsRef, {
                         total: dailyUsed + awarded,
                         triviaQuiz: triviaQuizUsed + awarded,
@@ -4692,6 +4745,9 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                         console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
                     }
                 }
+                if (awarded <= 0 && score >= 3 && userData.banned !== true && userData.satsDisabled !== true) {
+                    passQuest = true;
+                }
             }
         }
 
@@ -4709,14 +4765,22 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
 
         // Perfect 5/5 on a topic quest: persist topic-based completion server-side
         if (score === 5 && quest.topicKey) {
-            tx.update(userRef, {
-                completedQuests: admin.firestore.FieldValue.arrayUnion('quest_' + quest.topicKey)
-            });
+            const perfect = {
+                completedQuests: admin.firestore.FieldValue.arrayUnion('quest_' + quest.topicKey),
+            };
+            if (passQuest && awarded <= 0) perfect.questsPassed = admin.firestore.FieldValue.increment(1);
+            tx.update(userRef, perfect);
+        } else if (passQuest && awarded <= 0) {
+            tx.update(userRef, { questsPassed: admin.firestore.FieldValue.increment(1) });
         }
 
-        return { score, pts, awarded, capped, doubled, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
+        return { score, pts, awarded, capped, doubled, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT, questsPassed: passQuest };
     });
 
+    if (result.questsPassed) {
+        try { await grantFamily(db, admin, uid, familyFor('questsPassed')); }
+        catch (questBadgeErr) { console.warn('[gradeQuest] badges', questBadgeErr && questBadgeErr.message); }
+    }
     return result;
 });
 
