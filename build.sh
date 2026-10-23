@@ -31,3 +31,10 @@ cp bundle.js bundle.min.js
 
 echo "✅ Bundle: $(wc -c < bundle.src.js | tr -d ' ') → $(wc -c < bundle.js | tr -d ' ') bytes"
 echo "✅ Gzipped: ~$(gzip -c bundle.js | wc -c | tr -d ' ') bytes"
+
+echo "🃏 Syncing server reward banks..."
+node functions/build-reward-banks.js
+if [ $? -ne 0 ]; then
+    echo "❌ Reward bank sync failed"
+    exit 1
+fi

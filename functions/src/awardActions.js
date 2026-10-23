@@ -159,24 +159,6 @@ function resolvePhrase(action, ctx) {
         });
     }
 
-    if (action === '🧠 Trivia Quest correct!') {
-        return done({
-            id: 'trivia_correct',
-            xp: 50,
-            dedupGroup: 'trivia',
-            target: 'trivia',
-            triviaQuiz: true,
-        });
-    }
-    if (action === '🧠 Trivia Quest attempt') {
-        return done({
-            id: 'trivia_attempt',
-            xp: 10,
-            dedupGroup: 'trivia',
-            target: 'trivia',
-            triviaQuiz: true,
-        });
-    }
     if (action === '📊 Poll Quest vote') {
         return done({ id: 'poll_vote', xp: 50, dedupGroup: 'poll_vote', target: 'poll' });
     }

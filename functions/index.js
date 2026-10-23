@@ -3110,6 +3110,16 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         return { success: false, error: 'Prediction results are scored on the server', awarded: 0 };
     }
 
+    // Trivia and quiz XP are graded by answerTrivia / gradeQuest against the
+    // server question bank. awardPoints must not pay a client claim.
+    if (
+        actionKey === 'trivia_correct' || actionKey === 'trivia_attempt' ||
+        actionKey === 'quest_complete' || actionKey === 'quest_retry' || actionKey === 'quest_partial' ||
+        /trivia[_\s-]*quest[_\s-]*correct|trivia_correct|trivia[_\s-]*quest[_\s-]*attempt|trivia_attempt/i.test(action)
+    ) {
+        return { success: false, error: 'Quiz and trivia rewards are graded on the server', awarded: 0 };
+    }
+
     // ── SERVER-SIDE BADGE VALUE CATALOG ──
     // Every badge the client can earn mapped to its exact XP value.
     // If a badgeId is not in this map it is rejected - closes the money-printer exploit
@@ -4647,177 +4657,12 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
     return { success: true, score: result.score, passed: result.passed, type: result.type };
 });
 
-// ── Quest: Server-Side Grading ──
-exports.startQuest = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const { questions, topicKey } = data || {};
-    if (!questions || !Array.isArray(questions) || questions.length < 3 || questions.length > 5) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Must have 3-5 questions');
-    }
-
-    const uid = context.auth.uid;
-
-    // Server-side guard: reject if user already perfected this topic
-    if (topicKey) {
-        const userDoc = await db.collection('users').doc(uid).get();
-        if (userDoc.exists) {
-            const completed = userDoc.data().completedQuests || [];
-            if (completed.includes('quest_' + topicKey)) {
-                throw new functionsV1.https.HttpsError('already-exists',
-                    'You already got a perfect score on this topic!');
-            }
-        }
-    }
-
-    const questId = uid + '_quest_' + Date.now();
-
-    // Store answer keys server-side
-    const answerKeys = questions.map((q, i) => ({ index: i, correct: q.answer }));
-
-    await db.collection('quest_answer_keys').doc(questId).set({
-        uid,
-        keys: answerKeys,
-        topicKey: topicKey || null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        graded: false,
-    });
-
-    return { questId };
-});
-
-exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const { questId, answers, isRetry } = data || {};
-    if (!questId || !answers || !Array.isArray(answers) || answers.length !== 5) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Must have exactly 5 answers');
-    }
-
-    const uid = context.auth.uid;
-    const questRef = db.collection('quest_answer_keys').doc(questId);
-    const userRef = db.collection('users').doc(uid);
-
-    // AUDIT FIX (2026-04-22): gradeQuest was writing points directly to user doc,
-    // bypassing the 500 pts/day cap. Now it routes through daily_points with a
-    // hard cap AND enforces a per-day quest grading limit to stop abuse.
-    const DAILY_QUEST_LIMIT = 3;   // max completed quests per offset day
-    const DAILY_POINTS_CAP = 500;  // shared trivia + quiz + quest ceiling
-    const today = new Date().toISOString().split('T')[0]; // UTC midnight — kept for raw audit logs only
-    const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
-    const dailyQuestRef = userRef.collection('daily_action_counts').doc(offsetToday + '_quest');
-    const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
-
-    const result = await db.runTransaction(async (tx) => {
-        const questDoc = await tx.get(questRef);
-        if (!questDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Quest not found');
-
-        const quest = questDoc.data();
-        if (quest.uid !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your quest');
-        if (quest.graded) throw new functionsV1.https.HttpsError('already-exists', 'Quest already graded');
-
-        // Per-day quest count limit (reject before grading to conserve work)
-        const qCountDoc = await tx.get(dailyQuestRef);
-        const qCountToday = qCountDoc.exists ? (qCountDoc.data().count || 0) : 0;
-        if (qCountToday >= DAILY_QUEST_LIMIT) {
-            throw new functionsV1.https.HttpsError('resource-exhausted',
-                `Daily quest limit reached (max ${DAILY_QUEST_LIMIT}/day). Try again tomorrow.`);
-        }
-
-        // Grade server-side
-        let score = 0;
-        const keys = quest.keys;
-        for (let i = 0; i < 5; i++) {
-            if (answers[i] === keys[i].correct) score++;
-        }
-
-        // Determine points
-        let pts = 0;
-        if (isRetry) {
-            if (score >= 3) pts = 25;
-        } else {
-            if (score === 5) pts = 100;
-            else if (score >= 3) pts = 50;
-        }
-
-        // Quest XP shares the 500 trivia/quiz ceiling and the 500 daily total.
-        // Anything past either cap is dropped. Banned accounts receive 0.
-        let awarded = 0;
-        let capped = false;
-        let dropped = 0;
-        if (pts > 0) {
-            const userDoc = await tx.get(userRef);
-            const userData = userDoc.exists ? userDoc.data() : {};
-            if (userData.ban_reason) {
-                dropped = pts;
-            } else {
-                const dailyDoc = await tx.get(dailyPtsRef);
-                const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-                const triviaQuizUsed = dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
-                const grant = awardActions.planGrant({
-                    xp: pts,
-                    dailyUsed: dailyUsed,
-                    triviaQuizUsed: triviaQuizUsed,
-                    triviaQuiz: true,
-                    dailyCap: DAILY_POINTS_CAP,
-                    triviaCap: awardActions.TRIVIA_QUIZ_CAP,
-                });
-                awarded = grant.awarded;
-                capped = grant.capped;
-                dropped = grant.dropped;
-                const questRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, awarded);
-                if (awarded > 0) {
-                    tx.update(userRef, {
-                        points: admin.firestore.FieldValue.increment(awarded),
-                    });
-                    tx.set(dailyPtsRef, {
-                        total: dailyUsed + awarded,
-                        triviaQuiz: triviaQuizUsed + awarded,
-                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                    try {
-                        rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-                            uid: uid,
-                            onceKey: 'quest_' + String(questId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60),
-                            xp: awarded,
-                            sourceLabel: 'a quest',
-                            icon: '🏆',
-                            pointsBefore: userData.points || 0,
-                            pointsDelta: awarded,
-                            prevById: questRankPrev,
-                        }));
-                    } catch (notifyErr) {
-                        console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
-                    }
-                }
-            }
-        }
-
-        // Always increment the per-day quest count so retries / low-score attempts still count
-        tx.set(dailyQuestRef, {
-            count: admin.firestore.FieldValue.increment(1),
-            lastAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        // Mark as graded (prevents replay on same questId)
-        tx.update(questRef, {
-            graded: true, score, pts, awarded,
-            gradedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        // Perfect 5/5 on a topic quest: persist topic-based completion server-side
-        if (score === 5 && quest.topicKey) {
-            tx.update(userRef, {
-                completedQuests: admin.firestore.FieldValue.arrayUnion('quest_' + quest.topicKey)
-            });
-        }
-
-        return { score, pts, awarded, capped, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
-    });
-
-    return result;
-});
-
+// ── Quest and trivia rewards. Graded from the bundled bank in questReward.js.
+// Client answer keys are ignored. See src/questCallables.js.
+const { answerTrivia, gradeQuest, startQuest } = require('./src/questCallables');
+exports.answerTrivia = answerTrivia;
+exports.gradeQuest = gradeQuest;
+exports.startQuest = startQuest;
 
 // =============================================
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)

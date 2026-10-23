@@ -79,13 +79,16 @@ test('unknown actions are rejected', function () {
     });
 });
 
-test('replayed trivia, channel, and flex pay once', function () {
+test('trivia phrases are rejected, and channel and flex pay once', function () {
     const mem = fresh();
     const first = grant(mem, { action: '🧠 Trivia Quest correct!', pts: 50 });
     const second = grant(mem, { action: '🧠 Trivia Quest correct!', pts: 50 });
-    assert.strictEqual(first.awarded, 50);
+    assert.strictEqual(first.success, false);
+    assert.strictEqual(first.awarded, 0);
+    assert.strictEqual(second.success, false);
     assert.strictEqual(second.awarded, 0);
     const attempt = grant(mem, { action: '🧠 Trivia Quest attempt', pts: 10 });
+    assert.strictEqual(attempt.success, false);
     assert.strictEqual(attempt.awarded, 0);
 
     const channelA = grant(mem, { action: '📖 New channel explored', pts: 20, channelId: '0_mining__hashing' });
@@ -107,7 +110,7 @@ test('replayed trivia, channel, and flex pay once', function () {
 test('cap overflow is dropped and not banked', function () {
     const mem = fresh({ pendingOverflow: 15, points: 10 });
     mem.daily.u = { total: 990, triviaQuiz: 0 };
-    const partial = grant(mem, { action: '🧠 Trivia Quest correct!', pts: 50 });
+    const partial = grant(mem, { action: '📊 Poll Quest vote', pts: 50 });
     assert.strictEqual(partial.awarded, 10);
     assert.strictEqual(partial.dropped, 40);
     assert.strictEqual(partial.overflowAdded, 0);
@@ -139,16 +142,49 @@ test('trivia and quiz share a 500 xp ceiling', function () {
 });
 
 test('gradeQuest planner drops overflow inside the shared 500 cap', function () {
+    assert.strictEqual(awardActions.DAILY_CAP, 1000);
+    assert.strictEqual(awardActions.TRIVIA_QUIZ_CAP, 500);
     const under = awardActions.planGrant({
-        xp: 100, dailyUsed: 450, triviaQuizUsed: 450, triviaQuiz: true, dailyCap: 500, triviaCap: 500,
+        xp: 100,
+        dailyUsed: 200,
+        triviaQuizUsed: 450,
+        triviaQuiz: true,
+        dailyCap: awardActions.DAILY_CAP,
+        triviaCap: awardActions.TRIVIA_QUIZ_CAP,
     });
     assert.strictEqual(under.awarded, 50);
     assert.strictEqual(under.dropped, 50);
     assert.strictEqual(under.overflowAdded, 0);
+    const otherXp = awardActions.planGrant({
+        xp: 50,
+        dailyUsed: 800,
+        triviaQuizUsed: 0,
+        triviaQuiz: true,
+        dailyCap: awardActions.DAILY_CAP,
+        triviaCap: awardActions.TRIVIA_QUIZ_CAP,
+    });
+    assert.strictEqual(otherXp.awarded, 50);
+    assert.strictEqual(otherXp.overflowAdded, 0);
+    const general = awardActions.planGrant({
+        xp: 50,
+        dailyUsed: 1000,
+        triviaQuizUsed: 0,
+        triviaQuiz: true,
+        dailyCap: awardActions.DAILY_CAP,
+        triviaCap: awardActions.TRIVIA_QUIZ_CAP,
+    });
+    assert.strictEqual(general.awarded, 0);
+    assert.strictEqual(general.dropped, 50);
     const wrong = awardActions.planGrant({
-        xp: 0, dailyUsed: 0, triviaQuizUsed: 0, triviaQuiz: true, dailyCap: 500, triviaCap: 500,
+        xp: 0,
+        dailyUsed: 0,
+        triviaQuizUsed: 0,
+        triviaQuiz: true,
+        dailyCap: awardActions.DAILY_CAP,
+        triviaCap: awardActions.TRIVIA_QUIZ_CAP,
     });
     assert.strictEqual(wrong.awarded, 0);
+    assert.strictEqual(wrong.overflowAdded, 0);
 });
 
 test('banned users receive 0 and can earn after the ban clears', function () {
@@ -170,7 +206,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: '🎮 Quiz correct!', pts: 5 }, 5],
         [{ action: '🎮 Quiz correct!', pts: 10 }, 10],
         [{ action: '🎮 Quiz correct!', pts: 20 }, 10],
-        [{ action: '🧠 Trivia Quest attempt', pts: 10 }, 10],
         [{ action: '📊 Poll Quest vote', pts: 50 }, 50],
         [{ action: '📝 Forum post', pts: 10 }, 10],
         [{ action: '💬 Forum reply', pts: 5 }, 5],
@@ -228,6 +263,11 @@ test('legit client phrases keep today amounts', function () {
         assert.strictEqual(resolved.xp, row[1], JSON.stringify(row[0]));
         assert.strictEqual(resolved.tickets, 0);
     });
+    ['🧠 Trivia Quest correct!', '🧠 Trivia Quest attempt'].forEach(function (action) {
+        const resolved = awardActions.resolveAction({ action: action, pts: 50 });
+        assert.strictEqual(resolved.ok, false, action);
+        assert.strictEqual(resolved.xp, undefined, action);
+    });
     awardActions.LQ_TITLES.forEach(function (title) {
         const phrase = '📖 Learning Quest: ' + title + ' lesson';
         assert.ok(phrase.length <= 100, phrase);
@@ -259,13 +299,23 @@ test('server source no longer keyword-matches or banks overflow', function () {
     assert.ok(body.indexOf('ban_reason') > 0);
     assert.ok(body.indexOf("error === 'BANNED'") > 0 || body.indexOf("=== 'BANNED'") > 0);
 
-    const questStart = src.indexOf('exports.gradeQuest = functionsV1.https.onCall');
-    const questEnd = src.indexOf('exports.issueCertificate = functionsV1.https.onCall');
-    const quest = src.slice(questStart, questEnd);
+    const questSrc = fs.readFileSync(path.join(__dirname, '..', 'functions/src/questCallables.js'), 'utf8');
+    const questStart = questSrc.indexOf('const gradeQuest = onCall');
+    const questEnd = questSrc.indexOf('const startQuest = onCall');
+    assert.ok(questStart > 0 && questEnd > questStart);
+    const quest = questSrc.slice(questStart, questEnd);
     assert.ok(quest.indexOf('pendingOverflow') === -1);
     assert.ok(quest.indexOf('planGrant') > 0);
     assert.ok(quest.indexOf('triviaQuiz') > 0);
     assert.ok(quest.indexOf('ban_reason') > 0);
+    assert.ok(quest.indexOf('awardActions.DAILY_CAP') > 0);
+    assert.ok(quest.indexOf('awardActions.TRIVIA_QUIZ_CAP') > 0);
+    const triviaStart = questSrc.indexOf('const answerTrivia = onCall');
+    const trivia = questSrc.slice(triviaStart, questStart);
+    assert.ok(trivia.indexOf('pendingOverflow') === -1);
+    assert.ok(trivia.indexOf('planGrant') > 0);
+    assert.ok(trivia.indexOf('triviaQuiz') > 0);
+    assert.ok(trivia.indexOf('ban_reason') > 0);
 
     const reportSrc = fs.readFileSync(path.join(__dirname, '..', 'functions/orange-ticket-report.js'), 'utf8');
     ['.set(', '.update(', '.delete(', '.commit(', '.create(', '.add(', 'batch('].forEach(function (needle) {
