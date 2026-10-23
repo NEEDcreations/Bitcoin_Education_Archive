@@ -280,11 +280,15 @@ function notifCardHtml(docId, n, variant) {
             '<button type="button" class="notif-open-gift" data-gift-id="' + notifEscape(giftId) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
             '</div>';
     }
+    var message = n.message || '';
+    if ((target.type === 'beats_track' || n.targetType === 'beats_track') && typeof beatsCensor === 'function') {
+        message = beatsCensor(message);
+    }
     return '<div class="notif-card" data-notif-id="' + notifEscape(safeDoc) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '" style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;">' +
         '<div style="display:flex;gap:' + (sheet ? '10px' : '8px') + ';align-items:flex-start;">' +
             '<span style="font-size:' + (sheet ? '1.2rem' : '1.1rem') + ';flex-shrink:0;">' + notifEscape(notifIcon(n)) + '</span>' +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(n.message || '') + '</div>' +
+                '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(message) + '</div>' +
                 notifAmountChips(n) +
                 '<div style="font-size:' + (sheet ? '0.65rem' : '0.7rem') + ';color:var(--text-faint);margin-top:' + (sheet ? '3px' : '2px') + ';">' + notifEscape(timeStr) + '</div>' +
             '</div>' +

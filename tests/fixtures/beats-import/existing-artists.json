@@ -1,0 +1,10 @@
+[
+  {
+    "id": "21satsnode",
+    "name": "21SatsNode",
+    "slug": "21satsnode",
+    "claimed": true,
+    "claimedUid": "real-user-uid",
+    "source": "podcastindex"
+  }
+]

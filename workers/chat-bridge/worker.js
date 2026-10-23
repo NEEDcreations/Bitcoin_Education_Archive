@@ -13,6 +13,9 @@
  *   FIREBASE_PROJECT_ID   — Firebase project ID
  */
 
+import beatsCensorMod from '../../beats-censor.js';
+var beatsCensor = (beatsCensorMod && beatsCensorMod.beatsCensor) || beatsCensorMod;
+
 const TG_API = 'https://api.telegram.org/bot';
 const SCOPES = 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/devstorage.read_write';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -205,6 +208,13 @@ async function queryFirestore(env, collection, limit) {
   });
 }
 
+function beatsPlayableUrl(t) {
+  if (!t || t.hidden === true || t.needsReview === true) return '';
+  var stream = (typeof t.streamUrl === 'string' && /^https:\/\//i.test(t.streamUrl)) ? t.streamUrl : '';
+  var audio = (typeof t.audioUrl === 'string' && /^https:\/\//i.test(t.audioUrl)) ? t.audioUrl : '';
+  return stream || audio;
+}
+
 // ---- Nacho DJ ----
 async function nachoDJCheck(env) {
   // Read current DJ state
@@ -222,8 +232,8 @@ async function nachoDJCheck(env) {
   var tracks = await queryFirestore(env, 'beats_tracks', 200);
   if (tracks.length === 0) return { status: 'no_tracks' };
 
-  // Filter tracks that have an audioUrl
-  tracks = tracks.filter(function(t) { return t.audioUrl; });
+  // Skip hidden and unverified tracks. Prefer the publisher's enclosure over a Storage copy.
+  tracks = tracks.filter(function(t) { return beatsPlayableUrl(t); });
   if (tracks.length === 0) return { status: 'no_playable_tracks' };
 
   // If Nacho is already DJing, check if current track has expired
@@ -252,10 +262,10 @@ async function nachoDJCheck(env) {
   await updateFirestoreDoc(env, 'global_chat_meta/live_dj', {
     djUid: { stringValue: 'nacho-dj' },
     djName: { stringValue: '🦌 Nacho' },
-    trackTitle: { stringValue: track.title || 'Untitled' },
-    trackArtist: { stringValue: track.artist || track.authorName || 'Unknown' },
+    trackTitle: { stringValue: beatsCensor(track.title || 'Untitled') },
+    trackArtist: { stringValue: beatsCensor(track.artist || track.authorName || 'Unknown') },
     trackCoverArt: { stringValue: track.coverArt || '' },
-    trackAudioUrl: { stringValue: track.audioUrl || '' },
+    trackAudioUrl: { stringValue: beatsPlayableUrl(track) },
     trackId: { stringValue: track._id || '' },
     artistUid: { stringValue: track.authorId || '' },
     trackDuration: { integerValue: String(dur) },
@@ -267,7 +277,7 @@ async function nachoDJCheck(env) {
     isNachoDJ: { booleanValue: true }
   });
 
-  return { status: 'nacho_new_track', track: track.title, artist: track.artist || track.authorName };
+  return { status: 'nacho_new_track', track: beatsCensor(track.title || ''), artist: beatsCensor(track.artist || track.authorName || '') };
 }
 
 // [SECURITY FIX] Constant-time string comparison — prevents timing oracle attacks on secrets.

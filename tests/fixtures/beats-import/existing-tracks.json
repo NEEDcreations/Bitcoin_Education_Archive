@@ -1,0 +1,51 @@
+[
+  {
+    "id": "old-archive-1",
+    "title": "Grind",
+    "artist": "Torn Flesh",
+    "source": "archive.org",
+    "sourceUrl": "https://archive.org/details/DWK301",
+    "audioUrl": "https://storage.googleapis.com/example-bucket/beats-v4v/grind.mp3",
+    "v4vGuid": "archive:old1",
+    "plays": 4
+  },
+  {
+    "id": "old-archive-2",
+    "title": "Noise",
+    "artist": "Torn Flesh",
+    "source": "archive.org",
+    "sourceUrl": "https://archive.org/download/DWK301/noise.mp3",
+    "audioUrl": "https://storage.googleapis.com/example-bucket/beats-v4v/noise.mp3",
+    "v4vGuid": "archive:old2",
+    "plays": 2
+  },
+  {
+    "id": "old-wav",
+    "title": "Bitcoin is Hope",
+    "artist": "21SatsNode",
+    "source": "podcastindex",
+    "sourceUrl": "https://wavlake.com/feed/music/b73a853d-38e2-40d7-87fb-6d36a444553f",
+    "audioUrl": "https://storage.googleapis.com/example-bucket/beats-v4v/hope.mp3",
+    "v4vGuid": "785fbad7-e530-4a78-892d-48e61f6e65f8",
+    "plays": 9,
+    "likes": 1
+  },
+  {
+    "id": "falz-1",
+    "title": "Some Song",
+    "artist": "Falz",
+    "source": "podcastindex",
+    "sourceUrl": "https://wavlake.com/feed/music/falz-album",
+    "audioUrl": "https://storage.googleapis.com/example-bucket/beats-v4v/falz.mp3",
+    "v4vGuid": "falz-guid-1",
+    "plays": 3
+  },
+  {
+    "id": "user-1",
+    "title": "My Upload",
+    "artist": "Phil",
+    "audioUrl": "https://firebasestorage.googleapis.com/v0/b/example/o/beats%2Fmine.mp3",
+    "authorId": "uid1",
+    "plays": 1
+  }
+]

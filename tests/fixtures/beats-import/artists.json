@@ -1,0 +1,20 @@
+[
+  {
+    "name": "21SatsNode",
+    "slug": "21satsnode",
+    "avatarUrl": "https://d12wklypp119aj.cloudfront.net/image/b73a853d-38e2-40d7-87fb-6d36a444553f.jpg",
+    "bio": "",
+    "claimed": false,
+    "source": "podcastindex",
+    "wavlakeUrl": "https://www.wavlake.com/album/b73a853d-38e2-40d7-87fb-6d36a444553f"
+  },
+  {
+    "name": "Kevin MacLeod",
+    "slug": "kevin-macleod",
+    "avatarUrl": "",
+    "bio": "Royalty-free music, CC BY 4.0.",
+    "claimed": false,
+    "source": "incompetech",
+    "wavlakeUrl": ""
+  }
+]

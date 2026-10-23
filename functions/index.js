@@ -33,6 +33,7 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     db.settings({ preferRest: true });
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
+const { beatsCensor } = require('./src/beats-censor.js');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin);
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
@@ -6568,6 +6569,8 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
     const trackDoc = await admin.firestore().collection('beats_tracks').doc(trackId).get();
     if (!trackDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const track    = trackDoc.data();
+    if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
+    if (track.needsReview === true) throw new functionsV1.https.HttpsError('failed-precondition', 'pending verification');
     const splits   = (track.v4vSplits || []).filter(s => s.split > 0);
 
     if (splits.length === 0) throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
@@ -6594,7 +6597,7 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
         try {
             if (payType === 'lnaddress' && ln.includes('@')) {
                 // Standard LNURL-pay Lightning address — fetch invoice server-side
-                paymentRequest = await fetchLnurlInvoice(ln, recipMsats, `V4V: ${track.title}`);
+                paymentRequest = await fetchLnurlInvoice(ln, recipMsats, `V4V: ${beatsCensor(track.title)}`);
                 displayAddress = ln;
             } else if (payType === 'keysend_wavlake') {
                 // Wavlake keysend — use client-side webln.keysend
@@ -8490,16 +8493,25 @@ exports.nachoRadioTick = onSchedule({
         return;
     }
 
+    function nachoPlayableUrl(t) {
+        if (!t || t.hidden === true || t.needsReview === true) return '';
+        const stream = typeof t.streamUrl === 'string' && /^https:\/\//i.test(t.streamUrl) ? t.streamUrl.trim() : '';
+        const audio = typeof t.audioUrl === 'string' && /^https:\/\//i.test(t.audioUrl) ? t.audioUrl.trim() : '';
+        return stream || audio;
+    }
+
     let candidates = [];
     snap.forEach(d => {
         const t = d.data();
+        if (t.hidden === true) return;
+        const playable = nachoPlayableUrl(t);
         if (
-            t.audioUrl &&
+            playable &&
             (t.duration || 0) >= 60 &&
             t.genre !== 'podcast' &&
             !playedRecently.includes(d.id)
         ) {
-            candidates.push({ id: d.id, ...t });
+            candidates.push({ id: d.id, ...t, _playable: playable });
         }
     });
 
@@ -8509,8 +8521,10 @@ exports.nachoRadioTick = onSchedule({
         candidates = [];
         snap.forEach(d => {
             const t = d.data();
-            if (t.audioUrl && (t.duration || 0) >= 60 && t.genre !== 'podcast') {
-                candidates.push({ id: d.id, ...t });
+            if (t.hidden === true) return;
+            const playable = nachoPlayableUrl(t);
+            if (playable && (t.duration || 0) >= 60 && t.genre !== 'podcast') {
+                candidates.push({ id: d.id, ...t, _playable: playable });
             }
         });
         playedRecently.length = 0;
@@ -8522,6 +8536,8 @@ exports.nachoRadioTick = onSchedule({
     }
 
     const track    = candidates[Math.floor(Math.random() * candidates.length)];
+    const publicTitle = beatsCensor(track.title || 'Untitled');
+    const publicArtist = beatsCensor(track.artist || track.authorName || 'Unknown');
     const wasActive = dj.active === true;
     const songCount = (radio.songCount || 0) + 1;
     const newPlayed = [...playedRecently, track.id];
@@ -8535,9 +8551,9 @@ exports.nachoRadioTick = onSchedule({
         isNachoDJ:      true,
         active:         true,
         trackId:        track.id,
-        trackTitle:     track.title     || 'Untitled',
-        trackArtist:    track.artist    || track.authorName || 'Unknown',
-        trackAudioUrl:  track.audioUrl,
+        trackTitle:     publicTitle,
+        trackArtist:    publicArtist,
+        trackAudioUrl:  track._playable || track.streamUrl || track.audioUrl,
         trackCoverArt:  track.coverArt  || track.coverUrl  || '',
         trackDuration:  track.duration  || 180,
         trackStartedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -8562,8 +8578,8 @@ exports.nachoRadioTick = onSchedule({
     const shouldAnnounce = !wasActive || (songCount % 10 === 1);
     if (shouldAnnounce) {
         const msg = wasActive
-            ? `🦌 Nacho Radio: "${track.title || 'Untitled'}" by ${track.artist || track.authorName || 'Unknown'} is up next 🎵 Tune in!`
-            : `🦌 **Nacho Radio** is live! Spinning beats from the Bitcoin Beats library. Now playing: "${track.title || 'Untitled'}" by ${track.artist || track.authorName || 'Unknown'} 🎵 Tune in!`;
+            ? `🦌 Nacho Radio: "${publicTitle}" by ${publicArtist} is up next 🎵 Tune in!`
+            : `🦌 **Nacho Radio** is live! Spinning beats from the Bitcoin Beats library. Now playing: "${publicTitle}" by ${publicArtist} 🎵 Tune in!`;
         await db.collection('global_chat').add({
             uid:          'nacho-dj',
             name:         '🦌 Nacho',

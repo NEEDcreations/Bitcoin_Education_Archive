@@ -11,6 +11,7 @@ const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Marketplace Client', file: 'test-marketplace.js' },
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
@@ -34,6 +35,8 @@ const TESTS = [
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
+    { name: 'Beats import', file: 'test-beats-import.js' },
+    { name: 'Beats credits', file: 'test-beats-credits.js' },
 ];
 
 let allPassed = true;
