@@ -422,7 +422,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(html.includes('features.registry.js?v=20261022_v2301'));
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2266'), false);
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2265'), false);
-    assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261022_v2302'));
+    assert.strictEqual(html.includes('satoshi-favor.js?v=20261022_v2250'), false);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2279/g) || []).length, 4);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
     assert.ok(html.includes('lightning-tips.js?v=20261022_v2279'));

@@ -1,617 +1,812 @@
-// ============================================================
-// Bitcoin Education Archive — Onboarding & Simplification System
-// 
-// PURPOSE: Reduces overwhelm for new users with a 3-step
-// onboarding wizard and a progressively-revealed home page.
-//
-// LOAD: After bundle.js, before app.js
-// <script src="onboarding.js?v=20260307" defer></script>
-//
-// HOW IT WORKS:
-// 1. First-time visitors see a 3-step wizard (welcome → level → interests)
-// 2. Profile is saved to localStorage as btc_onboarding_profile
-// 3. Home page is simplified based on their level:
-//    - Beginners: only 4 curated channels + Nacho CTA
-//    - Intermediate: curated channels + Browse All + some features
-//    - Advanced: full experience (current behavior)
-// 4. Users can always access everything via "Browse all channels"
-// 5. After 5+ channels visited, gamification elements fade in
-// ============================================================
-
+// Welcome tour + first quest. Rewards are claimed from claimOnboardingQuestStep.
 (function () {
     'use strict';
 
-    // ─── CONFIG ───────────────────────────────────────────
-    var ONBOARDING_KEY = 'btc_onboarding_profile';
-    var ONBOARDING_COMPLETE_KEY = 'btc_onboarding_done';
+    var INTRO_KEY = 'btc_intro_seen';
+    var QUEST_DONE = 'btc_onboarding_quest_done';
+    var QUEST_ACTIVE = 'btc_onboarding_active';
+    var QUEST_STEP = 'btc_onboarding_step';
+    var PENDING_KEY = 'btc_quest_pending';
 
-    // Recommended starting channels per level (6 each)
-    var CURATED_CHANNELS = {
-        beginner: [
-            { id: 'one-stop-shop', reason: 'The best place to start' },
-            { id: 'whitepaper', reason: 'The 9 pages that started it all' },
-            { id: 'money', reason: 'Why Bitcoin is real money' },
-            { id: 'misconceptions-fud', reason: 'Common myths debunked' },
-            { id: 'self-custody', reason: 'How to truly own your Bitcoin' },
-            { id: 'elevator_pitches', reason: 'Quick ways to explain Bitcoin' },
-        ],
-        intermediate: [
-            { id: 'layer-2-lightning', reason: 'Instant Bitcoin payments' },
-            { id: 'mining', reason: 'How the network is secured' },
-            { id: 'privacy-nonkyc', reason: 'Financial sovereignty' },
-            { id: 'investment-strategy', reason: 'DCA, HODL, and beyond' },
-            { id: 'evidence-against-alts', reason: 'Why Bitcoin, not crypto' },
-            { id: 'history', reason: 'How it all began' },
-        ],
-        advanced: [
-            { id: 'maximalism', reason: 'The Bitcoin-only thesis' },
-            { id: 'cryptography', reason: 'SHA-256 and elliptic curves' },
-            { id: 'developers', reason: 'Build on Bitcoin' },
-            { id: 'pow-vs-pos', reason: 'Why proof of work wins' },
-            { id: 'nodes', reason: "Don't trust, verify" },
-            { id: 'core-source-code', reason: 'Bitcoin Core internals' },
-        ],
+    var QUEST_MODES = {
+        beginner: ['pick_topic', 'find_nacho', 'first_quiz'],
+        intermediate: ['pick_topic', 'find_nacho', 'send_chat', 'first_quiz'],
+        advanced: ['pick_topic', 'send_chat', 'spin_wheel', 'find_nacho', 'first_quiz']
+    };
+    var QUEST_STEPS = {
+        pick_topic: { title: 'Open a channel', detail: 'Tap any topic and start reading.', signal: 'channel', beacon: '#channelList' },
+        send_chat: { title: 'Say hello in chat', detail: 'Send a message in Global Chat.', signal: 'chat', beacon: '#chatOverlayBtn' },
+        spin_wheel: { title: 'Take the daily spin', detail: 'Open the daily spin and spin once.', signal: 'spin', beacon: '#nqSpinBtn' },
+        find_nacho: { title: 'Ask Nacho', detail: 'Ask Nacho a Bitcoin question.', signal: 'nacho', beacon: '#nacho-container' },
+        first_quiz: { title: 'Try a quiz', detail: 'Finish a quiz, a trivia question, or a poll.', signal: 'quiz', beacon: '#onboardingQuizEntry' }
     };
 
-    // Interest tags → channel mapping (16 topics, 145/145 channels covered)
-    var INTEREST_CHANNELS = {
-        'Why Bitcoin?': ['one-stop-shop', 'money', 'misconceptions-fud', 'elevator_pitches', 'orange-pilling', 'analogies', 'dominant', 'faq-glossary', 'whitepaper'],
-        'How to buy & use': ['investment-strategy', 'self-custody', 'apps-tools', '100_sats', 'sats__or__bits', 'swaps'],
-        'Security & wallets': ['self-custody', 'hardware', 'cryptography', 'public_key_vs_private_key', 'derivation_path', 'utxos', 'risks__threats__attack_vectors__weaknes', 'simplified_payment_verification__spv'],
-        'Lightning Network': ['layer-2-lightning', 'fedi-ark', 'lightning_node', 'submarine_swap', 'chaumian-mints', 'fedimints', 'chaumian_e-cash_and_blind_signatures'],
-        'Mining & energy': ['mining', 'energy', 'difficulty-adjustment', 'environment___energy', '0_mining__hashing', 'stratum_v2', 'laws_of_thermodynamics', 'dust', 'vbyte', 'tail_emission'],
-        'Privacy & freedom': ['privacy-nonkyc', 'nostr', 'coin_mixing_coinjoin_coin_control_utxo', 'human_rights__social_justice_and_freedo', 'peaceful'],
-        'History & culture': ['history', 'satoshi-nakamoto', 'fun-facts', 'poems-stories', 'cyles', 'lindy_effect', 'time', 'unpopular_opinions'],
-        'Economics & money': ['money', 'problems-of-money', 'austrian_school_of_economics', 'market_cap', 'bitcoin_vs_real_estate', 'dollar-bitcoin_milkshake_theory', 'time_preference', 'feedback_loops', 'network_effects', 'improved_incentive_structure'],
-        'Geopolitics & adoption': ['news-adoption', 'regulation', 'geopolitics___macroeconomics', 'politics', 'international', 'predictions', 'the_future'],
-        'Technical deep dives': ['blockchain-timechain', 'nodes', 'pow-vs-pos', 'taproot', 'core-source-code', 'consensus', 'scalability', 'block_time-block-size', 'smart-contracts', 'bitvm', 'bip119', 'ctv-covenants', 'discrete_log_contracts__dlcs', 'rbf', 'soft_vs_hard_forks', 'extension-blocks', 'rollups', 'sidechains', 'mev', 'burn_bitcoin', 'byzantine_generals__problem', '2__solved_technical_problems', 'oracle', 'taro'],
-        'Art, memes & media': ['art-inspiration', 'memes-funny', 'movies-tv', 'music', 'graphics', 'charts', 'social-media', 'games', 'ta_tips'],
-        'Books & learning': ['books', 'podcasts', 'videos', 'articles-threads', 'curriculum', 'informational-sites', 'research-theses', 'bitcoin_exam', 'math', 'mathematics'],
-        'Philosophy & ethics': ['philosophy', 'game_theory', 'peace_and_anti-war', 'faith___religion', 'governance', 'toxicity', 'softwar', '1_first_principles'],
-        'Building & DIY': ['developers', 'projects-diy', 'free_and_open_source_software__foss', 'open_source', 'op-codes', 'ham_radio', 'web5', 'layer-3-sidechains', 'ordinals', 'ordinals__nfts_on_bitcoin__and_block_spa'],
-        'Bitcoin properties': ['decentralized', 'scarce', 'secure', 'organic', 'programmable', 'supranational', 'dominant', 'peaceful', 'maximalism'],
-        'Real-world use cases': ['use-cases', 'referral-links', 'jobs-earn', 'swag-merch', 'health', 'stablecoins', 'transaction_fees', 'giga-chad'],
-    };
-
-    // ─── PROFILE MANAGEMENT ───────────────────────────────
-    window.getOnboardingProfile = function () {
-        try {
-            var raw = localStorage.getItem(ONBOARDING_KEY);
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) { return null; }
-    };
-
-    window.setOnboardingProfile = function (profile) {
-        try {
-            localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile));
-            localStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
-        } catch (e) { }
-    };
-
-    window.isOnboardingComplete = function () {
-        return localStorage.getItem(ONBOARDING_COMPLETE_KEY) === 'true';
-    };
-
-    window.getUserSimplificationLevel = function () {
-        // Returns: 'beginner' | 'intermediate' | 'advanced' | 'full'
-        var profile = window.getOnboardingProfile();
-        if (!profile) return 'beginner'; // Default for non-onboarded users
-
-        var visited = [];
-        try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch (e) { }
-
-        // After visiting 15+ channels, auto-upgrade to full
-        if (visited.length >= 15) return 'full';
-        // After visiting 8+ channels, upgrade intermediate users
-        if (visited.length >= 8 && profile.level !== 'beginner') return 'full';
-
-        return profile.level || 'beginner';
-    };
-
-    // ─── ONBOARDING WIZARD ────────────────────────────────
-    window.showOnboardingWizard = function () {
-        // Don't show if already completed
-        if (window.isOnboardingComplete()) return false;
-        // Don't show if returning user with visited channels
-        var visited = [];
-        try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch (e) { }
-        if (visited.length >= 3) {
-            // Silently mark as complete for existing users
-            window.setOnboardingProfile({ level: 'intermediate', interests: [], skipped: true });
-            return false;
-        }
-        // Don't show if user arrived via a direct link to an app/channel
-        var hash = window.location.hash.replace('#', '');
-        if (hash && hash.length > 0) {
-            // They came for something specific — skip wizard, set intermediate
-            window.setOnboardingProfile({ level: 'intermediate', interests: [], skipped: true, directLink: hash });
-            return false;
-        }
-
-        _buildWizardUI();
-        return true;
-    };
-
-    function _buildWizardUI() {
-        var overlay = document.createElement('div');
-        overlay.id = 'onboardingOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#020617;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;font-family:inherit;';
-
-        var state = { step: 0, level: null, interests: [] };
-
-        function render() {
-            var html = '';
-
-            // Progress dots
-            html += '<div style="display:flex;gap:8px;margin-bottom:30px;">';
-            for (var i = 0; i < 3; i++) {
-                var isActive = i <= state.step;
-                var isCurrent = i === state.step;
-                html += '<div style="width:' + (isCurrent ? '24' : '8') + 'px;height:8px;border-radius:4px;background:' + (isActive ? '#f97316' : '#1e293b') + ';transition:all 0.4s;"></div>';
-            }
-            html += '</div>';
-
-            // Content area
-            html += '<div id="onboardingContent" style="max-width:480px;width:100%;text-align:center;">';
-
-            if (state.step === 0) {
-                // ── NACHO WELCOME ──
-                html += '<div style="font-size:4rem;margin-bottom:12px;">🦌</div>';
-                html += '<h1 style="color:#fff;font-size:1.6rem;font-weight:900;margin:0 0 8px;letter-spacing:-0.5px;">Hey! I\'m Nacho.</h1>';
-                html += '<p style="color:#94a3b8;font-size:1rem;line-height:1.6;margin:0 0 24px;">I\'ll be your Bitcoin guide! This archive has 146 channels of Bitcoin education — and I know all of it. 🧡</p>';
-                html += '<p style="color:#475569;font-size:0.85rem;margin:0;">No account needed. Free forever. No ads. Just Bitcoin.</p>';
-            }
-
-            else if (state.step === 1) {
-                // ── EXPERIENCE LEVEL (Nacho asks) ──
-                html += '<div style="font-size:3rem;margin-bottom:12px;">🦌</div>';
-                html += '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">How deep in the rabbit hole are you?</h1>';
-                html += '<p style="color:#64748b;font-size:0.85rem;margin:0 0 24px;">I\'ll customize your experience based on this.</p>';
-
-                var levels = [
-                    { value: 'beginner', emoji: '🌱', label: 'Brand new to Bitcoin', desc: 'I\'ll start you with the basics' },
-                    { value: 'intermediate', emoji: '📘', label: 'I know a little', desc: 'I\'ll skip the intro stuff' },
-                    { value: 'advanced', emoji: '🔥', label: 'I\'m a Bitcoiner', desc: 'Full access — show me everything' },
-                ];
-
-                levels.forEach(function (opt) {
-                    var selected = state.level === opt.value;
-                    html += '<button onclick="window._onboardingSelectLevel(\'' + opt.value + '\')" style="display:flex;align-items:center;gap:14px;padding:16px 20px;background:' + (selected ? 'rgba(249,115,22,0.1)' : 'rgba(255,255,255,0.04)') + ';border:2px solid ' + (selected ? '#f97316' : '#1e293b') + ';border-radius:14px;cursor:pointer;width:100%;text-align:left;color:#e2e8f0;font-family:inherit;margin-bottom:10px;transition:all 0.2s;">';
-                    html += '<span style="font-size:1.5rem;flex-shrink:0;">' + opt.emoji + '</span>';
-                    html += '<div><div style="font-weight:700;font-size:0.95rem;">' + opt.label + '</div>';
-                    html += '<div style="color:#64748b;font-size:0.8rem;margin-top:2px;">' + opt.desc + '</div></div>';
-                    if (selected) html += '<span style="margin-left:auto;color:#f97316;font-size:1.2rem;">✓</span>';
-                    html += '</button>';
-                });
-            }
-
-            else if (state.step === 2) {
-                // ── INTERESTS (Nacho asks) ──
-                html += '<div style="font-size:3rem;margin-bottom:12px;">🦌</div>';
-                html += '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">What catches your eye?</h1>';
-                html += '<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">Pick at least 3 topics that interest you!</p>';
-                html += '<div id="interestCount" style="color:' + (state.interests.length >= 3 ? '#22c55e' : '#f97316') + ';font-size:0.75rem;font-weight:700;margin-bottom:16px;">' + state.interests.length + ' of 3 minimum selected</div>';
-
-                var tags = [
-                    { label: 'Why Bitcoin?', emoji: '❓' },
-                    { label: 'How to buy & use', emoji: '🛒' },
-                    { label: 'Security & wallets', emoji: '🔑' },
-                    { label: 'Lightning Network', emoji: '⚡' },
-                    { label: 'Mining & energy', emoji: '⛏️' },
-                    { label: 'Privacy & freedom', emoji: '🕵️' },
-                    { label: 'History & culture', emoji: '📜' },
-                    { label: 'Economics & money', emoji: '💰' },
-                    { label: 'Geopolitics & adoption', emoji: '🌍' },
-                    { label: 'Technical deep dives', emoji: '🔧' },
-                    { label: 'Art, memes & media', emoji: '🎨' },
-                    { label: 'Books & learning', emoji: '📚' },
-                    { label: 'Philosophy & ethics', emoji: '🍎' },
-                    { label: 'Building & DIY', emoji: '🔨' },
-                    { label: 'Bitcoin properties', emoji: '₿' },
-                    { label: 'Real-world use cases', emoji: '✅' },
-                ];
-
-                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
-                tags.forEach(function (tag) {
-                    var selected = state.interests.indexOf(tag.label) !== -1;
-                    html += '<button onclick="window._onboardingToggleInterest(\'' + tag.label + '\')" style="padding:10px 16px;border-radius:20px;background:' + (selected ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)') + ';border:1.5px solid ' + (selected ? '#f97316' : '#1e293b') + ';color:' + (selected ? '#f97316' : '#e2e8f0') + ';cursor:pointer;font-size:0.85rem;font-weight:600;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:6px;">';
-                    html += tag.emoji + ' ' + tag.label;
-                    html += '</button>';
-                });
-                html += '</div>';
-            }
-
-            html += '</div>'; // End content
-
-            // CTA button
-            var canAdvance = state.step === 0 || (state.step === 1 && state.level) || (state.step === 2 && state.interests.length >= 3);
-            var isLast = state.step === 2;
-
-            html += '<div style="margin-top:36px;width:100%;max-width:480px;">';
-            html += '<button id="onboardingCTA" onclick="window._onboardingAdvance()" ' + (canAdvance ? '' : 'disabled') + ' style="width:100%;padding:16px 0;background:' + (canAdvance ? 'linear-gradient(135deg,#f97316,#ea580c)' : '#1e293b') + ';color:' + (canAdvance ? '#fff' : '#475569') + ';border:none;border-radius:14px;font-size:1.05rem;font-weight:800;cursor:' + (canAdvance ? 'pointer' : 'default') + ';font-family:inherit;transition:all 0.3s;letter-spacing:0.3px;box-shadow:' + (canAdvance ? '0 8px 30px rgba(249,115,22,0.3)' : 'none') + ';">';
-            html += isLast ? 'Start Exploring →' : 'Continue';
-            html += '</button>';
-
-            // Back button (steps 1 and 2)
-            if (state.step > 0) {
-                html += '<button onclick="window._onboardingBack()" style="width:100%;margin-top:10px;padding:12px 0;background:none;border:1px solid #1e293b;border-radius:12px;color:#475569;font-size:0.85rem;cursor:pointer;font-family:inherit;">← Back</button>';
-            }
-            // Skip option on ALL steps
-            html += '<button onclick="window._onboardingSkip()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.8rem;cursor:pointer;font-family:inherit;">Skip — I\'ll explore on my own</button>';
-            html += '</div>';
-
-            overlay.innerHTML = html;
-        }
-
-        // ── Wizard Actions ──
-        window._onboardingBack = function () {
-            if (state.step > 0) { state.step--; render(); }
-        };
-
-        window._onboardingSelectLevel = function (level) {
-            state.level = level;
-            render();
-        };
-
-        window._onboardingToggleInterest = function (interest) {
-            var idx = state.interests.indexOf(interest);
-            if (idx !== -1) state.interests.splice(idx, 1);
-            else state.interests.push(interest);
-            render();
-        };
-
-        window._onboardingAdvance = function () {
-            if (state.step < 2) {
-                state.step++;
-                render();
-            } else {
-                _completeOnboarding(state);
-            }
-        };
-
-        window._onboardingSkip = function () {
-            _completeOnboarding({ step: 0, level: 'intermediate', interests: [], skipped: true });
-        };
-
-        function _completeOnboarding(finalState) {
-            window.setOnboardingProfile({
-                level: finalState.level || 'beginner',
-                interests: finalState.interests || [],
-                completedAt: Date.now(),
-            });
-
-            // Animate out
-            overlay.style.transition = 'opacity 0.4s';
-            overlay.style.opacity = '0';
-            setTimeout(function () {
-                overlay.remove();
-                // Trigger home page simplification
-                if (typeof window.applySimplifiedHome === 'function') {
-                    window.applySimplifiedHome();
-                }
-                // Clean up global handlers
-                delete window._onboardingSelectLevel;
-                delete window._onboardingToggleInterest;
-                delete window._onboardingAdvance;
-                delete window._onboardingSkip;
-            }, 400);
-        }
-
-        render();
-        document.body.appendChild(overlay);
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
     }
 
-    // ─── SIMPLIFIED HOME PAGE ─────────────────────────────
-    // Modifies the existing home page based on user level.
-    // Hides overwhelming elements for beginners, reveals progressively.
+    window.btcClaimSessionPopup = function (kind) {
+        try {
+            var cur = sessionStorage.getItem('btc_session_popup');
+            if (!cur) {
+                sessionStorage.setItem('btc_session_popup', kind);
+                return true;
+            }
+            if (cur === kind) return true;
+            if (kind === 'onboarding' && localStorage.getItem(INTRO_KEY) !== '1') {
+                sessionStorage.setItem('btc_session_popup', 'onboarding');
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    };
+    window.btcPopupBlocked = function (kind) {
+        try {
+            var cur = sessionStorage.getItem('btc_session_popup');
+            if (!cur) return false;
+            return cur !== kind;
+        } catch (e) { return false; }
+    };
 
+    window.getExperienceMode = function () {
+        var m = '';
+        try { m = localStorage.getItem('btc_experience_mode') || ''; } catch (e) {}
+        if (m !== 'beginner' && m !== 'intermediate' && m !== 'advanced') return 'advanced';
+        return m;
+    };
+    window.getUserSimplificationLevel = function () {
+        return window.getExperienceMode() === 'advanced' ? 'full' : window.getExperienceMode();
+    };
+    window.setExperienceMode = function (mode) {
+        if (mode !== 'beginner' && mode !== 'intermediate' && mode !== 'advanced') mode = 'advanced';
+        try { localStorage.setItem('btc_experience_mode', mode); } catch (e) {}
+        try {
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' && db) {
+                db.collection('users').doc(auth.currentUser.uid).set({ experienceMode: mode }, { merge: true }).catch(function () {});
+            }
+        } catch (e) {}
+        if (typeof window.applySimplifiedHome === 'function') window.applySimplifiedHome();
+    };
+    window.syncExperienceModeFromFirestore = function () {
+        try {
+            if (typeof auth === 'undefined' || !auth || !auth.currentUser || typeof db === 'undefined') return;
+            db.collection('users').doc(auth.currentUser.uid).get().then(function (doc) {
+                if (!doc.exists) return;
+                var m = doc.data().experienceMode;
+                if (m === 'beginner' || m === 'intermediate' || m === 'advanced') {
+                    try { localStorage.setItem('btc_experience_mode', m); } catch (e) {}
+                }
+                if (doc.data().introSeen === true) {
+                    try { localStorage.setItem(INTRO_KEY, '1'); } catch (e) {}
+                }
+            }).catch(function () {});
+        } catch (e) {}
+    };
+    window.getOnboardingProfile = function () {
+        return { level: window.getExperienceMode(), interests: [] };
+    };
+    window.isOnboardingComplete = function () {
+        try { return localStorage.getItem(INTRO_KEY) === '1' || localStorage.getItem('btc_onboarding_done') === 'true'; }
+        catch (e) { return false; }
+    };
+
+    function questList() {
+        return (QUEST_MODES[window.getExperienceMode()] || QUEST_MODES.advanced).slice();
+    }
+    window.isNachoQuestDone = function () {
+        try { return localStorage.getItem(QUEST_DONE) === '1'; } catch (e) { return false; }
+    };
+    window.isNachoQuestActive = function () {
+        try { return localStorage.getItem(QUEST_ACTIVE) === '1' && !window.isNachoQuestDone(); }
+        catch (e) { return false; }
+    };
+    window.getNachoQuestStep = function () {
+        var n = 0;
+        try { n = parseInt(localStorage.getItem(QUEST_STEP) || '0', 10) || 0; } catch (e) {}
+        var list = questList();
+        if (n < 0) n = 0;
+        if (n >= list.length) n = Math.max(0, list.length - 1);
+        return n;
+    };
+    function currentStepId() {
+        var list = questList();
+        return list[window.getNachoQuestStep()] || list[0];
+    }
+
+    function signedInReal() {
+        try {
+            return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+        } catch (e) { return false; }
+    }
+
+    function rememberPending(stepId) {
+        var list = [];
+        try { list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (e) { list = []; }
+        if (!Array.isArray(list)) list = [];
+        if (list.indexOf(stepId) === -1) list.push(stepId);
+        try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch (e) {}
+    }
+
+    function callFn(name, payload) {
+        if (typeof firebase === 'undefined' || !firebase.functions) return Promise.reject(new Error('offline'));
+        return firebase.functions().httpsCallable(name)(payload || {});
+    }
+
+    window.flushOnboardingClaims = function () {
+        if (!signedInReal()) return;
+        var list = [];
+        try { list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (e) { list = []; }
+        if (!Array.isArray(list) || !list.length) return;
+        var next = list.slice();
+        function run() {
+            if (!next.length) {
+                try { localStorage.removeItem(PENDING_KEY); } catch (e) {}
+                return;
+            }
+            var id = next.shift();
+            callFn('claimOnboardingQuestStep', { stepId: id }).then(function (res) {
+                var data = res && res.data ? res.data : {};
+                if (data.ok && !data.already && typeof showToast === 'function') {
+                    var bits = [];
+                    if (data.awarded) bits.push('+' + data.awarded + ' XP');
+                    if (data.tickets) bits.push('+' + data.tickets + ' tickets');
+                    if (bits.length) showToast('Quest reward saved: ' + bits.join(', '), 4000);
+                }
+                if (data.complete) markQuestDone(data);
+                else if (!data.ok && data.error === 'not_verified') rememberPending(id);
+                run();
+            }).catch(function () { rememberPending(id); });
+        }
+        run();
+    };
+
+    function markQuestDone(data) {
+        try {
+            localStorage.setItem(QUEST_DONE, '1');
+            localStorage.removeItem(QUEST_ACTIVE);
+        } catch (e) {}
+        window._clearNachoQuestBeacon && window._clearNachoQuestBeacon();
+        var pill = document.getElementById('nachoQuestPill');
+        if (pill) pill.remove();
+        var pts = data && data.totalPts ? data.totalPts : 0;
+        var tickets = data && data.totalTickets ? data.totalTickets : 0;
+        if (typeof showToast === 'function') {
+            showToast('First quest complete' + (pts ? ' · ' + pts + ' XP' : '') + (tickets ? ' · ' + tickets + ' tickets' : ''), 5000);
+        }
+    }
+
+    function advanceLocal() {
+        var list = questList();
+        var i = window.getNachoQuestStep() + 1;
+        if (i >= list.length) {
+            if (signedInReal()) return;
+            try { localStorage.setItem(QUEST_STEP, String(list.length)); } catch (e) {}
+            if (typeof showToast === 'function') showToast('Quest checklist done. Sign in to collect the rewards.', 5000);
+            return;
+        }
+        try { localStorage.setItem(QUEST_STEP, String(i)); } catch (e) {}
+        window._showNachoQuestPill();
+        window._nachoQuestBeaconForStep(i);
+    }
+
+    window._completeNachoQuestStep = function (stepId) {
+        if (!QUEST_STEPS[stepId] || window.isNachoQuestDone()) return;
+        if (!signedInReal()) {
+            rememberPending(stepId);
+            if (typeof showToast === 'function') showToast('Create an account to collect this reward.', 4000);
+            advanceLocal();
+            return;
+        }
+        callFn('claimOnboardingQuestStep', { stepId: stepId }).then(function (res) {
+            var data = res && res.data ? res.data : {};
+            if (data.ok) {
+                if (!data.already && typeof showToast === 'function') {
+                    var msg = QUEST_STEPS[stepId].title + ' saved';
+                    if (data.awarded) msg += ' · +' + data.awarded + ' XP';
+                    if (data.tickets) msg += ' · +' + data.tickets + ' tickets';
+                    showToast(msg, 4000);
+                }
+                if (data.complete) { markQuestDone(data); return; }
+                advanceLocal();
+                return;
+            }
+            if (data.error === 'not_verified') {
+                try {
+                    localStorage.removeItem('btc_quest_step_done_' + stepId);
+                    localStorage.setItem('btc_quest_wait_' + stepId, String(Date.now() + 20000));
+                    if (!localStorage.getItem('btc_quest_hint_' + stepId) && typeof showToast === 'function') {
+                        localStorage.setItem('btc_quest_hint_' + stepId, '1');
+                        showToast(QUEST_STEPS[stepId].detail, 4000);
+                    }
+                } catch (e) {}
+                return;
+            }
+            rememberPending(stepId);
+        }).catch(function () {
+            rememberPending(stepId);
+            if (typeof showToast === 'function') showToast('Reward will be saved when you are back online.', 4000);
+            advanceLocal();
+        });
+    };
+
+    function signalSeen(signal) {
+        if (signal === 'channel') {
+            if (localStorage.getItem('btc_nacho_quest_channel') === '1') return true;
+            try { return JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length > (window._nqBaseVisited || 0); }
+            catch (e) { return false; }
+        }
+        if (signal === 'chat') {
+            var msgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0', 10) || 0;
+            return msgs > (window._nqBaseChat || 0);
+        }
+        if (signal === 'spin') {
+            var day = localStorage.getItem('btc_spin_last_day') || '';
+            return !!(day && day !== (window._nqBaseSpin || ''));
+        }
+        if (signal === 'nacho') {
+            var q = parseInt(localStorage.getItem('btc_nacho_questions') || '0', 10) || 0;
+            return q > (window._nqBaseNacho || 0) || localStorage.getItem('btc_nacho_quest_nacho') === '1';
+        }
+        if (signal === 'quiz') {
+            if (localStorage.getItem('btc_nacho_quest_quiz') === '1') return true;
+            var c = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0', 10) || 0;
+            return c > (window._nqBaseQuiz || 0);
+        }
+        return false;
+    }
+
+    window.startNachoQuestDetection = function () {
+        if (window._nachoQuestDetectionActive || window.isNachoQuestDone()) return;
+        window._nachoQuestDetectionActive = true;
+        try { window._nqBaseVisited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch (e) { window._nqBaseVisited = 0; }
+        window._nqBaseChat = parseInt(localStorage.getItem('btc_chat_msgs') || '0', 10) || 0;
+        window._nqBaseSpin = localStorage.getItem('btc_spin_last_day') || '';
+        window._nqBaseNacho = parseInt(localStorage.getItem('btc_nacho_questions') || '0', 10) || 0;
+        window._nqBaseQuiz = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0', 10) || 0;
+        window._nachoQuestPollInterval = setInterval(function () {
+            if (!window.isNachoQuestActive() || window.isNachoQuestDone()) {
+                clearInterval(window._nachoQuestPollInterval);
+                window._nachoQuestDetectionActive = false;
+                return;
+            }
+            var id = currentStepId();
+            var step = QUEST_STEPS[id];
+            if (!step) return;
+            var wait = parseInt(localStorage.getItem('btc_quest_wait_' + id) || '0', 10) || 0;
+            if (wait && Date.now() < wait) return;
+            var flag = 'btc_quest_step_done_' + id;
+            if (localStorage.getItem(flag) === '1') return;
+            if (!signalSeen(step.signal)) return;
+            try { localStorage.setItem(flag, '1'); } catch (e) {}
+            window._completeNachoQuestStep(id);
+        }, 700);
+    };
+
+    function questChromeOpen() {
+        var modal = document.getElementById('usernameModal');
+        if (modal && modal.classList.contains('open')) return true;
+        if (document.getElementById('mfaSignInOverlay')) return true;
+        if (document.getElementById('totpSignInOverlay')) return true;
+        return false;
+    }
+
+    function placeNachoQuestPill(btn) {
+        if (!btn) return;
+        if (questChromeOpen()) {
+            btn.style.display = 'none';
+            return;
+        }
+        var narrow = window.innerWidth <= 480;
+        var banner = document.querySelector('.favor-banner-progress');
+        var clearTop = 12;
+        if (banner) {
+            var rect = banner.getBoundingClientRect();
+            if (rect.height > 8 && rect.bottom > 0 && rect.top < 220 && rect.bottom < window.innerHeight - 80) {
+                clearTop = Math.round(rect.bottom + 8);
+            }
+        }
+        var base = 'z-index:2100001;background:var(--accent,#f97316);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,0.25);touch-action:manipulation;';
+        if (narrow) {
+            btn.style.cssText = 'position:fixed;display:block;top:' + clearTop + 'px;right:12px;left:auto;bottom:auto;transform:none;' + base;
+        } else {
+            btn.style.cssText = 'position:fixed;display:block;bottom:80px;left:50%;right:auto;top:auto;transform:translateX(-50%);' + base;
+        }
+        if (!banner) return;
+        var box = btn.getBoundingClientRect();
+        var labels = banner.querySelectorAll('span');
+        for (var i = 0; i < labels.length; i++) {
+            if ((labels[i].textContent || '').indexOf("Satoshi's Favor") === -1) continue;
+            var title = labels[i].getBoundingClientRect();
+            var hit = !(box.right < title.left || box.left > title.right || box.bottom < title.top || box.top > title.bottom);
+            if (!hit) continue;
+            btn.style.top = Math.round(title.bottom + 8) + 'px';
+            btn.style.bottom = 'auto';
+            btn.style.right = '12px';
+            btn.style.left = 'auto';
+            btn.style.transform = 'none';
+        }
+    }
+
+    window._showNachoQuestPill = function () {
+        if (window.isNachoQuestDone() || !window.isNachoQuestActive()) return;
+        var existing = document.getElementById('nachoQuestPill');
+        if (existing) existing.remove();
+        var list = questList();
+        var btn = document.createElement('button');
+        btn.id = 'nachoQuestPill';
+        btn.type = 'button';
+        placeNachoQuestPill(btn);
+        btn.textContent = 'Quest · ' + (window.getNachoQuestStep() + 1) + '/' + list.length;
+        btn.addEventListener('click', function () { window._showNachoQuestOverlay(); });
+        document.body.appendChild(btn);
+        if (window._questPillWatch) return;
+        window._questPillWatch = true;
+        window.addEventListener('resize', function () {
+            var pill = document.getElementById('nachoQuestPill');
+            if (pill) placeNachoQuestPill(pill);
+        });
+        var modal = document.getElementById('usernameModal');
+        if (modal && window.MutationObserver) {
+            new MutationObserver(function () {
+                var pill = document.getElementById('nachoQuestPill');
+                if (pill) placeNachoQuestPill(pill);
+            }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+        }
+    };
+
+    window._showNachoQuestOverlay = function () {
+        if (window.isNachoQuestDone()) return;
+        var old = document.getElementById('nachoQuestOverlay');
+        if (old) old.remove();
+        var id = currentStepId();
+        var step = QUEST_STEPS[id];
+        if (!step) return;
+        var list = questList();
+        var overlay = document.createElement('div');
+        overlay.id = 'nachoQuestOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2100002;background:var(--bg,#020617);display:flex;align-items:flex-end;justify-content:center;padding:16px;';
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--bg-side,#0f172a);color:var(--text,#e2e8f0);border:1px solid var(--border,#1e293b);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;';
+        var kicker = document.createElement('div');
+        kicker.style.cssText = 'font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent,#f97316);font-weight:800;';
+        kicker.textContent = 'Step ' + (window.getNachoQuestStep() + 1) + ' of ' + list.length;
+        var title = document.createElement('h2');
+        title.style.cssText = 'color:var(--heading,#fff);font-size:1.25rem;margin:8px 0;';
+        title.textContent = step.title;
+        var detail = document.createElement('p');
+        detail.style.cssText = 'color:var(--text-muted,#94a3b8);font-size:0.95rem;line-height:1.45;margin:0 0 16px;';
+        detail.textContent = step.detail;
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;';
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = 'Close';
+        close.style.cssText = 'flex:1;padding:12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:16px;font-family:inherit;cursor:pointer;';
+        close.addEventListener('click', function () { overlay.remove(); });
+        var skip = document.createElement('button');
+        skip.type = 'button';
+        skip.textContent = 'Skip quest';
+        skip.style.cssText = 'flex:1;padding:12px;border-radius:12px;border:none;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;';
+        skip.addEventListener('click', function () { window._skipNachoQuest(); overlay.remove(); });
+        row.appendChild(close);
+        row.appendChild(skip);
+        card.appendChild(kicker);
+        card.appendChild(title);
+        card.appendChild(detail);
+        card.appendChild(row);
+        overlay.appendChild(card);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+        window._nachoQuestBeaconForStep(window.getNachoQuestStep());
+    };
+
+    window._skipNachoQuest = function () {
+        try {
+            localStorage.setItem(QUEST_DONE, '1');
+            localStorage.removeItem(QUEST_ACTIVE);
+        } catch (e) {}
+        window._clearNachoQuestBeacon && window._clearNachoQuestBeacon();
+        var pill = document.getElementById('nachoQuestPill');
+        if (pill) pill.remove();
+        if (window._nachoQuestPollInterval) clearInterval(window._nachoQuestPollInterval);
+    };
+
+    window._clearNachoQuestBeacon = function () {
+        var b = document.getElementById('nachoQuestBeacon');
+        if (b) b.remove();
+    };
+    window._showNachoQuestBeacon = function (selector) {
+        window._clearNachoQuestBeacon();
+        if (!selector) return;
+        var el = document.querySelector(selector);
+        if (!el) return;
+        var b = document.createElement('div');
+        b.id = 'nachoQuestBeacon';
+        b.style.cssText = 'position:fixed;width:18px;height:18px;border-radius:50%;border:3px solid var(--accent,#f97316);pointer-events:none;z-index:8998;box-shadow:0 0 0 6px rgba(249,115,22,0.25);';
+        document.body.appendChild(b);
+        function place() {
+            if (!document.body.contains(el) || !document.body.contains(b)) return;
+            var r = el.getBoundingClientRect();
+            b.style.top = Math.max(8, r.top + 8) + 'px';
+            b.style.left = Math.max(8, r.left + r.width - 18) + 'px';
+        }
+        place();
+        window.addEventListener('scroll', place, true);
+        window.addEventListener('resize', place);
+    };
+    window._nachoQuestBeaconForStep = function (idx) {
+        var list = questList();
+        var step = QUEST_STEPS[list[idx]];
+        if (step && step.beacon) window._showNachoQuestBeacon(step.beacon);
+        else window._clearNachoQuestBeacon();
+    };
+
+    window.startNachoQuest = function (opts) {
+        if (window.isNachoQuestDone()) return;
+        try {
+            localStorage.setItem(QUEST_ACTIVE, '1');
+            if (!localStorage.getItem(QUEST_STEP)) localStorage.setItem(QUEST_STEP, '0');
+        } catch (e) {}
+        window._showNachoQuestPill();
+        window.startNachoQuestDetection();
+        var pillOnly = opts && opts.pillOnly;
+        var slotTaken = false;
+        try { slotTaken = sessionStorage.getItem('btc_session_popup') === 'onboarding'; } catch (e) {}
+        if (!pillOnly && !slotTaken) window._showNachoQuestOverlay();
+    };
+
+    function markIntroSeen() {
+        try { localStorage.setItem(INTRO_KEY, '1'); localStorage.setItem('btc_onboarding_done', 'true'); } catch (e) {}
+        if (signedInReal()) callFn('markIntroSeen', {}).catch(function () {});
+    }
+
+    function alreadyOnboarded() {
+        try {
+            if (localStorage.getItem(INTRO_KEY) === '1' || localStorage.getItem('btc_onboarding_done') === 'true') return true;
+            if (localStorage.getItem('btc_username')) { localStorage.setItem(INTRO_KEY, '1'); return true; }
+            var cache = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+            if (cache && cache.data && cache.data.username) { localStorage.setItem(INTRO_KEY, '1'); return true; }
+        } catch (e) {}
+        return false;
+    }
+
+    var SLIDES = [
+        {
+            kicker: 'Learn',
+            title: 'Channels, quests, and Nacho',
+            body: 'Read Bitcoin topics, follow a quest, and ask Nacho — the AI deer — when you want it in plain language.',
+            items: [
+                { label: 'Learn channels', tryId: 'channels' },
+                { label: 'Quests', tryId: 'quests' },
+                { label: 'Nacho', tryId: 'nacho' }
+            ]
+        },
+        {
+            kicker: 'Daily',
+            title: 'A reason to come back',
+            body: 'Spin the wheel, finish the daily challenge, and answer trivia or a poll. Each one pays XP.',
+            items: [
+                { label: 'Daily spin', tryId: 'spin' },
+                { label: 'Trivia and polls', tryId: 'trivia' }
+            ]
+        },
+        {
+            kicker: 'People',
+            title: 'Talk, post, trade',
+            body: 'Global Chat is live. PlebTalk is the forum. LightningMart is the marketplace. A buddy is optional.',
+            items: [
+                { label: 'Global Chat', tryId: 'chat' },
+                { label: 'PlebTalk', tryId: 'forum' },
+                { label: 'Marketplace', tryId: 'market' },
+                { label: 'Find a buddy', tryId: 'buddy' }
+            ]
+        },
+        {
+            kicker: 'Play and earn',
+            title: 'Tickets, XP, and games',
+            body: 'Watch Timechain TV, play Bitcoin Beats, duel in PvP, hash for Satoshi\'s Favor, open ciphers, join a raid, or share a referral. Orange tickets and XP add up.',
+            items: [
+                { label: 'Timechain TV', tryId: 'tv' },
+                { label: 'Bitcoin Beats', tryId: 'beats' },
+                { label: 'PvP', tryId: 'pvp' },
+                { label: 'Satoshi\'s Favor', tryId: 'favor' },
+                { label: 'Ciphers and raids', tryId: 'ciphers' },
+                { label: 'Referrals', tryId: 'referral' }
+            ]
+        },
+        {
+            kicker: 'Your pace',
+            title: 'How much do you want to see?',
+            body: 'You can change this anytime in Settings. Your XP stays either way.',
+            mode: true
+        }
+    ];
+
+    function tryFeature(id) {
+        markIntroSeen();
+        var overlay = document.getElementById('btcIntroOverlay');
+        if (overlay) overlay.remove();
+        var fns = {
+            channels: function () { if (typeof go === 'function') go('one-stop-shop'); },
+            quests: function () { if (typeof showQuestHub === 'function') showQuestHub(); },
+            nacho: function () { if (typeof enterNachoMode === 'function') enterNachoMode(); },
+            spin: function () { if (typeof showSpinWheel === 'function') showSpinWheel(); },
+            trivia: function () { if (typeof showQuestHub === 'function') showQuestHub(); },
+            chat: function () {
+                if (typeof renderChatHub === 'function') renderChatHub('global');
+                else if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+            },
+            forum: function () { if (typeof go === 'function') go('forum'); },
+            market: function () { if (typeof go === 'function') go('marketplace'); },
+            tv: function () { if (typeof go === 'function') go('timechain-tv'); },
+            beats: function () { if (typeof go === 'function') go('bitcoin-beats'); },
+            pvp: function () { if (typeof enterPVPMode === 'function') enterPVPMode(); },
+            favor: function () { if (typeof openSatoshiFavorMiner === 'function') openSatoshiFavorMiner(); },
+            buddy: function () { if (typeof showBuddyFinder === 'function') showBuddyFinder(); },
+            ciphers: function () { if (typeof showQuestHub === 'function') showQuestHub(); },
+            referral: function () {
+                if (typeof showSettings === 'function') showSettings();
+                setTimeout(function () { if (typeof showSettingsPage === 'function') showSettingsPage('account'); }, 120);
+            }
+        };
+        var fn = fns[id];
+        if (fn) fn();
+        window.startNachoQuest({ pillOnly: true });
+    }
+
+    function renderIntro(slide) {
+        var overlay = document.getElementById('btcIntroOverlay');
+        if (!overlay) return;
+        var data = SLIDES[slide] || SLIDES[0];
+        var card = overlay.querySelector('[data-intro-card]');
+        card.textContent = '';
+        var top = document.createElement('div');
+        top.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;';
+        var dots = document.createElement('div');
+        dots.style.cssText = 'display:flex;gap:6px;';
+        SLIDES.forEach(function (_, i) {
+            var dot = document.createElement('span');
+            dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:' + (i === slide ? 'var(--accent,#f97316)' : 'var(--border,#334155)') + ';';
+            dots.appendChild(dot);
+        });
+        var skip = document.createElement('button');
+        skip.type = 'button';
+        skip.textContent = 'Skip';
+        skip.style.cssText = 'background:transparent;border:none;color:var(--text-muted);font-size:16px;font-family:inherit;cursor:pointer;padding:8px;';
+        skip.addEventListener('click', finishIntro);
+        top.appendChild(dots);
+        top.appendChild(skip);
+        var kicker = document.createElement('div');
+        kicker.textContent = data.kicker;
+        kicker.style.cssText = 'color:var(--accent,#f97316);font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;';
+        var title = document.createElement('h2');
+        title.textContent = data.title;
+        title.style.cssText = 'color:var(--heading);font-size:1.45rem;line-height:1.2;margin:8px 0;';
+        var body = document.createElement('p');
+        body.textContent = data.body;
+        body.style.cssText = 'color:var(--text);font-size:1rem;line-height:1.45;margin:0 0 14px;';
+        card.appendChild(top);
+        card.appendChild(kicker);
+        card.appendChild(title);
+        if (slide === 0) {
+            var deer = document.createElement('img');
+            deer.src = 'nacho-deer.svg';
+            deer.alt = 'Nacho';
+            deer.width = 96;
+            deer.height = 96;
+            deer.style.cssText = 'display:block;width:96px;height:96px;margin:4px 0 10px;';
+            card.appendChild(deer);
+        }
+        card.appendChild(body);
+        if (data.items) {
+            data.items.forEach(function (item) {
+                var row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--border);';
+                var label = document.createElement('span');
+                label.textContent = item.label;
+                label.style.cssText = 'color:var(--heading);font-weight:700;font-size:0.95rem;';
+                var tryBtn = document.createElement('button');
+                tryBtn.type = 'button';
+                tryBtn.textContent = 'Try it';
+                tryBtn.style.cssText = 'background:transparent;border:1px solid var(--border);color:var(--accent,#f97316);border-radius:999px;padding:6px 12px;font-size:16px;font-family:inherit;cursor:pointer;';
+                tryBtn.addEventListener('click', function () { tryFeature(item.tryId); });
+                row.appendChild(label);
+                row.appendChild(tryBtn);
+                card.appendChild(row);
+            });
+        }
+        if (data.mode) {
+            [['beginner', 'Guided', 'A quieter home'], ['intermediate', 'Balanced', 'Apps, less noise'], ['advanced', 'Everything', 'All tools visible']].forEach(function (m) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--heading);font-family:inherit;font-size:16px;cursor:pointer;';
+                var strong = document.createElement('strong');
+                strong.textContent = m[1];
+                var small = document.createElement('div');
+                small.textContent = m[2];
+                small.style.cssText = 'color:var(--text-muted);font-size:0.85rem;font-weight:500;margin-top:2px;';
+                b.appendChild(strong);
+                b.appendChild(small);
+                b.addEventListener('click', function () {
+                    window.setExperienceMode(m[0]);
+                    card.querySelectorAll('button').forEach(function (el) { el.style.borderColor = 'var(--border)'; });
+                    b.style.borderColor = 'var(--accent,#f97316)';
+                });
+                card.appendChild(b);
+            });
+        }
+        var next = document.createElement('button');
+        next.type = 'button';
+        next.textContent = slide >= SLIDES.length - 1 ? 'Start exploring' : 'Next';
+        next.style.cssText = 'width:100%;margin-top:14px;padding:14px;border:none;border-radius:12px;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;';
+        next.addEventListener('click', function () {
+            if (slide >= SLIDES.length - 1) finishIntro();
+            else renderIntro(slide + 1);
+        });
+        card.appendChild(next);
+        var start = document.createElement('button');
+        start.type = 'button';
+        start.textContent = 'Start exploring';
+        start.style.cssText = 'width:100%;margin-top:8px;padding:10px;border:none;background:transparent;color:var(--text-muted);font-size:16px;font-family:inherit;cursor:pointer;';
+        start.addEventListener('click', finishIntro);
+        if (slide < SLIDES.length - 1) card.appendChild(start);
+    }
+
+    function finishIntro() {
+        if (!localStorage.getItem('btc_experience_mode')) window.setExperienceMode('advanced');
+        markIntroSeen();
+        var overlay = document.getElementById('btcIntroOverlay');
+        if (overlay) overlay.remove();
+        window.applySimplifiedHome();
+        window.startNachoQuest({ pillOnly: true });
+    }
+
+    window.showOnboardingIntro = function (opts) {
+        var force = opts && opts.force;
+        if (!force && alreadyOnboarded()) return false;
+        window.btcClaimSessionPopup('onboarding');
+        var old = document.getElementById('btcIntroOverlay');
+        if (old) old.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'btcIntroOverlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-label', 'Welcome tour');
+        var wide = window.innerWidth > 800;
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2100003;background:var(--bg,#020617);display:flex;align-items:' + (wide ? 'center' : 'flex-end') + ';justify-content:center;padding:' + (wide ? '24px' : '0') + ';';
+        var card = document.createElement('div');
+        card.setAttribute('data-intro-card', '1');
+        card.style.cssText = 'background:var(--bg-side,#0f172a);color:var(--text,#e2e8f0);width:100%;max-width:520px;max-height:100%;overflow:auto;border-radius:' + (wide ? '20px' : '20px 20px 0 0') + ';padding:18px 18px 28px;border:1px solid var(--border);';
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        renderIntro((opts && typeof opts.slide === 'number') ? opts.slide : 0);
+        return true;
+    };
+    window.showOnboardingWizard = function () { return window.showOnboardingIntro(); };
+
+    var CURATED = {
+        beginner: ['one-stop-shop', 'whitepaper', 'problems-of-money', 'self-custody'],
+        intermediate: ['mining', 'layer-2-lightning', 'self-custody', 'nodes']
+    };
     window.applySimplifiedHome = function () {
         var level = window.getUserSimplificationLevel();
-        var profile = window.getOnboardingProfile();
-
-        // Full mode: don't touch anything
-        if (level === 'full' || level === 'advanced') return;
-
-        // ── Elements to HIDE for beginners ──
-        var hideSelectors = {
-            beginner: [
-                '#giveawayBanner',           // Sats giveaway banner
-                '#dailySpinBanner',          // Daily spin
-                '#welcomeBanner',            // Welcome back banner
-                '#progressRings',            // Progress rings
-                '#appStatsPanel',            // App stats
-                '#dailyChallengeCard',       // Daily challenge
-                '#quoteOfDay',               // Quote of the day
-                '#explorationMap',           // Exploration map
-                '#donateSection',            // Donate section
-                '[onclick*="showSpinWheel"]',    // Spin button
-                '[onclick*="showPricePrediction"]', // Predict button
-                '#homeAppsBtn',             // Explore Apps button
-                '#homeAppsMenu',             // Explore Apps dropdown menu
-                '[onclick*="toggleSidebarMenu(\'homeSupportMenu\')"]', // Support dropdown
-                '#homeSupportMenu',
-                '#lbFloatBtn',               // Floating leaderboard
-                '#desktopDMBtn',             // DMs button
-                '#rankBar',                  // Rank bar
-                '#activity-ticker',          // Live activity ticker
-                '#continueReading',          // Continue reading (empty anyway)
-            ],
-            intermediate: [
-                '#giveawayBanner',
-                '#dailySpinBanner',
-                '#progressRings',
-                '#explorationMap',
-                '#activity-ticker',
-            ],
+        var hide = {
+            beginner: ['#dailySpinBanner', '#progressRings', '#dailyChallengeCard', '#quoteOfDay', '#explorationMap', '#donateSection', '#homeAppsBtn', '#homeAppsMenu', '#desktopDMBtn', '#rankBar', '#activity-ticker', '#continueReading'],
+            intermediate: ['#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker']
         };
-
-        var toHide = hideSelectors[level] || [];
-        toHide.forEach(function (sel) {
-            var els = document.querySelectorAll(sel);
-            els.forEach(function (el) {
-                el.setAttribute('data-simplified-hidden', 'true');
+        document.querySelectorAll('[data-simplified-hidden]').forEach(function (el) {
+            el.style.display = '';
+            el.removeAttribute('data-simplified-hidden');
+        });
+        var old = document.getElementById('curatedStartSection');
+        if (old) old.remove();
+        if (level === 'full') return;
+        (hide[level] || []).forEach(function (sel) {
+            document.querySelectorAll(sel).forEach(function (el) {
+                el.setAttribute('data-simplified-hidden', '1');
                 el.style.display = 'none';
             });
         });
-
-        // ── Inject curated "Start Here" section ──
-        // Interest channels go FIRST, then level defaults fill remaining slots (max 12)
-        var levelDefaults = CURATED_CHANNELS[level] || CURATED_CHANNELS.beginner;
-        var curated = [];
-        var seenIds = [];
-
-        // Step 1: Add interest-based channels first (up to 6 slots)
-        if (profile && profile.interests && profile.interests.length > 0) {
-            var interestIds = [];
-            profile.interests.forEach(function (interest) {
-                var ids = INTEREST_CHANNELS[interest] || [];
-                ids.forEach(function (id) { if (interestIds.indexOf(id) === -1) interestIds.push(id); });
-            });
-            interestIds.forEach(function (id) {
-                if (seenIds.indexOf(id) === -1 && curated.length < 6) {
-                    seenIds.push(id);
-                    // Find a matching reason from the interest topic
-                    var reason = 'Based on your interests';
-                    for (var k = 0; k < profile.interests.length; k++) {
-                        if ((INTEREST_CHANNELS[profile.interests[k]] || []).indexOf(id) !== -1) {
-                            reason = profile.interests[k];
-                            break;
-                        }
-                    }
-                    curated.push({ id: id, reason: reason });
-                }
-            });
-        }
-
-        // Step 2: Fill remaining slots with level defaults (up to 12 total)
-        levelDefaults.forEach(function (ch) {
-            if (seenIds.indexOf(ch.id) === -1 && curated.length < 12) {
-                seenIds.push(ch.id);
-                curated.push(ch);
-            }
-        });
-
-        _injectCuratedSection(curated, level);
-
-        // ── Simplify the CTA area ──
-        var authBtn = document.getElementById('authBtn');
-        if (authBtn && level === 'beginner') {
-            // Move sign-in below curated channels, make it subtle
-            authBtn.style.background = 'none';
-            authBtn.style.border = '1px solid var(--border)';
-            authBtn.style.color = 'var(--text-muted)';
-            authBtn.style.fontSize = '0.85rem';
-            authBtn.style.fontWeight = '600';
-            authBtn.textContent = '🔐 Create account to save progress';
-        }
-
-        // ── Simplify sidebar for beginners ──
+        var home = document.getElementById('home');
+        var ids = CURATED[level] || [];
+        if (!home || !ids.length || typeof CHANNELS === 'undefined') return;
+        var box = document.createElement('div');
+        box.id = 'curatedStartSection';
+        box.style.cssText = 'max-width:480px;margin:0 auto 20px;text-align:left;';
+        var heading = document.createElement('div');
+        heading.textContent = level === 'beginner' ? 'Start here' : 'Picked for you';
+        heading.style.cssText = 'font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);font-weight:800;margin-bottom:8px;';
+        box.appendChild(heading);
         if (level === 'beginner') {
-            // Collapse all categories by default (they already are, but ensure)
-            document.querySelectorAll('.cat-toggle').forEach(function (toggle) {
-                toggle.setAttribute('data-expanded', 'false');
-                var group = toggle.nextElementSibling;
-                if (group && group.classList.contains('cat-group')) {
-                    group.style.display = 'none';
-                }
-                var arrow = toggle.querySelector('.cat-arrow');
-                if (arrow) arrow.textContent = '▶';
+            var quizBtn = document.createElement('button');
+            quizBtn.id = 'onboardingQuizEntry';
+            quizBtn.type = 'button';
+            quizBtn.textContent = 'Try a quiz';
+            quizBtn.style.cssText = 'display:block;width:100%;text-align:left;padding:14px;margin-bottom:8px;border-radius:12px;border:1px solid var(--accent,#f97316);background:var(--bg-side);color:var(--heading);font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;';
+            quizBtn.addEventListener('click', function () {
+                if (typeof window.showQuestHub === 'function') window.showQuestHub();
             });
+            box.appendChild(quizBtn);
         }
-
-        // ── Sponsor section: always hide for new users ──
-        var sponsorEl = document.querySelector('[onclick*="Sponsorship"]');
-        if (sponsorEl) {
-            var sponsorSection = sponsorEl.closest('div[style*="dashed"]');
-            if (sponsorSection) sponsorSection.style.display = 'none';
-        }
-    };
-
-    function _injectCuratedSection(channels, level) {
-        var home = document.getElementById('home');
-        if (!home) return;
-
-        // Don't inject twice
-        if (document.getElementById('curatedStartSection')) return;
-
-        var section = document.createElement('div');
-        section.id = 'curatedStartSection';
-        section.style.cssText = 'width:100%;max-width:480px;margin:0 auto 28px;text-align:left;';
-
-        var label = level === 'beginner' ? '🟢 Start here' : '📌 Recommended for you';
-        var html = '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:12px;">' + label + '</div>';
-
-        channels.forEach(function (ch, i) {
-            var meta = (typeof CHANNELS !== 'undefined') ? CHANNELS[ch.id] : null;
-            if (!meta) return;
-            var emoji = meta.title ? meta.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u) : null;
-            var icon = emoji ? emoji[1] : '📄';
-            var name = ch.id.replace(/-/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); });
-
-            html += '<button onclick="go(\'' + ch.id + '\')" style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;cursor:pointer;text-align:left;font-family:inherit;color:var(--text);width:100%;margin-bottom:8px;transition:all 0.2s;animation:obSlideIn 0.4s ease-out ' + (i * 0.08) + 's both;" onmouseover="this.style.borderColor=\'rgba(249,115,22,0.4)\';this.style.background=\'rgba(249,115,22,0.05)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'rgba(255,255,255,0.03)\'">';
-            html += '<span style="font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(249,115,22,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + icon + '</span>';
-            html += '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.95rem;">' + name + '</div>';
-            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">' + (ch.reason || '') + '</div></div>';
-            html += '<span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span>';
-            html += '</button>';
+        ids.forEach(function (id) {
+            if (!CHANNELS[id]) return;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = 'display:block;width:100%;text-align:left;padding:14px;margin-bottom:8px;border-radius:12px;border:1px solid var(--border);background:var(--bg-side);color:var(--heading);font-family:inherit;font-size:16px;cursor:pointer;';
+            btn.textContent = String(CHANNELS[id].title || id).replace(/^[^\w]+/, '');
+            btn.addEventListener('click', function () { if (typeof go === 'function') go(id); });
+            box.appendChild(btn);
         });
-
-        // Nacho CTA (always shown, single calm card)
-        html += '<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:20px;background:linear-gradient(135deg,rgba(249,115,22,0.06),rgba(249,115,22,0.02));border:1px dashed rgba(249,115,22,0.25);border-radius:16px;margin-top:20px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'rgba(249,115,22,0.5)\'" onmouseout="this.style.borderColor=\'rgba(249,115,22,0.25)\'">';
-        html += '<span style="font-size:2rem;">🦌</span>';
-        html += '<div><div style="font-weight:700;font-size:0.9rem;color:var(--heading);">Ask Nacho anything</div>';
-        html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">Our AI tutor explains Bitcoin in plain language</div></div>';
-        html += '</div>';
-
-        section.innerHTML = html;
-
-        // Inject after subtitle, before all the noise
-        var subtitle = home.querySelector('.home-subtitle');
-        if (subtitle) {
-            subtitle.parentNode.insertBefore(section, subtitle.nextSibling);
-        }
-
-        // Add animation keyframes
-        if (!document.getElementById('obAnimStyle')) {
-            var style = document.createElement('style');
-            style.id = 'obAnimStyle';
-            style.textContent = '@keyframes obSlideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }';
-            document.head.appendChild(style);
-        }
-    }
-
-    // ─── PROGRESSIVE REVEAL ───────────────────────────────
-    // As users explore more, hidden elements gradually appear.
-    window.checkProgressiveReveal = function () {
-        var visited = [];
-        try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch (e) { }
-
-        // After 5 channels: show daily spin, leaderboard
-        if (visited.length >= 5) {
-            _revealElements(['#lbFloatBtn', '[onclick*="showSpinWheel"]']);
-        }
-        // After 10 channels: show everything
-        if (visited.length >= 10) {
-            document.querySelectorAll('[data-simplified-hidden]').forEach(function (el) {
-                el.style.display = '';
-                el.removeAttribute('data-simplified-hidden');
-            });
-        }
+        var sub = home.querySelector('.home-subtitle');
+        if (sub && sub.parentNode) sub.parentNode.insertBefore(box, sub.nextSibling);
+        else home.insertBefore(box, home.firstChild);
     };
+    window.checkProgressiveReveal = function () {};
 
-    function _revealElements(selectors) {
-        selectors.forEach(function (sel) {
-            var els = document.querySelectorAll(sel);
-            els.forEach(function (el) {
-                if (el.getAttribute('data-simplified-hidden')) {
-                    el.style.display = '';
-                    el.removeAttribute('data-simplified-hidden');
-                }
-            });
-        });
-    }
-
-    // ─── PROGRESS BREADCRUMBS ──────────────────────────────
-    // Shows a persistent "📍 Next up →" card on the homepage
-    window.showProgressBreadcrumb = function() {
-        var home = document.getElementById('home');
-        if (!home || document.getElementById('progressBreadcrumb')) return;
-        var profile = window.getOnboardingProfile();
-        if (!profile) return;
-        var visited = [];
-        try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
-        if (visited.length >= 15) return; // advanced users don't need this
-
-        // Find next unvisited recommended channel
-        var level = profile.level || 'beginner';
-        var recs = CURATED_CHANNELS[level] || CURATED_CHANNELS.beginner;
-        var nextRec = null;
-        for (var i = 0; i < recs.length; i++) {
-            if (visited.indexOf(recs[i].id) === -1) { nextRec = recs[i]; break; }
-        }
-        // If all curated are visited, suggest from interests
-        if (!nextRec && profile.interests && profile.interests.length > 0) {
-            for (var j = 0; j < profile.interests.length; j++) {
-                var intChannels = INTEREST_CHANNELS[profile.interests[j]] || [];
-                for (var k = 0; k < intChannels.length; k++) {
-                    if (visited.indexOf(intChannels[k]) === -1) {
-                        nextRec = { id: intChannels[k], reason: 'Based on your interests' };
-                        break;
-                    }
-                }
-                if (nextRec) break;
-            }
-        }
-        if (!nextRec) return; // nothing to recommend
-
-        var meta = (typeof CHANNELS !== 'undefined') ? CHANNELS[nextRec.id] : null;
-        if (!meta) return;
-        var emoji = meta.title ? (meta.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u) || ['📄'])[0] : '📄';
-        var chanName = nextRec.id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-        var progress = Math.min(visited.length, recs.length);
-
-        var el = document.createElement('div');
-        el.id = 'progressBreadcrumb';
-        el.style.cssText = 'max-width:480px;margin:0 auto 20px;cursor:pointer;';
-        el.innerHTML =
-            '<div onclick="go(\'' + nextRec.id + '\')" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(135deg,rgba(249,115,22,0.06),rgba(249,115,22,0.02));border:1px solid rgba(249,115,22,0.2);border-radius:14px;transition:0.2s;" onmouseover="this.style.borderColor=\'rgba(249,115,22,0.5)\'" onmouseout="this.style.borderColor=\'rgba(249,115,22,0.2)\'">' +
-                '<span style="font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(249,115,22,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + emoji + '</span>' +
-                '<div style="flex:1;min-width:0;">' +
-                    '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">📍 Up next for you</div>' +
-                    '<div style="font-weight:700;font-size:0.95rem;color:var(--heading);margin-top:2px;">' + chanName + '</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:1px;">' + (nextRec.reason || '') + '</div>' +
-                '</div>' +
-                '<span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span>' +
-            '</div>' +
-            '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;">' +
-                '<div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--accent);width:' + Math.round(progress / recs.length * 100) + '%;border-radius:2px;transition:0.3s;"></div></div>' +
-                '<span style="font-size:0.65rem;color:var(--text-faint);white-space:nowrap;">' + progress + '/' + recs.length + ' done</span>' +
-            '</div>';
-
-        // Insert after subtitle or curated section
-        var target = document.getElementById('curatedStartSection') || home.querySelector('.home-subtitle');
-        if (target) {
-            target.parentNode.insertBefore(el, target.nextSibling);
-        }
-    };
-
-    // ─── INITIALIZATION ───────────────────────────────────
-    function init() {
-        // Show onboarding for first-time users
-        var shown = window.showOnboardingWizard();
-
-        // If not showing wizard (returning user), apply simplification
-        if (!shown) {
-            window.applySimplifiedHome();
-        }
-
-        // Show progress breadcrumb on homepage
-        setTimeout(function() { if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb(); }, 1000);
-
-        // Check progressive reveal on every channel visit
-        var _origGo = window.go;
-        if (typeof _origGo === 'function') {
+    function hookNav() {
+        if (typeof window.go === 'function' && !window._nqGoHooked) {
+            window._nqGoHooked = true;
+            var origGo = window.go;
             window.go = function () {
-                var result = _origGo.apply(this, arguments);
-                // Check after navigation completes
-                setTimeout(window.checkProgressiveReveal, 1000);
-                // Refresh breadcrumb when going home
-                setTimeout(function() { 
-                    var bc = document.getElementById('progressBreadcrumb'); 
-                    if (bc) bc.remove(); 
-                    if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb(); 
-                }, 1200);
-                return result;
+                var out = origGo.apply(this, arguments);
+                try {
+                    if (window.isNachoQuestActive() && currentStepId() === 'pick_topic') {
+                        localStorage.setItem('btc_nacho_quest_channel', '1');
+                    }
+                } catch (e) {}
+                return out;
+            };
+        }
+        if (typeof window.toggleChatOverlay === 'function' && !window._nqChatHooked) {
+            window._nqChatHooked = true;
+            var origChat = window.toggleChatOverlay;
+            window.toggleChatOverlay = function () {
+                var out = origChat.apply(this, arguments);
+                return out;
+            };
+        }
+        if (typeof window.nachoModeSend === 'function' && !window._nqNachoHooked) {
+            window._nqNachoHooked = true;
+            var origSend = window.nachoModeSend;
+            window.nachoModeSend = function () {
+                var out = origSend.apply(this, arguments);
+                try {
+                    if (window.isNachoQuestActive()) localStorage.setItem('btc_nacho_quest_nacho', '1');
+                    if (typeof auth !== 'undefined' && auth && auth.currentUser) {
+                        callFn('noteNachoQuestion', { text: 'question' }).catch(function () {});
+                    }
+                } catch (e) {}
+                return out;
             };
         }
     }
 
-    // Run after DOM + other scripts are ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 500); });
-    } else {
-        setTimeout(init, 500);
+    window.addEventListener('onboarding_quiz_done', function () {
+        try { localStorage.setItem('btc_nacho_quest_quiz', '1'); } catch (e) {}
+    });
+
+    function boot() {
+        hookNav();
+        setTimeout(hookNav, 1500);
+        if (!alreadyOnboarded()) window.btcClaimSessionPopup('onboarding');
+        var hashed = false;
+        try { hashed = !!(location.hash && location.hash.length > 1); } catch (e) {}
+        if (!alreadyOnboarded() && !hashed) window.showOnboardingIntro();
+        else {
+            window.applySimplifiedHome();
+            if (window.isNachoQuestActive() && !window.isNachoQuestDone()) {
+                window._showNachoQuestPill();
+                window.startNachoQuestDetection();
+            }
+        }
+        window.addEventListener('hashchange', function () {
+            var still = false;
+            try { still = !!(location.hash && location.hash.length > 1); } catch (e) {}
+            if (!still && !alreadyOnboarded() && !document.getElementById('btcIntroOverlay')) window.showOnboardingIntro();
+        });
     }
 
-    console.log('[ONBOARDING] System loaded');
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
 })();

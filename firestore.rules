@@ -68,7 +68,7 @@ service cloud.firestore {
                     && request.auth.uid == userId
                     && request.resource.data.keys().hasOnly([
                         // Identity / profile
-                        'username', 'username_lower', 'email', 'profilePic',
+                        'email', 'profilePic',
                         'displayName', 'faction', 'country', 'lightning', 'lightningAddress',
                         'nostr', 'lastLogin', 'lastVisit', 'lastActive', 'isOnline',
                         // Safe zero-value seeds written by ranking.js on signup
@@ -171,7 +171,16 @@ service cloud.firestore {
                         'predPending', 'predStreak', 'predBestStreak', 'reachedAt', 'reachedSort',
                         'weekKey', 'weekCorrect', 'weekTotal', 'weekAccuracy', 'weekReachedAt', 'weekReachedSort',
                         'monthKey', 'monthCorrect', 'monthTotal', 'monthAccuracy', 'monthReachedAt', 'monthReachedSort',
-                        'qualifiesAllTime', 'qualifiesWeek', 'qualifiesMonth'
+                        'qualifiesAllTime', 'qualifiesWeek', 'qualifiesMonth',
+                        // Identity is reserved by setUsername. Clients cannot claim a name.
+                        'username', 'username_lower',
+                        // Onboarding completion and rewards are Cloud Function fields.
+                        'onboardingQuest', 'nachoQuestDone', 'nachoQuestActive', 'nachoQuestStep',
+                        'introSeen', 'introSeenAt',
+                        // Guest-link nonce and the one-time merge marker.
+                        'guestLinkNonce', 'guestLinkNonceAt', 'mergedInto', 'mergedFromGuest',
+                        'usernameChangedAt',
+                        'totpEnabled', 'phoneVerified'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
@@ -539,6 +548,15 @@ service cloud.firestore {
     }
     match /totp_rate_limits/{userId} {
       allow read, write: if false; // Cloud Function only
+    }
+    match /totp_sessions/{docId} {
+      allow read, write: if false;
+    }
+    match /recovery_codes/{docId} {
+      allow read, write: if false;
+    }
+    match /mfa_admin_log/{docId} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -1492,6 +1510,12 @@ service cloud.firestore {
     // Server-side daily points tracking (Cloud Function only)
     match /users/{userId}/daily_points/{docId} {
       allow read, write: if false;
+    }
+
+    // Onboarding evidence (Nacho asked, copied quiz proof). Cloud Function only.
+    match /users/{userId}/onboarding_evidence/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
     }
 
     // Server-side per-day action count tracking (Cloud Function only)

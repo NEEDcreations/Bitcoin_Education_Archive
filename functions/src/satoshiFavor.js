@@ -269,6 +269,8 @@ const MAX_POINTS = 42; // 2x activation threshold — prevents unbounded accumul
  * Called when community earns a Satoshi's Favor point.
  */
 exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
   if (!context.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in.');
   }

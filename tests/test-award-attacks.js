@@ -205,9 +205,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 25 }, 25],
         [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 50 }, 50],
         [{ action: 'Uploaded 3 tracks to Bitcoin Beats!', pts: 75 }, 50],
-        [{ action: '🦌 Nacho Quest: pick_topic', pts: 25 }, 25],
-        [{ action: '🦌 Nacho Quest: first_quiz', pts: 50 }, 50],
-        [{ action: '🦌 Nacho Quest: first_quiz', pts: 100 }, 100],
         [{ action: '📖 Learning Quest: What is Bitcoin? lesson', pts: 50, actionKey: 'lq_lesson' }, 50],
         [{ action: '🔥 Trio Combo! 3 features today', pts: 50, actionKey: 'combo_bonus', comboTier: 'combo_trio' }, 50],
         [{ action: '💥 MEGA COMBO! 5 features unlocked', pts: 200, actionKey: 'combo_bonus', comboTier: 'combo_mega' }, 200],
@@ -250,6 +247,10 @@ test('legit client phrases keep today amounts', function () {
     assert.strictEqual(doubleFlex.xp, 10);
     const badQuest = awardActions.resolveAction({ action: '🦌 Nacho Quest: invented', pts: 100 });
     assert.strictEqual(badQuest.ok, false);
+    ['🦌 Nacho Quest: pick_topic', '🦌 Nacho Quest: first_quiz', 'onboarding quest'].forEach(function (action) {
+        const refused = awardActions.resolveAction({ action: action, pts: 50 });
+        assert.strictEqual(refused.ok, false, action);
+    });
     const badSpin = awardActions.resolveAction({ action: 'Daily Spin', pts: 40 });
     assert.strictEqual(badSpin.ok, false);
     const tctv = awardActions.resolveAction({ action: 'tctv_watch_10m', pts: 10 });
