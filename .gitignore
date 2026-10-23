@@ -1,7 +1,8 @@
 .env
 functions/.env
 test.sh
-scripts/
+scripts/*
+!scripts/migrate-push-optin.js
 .keys/
 firebase-debug.log
 images/
