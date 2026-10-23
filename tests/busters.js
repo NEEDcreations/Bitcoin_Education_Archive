@@ -135,7 +135,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The Timechain TV watch timer counts up while the video is playing, and it lines up with the minutes the server will credit.'));
+    assert.ok(notes.includes('Latest: TV watch timer counts up while playing.'));
     assert.ok(notes.includes('One shared cap. Full XP through 600, then half until 1,000. Every source uses that counter. Extra XP is not saved.'));
     assert.ok(!notes.includes('Latest: One shared cap.'));
     assert.ok(notes.includes('Badge XP now follows how long a badge takes to earn, from 10 up to 2,000. Cosmetic badges show 0.'));
