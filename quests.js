@@ -2483,15 +2483,17 @@ function _renderFavorTab(body) {
         '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
             '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
         '</div>' +
-        '<div id="sfUserFactionRow" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
-            '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<span id="sfUserFactionIcon" style="font-size:0.82rem;">👤</span>' +
-                '<span id="sfUserFactionLabel" style="font-size:0.72rem;color:var(--text-muted);">Loading...</span>' +
+        '<div id="sfUserFactionRow" style="margin-top:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
+                '<div style="display:flex;align-items:center;gap:6px;min-width:0;">' +
+                    '<span id="sfUserFactionIcon" style="font-size:0.95rem;">👤</span>' +
+                    '<span id="sfUserFactionLabel" style="font-size:0.78rem;color:var(--text);font-weight:700;">Loading...</span>' +
+                '</div>' +
+                '<button type="button" id="sfChooseFactionBtn" onclick="window._openFactionPicker()" style="display:none;padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;">Choose a faction</button>' +
             '</div>' +
-            '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<span id="sfScoreUnaffiliated" style="font-size:0.88rem;font-weight:800;color:var(--text-muted);font-family:monospace;">0</span>' +
-                '<span style="font-size:0.62rem;color:var(--text-faint);">pts</span>' +
-            '</div>' +
+        '</div>' +
+        '<div id="sfUnclaimedPool" style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
+            '<span id="sfScoreUnaffiliated" style="font-size:0.75rem;font-weight:800;color:var(--text-muted);font-family:monospace;">Unclaimed: 0 pts</span>' +
         '</div>' +
         '<div id="sfNoFactionNote" style="display:none;"></div>' +
         '<div id="sfAdminBackfill" style="display:none;margin-top:8px;text-align:center;">' +
@@ -2670,6 +2672,15 @@ function _renderFavorTab(body) {
     }
 }
 
+window._openFactionPicker = function() {
+    var overlay = document.getElementById('questHubOverlay');
+    if (overlay) overlay.remove();
+    if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
+    setTimeout(function() {
+        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+    }, 50);
+};
+
 window.closeQuestHubForFavor = function() {
     var overlay = document.getElementById('questHubOverlay');
     if (overlay) overlay.remove();
@@ -2722,7 +2733,7 @@ function _startFactionScoreboardListener() {
 
         if (elH) elH.textContent = hornets.toLocaleString();
         if (elB) elB.textContent = badgers.toLocaleString();
-        if (elU) elU.textContent = unaffiliated.toLocaleString();
+        if (elU) elU.textContent = 'Unclaimed: ' + unaffiliated.toLocaleString() + ' pts';
 
         // Leader label
         if (elLeader) {
@@ -2745,16 +2756,23 @@ function _startFactionScoreboardListener() {
         }
         var sfLabel = document.getElementById('sfUserFactionLabel');
         var sfIcon = document.getElementById('sfUserFactionIcon');
+        var sfChoose = document.getElementById('sfChooseFactionBtn');
         if (sfLabel && sfIcon) {
             if (userFaction === 'cyber_hornets') {
                 sfIcon.textContent = '🐝';
-                sfLabel.innerHTML = '<span style="color:#f7931a;font-weight:700;">Cyber Hornets</span>';
+                sfLabel.textContent = 'Your faction: Cyber Hornets';
+                sfLabel.style.color = '#f7931a';
+                if (sfChoose) sfChoose.style.display = 'none';
             } else if (userFaction === 'honey_badgers') {
                 sfIcon.textContent = '🦡';
-                sfLabel.innerHTML = '<span style="color:#a855f7;font-weight:700;">Honey Badgers</span>';
+                sfLabel.textContent = 'Your faction: Honey Badgers';
+                sfLabel.style.color = '#a855f7';
+                if (sfChoose) sfChoose.style.display = 'none';
             } else {
                 sfIcon.textContent = '👤';
-                sfLabel.innerHTML = 'Unaffiliated - <span onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)" style="color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline;">Choose a Faction!</span>';
+                sfLabel.textContent = 'Unclaimed faction points: ' + unaffiliated.toLocaleString();
+                sfLabel.style.color = 'var(--text)';
+                if (sfChoose) sfChoose.style.display = 'inline-block';
             }
         }
 

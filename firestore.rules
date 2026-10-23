@@ -116,7 +116,7 @@ service cloud.firestore {
                     && request.resource.data.keys().hasOnly([
                         // Identity / profile
                         'email', 'profilePic',
-                        'displayName', 'faction', 'country', 'lightning', 'lightningAddress',
+                        'displayName', 'country', 'lightning', 'lightningAddress',
                         'nostr', 'lastLogin', 'lastVisit', 'lastActive', 'isOnline',
                         // Safe zero-value seeds written by ranking.js on signup
                         // (we accept them only at their zero/empty initial values)
@@ -208,6 +208,9 @@ service cloud.firestore {
                         'ln_reset_used',
                         // Flex full-day counter (awardPoints only). Five Flex actions make a day.
                         'flexFullDays', 'flexFullDay',
+                        // Faction is chosen by chooseFaction. Clients cannot plant it
+                        // or a sync marker on the profile.
+                        'faction', 'factionSynced', 'pointsSynced',
                         // Peer network (CF-only via managePeer)
                         'peers', 'peerCount',
                         // Peer partnership levels (CF-only via updatePeerLevelAfterGift)

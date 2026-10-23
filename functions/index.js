@@ -6036,14 +6036,13 @@ exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, syncUserFactionPoints, getFactionTotals } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
 exports.getFavorHashes = getFavorHashes;
 exports.syncCycleToTop10 = syncCycleToTop10;
 exports.backfillFactionTotals = backfillFactionTotals;
-exports.syncUserFactionPoints = syncUserFactionPoints;
 exports.getFactionTotals = getFactionTotals;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
@@ -8882,6 +8881,13 @@ const resetLnFns = bindResetLightningAddress(functionsV1, {
     },
 });
 exports.resetLightningAddressOnce = resetLnFns.resetLightningAddressOnce;
+
+// Faction choice. App Check is on the module bind so the index.js count stays
+// the claimSats plus four PvP callables. syncUserFactionPoints delegates to it.
+const { bindChooseFaction } = require('./src/chooseFaction');
+const factionFns = bindChooseFaction(functionsV1, { admin: admin, db: db });
+exports.chooseFaction = factionFns.chooseFaction;
+exports.syncUserFactionPoints = factionFns.syncUserFactionPoints;
 
 const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);

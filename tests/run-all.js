@@ -36,6 +36,7 @@ const TESTS = [
     { name: 'Flex day goal', file: 'test-flex-day.js' },
     { name: 'LNURL resolve', file: 'test-lnurl-resolve.js' },
     { name: 'Lightning address reset', file: 'test-reset-lightning.js' },
+    { name: 'Choose faction', file: 'test-choose-faction.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
     { name: 'Server ticket grants', file: 'test-ticket-grants.js' },
     { name: 'Account deletion', file: 'test-delete-account.js' },

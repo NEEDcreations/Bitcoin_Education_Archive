@@ -719,11 +719,13 @@ async function finishEmailSignIn(email, _signInUrl) {
             };
             var _emailLn = normalizeClientLn(pendingLnAddress);
             if (clientLnValid(_emailLn)) { extra.lightning = _emailLn; extra.lightningAddress = _emailLn; }
-            if (pendingFaction) extra.faction = pendingFaction;
             if (pendingCountry) extra.country = pendingCountry;
             var _emailSrc = localStorage.getItem('btc_signup_source');
             if (_emailSrc) extra.signupSource = _emailSrc;
             await db.collection('users').doc(emailUid).set(clientCreatePayload(extra));
+            if (pendingFaction) {
+                try { await flushSignupFaction(pendingFaction); } catch (e) {}
+            }
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             if (typeof attachReferral === 'function') attachReferral(emailUid);
             if (pendingUsername) {
@@ -1381,9 +1383,11 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         if (user.email) _provExtra.email = user.email;
         var _provLn = normalizeClientLn(_pendingLn);
         if (clientLnValid(_provLn)) { _provExtra.lightning = _provLn; _provExtra.lightningAddress = _provLn; }
-        if (_pendingFaction) _provExtra.faction = _pendingFaction;
         if (_pendingCountry) _provExtra.country = _pendingCountry;
         await db.collection('users').doc(user.uid).set(clientCreatePayload(_provExtra));
+        if (_pendingFaction) {
+            try { await flushSignupFaction(_pendingFaction); } catch (e) {}
+        }
         var _nameTry = _pendingUN || '';
         if (_nameTry) {
             try { await applyServerUsername(_nameTry); }
@@ -1402,14 +1406,14 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
             _returnUpdates.lightning = _returnLn;
             _returnUpdates.lightningAddress = _returnLn;
         }
-        if (_pendingFaction && !existingDoc.data().faction) {
-            _returnUpdates.faction = _pendingFaction;
-        }
         if (_pendingCountry && !existingDoc.data().country) {
             _returnUpdates.country = _pendingCountry;
         }
         if (Object.keys(_returnUpdates).length) {
             try { await existingDoc.ref.update(_returnUpdates); } catch(e) {}
+        }
+        if (_pendingFaction && !existingDoc.data().faction) {
+            try { await flushSignupFaction(_pendingFaction); } catch (e) {}
         }
         if (!existingDoc.data().email && user.email) {
             try { await existingDoc.ref.update({ email: user.email }); } catch(e) {}
@@ -2368,7 +2372,7 @@ function clientCreatePayload(extra) {
         lastVisit: new Date().toISOString().split('T')[0],
         created: firebase.firestore.FieldValue.serverTimestamp()
     };
-    var allow = { email: 1, profilePic: 1, displayName: 1, faction: 1, country: 1, lightning: 1, lightningAddress: 1, nostr: 1, lastLogin: 1, signupSource: 1, tosVersion: 1, tosAcceptedAt: 1 };
+    var allow = { email: 1, profilePic: 1, displayName: 1, country: 1, lightning: 1, lightningAddress: 1, nostr: 1, lastLogin: 1, signupSource: 1, tosVersion: 1, tosAcceptedAt: 1 };
     var src = extra || {};
     Object.keys(src).forEach(function (k) {
         if (allow[k] && src[k] !== undefined && src[k] !== '') data[k] = src[k];
@@ -2509,8 +2513,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     } else {
         _signupLn = '';
     }
-    // Faction choice from signup
-    if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
+    // Faction is saved by chooseFaction after the profile exists.
+    var _pickedFaction = window._signupFaction || '';
+    try { if (!_pickedFaction) _pickedFaction = localStorage.getItem('btc_pending_faction') || ''; } catch (e) {}
+    window._signupFaction = null;
     // Campaign source tracking - written once at signup, never overwritten
     var _signupSrc = localStorage.getItem('btc_signup_source');
     if (_signupSrc) { userData.signupSource = _signupSrc; }
@@ -2520,6 +2526,9 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
 
     var _existingAccount = await db.collection('users').doc(uid).get();
     if (!_existingAccount.exists) await db.collection('users').doc(uid).set(userData);
+    if (_pickedFaction && (!_existingAccount.exists || !(_existingAccount.data() && _existingAccount.data().faction))) {
+        try { await flushSignupFaction(_pickedFaction); } catch (e) {}
+    }
     try { await applyServerUsername(username); }
     catch (nameErr) {
         showToast(nameErr.message || 'Pick a different username.');
@@ -4950,7 +4959,33 @@ window._equipTitle = function(titleId) {
     if (typeof showSettings === 'function') setTimeout(function(){ showSettings('account'); }, 300);
 };
 
-// Faction selection
+// Faction selection. The profile field is server-only. chooseFaction moves
+// this user's unclaimed Satoshi's Favor points in one transaction.
+async function commitFactionChoice(faction) {
+    if (faction !== 'cyber_hornets' && faction !== 'honey_badgers') throw new Error('Invalid faction.');
+    if (typeof firebase === 'undefined' || !firebase.functions) throw new Error('Faction save is unavailable.');
+    var res = await firebase.functions().httpsCallable('chooseFaction')({ faction: faction });
+    var data = res && res.data ? res.data : {};
+    var moved = Number(data.moved);
+    if (!isFinite(moved)) moved = Number(data.pointsSynced);
+    if (!isFinite(moved) || moved < 0) moved = 0;
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.faction = faction;
+    return moved;
+}
+
+async function flushSignupFaction(faction) {
+    try { localStorage.removeItem('btc_pending_faction'); } catch (e) {}
+    window._signupFaction = null;
+    if (!faction) return;
+    try {
+        var moved = await commitFactionChoice(faction);
+        if (typeof showToast === 'function') showToast(moved + ' unclaimed point' + (moved === 1 ? '' : 's') + ' moved to your faction.');
+    } catch (e) {
+        console.warn('[FACTION] chooseFaction failed:', e);
+        if (typeof showToast === 'function') showToast('Faction was not saved. You can choose one from the Satoshi\'s Favor panel.');
+    }
+}
+
 window._selectFaction = async function(faction) {
     try {
         var user = auth ? auth.currentUser : null;
@@ -4958,35 +4993,17 @@ window._selectFaction = async function(faction) {
         if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to choose a faction'); return; }
 
         var previousFaction = currentUser ? (currentUser.faction || null) : null;
-        var isFirstChoice = !previousFaction;
-
-        // Factions are now locked - users can only pick once (switching enabled again later)
-        if (!isFirstChoice) {
-            if (typeof showToast === 'function') showToast('🔒 Factions are locked. You can switch once every 3 months.');
+        if (previousFaction) {
+            if (typeof showToast === 'function') showToast('Your faction choice is permanent.');
             return;
         }
 
-        // Save to Firestore
-        await db.collection('users').doc(user.uid).update({ faction: faction });
-        if (currentUser) currentUser.faction = faction;
+        var moved = await commitFactionChoice(faction);
         if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
+        if (typeof showToast === 'function') showToast(moved + ' unclaimed point' + (moved === 1 ? '' : 's') + ' moved to your faction.');
         showSettingsPage('account');
 
-        // If this is first time picking a faction (or switching from no faction),
-        // sync their historical unaffiliated SF points to the new faction
-        if (isFirstChoice && typeof firebase !== 'undefined' && firebase.functions) {
-            firebase.functions().httpsCallable('syncUserFactionPoints')({
-                newFaction: faction,
-                previousFaction: previousFaction
-            }).then(function(res) {
-                if (res.data && res.data.pointsSynced > 0) {
-                    if (typeof showToast === 'function') showToast('⚡ ' + res.data.pointsSynced + ' past SF point' + (res.data.pointsSynced !== 1 ? 's' : '') + ' credited to your faction!');
-                }
-            }).catch(function(err) {
-                console.warn('[FACTION] syncUserFactionPoints failed:', err);
-            });
-
-            // Also backfill any charity donations made before faction was chosen
+        if (typeof firebase !== 'undefined' && firebase.functions) {
             firebase.functions().httpsCallable('backfillDonationFaction')({
                 newFaction: faction
             }).then(function(res) {
@@ -4997,9 +5014,15 @@ window._selectFaction = async function(faction) {
                 console.warn('[FACTION] backfillDonationFaction failed:', err);
             });
         }
-        // Note: if switching factions, future contributions go to new faction automatically.
-        // Historical points stay with original faction (Option A).
-    } catch(e) { console.error('Faction select error:', e); if (typeof showToast === 'function') showToast('Error saving faction'); }
+    } catch(e) {
+        console.error('Faction select error:', e);
+        var msg = e && e.message ? String(e.message) : '';
+        if (typeof showToast === 'function') {
+            if (msg.indexOf('already') !== -1) showToast('Your faction choice is permanent.');
+            else if (msg.indexOf('disabled') !== -1) showToast('Rewards are disabled on this account.');
+            else showToast('Error saving faction');
+        }
+    }
 };
 
 // Signup country autocomplete (reuses _countryList)
@@ -5132,8 +5155,8 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
             (_userFaction
-                ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">🔒 Factions are locked. You can switch factions once every 3 months (feature coming soon).</div>'
-                : '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Choose your allegiance! ⚠️ Factions will be locked - you can change your faction once every 3 months (starting at a later date).</div>') +
+                ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Your faction choice is permanent.</div>'
+                : '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">This choice is permanent. Your unclaimed points go to the faction you pick.</div>') +
             '<div style="display:flex;gap:10px;">' +
             '<div onclick="window._selectFaction(\'cyber_hornets\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'cyber_hornets' ? '#f7931a' : 'var(--border)') + ';background:' + (_userFaction === 'cyber_hornets' ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'cyber_hornets' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'cyber_hornets' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
