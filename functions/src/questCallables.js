@@ -128,6 +128,8 @@ const answerTrivia = onCall(async (data, context) => {
             if (graded.correct) userUpdate.triviaCorrect = FieldValue.increment(1);
             if (graded.awarded > 0) {
                 userUpdate.points = FieldValue.increment(graded.awarded);
+                userUpdate.weeklyXP = FieldValue.increment(graded.awarded);
+                userUpdate.monthlyXP = FieldValue.increment(graded.awarded);
                 tx.set(dailyPtsRef, {
                     total: dailyUsed + graded.awarded,
                     lastUpdated: FieldValue.serverTimestamp(),
@@ -273,6 +275,8 @@ const gradeQuest = onCall(async (data, context) => {
         }
         if (settled.awarded > 0) {
             userUpdate.points = FieldValue.increment(settled.awarded);
+            userUpdate.weeklyXP = FieldValue.increment(settled.awarded);
+            userUpdate.monthlyXP = FieldValue.increment(settled.awarded);
             tx.set(dailyPtsRef, {
                 total: dailyUsed + settled.awarded,
                 lastUpdated: FieldValue.serverTimestamp(),

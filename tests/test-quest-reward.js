@@ -313,6 +313,8 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     assert.ok(callables.includes('rate_limits'));
     assert.ok(callables.includes("require('./rewardNotify')"));
     assert.ok(callables.includes('quest_completions'));
+    assert.strictEqual((callables.match(/weeklyXP = FieldValue\.increment/g) || []).length, 2);
+    assert.strictEqual((callables.match(/monthlyXP = FieldValue\.increment/g) || []).length, 2);
     assert.ok(callables.includes('claimDoc.data().correct === true'));
     assert.ok(callables.includes('reward.legacyPartRecorded(user.completedQuests, graded.topicKey, graded.questIndex)'));
     assert.strictEqual(callables.includes('completedQuests:'), false);

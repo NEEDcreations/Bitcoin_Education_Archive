@@ -101,6 +101,7 @@ const DEFERRED_USER_SUBCOLLECTIONS = [
     'proof_of_walk',
     'proof_of_walk_stats',
     'quest_completions',
+    'quest_passes',
     'lifetime_awards',
     'onboarding_evidence',
 ];

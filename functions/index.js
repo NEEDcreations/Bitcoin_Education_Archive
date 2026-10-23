@@ -1369,7 +1369,7 @@ exports.payQualifiedReferrals = onSchedule({
 
 // =============================================
 // NOTE: Old allowedAwards-based awardPoints removed - replaced by daily-cap version below (line ~1527)
-// That version enforces 500 pts/day via atomic Firestore transaction in daily_points subcollection
+// That version enforces the shared 1,000 XP/day cap (full through 600, then half) via daily_points
 
 // =============================================
 // AUDIT FIX: Server-Side Daily Limit Check
@@ -6020,21 +6020,30 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     let totalPoints = 0;
     let syncedCount = 0;
     let powPointsBefore = 0;
+    const results = [];
 
     const userRef = db.collection('users').doc(uid);
     const statsRef = userRef.collection('proof_of_walk_stats').doc('daily');
-    const validTypes = ["Walk", "Run", "Hike"];
-    const results = [];
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const walk = require('./src/proofOfWalk');
+    const { rewardBlocked } = require('./src/cipherClaim');
+    const { applyDailyXp } = require('./src/applyDailyXp');
 
     // Filter eligible activities first
-    const eligible = activities.filter(act => validTypes.includes(act.type));
+    const eligible = activities.filter(act => walk.WALK_TYPES.includes(act.type));
     if (eligible.length === 0) return { success: true, synced: 0, pointsEarned: 0, activities: [] };
 
-    // Atomic transaction - all reads first, then all writes (Firestore requirement)
+    // Atomic transaction - all reads first, then all writes (Firestore requirement).
+    // Several past dates can arrive in one sync. Their XP is summed and tapered
+    // once against today's shared counter. Anything over the cap is dropped.
     await db.runTransaction(async (transaction) => {
-        // Phase 1: READ all docs we need
+        totalPoints = 0;
+        syncedCount = 0;
+        results.length = 0;
+
         const dailyDoc = await transaction.get(statsRef);
         const userDoc = await transaction.get(userRef);
+        const ledgerDoc = await transaction.get(ledgerRef);
         const actRefs = [];
         const actDocs = [];
         for (const act of eligible) {
@@ -6043,47 +6052,52 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
             actDocs.push(await transaction.get(ref));
         }
 
-        // Phase 2: COMPUTE points
-        let dailyData = dailyDoc.exists ? dailyDoc.data() : { date: '', distance: 0 };
-        const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
-        powPointsBefore = currentPoints;
-
+        const already = {};
         for (let i = 0; i < eligible.length; i++) {
-            if (actDocs[i].exists) continue; // Already processed
-            const act = eligible[i];
-            const actId = act.id.toString();
-            const dateStr = (act.start_date_local || act.start_date).split('T')[0];
-            const actKm = act.distance / 1000;
+            if (actDocs[i].exists) already[eligible[i].id.toString()] = true;
+        }
+        const userData = userDoc.exists ? (userDoc.data() || {}) : {};
+        powPointsBefore = userData.points || 0;
+        const plan = walk.planWalkSync({
+            activities: eligible,
+            already: already,
+            dailyData: dailyDoc.exists ? (dailyDoc.data() || {}) : { date: '', distance: 0 },
+        });
+        const blocked = rewardBlocked(userData, ledgerDoc.exists ? (ledgerDoc.data() || {}) : {});
+        const grant = await applyDailyXp(uid, blocked ? 0 : plan.rawPoints, transaction, {
+            day: getOffsetDateKey(),
+            userRef: userRef,
+        });
 
-            if (dailyData.date !== dateStr) {
-                dailyData = { date: dateStr, distance: 0 };
-            }
+        // A ban pays nothing and does not consume the activities.
+        // A full daily cap still records them so the extra XP is not saved for later.
+        if (blocked || plan.synced === 0) return;
 
-            const remainingCap = Math.max(0, 42.0 - dailyData.distance);
-            const allocatableKm = Math.min(actKm, remainingCap);
-            const pts = Math.floor(allocatableKm * 50);
-
-            dailyData.distance += allocatableKm;
-            totalPoints += pts;
-            syncedCount++;
-
-            results.push({ id: actId, type: act.type, distance: actKm, points: pts, date: dateStr });
-
-            // Phase 3: WRITE (after all reads are done)
-            transaction.set(actRefs[i], {
-                distance: actKm,
-                points_awarded: pts,
-                date: dateStr,
-                type: act.type,
+        const refById = {};
+        for (let i = 0; i < eligible.length; i++) refById[eligible[i].id.toString()] = actRefs[i];
+        plan.rows.forEach(function (row) {
+            results.push(row);
+            transaction.set(refById[row.id], {
+                distance: row.distance,
+                points_awarded: row.points,
+                date: row.date,
+                type: row.type,
                 created_at: admin.firestore.FieldValue.serverTimestamp()
             });
-        }
-
-        if (syncedCount > 0) {
-            transaction.set(statsRef, dailyData);
+        });
+        transaction.set(statsRef, plan.dailyData);
+        totalPoints = grant.awarded;
+        syncedCount = plan.synced;
+        if (grant.awarded > 0) {
             transaction.update(userRef, {
-                points: currentPoints + totalPoints
+                points: admin.firestore.FieldValue.increment(grant.awarded),
+                weeklyXP: admin.firestore.FieldValue.increment(grant.awarded),
+                monthlyXP: admin.firestore.FieldValue.increment(grant.awarded),
             });
+            transaction.set(grant.dailyRef, {
+                total: grant.dailyXp,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
         }
     });
 
