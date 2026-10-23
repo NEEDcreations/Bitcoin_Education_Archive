@@ -364,7 +364,8 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(html.includes('Sign up to get your invite link'));
     assert.ok(html.includes('.invite-card { display: none; position: fixed; top: 16px; right: 16px;'));
     assert.ok(html.includes('.invite-card[data-state="min"]'));
-    assert.ok(html.includes('calc(276px + env(safe-area-inset-top, 0px))'));
+    assert.ok(html.includes('calc(186px + env(safe-area-inset-top, 0px))'));
+    assert.ok(html.includes('calc(262px + env(safe-area-inset-top, 0px))'));
     assert.ok(html.includes('calc(50dvh - 22px)'));
     assert.ok(html.includes('env(safe-area-inset-right, 0px)'));
     assert.ok(html.includes('env(safe-area-inset-top, 0px)'));
