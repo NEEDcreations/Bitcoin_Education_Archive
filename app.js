@@ -3063,7 +3063,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (_bnav) _bnav.classList.remove('nav-hidden');
 
         // Update SEO metrics
-        if (typeof _updateSEO === 'function') _updateSEO('home', 'Learn Bitcoin', 'A curated Bitcoin education archive with 146 topics, 8800+ messages, and community tools.');
+        if (typeof _updateSEO === 'function') _updateSEO('home', 'Learn Bitcoin', 'A curated Bitcoin education archive with 145 topics, 8800+ messages, and community tools.');
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
         // Reset leaderboard button position (may have been shifted up for chat)

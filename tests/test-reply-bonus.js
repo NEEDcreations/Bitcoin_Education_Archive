@@ -503,15 +503,15 @@ test('short, link-only, stale, and stolen messages get 0', async function () {
 test('daily XP cap uses the shared helper', async function () {
     const world = createWorld(baseDocs({
         'users/user1': { points: 10 },
-        'users/user1/daily_points/2026-10-22': { total: 490 },
+        'users/user1/daily_points/2026-10-22': { total: 980 },
     }));
     const res = await world.handlers.claimReplyBonus({ messageId: 'replyMsg001' }, auth('user1'));
-    assert.strictEqual(res.xp, 10);
+    assert.strictEqual(res.xp, 20);
     assert.strictEqual(res.first, true);
     assert.strictEqual(res.showToast, true);
-    assert.strictEqual(world.docs['users/user1'].points, 20);
-    assert.strictEqual(world.docs['users/user1'].pendingOverflow, 40);
-    assert.strictEqual(world.docs['users/user1/daily_points/2026-10-22'].total, 500);
+    assert.strictEqual(world.docs['users/user1'].points, 30);
+    assert.strictEqual(world.docs['users/user1'].pendingOverflow, undefined);
+    assert.strictEqual(world.docs['users/user1/daily_points/2026-10-22'].total, 1000);
 });
 
 test('signed-out and anonymous callers are rejected', async function () {
@@ -585,7 +585,7 @@ test('callable source ignores client XP and enforces App Check', function () {
     assert.strictEqual(src.includes('user.created'), false);
     assert.strictEqual(src.includes('createdAt'), false);
     assert.ok(src.includes('runTransaction'));
-    assert.ok(src.includes('splitDailyXp'));
+    assert.ok(src.includes('planDailyXp'));
     assert.ok(!src.includes('data.xp'));
     assert.ok(!src.includes('data.first'));
     assert.ok(!src.includes('data.text'));
@@ -615,13 +615,20 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261023_v2324'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2333'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261023_v2324'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2334'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
-    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2333'"));
+    const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2335'"));
+    assert.ok(!swText.includes('btc-archive-v2334'));
+    assert.ok(!swText.includes('btc-archive-v2333'));
+    assert.ok(!swText.includes('btc-archive-v2332'));
+    assert.ok(!swText.includes('btc-archive-v2331'));
+    assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 7000);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));

@@ -63,7 +63,7 @@ test('one-time awards are not passed through boostPoints', () => {
     const index = read('functions/index.js');
     const scholar = index.slice(index.indexOf('exports.gradeScholarExam'), index.indexOf('exports.startQuest'));
     assert.ok(scholar.indexOf('boostPoints') === -1);
-    assert.ok(scholar.indexOf('pointsAwarded = 2100') !== -1);
+    assert.ok(scholar.indexOf('planDailyXp(scholarUsed, 2100)') !== -1);
     const donate = index.slice(index.indexOf('exports.donatePoints'), index.indexOf('exports.searchUsers'));
     assert.ok(donate.indexOf('boostPoints') === -1);
     const weekly = index.slice(index.indexOf('exports.incrementWeeklyChallenge'), index.indexOf('exports.spendTickets'));

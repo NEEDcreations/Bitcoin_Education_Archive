@@ -410,7 +410,7 @@ function sourceFor(id) {
     if (id === 'ticket_bronze') return counter('orangeTickets', 25);
     if (id === 'ticket_silver') return counter('orangeTickets', 50);
     if (id === 'ticket_gold') return counter('orangeTickets', 100);
-    if (id === 'scholar') return { type: 'either', fields: ['certPassed_prop', 'scholar_exam_passed'] };
+    if (id === 'scholar') return { type: 'scholarExam', examType: 'properties' };
     if (id === 'hash_obsessed') return counter('sfHashes', 25000);
     if (id === 'streak_freeze') return counter('streakFreezesUsed', 1);
     if (id === 'ghost_reader') return { type: 'ghostReader' };
@@ -539,6 +539,12 @@ function meets(rule, user, ctx) {
             const value = data[field];
             return typeof value === 'string' ? value.length > 0 : !!value;
         });
+    }
+    if (src.type === 'scholarExam') {
+        if (bag.scholarExamsPassed && typeof bag.scholarExamsPassed === 'object') {
+            return bag.scholarExamsPassed[src.examType] === true;
+        }
+        return bag.scholarExamPassed === true;
     }
     if (src.type === 'text') return typeof data[src.field] === 'string' && data[src.field].trim().length >= src.min;
     if (src.type === 'includes') {

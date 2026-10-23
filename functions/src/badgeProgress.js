@@ -231,9 +231,24 @@ function planTopicCredit(input) {
     }
     out.credit = true;
     out.channel = String(post.channelId || '');
-    if (xpUsed < COMMENT_XP_CAP) out.xp = COMMENT_XP;
+    // Topic-discussion posts and their Pleb Talk / forum mirrors are paid by
+    // the topic-conversation rewards. This grant does not add another 5 XP
+    // on those same messages. A comment with none of those markers can still
+    // earn the 5 XP, up to 3 a day. No writer in this deploy feeds that shape.
+    if (!topicConversationMessage(post) && xpUsed < COMMENT_XP_CAP) out.xp = COMMENT_XP;
     out.reason = 'credit';
     return out;
+}
+
+function topicConversationMessage(post) {
+    const row = post || {};
+    if (row.channelId || row.topicChannel || row.topicPost) return true;
+    if (row.mirrored === true || row.forumCopy === true || row.plebMirror === true) return true;
+    const source = String(row.source || '');
+    if (source === 'topic-discussion' || source === 'pleb-talk' || source === 'pleb-talk-mirror') return true;
+    const collection = String(row.collection || '');
+    if (collection === 'topic_discussions' || collection === 'global_chat') return true;
+    return false;
 }
 
 function planTopicRevoke(input) {
@@ -304,6 +319,7 @@ module.exports = {
     planPeerKeyCredit: planPeerKeyCredit,
     planPeerLevel: planPeerLevel,
     planPeerAcceptXp: planPeerAcceptXp,
+    topicConversationMessage: topicConversationMessage,
     planTopicCredit: planTopicCredit,
     planTopicRevoke: planTopicRevoke,
     planShopPurchase: planShopPurchase,

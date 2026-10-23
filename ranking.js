@@ -108,7 +108,7 @@ const POINTS = {
 
 // TOS version — bump this string whenever Terms or Privacy Policy update significantly.
 // Existing users who haven't accepted this version will see the acceptance modal on next load.
-const TOS_CURRENT_VERSION = '2026-10-06';
+const TOS_CURRENT_VERSION = '2026-10-23';
 window.TOS_CURRENT_VERSION = TOS_CURRENT_VERSION;
 
 let db, auth, currentUser = null;
@@ -132,6 +132,36 @@ function mfaSessionKey(uid) {
     return 'btc_mfa_session_' + uid;
 }
 
+function mfaDeviceKey(uid) {
+    return 'btc_mfa_device_' + uid;
+}
+
+function mfaErrorCode(err) {
+    var code = String((err && (err.code || err.status)) || '').toLowerCase();
+    var slash = code.lastIndexOf('/');
+    if (slash !== -1) code = code.slice(slash + 1);
+    return code;
+}
+
+function mfaIsTransientError(err) {
+    var code = mfaErrorCode(err);
+    return code === 'unavailable' || code === 'deadline-exceeded' || code === 'internal' || code === 'aborted' || code === 'cancelled';
+}
+
+function mfaAllowsAfterStatusError(totpEnabled) {
+    return !totpEnabled;
+}
+
+function mfaRetryOnce(run, sleep) {
+    var pause = typeof sleep === 'function' ? sleep : function () {
+        return new Promise(function (resolve) { setTimeout(resolve, 700); });
+    };
+    return Promise.resolve().then(run).catch(function (err) {
+        if (!mfaIsTransientError(err)) throw err;
+        return Promise.resolve(pause(700)).then(run);
+    });
+}
+
 window._mfaSessionId = function () {
     try {
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return '';
@@ -145,6 +175,18 @@ window._rememberMfaSession = function (uid, sessionId) {
         if (uid) localStorage.removeItem('btc_totp_verified_' + uid);
     } catch (e) {}
 };
+
+window._rememberMfaDevice = function (uid, token) {
+    try {
+        if (uid && /^[0-9a-f]{64}$/.test(token || '')) localStorage.setItem(mfaDeviceKey(uid), token);
+    } catch (e) {}
+};
+
+function mfaClearDevice(uid) {
+    try {
+        if (uid) localStorage.removeItem(mfaDeviceKey(uid));
+    } catch (e) {}
+}
 
 function installMfaCallablePatch() {
     if (typeof firebase === 'undefined' || !firebase.functions || window._mfaCallablePatched) return;
@@ -173,11 +215,16 @@ function installMfaCallablePatch() {
 function _mfaFailure(e) {
     var code = (e && e.code) || '';
     var msg = (e && e.message) || '';
-    if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many attempts') !== -1) return 'Too many attempts. Wait 2 minutes.';
+    if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many attempts') !== -1) {
+        if (msg.indexOf('tomorrow') !== -1) return 'Too many attempts. Try again tomorrow.';
+        return 'Too many attempts. Wait 2 minutes.';
+    }
     if (msg.indexOf('already used') !== -1) return 'That code was already used. Wait for the next one.';
     if (msg.indexOf('Authenticator session required') !== -1) return 'Enter your authenticator code first.';
     if (msg.indexOf('phone verification') !== -1) return 'Sign out and sign back in so your phone verification applies.';
     if (msg.indexOf('Invalid recovery code') !== -1) return 'That recovery code is not valid.';
+    if (msg.indexOf('fresh authenticator') !== -1) return 'Enter a fresh authenticator code. A remembered device is not enough.';
+    if (msg.indexOf('Device is not trusted') !== -1) return 'This device is not remembered. Enter your authenticator code.';
     if (msg.indexOf('Invalid code') !== -1) return 'That code is not valid.';
     if (msg.indexOf('unavailable') !== -1) return 'Authenticator setup is unavailable right now.';
     return msg || 'Something went wrong.';
@@ -190,19 +237,40 @@ function _isMfaBlock(e) {
 
 window._serverTotpAllows = async function (uid) {
     if (!uid || typeof firebase === 'undefined' || !firebase.functions) return true;
+    var sessionId = '';
+    try { sessionId = localStorage.getItem(mfaSessionKey(uid)) || ''; } catch (e1) {}
+    var statusFn = firebase.functions().httpsCallable('totpStatus');
+    var data;
     try {
-        var sessionId = '';
-        try { sessionId = localStorage.getItem(mfaSessionKey(uid)) || ''; } catch (e1) {}
-        var statusFn = firebase.functions().httpsCallable('totpStatus');
-        var result = await statusFn({ sessionId: sessionId });
-        var data = (result && result.data) || {};
-        window._mfaStatus = data;
-        if (data.enabled && !data.sessionVerified) return false;
+        var result = await mfaRetryOnce(function () { return statusFn({ sessionId: sessionId }); });
+        data = (result && result.data) || {};
+    } catch (e) {
+        var totpOn = typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled;
+        return mfaAllowsAfterStatusError(totpOn);
+    }
+    window._mfaStatus = data;
+    if (!data.enabled || data.sessionVerified) {
         if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
         return true;
-    } catch (e) {
-        if (typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled) return false;
-        return true;
+    }
+    var deviceToken = '';
+    try { deviceToken = localStorage.getItem(mfaDeviceKey(uid)) || ''; } catch (e2) {}
+    if (!/^[0-9a-f]{64}$/.test(deviceToken)) return false;
+    var resumeFn = firebase.functions().httpsCallable('totpResumeDevice');
+    try {
+        var resumed = await mfaRetryOnce(function () { return resumeFn({ deviceToken: deviceToken }); });
+        var body = (resumed && resumed.data) || {};
+        if (body.sessionId) {
+            window._rememberMfaSession(uid, body.sessionId);
+            window._mfaStatus.sessionVerified = true;
+            if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
+            return true;
+        }
+        return false;
+    } catch (e3) {
+        var resumeCode = mfaErrorCode(e3);
+        if (!mfaIsTransientError(e3) && resumeCode !== 'resource-exhausted') mfaClearDevice(uid);
+        return mfaAllowsAfterStatusError(true);
     }
 };
 
@@ -1967,9 +2035,7 @@ async function loadUser(uid, prefetchedDoc) {
                 var mergedItems = [...new Set([...existingItems, ...currentUser.spinClosetItems])];
                 localStorage.setItem('btc_spin_closet_items', JSON.stringify(mergedItems));
             }
-            if (currentUser.scholarPassed) {
-                localStorage.setItem('btc_scholar_passed', 'true');
-            }
+            if (typeof window.refreshScholarFromProfile === 'function') window.refreshScholarFromProfile(currentUser);
             // Restore milestone/celebration state from Firestore (prevents re-triggering)
             if (currentUser.nachoMilestones) {
                 localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(currentUser.nachoMilestones));
@@ -2059,7 +2125,6 @@ async function loadUser(uid, prefetchedDoc) {
                 _syncFlag('btc_spin_hit_rare',        'spinHitRare',        'true');
                 _syncFlag('btc_lightning_setup',      'lightningSetup',     'true');
                 _syncFlag('btc_fp_completed',         'fpCompleted',        'true');
-                _syncFlag('btc_scholar_tech_passed',  'scholarTechPassed',  'true');
                 _syncFlag('btc_nacho_eli5',           'nachoEli5',          'true');
                 _syncFlag('btc_nacho_story_awarded',  'nachoStoryAwarded',  'true');
 
@@ -2720,10 +2785,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             // Track pts for ghost banner re-show
             if (typeof window._ghostTrackPts === 'function') window._ghostTrackPts(pts);
         }
-        // Track points in localStorage. Daily cap 500. Server-side validation happens
-        // later if they ever sign in (via anon_merge), so this is purely UX reward.
+        // Local preview only. The server cap is full through 600, then half until 1,000.
+        // Guest points are not banked, and a later sign-in does not redeem them as overflow.
         var DAILY_CAP = 1000;
-        var _today = new Date().toISOString().split('T')[0];
+        var FULL_UNTIL = 600;
+        var _today = new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
         var _capKey = 'btc_daily_pts_' + _today;
         var _dailyUsed = parseInt(localStorage.getItem(_capKey) || '0', 10);
         if (isNaN(_dailyUsed)) _dailyUsed = 0;
@@ -2746,63 +2812,41 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
         }
 
-        // Anon overflow mirror: redeem yesterday's overflow first, then award today's pts.
-        var _overflowKey = 'btc_pts_overflow';
-        var _overflowDateKey = 'btc_pts_overflow_date';
-        var _overflow = parseInt(localStorage.getItem(_overflowKey) || '0', 10) || 0;
-        var _overflowDate = localStorage.getItem(_overflowDateKey) || '';
-        var overflowRedeemed = 0;
-        if (_overflow > 0 && _overflowDate && _overflowDate !== _today) {
-            overflowRedeemed = Math.min(_overflow, DAILY_CAP);
-            _overflow -= overflowRedeemed;
-            try { localStorage.setItem(_overflowKey, String(_overflow)); } catch(e) {}
-        }
-
         var awarded = pts;
-        var overflowAdded = 0;
-        if (_dailyUsed >= DAILY_CAP) {
+        var cursor = _dailyUsed;
+        var left = pts;
+        if (cursor >= DAILY_CAP) {
             awarded = 0;
-            overflowAdded = pts;
-        } else if (_dailyUsed + pts > DAILY_CAP) {
-            awarded = DAILY_CAP - _dailyUsed;
-            overflowAdded = pts - awarded;
+        } else {
+            awarded = 0;
+            if (cursor < FULL_UNTIL) {
+                var fullRoom = Math.min(left, FULL_UNTIL - cursor);
+                awarded += fullRoom;
+                cursor += fullRoom;
+                left -= fullRoom;
+            }
+            if (left > 0 && cursor < DAILY_CAP) {
+                awarded += Math.min(Math.floor(left / 2), DAILY_CAP - cursor);
+            }
         }
 
-        var totalAdded = awarded + overflowRedeemed;
-        if (totalAdded > 0) {
-            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + totalAdded;
+        if (awarded > 0) {
+            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + awarded;
             try {
                 localStorage.setItem('btc_points', String(newPoints));
-                if (awarded > 0) localStorage.setItem(_capKey, String(_dailyUsed + awarded));
+                localStorage.setItem(_capKey, String(_dailyUsed + awarded));
             } catch(e) {}
             currentUser.points = newPoints;
             _showPointsToast(awarded, reason);
             if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, reason);
-            if (overflowRedeemed > 0 && typeof showToast === 'function') {
-                setTimeout(function() {
-                    showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
-                }, 1200);
-            }
         }
 
-        if (overflowAdded > 0) {
-            _overflow += overflowAdded;
-            try {
-                localStorage.setItem(_overflowKey, String(_overflow));
-                localStorage.setItem(_overflowDateKey, _today);
-            } catch(e) {}
-            var _overflowNotifKey = 'btc_overflow_notified_' + _today;
-            if (!localStorage.getItem(_overflowNotifKey)) {
-                try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow. Sign in to convert to sats.', 8000);
-                if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
-            }
-        } else if (_dailyUsed + awarded >= DAILY_CAP) {
+        if (_dailyUsed + awarded >= DAILY_CAP) {
             // Daily cap notification (once per day)
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -2853,15 +2897,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         }
         if (result.data && result.data.success) {
             var awarded = result.data.awarded || 0;
-            var overflowRedeemed = result.data.overflowRedeemed || 0;
-            var overflowAdded = result.data.overflowAdded || 0;
-            if (typeof result.data.pendingOverflow !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) currentUser.pendingOverflow = result.data.pendingOverflow;
             if (result.data.doubleXpUntil && typeof currentUser !== 'undefined' && currentUser) {
                 currentUser.doubleXpUntil = result.data.doubleXpUntil;
                 currentUser.doubleXPExpiry = result.data.doubleXpUntil;
             }
-            var pendingOverflow = result.data.pendingOverflow || 0;
-            var totalAdded = awarded + overflowRedeemed;
+            var totalAdded = awarded;
             // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
             if (_isBadgeEarned && awarded > 0 && typeof notifySelfPoints === 'function') {
                 notifySelfPoints(awarded, reason);
@@ -2873,27 +2913,22 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
-                // Notification already logged eagerly before CF call (or above for badges)
-                if (overflowRedeemed > 0) {
-                    setTimeout(function() {
-                        showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
-                    }, 1200);
-                }
             }
-            if (overflowAdded > 0) {
-                var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
-                if (!localStorage.getItem(_overflowKey)) {
-                    localStorage.setItem(_overflowKey, '1');
-                    showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow.', 8000);
-                    _updateCapIndicator(true);
-                }
-                // Cache pendingOverflow locally for the CAP indicator tooltip
-                try { localStorage.setItem('btc_pts_overflow', String(pendingOverflow)); } catch(e) {}
-            } else if (result.data.capped) {
-                var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+            if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
+                window._serverDailyXp = {
+                    signedIn: true,
+                    dailyXp: result.data.dailyXp,
+                    dailyCap: result.data.dailyCap || 1000,
+                    fullUntil: result.data.fullUntil || 600,
+                    pastCap: result.data.pastCap === true
+                };
+                window._paintDailyXpMeter(window._serverDailyXp);
+            }
+            if (result.data.capped || result.data.pastCap) {
+                var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow.', 8000);
+                    showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -3265,11 +3300,10 @@ function _updateCapIndicator(atCap) {
     var _today = new Date().toISOString().split('T')[0];
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-    var _overflow = parseInt(localStorage.getItem('btc_pts_overflow') || '0');
     if (atCap || _dailyPts >= 1000) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = '🎯 Daily XP cap reached (1,000/1,000)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        el.title = 'Daily XP cap reached (1,000). Full through 600, then half.';
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -3971,9 +4005,18 @@ window.confirmDeleteAccount = async function() {
             throw new Error('Account deletion is unavailable. Reload and try again.');
         }
 
-        // Server wipe. The owner must have signed in recently. Data deletes
-        // happen in the Cloud Function, not from this browser.
-        await firebase.functions().httpsCallable('deleteAccount', { timeout: 540000 })({});
+        // Server wipe. The owner must have signed in recently. A remembered
+        // device is not enough: deletion needs a fresh authenticator proof.
+        var deletePayload = {};
+        if (mfaNeedsFreshCode()) {
+            var deleteProof = await window._showFreshStepUp('deleteAccount');
+            if (!deleteProof) {
+                if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+                return;
+            }
+            deletePayload.freshProofId = deleteProof;
+        }
+        await firebase.functions().httpsCallable('deleteAccount', { timeout: 540000 })(deletePayload);
 
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {
@@ -4013,6 +4056,11 @@ window.confirmDeleteAccount = async function() {
         console.error('Account deletion error:', e);
         var code = (e && e.code) || '';
         var msg = (e && e.message) || '';
+        if (msg.indexOf('fresh authenticator') !== -1) {
+            showToast(_mfaFailure(e));
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            return;
+        }
         if (typeof _isMfaBlock === 'function' && _isMfaBlock(e)) {
             showToast(_mfaFailure(e));
             if (typeof _showTotpSignInChallenge === 'function') _showTotpSignInChallenge();
@@ -5504,8 +5552,8 @@ function showSettingsPage(tab) {
             '<button onclick="hideUsernamePrompt(); startQuestManual();" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">⚡ Start a Quest</button>' +
             '</div>';
 
-        // Scholar Certification - Properties
-        var propPassed = localStorage.getItem('btc_scholar_prop_passed') === 'true';
+        // Scholar Certification - Properties. Pass flags are server-owned.
+        var propPassed = !!(currentUser && currentUser.certPassed_prop === true);
         html += '<div style="background:linear-gradient(135deg, rgba(247,147,26,0.1), rgba(247,147,26,0.02));border:1px solid '+(propPassed ? '#22c55e' : 'var(--accent)')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(propPassed ? '✅' : '📜')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Scholar Certification</div>' +
@@ -5514,7 +5562,7 @@ function showSettingsPage(tab) {
             '</div>';
 
         // Scholar Certification - Technical
-        var techPassed = localStorage.getItem('btc_scholar_tech_passed') === 'true';
+        var techPassed = !!(currentUser && currentUser.certPassed_tech === true);
         html += '<div style="background:linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.02));border:1px solid '+(techPassed ? '#22c55e' : '#3b82f6')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(techPassed ? '✅' : '🛠️')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Protocol Expert</div>' +
@@ -5812,7 +5860,7 @@ function showSettingsPage(tab) {
             html += '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">';
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-weight:700;font-size:0.85rem;color:#a5b4fc;">⏳ Queued Overflow XP</div><div style="font-size:0.6rem;font-weight:800;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 8px;border-radius:20px;">~' + _ofDL + ' day' + (_ofDL !== 1 ? 's' : '') + '</div></div>';
             html += '<div style="font-size:1.3rem;font-weight:900;font-family:monospace;color:#c7d2fe;margin-bottom:8px;">+' + _pendingOf.toLocaleString() + ' XP</div>';
-            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">You hit the daily cap before all XP could be awarded. This queued XP drips <strong style="color:#a5b4fc;">1,000 XP per day</strong> automatically on future visits — counts toward your sats balance once redeemed.</div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">This is leftover XP from before the shared daily cap. New XP is not added here. A day pays full XP through 600, then half until 1,000.</div>';
             html += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:10px;">';
             var _tileCap = Math.min(_ofDL, 10);
             for (var _td = 0; _td < _tileCap; _td++) {
@@ -7746,6 +7794,13 @@ async function signOutUser() {
             await firebase.messaging().deleteToken();
         }
     } catch (e) {}
+    var mfaDeviceToken = '';
+    try { if (pushUid) mfaDeviceToken = localStorage.getItem('btc_mfa_device_' + pushUid) || ''; } catch (e) {}
+    if (mfaDeviceToken && typeof firebase !== 'undefined' && firebase.functions) {
+        try {
+            await firebase.functions().httpsCallable('totpRevokeDevice')({ deviceToken: mfaDeviceToken });
+        } catch (e) {}
+    }
     // [AUDIT FIX M5] Clear caches on sign-out for shared device security
     if ('caches' in window) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
@@ -8175,7 +8230,7 @@ function openWithdrawalAddress(opts) {
     });
 }
 
-function _callResetLightning(addr) {
+function _callResetLightning(addr, proofId) {
     var token = '';
     var tsEl = document.querySelector('#lnAddrTurnstile [name="cf-turnstile-response"]');
     if (tsEl) token = tsEl.value || '';
@@ -8186,10 +8241,18 @@ function _callResetLightning(addr) {
     } catch (e) {
         return Promise.resolve({ ok: false, error: 'Security check failed. Refresh the page and try again.' });
     }
-    return appCheckReady.then(function () {
-        var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
-        return fn({ lightningAddress: addr, turnstileToken: token });
+    var proofReady = Promise.resolve(proofId || '');
+    if (!proofId && mfaNeedsFreshCode()) proofReady = window._showFreshStepUp('resetLightningAddress');
+    return proofReady.then(function (proof) {
+        if (proof === null) return { ok: false, error: 'Enter a fresh authenticator code to change your Lightning Address.', code: 'fresh' };
+        return appCheckReady.then(function () {
+            var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
+            var body = { lightningAddress: addr, turnstileToken: token };
+            if (proof) body.freshProofId = proof;
+            return fn(body);
+        });
     }).then(function (res) {
+        if (res && res.ok === false && res.code === 'fresh') return res;
         var data = res && res.data ? res.data : {};
         if (!data.ok) return { ok: false, error: data.error || 'Could not resolve Lightning Address. Check the address and try again.', code: data.code || 'address_unresolved' };
         if (typeof currentUser !== 'undefined' && currentUser) {
@@ -8200,7 +8263,14 @@ function _callResetLightning(addr) {
         if (typeof showToast === 'function') showToast('Lightning Address saved.');
         return { ok: true, address: data.address || addr };
     }).catch(function (e) {
-        return { ok: false, error: (e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.', code: 'address_unresolved' };
+        var msg = (e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.';
+        if (!proofId && msg.indexOf('fresh authenticator') !== -1 && typeof window._showFreshStepUp === 'function') {
+            return window._showFreshStepUp('resetLightningAddress').then(function (proof) {
+                if (!proof) return { ok: false, error: msg, code: 'fresh' };
+                return _callResetLightning(addr, proof);
+            });
+        }
+        return { ok: false, error: msg, code: 'address_unresolved' };
     });
 }
 
@@ -8466,6 +8536,9 @@ window._showTotpSignInChallenge = function() {
             '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Authenticator Code</div>' +
             '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Open your authenticator app and enter the 6-digit code</div>' +
             '<input id="totpSignInInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
+            '<label style="display:flex;align-items:flex-start;gap:8px;text-align:left;font-size:0.82rem;color:var(--text,#fff);margin:0 0 12px;cursor:pointer;line-height:1.35;">' +
+            '<input id="totpRememberDevice" type="checkbox" checked style="margin-top:2px;">' +
+            '<span>Remember this device for 30 days</span></label>' +
             '<div id="totpSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
             '<button id="totpSignInBtn" onclick="window._submitTotpSignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
             '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
@@ -8500,10 +8573,23 @@ window._submitTotpSignIn = async function() {
     if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
     if (statusEl) statusEl.textContent = '';
     try {
+        var rememberEl = document.getElementById('totpRememberDevice');
+        var remember = !rememberEl || rememberEl.checked;
+        var payload = { code: code, rememberDevice: remember === true };
+        if (remember && auth && auth.currentUser) {
+            try {
+                var previous = localStorage.getItem(mfaDeviceKey(auth.currentUser.uid)) || '';
+                if (/^[0-9a-f]{64}$/.test(previous)) payload.previousDeviceToken = previous;
+            } catch (e0) {}
+        }
         var checkFn = firebase.functions().httpsCallable('totpCheck');
-        var checked = await checkFn({ code: code });
+        var checked = await checkFn(payload);
         var checkedData = (checked && checked.data) || {};
         if (auth && auth.currentUser && checkedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, checkedData.sessionId);
+        if (auth && auth.currentUser) {
+            if (checkedData.deviceToken) window._rememberMfaDevice(auth.currentUser.uid, checkedData.deviceToken);
+            else if (!remember) mfaClearDevice(auth.currentUser.uid);
+        }
         var ov = document.getElementById('totpSignInOverlay');
         if (ov) ov.remove();
         if (checkedData.recoveryCodes) window._showRecoveryCodes(checkedData.recoveryCodes);
@@ -8694,7 +8780,23 @@ window._submitMFASignIn = async function() {
         }
     }
 };
-if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
+if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() {
+    if (!(auth && auth.currentUser && auth.currentUser.email)) return;
+    var uid = auth.currentUser.uid;
+    auth.sendPasswordResetEmail(auth.currentUser.email).then(function() {
+        var drop = Promise.resolve();
+        if (typeof firebase !== 'undefined' && firebase.functions) {
+            drop = firebase.functions().httpsCallable('totpRevokeAllTrust')({}).catch(function() {});
+        }
+        return drop.then(function() {
+            try {
+                localStorage.removeItem('btc_mfa_device_' + uid);
+                localStorage.removeItem('btc_mfa_session_' + uid);
+            } catch (e) {}
+            showToast('Password reset email sent. Remembered devices were signed out.');
+        });
+    }).catch(function() { showToast('Could not send reset email'); });
+};
 if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function () { if (typeof showToast === 'function') showToast('Open Settings and confirm deletion there.'); };
 window._toggleRecoveryEntry = function () {
     var box = document.getElementById('totpRecoveryBox');
@@ -8776,7 +8878,10 @@ window._submitRecoveryCode = async function (kind) {
             return;
         }
         if (auth && auth.currentUser) {
-            try { localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid); } catch (e) {}
+            try {
+                localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid);
+                localStorage.removeItem('btc_mfa_device_' + auth.currentUser.uid);
+            } catch (e) {}
         }
         if (typeof showToast === 'function') showToast('Two-factor authentication is off. You can turn it on again in Settings.');
         if (typeof loadUser === 'function' && auth && auth.currentUser) loadUser(auth.currentUser.uid);
@@ -8796,6 +8901,137 @@ window._regenerateRecoveryCodes = async function () {
         if (typeof showToast === 'function') showToast(_mfaFailure(e));
     }
 };
+
+function mfaEscapeText(value) {
+    return String(value || '').replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+}
+
+function mfaWhen(ms) {
+    var n = Number(ms);
+    if (!n) return 'Unknown';
+    try { return new Date(n).toLocaleString(); } catch (e) { return 'Unknown'; }
+}
+
+window._renderTrustedDevices = function (devices) {
+    var list = document.getElementById('trustedDeviceList');
+    if (!list) return;
+    var rows = devices || [];
+    if (!rows.length) {
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">No remembered devices.</div>';
+        return;
+    }
+    list.innerHTML = rows.map(function (device) {
+        var id = String(device.id || '');
+        if (!/^[a-f0-9]{32}$/.test(id)) return '';
+        var label = mfaEscapeText(device.label || 'Browser');
+        var mine = device.current ? ' · This device' : '';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">' +
+            '<div style="text-align:left;"><div style="color:var(--heading);font-size:0.82rem;font-weight:700;">' + label + mine + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.72rem;">Added ' + mfaEscapeText(mfaWhen(device.createdAtMs)) + ' · Last used ' + mfaEscapeText(mfaWhen(device.lastUsedAtMs)) + '</div></div>' +
+            '<button type="button" onclick="window._removeTrustedDevice(\'' + id + '\',' + (device.current ? 'true' : 'false') + ')" style="padding:6px 10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;font-size:0.75rem;">Remove</button></div>';
+    }).join('');
+};
+
+window._loadTrustedDevices = async function () {
+    var list = document.getElementById('trustedDeviceList');
+    if (!list || !auth || !auth.currentUser || typeof firebase === 'undefined' || !firebase.functions) return;
+    try {
+        var token = '';
+        try { token = localStorage.getItem(mfaDeviceKey(auth.currentUser.uid)) || ''; } catch (e) {}
+        var res = await firebase.functions().httpsCallable('totpListDevices')({ deviceToken: token });
+        window._renderTrustedDevices((res && res.data && res.data.devices) || []);
+    } catch (e) {
+        list.innerHTML = '<div style="color:var(--text-faint);font-size:0.78rem;">Could not load devices. ' + mfaEscapeText(_mfaFailure(e)) + '</div>';
+    }
+};
+
+window._removeTrustedDevice = async function (deviceId, isCurrent) {
+    if (!/^[a-f0-9]{32}$/.test(deviceId || '')) return;
+    try {
+        await firebase.functions().httpsCallable('totpRevokeDevice')({ deviceId: deviceId });
+        if (isCurrent && auth && auth.currentUser) mfaClearDevice(auth.currentUser.uid);
+        if (typeof showToast === 'function') showToast('Device removed');
+        window._loadTrustedDevices();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(_mfaFailure(e));
+    }
+};
+
+window._signOutOtherDevices = async function () {
+    try {
+        var token = '';
+        if (auth && auth.currentUser) {
+            try { token = localStorage.getItem(mfaDeviceKey(auth.currentUser.uid)) || ''; } catch (e) {}
+        }
+        await firebase.functions().httpsCallable('totpSignOutOtherDevices')({ deviceToken: token });
+        if (typeof showToast === 'function') showToast('Other devices were signed out');
+        window._loadTrustedDevices();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(_mfaFailure(e));
+    }
+};
+
+window._showFreshStepUp = function (action) {
+    var copy = {
+        resetLightningAddress: 'Enter a fresh authenticator code to change your Lightning Address. Remembering this device is not enough.',
+        deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
+        disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
+        regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.'
+    };
+    return new Promise(function (resolve) {
+        var old = document.getElementById('freshStepUpOverlay');
+        if (old) old.remove();
+        var settled = false;
+        function finish(value) {
+            if (settled) return;
+            settled = true;
+            var el = document.getElementById('freshStepUpOverlay');
+            if (el) el.remove();
+            resolve(value);
+        }
+        var overlay = document.createElement('div');
+        overlay.id = 'freshStepUpOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:710000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;">' +
+            '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Fresh authenticator code</div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.45;margin-bottom:14px;">' + mfaEscapeText(copy[action] || 'Enter a fresh authenticator code. A remembered device is not enough.') + '</div>' +
+            '<input id="freshStepUpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.4rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<div id="freshStepUpStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:10px;"></div>' +
+            '<button id="freshStepUpBtn" type="button" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Continue</button>' +
+            '<button id="freshStepUpCancel" type="button" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        overlay.querySelector('#freshStepUpCancel').addEventListener('click', function () { finish(null); });
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
+        var input = overlay.querySelector('#freshStepUpInput');
+        var status = overlay.querySelector('#freshStepUpStatus');
+        var button = overlay.querySelector('#freshStepUpBtn');
+        async function submit() {
+            var code = input ? input.value.trim() : '';
+            if (code.length < 6) { if (status) status.textContent = 'Enter the full 6-digit code'; return; }
+            if (button) { button.disabled = true; button.textContent = 'Checking...'; }
+            try {
+                var res = await firebase.functions().httpsCallable('totpStepUp')({ code: code, action: action });
+                var proof = res && res.data && res.data.freshProofId;
+                if (!proof) throw new Error('Enter a fresh authenticator code for this action.');
+                finish(proof);
+            } catch (e) {
+                if (button) { button.disabled = false; button.textContent = 'Continue'; }
+                if (status) status.textContent = _mfaFailure(e);
+                if (input) { input.value = ''; input.focus(); }
+            }
+        }
+        button.addEventListener('click', function () { submit(); });
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+        setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+    });
+};
+
+function mfaNeedsFreshCode() {
+    return !!((window._mfaStatus && window._mfaStatus.enabled) || (typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled));
+}
 
 async function loadTotpStatus() {
     var section = document.getElementById('twoFactorPanel') || document.getElementById('totpSection');
@@ -8844,16 +9080,25 @@ async function loadTotpStatus() {
         if (totpOn || phoneOn) {
             html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">' +
                 '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">Recovery codes</div>' +
-                '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">Create a new set if you lost the ones you saved. This asks for a current code.</div>' +
+                '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">Create a new set if you lost the ones you saved. This asks for a fresh authenticator code. A remembered device is not enough.</div>' +
                 '<input id="totpRegenCode" maxlength="6" placeholder="Current authenticator code" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;margin-bottom:8px;box-sizing:border-box;font-family:inherit;">' +
                 '<button onclick="window._regenerateRecoveryCodes()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-family:inherit;margin-bottom:8px;">Create new recovery codes</button>' +
                 '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;">Lost your device?</button>' +
                 '</div>';
-        } else {
+        }
+        if (totpOn) {
+            html += '<div id="trustedDevicesBlock" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">Remembered devices</div>' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:8px;">A checked code prompt remembers this browser for 30 days. The server stores a short browser and system label, not your IP address.</div>' +
+                '<div id="trustedDeviceList" style="color:var(--text-muted);font-size:0.78rem;">Loading devices…</div>' +
+                '<button type="button" onclick="window._signOutOtherDevices()" style="width:100%;padding:10px;margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-family:inherit;">Sign out other devices</button>' +
+                '</div>';
+        } else if (!phoneOn) {
             html += '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-family:inherit;">Lost your device?</button>';
         }
         html += '</div>';
         section.innerHTML = html;
+        if (totpOn) window._loadTrustedDevices();
         if (data.needsRecoveryCodes && (data.sessionVerified || data.phoneEnabled)) window._maybeOfferRecoveryCodes();
     } catch (e) {
         section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;">Could not load two-factor settings (' + _mfaFailure(e) + ')</div>' +
@@ -8909,7 +9154,10 @@ async function disableTotp() {
         var disableFn = firebase.functions().httpsCallable('totpDisable');
         await disableFn({ code: code.value.trim() });
         if (auth && auth.currentUser) {
-            try { localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid); } catch (err) {}
+            try {
+                localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid);
+                localStorage.removeItem('btc_mfa_device_' + auth.currentUser.uid);
+            } catch (err) {}
         }
         showToast('Authenticator app is off');
         showSettingsPage('security');

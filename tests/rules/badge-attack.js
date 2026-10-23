@@ -23,7 +23,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 
 const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, updateDoc, deleteField, increment } = require('firebase/firestore');
+const { doc, setDoc, updateDoc, deleteField, increment, getDoc } = require('firebase/firestore');
 
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const emu = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8085';
@@ -55,6 +55,15 @@ const parts = emu.split(':');
                 points: 10,
                 visibleBadges: ['peer_1'],
                 pendingLeaderboardReward: { xp: 5 },
+                certPassed_prop: true,
+                certPassed_tech: true,
+                certPassedAt_prop: '2026-10-01',
+                certPassedAt_tech: '2026-10-01',
+                lastExamAttempt_prop: '2026-10-22',
+                lastExamAttempt_tech: '2026-10-22',
+                scholar_exam_passed: true,
+                scholar_tech_passed: true,
+                scholar_tech_score: 25,
             });
         });
         const ref = doc(user, 'users', 'user1');
@@ -119,14 +128,26 @@ const parts = emu.split(':');
         await expect('ATTACK giftsOpened', function () { return updateDoc(ref, { giftsOpened: increment(1) }); }, false);
         await expect('ATTACK shopPurchases', function () { return updateDoc(ref, { shopPurchases: increment(1) }); }, false);
         await expect('ATTACK raffleTicketsBought', function () { return updateDoc(ref, { raffleTicketsBought: increment(1) }); }, false);
-        await expect('ATTACK certPassed_prop', function () { return updateDoc(ref, { certPassed_prop: true }); }, false);
-        await expect('ATTACK scholar_exam_passed', function () { return updateDoc(ref, { scholar_exam_passed: true }); }, false);
         await expect('ATTACK topic_comment_pending', function () {
             return setDoc(doc(user, 'topic_comment_pending', 'forged'), { open: true });
         }, false);
         await expect('ATTACK peer_xp_credits', function () {
             return setDoc(doc(user, 'peer_xp_credits', 'a_b'), { leftXp: 10 });
         }, false);
+        const examFields = [
+            'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
+            'lastExamAttempt_prop', 'lastExamAttempt_tech',
+            'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
+        ];
+        for (let i = 0; i < examFields.length; i++) {
+            const field = examFields[i];
+            const attack = {};
+            attack[field] = field === 'scholar_tech_score' ? 21 : (field.indexOf('At_') !== -1 || field.indexOf('Attempt_') !== -1 ? '2026-10-23' : false);
+            await expect('ATTACK set ' + field, function () { return updateDoc(ref, attack); }, false);
+            const clear = {};
+            clear[field] = deleteField();
+            await expect('ATTACK clear ' + field, function () { return updateDoc(ref, clear); }, false);
+        }
         await expect('delete a pending leaderboard reward', function () {
             return updateDoc(ref, { pendingLeaderboardReward: deleteField() });
         }, true);
@@ -144,6 +165,18 @@ const parts = emu.split(':');
         }, false);
         await expect('ATTACK polls vote doc', function () {
             return setDoc(doc(user, 'polls', '2026-10-22', 'votes', 'user1'), { chosenIdx: 0 });
+        }, false);
+        await expect('ATTACK trusted device write', function () {
+            return setDoc(doc(user, 'trusted_devices', 'dev1'), { uid: 'user1', tokenHash: 'forged' });
+        }, false);
+        await expect('ATTACK trusted device read', function () {
+            return getDoc(doc(user, 'trusted_devices', 'dev1'));
+        }, false);
+        await expect('ATTACK fresh proof write', function () {
+            return setDoc(doc(user, 'totp_fresh_proofs', 'user1_deleteAccount'), { proofId: 'cd'.repeat(16) });
+        }, false);
+        await expect('ATTACK fresh proof read', function () {
+            return getDoc(doc(user, 'totp_fresh_proofs', 'user1_deleteAccount'));
         }, false);
     } finally {
         await env.cleanup();

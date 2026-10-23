@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: October 22, 2026</p>
+    <p class="subtitle">Last updated: October 23, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -54,6 +54,7 @@
         <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), Lightning (LNURL-auth), email link, or a guest (anonymous) session</td></tr>
         <tr><td>Profile picture</td><td>Optional avatar upload (resized to 128px JPEG, stored in Firestore)</td></tr>
         <tr><td>TOTP 2FA secret</td><td>Encrypted TOTP secret for two-factor authentication (if enabled)</td></tr>
+        <tr><td>Remembered device</td><td>If you check “Remember this device for 30 days” after an authenticator code, we store only a hash of a random device token (not the token), a short browser and operating-system label, and the times the device was added, last used, and when the 30 days end. The 30 days are counted from the day you checked the box and do not slide forward. We do not store an IP address on that record. This browser keeps the token. You can remove a device, or sign out other devices, in Settings. Signing out revokes this device. At most 10 devices stay remembered; adding another removes the oldest. Turning off two-factor authentication, using a recovery code, the in-app password reset, or an admin reset revokes every remembered device right away. A password change finished outside the app, including a reset email, also stops devices that were remembered before that change. Clients cannot read or write these records. Expired device and fresh-code records are deleted on a schedule.</td></tr>
         <tr><td>Points & rank</td><td>Gamification and leaderboard</td></tr>
         <tr><td>Streak & visit count</td><td>Daily streak tracking and visit bonus</td></tr>
         <tr><td>Channels visited</td><td>Progress tracking and exploration map</td></tr>
@@ -62,6 +63,10 @@
         <tr><td>Giveaway entry (Lightning address)</td><td>Prize distribution if you win</td></tr>
         <tr><td>Hidden badges earned</td><td>Badge/achievement tracking</td></tr>
         <tr><td>Weekly XP (weeklyXP)</td><td>Weekly leaderboard ranking (resets every Monday)</td></tr>
+        <tr><td>Quiz stats (lastQuizDate, quizStreak, quizAnswered, quizCorrect)</td><td>Server record of the quiz day, streak, questions answered, and correct answers. The browser cannot set these.</td></tr>
+        <tr><td>Quest completions (quest_completions)</td><td>Quiz parts already finished, so that part cannot pay XP again</td></tr>
+        <tr><td>Quest passes (quest_passes)</td><td>Quiz parts scored high enough to count once toward quest progress</td></tr>
+        <tr><td>XP bank payout (xpBankPayoutApplied, xpBankPayoutAmount, xpBankPayoutBank, xpBankPayoutAt)</td><td>One-time record if leftover XP from before the shared daily cap is paid. New XP is not saved past the cap.</td></tr>
         <tr><td>Monthly XP (monthlyXP)</td><td>Monthly leaderboard ranking (resets on the 1st of each month)</td></tr>
         <tr><td>Nook inventory (streakFreezes, hintTokens, hashBoosters, doubleXPCharges, bonusSpins, raffleEntries)</td><td>Consumable item counts for Nacho's Nook shop</td></tr>
         <tr><td>Owned cosmetics (ownedCosmetics)</td><td>List of purchased cosmetic items (Profile Frame, Chat Flair, Pinned Badge, Nacho Skin, Second Mining Rig)</td></tr>
@@ -361,7 +366,7 @@
         <li>Track daily price prediction accuracy for user profiles</li>
         <li>Forward Global Chat messages to/from a linked Telegram group via Cloud Function</li>
         <li>Display Bitcoin market indicators from public third-party APIs (no user data sent)</li>
-        <li>Enable two-factor authentication (TOTP) for account security</li>
+        <li>Enable two-factor authentication (TOTP) for account security, and remember a browser for 30 days when you ask us to. That record keeps a browser and system label and timestamps, not an IP address</li>
         <li>Verify Nostr and Lightning wallet signatures for authentication</li>
         <li>Enforce server-side daily point caps and prevent points manipulation</li>
         <li>Credit the daily Timechain TV watch reward from a server heartbeat (credited seconds and reward day on your account), so the app cannot invent watch time</li>
@@ -531,7 +536,7 @@
     <p>Delete runs on the server. The button calls the <code>deleteAccount</code> function. That function deletes the Firebase sign-in itself, for the account owner and for an admin, and it revokes refresh tokens. Daily points, daily action counts, and badge awards are removed only in that same step, after the sign-in is gone, so those caps cannot be reset while the account still exists. Only that account, with a recent sign-in, or an admin, can start it. Running it again after the data is already gone is safe. This browser then clears site data whose keys start with <code>btc_</code>, session storage, and the service-worker cache. If the server already removed the sign-in, this browser treats that as finished. There is no waiting period in the app.</p>
     <p>The server deletes:</p>
     <ul>
-        <li>Your user profile and the records stored under it, including shop purchases, Proof of Walk data, connected-app records, the in-profile notification list, and the sats withdrawal list stored on the profile. A profile photo saved on that document is deleted with it. Daily points, daily action counts, badge awards, quest completion rows, lifetime award rows, and onboarding evidence are removed in the same step that deletes the sign-in</li>
+        <li>Your user profile and the records stored under it, including shop purchases, Proof of Walk data, connected-app records, the in-profile notification list, and the sats withdrawal list stored on the profile. A profile photo saved on that document is deleted with it. Daily points, daily action counts, badge awards, quest completion rows, quest pass rows, lifetime award rows, and onboarding evidence are removed in the same step that deletes the sign-in</li>
         <li>Your public profile, and a <code>usernames/</code> reservation when that reservation's account id matches the account being deleted</li>
         <li>Direct message threads you are in, from <code>dm_conversations</code>, including every message in those threads. That removes the other person's messages in the thread as well. An older <code>conversations</code> collection is cleared the same way when it still has your threads</li>
         <li>Forum posts and replies, articles and article replies, marketplace listings and marketplace messages, suggestions, certificates, and IRL events you created</li>
@@ -539,12 +544,12 @@
         <li>Files in Storage under your account: Beats audio (<code>beats/</code>), Beats cover art (<code>beats-covers/</code>), avatars (<code>avatars/</code>), chat images, DM images, article images, article covers, IRL photos, and meetup-builder uploads</li>
         <li>Notifications in your inbox and notifications you sent. You can mark a notice read. The app does not delete a single notice. Read and unread status is removed with the account</li>
         <li>Push tokens for the account, including <code>push_tokens/{uid}</code> and its <code>devices</code></li>
-        <li>Authenticator-app secrets and the authenticator session, presence, Timechain TV presence, view-day rows, and channel ratings, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
+        <li>Authenticator-app secrets, authenticator sessions, and remembered devices (the token hash, browser and system label, and timestamps), presence, Timechain TV presence, view-day rows, and channel ratings, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
         <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted. Pending gift-pair records that name your account are deleted after the sign-in is gone</li>
         <li>Nacho posts in Global Chat that tagged you have the tag removed and your name in that post replaced with <code>[deleted]</code>. Other people's names in the same post stay. Your account id is removed from reactions on the newest Global Chat messages and announcements (about the latest 2,000 of each). An older message can still list it</li>
         <li>Your username on raid participation rows, raid winner rows, and Satoshi's Favor contributor rows. The contribution count and the sats awarded stay. The same replacement is applied to raffle snapshots and leaderboard winner history. The payout record stays</li>
         <li>Nacho feedback, missed questions, and bad-match notes that include the question you typed, plus rows that record an AI tool you opened and channel feedback you sent</li>
-        <li>After the sign-in is deleted: your shoutout claim and rate rows, action cooldowns, raid daily caps, raid deck completions, weekly challenge contribution rows, key-send pair records, quiz and exam answer keys, the daily faucet cap and Proof of Walk dedupe rows stored on the profile, and the per-account rate-limit rows for the chat bridge, Beats imports, Say hi, announcements, account deletion, and reply bonus. Your account id is removed from poll voter lists. The vote totals stay. Reply-bonus state, pair rows, and claim rows are deleted, as are marketplace listing-count markers for your listings, and a Timechain TV watch row when one exists. Files in Storage are removed in that same step, after the sign-in is gone</li>
+        <li>After the sign-in is deleted: your shoutout claim and rate rows, action cooldowns, raid daily caps, raid deck completions, weekly challenge contribution rows, key-send pair records, quiz answer keys (<code>quest_answer_keys</code>) and scholar exam answer keys (<code>scholar_exam_keys</code>), the daily faucet cap and Proof of Walk dedupe rows stored on the profile, and the per-account rate-limit rows for the chat bridge, Beats imports, Say hi, announcements, account deletion, and reply bonus. Your account id is removed from poll voter lists. The vote totals stay. Reply-bonus state, pair rows, and claim rows are deleted, as are marketplace listing-count markers for your listings, and a Timechain TV watch row when one exists. Files in Storage are removed in that same step, after the sign-in is gone</li>
         <li>Your giveaway entry, visit row, open prediction, and prediction stats</li>
         <li>Your Global Chat DJ queue entry and your Satoshi's Favor personal best</li>
         <li>Your topic discussion comments, the reports on those comments, the private copy of a hidden comment, and the topic-discussion rate row for the account. Nacho's replies in the thread stay</li>
@@ -577,7 +582,7 @@
         <li>Rate limiting on sign-in attempts and message sending (30 messages/hour)</li>
         <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
         <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
-        <li>Server-side daily point cap enforcement (500 pts/day, atomic transactions)</li>
+        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 600, then half rate until 1,000, nothing banked; atomic transactions)</li>
         <li>Device fingerprinting and IP-based multi-account detection for faucet claims, referral signup, and the peer-key and peer-request checks that decide badge and XP credit. Those checks compare fingerprint, IP, email, and Lightning address the same way tips do. Server-written badge counters (gifts opened, keys used, shop purchases, raffle tickets bought, topic comments, and the rest of the badge ladders) live on the account profile and are not writable from the browser</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
         <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>
@@ -605,7 +610,7 @@
         <tr><td>Lifetime total claimed</td><td>Enforce 15,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
         <tr><td>IP address (faucet claim, and once at referral signup)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is an HMAC in a server-only record that expires after 90 days and is deleted with the account.</td></tr>
-        <tr><td>Server-side daily points tracking</td><td>Enforce 500 pts/day cap per user — tracked in Firebase, not browser</td></tr>
+        <tr><td>Server-side daily points tracking</td><td>Enforce the shared 1,000 XP/day cap (full through 600, then half until 1,000, nothing banked) — tracked in Firebase, not the browser</td></tr>
     </table>
 
     <h3>Firestore Data Structure</h3>
@@ -613,7 +618,7 @@
     <ul>
         <li><strong>sats_withdrawals</strong> — individual claim records (amount, truncated invoice, timestamp, status)</li>
         <li><strong>sats_daily</strong> — daily aggregate tracking (amount claimed per day, claim count)</li>
-        <li><strong>daily_points</strong> — server-side daily point award tracking (total awarded per day, enforces 500/day cap)</li>
+        <li><strong>daily_points</strong> — server-side daily XP tracking (total awarded per day; full XP through 600, then half rate until 1,000, nothing banked)</li>
         <li><strong>faucet_stats</strong> — global faucet statistics (total distributed, active claimants)</li>
         <li><strong>faucet_ip_log</strong> — IP addresses at claim time (detects multi-account abuse per network)</li>
         <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus a 90-day expiry. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>

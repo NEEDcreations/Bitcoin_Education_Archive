@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const badgeRules = require('../functions/src/badgeRules');
 const progress = require('../functions/src/badgeProgress');
-const { taperDailyXp } = require('../functions/src/applyDailyXp');
+const { planBadgeDailyXp } = require('../functions/src/applyDailyXp');
 const { familyFor } = require('../functions/src/grantBadge');
 
 const root = path.join(__dirname, '..');
@@ -240,7 +240,29 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
         day: '2026-10-22',
     });
     assert.strictEqual(credit.credit, true);
-    assert.strictEqual(credit.xp, 5);
+    assert.strictEqual(credit.xp, 0);
+    const mirror = progress.planTopicCredit({
+        post: Object.assign({}, post, { channelId: '', topicPost: 'p1', source: 'pleb-talk-mirror' }),
+        user: person('ada', { topicCountDay: '2026-10-22', topicCountToday: 1, topicXpDay: '2026-10-23', topicXpCount: 0 }),
+        nowMs: NOW,
+        day: '2026-10-22',
+    });
+    assert.strictEqual(mirror.credit, true);
+    assert.strictEqual(mirror.xp, 0);
+    const other = progress.planTopicCredit({
+        post: {
+            uid: 'ada',
+            text: 'this comment is long enough to count',
+            createdAtMs: NOW - progress.COMMENT_MATURE_MS - 1000,
+            hidden: false,
+            deleted: false,
+        },
+        user: person('ada', { topicCountDay: '2026-10-22', topicCountToday: 1, topicXpDay: '2026-10-23', topicXpCount: 0 }),
+        nowMs: NOW,
+        day: '2026-10-22',
+    });
+    assert.strictEqual(other.credit, true);
+    assert.strictEqual(other.xp, 5);
     const capped = progress.planTopicCredit({
         post: post,
         user: person('ada', { topicCountDay: '2026-10-22', topicCountToday: 5 }),
@@ -261,14 +283,15 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
 });
 
 test('the shared taper drops overflow instead of banking it', function () {
-    const mid = taperDailyXp(900, 150);
+    const mid = planBadgeDailyXp(900, 150);
     assert.strictEqual(mid.awarded, 75);
     assert.strictEqual(mid.overflowAdded, 0);
-    const full = taperDailyXp(1000, 10);
+    assert.strictEqual(mid.dropped, 75);
+    const full = planBadgeDailyXp(1000, 10);
     assert.strictEqual(full.awarded, 0);
     assert.strictEqual(full.overflowAdded, 0);
     assert.strictEqual(full.capped, true);
-    const early = taperDailyXp(590, 20);
+    const early = planBadgeDailyXp(590, 20);
     assert.strictEqual(early.awarded, 15);
 });
 

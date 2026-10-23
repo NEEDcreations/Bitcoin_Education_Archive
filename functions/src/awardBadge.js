@@ -2,8 +2,8 @@
 
 // One transaction per badge: prove it, write the award, and add one
 // Satoshi's Favor point. A second award of the same id does not add a second point.
-// Badge XP goes through applyDailyXp. Full credit until 600, half rate until
-// 1,000, then nothing. Overflow is dropped and is not written to pendingOverflow.
+// Badge XP goes through applyDailyXp: full until 600, half until 1,000, then 0.
+// The remainder is dropped. Nothing is saved for a later day.
 // A badge the profile already shows gets an award row with 0 XP and no pool point.
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
@@ -121,9 +121,15 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (awardsSnap && typeof awardsSnap.forEach === 'function') {
             awardsSnap.forEach(function (doc) { awardSet.add(doc.id); });
         }
+        let scholarExamPassed = false;
+        if (!verified && rule.source && rule.source.type === 'scholarExam') {
+            const examType = rule.source.examType || 'properties';
+            const priorSnap = await t.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+            scholarExamPassed = !!require('./scholarExam').passedExam(priorSnap, examType, null);
+        }
         const payingCount = badgeRules.countPaying(awardSet);
         const signedIn = options.signedIn !== false;
-        if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, flexClaims: flexClaims })) {
+        if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, flexClaims: flexClaims, scholarExamPassed: scholarExamPassed })) {
             return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
 
@@ -149,14 +155,14 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
-            overflowAdded: xpGrant.overflowAdded,
+            dropped: xpGrant.dropped,
             day: day,
             source: options.source || 'awardBadge',
         });
         t.update(userRef, update);
         if (xp > 0 && xpGrant.dailyRef) {
             t.set(xpGrant.dailyRef, {
-                total: xpGrant.dailyUsed + xp,
+                total: xpGrant.dailyXp,
                 lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }
@@ -225,7 +231,8 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             success: true,
             xp: xp,
             awarded: xp,
-            overflowAdded: xpGrant.overflowAdded,
+            overflowAdded: 0,
+            dropped: xpGrant.dropped,
             capped: xpGrant.capped,
             capBypass: false,
             favor: favor,

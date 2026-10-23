@@ -1376,6 +1376,18 @@ function badgeShownXp(badge) {
     return 0;
 }
 
+// Displayed XP is the shared table (window.BADGE_CATALOG, generated from
+// functions/src/badge-xp.json). The badge object's own pts is only a fallback.
+function badgeShownXp(badge) {
+    if (!badge) return 0;
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG[badge.id] : null;
+    if (cat && typeof cat.xp === 'number') return cat.xp;
+    if (typeof badge.xp === 'number') return badge.xp;
+    if (typeof badge.displayPts === 'number') return badge.displayPts;
+    if (typeof badge.pts === 'number') return badge.pts;
+    return 0;
+}
+
 function showBadgeToast(badge) {
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
@@ -14180,19 +14192,10 @@ window.renderProgressRings = function() {
     var el = document.getElementById('progressRings');
     if (!el) return;
 
-    var totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
-    // Use Firestore data first, fall back to localStorage
-    var visited = 0;
-    if (typeof currentUser !== 'undefined' && currentUser) {
-        if (currentUser.readChannels && currentUser.readChannels.length) {
-            visited = currentUser.readChannels.length;
-        } else if (currentUser.channelsVisited) {
-            visited = currentUser.channelsVisited;
-        }
-    }
-    if (visited === 0) {
-        visited = safeJSON('btc_visited_channels', []).length;
-    }
+    var totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 145;
+    // Display only. getExploredCount uses the server-written visited list.
+    var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;
+    if (visited > totalChannels) visited = totalChannels;
     var streak = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.streak || 0 : 0;
     var points = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
@@ -19849,7 +19852,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (_bnav) _bnav.classList.remove('nav-hidden');
 
         // Update SEO metrics
-        if (typeof _updateSEO === 'function') _updateSEO('home', 'Learn Bitcoin', 'A curated Bitcoin education archive with 146 topics, 8800+ messages, and community tools.');
+        if (typeof _updateSEO === 'function') _updateSEO('home', 'Learn Bitcoin', 'A curated Bitcoin education archive with 145 topics, 8800+ messages, and community tools.');
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
         // Reset leaderboard button position (may have been shifted up for chat)

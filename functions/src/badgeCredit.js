@@ -33,6 +33,11 @@ async function grantIds(db, adminSdk, uid, ids) {
     return granted;
 }
 
+function dailyTotal(grant, awarded) {
+    if (grant && grant.dailyXp != null) return grant.dailyXp;
+    return (Number(grant && grant.dailyUsed) || 0) + awarded;
+}
+
 function xpFields(adminSdk, awarded) {
     if (!(awarded > 0)) return {};
     return {
@@ -111,7 +116,7 @@ async function creditPeerKeyUse(db, adminSdk, args) {
             Object.assign(senderUpdate, xpFields(adminSdk, senderXp));
             if (xpGrant.dailyRef) {
                 tx.set(xpGrant.dailyRef, {
-                    total: xpGrant.dailyUsed + senderXp,
+                    total: dailyTotal(xpGrant, senderXp),
                     lastUpdated: stamp,
                 }, { merge: true });
             }
@@ -226,10 +231,10 @@ async function creditPeerAcceptXp(db, adminSdk, leftUid, rightUid, nowMs) {
         const rightAwarded = rightGrant ? rightGrant.awarded : 0;
         const stamp = adminSdk.firestore.FieldValue.serverTimestamp();
         if (leftAwarded > 0 && leftGrant.dailyRef) {
-            tx.set(leftGrant.dailyRef, { total: leftGrant.dailyUsed + leftAwarded, lastUpdated: stamp }, { merge: true });
+            tx.set(leftGrant.dailyRef, { total: dailyTotal(leftGrant, leftAwarded), lastUpdated: stamp }, { merge: true });
         }
         if (rightAwarded > 0 && rightGrant.dailyRef) {
-            tx.set(rightGrant.dailyRef, { total: rightGrant.dailyUsed + rightAwarded, lastUpdated: stamp }, { merge: true });
+            tx.set(rightGrant.dailyRef, { total: dailyTotal(rightGrant, rightAwarded), lastUpdated: stamp }, { merge: true });
         }
         const leftUpdate = xpFields(adminSdk, leftAwarded);
         const rightUpdate = xpFields(adminSdk, rightAwarded);
@@ -336,7 +341,7 @@ async function creditOneTopic(db, adminSdk, pendingRef, nowMs) {
             Object.assign(update, xpFields(adminSdk, awarded));
             if (awarded > 0 && grant.dailyRef) {
                 tx.set(grant.dailyRef, {
-                    total: grant.dailyUsed + awarded,
+                    total: dailyTotal(grant, awarded),
                     lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
             }

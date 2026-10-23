@@ -941,6 +941,18 @@ function badgeShownXp(badge) {
     return 0;
 }
 
+// Displayed XP is the shared table (window.BADGE_CATALOG, generated from
+// functions/src/badge-xp.json). The badge object's own pts is only a fallback.
+function badgeShownXp(badge) {
+    if (!badge) return 0;
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG[badge.id] : null;
+    if (cat && typeof cat.xp === 'number') return cat.xp;
+    if (typeof badge.xp === 'number') return badge.xp;
+    if (typeof badge.displayPts === 'number') return badge.displayPts;
+    if (typeof badge.pts === 'number') return badge.pts;
+    return 0;
+}
+
 function showBadgeToast(badge) {
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);

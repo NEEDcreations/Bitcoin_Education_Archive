@@ -125,7 +125,9 @@ service cloud.firestore {
         'predTopWeeks', 'predTopMonths', 'pushEnabled',
         'peerXpDay', 'peerXpCount', 'keyGiftXpDay', 'keyGiftXpCount',
         'topicCountDay', 'topicCountToday', 'topicXpDay', 'topicXpCount',
-        'certPassed_prop', 'certPassed_tech', 'scholar_exam_passed', 'scholar_tech_passed'
+        'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
+        'lastExamAttempt_prop', 'lastExamAttempt_tech',
+        'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score'
       ];
     }
 
@@ -207,6 +209,8 @@ service cloud.firestore {
                         'pointsClaimed', 'pointsExchanged',
                         'lastSatsClaim', 'lastAwards', '_pendingClaim',
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
+                        'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
+                        'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
                         'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',
@@ -701,6 +705,12 @@ service cloud.firestore {
       allow read, write: if false; // Cloud Function only
     }
     match /totp_sessions/{docId} {
+      allow read, write: if false;
+    }
+    match /trusted_devices/{docId} {
+      allow read, write: if false;
+    }
+    match /totp_fresh_proofs/{docId} {
       allow read, write: if false;
     }
     match /recovery_codes/{docId} {
@@ -1686,6 +1696,17 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       // Writes only from Cloud Functions (server-side enforcement)
       allow write: if false;
+    }
+
+    // Quiz part completions. Cloud Functions only — not the client-editable
+    // completedQuests array on the user doc.
+    match /users/{userId}/quest_completions/{docId} {
+      allow read, write: if false;
+    }
+
+    // One pass per quiz part. gradeQuest writes this so questsPassed cannot be farmed.
+    match /users/{userId}/quest_passes/{docId} {
+      allow read, write: if false;
     }
 
     // Server-side badge award deduplication (Cloud Function only)

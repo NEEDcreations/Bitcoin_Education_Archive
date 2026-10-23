@@ -249,7 +249,7 @@ test('the offset day flips at 05:00 UTC', () => {
     assert.strictEqual(hit.notice, null);
 });
 
-test('xp uses the 1000 daily cap and redeems yesterday overflow', () => {
+test('xp uses the shared taper and does not redeem yesterday overflow', () => {
     const full = watch.planWatchXp(0, 0, '', '2026-10-22');
     assert.strictEqual(full.awarded, 100);
     assert.strictEqual(full.overflowAdded, 0);
@@ -257,23 +257,23 @@ test('xp uses the 1000 daily cap and redeems yesterday overflow', () => {
     assert.strictEqual(full.tickets, 1);
     const partial = watch.planWatchXp(950, 0, '', '2026-10-22');
     assert.strictEqual(partial.awarded, 50);
-    assert.strictEqual(partial.overflowAdded, 50);
-    assert.strictEqual(partial.pendingOverflow, 50);
-    assert.strictEqual(partial.touchOverflow, true);
+    assert.strictEqual(partial.overflowAdded, 0);
+    assert.strictEqual(partial.pendingOverflow, 0);
+    assert.strictEqual(partial.touchOverflow, false);
     assert.strictEqual(partial.tickets, 1);
     const capped = watch.planWatchXp(1000, 0, '', '2026-10-22');
     assert.strictEqual(capped.awarded, 0);
-    assert.strictEqual(capped.overflowAdded, 100);
-    assert.strictEqual(capped.pendingOverflow, 100);
+    assert.strictEqual(capped.overflowAdded, 0);
+    assert.strictEqual(capped.pendingOverflow, 0);
     assert.strictEqual(capped.tickets, 0);
     const redeem = watch.planWatchXp(0, 80, '2026-10-21', '2026-10-22');
-    assert.strictEqual(redeem.overflowRedeemed, 80);
+    assert.strictEqual(redeem.overflowRedeemed, 0);
     assert.strictEqual(redeem.awarded, 100);
     assert.strictEqual(redeem.pendingOverflow, 0);
-    assert.strictEqual(redeem.touchOverflow, true);
+    assert.strictEqual(redeem.touchOverflow, false);
     const sameDay = watch.planWatchXp(0, 80, '2026-10-22', '2026-10-22');
     assert.strictEqual(sameDay.overflowRedeemed, 0);
-    assert.strictEqual(sameDay.pendingOverflow, 80);
+    assert.strictEqual(sameDay.pendingOverflow, 0);
 });
 
 test('button text shows minutes, then done', () => {
@@ -303,8 +303,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     assert.ok(src.includes("collection('tctv_presence')"));
     assert.ok(src.includes('isFreshPresence'));
     assert.ok(src.includes('isTctvStation'));
-    assert.ok(src.includes('satsDisabled'));
-    assert.ok(src.includes('ledger.banned'));
+    assert.ok(src.includes('rewardBlocked'));
     assert.ok(src.includes('rewardNotify.apply'));
     assert.ok(src.includes('decision.notice'));
     assert.ok(src.includes('planWatchXp'));
@@ -317,7 +316,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     const logic = read('functions/src/tctvWatch.js');
     assert.ok(logic.includes("onceKey: 'tctv_watch_' + cleanDay"));
     assert.ok(logic.includes('rewardNotify.plan'));
-    assert.ok(logic.includes('splitDailyXp'));
+    assert.ok(logic.includes('planDailyXp'));
     assert.ok(logic.includes('offsetDateKey'));
     assert.ok(src.includes('runTransaction'));
     assert.ok(src.includes('orangeTickets'));
@@ -388,7 +387,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261022_v2322'));
+    assert.ok(html.includes('features.registry.js?v=20261023_v2330'));
     assert.ok(client.includes('getDailyKey'));
     assert.ok(client.includes('IntersectionObserver'));
     assert.strictEqual(client.includes('600000'), false);
@@ -400,7 +399,14 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2333'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2335'"));
+    assert.ok(!sw.includes('btc-archive-v2334'));
+    assert.ok(!sw.includes('btc-archive-v2333'));
+    assert.ok(!sw.includes('btc-archive-v2332'));
+    assert.ok(!sw.includes('btc-archive-v2331'));
+    assert.ok(!sw.includes('btc-archive-v2330'));
+    assert.ok(!sw.includes('btc-archive-v2329'));
+    assert.ok(!sw.includes('btc-archive-v2325'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

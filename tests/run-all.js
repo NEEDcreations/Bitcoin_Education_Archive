@@ -31,6 +31,7 @@ const TESTS = [
     { name: 'Activity Shoutouts', file: 'test-activity-shoutout.js' },
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
+    { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Leave', file: 'test-tctv-leave.js' },
@@ -48,6 +49,9 @@ const TESTS = [
     { name: 'Choose faction', file: 'test-choose-faction.js' },
     { name: 'User SF points', file: 'test-user-sf-points.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
+    { name: 'Shared daily XP cap', file: 'test-daily-xp-cap.js' },
+    { name: 'Proof of Walk daily cap', file: 'test-proof-of-walk.js' },
+    { name: 'XP bank payout dry run', file: 'test-xp-bank-payout.js' },
     { name: 'Server ticket grants', file: 'test-ticket-grants.js' },
     { name: 'Account deletion', file: 'test-delete-account.js' },
     { name: 'PvP Flow', file: 'test-pvp-flow.js' },
@@ -66,8 +70,10 @@ const TESTS = [
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Email link and guest merge', file: 'test-email-link.js' },
     { name: 'Two-factor auth', file: 'test-totp.js' },
+    { name: 'Remembered device retry', file: 'test-mfa-device.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
+    { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
 ];
 
 let allPassed = true;

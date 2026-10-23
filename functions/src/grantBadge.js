@@ -1,8 +1,5 @@
 'use strict';
 
-const { DAILY_XP_CAP } = require('./applyDailyXp');
-const BADGE_DAILY_CAP = DAILY_XP_CAP;
-
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
     return shifted.toISOString().slice(0, 10);
@@ -95,5 +92,4 @@ module.exports = {
     grantFamily: grantFamily,
     familyFor: familyFor,
     offsetDateKey: offsetDateKey,
-    BADGE_DAILY_CAP: BADGE_DAILY_CAP,
 };

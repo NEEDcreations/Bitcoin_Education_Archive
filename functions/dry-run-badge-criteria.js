@@ -14,7 +14,7 @@ const { heldThatFail } = require('./src/badgeDistribution');
 function tally(rows) {
     const counts = {};
     rows.forEach(function (row) {
-        heldThatFail(row.user, row.awards).forEach(function (id) {
+        heldThatFail(row.user, row.awards, row.ctx).forEach(function (id) {
             counts[id] = (counts[id] || 0) + 1;
         });
     });
@@ -47,7 +47,12 @@ async function live() {
                 const data = row.data() || {};
                 ids.push(/^[A-Za-z0-9]{20,}$/.test(row.id) ? (data.badge || data.badgeId || '') : row.id);
             });
-            rows.push({ user: doc.data() || {}, awards: ids.filter(Boolean) });
+            let ctx = null;
+            if (ids.indexOf('scholar') !== -1) {
+                const exams = await db.collection('scholar_exam_keys').where('uid', '==', doc.id).get();
+                ctx = { scholarExamPassed: !!require('./src/scholarExam').passedExam(exams, 'properties', null) };
+            }
+            rows.push({ user: doc.data() || {}, awards: ids.filter(Boolean), ctx: ctx });
         }
         cursor = snap.docs[snap.docs.length - 1];
         if (snap.size < 200) break;

@@ -184,9 +184,11 @@ test('daily cap still grants the ticket when XP overflows', function () {
     assert.strictEqual(full.xp.awarded, 0);
     assert.strictEqual(full.xp.tickets, 1);
     assert.strictEqual(full.ok, true);
-    const partial = sayHi.planSayHiXp(980, 0, '', '2026-10-22');
+    const partial = sayHi.planSayHiXp(980, 40, '2026-10-21', '2026-10-22');
     assert.strictEqual(partial.awarded, 20);
-    assert.strictEqual(partial.overflowAdded, 30);
+    assert.strictEqual(partial.overflowAdded, 0);
+    assert.strictEqual(partial.overflowRedeemed, 0);
+    assert.strictEqual(partial.tickets, 1);
 });
 
 test('handlers refuse signed-out and anonymous callers', async function () {
@@ -409,7 +411,17 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2279'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2333'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2335'"));
+    assert.ok(sw.includes('btc-archive-v2334') === false);
+    assert.ok(sw.includes('btc-archive-v2333') === false);
+    assert.ok(sw.includes('btc-archive-v2332') === false);
+    assert.ok(!sw.includes('btc-archive-v2331'));
+    assert.ok(!sw.includes('btc-archive-v2330'));
+    assert.ok(sw.includes('btc-archive-v2329') === false);
+    assert.ok(sw.includes('btc-archive-v2327') === false);
+    assert.ok(sw.includes('btc-archive-v2326') === false);
+    assert.ok(sw.includes('btc-archive-v2325') === false);
+    assert.ok(sw.includes('btc-archive-v2324') === false);
     assert.ok(sw.includes('btc-archive-v2322') === false);
     assert.ok(sw.includes('btc-archive-v2323') === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2295'") === false);
@@ -423,7 +435,8 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
-    assert.ok(html.includes('ranking.js?v=20261023_v2324'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2334'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2333') === false);
     assert.ok(html.includes('id="sayHiBtnLabel">Say hi!</span>'));
     assert.ok(html.includes('Said hi') === false);
 });

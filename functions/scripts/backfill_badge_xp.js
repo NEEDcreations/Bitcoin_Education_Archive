@@ -8,12 +8,15 @@
  * when one of those also lists it. Client-only fields are ignored.
  * Flex is counted from daily_action_counts/{day}_flex_{action} docs, not
  * flexTotals. Pays max(0, newXP - alreadyPaid) and never claws back.
- * alreadyPaid is the award row's xp field when that field is present,
- * otherwise the old XP table.
+ * alreadyPaid is the award row's xp field when that field is present.
+ * A legacy row with xp 0 already paid the old table amount, so only the
+ * difference is added. A non-legacy xp 0 was earned while the daily cap
+ * recorded nothing; that badge is paid in full and listed on its own.
+ * Otherwise a missing xp field uses the old XP table.
  *
  * Idempotent via users/{uid}/xp_ledger/{badgeId} tagged badge_xp_backfill.
- * Writes lifetime points and the level name only. Weekly and monthly
- * leaderboards are left alone. The daily cap is bypassed on purpose:
+ * Writes lifetime points only. Weekly and monthly leaderboards are left
+ * alone. The daily cap is bypassed on purpose:
  * applyDailyXp(uid, amount, null, { bypass: true }).
  *
  * A top-up that crosses a rank writes the same Satoshi's Favor level-up
@@ -36,8 +39,9 @@ function helpText() {
     return [
         'Usage: node functions/scripts/backfill_badge_xp.js [--apply]',
         '',
-        'Dry-run prints XP, level-ups, and Favor points. --apply writes',
-        'lifetime XP, the level, an xp_ledger row, and level-up Favor docs.',
+        'Dry-run prints XP, level-ups, Favor by faction, and capped-at-zero',
+        'badges. --apply writes lifetime XP, an xp_ledger row, and level-up',
+        'Favor docs.',
         'It does not change the live Favor pool or the weekly/monthly boards.',
     ].join('\n');
 }
@@ -80,6 +84,8 @@ async function main() {
         favorPoints: 0,
         markers: 0,
         favorByFaction: { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 },
+        cappedZeroBadges: 0,
+        cappedZeroXp: 0,
         excluded: { 'hidden-only': 0, 'client-writable-field': 0, 'not-in-catalog': 0 },
     };
     let cursor = null;
@@ -159,14 +165,20 @@ async function main() {
                 paying.push(row);
                 counts.badges += 1;
                 counts.xp += grant.awarded;
+                if (row.cappedZero) {
+                    counts.cappedZeroBadges += 1;
+                    counts.cappedZeroXp += grant.awarded;
+                }
             }
             counts.levelUps += plan.levelUps.length;
             counts.favorPoints += plan.favorPoints;
+            if (plan.favorPoints > 0) {
+                counts.favorByFaction[factionBucket(user.faction)] += plan.favorPoints;
+            }
             if (!args.apply || (paying.length === 0 && plan.levelUps.length === 0)) continue;
             if (paying.length) {
                 const userUpdate = {
                     points: admin.firestore.FieldValue.increment(plan.xp),
-                    level: plan.level,
                 };
                 batch.update(userDoc.ref, userUpdate);
                 pending += 1;
@@ -190,7 +202,6 @@ async function main() {
             }
             if (plan.levelUps.length) {
                 const faction = user.faction === 'cyber_hornets' || user.faction === 'honey_badgers' ? user.faction : null;
-                const bucket = factionBucket(faction);
                 let favorSum = 0;
                 plan.levelUps.forEach(function (rank) {
                     favorSum += rank.points;
@@ -206,7 +217,6 @@ async function main() {
                     });
                     pending += 1;
                 });
-                counts.favorByFaction[bucket] += favorSum;
                 batch.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(userDoc.id), {
                     uid: userDoc.id,
                     points: admin.firestore.FieldValue.increment(favorSum),
@@ -236,6 +246,11 @@ async function main() {
     console.log('badges: ' + counts.badges);
     console.log('level-ups: ' + counts.levelUps);
     console.log('favor points: ' + counts.favorPoints);
+    console.log('favor cyber_hornets: ' + counts.favorByFaction.cyber_hornets);
+    console.log('favor honey_badgers: ' + counts.favorByFaction.honey_badgers);
+    console.log('favor unaffiliated: ' + counts.favorByFaction.unaffiliated);
+    console.log('capped-at-zero badges: ' + counts.cappedZeroBadges);
+    console.log('capped-at-zero xp: ' + counts.cappedZeroXp);
     console.log('banned: ' + counts.banned);
     console.log('excluded hidden-only: ' + counts.excluded['hidden-only']);
     console.log('excluded client-writable-field: ' + counts.excluded['client-writable-field']);

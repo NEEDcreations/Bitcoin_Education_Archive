@@ -1,6 +1,6 @@
 # Badge verification
 
-The client is hostile. `awardPoints` grants a badge only when `badgeRules.meets()` is true for server-owned data. Every grant goes through `awardBadge`. `grantBadgeIfEarned` delegates to it. One transaction verifies the badge, writes `badge_awards`, and, only if `satoshiFavor/current/contributors/{uid}_badge_{badgeId}` is missing, adds one Satoshi's Favor point and increments `satoshiFavor/userSfPoints/users/{uid}` the same way `contributeFavor` does. The tier is part of the badge id. A second award of the same id does not add a second point. `rewardBlocked` skips `ban_reason`, `banned`, `satsDisabled`, and `faucet_ledger/{uid}.banned`. Badge XP amounts come from `badge-xp.json`. The grant calls `applyDailyXp`. Until the shared taper lands, that is a hard 1,000 daily cap and the rest is held on `pendingOverflow` instead of being thrown away. If that cap leaves 0 XP for today, the badge and the Favor point are still written. Flex badges count `daily_action_counts` claim docs, not `flexTotals`. `functions/scripts/backfill_badge_xp.js` tops up the difference for badges that pass today, bypasses the daily cap, and was not run. Unverified cosmetic badges return `{ success: true, cosmetic: true, awarded: 0 }` and do not write `badge_awards` or Favor. `contributeFavor` rejects `badge_earned`. `creditDailyAllThree` uses the same ban check.
+The client is hostile. `awardPoints` grants a badge only when `badgeRules.meets()` is true for server-owned data. Every grant goes through `awardBadge`. `grantBadgeIfEarned` delegates to it. One transaction verifies the badge, writes `badge_awards`, and, only if `satoshiFavor/current/contributors/{uid}_badge_{badgeId}` is missing, adds one Satoshi's Favor point and increments `satoshiFavor/userSfPoints/users/{uid}` the same way `contributeFavor` does. The tier is part of the badge id. A second award of the same id does not add a second point. `rewardBlocked` skips `ban_reason`, `banned`, `satsDisabled`, and `faucet_ledger/{uid}.banned`. Badge XP amounts come from `badge-xp.json`. The grant calls `applyDailyXp` (full XP until 600, half until 1,000, then 0). The remainder is dropped. Badge grants do not write `pendingOverflow`. If that cap leaves 0 XP for today, the badge and the Favor point are still written. Flex badges count `daily_action_counts` claim docs, not `flexTotals`. `functions/scripts/backfill_badge_xp.js` tops up the difference for badges that pass today, bypasses the daily cap, and was not run. Unverified cosmetic badges return `{ success: true, cosmetic: true, awarded: 0 }` and do not write `badge_awards` or Favor. `contributeFavor` rejects `badge_earned`. `creditDailyAllThree` uses the same ban check.
 
 ## Pays from a server counter or server profile
 
@@ -36,7 +36,7 @@ These counters are incremented only by Cloud Functions that already checked the 
 - `orangeTickets` — ticket grants inside `awardPoints` and `dailySpin`. `ticket_bronze`, `ticket_silver`, and `ticket_gold` read it
 - `streakFreezesUsed` — `recordDailyVisit` when a freeze covers a missed day
 - `ghost_reader` — server `streak >= 7` and `points === 0`
-- `genesis` — `visitedChannelsList` contains `whitepaper`. `first_post`, `first_reply`, `market_seller`, `market_buyer`, `scholar` (`certPassed_prop` or `scholar_exam_passed`), and `hash_obsessed` (`sfHashes >= 25000`) read the same counters as their public twins
+- `genesis` — `visitedChannelsList` contains `whitepaper`. `first_post`, `first_reply`, `market_seller`, `market_buyer`, and `hash_obsessed` (`sfHashes >= 25000`) read the same counters as their public twins. `scholar` is a `scholar_exam_keys` doc for that account with `type: properties` and `passed: true`. Profile flags such as `certPassed_prop` and `scholar_exam_passed` are not the proof
 - Milestone and set badges — count of non-cosmetic `badge_awards`. A set now requires any member that has a server source, including tip, trivia, and quest members
 
 `replyBonusCount` is incremented inside `claimReplyBonus` after that function's own checks (PR #46 is on this base).
@@ -78,14 +78,11 @@ Hidden-badge XP is no longer paid by the client. Firestore rules deny client wri
 
 ## Waiting on another change
 
-Nothing in this deploy writes these, so claims fail closed:
+Nothing in this deploy writes `plebTalkSessions`, so those claims fail closed. `replyBonusCount` is incremented inside `claimReplyBonus`.
 
-- `plebTalkSessions` — there is no PlebTalk session writer
-- `replyBonusCount` — the reply-bonus counter is still not incremented on this path
+`questDays` is written once per offset day in `gradeQuest` when the score is at least 3 and the account is not banned. `tctvWatchDays` increments when `tctvWatchHeartbeat` creates the daily ticket claim. `giftsSent` counts peer keys that were actually used. `onboardingComplete` is set when onboarding finishes. `pushEnabled` is set by `onPushDeviceWritten` after a device token is stored. `pushToken` is not the proof field. Scholar badges read `scholar_exam_keys`, not the client cert flags.
 
-`questDays` is written once per offset day in `gradeQuest`. `tctvWatchDays` increments when `tctvWatchHeartbeat` creates the daily ticket claim. `giftsSent` counts peer keys that were actually used. `onboardingComplete` is set when onboarding finishes. `pushEnabled` is set by `onPushDeviceWritten` after a device token is stored. `pushToken` is not the proof field.
-
-Badge XP and the new per-action XP (peer key use, first accepted peer, counted topic comment) taper after 600 and stop at 1,000. Overflow from that path is dropped. Quest, Timechain TV, reply, and key-send XP still use the 500 cap and may bank overflow.
+Badge XP, peer-key use, and a first accepted peer request go through `applyDailyXp`. That hook calls `planDailyXp` (`planBadgeDailyXp` is the same function). Full XP until 600, half until 1,000, then 0. The rest is dropped. Topic-discussion messages and their Pleb Talk or forum mirrors do not also receive the 5 XP comment grant. Those messages can still move the topic-comment badge counters after they stay visible for 24 hours. A comment that is not a topic-discussion post and not one of those mirrors can still earn that 5 XP, up to 3 times a day. No writer in this deploy creates that kind of comment.
 
 ## Not revoked
 
@@ -101,7 +98,7 @@ Existing `badge_awards` and `visibleBadges` entries are left in place. `function
 
 1. `firestore.rules` — profile denylist of server-only fields (live client saves stay writable, including `notificationPrefs`, `beatsShowUncensored`, `completedQuests`, `lqProgress`, and the client `spinCount` field; `referredBy` and `mergedAnon` are denied client writes; `lastTriviaDate`, `lastPollDate`, `lastQuestDate`, `hiddenBadges`, and the family counters `flexTotals`, `flexAllDays`, `triviaCorrect`, `triviaStreakDay`, `questsPassed`, `lqPassed`, `spinDays`, `spinStreak`, `spinHitRare`, `spinClosetAwards`, `tipsVerified`, `tipsSentSats`, `tipsReceived`, `raidDamageAllTime`, `raidBossesDefeated`, `raidWins`, and `streakFreezesUsed` are server-only), `poll_votes` client writes off, server-only `market_listing_daily`, `market_message_counts`, `market_sale_counts`, and `polls/{day}/votes`.
 2. Functions — `awardBadge` on every grant path (badges, donations, weekly hero, peers, combos, counters), `contributeFavor` without `badge_earned`, `dailyPollVote`, listing cap, message and sale triggers, activity counters, `claimSayHi` / `armSayHi`, trifecta credit with `rewardBlocked`, nightly reconcile, distribution refresh, anon-badge recompute, donation cap, peer grants.
-3. Hosting. The service worker placeholder is `btc-archive-v2324` and is renumbered at merge. `index.html` and `404.html` stay identical.
+3. Hosting. The service worker placeholder is `btc-archive-v2335` and is renumbered at ship. `index.html` and `404.html` stay identical.
 
 `claimSayHi` and `armSayHi` must be deployed. Production had no Say hi claims; the callable is the only writer, App Check stays enforced, and a failed claim now toasts and retries once. A message timestamped before the arm is still rejected.
 

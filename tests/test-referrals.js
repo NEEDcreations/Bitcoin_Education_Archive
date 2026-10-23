@@ -363,6 +363,16 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(html.includes('🎟️ Invite'));
     assert.ok(html.includes('Sign up to get your invite link'));
     assert.ok(html.includes('.invite-card { display: none; position: fixed; top: 16px; right: 16px;'));
+    assert.ok(html.includes('.invite-card[data-state="min"]'));
+    assert.ok(html.includes('calc(186px + env(safe-area-inset-top, 0px))'));
+    assert.ok(html.includes('calc(262px + env(safe-area-inset-top, 0px))'));
+    assert.ok(html.includes('calc(50dvh - 22px)'));
+    assert.ok(html.includes('env(safe-area-inset-right, 0px)'));
+    assert.ok(html.includes('env(safe-area-inset-top, 0px)'));
+    assert.ok(html.includes('env(safe-area-inset-bottom, 0px)'));
+    assert.ok(html.includes('body:has(#usernameModal.open) .invite-card[data-state="min"]'));
+    assert.ok(html.includes('id="todayInviteGuest"'));
+    assert.ok(html.includes('body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteCard { display: none !important; }'));
     assert.ok(html.includes("onclick=\"openInviteFriends(true)\"") === false);
     assert.ok(tickets.includes('function openInviteFriends'));
     assert.ok(tickets.includes('function getReferralStats'));
@@ -412,7 +422,7 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(ranking.indexOf('deleteMyReferralSignal') !== -1);
     const indexJs = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
     const scholar = indexJs.slice(indexJs.indexOf('exports.gradeScholarExam'), indexJs.indexOf('exports.startQuest'));
-    assert.ok(scholar.indexOf('pointsAwarded = 2100') !== -1);
+    assert.ok(scholar.indexOf('planDailyXp(scholarUsed, 2100)') !== -1);
     assert.ok(scholar.indexOf('scholarPoints') !== -1);
     assert.ok(indexJs.indexOf('activeDayKeys') !== -1);
     assert.ok(rules.includes('resource.data.referrerUid == request.auth.uid'));

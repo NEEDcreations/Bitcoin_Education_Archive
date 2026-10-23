@@ -2,10 +2,9 @@
 
 // Exact-action allowlist for awardPoints.
 // Client phrases map to a fixed XP amount (or a closed set of amounts).
-// Tickets are never granted here. Callers drop XP past the daily cap.
+// Tickets are never granted here. Every action shares the 600 / 1,000 taper.
 
-const DAILY_CAP = 1000;
-const TRIVIA_QUIZ_CAP = 500;
+const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
 
 const ALLOWED_ACTION_KEYS = {
     flex_action: true,
@@ -424,20 +423,19 @@ function resolveAction(input) {
 
 function planGrant(opts) {
     const src = opts || {};
-    const cap = src.dailyCap == null ? DAILY_CAP : src.dailyCap;
-    const triviaCap = src.triviaCap == null ? TRIVIA_QUIZ_CAP : src.triviaCap;
     const used = Math.max(0, Number(src.dailyUsed) || 0);
-    const triviaUsed = Math.max(0, Number(src.triviaQuizUsed) || 0);
-    let room = Math.max(0, cap - used);
-    if (src.triviaQuiz) room = Math.min(room, Math.max(0, triviaCap - triviaUsed));
     const want = Math.max(0, Number(src.xp) || 0);
-    const awarded = Math.min(want, room);
+    const plan = planDailyXp(used, want);
     return {
-        awarded: awarded,
-        dropped: want - awarded,
+        awarded: plan.awarded,
+        dropped: want - plan.awarded,
         overflowAdded: 0,
         tickets: 0,
-        capped: (used + awarded >= cap) || (!!src.triviaQuiz && triviaUsed + awarded >= triviaCap),
+        capped: plan.capped,
+        pastCap: plan.pastCap,
+        dailyXp: plan.dailyXp,
+        dailyCap: DAILY_CAP,
+        fullUntil: TAPER_FULL_UNTIL,
     };
 }
 
@@ -513,7 +511,7 @@ function applyAward(mem, uid, data, opts) {
         xp = catalog[badgeId];
     }
 
-    const daily = store.daily[uid] || { total: 0, triviaQuiz: 0 };
+    const daily = store.daily[uid] || { total: 0 };
     const countKey = uid + '/' + countDocId(resolved, day);
     const usedCount = store.counts[countKey] || 0;
     if (usedCount >= resolved.dailyLimit) {
@@ -550,16 +548,11 @@ function applyAward(mem, uid, data, opts) {
     const grant = planGrant({
         xp: xp,
         dailyUsed: daily.total || 0,
-        triviaQuizUsed: daily.triviaQuiz || 0,
-        triviaQuiz: resolved.triviaQuiz,
-        dailyCap: opts && opts.dailyCap != null ? opts.dailyCap : DAILY_CAP,
-        triviaCap: opts && opts.triviaCap != null ? opts.triviaCap : TRIVIA_QUIZ_CAP,
     });
 
     if (grant.awarded > 0) {
         user.points = (user.points || 0) + grant.awarded;
         daily.total = (daily.total || 0) + grant.awarded;
-        if (resolved.triviaQuiz) daily.triviaQuiz = (daily.triviaQuiz || 0) + grant.awarded;
         store.daily[uid] = daily;
         store.counts[countKey] = usedCount + 1;
         if (!resolved.badge) store.claims[claimKey] = true;
@@ -582,6 +575,10 @@ function applyAward(mem, uid, data, opts) {
         overflowRedeemed: 0,
         pendingOverflow: user.pendingOverflow || 0,
         capped: grant.capped,
+        pastCap: grant.pastCap,
+        dailyXp: grant.dailyXp,
+        dailyCap: grant.dailyCap,
+        fullUntil: grant.fullUntil,
         id: resolved.id,
         orangeTickets: user.orangeTickets || 0,
         banned: false,
@@ -590,7 +587,6 @@ function applyAward(mem, uid, data, opts) {
 
 module.exports = {
     DAILY_CAP: DAILY_CAP,
-    TRIVIA_QUIZ_CAP: TRIVIA_QUIZ_CAP,
     FLEX_IDS: FLEX_IDS,
     FLEX_DAY_GOAL: FLEX_DAY_GOAL,
     LQ_TITLES: LQ_TITLES,

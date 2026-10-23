@@ -196,7 +196,7 @@ const FAUCET = {
 // New setups fail closed until TOTP_ENCRYPTION_KEY is a 64-hex secret.
 // Existing plaintext secrets still verify. Deploy the bound functions, then
 // run migrate-totp-secrets.js (dry run, then --apply).
-const { initSecondFactor } = require('./src/secondFactor');
+const { initSecondFactor, sweepExpiredMfaRows } = require('./src/secondFactor');
 const secondFactor = initSecondFactor({
     db: db,
     admin: admin,
@@ -210,6 +210,12 @@ exports.totpCheck = secondFactor.totpCheck;
 exports.totpDisable = secondFactor.totpDisable;
 exports.totpStatus = secondFactor.totpStatus;
 exports.totpRevokeSession = secondFactor.totpRevokeSession;
+exports.totpResumeDevice = secondFactor.totpResumeDevice;
+exports.totpStepUp = secondFactor.totpStepUp;
+exports.totpListDevices = secondFactor.totpListDevices;
+exports.totpRevokeDevice = secondFactor.totpRevokeDevice;
+exports.totpSignOutOtherDevices = secondFactor.totpSignOutOtherDevices;
+exports.totpRevokeAllTrust = secondFactor.totpRevokeAllTrust;
 exports.issueRecoveryCodes = secondFactor.issueRecoveryCodes;
 exports.regenerateRecoveryCodes = secondFactor.regenerateRecoveryCodes;
 exports.useRecoveryCode = secondFactor.useRecoveryCode;
@@ -1369,7 +1375,7 @@ exports.payQualifiedReferrals = onSchedule({
 
 // =============================================
 // NOTE: Old allowedAwards-based awardPoints removed - replaced by daily-cap version below (line ~1527)
-// That version enforces 500 pts/day via atomic Firestore transaction in daily_points subcollection
+// That version enforces the shared 1,000 XP/day cap (full through 600, then half) via daily_points
 
 // =============================================
 // AUDIT FIX: Server-Side Daily Limit Check
@@ -2866,6 +2872,15 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     if (pvpFlow.isClientPvpReward(actionKey, action)) {
         return { success: false, error: 'PvP rewards are granted by the server', awarded: 0 };
     }
+    // Trivia and quiz XP are graded by answerTrivia / gradeQuest against the
+    // server question bank. awardPoints must not pay a client claim.
+    if (
+        actionKey === 'trivia_correct' || actionKey === 'trivia_attempt' ||
+        actionKey === 'quest_complete' || actionKey === 'quest_retry' || actionKey === 'quest_partial' ||
+        /trivia[_\s-]*quest[_\s-]*correct|trivia_correct|trivia[_\s-]*quest[_\s-]*attempt|trivia_attempt/i.test(action)
+    ) {
+        return { success: false, error: 'Quiz and trivia rewards are graded on the server', awarded: 0 };
+    }
 
     // ── SERVER-SIDE BADGE VALUE CATALOG ──
     // Every badge the client can earn mapped to its exact XP value.
@@ -3262,7 +3277,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             const [
                 cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc,
                 tctvTicketDoc, trifectaTicketDoc, quizProofDoc, triviaProofDoc, pollProofDoc,
-                flexProofDoc
+                flexProofDoc, ledgerDoc
             ] = await Promise.all([
                 cooldownRef ? t.get(cooldownRef) : Promise.resolve(null),
                 badgeAwardRef ? t.get(badgeAwardRef) : Promise.resolve(null),
@@ -3276,6 +3291,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 triviaProofRef ? t.get(triviaProofRef) : Promise.resolve(null),
                 pollProofRef ? t.get(pollProofRef) : Promise.resolve(null),
                 flexProofRef ? t.get(flexProofRef) : Promise.resolve(null),
+                t.get(db.collection('faucet_ledger').doc(uid)),
             ]);
 
             if (cooldownDoc && cooldownDoc.exists) {
@@ -3296,7 +3312,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
-            if (userData.ban_reason) throw new Error('BANNED');
+            const ledger = ledgerDoc && ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+            if (userData.ban_reason || userData.banned === true || userData.satsDisabled === true || ledger.banned === true) {
+                throw new Error('BANNED');
+            }
             if (resolved.requiresDoubleXp && !doubleXp.isActive(userData, Date.now())) {
                 throw new Error('DOUBLE_XP_REQUIRED');
             }
@@ -3366,14 +3385,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (claimDoc && claimDoc.exists) throw new Error('ALREADY_CLAIMED');
 
             const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            const triviaQuizUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
             const grant = awardActions.planGrant({
                 xp: pts,
                 dailyUsed: dailyUsed,
-                triviaQuizUsed: triviaQuizUsed,
-                triviaQuiz: resolved.triviaQuiz,
                 dailyCap: DAILY_CAP,
-                triviaCap: awardActions.TRIVIA_QUIZ_CAP,
             });
             const awarded = grant.awarded;
             const capped = grant.capped;
@@ -3462,12 +3477,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.update(userRef, userUpdate);
             }
             if (awarded > 0) {
-                const dailyWrite = {
+                t.set(dailyPtsRef, {
                     total: dailyUsed + awarded,
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-                };
-                if (resolved.triviaQuiz) dailyWrite.triviaQuiz = triviaQuizUsed + awarded;
-                t.set(dailyPtsRef, dailyWrite, { merge: true });
+                }, { merge: true });
             }
             if (cooldownRef && awarded > 0) {
                 t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
@@ -3504,6 +3517,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 overflowAdded: 0,
                 overflowRedeemed: 0,
                 pendingOverflow: userData.pendingOverflow || 0,
+                pastCap: grant.pastCap,
+                dailyXp: grant.dailyXp,
+                dailyCap: grant.dailyCap,
+                fullUntil: grant.fullUntil,
                 channelTracked: channelTracked,
                 progress: progress,
                 doubled: xpBoost.doubled,
@@ -3577,6 +3594,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         overflowAdded: 0,
         overflowRedeemed: 0,
         pendingOverflow: transactionResult.pendingOverflow,
+        pastCap: transactionResult.pastCap === true,
+        dailyXp: transactionResult.dailyXp,
+        dailyCap: transactionResult.dailyCap,
+        fullUntil: transactionResult.fullUntil,
         channelTracked: transactionResult.channelTracked,
         doubled: !!transactionResult.doubled,
         doubleXpUntil: transactionResult.doubleXpUntil || 0,
@@ -4154,7 +4175,12 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     }
 
     const result = await db.runTransaction(async (tx) => {
+        const spinDay = getOffsetDateKey();
+        const dailyRef = userRef.collection('daily_points').doc(spinDay);
+        const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const userDoc = await tx.get(userRef);
+        const dailyDoc = await tx.get(dailyRef);
+        const ledgerDoc = await tx.get(ledgerRef);
         if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
@@ -4183,9 +4209,15 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
-        // The wheel is once a day and is not run through the daily points cap,
-        // so Double XP does not apply here.
+        // Double XP does not apply. The wheel still shares the 600 / 1,000 cap.
         const spinDoubled = false;
+        const spinLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+        const spinBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || spinLedger.banned === true;
+        const spinUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
+        if (spinBlocked) totalPts = 0;
+        else if (totalPts > 0) {
+            totalPts = require('./src/dailyXp').planDailyXp(spinUsed, totalPts).awarded;
+        }
 
         // Atomic update
         const update = {};
@@ -4208,6 +4240,12 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) update.spinClosetAwards = admin.firestore.FieldValue.increment(1);
         const spinRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, totalPts);
         tx.update(userRef, update);
+        if (totalPts > 0) {
+            tx.set(dailyRef, {
+                total: spinUsed + totalPts,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
         try {
             const spinGains = reward.closet ? ['👔 a closet drop'] : [];
             rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
@@ -4522,17 +4560,42 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const keyPrefix = type === 'technical' ? 'tech' : 'prop';
         const today = new Date().toISOString().split('T')[0];
 
-        // Read user doc to enforce once-per-day + once-per-cert rules
+        // Read user doc for the daily cooldown. The pass guard is a
+        // scholar_exam_keys row. The client cannot write or delete those.
+        // gradeScholarExam is the only writer of certPassed_*, certPassedAt_*,
+        // and lastExamAttempt_*.
         const userRef = db.collection('users').doc(uid);
+        const scholarDay = getOffsetDateKey();
+        const dailyRef = userRef.collection('daily_points').doc(scholarDay);
+        const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const userDoc = await tx.get(userRef);
+        const dailyDoc = await tx.get(dailyRef);
+        const ledgerDoc = await tx.get(ledgerRef);
         const userData = userDoc.exists ? userDoc.data() : {};
-        const alreadyPassed = userData['certPassed_' + keyPrefix] === true;
+        const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+        const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, examId);
         const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
 
-        // Block double-dipping: once passed, no more points for this cert type
+        // A passed exam record means no more XP for this cert type, even if
+        // the profile flags were cleared.
         if (alreadyPassed) {
-            tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'already_certified', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-            throw new functionsV1.https.HttpsError('failed-precondition', 'You already hold this certification.');
+            tx.update(examRef, {
+                graded: true,
+                score: 0,
+                passed: false,
+                blocked: 'already_certified',
+                gradedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            if (userDoc.exists) {
+                const repair = {};
+                repair['lastExamAttempt_' + keyPrefix] = today;
+                repair['certPassed_' + keyPrefix] = true;
+                if (!userData['certPassedAt_' + keyPrefix]) {
+                    repair['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
+                }
+                tx.update(userRef, repair);
+            }
+            return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified' };
         }
         // Block rapid retakes same day (daily cooldown)
         if (lastAttempt === today) {
@@ -4548,8 +4611,14 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         }
 
         const passed = score >= 20;
-        const scholarRankPrev = passed
-            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, 2100)
+        const scholarLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+        const scholarBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || scholarLedger.banned === true;
+        const scholarUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
+        const scholarPlan = (passed && !scholarBlocked)
+            ? require('./src/dailyXp').planDailyXp(scholarUsed, 2100)
+            : { awarded: 0 };
+        const scholarRankPrev = scholarPlan.awarded > 0
+            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.awarded)
             : {};
 
         // Mark exam as graded
@@ -4562,26 +4631,33 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         let pointsAwarded = 0;
         if (passed) {
-            // Award points server-side. Still increments directly (outside daily cap by design),
-            // but now limited to ONCE per cert type thanks to the alreadyPassed gate above.
-            pointsAwarded = 2100;
-            update.points = admin.firestore.FieldValue.increment(pointsAwarded);
-            update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
+            // Once per cert type. The 2,100 XP still shares the daily 600 / 1,000 taper.
+            pointsAwarded = scholarPlan.awarded;
+            if (pointsAwarded > 0) {
+                update.points = admin.firestore.FieldValue.increment(pointsAwarded);
+                update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
+            }
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
 
         tx.update(userRef, update);
-        if (passed) {
+        if (pointsAwarded > 0) {
+            tx.set(dailyRef, {
+                total: scholarUsed + pointsAwarded,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+        if (passed && pointsAwarded > 0) {
             try {
                 rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
                     uid: uid,
                     onceKey: 'scholar_' + keyPrefix,
-                    xp: 2100,
+                    xp: pointsAwarded,
                     sourceLabel: type === 'technical' ? 'the protocol exam' : 'the scholar exam',
                     icon: '🎓',
                     pointsBefore: userData.points || 0,
-                    pointsDelta: 2100,
+                    pointsDelta: pointsAwarded,
                     prevById: scholarRankPrev,
                 }));
             } catch (notifyErr) {
@@ -4596,222 +4672,23 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         try { await grantFamily(db, admin, uid, ['scholar']); }
         catch (scholarBadgeErr) { console.warn('[SCHOLAR] badge', scholarBadgeErr && scholarBadgeErr.message); }
     }
-    return { success: true, score: result.score, passed: result.passed, type: result.type, pointsAwarded: result.pointsAwarded || 0 };
+    return {
+        success: true,
+        score: result.score,
+        passed: result.passed,
+        type: result.type,
+        pointsAwarded: result.pointsAwarded || 0,
+        blocked: result.blocked || null
+    };
 });
 
-// ── Quest: Server-Side Grading ──
-exports.startQuest = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const { questions, topicKey } = data || {};
-    if (!questions || !Array.isArray(questions) || questions.length < 3 || questions.length > 5) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Must have 3-5 questions');
-    }
-
-    const uid = context.auth.uid;
-
-    // Server-side guard: reject if user already perfected this topic
-    if (topicKey) {
-        const userDoc = await db.collection('users').doc(uid).get();
-        if (userDoc.exists) {
-            const completed = userDoc.data().completedQuests || [];
-            if (completed.includes('quest_' + topicKey)) {
-                throw new functionsV1.https.HttpsError('already-exists',
-                    'You already got a perfect score on this topic!');
-            }
-        }
-    }
-
-    const questId = uid + '_quest_' + Date.now();
-
-    // Store answer keys server-side
-    const answerKeys = questions.map((q, i) => ({ index: i, correct: q.answer }));
-
-    await db.collection('quest_answer_keys').doc(questId).set({
-        uid,
-        keys: answerKeys,
-        topicKey: topicKey || null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        graded: false,
-    });
-
-    return { questId };
-});
-
-exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const { questId, answers, isRetry } = data || {};
-    if (!questId || !answers || !Array.isArray(answers) || answers.length !== 5) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Must have exactly 5 answers');
-    }
-
-    const uid = context.auth.uid;
-    const questRef = db.collection('quest_answer_keys').doc(questId);
-    const userRef = db.collection('users').doc(uid);
-
-    // AUDIT FIX (2026-04-22): gradeQuest was writing points directly to user doc,
-    // bypassing the 500 pts/day cap. Now it routes through daily_points with a
-    // hard cap AND enforces a per-day quest grading limit to stop abuse.
-    const DAILY_QUEST_LIMIT = 3;   // max completed quests per offset day
-    const DAILY_POINTS_CAP = 500;  // shared trivia + quiz + quest ceiling
-    const today = new Date().toISOString().split('T')[0]; // UTC midnight — kept for raw audit logs only
-    const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
-    const dailyQuestRef = userRef.collection('daily_action_counts').doc(offsetToday + '_quest');
-    const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
-
-    const result = await db.runTransaction(async (tx) => {
-        const questDoc = await tx.get(questRef);
-        if (!questDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Quest not found');
-
-        const quest = questDoc.data();
-        if (quest.uid !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your quest');
-        if (quest.graded) throw new functionsV1.https.HttpsError('already-exists', 'Quest already graded');
-
-        // Per-day quest count limit (reject before grading to conserve work)
-        const qCountDoc = await tx.get(dailyQuestRef);
-        const qCountToday = qCountDoc.exists ? (qCountDoc.data().count || 0) : 0;
-        if (qCountToday >= DAILY_QUEST_LIMIT) {
-            throw new functionsV1.https.HttpsError('resource-exhausted',
-                `Daily quest limit reached (max ${DAILY_QUEST_LIMIT}/day). Try again tomorrow.`);
-        }
-
-        // Grade server-side
-        let score = 0;
-        const keys = quest.keys;
-        for (let i = 0; i < 5; i++) {
-            if (answers[i] === keys[i].correct) score++;
-        }
-
-        // Determine points
-        let pts = 0;
-        if (isRetry) {
-            if (score >= 3) pts = 25;
-        } else {
-            if (score === 5) pts = 100;
-            else if (score >= 3) pts = 50;
-        }
-
-        // Quest XP shares the 500 trivia/quiz ceiling and the 500 daily total.
-        // Anything past either cap is dropped. Banned accounts receive 0.
-        let awarded = 0;
-        let capped = false;
-        let dropped = 0;
-        let doubled = false;
-        let passQuest = false;
-        let questDayPatch = null;
-        if (pts > 0) {
-            const userDoc = await tx.get(userRef);
-            const userData = userDoc.exists ? userDoc.data() : {};
-            if (userData.ban_reason) {
-                dropped = pts;
-            } else {
-                const questBoost = doubleXp.boostPoints(pts, userData, Date.now());
-                pts = questBoost.points;
-                doubled = questBoost.doubled;
-                const dailyDoc = await tx.get(dailyPtsRef);
-                const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-                const triviaQuizUsed = dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
-                const grant = awardActions.planGrant({
-                    xp: pts,
-                    dailyUsed: dailyUsed,
-                    triviaQuizUsed: triviaQuizUsed,
-                    triviaQuiz: true,
-                    dailyCap: DAILY_POINTS_CAP,
-                    triviaCap: awardActions.TRIVIA_QUIZ_CAP,
-                });
-                awarded = grant.awarded;
-                capped = grant.capped;
-                dropped = grant.dropped;
-                const questRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, awarded);
-                const questDay = require('./src/badgeProgress').planQuestDay({
-                    day: offsetToday,
-                    lastQuestDate: userData.lastQuestDate || '',
-                });
-                const countQuestDay = score >= 3 && questDay.increment && userData.banned !== true && userData.satsDisabled !== true;
-                if (countQuestDay) {
-                    questDayPatch = {
-                        questDays: admin.firestore.FieldValue.increment(1),
-                        lastQuestDate: offsetToday,
-                    };
-                }
-                if (awarded > 0) {
-                    const questUpdate = {
-                        points: admin.firestore.FieldValue.increment(awarded),
-                        activeDayKeys: referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now()),
-                    };
-                    if (score >= 3 && !userData.ban_reason && userData.banned !== true && userData.satsDisabled !== true) {
-                        questUpdate.questsPassed = admin.firestore.FieldValue.increment(1);
-                        passQuest = true;
-                    }
-                    if (questDayPatch) Object.assign(questUpdate, questDayPatch);
-                    tx.update(userRef, questUpdate);
-                    tx.set(dailyPtsRef, {
-                        total: dailyUsed + awarded,
-                        triviaQuiz: triviaQuizUsed + awarded,
-                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                    try {
-                        rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-                            uid: uid,
-                            onceKey: 'quest_' + String(questId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60),
-                            xp: awarded,
-                            sourceLabel: 'a quest',
-                            icon: '🏆',
-                            pointsBefore: userData.points || 0,
-                            pointsDelta: awarded,
-                            prevById: questRankPrev,
-                        }));
-                    } catch (notifyErr) {
-                        console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
-                    }
-                }
-                if (awarded <= 0 && score >= 3 && userData.banned !== true && userData.satsDisabled !== true) {
-                    passQuest = true;
-                }
-            }
-        }
-
-        // Always increment the per-day quest count so retries / low-score attempts still count
-        tx.set(dailyQuestRef, {
-            count: admin.firestore.FieldValue.increment(1),
-            lastAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        // Mark as graded (prevents replay on same questId)
-        tx.update(questRef, {
-            graded: true, score, pts, awarded,
-            gradedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        // Perfect 5/5 on a topic quest: persist topic-based completion server-side
-        if (score === 5 && quest.topicKey) {
-            const perfect = {
-                completedQuests: admin.firestore.FieldValue.arrayUnion('quest_' + quest.topicKey),
-            };
-            if (passQuest && awarded <= 0) perfect.questsPassed = admin.firestore.FieldValue.increment(1);
-            if (questDayPatch && awarded <= 0) Object.assign(perfect, questDayPatch);
-            tx.update(userRef, perfect);
-        } else if ((passQuest || questDayPatch) && awarded <= 0) {
-            const missed = {};
-            if (passQuest) missed.questsPassed = admin.firestore.FieldValue.increment(1);
-            if (questDayPatch) Object.assign(missed, questDayPatch);
-            tx.update(userRef, missed);
-        }
-
-        return { score, pts, awarded, capped, doubled, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT, questsPassed: passQuest, questDay: !!questDayPatch };
-    });
-
-    if (result.questsPassed) {
-        try { await grantFamily(db, admin, uid, familyFor('questsPassed')); }
-        catch (questBadgeErr) { console.warn('[gradeQuest] badges', questBadgeErr && questBadgeErr.message); }
-    }
-    if (result.questDay) {
-        try { await grantFamily(db, admin, uid, familyFor('questDays')); }
-        catch (questDayErr) { console.warn('[gradeQuest] quest days', questDayErr && questDayErr.message); }
-    }
-    return result;
-});
+// ── Quest and trivia rewards. Graded from the bundled bank in questReward.js.
+// Client answer keys are ignored. See src/questCallables.js.
+const { answerTrivia, gradeQuest, startQuest, triviaXpStatus } = require('./src/questCallables');
+exports.answerTrivia = answerTrivia;
+exports.gradeQuest = gradeQuest;
+exports.startQuest = startQuest;
+exports.triviaXpStatus = triviaXpStatus;
 
 
 // =============================================
@@ -4833,22 +4710,19 @@ exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
     if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
     const userData = userDoc.data();
 
-    // Verify passing status from server-authoritative fields only
-    // Note: These fields are updated via Admin SDK in grading functions
+    // Scholar and protocol certificates require a passed scholar_exam_keys row.
+    // Profile flags are not proof. Trail certificates still use trails_passed.
     let passed = false;
     let title = 'Bitcoiner';
     let score = null;
 
-    if (type === 'scholar') {
-        // gradeScholarExam writes certPassed_prop; support legacy scholar_exam_passed too
-        passed = userData.certPassed_prop === true || userData.scholar_exam_passed === true;
-        title = 'Bitcoin Scholar';
-        score = userData.scholar_exam_score || 'Passed';
-    } else if (type === 'technical') {
-        // gradeScholarExam writes certPassed_tech; support legacy scholar_tech_passed too
-        passed = userData.certPassed_tech === true || userData.scholar_tech_passed === true;
-        title = 'Bitcoin Protocol Expert';
-        score = userData.scholar_tech_score || 'Passed';
+    if (type === 'scholar' || type === 'technical') {
+        const examType = type === 'technical' ? 'technical' : 'properties';
+        const prior = await db.collection('scholar_exam_keys').where('uid', '==', uid).get();
+        const examRow = require('./src/scholarExam').passedExam(prior, examType, null);
+        passed = !!examRow;
+        title = type === 'technical' ? 'Bitcoin Protocol Expert' : 'Bitcoin Scholar';
+        score = examRow && examRow.score != null ? examRow.score : (passed ? 'Passed' : null);
     } else if (type.startsWith('trail_')) {
         // Find the specific trail in the list of passed trails
         const passedTrails = userData.trails_passed || [];
@@ -6161,21 +6035,30 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     let totalPoints = 0;
     let syncedCount = 0;
     let powPointsBefore = 0;
+    const results = [];
 
     const userRef = db.collection('users').doc(uid);
     const statsRef = userRef.collection('proof_of_walk_stats').doc('daily');
-    const validTypes = ["Walk", "Run", "Hike"];
-    const results = [];
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const walk = require('./src/proofOfWalk');
+    const { rewardBlocked } = require('./src/cipherClaim');
+    const { applyDailyXp } = require('./src/applyDailyXp');
 
     // Filter eligible activities first
-    const eligible = activities.filter(act => validTypes.includes(act.type));
+    const eligible = activities.filter(act => walk.WALK_TYPES.includes(act.type));
     if (eligible.length === 0) return { success: true, synced: 0, pointsEarned: 0, activities: [] };
 
-    // Atomic transaction - all reads first, then all writes (Firestore requirement)
+    // Atomic transaction - all reads first, then all writes (Firestore requirement).
+    // Several past dates can arrive in one sync. Their XP is summed and tapered
+    // once against today's shared counter. Anything over the cap is dropped.
     await db.runTransaction(async (transaction) => {
-        // Phase 1: READ all docs we need
+        totalPoints = 0;
+        syncedCount = 0;
+        results.length = 0;
+
         const dailyDoc = await transaction.get(statsRef);
         const userDoc = await transaction.get(userRef);
+        const ledgerDoc = await transaction.get(ledgerRef);
         const actRefs = [];
         const actDocs = [];
         for (const act of eligible) {
@@ -6184,47 +6067,52 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
             actDocs.push(await transaction.get(ref));
         }
 
-        // Phase 2: COMPUTE points
-        let dailyData = dailyDoc.exists ? dailyDoc.data() : { date: '', distance: 0 };
-        const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
-        powPointsBefore = currentPoints;
-
+        const already = {};
         for (let i = 0; i < eligible.length; i++) {
-            if (actDocs[i].exists) continue; // Already processed
-            const act = eligible[i];
-            const actId = act.id.toString();
-            const dateStr = (act.start_date_local || act.start_date).split('T')[0];
-            const actKm = act.distance / 1000;
+            if (actDocs[i].exists) already[eligible[i].id.toString()] = true;
+        }
+        const userData = userDoc.exists ? (userDoc.data() || {}) : {};
+        powPointsBefore = userData.points || 0;
+        const plan = walk.planWalkSync({
+            activities: eligible,
+            already: already,
+            dailyData: dailyDoc.exists ? (dailyDoc.data() || {}) : { date: '', distance: 0 },
+        });
+        const blocked = rewardBlocked(userData, ledgerDoc.exists ? (ledgerDoc.data() || {}) : {});
+        const grant = await applyDailyXp(uid, blocked ? 0 : plan.rawPoints, transaction, {
+            day: getOffsetDateKey(),
+            userRef: userRef,
+        });
 
-            if (dailyData.date !== dateStr) {
-                dailyData = { date: dateStr, distance: 0 };
-            }
+        // A ban pays nothing and does not consume the activities.
+        // A full daily cap still records them so the extra XP is not saved for later.
+        if (blocked || plan.synced === 0) return;
 
-            const remainingCap = Math.max(0, 42.0 - dailyData.distance);
-            const allocatableKm = Math.min(actKm, remainingCap);
-            const pts = Math.floor(allocatableKm * 50);
-
-            dailyData.distance += allocatableKm;
-            totalPoints += pts;
-            syncedCount++;
-
-            results.push({ id: actId, type: act.type, distance: actKm, points: pts, date: dateStr });
-
-            // Phase 3: WRITE (after all reads are done)
-            transaction.set(actRefs[i], {
-                distance: actKm,
-                points_awarded: pts,
-                date: dateStr,
-                type: act.type,
+        const refById = {};
+        for (let i = 0; i < eligible.length; i++) refById[eligible[i].id.toString()] = actRefs[i];
+        plan.rows.forEach(function (row) {
+            results.push(row);
+            transaction.set(refById[row.id], {
+                distance: row.distance,
+                points_awarded: row.points,
+                date: row.date,
+                type: row.type,
                 created_at: admin.firestore.FieldValue.serverTimestamp()
             });
-        }
-
-        if (syncedCount > 0) {
-            transaction.set(statsRef, dailyData);
+        });
+        transaction.set(statsRef, plan.dailyData);
+        totalPoints = grant.awarded;
+        syncedCount = plan.synced;
+        if (grant.awarded > 0) {
             transaction.update(userRef, {
-                points: currentPoints + totalPoints
+                points: admin.firestore.FieldValue.increment(grant.awarded),
+                weeklyXP: admin.firestore.FieldValue.increment(grant.awarded),
+                monthlyXP: admin.firestore.FieldValue.increment(grant.awarded),
             });
+            transaction.set(grant.dailyRef, {
+                total: grant.dailyXp,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
         }
     });
 
@@ -8273,10 +8161,12 @@ async function settlePvpMatch(matchId, after) {
         const userSnaps = [];
         const dailySnaps = [];
         const ticketSnaps = [];
+        const ledgerSnaps = [];
         for (let i = 0; i < userRefs.length; i++) {
             userSnaps.push(await tx.get(userRefs[i]));
             dailySnaps.push(await tx.get(dailyRefs[i]));
             ticketSnaps.push(await tx.get(ticketRefs[i]));
+            ledgerSnaps.push(await tx.get(db.collection('faucet_ledger').doc(plan.players[i].uid)));
         }
         const applied = [];
         for (let i = 0; i < plan.players.length; i++) {
@@ -8286,8 +8176,11 @@ async function settlePvpMatch(matchId, after) {
                 continue;
             }
             const used = dailySnaps[i].exists ? (dailySnaps[i].data().total || 0) : 0;
+            const pvpUser = userSnaps[i].data() || {};
+            const pvpLedger = ledgerSnaps[i].exists ? (ledgerSnaps[i].data() || {}) : {};
+            const pvpBlocked = !!(pvpUser.ban_reason) || pvpUser.banned === true || pvpUser.satsDisabled === true || pvpLedger.banned === true;
             const grant = awardActions.planGrant({
-                xp: p.points,
+                xp: pvpBlocked ? 0 : p.points,
                 dailyUsed: used,
                 dailyCap: awardActions.DAILY_CAP,
             });
@@ -8565,18 +8458,7 @@ exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 5 minutes', timeZo
         console.error('[PVP CLEANUP] Error:', e.message);
     }
     try {
-        const expiredSessions = await db.collection('totp_sessions').where('expireAt', '<', new Date()).limit(200).get();
-        if (!expiredSessions.empty) {
-            const sessionBatch = db.batch();
-            expiredSessions.docs.forEach(function (doc) { sessionBatch.delete(doc.ref); });
-            await sessionBatch.commit();
-        }
-        const expiredAttempts = await db.collection('totp_rate_limits').where('expireAt', '<', new Date()).limit(200).get();
-        if (!expiredAttempts.empty) {
-            const attemptBatch = db.batch();
-            expiredAttempts.docs.forEach(function (doc) { attemptBatch.delete(doc.ref); });
-            await attemptBatch.commit();
-        }
+        await sweepExpiredMfaRows(db, new Date());
     } catch (e) {
         console.error('[MFA CLEANUP] Error:', e.message);
     }
@@ -9067,7 +8949,7 @@ const resetLnFns = bindResetLightningAddress(functionsV1, {
     db: db,
     verifyTurnstile: verifyTurnstile,
     requireSecondFactor: function (data, context) {
-        return secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+        return secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'resetLightningAddress');
     },
 });
 exports.resetLightningAddressOnce = resetLnFns.resetLightningAddressOnce;

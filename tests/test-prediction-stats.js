@@ -580,6 +580,9 @@ function memoryDb(initial) {
         return {
             path: path,
             id: path.split('/').pop(),
+            collection: function(name) {
+                return { doc: function(id) { return refOf(path + '/' + name + '/' + id); } };
+            },
             get: async function() { return snapOf(path); },
             set: async function(data, opts) { write(path, data, opts); },
             update: async function(data) { write(path, data, { merge: true }); },

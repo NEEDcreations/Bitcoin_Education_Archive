@@ -139,6 +139,13 @@ queue.push(test('market, hash, and peer rules read server counters', function ()
     assert.strictEqual(badgeRules.meets(hashes, { totalHashes: 100000 }, {}), false);
     assert.strictEqual(badgeRules.ruleFor('peer_1').xp, 50);
     assert.strictEqual(badgeRules.ruleFor('say_hi_1').xp, 10);
+    const scholar = badgeRules.ruleFor('scholar');
+    assert.strictEqual(scholar.source.type, 'scholarExam');
+    assert.strictEqual(scholar.source.examType, 'properties');
+    assert.strictEqual(badgeRules.meets(scholar, { certPassed_prop: true, scholar_exam_passed: true }, {}), false);
+    assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamPassed: true }), true);
+    assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamsPassed: { properties: true } }), true);
+    assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamsPassed: { technical: true } }), false);
     assert.strictEqual(badgeRules.ruleFor('daily_five_1').xp, 10);
     assert.strictEqual(badgeRules.ruleFor('set_daily_five').source.type, 'set');
 }));
@@ -288,7 +295,7 @@ queue.push(test('user updates deny server fields and poll votes are server-only'
     const fnAt = rules.indexOf('function userProfileServerOnlyKeys()');
     assert.ok(fnAt > 0);
     const fn = rules.slice(fnAt, rules.indexOf('match /users/{userId}'));
-    ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak', 'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay', 'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare', 'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived', 'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed'].forEach(function (field) {
+    ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak', 'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay', 'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare', 'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived', 'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed', 'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech', 'lastExamAttempt_prop', 'lastExamAttempt_tech', 'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score'].forEach(function (field) {
         assert.ok(fn.includes("'" + field + "'"), field + ' must stay server-only');
     });
     ['lqProgress', 'trailProgress', 'earnedTitles', 'nachoStoryProgress', 'spinCount', 'completedQuests', 'notificationPrefs', 'beatsShowUncensored', 'bio'].forEach(function (field) {
@@ -386,6 +393,7 @@ queue.push(test('the daily XP cap still grants the badge and Favor', async funct
     assert.strictEqual(result.granted, true);
     assert.strictEqual(result.xp, 0);
     assert.strictEqual(result.overflowAdded, 0);
+    assert.strictEqual(result.dropped, 10);
     assert.strictEqual(result.capped, true);
     assert.strictEqual(result.capBypass, false);
     assert.strictEqual(result.favor, true);
@@ -479,8 +487,9 @@ queue.push(test('each activity family grants one Favor point from its server rec
     const flex = progressBadges.progressSpec({}, 'flex_action', { flexId: 'findq' }, '2026-10-22');
     assert.strictEqual(flex.inc['flexTotals.findq'], 1);
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
-    const quest = index.slice(index.indexOf('exports.gradeQuest'), index.indexOf('exports.issueCertificate'));
-    assert.ok(quest.includes('questsPassed'));
+    const questSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'questCallables.js'), 'utf8');
+    assert.ok(questSrc.includes('questsPassed'));
+    assert.ok(questSrc.includes("familyFor('questsPassed')"));
     const spin = index.slice(index.indexOf('exports.dailySpin'), index.indexOf('exports.pvpStoreAnswerKey'));
     assert.ok(spin.includes('spinDays'));
     assert.ok(spin.includes('spinHitRare'));
@@ -666,7 +675,60 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.ok(award.indexOf('triviaGrade') < award.indexOf('progressBadges.progressSpec'));
     assert.ok(!award.includes("source: 'combo_bonus'"));
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
-    assert.ok(quests.includes('triviaChoice: chosenIdx'));
+    assert.ok(quests.includes("httpsCallable('answerTrivia')"));
+    assert.ok(quests.includes('chosen: chosenText'));
+}));
+
+queue.push(test('the scholar badge and the client read the exam record, not a profile flag', function () {
+    const root = path.join(__dirname, '..');
+    const scholarJs = fs.readFileSync(path.join(root, 'scholar.js'), 'utf8');
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const grade = index.slice(index.indexOf('exports.gradeScholarExam'), index.indexOf('exports.startQuest'));
+    const issue = index.slice(index.indexOf('exports.issueCertificate'), index.indexOf('exports.onChatMessageCreated'));
+    assert.ok(scholarJs.includes('certPassed_prop === true'));
+    assert.ok(scholarJs.includes('A local score is not a pass'));
+    assert.ok(!scholarJs.includes("localStorage.setItem('btc_scholar_' + keyPrefix + '_passed'"));
+    assert.ok(!scholarJs.includes('falling back'));
+    assert.ok(!scholarJs.includes("collection('users')"));
+    assert.ok(ranking.includes('currentUser.certPassed_prop === true'));
+    assert.ok(ranking.includes('currentUser.certPassed_tech === true'));
+    assert.ok(!ranking.includes('btc_scholar_prop_passed'));
+    assert.ok(!ranking.includes('btc_scholar_tech_passed'));
+    assert.ok(grade.includes(".where('uid', '==', uid)"));
+    assert.ok(grade.includes('passedExam'));
+    assert.ok(grade.includes('pointsAwarded: 0'));
+    assert.ok(!grade.includes('scholar_exam_passed'));
+    assert.ok(issue.includes('passedExam'));
+    const helper = fs.readFileSync(path.join(root, 'functions', 'src', 'scholarExam.js'), 'utf8');
+    assert.ok(helper.includes('row.passed === true'));
+    assert.ok(helper.includes('exceptId'));
+    const scholarExam = require('../functions/src/scholarExam');
+    const onlyCurrent = {
+        forEach: function (fn) {
+            fn({ id: 'current', data: function () { return { type: 'properties', passed: true }; } });
+        },
+    };
+    assert.strictEqual(scholarExam.passedExam(onlyCurrent, 'properties', 'current'), null);
+    const prior = {
+        forEach: function (fn) {
+            fn({ id: 'current', data: function () { return { type: 'properties', passed: false }; } });
+            fn({ id: 'old', data: function () { return { type: 'properties', passed: true, score: 22 }; } });
+            fn({ id: 'tech', data: function () { return { type: 'technical', passed: true }; } });
+        },
+    };
+    assert.strictEqual(scholarExam.passedExam(prior, 'properties', 'current').score, 22);
+    assert.strictEqual(scholarExam.passedExam(prior, 'technical', 'current').passed, true);
+    assert.ok(!issue.includes('scholar_exam_passed'));
+    assert.ok(!issue.includes('scholar_tech_passed'));
+    assert.ok(!issue.includes('scholar_tech_score'));
+    const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
+    assert.ok(privacy.includes('scholar_exam_keys'));
+    const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
+    assert.ok(terms.includes('A profile flag is not enough'));
+    const held = heldThatFail({ certPassed_prop: true, scholar_exam_passed: true }, ['scholar']);
+    assert.deepStrictEqual(held, ['scholar']);
+    assert.deepStrictEqual(heldThatFail({}, ['scholar'], { scholarExamPassed: true }), []);
 }));
 
 queue.push(test('the dry-run helper counts failing badges without printing people', function () {
@@ -740,8 +802,19 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     assert.strictEqual(client.streak_365.xp, 2000);
 }));
 
-queue.push(test('badge XP over the taper is dropped, and the backfill bypasses it', async function () {
-    const { applyDailyXp } = require('../functions/src/applyDailyXp');
+queue.push(test('badge XP tapers at 600 and 1,000 and the backfill bypasses it', async function () {
+    const { applyDailyXp, taperDailyXp } = require('../functions/src/applyDailyXp');
+    const full = taperDailyXp(2000, 0);
+    assert.strictEqual(full.awarded, 1000);
+    assert.strictEqual(full.dailyXp, 1000);
+    assert.strictEqual(full.dropped, 1000);
+    const edge = taperDailyXp(150, 500);
+    assert.strictEqual(edge.awarded, 125);
+    assert.strictEqual(edge.dailyXp, 625);
+    const half = taperDailyXp(150, 900);
+    assert.strictEqual(half.awarded, 75);
+    assert.strictEqual(half.dailyXp, 975);
+    assert.strictEqual(taperDailyXp(10, 1000).awarded, 0);
     const partial = memoryDb({
         'users/u': { sayHiDays: 30, points: 0 },
         'users/u/daily_points/2026-10-22': { total: 900 },
@@ -749,15 +822,23 @@ queue.push(test('badge XP over the taper is dropped, and the backfill bypasses i
     const mid = await awardBadge(partial, admin, 'u', 'say_hi_30', { day: '2026-10-22', nowMs: 1700000000000 });
     assert.strictEqual(mid.xp, 75);
     assert.strictEqual(mid.overflowAdded, 0);
+    assert.strictEqual(mid.dropped, 75);
     assert.strictEqual(partial.docs['users/u'].points, 75);
     assert.strictEqual(partial.docs['users/u'].pendingOverflow, undefined);
     assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 975);
+    const fresh = memoryDb({ 'users/u': { bestStreak: 365, points: 0 } });
+    const legend = await awardBadge(fresh, admin, 'u', 'streak_365', { day: '2026-10-22', nowMs: 1700000000000 });
+    assert.strictEqual(legend.xp, 1000);
+    assert.strictEqual(legend.dropped, 1000);
+    assert.strictEqual(fresh.docs['users/u'].pendingOverflow, undefined);
+    assert.strictEqual(fresh.docs['users/u/daily_points/2026-10-22'].total, 1000);
     const bypass = await applyDailyXp('u', 2000, null, { bypass: true });
     assert.strictEqual(bypass.bypass, true);
     assert.strictEqual(bypass.awarded, 2000);
     assert.strictEqual(bypass.overflowAdded, 0);
     const src = fs.readFileSync(path.join(root, 'functions', 'src', 'awardBadge.js'), 'utf8');
     assert.ok(src.includes('applyDailyXp('));
+    assert.ok(!src.includes('pendingOverflow'));
     assert.ok(!src.includes('BADGE_DAILY_CAP'));
     const backfill = fs.readFileSync(path.join(root, 'functions', 'scripts', 'backfill_badge_xp.js'), 'utf8');
     assert.ok(backfill.includes('bypass: true'));
@@ -766,6 +847,10 @@ queue.push(test('badge XP over the taper is dropped, and the backfill bypasses i
     assert.ok(!backfill.includes('monthlyXP'));
     assert.ok(!backfill.includes("doc('current').set"));
     assert.ok(!backfill.includes('favorActive'));
+    assert.ok(!backfill.includes('level: plan.level'));
+    assert.ok(backfill.includes('favor cyber_hornets:'));
+    assert.ok(backfill.includes('capped-at-zero badges:'));
+    assert.ok(backfill.includes('capped-at-zero xp:'));
 }));
 
 queue.push(test('badge XP backfill tops up fixtures without clawing back or paying fakes', function () {
@@ -832,6 +917,21 @@ queue.push(test('badge XP backfill tops up fixtures without clawing back or payi
     assert.strictEqual(already.xp, 100);
     assert.strictEqual(already.favorPoints, 0);
     assert.strictEqual(already.levelUps.length, 0);
+    const legacy = planUserBadges({
+        user: { points: 0, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 0, source: 'legacy', requestedXp: 0 } },
+    });
+    assert.strictEqual(legacy.topUps[0].alreadyPaid, 50);
+    assert.strictEqual(legacy.xp, 100);
+    assert.strictEqual(legacy.topUps[0].cappedZero, false);
+    const capped = planUserBadges({
+        user: { points: 0, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 0, source: 'awardBadge', requestedXp: 150 } },
+    });
+    assert.strictEqual(capped.xp, 150);
+    assert.strictEqual(capped.topUps[0].cappedZero, true);
 }));
 
 Promise.all(queue).then(function () {

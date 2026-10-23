@@ -340,6 +340,8 @@ function world() {
         'global_chat_meta/live_dj/dj_queue/u1': { uid: 'u1', name: 'Alice' },
         'totp_secrets/u1': { secret: 'should-go' },
         'totp_sessions/u1': { verified: true, verifiedAt: 1 },
+        'trusted_devices/devu1': { uid: 'u1', tokenHash: 'abc', label: 'Chrome on macOS' },
+        'trusted_devices/devu2': { uid: 'u2', tokenHash: 'def', label: 'Firefox on Linux' },
         'nacho_feedback/f1': { uid: 'u1', question: 'what is a utxo' },
         'nacho_feedback/f2': { uid: 'u2', question: 'keep' },
         'nacho_misses/miss1': { uid: 'u1', question: 'missed' },
@@ -367,6 +369,7 @@ function world() {
         'tctv_watch/u1': { minutes: 10 },
         'tctv_watch/u2': { minutes: 4 },
         'users/u1/quest_completions/q9': { questId: 'q9' },
+        'users/u1/quest_passes/q9': { questId: 'q9' },
         'users/u1/lifetime_awards/life1': { award: 'first' },
         'users/u1/onboarding_evidence/ev1': { note: 'joined' },
         'suspicious_activity/sa1': { uid: 'u1', email: 'alice@example.com' },
@@ -408,6 +411,7 @@ function world() {
         'rate_limits/announce_u1': { n: 1 },
         'rate_limits/nostr_203_0_113_8': { n: 1 },
         'totp_rate_limits/u1': { n: 1 },
+        'totp_rate_limits/u1_day': { failedAttempts: 3 },
         'totp_rate_limits/u1_verify': { n: 1 },
         'weekly_challenges/w1': { participants: { u1: true, u2: true } },
         'weekly_challenges/w1/user_contribs/u1_chat': { count: 2 },
@@ -671,6 +675,8 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('certs/cert1'), false);
         assert.strictEqual(db.docs.has('totp_secrets/u1'), false);
         assert.strictEqual(db.docs.has('totp_sessions/u1'), false);
+        assert.strictEqual(db.docs.has('trusted_devices/devu1'), false);
+        assert.ok(db.docs.has('trusted_devices/devu2'));
         assert.strictEqual(db.docs.has('nacho_feedback/f1'), false);
         assert.ok(db.docs.has('nacho_feedback/f2'));
         assert.strictEqual(db.docs.has('nacho_misses/miss1'), false);
@@ -700,6 +706,7 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('tctv_watch/u1'), false);
         assert.ok(db.docs.has('tctv_watch/u2'));
         assert.strictEqual(db.docs.has('users/u1/quest_completions/q9'), false);
+        assert.strictEqual(db.docs.has('users/u1/quest_passes/q9'), false);
         assert.strictEqual(db.docs.has('users/u1/lifetime_awards/life1'), false);
         assert.strictEqual(db.docs.has('users/u1/onboarding_evidence/ev1'), false);
         assert.strictEqual(db.docs.get('suspicious_activity/sa1').email, 'alice@example.com');
@@ -748,6 +755,7 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('rate_limits/announce_u1'), false);
         assert.strictEqual(db.docs.get('rate_limits/nostr_203_0_113_8').n, 1);
         assert.strictEqual(db.docs.has('totp_rate_limits/u1'), false);
+        assert.strictEqual(db.docs.has('totp_rate_limits/u1_day'), false);
         assert.strictEqual(db.docs.has('totp_rate_limits/u1_verify'), false);
         assert.strictEqual(db.docs.get('weekly_challenges/w1').participants.u1, undefined);
         assert.strictEqual(db.docs.get('weekly_challenges/w1').participants.u2, true);
@@ -869,7 +877,7 @@ function auth(uid, extras) {
         assert.ok(ranking.includes('_showTotpSignInChallenge'));
         assert.ok(ranking.includes('Enter your authenticator code first.'));
         assert.strictEqual(ranking.includes('_promptDeleteAccountTotp'), false);
-        assert.ok(fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8').includes('secondFactor.requireSecondFactor(secondFactor.stamp(data, context))'));
+        assert.ok(fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8').includes("secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'deleteAccount')"));
         assert.ok(ranking.includes("httpsCallable('totpCheck')"));
         assert.ok(ranking.includes('user.delete()'));
         assert.ok(ranking.includes('auth/user-not-found'));
@@ -1008,6 +1016,7 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('users/u1/sats_daily/2026-10-22'));
         assert.ok(db.docs.has('users/u1/proof_of_walk/act1'));
         assert.ok(db.docs.has('users/u1/quest_completions/q9'));
+        assert.ok(db.docs.has('users/u1/quest_passes/q9'));
         assert.ok(db.docs.has('users/u1/lifetime_awards/life1'));
         assert.ok(db.docs.has('users/u1/onboarding_evidence/ev1'));
         assert.ok(db.docs.has('reply_bonus_state/u1'));
@@ -1045,6 +1054,7 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('users/u1/daily_action_counts/2026-10-22'), false);
         assert.strictEqual(db.docs.has('users/u1/badge_awards/b1'), false);
         assert.strictEqual(db.docs.has('users/u1/quest_completions/q9'), false);
+        assert.strictEqual(db.docs.has('users/u1/quest_passes/q9'), false);
         assert.strictEqual(db.docs.has('users/u1/lifetime_awards/life1'), false);
         assert.strictEqual(db.docs.has('users/u1/onboarding_evidence/ev1'), false);
         assert.strictEqual(db.docs.has('reply_bonus_state/u1'), false);
@@ -1234,7 +1244,7 @@ function auth(uid, extras) {
         });
         await assert.rejects(
             call(blocked, { uid: 'u1', token: { auth_time: 1000 } }),
-            function(err) { return err.code === 'failed-precondition' && /Authenticator session required/.test(err.message); }
+            function(err) { return err.code === 'failed-precondition' && /fresh authenticator/.test(err.message); }
         );
         assert.ok(blocked.docs.has('users/u1'));
         for (const key of blocked.docs.keys()) {
@@ -1248,17 +1258,15 @@ function auth(uid, extras) {
         });
         await assert.rejects(
             call(stale, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId }),
-            function(err) { return err.code === 'failed-precondition' && /Authenticator session required/.test(err.message); }
+            function(err) { return err.code === 'failed-precondition' && /fresh authenticator/.test(err.message); }
         );
         assert.ok(stale.docs.has('users/u1'));
         assert.ok(stale.docs.has('totp_sessions/u1'));
 
-        const fresh = createFakeDb({
+        const proofId = 'cd'.repeat(16);
+        const sessionOnly = createFakeDb({
             'users/u1': { username: 'Alice' },
             'totp_secrets/u1': { enabled: true },
-            'totp_pending/u1': { secret: 'pending' },
-            'recovery_codes/u1': { codes: [{ used: false }] },
-            'totp_rate_limits/u1_regen': { attempts: 1 },
             ['totp_sessions/u1_' + sessionId]: {
                 uid: 'u1',
                 sessionId: sessionId,
@@ -1267,13 +1275,43 @@ function auth(uid, extras) {
                 revoked: false,
             },
         });
-        const freshResult = await call(fresh, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId });
+        await assert.rejects(
+            call(sessionOnly, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId }),
+            function(err) { return err.code === 'failed-precondition' && /fresh authenticator/.test(err.message); }
+        );
+        assert.ok(sessionOnly.docs.has('users/u1'));
+        const fresh = createFakeDb({
+            'users/u1': { username: 'Alice' },
+            'totp_secrets/u1': { enabled: true },
+            'totp_pending/u1': { secret: 'pending' },
+            'recovery_codes/u1': { codes: [{ used: false }] },
+            'totp_rate_limits/u1_regen': { attempts: 1 },
+            'totp_rate_limits/u1_day': { failedAttempts: 2 },
+            ['totp_sessions/u1_' + sessionId]: {
+                uid: 'u1',
+                sessionId: sessionId,
+                expiresAtMs: expiresAtMs,
+                expireAt: new Date(expiresAtMs),
+                revoked: false,
+            },
+            'totp_fresh_proofs/u1_deleteAccount': {
+                uid: 'u1',
+                action: 'deleteAccount',
+                proofId: proofId,
+                verifiedAtMs: Date.now(),
+                expiresAtMs: Date.now() + (5 * 60 * 1000),
+                consumed: false,
+            },
+            'trusted_devices/keepme': { uid: 'u1', tokenHash: 'abc', revoked: false },
+        });
+        const freshResult = await call(fresh, { uid: 'u1', token: { auth_time: 1000 } }, { mfaSessionId: sessionId, freshProofId: proofId });
         assert.strictEqual(freshResult.authDeleted, true);
         assert.strictEqual(fresh.docs.has('users/u1'), false);
         assert.strictEqual(fresh.docs.has('totp_secrets/u1'), false);
         assert.strictEqual(fresh.docs.has('totp_pending/u1'), false);
         assert.strictEqual(fresh.docs.has('recovery_codes/u1'), false);
         assert.strictEqual(fresh.docs.has('totp_rate_limits/u1_regen'), false);
+        assert.strictEqual(fresh.docs.has('totp_rate_limits/u1_day'), false);
         assert.strictEqual(fresh.docs.has('totp_sessions/u1_' + sessionId), false);
 
         const off = createFakeDb({ 'users/u1': { username: 'Alice' } });

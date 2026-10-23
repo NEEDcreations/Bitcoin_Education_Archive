@@ -69,9 +69,9 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261023_v2333" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261023_v2335" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
-    <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
+    <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
     <meta name="author" content="603BTC LLC">
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
@@ -101,7 +101,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@NEEDcreations">
     <meta name="twitter:title" content="Bitcoin Quest">
-    <meta name="twitter:description" content="Learn Bitcoin, earn real sats. Explore 146 topics, 24/7 streaming TV, quests, games, and a community — with real Bitcoin rewards built in.">
+    <meta name="twitter:description" content="Learn Bitcoin, earn real sats. Explore 145 topics, 24/7 streaming TV, quests, games, and a community — with real Bitcoin rewards built in.">
     <meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/NEEDcreations/Bitcoin_Education_Archive@gh-pages/og-image.png?v=20261022_200sats">
     <meta name="twitter:image:alt" content="Bitcoin Quest — Learn Bitcoin and earn real sats">
 
@@ -549,7 +549,7 @@
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
         .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
-        /* Invite friends sits top-right. Nacho is bottom-left; the FABs are bottom-right. */
+        /* Expanded invite card stays top-right. Nacho is bottom-left; the FABs are bottom-right. */
         .invite-card { display: none; position: fixed; top: 16px; right: 16px; z-index: 200; width: min(280px, calc(100vw - 32px)); max-height: min(70dvh, 460px); overflow: auto; box-sizing: border-box; text-align: left; font-family: inherit; }
         .invite-card[data-show="1"] { display: block; }
         .invite-card[data-show="1"][data-state="off"] { display: none !important; }
@@ -583,7 +583,40 @@
             .invite-card { right: 72px; }
             body.ticker-visible .invite-card { top: 48px; }
         }
+        /* Minimized pill only. Phones: right edge in the open band under the
+           lightning logo and above the Bitcoin Quest title. The ticker shifts
+           that band down by 76px. Desktop: right edge around the vertical middle.
+           The Quest pill (onboarding.js) uses the left side of the same band. */
+        .invite-card[data-state="min"] {
+            top: calc(186px + env(safe-area-inset-top, 0px));
+            right: max(12px, env(safe-area-inset-right, 0px));
+            left: auto;
+            bottom: auto;
+            width: auto;
+            max-height: none;
+            overflow: visible;
+            margin: 0;
+            z-index: 180;
+            transform: none;
+        }
+        body.ticker-visible .invite-card[data-state="min"] {
+            top: calc(262px + env(safe-area-inset-top, 0px));
+        }
+        @media (min-width: 901px) {
+            .invite-card[data-state="min"],
+            body.ticker-visible .invite-card[data-state="min"] {
+                top: clamp(calc(160px + env(safe-area-inset-top, 0px)), calc(50dvh - 22px), calc(100dvh - 340px - env(safe-area-inset-bottom, 0px)));
+            }
+        }
         body:has(#searchOverlay[data-open="1"]) .invite-card { display: none !important; }
+        body:has(#usernameModal.open) .invite-card[data-state="min"],
+        body:has(#questModal.open) .invite-card[data-state="min"],
+        body:has(#tosModal.open) .invite-card[data-state="min"],
+        body:has(#leaderboard.open) .invite-card[data-state="min"],
+        body:has(#lb.open) .invite-card[data-state="min"] {
+            visibility: hidden;
+            pointer-events: none;
+        }
         .home-credits { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
         .home-credits p { color: var(--text-dim); font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
         .home-credits p:last-child { margin-bottom: 0; }
@@ -655,6 +688,15 @@
 
         /* Today card: six daily tiles in one row, two rows of three on a phone. */
         #todayCard { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; margin: 0 0 16px; color: #e2e8f0; }
+        #dailyXpMeter { margin: 0 16px 12px; }
+        #dailyXpMeterText { font-size: 0.82rem; font-weight: 800; color: #e2e8f0; margin: 0 0 6px; }
+        .daily-xp-track { position: relative; height: 10px; background: #1e293b; border-radius: 999px; }
+        .daily-xp-fill { height: 100%; width: 0; background: linear-gradient(90deg, #f7931a, #fbbf24); border-radius: 999px; }
+        .daily-xp-mark { position: absolute; top: -3px; bottom: -3px; left: 60%; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px; }
+        .daily-xp-scale { position: relative; height: 16px; margin-top: 4px; font-size: 0.65rem; font-weight: 700; color: #94a3b8; }
+        .daily-xp-scale span:first-child { position: absolute; left: 0; }
+        .daily-xp-scale span:nth-child(2) { position: absolute; left: 60%; transform: translateX(-50%); color: #e2e8f0; }
+        .daily-xp-scale span:last-child { position: absolute; right: 0; }
         #todayCard:focus { outline: none; }
         #todayCard:focus-visible, #todayCard button:focus-visible { outline: 2px solid var(--accent, #f7931a); outline-offset: 2px; }
         #todayCard.today-highlight { box-shadow: 0 0 0 2px #f7931a, 0 0 28px rgba(247,147,26,0.45); }
@@ -878,7 +920,7 @@
           "@type": "WebSite",
           "name": "Bitcoin Education Archive",
           "url": "https://bitcoineducation.quest",
-          "description": "A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 streaming), 7 mini-apps, an AI tutor, and Lightning rewards — free for the world.",
+          "description": "A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 streaming), 7 mini-apps, an AI tutor, and Lightning rewards — free for the world.",
           "publisher": {
             "@type": "Organization",
             "name": "603BTC LLC",
@@ -1259,7 +1301,7 @@
                     }).catch(function () {});
                 })();
                 </script>
-                <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
+                <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 145 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
                 <!-- As Featured On -->
                 <div id="featuredOnSection" style="width:100%;margin:0 auto 24px;">
                 <div id="featuredOnFull" style="position:relative;width:100%;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:16px;box-sizing:border-box;">
@@ -1344,6 +1386,14 @@
                         <div class="today-check-head">
                             <h2 id="todayCardTitle">Today</h2>
                             <span id="todayDoneCount" aria-live="polite">0/6 done today</span>
+                        </div>
+                        <div id="dailyXpMeter" class="daily-xp-meter">
+                            <div id="dailyXpMeterText">Sign in to see today's XP</div>
+                            <div class="daily-xp-track" aria-hidden="true">
+                                <div id="dailyXpMeterFill" class="daily-xp-fill"></div>
+                                <div class="daily-xp-mark" title="600 full XP"></div>
+                            </div>
+                            <div class="daily-xp-scale"><span>0</span><span>600 full</span><span>1,000</span></div>
                         </div>
                         <div id="em-quick-actions" role="group" aria-label="Daily checklist">
                             <button type="button" id="todayTrifectaBtn" class="today-tile" aria-expanded="false" aria-controls="todayTrifectaChooser" aria-label="Daily Trifecta, 0 of 3 done. Opens Quiz, Trivia, and Poll." onclick="if(window.toggleTodayTrifecta)window.toggleTodayTrifecta()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span class="today-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="today-ring-track" cx="18" cy="18" r="15"></circle><circle class="today-ring-val" cx="18" cy="18" r="15" stroke-dasharray="0 94.248"></circle></svg><span class="today-ring-icon">🎯</span></span><span>Daily Trifecta</span><span id="todayTrifectaCount">0/3</span></button>
@@ -1685,16 +1735,16 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="ranking.js?v=20261023_v2324" defer></script>
+    <script src="ranking.js?v=20261023_v2334" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261023_v2333" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261022_v2322" defer></script>
+    <script src="bundle.min.js?v=20261023_v2335" defer fetchpriority="high"></script>
+    <script src="features.registry.js?v=20261023_v2330" defer></script>
     <script src="tctv-watch.js?v=20261022_v2301" defer></script>
-    <script src="today-card.js?v=20261023_v2323" defer></script>
+    <script src="today-card.js?v=20261023_v2330" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
-    <script src="onboarding.js?v=20261022_v2322" defer></script>
+    <script src="onboarding.js?v=20261023_v2331" defer></script>
     <script src="learning-quests.js?v=20261023_v2324" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -1705,14 +1755,14 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261023_v2324',
+            'global-chat.js?v=20261023_v2333',
             'satoshi-favor.js?v=20261023_v2323'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261023_v2326',
+            'quests.js?v=20261023_v2334',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261022_v2263',
-            'scholar.js?v=20260809_1846','beats.js?v=20261022_v2322',
+            'scholar.js?v=20261023_v2330','beats.js?v=20261022_v2322',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261022_v2322','gifting.js?v=20261022_v2254','guide.js?v=20261022_v2322','modules.js?v=20261023_v2324',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
@@ -1772,10 +1822,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2324'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2324'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2324'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2324'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2333'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2333'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2333'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2333'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],
@@ -1783,9 +1833,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261023_v2324'],
             'learning-quests': ['learning-quests.js?v=20261023_v2324'],
-            'quests':        ['quests.js?v=20261023_v2326'],
-            'questhub':      ['quests.js?v=20261023_v2326'],
-            'app':           ['quests.js?v=20261023_v2326'],
+            'quests':        ['quests.js?v=20261023_v2334'],
+            'questhub':      ['quests.js?v=20261023_v2334'],
+            'app':           ['quests.js?v=20261023_v2334'],
             'timechain-tv':  ['timechain-tv.js?v=20261022_v2266'],
             'tv':            ['timechain-tv.js?v=20261022_v2266']
         };
