@@ -1183,6 +1183,13 @@
     {
       "text": "Pizza day",
       "link": "https://x.com/i/status/2058387155119202805"
+    },
+    {
+      "text": "The orange \"₿\" Bitcoin logo was not inspired by Mastercard. Satoshi's first logo (2009) was a gold coin marked \"BC\"; in Feb 2010 Satoshi posted a gold coin with a \"B\" and two vertical lines, and the familiar tilted orange version was created and released into the public domain by forum user bitboy in Nov 2010.\nhttps://en.bitcoin.it/wiki/Promotional_graphics",
+      "link": "https://en.bitcoin.it/wiki/Promotional_graphics",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://en.bitcoin.it/wiki/Promotional_graphics",
+      "sourceLabel": "Bitcoin Wiki"
     }
   ]
 }

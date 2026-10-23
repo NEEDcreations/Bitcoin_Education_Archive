@@ -251,6 +251,10 @@
     {
       "text": "<b>BITCOIN WALLET SAFETY GUIDE (BEGINNER-FRIENDLY)</b>\nSatoABC has a well-written beginner guide covering: hot wallets vs cold wallets, why exchange custody is risky, when to move to a hardware wallet, seed phrase backup hygiene, and why slow/careful beats fast/sorry.\n\nCovers: wallet types, private keys, seed phrases, test transactions before larger amounts, and common beginner mistakes.\n\nhttps://www.satoabc.com/how-to-store",
       "link": "https://www.satoabc.com/how-to-store"
+    },
+    {
+      "text": "Ooga Booga Land: generate your own Bitcoin Core wallet.dat completely offline with good entropy. Still in beta: use testnet coins only for now.\nhttps://oogabooga.land/",
+      "link": "https://oogabooga.land/"
     }
   ]
 }
