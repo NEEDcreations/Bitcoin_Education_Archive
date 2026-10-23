@@ -2189,22 +2189,29 @@ setTimeout(initBadges, 2000);
 // =============================================
 // Earn <svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets:
 //   +1 per daily login
-//   +50 per verified referral (referred user must log in & earn 2100+ pts)
+//   +50 per verified referral (referred user reaches Maxi, 2,140 pts)
 // =============================================
 
 const TICKET_CONFIG = {
     dailyLogin: 1,
     referral: 50,
-    referralSignupBonus: 50,  // Tickets awarded to referred user when they reach Maxi rank
+    referralSignupBonus: 50,  // Tickets awarded to both sides when the referred user reaches Maxi
     referralPointsThreshold: 2140,  // Maxi rank threshold
     pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
 
 // ---- Generate or retrieve referral code ----
 function getReferralCode() {
-    if (!currentUser || !currentUser.uid) return null;
-    // Use first 8 chars of uid as referral code (unique per user)
-    return currentUser.uid.substring(0, 8);
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    if (!user && !authUser) return null;
+    // Prefer the code the server stored on the user doc. Fall back to the
+    // uid prefix, which is the same code ensureReferralCode writes.
+    var stored = user && user.referralCode;
+    if (typeof stored === 'string' && /^[A-Za-z0-9]{6,28}$/.test(stored)) return stored;
+    var uid = (user && user.uid) || (authUser && authUser.uid) || '';
+    if (!uid) return null;
+    return String(uid).substring(0, 8);
 }
 
 function getReferralLink() {
@@ -2246,187 +2253,57 @@ function captureReferralCode() {
 
 // ---- Award daily login ticket ----
 async function awardDailyTicket() {
-    try {
-        if (!currentUser || !db || !auth || !auth.currentUser) return;
-        if (auth.currentUser.isAnonymous) return;
-
-        const today = new Date().toISOString().split('T')[0];
-        if (currentUser.lastTicketDate === today) return; // Already awarded today
-
-        const ticketsToAdd = TICKET_CONFIG.dailyLogin;
-        const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
-        const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
-
-        // Award tickets + points through server-side Cloud Function (Fix permission error)
-        // Cloud Function now handles 'lastTicketDate' update server-side for security
-        if (typeof awardPoints === 'function') {
-            const result = await awardPoints(bonusPoints, '🎫 Daily tickets', null, ticketsToAdd);
-            if (!result || !result.success) return; // Silent return if already claimed or error
-        }
-        
-        currentUser.lastTicketDate = today;
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
-
-        // Delay toast so page is settled and user can see it
-        setTimeout(function() {
-            if (typeof showToast === 'function') showToast('🎫 +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
-        }, 2500);
-
-        if (typeof updateRankUI === 'function') updateRankUI();
-
-        // Check ticket badges after earning
-        if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-    } catch(e) {
-        console.warn('Daily ticket error:', e);
-    }
+    return;
 }
 
 // ---- Attach referral to new user on account creation ----
 async function attachReferral(uid) {
     const refCode = localStorage.getItem('btc_referral_code');
-    if (!refCode) return;
-
-    // Don't let users refer themselves
-    if (uid.startsWith(refCode)) return;
-
+    if (!refCode || !uid) return;
+    if (String(uid).indexOf(refCode) === 0) return;
     try {
-        // Find referrer by matching uid prefix
-        const snapshot = await db.collection('users')
-            .where('referralCode', '==', refCode)
-            .limit(1)
-            .get();
-
-        let referrerUid = null;
-
-        if (!snapshot.empty) {
-            referrerUid = snapshot.docs[0].id;
-        } else {
-            // Fallback: scan users whose uid starts with the refCode
-            // Since referralCode field may not exist yet on old users,
-            // we store the raw refCode and resolve it later
-            referrerUid = null;
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var fn = firebase.functions().httpsCallable('registerReferral');
+        var result = await fn({ refCode: refCode });
+        var data = result && result.data;
+        if (data && (data.success || data.reason === 'self' || data.reason === 'late' || data.reason === 'account-age' || data.reason === 'points' || data.reason === 'exists')) {
+            localStorage.removeItem('btc_referral_code');
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
+                currentUser.referredBy = refCode;
+            }
         }
-
-        // Save referral info on the new user — bonus tickets awarded when they reach Maxi rank
-        await db.collection('users').doc(uid).update({
-            referredBy: refCode,
-            referralVerified: false,
-        });
-
-        // Also record in referrals collection for tracking
-        // Include signup source so Stacker News / Pleb Underground links are attributable
-        var _refSource = localStorage.getItem('btc_signup_source') || '';
-        var _refDoc = {
-            referredUser: uid,
-            referrerCode: refCode,
-            referrerUid: referrerUid || '',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            verified: false,
-            ticketsAwarded: false,
-        };
-        if (_refSource) _refDoc.source = _refSource;
-        await db.collection('referrals').doc(uid).set(_refDoc);
-
-        localStorage.removeItem('btc_referral_code');
     } catch (e) {
+        // Keep btc_referral_code so a later session can retry the callable.
         console.log('Referral attach error:', e);
     }
 }
 
-// ---- Check if referred users have qualified (2100+ pts) ----
-async function checkReferralQualifications() {
-    if (!currentUser || !db || !auth || !auth.currentUser) return;
-    if (auth.currentUser.isAnonymous) return;
+// Referral records and ticket awards are server-side (registerReferral,
+// the user-doc trigger, and the hourly scan). The browser must not write them.
+async function checkReferralQualifications() {}
 
-    // Only check once per session (heavy query)
-    if (window._referralChecked) return;
-    window._referralChecked = true;
 
-    const refCode = getReferralCode();
-    if (!refCode) return;
+async function ensureReferralCode() {}
 
-    try {
-        // Find all referrals where this user is the referrer and tickets not yet awarded
-        const snapshot = await db.collection('referrals')
-            .where('referrerCode', '==', refCode)
-            .where('ticketsAwarded', '==', false)
-            .get();
-
-        if (snapshot.empty) return;
-
-        let ticketsEarned = 0;
-
-        for (const refDoc of snapshot.docs) {
-            const refData = refDoc.data();
-            const referredUid = refData.referredUser;
-
-            // Check if referred user has 2100+ points and has logged in
-            const userDoc = await db.collection('users').doc(referredUid).get();
-            if (!userDoc.exists) continue;
-
-            const userData = userDoc.data();
-            if ((userData.points || 0) >= TICKET_CONFIG.referralPointsThreshold && (userData.totalVisits || 0) >= 2) {
-                // Qualified! Award tickets
-                ticketsEarned += TICKET_CONFIG.referral;
-
-                // Mark referral as verified and tickets awarded
-                await db.collection('referrals').doc(refDoc.id).update({
-                    verified: true,
-                    ticketsAwarded: true,
-                    verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                });
-
-                // Also mark on the referred user's doc
-                await db.collection('users').doc(referredUid).update({
-                    referralVerified: true,
-                });
-            }
-        }
-
-        if (ticketsEarned > 0) {
-            const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
-            const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
-            // Award tickets + points through server-side Cloud Function
-            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 Referral tickets', null, ticketsEarned);
-            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
-            showToast('🎫 +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
-            if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
-            updateRankUI();
-
-            // Check ticket badges after earning
-            if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-        }
-    } catch (e) {
-        console.log('Referral check error:', e);
-    }
-}
-
-// ---- Ensure referralCode field exists on user doc ----
-async function ensureReferralCode() {
-    if (!currentUser || !db || !auth || !auth.currentUser) return;
-    if (auth.currentUser.isAnonymous) return;
-
-    if (!currentUser.referralCode) {
-        const code = getReferralCode();
-        if (code) {
-            await db.collection('users').doc(currentUser.uid).update({
-                referralCode: code,
-            });
-            currentUser.referralCode = code;
-        }
-    }
-}
 
 // ---- Get referral stats for display ----
-async function getReferralStats() {
-    if (!currentUser || !db) return { total: 0, verified: 0, pending: 0 };
+var _inviteStatsCache = { uid: '', at: 0, stats: null };
+var INVITE_STATS_MS = 5 * 60 * 1000;
 
-    const refCode = getReferralCode();
-    if (!refCode) return { total: 0, verified: 0, pending: 0 };
+async function getReferralStats() {
+    if (!currentUser || !db) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous)
+        ? auth.currentUser.uid : '';
+    if (!uid) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
+
+    var now = Date.now();
+    if (_inviteStatsCache.uid === uid && _inviteStatsCache.stats && (now - _inviteStatsCache.at) < INVITE_STATS_MS) {
+        return _inviteStatsCache.stats;
+    }
 
     try {
         const snapshot = await db.collection('referrals')
-            .where('referrerCode', '==', refCode)
+            .where('referrerUid', '==', uid)
             .get();
 
         let total = snapshot.size;
@@ -2434,13 +2311,22 @@ async function getReferralStats() {
         let pending = 0;
 
         snapshot.forEach(doc => {
-            if (doc.data().verified) verified++;
+            var data = doc.data() || {};
+            var reached = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
+            if (reached) verified++;
             else pending++;
         });
 
-        return { total, verified, pending };
+        var stats = { total: total, verified: verified, pending: pending, invited: total, maxi: verified };
+        _inviteStatsCache = { uid: uid, at: now, stats: stats };
+        return stats;
     } catch (e) {
-        return { total: 0, verified: 0, pending: 0 };
+        var invited = parseInt(currentUser.referralInvited, 10);
+        var maxi = parseInt(currentUser.referralCount, 10) || 0;
+        if (!isNaN(invited)) {
+            return { total: invited, verified: maxi, pending: Math.max(0, invited - maxi), invited: invited, maxi: maxi };
+        }
+        return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
     }
 }
 
@@ -2471,62 +2357,45 @@ function renderTicketsSection() {
 }
 
 // ---- Render referral section in settings ----
+// The link is filled with textContent after this HTML is inserted.
 function renderReferralSection() {
-    const link = getReferralLink();
     const code = getReferralCode();
-
     if (!code) return '';
 
-    let html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Referral Program</div>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Share your link with friends. Earn <strong style="color:#f7931a;">50 Orange Tickets</strong> for each referral who logs in and earns 2,140+ points (Maxi rank).' +
-        '</div>' +
-        '<div style="position:relative;margin-bottom:12px;">' +
-        '<input type="text" id="referralLinkInput" readonly value="' + link + '" style="width:100%;padding:10px 80px 10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;box-sizing:border-box;" onclick="this.select()">' +
-        '<button onclick="copyReferralLink()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Copy</button>' +
-        '</div>' +
-        '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;">Loading referral stats...</div>' +
+    return '<div id="inviteSettingsBlock" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite friends</div>' +
+        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>' +
+        '<p id="inviteSettingsLink" style="margin:0 0 12px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;word-break:break-all;"></p>' +
+        '<button type="button" onclick="openInviteFriends(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Invite friends</button>' +
+        '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;"></div>' +
         '</div>';
-
-    return html;
 }
 
 function copyReferralLink() {
-    const input = document.getElementById('referralLinkInput');
-    if (!input) return;
-
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(input.value).then(function() {
-            showToast('🔗 Referral link copied!');
-        });
-    } else {
-        input.select();
-        document.execCommand('copy');
-        showToast('🔗 Referral link copied!');
+    var link = getReferralLink();
+    var el = document.getElementById('inviteSettingsLink');
+    if (el && el.textContent) link = el.textContent;
+    if (!link) return;
+    if (_copyTextNow(link) && typeof showToast === 'function') showToast('Referral link copied!');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).catch(function() {});
     }
 }
 
 // ---- Load and display referral stats async ----
 async function loadReferralStatsUI() {
-    const el = document.getElementById('referralStats');
+    var linkEl = document.getElementById('inviteSettingsLink');
+    if (linkEl) linkEl.textContent = getReferralLink();
+    var el = document.getElementById('referralStats');
     if (!el) return;
-
-    const stats = await getReferralStats();
-    if (stats.total === 0) {
-        el.innerHTML = '<span style="color:var(--text-faint);">No referrals yet. Share your link to start earning!</span>';
-    } else {
-        el.innerHTML = '<div style="display:flex;gap:16px;">' +
-            '<span>👥 Total: <strong>' + stats.total + '</strong></span>' +
-            '<span style="color:#22c55e;">✅ Verified: <strong>' + stats.verified + '</strong></span>' +
-            '<span style="color:#eab308;">⏳ Pending: <strong>' + stats.pending + '</strong></span>' +
-            '</div>';
-    }
+    var stats = await getReferralStats();
+    el.textContent = _inviteCountLine(stats);
 }
 
 // ---- Initialize tickets system ----
 // Called after user loads (from loadUser or createUser)
 async function onUserLoadedTickets() {
+    if (typeof refreshReferFriendCard === 'function') refreshReferFriendCard();
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
 
     await ensureReferralCode();
@@ -2537,31 +2406,312 @@ async function onUserLoadedTickets() {
 
     // Start Double XP floating widget if active
     if (typeof window._checkDoubleXPWidget === 'function') window._checkDoubleXPWidget();
+    refreshInviteCard();
 }
 
 // ---- Award tickets for content uploads ----
-window.awardTickets = async function(amount, reason) {
-    if (!amount || amount < 1) return;
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
-    if (typeof currentUser === 'undefined' || !currentUser) return;
-
-    var newTotal = (currentUser.orangeTickets || 0) + amount;
-    var bonusPoints = amount * TICKET_CONFIG.pointsPerTicket;
-
-    try {
-        // Award tickets + points through server-side Cloud Function
-        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
-        if (typeof updateRankUI === 'function') updateRankUI();
-    } catch(e) { console.warn('[tickets] Award error:', e); }
-
-    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Tickets! ' + (reason || ''));
+window.awardTickets = async function() {
+    return { success: false, awarded: 0, tickets: 0 };
 };
 
-// Run on page load
+// ---- Home "Invite friends" corner card ----
+// Top-right. Signed-in users get the link. Guests see nothing unless this
+// session has no other popup, in which case one short sign-up line appears.
+
+var INVITE_STATES = { open: 1, min: 1, off: 1 };
+
+function _inviteSignedIn() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+}
+
+function _inviteUid() {
+    if (!_inviteSignedIn()) return '';
+    return String(auth.currentUser.uid || '');
+}
+
+function _inviteStorageKey(uid) {
+    return 'btc_invite_card_' + String(uid || '');
+}
+
+function _inviteReadStored(uid) {
+    var fromUser = '';
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
+        fromUser = String(currentUser.inviteCard);
+    }
+    if (INVITE_STATES[fromUser]) return fromUser;
+    try {
+        var local = localStorage.getItem(_inviteStorageKey(uid));
+        if (INVITE_STATES[local]) return local;
+    } catch (e) {}
+    return 'open';
+}
+
+function _inviteWriteStored(state) {
+    var uid = _inviteUid();
+    if (!uid || !INVITE_STATES[state]) return;
+    try { localStorage.setItem(_inviteStorageKey(uid), state); } catch (e) {}
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.inviteCard = state;
+    if (typeof db === 'undefined' || !db) return;
+    db.collection('users').doc(uid).update({ inviteCard: state }).catch(function() {});
+}
+
+function _inviteHomeVisible() {
+    var home = document.getElementById('home');
+    if (!home) return false;
+    if (home.classList.contains('hidden')) return false;
+    if (home.style.display === 'none') return false;
+    return true;
+}
+
+function _invitePopupTaken() {
+    try {
+        var cur = sessionStorage.getItem('btc_session_popup');
+        return !!(cur && cur !== 'invite');
+    } catch (e) { return false; }
+}
+
+function _claimInvitePopup() {
+    if (typeof window.btcClaimSessionPopup === 'function') return window.btcClaimSessionPopup('invite');
+    if (typeof window.claimSessionPopup === 'function') return window.claimSessionPopup('invite');
+    try {
+        if (sessionStorage.getItem('btc_session_popup')) return sessionStorage.getItem('btc_session_popup') === 'invite';
+        sessionStorage.setItem('btc_session_popup', 'invite');
+        return true;
+    } catch (e) { return false; }
+}
+
+function _guestBannerVisible() {
+    var banner = document.getElementById('guestPointsBanner');
+    if (!banner) return false;
+    if (banner.style.display === 'none') return false;
+    return true;
+}
+
+function _copyTextNow(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', 'readonly');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    if (ta.focus) ta.focus({ preventScroll: true });
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+}
+
+function _inviteCountLine(stats) {
+    var invited = stats && typeof stats.invited === 'number' ? stats.invited : 0;
+    var maxi = stats && typeof stats.maxi === 'number' ? stats.maxi : 0;
+    if (!invited && !maxi) return 'No invites yet.';
+    var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
+    var maxiLabel = maxi === 1 ? '1 reached Maxi' : maxi + ' reached Maxi';
+    return invitedLabel + ' · ' + maxiLabel;
+}
+
+function _fillInviteCard() {
+    var linkEl = document.getElementById('inviteLink');
+    if (linkEl) linkEl.textContent = getReferralLink();
+    var share = document.getElementById('inviteShare');
+    if (share) share.hidden = !navigator.share;
+    var copyBtn = document.getElementById('inviteCopy');
+    if (copyBtn && copyBtn.textContent !== 'Copied!') copyBtn.textContent = 'Copy';
+}
+
+function _paintInviteCounts(stats) {
+    var el = document.getElementById('inviteCounts');
+    if (el) el.textContent = _inviteCountLine(stats);
+}
+
+function _loadInviteCounts() {
+    getReferralStats().then(function(stats) {
+        if (stats && stats.failed) throw new Error('counts');
+        _paintInviteCounts(stats || { invited: 0, maxi: 0 });
+    }).catch(function() {
+        var maxi = 0;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            maxi = parseInt(currentUser.referralCount, 10) || 0;
+        }
+        var el = document.getElementById('inviteCounts');
+        if (!el) return;
+        if (maxi) el.textContent = maxi + (maxi === 1 ? ' reached Maxi' : ' reached Maxi');
+        else el.textContent = 'Invite counts load when you are online.';
+    });
+}
+
+function _applyInviteState(state) {
+    var card = document.getElementById('inviteCard');
+    if (!card) return;
+    card.setAttribute('data-state', state);
+    card.setAttribute('data-show', state === 'off' ? '0' : '1');
+}
+
+function refreshInviteCard() {
+    var card = document.getElementById('inviteCard');
+    if (!card) return;
+    if (!_inviteHomeVisible()) {
+        card.setAttribute('data-show', '0');
+        return;
+    }
+    if (typeof auth === 'undefined' || !auth) {
+        card.setAttribute('data-show', '0');
+        return;
+    }
+    if (_inviteSignedIn()) {
+        var state = _inviteReadStored(_inviteUid());
+        _applyInviteState(state);
+        if (state === 'open') {
+            _fillInviteCard();
+            _loadInviteCounts();
+        }
+        return;
+    }
+    var dismissed = false;
+    try { dismissed = sessionStorage.getItem('btc_invite_guest_dismissed') === '1'; } catch (e) {}
+    if (dismissed || _guestBannerVisible() || _invitePopupTaken() || !_claimInvitePopup()) {
+        _applyInviteState('off');
+        return;
+    }
+    _applyInviteState('guest');
+}
+
+function openInviteFriends(force) {
+    if (!_inviteSignedIn()) {
+        if (!force && (_invitePopupTaken() || !_claimInvitePopup())) return;
+        try { sessionStorage.removeItem('btc_invite_guest_dismissed'); } catch (e) {}
+        if (typeof goHome === 'function') goHome();
+        _applyInviteState('guest');
+        return;
+    }
+    if (force) _inviteWriteStored('open');
+    var modal = document.getElementById('usernameModal');
+    if (modal) modal.classList.remove('open');
+    if (typeof goHome === 'function') goHome();
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
+}
+
+function minimizeInviteCard() {
+    if (!_inviteSignedIn()) return;
+    _inviteWriteStored('min');
+    _applyInviteState('min');
+}
+
+function expandInviteCard() {
+    if (!_inviteSignedIn()) return;
+    _inviteWriteStored('open');
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
+}
+
+function dismissInviteCard() {
+    if (!_inviteSignedIn()) {
+        try { sessionStorage.setItem('btc_invite_guest_dismissed', '1'); } catch (e) {}
+        _applyInviteState('off');
+        return;
+    }
+    _inviteWriteStored('off');
+    _applyInviteState('off');
+}
+
+function toggleInviteHow() {
+    var panel = document.getElementById('inviteHow');
+    var btn = document.getElementById('inviteHowBtn');
+    if (!panel || !btn) return;
+    var open = panel.hasAttribute('hidden');
+    if (open) panel.removeAttribute('hidden');
+    else panel.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function copyInviteLink() {
+    var linkEl = document.getElementById('inviteLink');
+    var btn = document.getElementById('inviteCopy');
+    var text = (linkEl && linkEl.textContent) || getReferralLink();
+    if (!text) return;
+    function mark() {
+        if (!btn) return;
+        btn.textContent = 'Copied!';
+        clearTimeout(window._inviteCopiedTimer);
+        window._inviteCopiedTimer = setTimeout(function() {
+            if (btn) btn.textContent = 'Copy';
+        }, 2500);
+    }
+    var copied = _copyTextNow(text);
+    if (copied) mark();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(mark).catch(function() {
+            if (!copied && typeof showToast === 'function') showToast('Select the link and copy it');
+        });
+    } else if (!copied && typeof showToast === 'function') {
+        showToast('Select the link and copy it');
+    }
+}
+
+function shareInviteLink() {
+    var linkEl = document.getElementById('inviteLink');
+    var link = (linkEl && linkEl.textContent) || getReferralLink();
+    if (!link || !navigator.share) return;
+    navigator.share({
+        title: 'Bitcoin Quest',
+        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
+        url: link
+    }).catch(function() {});
+}
+
+function inviteGuestSignup() {
+    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+    else {
+        var modal = document.getElementById('usernameModal');
+        if (modal) modal.classList.add('open');
+    }
+}
+
 if (typeof window !== 'undefined') {
-    // Capture referral code from URL immediately
     captureReferralCode();
+    window.openInviteFriends = openInviteFriends;
+    window.minimizeInviteCard = minimizeInviteCard;
+    window.expandInviteCard = expandInviteCard;
+    window.dismissInviteCard = dismissInviteCard;
+    window.toggleInviteHow = toggleInviteHow;
+    window.copyInviteLink = copyInviteLink;
+    window.shareInviteLink = shareInviteLink;
+    window.inviteGuestSignup = inviteGuestSignup;
+    window.refreshInviteCard = refreshInviteCard;
+    function bindInviteAuth() {
+        if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') return false;
+        if (window._inviteAuthBound) return true;
+        window._inviteAuthBound = true;
+        auth.onAuthStateChanged(function() { refreshInviteCard(); });
+        refreshInviteCard();
+        return true;
+    }
+    function watchInviteHome() {
+        var home = document.getElementById('home');
+        if (!home || home._inviteWatch) return;
+        home._inviteWatch = true;
+        if (typeof MutationObserver === 'function') {
+            new MutationObserver(function() { refreshInviteCard(); }).observe(home, { attributes: true, attributeFilter: ['class', 'style'] });
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', watchInviteHome);
+    } else {
+        watchInviteHome();
+    }
+    if (!bindInviteAuth()) {
+        var inviteTries = 0;
+        var inviteWatch = setInterval(function() {
+            inviteTries++;
+            if (bindInviteAuth() || inviteTries > 60) clearInterval(inviteWatch);
+        }, 1000);
+    }
+    refreshInviteCard();
 }
 // Phase 10: Loyalty & Learning Boosts 🎓
 
@@ -3049,7 +3199,21 @@ const COUCH_NACHO_HTML = '<div style="position:relative;width:100%;height:100%;d
 
 // Check if we're on Timechain TV page
 function isTimechainTVPage() {
-    return window.currentPage === 'timechain-tv' || window.location.hash === '#timechain-tv';
+    if (window.currentPage) return window.currentPage === 'timechain-tv' || window.currentPage === 'tv';
+    var hash = window.location.hash || '';
+    var path = window.location.pathname || '';
+    return hash === '#timechain-tv' || hash === '#tv' || path === '/timechain-tv' || path === '/tv';
+}
+
+// Shared chrome so the live avatar and the Timechain TV swap stay identical.
+function nachoControlsHtml() {
+    return '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
+        '<button type="button" id="nachoHideBtn" aria-label="Minimize Nacho" title="Minimize Nacho" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();if(typeof hideNacho===\'function\')hideNacho();">–</button>' +
+        '<div class="nacho-btn-stack">' +
+            '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+            '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+        '</div>' +
+        '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:var(--bg-side,#fff);border:1.5px solid var(--accent,#f7931a);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:var(--text-muted,#888);pointer-events:none;">⠿</span></div>';
 }
 
 // Poses are now expressed through the speech bubble label
@@ -3482,14 +3646,45 @@ function createNacho() {
             position: fixed;
             bottom: 80px;
             left: 330px;
-            z-index: 250;
+            /* Above page content and the mobile bar (100). Below badge toasts (300),
+               search (20000), and modals (9999+). */
+            z-index: 260;
             display: flex;
             align-items: flex-end;
             gap: 0;
             pointer-events: none;
-            transition: opacity 0.3s, transform 0.3s;
+            transition: opacity 0.3s;
         }
-        #nacho-container.hidden { opacity: 0; transform: translateY(30px); pointer-events: none; }
+        #nacho-container.hidden { opacity: 0; pointer-events: none; }
+        /* A minimized deer must not catch taps. Children set pointer-events:auto,
+           so the hidden rule has to win on every descendant. The 🦌 pill is outside. */
+        #nacho-container.hidden,
+        #nacho-container.hidden * {
+            pointer-events: none !important;
+            visibility: hidden !important;
+        }
+        #nacho-container.nacho-dragging,
+        #nacho-avatar.nacho-dragging,
+        #nacho-toggle.nacho-dragging {
+            animation: none !important;
+            transform: none !important;
+            transition: none !important;
+            cursor: grabbing;
+        }
+        #nacho-container.nacho-dragging #nacho-avatar {
+            animation: none !important;
+            transform: none !important;
+        }
+        #nacho-container.nacho-suspended,
+        #nacho-toggle.nacho-suspended { display: none !important; }
+        /* Fullscreen overlays that sit under Nacho and would swallow taps. */
+        body:has(aside.open) #nacho-container,
+        body:has(aside.open) #nacho-toggle,
+        body:has(.lightbox.open) #nacho-container,
+        body:has(.lightbox.open) #nacho-toggle {
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
 
         #nacho-avatar {
             width: 110px;
@@ -3501,6 +3696,7 @@ function createNacho() {
             justify-content: center;
             cursor: pointer;
             pointer-events: auto;
+            touch-action: none;
             filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5));
             transition: transform 0.15s;
             user-select: none;
@@ -3582,15 +3778,15 @@ function createNacho() {
             background: rgba(247,147,26,0.15);
         }
 
-        /* Nacho speech bubble — high contrast, always readable */
+        /* Nacho speech bubble — follows the active theme */
         #nacho-bubble {
-            background: #111827;
-            border: 2px solid #f7931a;
+            background: var(--bg-side, #111827);
+            border: 2px solid var(--accent, #f7931a);
             border-radius: 16px;
             padding: 16px 20px 16px 18px;
             max-width: 300px;
-            min-width: 200px;
-            color: #f8f8f8;
+            min-width: 160px;
+            color: var(--text, #f8f8f8);
             font-size: 0.9rem;
             line-height: 1.55;
             pointer-events: none;
@@ -3612,7 +3808,7 @@ function createNacho() {
             width: 0; height: 0;
             border-top: 10px solid transparent;
             border-bottom: 10px solid transparent;
-            border-right: 10px solid #f7931a;
+            border-right: 10px solid var(--accent, #f7931a);
         }
         #nacho-bubble::after {
             content: '';
@@ -3622,8 +3818,25 @@ function createNacho() {
             width: 0; height: 0;
             border-top: 8px solid transparent;
             border-bottom: 8px solid transparent;
-            border-right: 8px solid #111827;
+            border-right: 8px solid var(--bg-side, #111827);
         }
+        #nacho-container.nacho-bubble-left { flex-direction: row-reverse; }
+        #nacho-container.nacho-bubble-left #nacho-bubble { margin-left: 0; margin-right: -6px; }
+        #nacho-container.nacho-bubble-left #nacho-bubble::before {
+            left: auto; right: -10px;
+            border-right: none;
+            border-left: 10px solid var(--accent, #f7931a);
+        }
+        #nacho-container.nacho-bubble-left #nacho-bubble::after {
+            left: auto; right: -7px;
+            border-right: none;
+            border-left: 8px solid var(--bg-side, #111827);
+        }
+        #nacho-container.nacho-bubble-below { flex-direction: column; align-items: flex-start; }
+        #nacho-container.nacho-bubble-below.nacho-bubble-left { align-items: flex-end; }
+        #nacho-container.nacho-bubble-below #nacho-bubble { margin: 8px 0 0 0; }
+        #nacho-container.nacho-bubble-below #nacho-bubble::before,
+        #nacho-container.nacho-bubble-below #nacho-bubble::after { display: none; }
         #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 
         .nacho-header {
@@ -3794,15 +4007,79 @@ function createNacho() {
         #nacho-avatar.anim-wave { animation: nachoWave 1.5s ease-in-out infinite; }
         #nacho-avatar.anim-sleepy { animation: nachoSleepy 4s ease-in-out infinite; }
 
-        /* Quiet mode: only the avatar shows until Nacho is hovered or speaking */
-        #nacho-avatar .nacho-name, #nachoHideBtn, #nachoDragHandle, .nacho-btn-stack {
+        /* Quiet mode: name, closet, and the drag handle wait for hover. The minimize
+           button is separate so phones can always see it. */
+        #nacho-avatar .nacho-name, #nachoDragHandle, .nacho-btn-stack {
             opacity: 0; pointer-events: none; transition: opacity 0.25s;
         }
-        #nacho-container:hover .nacho-name, #nacho-container:hover #nachoHideBtn,
-        #nacho-container:hover #nachoDragHandle, #nacho-container:hover .nacho-btn-stack,
-        #nacho-container.nacho-engaged .nacho-name, #nacho-container.nacho-engaged #nachoHideBtn,
-        #nacho-container.nacho-engaged #nachoDragHandle, #nacho-container.nacho-engaged .nacho-btn-stack {
+        #nacho-container:hover .nacho-name, #nacho-container:hover #nachoDragHandle,
+        #nacho-container:hover .nacho-btn-stack,
+        #nacho-container.nacho-engaged .nacho-name, #nacho-container.nacho-engaged #nachoDragHandle,
+        #nacho-container.nacho-engaged .nacho-btn-stack,
+        #nacho-container:focus-within .nacho-name, #nacho-container:focus-within #nachoDragHandle,
+        #nacho-container:focus-within .nacho-btn-stack {
             opacity: 1; pointer-events: auto;
+        }
+        #nachoHideBtn {
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            margin: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 50%;
+            border: 1.5px solid var(--border, #334155);
+            background: var(--bg-side, #0f172a);
+            color: var(--text, #e2e8f0);
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 14;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+            touch-action: manipulation;
+            font-family: inherit;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.15s, border-color 0.15s, color 0.15s;
+        }
+        #nacho-container:hover #nachoHideBtn,
+        #nacho-container:focus-within #nachoHideBtn,
+        #nachoHideBtn:focus {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* Freeze the idle bob while the minimize control is the target, and on
+           touch where that control is always showing. */
+        #nacho-container:hover #nacho-avatar,
+        #nacho-container:focus-within #nacho-avatar {
+            animation: none !important;
+        }
+        #nachoHideBtn:hover, #nachoHideBtn:focus {
+            border-color: var(--accent, #f7931a);
+            color: var(--accent, #f7931a);
+        }
+        @media (hover: none) and (pointer: coarse) {
+            #nachoHideBtn { opacity: 1; pointer-events: auto; }
+            #nacho-avatar { animation: none !important; }
+        }
+        @media (max-width: 900px) {
+            #nachoHideBtn {
+                opacity: 1;
+                pointer-events: auto;
+                top: 0;
+                left: 0;
+                width: 22px;
+                height: 22px;
+                font-size: 16px;
+            }
+            #nacho-avatar { animation: none !important; }
         }
 
         /* Tablet — sidebar is 280px */
@@ -3812,53 +4089,44 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
         @media (max-width: 900px) {
-            #nacho-container { bottom: 76px; left: 10px; }
+            #nacho-container { bottom: 76px; left: 32px; }
             #nacho-avatar { width: 56px; height: 56px; }
             #nacho-bubble {
-                position: fixed;
-                bottom: 148px;
-                left: 12px;
-                right: 12px;
-                max-width: calc(100vw - 24px);
+                max-width: min(260px, calc(100vw - 80px));
                 max-height: 40vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
-                min-width: unset;
-                width: auto;
-                font-size: 0.9rem;
-                padding: 16px 18px;
-                margin-left: 0;
+                min-width: 140px;
+                font-size: 0.85rem;
+                padding: 12px 14px;
                 border-radius: 14px;
             }
-            #nacho-bubble::before, #nacho-bubble::after { display: none; }
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: 76px; left: 8px; }
+            #nacho-container { bottom: 76px; left: 32px; }
             #nacho-avatar { width: 52px; height: 52px; }
             #nacho-bubble {
-                bottom: 140px;
-                left: 10px;
-                right: 10px;
-                max-width: calc(100vw - 20px);
+                max-width: min(230px, calc(100vw - 72px));
                 max-height: 38vh;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                font-size: 0.85rem;
-                padding: 14px 16px;
+                font-size: 0.82rem;
+                padding: 12px 14px;
             }
             #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
 
         /* Bring-back toggle */
         #nacho-toggle {
-            position: fixed; bottom: 80px; left: 330px; z-index: 250;
+            position: fixed; bottom: 80px; left: 330px; z-index: 260;
             width: 52px; height: 52px;
-            background: radial-gradient(circle, #fff 60%, rgba(255,255,255,0.85) 100%);
-            border: 2px solid rgba(247,147,26,0.5);
+            background: var(--bg-side, #fff);
+            border: 2px solid var(--accent, #f7931a);
+            color: var(--text, #1e293b);
             border-radius: 50%; display: none; align-items: center; justify-content: center;
-            font-size: 1.6rem; cursor: pointer; opacity: 0.9; transition: all 0.3s;
+            font-size: 1.6rem; cursor: grab; opacity: 0.95; transition: opacity 0.3s, box-shadow 0.3s;
             box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 3px rgba(247,147,26,0.15);
+            touch-action: none;
+            user-select: none;
         }
         #nacho-toggle:hover { opacity: 1; transform: scale(1.1); box-shadow: 0 4px 20px rgba(247,147,26,0.4), 0 0 0 4px rgba(247,147,26,0.25); }
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
@@ -3876,13 +4144,7 @@ function createNacho() {
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!" style="' + avatarStyle + '" data-tctv="' + (isTimechainTVPage() ? '1' : '0') + '">' +
             avatarContent +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
-            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
-            '<div class="nacho-btn-stack">' +
-                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-            '</div>' +
-            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>' +
+            nachoControlsHtml() +
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\'&&this.getAttribute(\'data-trivia\')!==\'1\')hideBubble(true)">' +
             '<div class="nacho-header">' +
@@ -4004,7 +4266,16 @@ function createNacho() {
     toggle.id = 'nacho-toggle';
     toggle.innerHTML = '🦌';
     toggle.title = 'Bring back Nacho';
-    toggle.onclick = function() { showNacho(); };
+    toggle.setAttribute('role', 'button');
+    toggle.setAttribute('aria-label', 'Bring Nacho back');
+    toggle.tabIndex = 0;
+    toggle.onclick = function() {
+        if (toggle._nachoSuppressClick) { toggle._nachoSuppressClick = false; return; }
+        showNacho();
+    };
+    toggle.onkeydown = function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showNacho(); }
+    };
     if (!nachoVisible) toggle.style.display = 'flex';
     document.body.appendChild(toggle);
 
@@ -4014,12 +4285,17 @@ function createNacho() {
         if (!avatar) return;
         var lpTimer = null;
         var lpFired = false;
+        window._nachoCancelLongPress = function() {
+            clearTimeout(lpTimer);
+            lpTimer = null;
+            lpFired = false;
+        };
         avatar.addEventListener('touchstart', function(e) {
             lpFired = false;
             lpTimer = setTimeout(function() {
+                if (window._nachoDragging) return;
                 lpFired = true;
                 if (typeof hideNacho === 'function') hideNacho();
-                if (typeof showToast === 'function') showToast('🦌 Nacho hidden! Tap the 🦌 icon to bring him back.');
             }, 800);
         }, { passive: true });
         avatar.addEventListener('touchend', function() { clearTimeout(lpTimer); if (lpFired) { lpFired = false; } });
@@ -4027,8 +4303,8 @@ function createNacho() {
         // Desktop: right-click also hides
         avatar.addEventListener('contextmenu', function(e) {
             e.preventDefault();
+            if (window._nachoDragging) return;
             if (typeof hideNacho === 'function') hideNacho();
-            if (typeof showToast === 'function') showToast('🦌 Nacho hidden! Tap the 🦌 icon to bring him back.');
         });
     })();
 
@@ -4333,6 +4609,18 @@ window._nachoDispatch = function(key) {
     }
 };
 
+// Keep the deer on his saved spot when the bubble grows or shrinks.
+function pinNachoAvatar() {
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            if (window._nachoDragging) return;
+            var c = document.getElementById('nacho-container');
+            if (!c || c.classList.contains('nacho-dragging') || c.classList.contains('hidden') || c.classList.contains('nacho-suspended')) return;
+            if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
+        });
+    });
+}
+
 // ---- Show/Hide Bubble ----
 function showBubble(text, pose) {
     var _nc = document.getElementById('nacho-container');
@@ -4431,6 +4719,8 @@ function _showBubble(text, pose) {
         textEl.textContent = personalize(text);
     }
     bubble.classList.add('show');
+    if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+    pinNachoAvatar();
 
     clearTimeout(bubbleTimeout);
     bubble.setAttribute('data-interactive', isInteractive ? 'true' : 'false');
@@ -4491,232 +4781,6 @@ function _showBubble(text, pose) {
     }, { passive: true });
 })();
 
-// Drag-to-reposition Nacho (mobile + desktop)
-(function() {
-    var dragging = false, dragStartX = 0, dragStartY = 0;
-    var containerStartLeft = 0, containerStartTop = 0;
-    var dragThreshold = 8; // px — must move this far before it counts as drag (not tap)
-    var hasMoved = false;
-    var dragTarget = null;
-
-    function getContainer() { return document.getElementById('nacho-container'); }
-
-    function restoreSavedPosition() {
-        var saved = localStorage.getItem('btc_nacho_position');
-        if (!saved) return;
-        try {
-            var pos = JSON.parse(saved);
-            var c = getContainer();
-            if (!c) return;
-            // Validate position is on screen
-            var maxX = window.innerWidth - 40;
-            var maxY = window.innerHeight - 40;
-            if (pos.left >= 0 && pos.left <= maxX && pos.top >= 0 && pos.top <= maxY) {
-                c.style.left = pos.left + 'px';
-                c.style.bottom = 'auto';
-                c.style.top = pos.top + 'px';
-                c.style.right = 'auto';
-            }
-        } catch(e) {}
-    }
-
-    // Restore position on load and on resize (validate bounds)
-    setTimeout(restoreSavedPosition, 500);
-    window.addEventListener('resize', function() {
-        var saved = localStorage.getItem('btc_nacho_position');
-        if (!saved) return;
-        try {
-            var pos = JSON.parse(saved);
-            var c = getContainer();
-            if (!c) return;
-            // Clamp to viewport
-            pos.left = Math.max(0, Math.min(pos.left, window.innerWidth - 60));
-            pos.top = Math.max(0, Math.min(pos.top, window.innerHeight - 60));
-            c.style.left = pos.left + 'px';
-            c.style.top = pos.top + 'px';
-            localStorage.setItem('btc_nacho_position', JSON.stringify(pos));
-        } catch(e) {}
-    });
-
-    // Touch events (mobile) — drag ONLY from the drag handle
-    document.addEventListener('touchstart', function(e) {
-        var handle = document.getElementById('nachoDragHandle');
-        if (!handle || !handle.contains(e.target)) return;
-        e.preventDefault(); // Prevent any other touch behavior
-        var c = getContainer();
-        if (!c) return;
-        hasMoved = false;
-        dragTarget = c;
-        dragStartX = e.touches[0].clientX;
-        dragStartY = e.touches[0].clientY;
-        var rect = c.getBoundingClientRect();
-        containerStartLeft = rect.left;
-        containerStartTop = rect.top;
-        dragging = true;
-        c.style.transition = 'none';
-        c.style.opacity = '0.85';
-        handle.style.background = 'rgba(247,147,26,0.9)';
-        handle.querySelector('span').style.color = '#fff';
-    }, { passive: false });
-
-    document.addEventListener('touchmove', function(e) {
-        if (!dragging || !dragTarget) return;
-        var dx = e.touches[0].clientX - dragStartX;
-        var dy = e.touches[0].clientY - dragStartY;
-        if (!hasMoved && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
-        hasMoved = true;
-        e.preventDefault(); // Stop scrolling while dragging Nacho
-        e.stopPropagation();
-        var newLeft = Math.max(0, Math.min(containerStartLeft + dx, window.innerWidth - 60));
-        var newTop = Math.max(0, Math.min(containerStartTop + dy, window.innerHeight - 60));
-        dragTarget.style.left = newLeft + 'px';
-        dragTarget.style.top = newTop + 'px';
-        dragTarget.style.bottom = 'auto';
-        dragTarget.style.right = 'auto';
-    }, { passive: false });
-
-    document.addEventListener('touchend', function(e) {
-        if (!dragging) return;
-        dragging = false;
-        if (dragTarget) {
-            dragTarget.style.transition = '';
-            dragTarget.style.opacity = '';
-        }
-        // Reset drag handle appearance
-        var handle = document.getElementById('nachoDragHandle');
-        if (handle) { handle.style.background = 'rgba(255,255,255,0.9)'; var hs = handle.querySelector('span'); if (hs) hs.style.color = '#888'; }
-        if (hasMoved && dragTarget) {
-            var rect = dragTarget.getBoundingClientRect();
-            // Clamp to viewport edges (don't let it go off-screen)
-            var clampedLeft = Math.max(0, Math.min(Math.round(rect.left), window.innerWidth - 60));
-            var clampedTop = Math.max(0, Math.min(Math.round(rect.top), window.innerHeight - 60));
-            dragTarget.style.left = clampedLeft + 'px';
-            dragTarget.style.top = clampedTop + 'px';
-            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: clampedLeft, top: clampedTop }));
-            setTimeout(adjustBubbleForPosition, 50);
-            e.preventDefault();
-        }
-        dragTarget = null;
-    }, { passive: false });
-
-    // Mouse events (desktop) — drag ONLY from handle
-    document.addEventListener('mousedown', function(e) {
-        var handle = document.getElementById('nachoDragHandle');
-        if (!handle || !handle.contains(e.target)) return;
-        var c = getContainer();
-        if (!c) return;
-        dragging = true;
-        hasMoved = false;
-        dragTarget = c;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
-        var rect = c.getBoundingClientRect();
-        containerStartLeft = rect.left;
-        containerStartTop = rect.top;
-        c.style.transition = 'none';
-        e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', function(e) {
-        if (!dragging || !dragTarget) return;
-        var dx = e.clientX - dragStartX;
-        var dy = e.clientY - dragStartY;
-        if (!hasMoved && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
-        hasMoved = true;
-        var newLeft = Math.max(0, Math.min(containerStartLeft + dx, window.innerWidth - 60));
-        var newTop = Math.max(0, Math.min(containerStartTop + dy, window.innerHeight - 60));
-        dragTarget.style.left = newLeft + 'px';
-        dragTarget.style.top = newTop + 'px';
-        dragTarget.style.bottom = 'auto';
-        dragTarget.style.right = 'auto';
-    });
-
-    document.addEventListener('mouseup', function(e) {
-        if (!dragging) return;
-        dragging = false;
-        if (dragTarget) dragTarget.style.transition = '';
-        if (hasMoved && dragTarget) {
-            var rect = dragTarget.getBoundingClientRect();
-            // Clamp to viewport edges (don't let it go off-screen)
-            var clampedLeft = Math.max(0, Math.min(Math.round(rect.left), window.innerWidth - 60));
-            var clampedTop = Math.max(0, Math.min(Math.round(rect.top), window.innerHeight - 60));
-            dragTarget.style.left = clampedLeft + 'px';
-            dragTarget.style.top = clampedTop + 'px';
-            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: clampedLeft, top: clampedTop }));
-            setTimeout(adjustBubbleForPosition, 50);
-        }
-        dragTarget = null;
-    });
-
-    // After repositioning, adjust bubble alignment so it stays on screen
-    function adjustBubbleForPosition() {
-        var c = getContainer();
-        if (!c) return;
-        var bubble = document.getElementById('nacho-bubble');
-        if (!bubble) return;
-        var rect = c.getBoundingClientRect();
-        var viewW = window.innerWidth;
-        var viewH = window.innerHeight;
-        // If Nacho is on the right half, flip bubble to the left
-        if (rect.left > viewW / 2) {
-            bubble.style.marginLeft = '';
-            bubble.style.marginRight = '-6px';
-            bubble.style.alignSelf = 'flex-end';
-            // Flip arrow pointers
-            var before = bubble.querySelector(':scope')
-            bubble.style.setProperty('--bubble-side', 'right');
-        } else {
-            bubble.style.marginLeft = '-6px';
-            bubble.style.marginRight = '';
-            bubble.style.alignSelf = '';
-        }
-        // If near the top of screen, ensure bubble doesn't go above viewport
-        if (rect.top < 200) {
-            bubble.style.order = '2'; // render bubble below avatar
-            bubble.style.marginBottom = '0';
-            bubble.style.marginTop = '8px';
-        } else {
-            bubble.style.order = '';
-            bubble.style.marginBottom = '16px';
-            bubble.style.marginTop = '';
-        }
-    }
-
-    // Call after any position save
-    var _origSavePos = function(rect) {
-        localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
-        setTimeout(adjustBubbleForPosition, 50);
-    };
-
-    // Reset position when Nacho is shown again (after being hidden)
-    var _origShowNacho = window.showNacho;
-    window.showNacho = function() {
-        _origShowNacho.apply(this, arguments);
-        restoreSavedPosition();
-        setTimeout(adjustBubbleForPosition, 200);
-    };
-
-    // Also adjust on load
-    setTimeout(adjustBubbleForPosition, 1000);
-
-    // Double-tap to reset position
-    var lastResetTap = 0;
-    document.addEventListener('dblclick', function(e) {
-        var avatar = document.getElementById('nacho-avatar');
-        if (!avatar || !avatar.contains(e.target)) return;
-        localStorage.removeItem('btc_nacho_position');
-        var c = getContainer();
-        if (c) {
-            c.style.left = '';
-            c.style.top = '';
-            c.style.bottom = '';
-            c.style.right = '';
-        }
-        if (typeof showToast === 'function') showToast('🦌 Nacho reset to default position!');
-        setTimeout(adjustBubbleForPosition, 100);
-    });
-})();
-
 window.hideBubble = function(force) {
         var bubble = document.getElementById('nacho-bubble');
     // Trivia stays until the X (or the in-bubble Dismiss button) sets this flag.
@@ -4738,6 +4802,7 @@ window.hideBubble = function(force) {
     if (_nc2) _nc2.classList.remove('nacho-engaged');
     var avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
+    pinNachoAvatar();
     clearTimeout(bubbleTimeout);
     // Resume idle after a beat
     setTimeout(function() {
@@ -4753,6 +4818,8 @@ let nachoFlyCooldown = 0;
 window.nachoClick = function() {
     // Guard: if an action button was just clicked, don't interfere
     if (window._nachoActionClicked) { window._nachoActionClicked = false; return; }
+    var _avatar = document.getElementById('nacho-avatar');
+    if (_avatar && _avatar._nachoSuppressClick) { _avatar._nachoSuppressClick = false; return; }
     const now = Date.now();
 
     // Multi-tap detection
@@ -4774,7 +4841,6 @@ window.nachoClick = function() {
         nachoTapTimes = [];
         lastClickTime = now;
         if (typeof hideNacho === 'function') hideNacho();
-        if (typeof showToast === 'function') showToast('🦌 Nacho hidden — tap the 🦌 button to bring him back!');
         return;
     }
 
@@ -4827,8 +4893,11 @@ window.nachoClick = function() {
 window.showNacho = function() {
     nachoVisible = true;
     localStorage.removeItem('btc_nacho_hidden');
-    document.getElementById('nacho-container').classList.remove('hidden');
-    document.getElementById('nacho-toggle').style.display = 'none';
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.remove('hidden');
+    if (nt) nt.style.display = 'none';
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
     lastBubbleTime = 0;
     
     // Smart Greeting selection
@@ -4898,10 +4967,36 @@ window.showNacho = function() {
 
 window.hideNacho = function() {
     nachoVisible = false;
-    // 'user' = manually hidden (won't auto-restore); 'true' kept for back-compat reads
+    // 'user' = manually minimized (won't auto-restore); 'true' kept for back-compat reads
     localStorage.setItem('btc_nacho_hidden', 'user');
-    document.getElementById('nacho-container').classList.add('hidden');
-    document.getElementById('nacho-toggle').style.display = 'flex';
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.add('hidden');
+    if (nt) nt.style.display = 'flex';
+    if (typeof hideBubble === 'function') hideBubble(true);
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
+    try {
+        if (!localStorage.getItem('btc_nacho_min_toast_shown') && typeof window._showToastNow === 'function') {
+            window._showToastNow('Nacho minimized. Tap 🦌 to bring him back', 4000);
+            localStorage.setItem('btc_nacho_min_toast_shown', '1');
+        }
+    } catch (e) {}
+};
+
+// Temporary hide for fullscreen surfaces that would cover Nacho's controls.
+// Does not write btc_nacho_hidden, so a reload or resume puts him back.
+window.suspendNacho = function() {
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.add('nacho-suspended');
+    if (nt) nt.classList.add('nacho-suspended');
+};
+window.resumeNacho = function() {
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.remove('nacho-suspended');
+    if (nt) nt.classList.remove('nacho-suspended');
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
 };
 
 // ---- Context-Aware: Page Navigation (Forum/Marketplace) ----
@@ -5354,9 +5449,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Prevent scrolling when long-pressing Nacho
                 e.preventDefault();
             }
-            lp = setTimeout(function() { 
-                hideNacho(); 
-                if (typeof showToast === 'function') showToast('🦌 Nacho is hiding. Click the small 🦌 to bring him back!'); 
+            lp = setTimeout(function() {
+                if (window._nachoDragging) return;
+                hideNacho();
             }, 800); 
         }
         function stopLP() { clearTimeout(lp); }
@@ -5389,217 +5484,426 @@ if (document.readyState === 'loading') {
 
 // =============================================
 // 🦌 NACHO DRAG TO REPOSITION
-// Click+drag or press+hold+drag to move the deer
-// Position saved to localStorage
+// Drag the handle or the avatar (movement threshold keeps taps as taps).
+// Deer position: btc_nacho_position. Pill position: btc_nacho_toggle_position.
 // =============================================
 (function initNachoDrag() {
-    var STORAGE_KEY = 'btc_nacho_position';
-    var container = null;
-    var handle = null;
-    var isDragging = false;
-    var startX = 0, startY = 0;
-    var startLeft = 0, startBottom = 0;
-    var dragMoved = false;
-    var dragThreshold = 8; // px before counting as drag
+    var POS_KEY = 'btc_nacho_position';
+    var PILL_KEY = 'btc_nacho_toggle_position';
+    var THRESHOLD = 8;
 
-    function getContainer() {
-        if (!container) container = document.getElementById('nacho-container');
-        return container;
+    function clamp(n, min, max) {
+        return Math.max(min, Math.min(n, max));
     }
-    function getHandle() {
-        if (!handle) handle = document.getElementById('nachoDragHandle');
-        return handle;
-    }
+    function getContainer() { return document.getElementById('nacho-container'); }
+    function getAvatar() { return document.getElementById('nacho-avatar'); }
+    function getToggle() { return document.getElementById('nacho-toggle'); }
 
-    // Restore saved position
-    function restorePosition() {
+    function finiteNum(n) { return typeof n === 'number' && isFinite(n); }
+    function readPos(key) {
         try {
-            var saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-            if (saved && typeof saved.left === 'number' && typeof saved.bottom === 'number') {
-                var c = getContainer();
-                if (c) {
-                    // Clamp to viewport
-                    var maxLeft = window.innerWidth - 80;
-                    var maxBottom = window.innerHeight - 80;
-                    var left = Math.max(0, Math.min(saved.left, maxLeft));
-                    var bottom = Math.max(0, Math.min(saved.bottom, maxBottom));
-                    c.style.left = left + 'px';
-                    c.style.bottom = bottom + 'px';
-                    c.style.right = 'auto';
-                    c.style.top = 'auto';
-                    c.style.position = 'fixed';
+            var saved = JSON.parse(localStorage.getItem(key) || 'null');
+            if (!saved || !finiteNum(saved.left)) return null;
+            if (!finiteNum(saved.top) && !finiteNum(saved.bottom)) return null;
+            return saved;
+        } catch (e) { return null; }
+    }
+    function writePos(key, left, top) {
+        try {
+            localStorage.setItem(key, JSON.stringify({ v: 2, left: Math.round(left), top: Math.round(top) }));
+        } catch (e) {}
+    }
+    function applyPos(el, left, top) {
+        el.style.position = 'fixed';
+        el.style.left = Math.round(left) + 'px';
+        el.style.top = Math.round(top) + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+    }
+    function topInset() {
+        if (window.innerWidth <= 900) return 64;
+        return 8;
+    }
+    function sideMargin() {
+        // Phones: keep the minimize control out of the back-swipe edge.
+        return window.innerWidth <= 900 ? 32 : 8;
+    }
+    function clampBox(left, top, width, height) {
+        var w = width || 52;
+        var h = height || 52;
+        var margin = sideMargin();
+        var maxL = Math.max(margin, window.innerWidth - w - margin);
+        var maxT = Math.max(topInset(), window.innerHeight - h - margin);
+        var minT = Math.min(topInset(), maxT);
+        return {
+            left: clamp(left, margin, maxL),
+            top: clamp(top, minT, maxT)
+        };
+    }
+
+    // Put the speech bubble on whichever side (or below) actually fits.
+    window._nachoPlaceBubble = function() {
+        var c = getContainer();
+        var bubble = document.getElementById('nacho-bubble');
+        var avatar = getAvatar();
+        if (!c || !bubble || !avatar) return;
+        var rect = avatar.getBoundingClientRect();
+        var vw = window.innerWidth || 360;
+        var gap = 16;
+        var want = Math.min(300, Math.max(140, vw - 72));
+        var spaceRight = vw - rect.right - gap;
+        var spaceLeft = rect.left - gap;
+        var placeLeft = spaceRight < Math.min(want, 180) && spaceLeft > spaceRight;
+        var room = placeLeft ? spaceLeft : spaceRight;
+        var placeBelow = room < 150 || rect.top < 120;
+        c.classList.toggle('nacho-bubble-left', placeLeft && !placeBelow);
+        c.classList.toggle('nacho-bubble-below', placeBelow);
+        bubble.style.marginLeft = '';
+        if (placeBelow) {
+            var maxW = Math.max(140, Math.min(want, vw - 24));
+            bubble.style.maxWidth = maxW + 'px';
+            var overflowRight = (rect.left + maxW) - (vw - 8);
+            if (overflowRight > 0) bubble.style.marginLeft = (-Math.ceil(overflowRight)) + 'px';
+        } else {
+            bubble.style.maxWidth = Math.max(140, Math.min(want, Math.max(room, 140))) + 'px';
+        }
+    };
+
+    // Measure layout boxes with the bobbing animation turned off, so a
+    // transform is never written back as the saved position.
+    function measureAvatar() {
+        var c = getContainer();
+        var a = getAvatar();
+        if (!c || !a) return null;
+        var prevAnim = a.style.animation;
+        var prevTf = a.style.transform;
+        a.style.animation = 'none';
+        a.style.transform = 'none';
+        var cr = c.getBoundingClientRect();
+        var ar = a.getBoundingClientRect();
+        a.style.animation = prevAnim;
+        a.style.transform = prevTf;
+        if (ar.width < 8 || ar.height < 8) return null;
+        return { cr: cr, ar: ar, x: ar.left - cr.left, y: ar.top - cr.top, w: ar.width, h: ar.height };
+    }
+    function avatarOffset() {
+        var m = measureAvatar();
+        if (!m) return { x: 0, y: 0, w: 80, h: 80 };
+        return m;
+    }
+
+    // left/top are the avatar's viewport position (v:2). Legacy saves stored the container.
+    // Move by the avatar's delta so a wide bubble cannot shove him off-screen and
+    // then get saved as his new position.
+    function placeAvatar(saved) {
+        var c = getContainer();
+        var a = getAvatar();
+        if (!c || !a || !saved || c.classList.contains('nacho-suspended') || c.classList.contains('nacho-dragging')) return;
+        var legacyContainer = saved.v !== 2;
+        var top = saved.top;
+        if (typeof top !== 'number' && typeof saved.bottom === 'number') {
+            top = window.innerHeight - saved.bottom - (a.offsetHeight || 80);
+            legacyContainer = true;
+        }
+        if (typeof top !== 'number') return;
+        var off = measureAvatar();
+        if (!off) return;
+        var avatarLeft = legacyContainer ? (saved.left + off.x) : saved.left;
+        var avatarTop = legacyContainer ? (top + off.y) : top;
+        var box = clampBox(avatarLeft, avatarTop, off.w, off.h);
+
+        function shiftTo(targetLeft, targetTop) {
+            var m = measureAvatar();
+            if (!m) return null;
+            var dl = targetLeft - m.ar.left;
+            var dt = targetTop - m.ar.top;
+            if (Math.abs(dl) < 0.5 && Math.abs(dt) < 0.5) return m;
+            applyPos(c, m.cr.left + dl, m.cr.top + dt);
+            return measureAvatar();
+        }
+
+        shiftTo(box.left, box.top);
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        var m = shiftTo(box.left, box.top);
+        if (!m) return;
+        if (Math.abs(m.ar.left - box.left) > 1 || Math.abs(m.ar.top - box.top) > 1) {
+            if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+            shiftTo(box.left, box.top);
+        }
+        // A resize or rotation only clamps what is on screen. The saved spot
+        // stays put so turning the phone back restores it.
+        if (legacyContainer || saved.v !== 2) writePos(POS_KEY, box.left, box.top);
+    }
+
+    function placePill(saved) {
+        var t = getToggle();
+        if (!t || !saved || t.classList.contains('nacho-suspended')) return;
+        if (t.style.display === 'none') return;
+        var top = saved.top;
+        var prevTf = t.style.transform;
+        t.style.transform = 'none';
+        var rect = t.getBoundingClientRect();
+        t.style.transform = prevTf;
+        if (rect.width < 8 || rect.height < 8) return;
+        if (typeof top !== 'number' && typeof saved.bottom === 'number') {
+            top = window.innerHeight - saved.bottom - rect.height;
+        }
+        if (typeof top !== 'number') return;
+        var box = clampBox(saved.left, top, rect.width, rect.height);
+        applyPos(t, box.left, box.top);
+        if (saved.v !== 2) writePos(PILL_KEY, box.left, box.top);
+    }
+
+    function onTv() {
+        // currentPage wins. A leftover tctv-active class must not keep the TV corner
+        // after go() / goHome() / back have already moved on.
+        if (window.currentPage) return window.currentPage === 'timechain-tv' || window.currentPage === 'tv';
+        if (document.body && document.body.classList.contains('tctv-active')) return true;
+        var hash = window.location.hash || '';
+        var path = window.location.pathname || '';
+        return hash === '#timechain-tv' || hash === '#tv' || path === '/timechain-tv' || path === '/tv';
+    }
+    function clearFixed(el) {
+        if (!el) return;
+        el.style.left = '';
+        el.style.top = '';
+        el.style.right = '';
+        el.style.bottom = '';
+    }
+    // No saved spot on Timechain TV: sit upper-right, clear of the EPG channel column.
+    function placeTvDefault() {
+        var c = getContainer();
+        var a = getAvatar();
+        if (!c || !a || c.classList.contains('nacho-suspended') || c.classList.contains('nacho-dragging')) return;
+        var m = measureAvatar();
+        if (!m) return;
+        var margin = sideMargin();
+        var top = window.innerWidth <= 900 ? 76 : 96;
+        var left = window.innerWidth - m.w - margin;
+        var box = clampBox(left, top, m.w, m.h);
+        applyPos(c, m.cr.left + (box.left - m.ar.left), m.cr.top + (box.top - m.ar.top));
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        m = measureAvatar();
+        if (!m) return;
+        if (Math.abs(m.ar.left - box.left) > 1 || Math.abs(m.ar.top - box.top) > 1) {
+            applyPos(c, m.cr.left + (box.left - m.ar.left), m.cr.top + (box.top - m.ar.top));
+        }
+    }
+
+    window._nachoRestorePosition = function() {
+        var c = getContainer();
+        if (c && c.classList.contains('nacho-dragging')) return;
+        var deer = readPos(POS_KEY);
+        if (deer) placeAvatar(deer);
+        else if (onTv()) placeTvDefault();
+        else if (c) {
+            clearFixed(c);
+            if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        }
+        var pill = readPos(PILL_KEY);
+        if (pill) placePill(pill);
+    };
+
+    function isChromeTarget(target) {
+        if (!target || !target.closest) return false;
+        return !!target.closest('#nachoHideBtn, .nacho-btn-stack, .nacho-name, #nacho-bubble, button, a, input, textarea');
+    }
+
+    function bindPointerDrag(hitEl, opts) {
+        if (!hitEl || hitEl._nachoDragBound) return;
+        hitEl._nachoDragBound = true;
+        var active = false, moved = false, pid = null;
+        var sx = 0, sy = 0, originLeft = 0, originTop = 0;
+
+        function onMove(e) {
+            if (!active || e.pointerId !== pid) return;
+            var dx = e.clientX - sx;
+            var dy = e.clientY - sy;
+            if (!moved && Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return;
+            var mover = opts.mover();
+            if (!mover) return;
+            if (!moved) {
+                moved = true;
+                window._nachoDragging = true;
+                if (typeof window._nachoCancelLongPress === 'function') window._nachoCancelLongPress();
+                var av = getAvatar();
+                if (av) {
+                    ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(function(cls) {
+                        av.classList.remove(cls);
+                    });
                 }
             }
-        } catch(e) {}
-    }
-
-    function savePosition(left, bottom) {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: left, bottom: bottom }));
-        } catch(e) {}
-    }
-
-    function onDragStart(clientX, clientY) {
-        var c = getContainer();
-        if (!c) return;
-        isDragging = true;
-        dragMoved = false;
-        startX = clientX;
-        startY = clientY;
-        var rect = c.getBoundingClientRect();
-        startLeft = rect.left;
-        startBottom = window.innerHeight - rect.bottom;
-        c.style.transition = 'none';
-        c.style.cursor = 'grabbing';
-        var h = getHandle();
-        if (h) h.style.cursor = 'grabbing';
-    }
-
-    function onDragMove(clientX, clientY) {
-        if (!isDragging) return;
-        var dx = clientX - startX;
-        var dy = clientY - startY;
-        if (!dragMoved && Math.abs(dx) + Math.abs(dy) < dragThreshold) return;
-        dragMoved = true;
-        var c = getContainer();
-        if (!c) return;
-        var newLeft = startLeft + dx;
-        var newBottom = startBottom - dy;
-        // Clamp
-        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - 80));
-        newBottom = Math.max(0, Math.min(newBottom, window.innerHeight - 80));
-        c.style.left = newLeft + 'px';
-        c.style.bottom = newBottom + 'px';
-        c.style.right = 'auto';
-        c.style.top = 'auto';
-        c.style.position = 'fixed';
-    }
-
-    function onDragEnd() {
-        if (!isDragging) return;
-        isDragging = false;
-        var c = getContainer();
-        if (c) {
-            c.style.transition = '';
-            c.style.cursor = '';
-            if (dragMoved) {
-                var rect = c.getBoundingClientRect();
-                var left = rect.left;
-                var bottom = window.innerHeight - rect.bottom;
-                savePosition(left, bottom);
+            if (e.cancelable) e.preventDefault();
+            if (opts.move) opts.move(mover, originLeft, originTop, dx, dy);
+        }
+        function detach() {
+            document.removeEventListener('pointermove', onMove, true);
+            document.removeEventListener('pointerup', finish, true);
+            document.removeEventListener('pointercancel', finish, true);
+        }
+        function finish(e) {
+            if (!active || (e && e.pointerId != null && e.pointerId !== pid)) return;
+            active = false;
+            detach();
+            var mover = opts.mover();
+            if (moved && mover && opts.commit) opts.commit(mover);
+            if (mover) mover.classList.remove('nacho-dragging');
+            if (moved) {
+                hitEl._nachoSuppressClick = true;
+                if (opts.suppressEl) {
+                    var extra = opts.suppressEl();
+                    if (extra) extra._nachoSuppressClick = true;
+                }
+                setTimeout(function() {
+                    hitEl._nachoSuppressClick = false;
+                    window._nachoDragging = false;
+                    if (opts.suppressEl) {
+                        var extra = opts.suppressEl();
+                        if (extra) extra._nachoSuppressClick = false;
+                    }
+                }, 400);
+            } else {
+                window._nachoDragging = false;
             }
+            try { if (pid != null) hitEl.releasePointerCapture(pid); } catch (err) {}
+            pid = null;
         }
-        var h = getHandle();
-        if (h) h.style.cursor = 'grab';
-    }
-
-    // Also allow dragging from the nacho-toggle button
-    function initToggleDrag() {
-        var toggle = document.getElementById('nacho-toggle');
-        if (!toggle || toggle._dragInit) return;
-        toggle._dragInit = true;
-        var tDragging = false, tStartX = 0, tStartY = 0, tStartLeft = 0, tStartBottom = 0, tMoved = false;
-
-        toggle.addEventListener('mousedown', function(e) {
-            tDragging = true; tMoved = false;
-            tStartX = e.clientX; tStartY = e.clientY;
-            var rect = toggle.getBoundingClientRect();
-            tStartLeft = rect.left; tStartBottom = window.innerHeight - rect.bottom;
-            toggle.style.transition = 'none';
-        });
-        toggle.addEventListener('touchstart', function(e) {
-            if (e.touches.length !== 1) return;
-            tDragging = true; tMoved = false;
-            tStartX = e.touches[0].clientX; tStartY = e.touches[0].clientY;
-            var rect = toggle.getBoundingClientRect();
-            tStartLeft = rect.left; tStartBottom = window.innerHeight - rect.bottom;
-            toggle.style.transition = 'none';
-        }, { passive: true });
-
-        function tMove(cx, cy) {
-            if (!tDragging) return;
-            var dx = cx - tStartX, dy = cy - tStartY;
-            if (!tMoved && Math.abs(dx) + Math.abs(dy) < dragThreshold) return;
-            tMoved = true;
-            var nl = Math.max(0, Math.min(tStartLeft + dx, window.innerWidth - 50));
-            var nb = Math.max(0, Math.min(tStartBottom - dy, window.innerHeight - 50));
-            toggle.style.left = nl + 'px';
-            toggle.style.bottom = nb + 'px';
-            toggle.style.right = 'auto';
-            toggle.style.top = 'auto';
+        function onDown(e) {
+            if (e.button != null && e.button !== 0) return;
+            if (opts.ignore && opts.ignore(e.target)) return;
+            var mover = opts.mover();
+            if (!mover) return;
+            active = true;
+            moved = false;
+            pid = e.pointerId;
+            sx = e.clientX;
+            sy = e.clientY;
+            // Freeze the bob so the origin box is the layout position, not a mid-animation frame.
+            mover.classList.add('nacho-dragging');
+            var r = mover.getBoundingClientRect();
+            originLeft = r.left;
+            originTop = r.top;
+            if (opts.snap) dragSnap = opts.snap();
+            try { hitEl.setPointerCapture(e.pointerId); } catch (err) {}
+            document.addEventListener('pointermove', onMove, true);
+            document.addEventListener('pointerup', finish, true);
+            document.addEventListener('pointercancel', finish, true);
         }
-        document.addEventListener('mousemove', function(e) { tMove(e.clientX, e.clientY); });
-        document.addEventListener('touchmove', function(e) { if (tDragging && e.touches.length === 1) tMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-
-        function tEnd() {
-            if (!tDragging) return;
-            tDragging = false;
-            toggle.style.transition = '';
-            if (tMoved) {
-                var rect = toggle.getBoundingClientRect();
-                savePosition(rect.left, window.innerHeight - rect.bottom);
-            }
-        }
-        document.addEventListener('mouseup', tEnd);
-        document.addEventListener('touchend', tEnd);
-
-        // Suppress click on toggle when drag happened (prevents reopening Nacho)
-        toggle.addEventListener('click', function(e) {
-            if (tMoved) { e.stopPropagation(); e.preventDefault(); tMoved = false; }
+        hitEl.addEventListener('pointerdown', onDown);
+        hitEl.addEventListener('click', function(e) {
+            if (!hitEl._nachoSuppressClick) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
         }, true);
     }
 
-    // Wait for DOM then init
+    var dragSnap = null;
+    function moveContainer(mover, originLeft, originTop, dx, dy) {
+        var off = dragSnap || { x: 0, y: 0, w: 80, h: 80 };
+        var avatarLeft = originLeft + off.x + dx;
+        var avatarTop = originTop + off.y + dy;
+        var box = clampBox(avatarLeft, avatarTop, off.w, off.h);
+        applyPos(mover, box.left - off.x, box.top - off.y);
+    }
+
     function init() {
-        var h = getHandle();
-        if (!h) { setTimeout(init, 1000); return; }
-        if (h._dragInit) return;
-        h._dragInit = true;
+        var avatar = getAvatar();
+        var toggle = getToggle();
+        if (!avatar) { setTimeout(init, 400); return; }
+        if (avatar._nachoDragBound && (!toggle || toggle._nachoDragBound)) return;
 
-        // Mouse events on handle
-        h.addEventListener('mousedown', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            onDragStart(e.clientX, e.clientY);
-        });
-        document.addEventListener('mousemove', function(e) {
-            if (isDragging) { e.preventDefault(); onDragMove(e.clientX, e.clientY); }
-        });
-        document.addEventListener('mouseup', onDragEnd);
-
-        // Touch events on handle
-        h.addEventListener('touchstart', function(e) {
-            if (e.touches.length !== 1) return;
-            e.stopPropagation();
-            onDragStart(e.touches[0].clientX, e.touches[0].clientY);
-        }, { passive: true });
-        document.addEventListener('touchmove', function(e) {
-            if (isDragging && e.touches.length === 1) {
-                onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+        bindPointerDrag(avatar, {
+            fromAvatar: true,
+            ignore: function(target) {
+                if (target && target.closest && target.closest('#nachoDragHandle')) return false;
+                return isChromeTarget(target);
+            },
+            mover: getContainer,
+            snap: function() {
+                var m = measureAvatar();
+                return m || { x: 0, y: 0, w: 80, h: 80 };
+            },
+            suppressEl: getAvatar,
+            move: moveContainer,
+            commit: function() {
+                var c = getContainer();
+                if (!c) return;
+                if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+                var off = measureAvatar();
+                if (!off) return;
+                var box = clampBox(off.ar.left, off.ar.top, off.w, off.h);
+                if (Math.abs(box.left - off.ar.left) > 1 || Math.abs(box.top - off.ar.top) > 1) {
+                    applyPos(c, off.cr.left + (box.left - off.ar.left), off.cr.top + (box.top - off.ar.top));
+                    if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+                    off = measureAvatar();
+                    if (!off) return;
+                }
+                writePos(POS_KEY, off.ar.left, off.ar.top);
             }
-        }, { passive: true });
-        document.addEventListener('touchend', function() { if (isDragging) onDragEnd(); });
+        });
 
-        // Suppress click on avatar when drag happened
-        var avatar = document.getElementById('nacho-avatar');
-        if (avatar) {
-            avatar.addEventListener('click', function(e) {
-                if (dragMoved) { e.stopPropagation(); e.preventDefault(); dragMoved = false; }
-            }, true);
+        if (toggle) {
+            bindPointerDrag(toggle, {
+                mover: getToggle,
+                move: function(mover, originLeft, originTop, dx, dy) {
+                    var rect = mover.getBoundingClientRect();
+                    var box = clampBox(originLeft + dx, originTop + dy, rect.width, rect.height);
+                    applyPos(mover, box.left, box.top);
+                },
+                commit: function(mover) {
+                    var rect = mover.getBoundingClientRect();
+                    var box = clampBox(rect.left, rect.top, rect.width, rect.height);
+                    applyPos(mover, box.left, box.top);
+                    writePos(PILL_KEY, box.left, box.top);
+                }
+            });
         }
 
-        restorePosition();
-        initToggleDrag();
+        window._nachoRestorePosition();
 
-        // Re-restore on resize (clamp to new viewport)
-        window.addEventListener('resize', function() {
-            restorePosition();
+        if (window.MutationObserver && document.body && !window._nachoTvWatch) {
+            window._nachoTvWatch = true;
+            var tvOn = document.body.classList.contains('tctv-active');
+            new MutationObserver(function() {
+                var now = document.body.classList.contains('tctv-active');
+                if (now === tvOn || window._nachoDragging) return;
+                tvOn = now;
+                window._nachoRestorePosition();
+            }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        var resizeTimer = null;
+        function onViewportChange() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() { window._nachoRestorePosition(); }, 80);
+        }
+        window.addEventListener('resize', onViewportChange);
+        window.addEventListener('orientationchange', onViewportChange);
+
+        document.addEventListener('dblclick', function(e) {
+            var av = getAvatar();
+            if (!av || !av.contains(e.target)) return;
+            if (isChromeTarget(e.target)) return;
+            try { localStorage.removeItem(POS_KEY); } catch (err) {}
+            var c = getContainer();
+            if (c) {
+                c.style.left = '';
+                c.style.top = '';
+                c.style.bottom = '';
+                c.style.right = '';
+                c.classList.remove('nacho-bubble-left');
+                c.classList.remove('nacho-bubble-below');
+            }
+            if (typeof showToast === 'function') showToast('🦌 Nacho reset to default position!');
+            setTimeout(function() { if (window._nachoPlaceBubble) window._nachoPlaceBubble(); }, 50);
         });
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 500); });
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 400); });
     } else {
-        setTimeout(init, 500);
+        setTimeout(init, 400);
     }
 })();
 
@@ -5623,25 +5927,11 @@ window.updateNachoAvatarForPage = function() {
     if (isTCTV) {
         avatar.style.width = '120px';
         avatar.style.height = '100px';
-        avatar.innerHTML = COUCH_NACHO_HTML +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
-            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
-            '<div class="nacho-btn-stack">' +
-                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-            '</div>' +
-            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>';
+        avatar.innerHTML = COUCH_NACHO_HTML + nachoControlsHtml();
     } else {
         avatar.style.width = '';
         avatar.style.height = '';
-        avatar.innerHTML = NACHO_SVG +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
-            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
-            '<div class="nacho-btn-stack">' +
-                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-            '</div>' +
-            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>';
+        avatar.innerHTML = NACHO_SVG + nachoControlsHtml();
     }
     // Re-attach closet button listeners
     var closetBtn = document.getElementById('nachoClosetBtn');
@@ -5665,6 +5955,7 @@ window.updateNachoAvatarForPage = function() {
     }
     // Re-attach story button listeners after avatar rebuild
     if (typeof attachNachoStoryBtn === 'function') attachNachoStoryBtn();
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
 };
 
 // Hook into navigation to update avatar when page changes
@@ -6958,8 +7249,7 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_date', today);
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
-        if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');  // matches forum_post_ticket
-        if (typeof showToast === 'function') setTimeout(function() { showToast('🎫 +1 Orange Ticket for posting in PlebTalk!'); }, 800);
+        if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');
         // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users
@@ -9603,8 +9893,7 @@ window.submitListing = function() {
             if (overlay) overlay.remove();
             if (typeof showToast === 'function') showToast('🛒 Listing posted!');
             if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
-            if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
-            if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
+        if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
             // The listing counter is written by onMarketplaceListingCount.
             if (auth && auth.currentUser) refreshMarketListingBadges(auth.currentUser.uid);
             renderMarketplace();
@@ -13002,17 +13291,8 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
 };
 
 // awardOrangeTickets
-window.awardOrangeTickets = function(amount, reason) {
-    if (typeof currentUser !== 'undefined' && currentUser) {
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
-        // Award tickets through server-side Cloud Function (orangeTickets blocked in Firestore rules)
-        if (!currentUser._isLocal && typeof awardPoints === 'function') {
-            awardPoints(0, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
-        }
-    }
-    var local = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-    localStorage.setItem('btc_orange_tickets', (local + amount).toString());
-    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
+window.awardOrangeTickets = function() {
+    return { success: false, awarded: 0, tickets: 0 };
 };
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens
@@ -13465,8 +13745,7 @@ window.checkDailyChallenge = function() {
     if (challenge.check()) {
         localStorage.setItem('btc_challenge_done', today);
         if (typeof awardPoints === 'function') awardPoints(100, '🎯 Daily challenge!');
-        if (typeof awardOrangeTickets === 'function') awardOrangeTickets(5, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP + 🎫 5 tickets!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP');
         haptic('success');
         renderDailyChallenge();
         // Pulse the card to draw attention
@@ -17228,8 +17507,9 @@ document.addEventListener('btcProfileSaved', function() {
                     var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
                     rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
                 } else {
-                    rewardText = '👔 You already own all spin closet items! +25 bonus XP instead!';
-                    if (typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
+                    var closetPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : 25;
+                    rewardText = '👔 You already own all spin closet items! +' + closetPts + ' bonus XP instead!';
+                    if (!(serverData && serverData.reward && typeof serverData.reward.pts === 'number') && typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
                 }
             } else if (rewardType === 'freeze') {
                 rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
@@ -17248,8 +17528,18 @@ document.addEventListener('btcProfileSaved', function() {
                     localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
                 }
             } else if (rewardType === 'points') {
-                rewardText = '⭐ You won ' + rewardAmount + ' XP!';
-                if (typeof awardPoints === 'function') {
+                var wonPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : rewardAmount;
+                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled ? ' (2×)' : '');
+                if (serverData && serverData.reward && typeof serverData.reward.pts === 'number') {
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.points = (currentUser.points || 0) + wonPts;
+                        if (serverData.reward.doubleXpUntil) {
+                            currentUser.doubleXpUntil = serverData.reward.doubleXpUntil;
+                            currentUser.doubleXPExpiry = serverData.reward.doubleXpUntil;
+                        }
+                    }
+                    if (typeof updateRankUI === 'function') updateRankUI();
+                } else if (typeof awardPoints === 'function') {
                     awardPoints(rewardAmount, 'Daily Spin');
                 } else {
                     var pts = parseInt(localStorage.getItem('btc_points') || '0');
@@ -17357,23 +17647,49 @@ document.addEventListener('btcProfileSaved', function() {
         }
     }
 
+    function _spinReminderDelay(signedInAt, now) {
+        if (signedInAt == null) return null;
+        return Math.max(0, 60000 - ((now || Date.now()) - signedInAt));
+    }
+
+    function _noteSpinSignIn(user) {
+        if (!user || user.isAnonymous) return;
+        if (!window._spinSignedInAt) window._spinSignedInAt = Date.now();
+    }
+
     (function _scheduleSpinReminder() {
-        var start = window._sessionStart || Date.now();
-        var wait = Math.max(0, 60000 - (Date.now() - start));
-        setTimeout(function() {
-            function tryShow() {
-                if (window._spinReminderDone || _hasSpunToday()) return true;
-                if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
-                _showSpinReminder();
-                return true;
+        function arm() {
+            if (window._spinReminderArmed || window._spinSignedInAt == null) return;
+            window._spinReminderArmed = true;
+            var wait = _spinReminderDelay(window._spinSignedInAt, Date.now());
+            setTimeout(function() {
+                function tryShow() {
+                    if (window._spinReminderDone || _hasSpunToday()) return true;
+                    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
+                    _showSpinReminder();
+                    return true;
+                }
+                if (tryShow()) return;
+                var timer = setInterval(function() {
+                    if (window._spinReminderDone || tryShow()) clearInterval(timer);
+                }, 1000);
+            }, wait);
+        }
+        if (auth && auth.currentUser) _noteSpinSignIn(auth.currentUser);
+        if (auth && typeof auth.onAuthStateChanged === 'function') {
+            auth.onAuthStateChanged(function(user) {
+                _noteSpinSignIn(user);
+                arm();
+            });
+        }
+        arm();
+        var watch = setInterval(function() {
+            if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                _noteSpinSignIn(auth.currentUser);
+                arm();
+                clearInterval(watch);
             }
-            if (tryShow()) return;
-            var n = 0;
-            var timer = setInterval(function() {
-                n++;
-                if (tryShow() || n > 600) clearInterval(timer);
-            }, 1000);
-        }, wait);
+        }, 1000);
     })();
 
     // Preload local QR lib so donate modal can render instantly
@@ -17571,9 +17887,12 @@ document.addEventListener('btcProfileSaved', function() {
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
+        // Fullscreen Nacho Mode replaces the bubble deer with the big Nacho.
+        // Suspend is visual only — minimized state in localStorage is left alone.
+        if (typeof window.suspendNacho === 'function') window.suspendNacho();
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
         var mbar = document.querySelector('.mobile-bar');
         if (mbar) mbar.style.display = 'none';
@@ -18945,7 +19264,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _nachoMsgDay = 'btc_nacho_msg_ticket_' + new Date().toDateString();
         if (!localStorage.getItem(_nachoMsgDay)) {
             localStorage.setItem(_nachoMsgDay, '1');
-            if (typeof awardTickets === 'function') awardTickets(1, 'Daily Nacho Chat');
+            if (typeof firebase !== 'undefined' && firebase.functions) {
+                firebase.functions().httpsCallable('claimNachoChatTicket')({ text: String(q || '').slice(0, 280) }).catch(function() {});
+            }
         }
 
         // Track interaction + topic for conversation quiz
@@ -19180,9 +19501,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = '';
         });
+        if (typeof window.resumeNacho === 'function') window.resumeNacho();
         // Restore mobile top bar
         var mbar = document.querySelector('.mobile-bar');
         if (mbar && window.innerWidth <= 900) mbar.style.display = 'flex';
@@ -19241,7 +19563,34 @@ window.nachoQuizAnswer = function(btn, correct) {
         return Math.max(local, firestore);
     };
 
+    // Stop Timechain TV whenever navigation leaves it: sidebar, go(), goHome(),
+    // and the back button. cleanupTimechainTV removes body.tctv-active, which
+    // is what hides the mobile top bar, and it stops the player and presence.
+    window.leaveTimechainTV = function(nextId) {
+        if (nextId === 'timechain-tv' || nextId === 'tv') return;
+        var body = document.body;
+        var active = !!(body && body.classList.contains('tctv-active')) || window._tctvActive === true;
+        if (!active) return;
+        if (nextId) window.currentPage = nextId;
+        if (typeof window.cleanupTimechainTV === 'function') {
+            try { window.cleanupTimechainTV(); }
+            catch (e) { console.warn('[tctv] cleanup failed', e); }
+        }
+        if (body && body.classList.contains('tctv-active')) body.classList.remove('tctv-active');
+        window._tctvActive = false;
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar) mbar.style.display = '';
+        if (typeof window._nachoRestorePosition === 'function') {
+            try { window._nachoRestorePosition(); } catch (e2) {}
+        }
+        if (typeof window.updateNachoAvatarForPage === 'function') {
+            try { window.updateNachoAvatarForPage(); } catch (e3) {}
+        }
+    };
+
     window.goHome = function goHome(fromPopState) {
+        window.currentPage = 'home';
+        window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
 
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
@@ -20030,6 +20379,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
             return;
         }
+        if (id === 'timechain-tv' || id === 'tv') window.currentPage = 'timechain-tv';
+        else {
+            window.currentPage = id || window.currentPage;
+            if (typeof window.leaveTimechainTV === 'function') window.leaveTimechainTV(id);
+        }
         // Increment nav generation and capture it — any previously in-flight go() call
         // will see its captured navId !== window._navGeneration and abort after its await.
         var _navId = (window._navGeneration = (window._navGeneration || 0) + 1);
@@ -20479,7 +20833,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
         { id: '_tickets', title: '🎫 Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
-        { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
+        { id: '_referral', title: '🔗 Invite friends', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'openInviteFriends(true)' },
         { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color hat scarf sunglasses crown hoodie accessories wardrobe', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals — chat, DJ, discovery, knowledge', keywords: 'badges achievement trophy unlock goal progress medal chat dj streak listener', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_story', title: '📖 Nacho\'s Story', desc: 'Read Nacho\'s Bitcoin adventure — one chapter per day', keywords: 'story chapter read book adventure nacho tale', action: 'showNachoStory()' },
@@ -21203,6 +21557,12 @@ if (locked) {
             if (!hash && typeof _parseCleanUrl === 'function') {
                 hash = _parseCleanUrl() || '';
             }
+            // Back/forward leaves TV even on branches that do not call go() or goHome().
+            var _popPage = hash || state.channel || 'home';
+            if (_popPage !== 'timechain-tv' && _popPage !== 'tv' && typeof window.leaveTimechainTV === 'function') {
+                window.currentPage = _popPage;
+                window.leaveTimechainTV(_popPage);
+            }
 
             // GUARD STATE: user tried to leave the app — push them back to home
             if (!e.state || state.guard) {
@@ -21423,17 +21783,8 @@ if (locked) {
         if (h) {
             window._nachoDirectLinkCooldown = Date.now() + 120000;
             window._directLinkMode = true;
-            // Hide Nacho on direct links (visual-only, don't persist to localStorage)
-            function _directLinkHideNacho() {
-                var nc = document.getElementById('nacho-container');
-                var nt = document.getElementById('nacho-toggle');
-                if (nc) nc.classList.add('hidden');
-                if (nt) nt.style.display = 'none';
-                window._nachoAutoHidden = true;
-            }
-            _directLinkHideNacho();
-            setTimeout(_directLinkHideNacho, 1000);
-            setTimeout(_directLinkHideNacho, 2500);
+            // Bubble Nacho stays on screen for direct links. The cooldown only
+            // holds auto speech bubbles so a deep link is not interrupted.
             // Minimize sign-in banner
             sessionStorage.setItem('btc_signin_banner_dismissed', '1');
             // Gradually re-enable features after cooldown (staggered)
@@ -21444,10 +21795,9 @@ if (locked) {
                 sessionStorage.removeItem('btc_signin_banner_dismissed');
                 if (typeof updateUserDisplay === 'function') updateUserDisplay();
             }, 150000);
-            // 120s: allow Nacho bubble + bring him back
+            // 120s: allow Nacho speech bubbles again. He was visible the whole time.
             setTimeout(function() {
                 window._nachoDirectLinkCooldown = 0;
-                if (typeof showNacho === 'function' && localStorage.getItem('btc_nacho_hidden') !== 'user') showNacho();
             }, 120000);
         }
         // Hash routing is handled by the IIFE handleHash() below and its 800ms load fallback.
@@ -21794,35 +22144,15 @@ window._tctvStartTracker = function() {
             }
         } catch(e) {}
 
-        // Every 10 minutes (cumulative) award 1 ticket + up to 10 XP
-        // Daily TCTV XP cap: max 50 XP/day (5 x 10-min blocks) to prevent idle farming
+        // Badges still use this browser's minute count. XP and the orange
+        // ticket are granted only by tctvWatchHeartbeat.
         if (total % 10 === 0) {
-            if (typeof awardTickets === 'function') {
-                awardTickets(1, 'TCTV watch');
-            }
             if (typeof checkBadges === 'function') {
                 checkBadges();
             }
-            var _tctvDay = new Date().toISOString().split('T')[0];
-            var _tctvXpKey = 'btc_tctv_xp_' + _tctvDay;
-            var _tctvXpToday = parseInt(localStorage.getItem(_tctvXpKey) || '0', 10);
-            if (_tctvXpToday < 50) {
-                if (typeof awardPoints === 'function') {
-                    awardPoints(10, 'tctv_watch_10m');
-                }
-                localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
-                if (typeof showToast === 'function') {
-                    showToast('📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!');
-                }
-            } else {
-                if (typeof showToast === 'function') {
-                    showToast('📺 🎫 +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
-                }
-            }
         } else if (total === 1) {
-            // First minute toast
             if (typeof showToast === 'function') {
-                showToast('📺 Watching Timechain TV — Ticket + XP every 10 min!');
+                showToast('📺 Watching Timechain TV!');
             }
         }
     }, 60000); // 1 minute interval
@@ -23436,33 +23766,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     }
 })();
 
-// ---- PVP Lobby Announce — Global Chat notification on entry ----
-// Note: pvpAnswer is NOT patched here; pvp.js handles answer submission directly.
-(function() {
-    'use strict';
-    var _origEnterPVP = null;
-    var _pvpPatchAttempts = 0;
-    function _tryPatchEnterPVP() {
-        if (window._pvpEnterPatched) return;
-        if (typeof window.enterPVPMode === 'function') {
-            window._pvpEnterPatched = true;
-            _origEnterPVP = window.enterPVPMode;
-            window.enterPVPMode = function() {
-                _origEnterPVP.apply(this, arguments);
-                // Announce PVP lobby entry — post to Global Chat (visible, not hidden in News)
-                var _pvpName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_pvpName && (typeof window.nachoPostToGlobalChat === 'function' || typeof window.nachoGlobalAnnounce === 'function')) {
-                    var _fn = typeof window.nachoPostToGlobalChat === 'function' ? window.nachoPostToGlobalChat : window.nachoGlobalAnnounce;
-                    _fn('⚔️ @' + _pvpName + ' just entered the PVP arena! Think you can beat them? ➡️ [Enter PVP Lobby](#pvp)');
-                }
-            };
-        } else if (_pvpPatchAttempts < 20) {
-            _pvpPatchAttempts++;
-            setTimeout(_tryPatchEnterPVP, 2000);
-        }
-    }
-    setTimeout(_tryPatchEnterPVP, 3000);
-})();
+// PvP lobby shoutouts are written by onPvpLobbyLive. The client must not post as Nacho.
 
 // ---- Sidebar Reading Progress Indicators ----
 (function() {

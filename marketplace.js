@@ -900,8 +900,7 @@ window.submitListing = function() {
             if (overlay) overlay.remove();
             if (typeof showToast === 'function') showToast('🛒 Listing posted!');
             if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
-            if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
-            if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
+        if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
             // The listing counter is written by onMarketplaceListingCount.
             if (auth && auth.currentUser) refreshMarketListingBadges(auth.currentUser.uid);
             renderMarketplace();

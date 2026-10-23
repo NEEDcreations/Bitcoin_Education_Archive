@@ -61,7 +61,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261022_v2295" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261022_v2301" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -127,6 +127,41 @@
             --input-bg: #f1f5f9; --msg-border: rgba(0,0,0,0.06);
             --card-bg: rgba(0,0,0,0.03); --overlay: rgba(255,255,255,0.95);
             --secondary: #e2e8f0; --text-secondary: #475569;
+        }
+
+        .tctv-watch-chip {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            max-width: calc(100% - 16px);
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--bg-side);
+            color: var(--text);
+            border: 1px solid var(--border);
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+        }
+        .tctv-watch-chip-bar {
+            width: 48px;
+            height: 4px;
+            border-radius: 99px;
+            background: var(--border);
+            overflow: hidden;
+            flex: 0 0 auto;
+        }
+        .tctv-watch-chip-fill {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: var(--accent);
         }
 
         /* TCTV fixed UI elements high z-index Fix */
@@ -506,6 +541,41 @@
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
         .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
+        /* Invite friends sits top-right. Nacho is bottom-left; the FABs are bottom-right. */
+        .invite-card { display: none; position: fixed; top: 16px; right: 16px; z-index: 200; width: min(280px, calc(100vw - 32px)); max-height: min(70dvh, 460px); overflow: auto; box-sizing: border-box; text-align: left; font-family: inherit; }
+        .invite-card[data-show="1"] { display: block; }
+        .invite-card[data-show="1"][data-state="off"] { display: none !important; }
+        .invite-body { background: var(--bg-side); color: var(--text); border: 1px solid rgba(247,147,26,0.55); border-radius: 16px; padding: 12px 12px 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.28); }
+        .invite-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+        .invite-title { margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--heading); }
+        .invite-tools { display: flex; gap: 4px; flex-shrink: 0; }
+        .invite-tools button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 0.95rem; line-height: 1; cursor: pointer; font-family: inherit; touch-action: manipulation; }
+        .invite-earn, .invite-how p { margin: 0; font-size: 0.78rem; line-height: 1.4; color: var(--text); }
+        .invite-link { margin: 8px 0 0; padding: 8px; border-radius: 8px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); font-size: 0.72rem; line-height: 1.35; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .invite-actions { display: flex; gap: 8px; margin-top: 8px; }
+        .invite-actions button { flex: 1; min-height: 40px; border-radius: 10px; font-size: 0.85rem; font-weight: 800; cursor: pointer; font-family: inherit; touch-action: manipulation; }
+        #inviteCopy { background: var(--accent); color: #fff; border: none; }
+        #inviteShare { background: transparent; color: var(--heading); border: 1px solid var(--border); }
+        #inviteShare[hidden] { display: none !important; }
+        .invite-counts { margin: 8px 0 0; min-height: 1.2em; font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; }
+        .invite-how-btn { margin-top: 8px; padding: 0; border: none; background: none; color: var(--accent); font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: inherit; }
+        .invite-how { margin-top: 6px; }
+        .invite-pill, .invite-guest { border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.85rem; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; }
+        .invite-guest { font-size: 0.75rem; max-width: 220px; text-align: left; line-height: 1.3; }
+        .invite-card[data-state="open"] .invite-pill,
+        .invite-card[data-state="open"] .invite-guest,
+        .invite-card[data-state="min"] .invite-body,
+        .invite-card[data-state="min"] .invite-guest,
+        .invite-card[data-state="guest"] .invite-body,
+        .invite-card[data-state="guest"] .invite-pill { display: none; }
+        .invite-card[data-state="min"],
+        .invite-card[data-state="guest"] { width: auto; max-height: none; overflow: visible; }
+        @media (min-width: 901px) {
+            /* The notification bell is fixed at the top-right (44px, right 20px). */
+            .invite-card { right: 72px; }
+            body.ticker-visible .invite-card { top: 48px; }
+        }
+        body:has(#searchOverlay[data-open="1"]) .invite-card { display: none !important; }
         .home-credits { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
         .home-credits p { color: var(--text-dim); font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
         .home-credits p:last-child { margin-bottom: 0; }
@@ -616,6 +686,7 @@
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
+            .invite-card { top: calc(62px + env(safe-area-inset-top, 0px)); right: 8px; width: min(220px, calc(100vw - 20px)); }
             .home-stats { grid-template-columns: repeat(3, auto); gap: 14px 20px; }
             .home-stat-num { font-size: 1.3rem; }
             .home-stat-label { font-size: 0.7rem; }
@@ -651,6 +722,7 @@
         @media (max-width: 380px) {
             .home-title { font-size: 1.5rem; }
             .home-subtitle { font-size: 0.9rem; }
+            .invite-card { width: min(188px, calc(100vw - 16px)); }
             .home-stats { gap: 8px; }
             .home-stat-num { font-size: 1.1rem; }
             .mobile-bar h2 { font-size: 0.75rem; }
@@ -1090,7 +1162,22 @@
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
-                <p style="margin:0 0 16px;font-size:0.78rem;"><a href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates (v2253)</a></p>
+                <p style="margin:0 0 16px;font-size:0.78rem;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
+                <script>
+                (function () {
+                    var link = document.getElementById('patchNotesLink');
+                    if (!link) return;
+                    var base = '📋 Patch Notes — Latest updates';
+                    link.textContent = base;
+                    fetch('/sw.js', { cache: 'no-cache' }).then(function (res) {
+                        return res && res.ok ? res.text() : '';
+                    }).then(function (text) {
+                        var match = String(text || '').match(/CACHE_NAME\s*=\s*'btc-archive-(v\d+)'/);
+                        if (!match) return;
+                        link.textContent = base + ' (' + match[1] + ')';
+                    }).catch(function () {});
+                })();
+                </script>
                 <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
                 <!-- As Featured On -->
                 <div id="featuredOnSection" style="width:100%;margin:0 auto 24px;">
@@ -1203,6 +1290,7 @@
                 </div>
                 <div id="em-quick-actions" style="display:grid;gap:8px;margin-top:16px;margin-bottom:16px;">
                     <button id="nqSpinBtn" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
+                    <button id="tctvWatchBtn" onclick="if(typeof startTctvDailyWatch==='function')startTctvDailyWatch()" aria-label="Watch 10 minutes of Timechain TV" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="tctvWatchEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">📺</span><span id="tctvWatchLabel">Watch TV</span><span id="tctvWatchSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/10 min</span></button>
                     <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                     <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho's Story</button>
                     <button id="sayHiBtn" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi to the community" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
@@ -1478,11 +1566,13 @@
     <!-- App Check must execute before ranking.js calls initRanking() -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
-    <script src="ranking.js?v=20261022_v2269" defer></script>
+    <script src="ranking.js?v=20261022_v2301" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261022_v2295" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261022_v2266" defer></script>
+    <script src="bundle.min.js?v=20261022_v2301" defer fetchpriority="high"></script>
+    <script src="features.registry.js?v=20261022_v2301" defer></script>
+    <script src="tctv-watch.js?v=20261022_v2301" defer></script>
+    <script src="pvp-lobby-alert.js?v=20261022_v2285" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
     <script src="learning-quests.js?v=20261014_0554" defer></script>
@@ -1492,21 +1582,21 @@
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
-            'global-chat.js?v=20261022_v2272',
+            'global-chat.js?v=20261022_acctdel',
             'satoshi-favor.js?v=20261022_v2250'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261022_v2263',
+            'quests.js?v=20261022_v2279',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20261022_v2263',
+            'pvp.js?v=20261022_v2285','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261022_v2263',
             'scholar.js?v=20260809_1846','beats.js?v=20261013_2307',
-            'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261007_2124',
-            'notifications.js?v=20261022_v2262','gifting.js?v=20261022_v2254','guide.js?v=20260716_1628','modules.js?v=20261022_v2252',
+            'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261022_v2279',
+            'notifications.js?v=20261022_v2262','gifting.js?v=20261022_v2254','guide.js?v=20260716_1628','modules.js?v=20261022_v2287',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
-            'lightning-prompt.js?v=20260307','irl-sync.js?v=20260810_0418',
+            'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261022_tctv3',
+            'timechain-tv.js?v=20261022_v2266',
             'learning-quests.js?v=20261014_0554',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
@@ -1559,22 +1649,22 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2272'],
-            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2272'],
-            'chat':          ['global-chat.js?v=20261022_v2272'],
-            'dms':           ['global-chat.js?v=20261022_v2272'],
-            'irl-sync':      ['irl-sync.js?v=20260810_0418'],
-            'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261007_2124'],
-            'pvp':           ['pvp.js?v=20260708_0427'],
-            'proof-of-play': ['pvp.js?v=20260708_0427', 'proof-of-play.js?v=20260609_pop'],
+            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_acctdel'],
+            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_acctdel'],
+            'chat':          ['global-chat.js?v=20261022_acctdel'],
+            'dms':           ['global-chat.js?v=20261022_acctdel'],
+            'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
+            'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261022_v2279'],
+            'pvp':           ['pvp.js?v=20261022_v2285'],
+            'proof-of-play': ['pvp.js?v=20261022_v2285', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
-            'trails':        ['modules.js?v=20261022_v2252'],
+            'trails':        ['modules.js?v=20261022_v2287'],
             'learning-quests': ['learning-quests.js?v=20261014_0554'],
-            'quests':        ['quests.js?v=20261022_v2263'],
-            'questhub':      ['quests.js?v=20261022_v2263'],
-            'app':           ['quests.js?v=20261022_v2263'],
-            'timechain-tv':  ['timechain-tv.js?v=20261022_tctv3'],
-            'tv':            ['timechain-tv.js?v=20261022_tctv3']
+            'quests':        ['quests.js?v=20261022_v2279'],
+            'questhub':      ['quests.js?v=20261022_v2279'],
+            'app':           ['quests.js?v=20261022_v2279'],
+            'timechain-tv':  ['timechain-tv.js?v=20261022_v2266'],
+            'tv':            ['timechain-tv.js?v=20261022_v2266']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {
@@ -1649,6 +1739,30 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
+<div id="inviteCard" class="invite-card" data-state="off" data-show="0">
+    <div class="invite-body" id="inviteBody">
+        <div class="invite-top">
+            <p class="invite-title" id="inviteTitle">Invite friends</p>
+            <div class="invite-tools">
+                <button type="button" id="inviteMinBtn" onclick="minimizeInviteCard()" aria-label="Minimize invite card">–</button>
+                <button type="button" id="inviteDismissBtn" onclick="dismissInviteCard()" aria-label="Dismiss invite card">✕</button>
+            </div>
+        </div>
+        <p class="invite-earn" id="inviteEarn">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>
+        <p class="invite-link" id="inviteLink"></p>
+        <div class="invite-actions">
+            <button type="button" id="inviteCopy" onclick="copyInviteLink()">Copy</button>
+            <button type="button" id="inviteShare" onclick="shareInviteLink()" hidden>Share</button>
+        </div>
+        <p class="invite-counts" id="inviteCounts"></p>
+        <button type="button" class="invite-how-btn" id="inviteHowBtn" onclick="toggleInviteHow()" aria-expanded="false" aria-controls="inviteHow">How it works</button>
+        <div id="inviteHow" class="invite-how" hidden>
+            <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.</p>
+        </div>
+    </div>
+    <button type="button" class="invite-pill" id="invitePill" onclick="expandInviteCard()">🎟️ Invite</button>
+    <button type="button" class="invite-guest" id="inviteGuest" onclick="inviteGuestSignup()">Sign up to get your invite link</button>
+</div>
 </body>
 </html>
 <!-- v1771873982 -->

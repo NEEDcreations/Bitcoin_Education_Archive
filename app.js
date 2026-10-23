@@ -934,8 +934,9 @@
                     var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
                     rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
                 } else {
-                    rewardText = '👔 You already own all spin closet items! +25 bonus XP instead!';
-                    if (typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
+                    var closetPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : 25;
+                    rewardText = '👔 You already own all spin closet items! +' + closetPts + ' bonus XP instead!';
+                    if (!(serverData && serverData.reward && typeof serverData.reward.pts === 'number') && typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
                 }
             } else if (rewardType === 'freeze') {
                 rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
@@ -954,8 +955,18 @@
                     localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
                 }
             } else if (rewardType === 'points') {
-                rewardText = '⭐ You won ' + rewardAmount + ' XP!';
-                if (typeof awardPoints === 'function') {
+                var wonPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : rewardAmount;
+                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled ? ' (2×)' : '');
+                if (serverData && serverData.reward && typeof serverData.reward.pts === 'number') {
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.points = (currentUser.points || 0) + wonPts;
+                        if (serverData.reward.doubleXpUntil) {
+                            currentUser.doubleXpUntil = serverData.reward.doubleXpUntil;
+                            currentUser.doubleXPExpiry = serverData.reward.doubleXpUntil;
+                        }
+                    }
+                    if (typeof updateRankUI === 'function') updateRankUI();
+                } else if (typeof awardPoints === 'function') {
                     awardPoints(rewardAmount, 'Daily Spin');
                 } else {
                     var pts = parseInt(localStorage.getItem('btc_points') || '0');
@@ -1063,23 +1074,49 @@
         }
     }
 
+    function _spinReminderDelay(signedInAt, now) {
+        if (signedInAt == null) return null;
+        return Math.max(0, 60000 - ((now || Date.now()) - signedInAt));
+    }
+
+    function _noteSpinSignIn(user) {
+        if (!user || user.isAnonymous) return;
+        if (!window._spinSignedInAt) window._spinSignedInAt = Date.now();
+    }
+
     (function _scheduleSpinReminder() {
-        var start = window._sessionStart || Date.now();
-        var wait = Math.max(0, 60000 - (Date.now() - start));
-        setTimeout(function() {
-            function tryShow() {
-                if (window._spinReminderDone || _hasSpunToday()) return true;
-                if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
-                _showSpinReminder();
-                return true;
+        function arm() {
+            if (window._spinReminderArmed || window._spinSignedInAt == null) return;
+            window._spinReminderArmed = true;
+            var wait = _spinReminderDelay(window._spinSignedInAt, Date.now());
+            setTimeout(function() {
+                function tryShow() {
+                    if (window._spinReminderDone || _hasSpunToday()) return true;
+                    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
+                    _showSpinReminder();
+                    return true;
+                }
+                if (tryShow()) return;
+                var timer = setInterval(function() {
+                    if (window._spinReminderDone || tryShow()) clearInterval(timer);
+                }, 1000);
+            }, wait);
+        }
+        if (auth && auth.currentUser) _noteSpinSignIn(auth.currentUser);
+        if (auth && typeof auth.onAuthStateChanged === 'function') {
+            auth.onAuthStateChanged(function(user) {
+                _noteSpinSignIn(user);
+                arm();
+            });
+        }
+        arm();
+        var watch = setInterval(function() {
+            if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                _noteSpinSignIn(auth.currentUser);
+                arm();
+                clearInterval(watch);
             }
-            if (tryShow()) return;
-            var n = 0;
-            var timer = setInterval(function() {
-                n++;
-                if (tryShow() || n > 600) clearInterval(timer);
-            }, 1000);
-        }, wait);
+        }, 1000);
     })();
 
     // Preload local QR lib so donate modal can render instantly
@@ -1277,9 +1314,12 @@
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
+        // Fullscreen Nacho Mode replaces the bubble deer with the big Nacho.
+        // Suspend is visual only — minimized state in localStorage is left alone.
+        if (typeof window.suspendNacho === 'function') window.suspendNacho();
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
         var mbar = document.querySelector('.mobile-bar');
         if (mbar) mbar.style.display = 'none';
@@ -2651,7 +2691,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _nachoMsgDay = 'btc_nacho_msg_ticket_' + new Date().toDateString();
         if (!localStorage.getItem(_nachoMsgDay)) {
             localStorage.setItem(_nachoMsgDay, '1');
-            if (typeof awardTickets === 'function') awardTickets(1, 'Daily Nacho Chat');
+            if (typeof firebase !== 'undefined' && firebase.functions) {
+                firebase.functions().httpsCallable('claimNachoChatTicket')({ text: String(q || '').slice(0, 280) }).catch(function() {});
+            }
         }
 
         // Track interaction + topic for conversation quiz
@@ -2886,9 +2928,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = '';
         });
+        if (typeof window.resumeNacho === 'function') window.resumeNacho();
         // Restore mobile top bar
         var mbar = document.querySelector('.mobile-bar');
         if (mbar && window.innerWidth <= 900) mbar.style.display = 'flex';
@@ -2947,7 +2990,34 @@ window.nachoQuizAnswer = function(btn, correct) {
         return Math.max(local, firestore);
     };
 
+    // Stop Timechain TV whenever navigation leaves it: sidebar, go(), goHome(),
+    // and the back button. cleanupTimechainTV removes body.tctv-active, which
+    // is what hides the mobile top bar, and it stops the player and presence.
+    window.leaveTimechainTV = function(nextId) {
+        if (nextId === 'timechain-tv' || nextId === 'tv') return;
+        var body = document.body;
+        var active = !!(body && body.classList.contains('tctv-active')) || window._tctvActive === true;
+        if (!active) return;
+        if (nextId) window.currentPage = nextId;
+        if (typeof window.cleanupTimechainTV === 'function') {
+            try { window.cleanupTimechainTV(); }
+            catch (e) { console.warn('[tctv] cleanup failed', e); }
+        }
+        if (body && body.classList.contains('tctv-active')) body.classList.remove('tctv-active');
+        window._tctvActive = false;
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar) mbar.style.display = '';
+        if (typeof window._nachoRestorePosition === 'function') {
+            try { window._nachoRestorePosition(); } catch (e2) {}
+        }
+        if (typeof window.updateNachoAvatarForPage === 'function') {
+            try { window.updateNachoAvatarForPage(); } catch (e3) {}
+        }
+    };
+
     window.goHome = function goHome(fromPopState) {
+        window.currentPage = 'home';
+        window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
 
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
@@ -3736,6 +3806,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
             return;
         }
+        if (id === 'timechain-tv' || id === 'tv') window.currentPage = 'timechain-tv';
+        else {
+            window.currentPage = id || window.currentPage;
+            if (typeof window.leaveTimechainTV === 'function') window.leaveTimechainTV(id);
+        }
         // Increment nav generation and capture it — any previously in-flight go() call
         // will see its captured navId !== window._navGeneration and abort after its await.
         var _navId = (window._navGeneration = (window._navGeneration || 0) + 1);
@@ -4185,7 +4260,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
         { id: '_tickets', title: '🎫 Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
-        { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
+        { id: '_referral', title: '🔗 Invite friends', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'openInviteFriends(true)' },
         { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color hat scarf sunglasses crown hoodie accessories wardrobe', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals — chat, DJ, discovery, knowledge', keywords: 'badges achievement trophy unlock goal progress medal chat dj streak listener', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_story', title: '📖 Nacho\'s Story', desc: 'Read Nacho\'s Bitcoin adventure — one chapter per day', keywords: 'story chapter read book adventure nacho tale', action: 'showNachoStory()' },
@@ -4909,6 +4984,12 @@ if (locked) {
             if (!hash && typeof _parseCleanUrl === 'function') {
                 hash = _parseCleanUrl() || '';
             }
+            // Back/forward leaves TV even on branches that do not call go() or goHome().
+            var _popPage = hash || state.channel || 'home';
+            if (_popPage !== 'timechain-tv' && _popPage !== 'tv' && typeof window.leaveTimechainTV === 'function') {
+                window.currentPage = _popPage;
+                window.leaveTimechainTV(_popPage);
+            }
 
             // GUARD STATE: user tried to leave the app — push them back to home
             if (!e.state || state.guard) {
@@ -5129,17 +5210,8 @@ if (locked) {
         if (h) {
             window._nachoDirectLinkCooldown = Date.now() + 120000;
             window._directLinkMode = true;
-            // Hide Nacho on direct links (visual-only, don't persist to localStorage)
-            function _directLinkHideNacho() {
-                var nc = document.getElementById('nacho-container');
-                var nt = document.getElementById('nacho-toggle');
-                if (nc) nc.classList.add('hidden');
-                if (nt) nt.style.display = 'none';
-                window._nachoAutoHidden = true;
-            }
-            _directLinkHideNacho();
-            setTimeout(_directLinkHideNacho, 1000);
-            setTimeout(_directLinkHideNacho, 2500);
+            // Bubble Nacho stays on screen for direct links. The cooldown only
+            // holds auto speech bubbles so a deep link is not interrupted.
             // Minimize sign-in banner
             sessionStorage.setItem('btc_signin_banner_dismissed', '1');
             // Gradually re-enable features after cooldown (staggered)
@@ -5150,10 +5222,9 @@ if (locked) {
                 sessionStorage.removeItem('btc_signin_banner_dismissed');
                 if (typeof updateUserDisplay === 'function') updateUserDisplay();
             }, 150000);
-            // 120s: allow Nacho bubble + bring him back
+            // 120s: allow Nacho speech bubbles again. He was visible the whole time.
             setTimeout(function() {
                 window._nachoDirectLinkCooldown = 0;
-                if (typeof showNacho === 'function' && localStorage.getItem('btc_nacho_hidden') !== 'user') showNacho();
             }, 120000);
         }
         // Hash routing is handled by the IIFE handleHash() below and its 800ms load fallback.
@@ -5500,35 +5571,15 @@ window._tctvStartTracker = function() {
             }
         } catch(e) {}
 
-        // Every 10 minutes (cumulative) award 1 ticket + up to 10 XP
-        // Daily TCTV XP cap: max 50 XP/day (5 x 10-min blocks) to prevent idle farming
+        // Badges still use this browser's minute count. XP and the orange
+        // ticket are granted only by tctvWatchHeartbeat.
         if (total % 10 === 0) {
-            if (typeof awardTickets === 'function') {
-                awardTickets(1, 'TCTV watch');
-            }
             if (typeof checkBadges === 'function') {
                 checkBadges();
             }
-            var _tctvDay = new Date().toISOString().split('T')[0];
-            var _tctvXpKey = 'btc_tctv_xp_' + _tctvDay;
-            var _tctvXpToday = parseInt(localStorage.getItem(_tctvXpKey) || '0', 10);
-            if (_tctvXpToday < 50) {
-                if (typeof awardPoints === 'function') {
-                    awardPoints(10, 'tctv_watch_10m');
-                }
-                localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
-                if (typeof showToast === 'function') {
-                    showToast('📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!');
-                }
-            } else {
-                if (typeof showToast === 'function') {
-                    showToast('📺 🎫 +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
-                }
-            }
         } else if (total === 1) {
-            // First minute toast
             if (typeof showToast === 'function') {
-                showToast('📺 Watching Timechain TV — Ticket + XP every 10 min!');
+                showToast('📺 Watching Timechain TV!');
             }
         }
     }, 60000); // 1 minute interval

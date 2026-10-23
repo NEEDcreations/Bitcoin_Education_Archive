@@ -1,5 +1,7 @@
 const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
+const { defineSecret } = require('firebase-functions/params');
+const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -146,46 +148,15 @@ const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
-
-// ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
-// String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
-// Call this BEFORE any outbound fetch to a user-supplied Lightning Address domain.
-async function assertPublicHost(hostname) {
-    // Strip port if present
-    const host = hostname.split(':')[0].toLowerCase();
-    let addresses;
-    try {
-        addresses = await dns.resolve4(host);
-        // Also try IPv6 in case v4 resolves fine but v6 is private
-        try {
-            const v6 = await dns.resolve6(host);
-            addresses = addresses.concat(v6);
-        } catch (_) { /* no AAAA record — fine */ }
-    } catch (e) {
-        throw new Error('DNS resolution failed for hostname: ' + host);
-    }
-    if (!addresses || addresses.length === 0) throw new Error('No DNS records for hostname: ' + host);
-    for (const addr of addresses) {
-        const a = addr.toLowerCase();
-        if (
-            a === '127.0.0.1' ||
-            a === '::1' ||
-            /^127\./.test(a) ||
-            /^10\./.test(a) ||
-            /^192\.168\./.test(a) ||
-            /^172\.(1[6-9]|2[0-9]|3[01])\./.test(a) ||
-            /^169\.254\./.test(a) ||        // AWS/GCP instance metadata
-            /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(a) || // RFC 6598 CGNAT
-            /^fd[0-9a-f]{2}:/i.test(a) ||   // ULA IPv6
-            /^fe80:/i.test(a) ||             // link-local IPv6
-            /^::ffff:127\./.test(a) ||       // v4-mapped loopback
-            /^0\./.test(a)                   // "this" network
-        ) {
-            console.error('[SSRF-DNS] Blocked private IP ' + addr + ' for host ' + host);
-            throw new Error('Lightning Address domain resolves to a private/restricted IP address.');
-        }
-    }
-}
+const ticketGrants = require('./src/ticketGrants');
+const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets');
+const doubleXp = require('./src/doubleXp');
+const referralService = require('./src/referralService');
+const referralDecisions = require('./src/referrals');
+const tipService = require('./src/tipService');
+// DNS check shared with confirmTipSent. String-only host checks are not enough.
+const { assertPublicHost } = require('./src/publicHost');
+const pvpFlow = require('./src/pvpFlow');
 
 // ===== VALID CHANNEL CATALOG (server-authoritative) =====
 // Extracted from channel_index.js — used to reject fake channelId values
@@ -599,10 +570,14 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
     }
 
-    // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction)
+    // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction).
+    // The doc id is a keyed hash. The address is not stored.
     const nostrIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (nostrIP !== 'unknown') {
-        const nostrRateRef = db.collection('rate_limits').doc('nostr_' + nostrIP.replace(/[./]/g, '_'));
+        const { networkRateDocId } = require('./src/rateLimitSalt');
+        const nostrNow = Date.now();
+        const nostrRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'nostr_', nostrIP, nostrNow));
+        const nostrExpire = new Date(nostrNow + 24 * 60 * 60 * 1000);
         await db.runTransaction(async (tx) => {
             const nostrRateDoc = await tx.get(nostrRateRef);
             if (nostrRateDoc.exists) {
@@ -612,12 +587,12 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
                     if ((rd.attempts || 0) >= 5) {
                         throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many sign-in attempts. Try again later.');
                     }
-                    tx.update(nostrRateRef, { attempts: (rd.attempts || 0) + 1 });
+                    tx.update(nostrRateRef, { attempts: (rd.attempts || 0) + 1, expireAt: nostrExpire });
                 } else {
-                    tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                    tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: nostrExpire });
                 }
             } else {
-                tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: nostrExpire });
             }
         });
     }
@@ -748,10 +723,14 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
 
 // Step 1: Generate a challenge (k1) and return LNURL
 exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
-    // Rate limiting: max 10 challenges per IP per hour (atomic transaction)
+    // Rate limiting: max 10 challenges per IP per hour (atomic transaction).
+    // The doc id is a keyed hash. The address is not stored.
     const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (lnIP !== 'unknown') {
-        const lnRateRef = db.collection('rate_limits').doc('lnauth_' + lnIP.replace(/[./]/g, '_'));
+        const { networkRateDocId } = require('./src/rateLimitSalt');
+        const lnNow = Date.now();
+        const lnRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'lnauth_', lnIP, lnNow));
+        const lnExpire = new Date(lnNow + 24 * 60 * 60 * 1000);
         await db.runTransaction(async (tx) => {
             const lnRateDoc = await tx.get(lnRateRef);
             if (lnRateDoc.exists) {
@@ -759,12 +738,12 @@ exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
                 const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
                 if (ws && (Date.now() - ws.getTime()) < 3600000) {
                     if ((rd.attempts || 0) >= 10) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many requests. Try again later.');
-                    tx.update(lnRateRef, { attempts: (rd.attempts || 0) + 1 });
+                    tx.update(lnRateRef, { attempts: (rd.attempts || 0) + 1, expireAt: lnExpire });
                 } else {
-                    tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                    tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: lnExpire });
                 }
             } else {
-                tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: lnExpire });
             }
         });
     }
@@ -915,10 +894,14 @@ exports.lnAuthVerify = functionsV1.https.onCall(async (data, context) => {
     const { k1 } = data;
     if (!k1) throw new functionsV1.https.HttpsError('invalid-argument', 'Missing k1');
 
-    // Rate limiting: max 20 polls per IP per minute (atomic transaction)
+    // Rate limiting: max 20 polls per IP per minute (atomic transaction).
+    // The doc id is a keyed hash. The address is not stored.
     const verifyIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (verifyIP !== 'unknown') {
-        const vrRef = db.collection('rate_limits').doc('lnverify_' + verifyIP.replace(/[./]/g, '_'));
+        const { networkRateDocId } = require('./src/rateLimitSalt');
+        const verifyNow = Date.now();
+        const vrRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'lnverify_', verifyIP, verifyNow));
+        const verifyExpire = new Date(verifyNow + 24 * 60 * 60 * 1000);
         await db.runTransaction(async (tx) => {
             const vrDoc = await tx.get(vrRef);
             if (vrDoc.exists) {
@@ -926,12 +909,12 @@ exports.lnAuthVerify = functionsV1.https.onCall(async (data, context) => {
                 const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
                 if (ws && (Date.now() - ws.getTime()) < 60000) {
                     if ((rd.attempts || 0) >= 20) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many requests');
-                    tx.update(vrRef, { attempts: (rd.attempts || 0) + 1 });
+                    tx.update(vrRef, { attempts: (rd.attempts || 0) + 1, expireAt: verifyExpire });
                 } else {
-                    tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                    tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: verifyExpire });
                 }
             } else {
-                tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: verifyExpire });
             }
         });
     }
@@ -1087,6 +1070,9 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
         const post = snap.data();
         const postId = context.params.postId;
         const authorId = post.authorId || 'unknown';
+        if (authorId !== 'unknown' && String(post.title || '').trim()) {
+            await grantServerTickets(authorId, 'forum_post_ticket');
+        }
 
         try {
             // 🔒 SECURITY (M-NEW-21): Rate limit admin emails to prevent amplification attacks
@@ -1209,6 +1195,10 @@ exports.onMarketplaceListingCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    const listing = event.data.data() || {};
+    if (listing.sellerUid && listing.status !== 'deleted') {
+        await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
+    }
     try {
         await countMarketplaceListing({
             db: db,
@@ -1221,6 +1211,24 @@ exports.onMarketplaceListingCount = onDocumentCreated({
         throw e;
     }
     return null;
+});
+
+exports.onIrlEventCreated = onDocumentCreated('irl_events/{eventId}', async (event) => {
+    if (!event.data) return null;
+    const ev = event.data.data() || {};
+    if (!ev.hostId || !String(ev.title || '').trim()) return null;
+    await grantServerTickets(ev.hostId, 'irl_listing_ticket');
+    return null;
+});
+
+exports.claimNachoChatTicket = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    const provider = (context.auth.token.firebase || {}).sign_in_provider || '';
+    if (provider === 'anonymous') {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Sign in to earn this ticket');
+    }
+    const result = await claimNachoChat(context.auth.uid, data && data.text);
+    return { success: result.tickets > 0, tickets: result.tickets || 0 };
 });
 
 exports.onForumShoutoutDeleted = onDocumentDeleted({
@@ -1445,161 +1453,47 @@ exports.nachoFeedbackReport = onSchedule({
 // Runs when a referred user meets qualifications
 // Uses admin SDK to update the referrer's document
 // =============================================
-exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
+// Referral payouts are server-side. The old client path looked up `referredUid`
+// and paid 50 tickets from the referrer's browser; rules blocked that write, so
+// nobody was ever paid. This callable now only pays the signed-in referee, once.
+exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const referredUid = context.auth.uid;
-
-    // Find the referral doc where this user was referred
-    const referralSnap = await db.collection('referrals')
-        .where('referredUid', '==', referredUid)
-        .where('verified', '==', false)
-        .limit(1)
-        .get();
-
-    if (referralSnap.empty) return { success: false, reason: 'No pending referral found' };
-
-    const referralDoc = referralSnap.docs[0];
-    const referralData = referralDoc.data();
-    const referrerUid = referralData.referrerUid;
-
-    const referredUser = await db.collection('users').doc(referredUid).get();
-    if (!referredUser.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
-
-    const referrerDoc = await db.collection('users').doc(referrerUid).get();
-    if (!referrerDoc.exists) return { success: false, reason: 'Referrer not found' };
-
-    const userData = referredUser.data();
-    const refData = referrerDoc.data();
-    const points = userData.points || 0;
-    const channelsVisited = (userData.visitedChannels || userData.visitedChannelsList || []).length;
-
-    // Qualification: reached Maxi rank (2,140+ points)
-    if (points < 2140) {
-        return { success: false, reason: 'Keep learning! You need to reach Maxi rank (2,140+ points) to unlock the referral reward.' };
-    }
-
-    // ===== FRAUD CHECKS =====
-    // Collect signals that this is the same person referring themselves.
-    const flags = [];
-    const lowerStr = s => (s == null ? null : String(s).toLowerCase().trim());
-
-    // 1. Same email on user doc
-    if (lowerStr(userData.email) && lowerStr(userData.email) === lowerStr(refData.email)) {
-        flags.push('same-email-user-doc');
-    }
-
-    // 2. Same Lightning address (profile field)
-    const referredLN = lowerStr(userData.lightningAddress || userData.lnAddress);
-    const referrerLN = lowerStr(refData.lightningAddress || refData.lnAddress);
-    if (referredLN && referredLN === referrerLN) flags.push('same-lightning-address');
-
-    // 3. Same giveaway Lightning address
-    try {
-        const [gA, gB] = await Promise.all([
-            db.collection('giveaway_entries').doc(referredUid).get(),
-            db.collection('giveaway_entries').doc(referrerUid).get()
-        ]);
-        if (gA.exists && gB.exists) {
-            const a = lowerStr(gA.data().lightningAddress || gA.data().lnAddress);
-            const b = lowerStr(gB.data().lightningAddress || gB.data().lnAddress);
-            if (a && a === b) flags.push('same-giveaway-lightning-address');
-        }
-    } catch (e) {}
-
-    // 4. Firebase Auth cross-checks: same provider email, accounts created within 24h.
-    try {
-        const [authA, authB] = await Promise.all([
-            admin.auth().getUser(referredUid).catch(() => null),
-            admin.auth().getUser(referrerUid).catch(() => null)
-        ]);
-        if (authA && authB) {
-            // Same displayName
-            if (authA.displayName && lowerStr(authA.displayName) === lowerStr(authB.displayName)) {
-                flags.push('same-display-name');
-            }
-            // Any provider email match
-            const emailsA = new Set();
-            const emailsB = new Set();
-            (authA.providerData || []).forEach(p => p.email && emailsA.add(lowerStr(p.email)));
-            (authB.providerData || []).forEach(p => p.email && emailsB.add(lowerStr(p.email)));
-            if (authA.email) emailsA.add(lowerStr(authA.email));
-            if (authB.email) emailsB.add(lowerStr(authB.email));
-            for (const e of emailsA) { if (emailsB.has(e)) { flags.push('same-auth-email:' + e); break; } }
-            // Accounts created within 24h of each other
-            const tA = new Date(authA.metadata.creationTime).getTime();
-            const tB = new Date(authB.metadata.creationTime).getTime();
-            if (Math.abs(tA - tB) < 86400000) flags.push('accounts-created-within-24h');
-        }
-    } catch (e) { console.error('[verifyReferral] auth cross-check failed:', e.message); }
-
-    // 5. Referral code chain: is the referrer himself referred back by this same user or vice versa?
-    if (refData.referredBy && lowerStr(refData.referredBy) === lowerStr((userData.uid || referredUid).substring(0, 8))) {
-        flags.push('circular-referral');
-    }
-
-    if (flags.length > 0) {
-        // Reject + log suspicious activity for review
-        try {
-            await db.collection('suspicious_activity').add({
-                type: 'referral-self-fraud',
-                referrerUid,
-                referredUid,
-                flags,
-                referrerEmail: refData.email || null,
-                referredEmail: userData.email || null,
-                referrerLN: refData.lightningAddress || refData.lnAddress || null,
-                referredLN: userData.lightningAddress || userData.lnAddress || null,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                action: 'referral-rejected'
-            });
-        } catch (e) {}
-        await referralDoc.ref.update({
-            verified: false,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-            rejectionFlags: flags,
-            ticketsAwarded: false
-        });
-        return { success: false, reason: 'Referral rejected: sanity check failed', flags };
-    }
-
-    // ===== Passed all checks - award tickets =====
-    const batch = db.batch();
-    batch.update(referralDoc.ref, {
-        verified: true,
-        verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-        ticketsAwarded: true
-    });
-    // Referrer: +50 tickets, +1 referralCount
-    batch.update(db.collection('users').doc(referrerUid), {
-        orangeTickets: admin.firestore.FieldValue.increment(50),
-        referralTicketsEarned: admin.firestore.FieldValue.increment(50),
-        referralCount: admin.firestore.FieldValue.increment(1),
-    });
-    // Referred user: +50 tickets for reaching Maxi rank via referral link
-    batch.update(db.collection('users').doc(referredUid), {
-        referralVerified: true,
-        orangeTickets: admin.firestore.FieldValue.increment(50),
-    });
-    const referralTs = admin.firestore.FieldValue.serverTimestamp();
-    rewardNotify.apply(batch, db, referralTs, rewardNotify.plan({
-        uid: referrerUid,
-        tickets: 50,
-        sourceLabel: 'a referral reaching Maxi',
-        icon: '🎟️',
-        onceKey: 'referral_out_' + referredUid,
-    }));
-    rewardNotify.apply(batch, db, referralTs, rewardNotify.plan({
-        uid: referredUid,
-        tickets: 50,
-        sourceLabel: 'reaching Maxi with a referral',
-        icon: '🎟️',
-        onceKey: 'referral_in_' + referrerUid,
-    }));
-    await batch.commit();
-
-    return { success: true, referrerTickets: 50, referredTickets: 50 };
+    const result = await referralService.payIfQualified(context.auth.uid);
+    return {
+        success: !!(result && result.paid),
+        reason: result && result.reason,
+        referrerTickets: result && result.paid ? result.ticketsEach : 0,
+        referredTickets: result && result.paid ? result.ticketsEach : 0,
+    };
 });
+
+exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).https.onCall(async (data, context) => {
+    return referralService.registerReferral(data, context);
+});
+
+exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) => {
+    return referralService.deleteMyReferralSignal(data, context);
+});
+
+exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
+    return tipService.confirmTipSent(data, context);
+});
+
+exports.onUserReferral = onDocumentWritten({
+    document: 'users/{uid}',
+    secrets: [referralIpSecret],
+}, async (event) => {
+    return referralService.onUserWritten(event);
+});
+
+exports.payQualifiedReferrals = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+    secrets: [referralIpSecret],
+}, async () => {
+    return referralService.scanPending(40);
+});
+
 
 // =============================================
 // NOTE: Old allowedAwards-based awardPoints removed - replaced by daily-cap version below (line ~1527)
@@ -1730,6 +1624,7 @@ const {
     buildWebBridgePayload,
     redactForLog,
     WEB_BRIDGE_TIMEOUT_MS,
+    mirrorShoutoutOnce,
 } = require('./src/telegramBridge');
 
 exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
@@ -3110,6 +3005,13 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         return { success: false, error: 'Prediction results are scored on the server', awarded: 0 };
     }
 
+    // PvP points, tickets, and W/L are granted inside settlePvpMatch from the
+    // match document. A hostile client must not be able to call awardPoints
+    // with a "PVP Victory" reason and mint XP with no match.
+    if (pvpFlow.isClientPvpReward(actionKey, action)) {
+        return { success: false, error: 'PvP rewards are granted by the server', awarded: 0 };
+    }
+
     // ── SERVER-SIDE BADGE VALUE CATALOG ──
     // Every badge the client can earn mapped to its exact XP value.
     // If a badgeId is not in this map it is rejected - closes the money-printer exploit
@@ -3444,12 +3346,29 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         : null;
     const countRef = userRef.collection('daily_action_counts').doc(awardActions.countDocId(resolved, offsetToday));
     const badgeAwardRef = badgeKnown ? userRef.collection('badge_awards').doc(badgeId) : null;
+    const trifectaAction = matchedAction === 'quiz_correct' || matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt' || matchedAction === 'poll_vote';
+    const tctvTicketRef = matchedAction === 'tctv_watch_10m'
+        ? userRef.collection('award_claims').doc(ticketGrants.claimId('tctv_watch_ticket', offsetToday))
+        : null;
+    const trifectaTicketRef = trifectaAction
+        ? userRef.collection('award_claims').doc(ticketGrants.claimId('daily_trifecta_ticket', offsetToday))
+        : null;
+    const quizProofRef = trifectaAction
+        ? userRef.collection('daily_action_counts').doc(offsetToday + '_quiz_correct')
+        : null;
+    const triviaProofRef = trifectaAction
+        ? userRef.collection('award_claims').doc(offsetToday + '_trivia_trivia')
+        : null;
+    const pollProofRef = trifectaAction
+        ? userRef.collection('award_claims').doc(offsetToday + '_poll_vote_poll')
+        : null;
 
     let transactionResult = null;
     try {
         transactionResult = await db.runTransaction(async (t) => {
             const [
-                cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc
+                cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc,
+                tctvTicketDoc, trifectaTicketDoc, quizProofDoc, triviaProofDoc, pollProofDoc
             ] = await Promise.all([
                 cooldownRef ? t.get(cooldownRef) : Promise.resolve(null),
                 badgeAwardRef ? t.get(badgeAwardRef) : Promise.resolve(null),
@@ -3457,6 +3376,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.get(userRef),
                 t.get(dailyPtsRef),
                 rewardGroupRef ? t.get(rewardGroupRef) : Promise.resolve(null),
+                tctvTicketRef ? t.get(tctvTicketRef) : Promise.resolve(null),
+                trifectaTicketRef ? t.get(trifectaTicketRef) : Promise.resolve(null),
+                quizProofRef ? t.get(quizProofRef) : Promise.resolve(null),
+                triviaProofRef ? t.get(triviaProofRef) : Promise.resolve(null),
+                pollProofRef ? t.get(pollProofRef) : Promise.resolve(null),
             ]);
 
             if (cooldownDoc && cooldownDoc.exists) {
@@ -3478,6 +3402,22 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
             if (userData.ban_reason) throw new Error('BANNED');
+            if (resolved.requiresDoubleXp && !doubleXp.isActive(userData, Date.now())) {
+                throw new Error('DOUBLE_XP_REQUIRED');
+            }
+            // Double XP covers daily-capped activity only. Badges, the scholar
+            // exam, and onboarding are not multiplied. A client amount that is
+            // already the doubled allowlist value is not multiplied again.
+            const actionLower = String(reason || '').toLowerCase();
+            const skipDouble = matchedAction === 'badge_earned'
+                || matchedAction === 'scholar_cert'
+                || actionLower.indexOf('nacho quest') !== -1
+                || actionLower.indexOf('onboarding') !== -1
+                || resolved.requiresDoubleXp;
+            const xpBoost = skipDouble
+                ? { points: pts, doubled: !!resolved.requiresDoubleXp, until: doubleXp.untilMillis(userData) }
+                : doubleXp.boostPoints(pts, userData, Date.now());
+            pts = xpBoost.points;
 
             if (matchedAction === 'badge_earned' && badgeKnown) {
                 const MILESTONE_BADGE_THRESHOLDS = {
@@ -3551,11 +3491,32 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 userUpdate.points = admin.firestore.FieldValue.increment(totalPointsOut);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
                 userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
+                userUpdate.activeDayKeys = referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now());
             }
 
             const rankPrevById = await rewardNotify.readRankPrev(t, db, uid, userData.points || 0, totalPointsOut);
 
-            if (awarded > 0 && badgeAwardRef) {
+            const bonus = ticketGrants.bonusTickets(matchedAction, awarded, {
+                tctvClaimed: !!(tctvTicketDoc && tctvTicketDoc.exists),
+                trifectaClaimed: !!(trifectaTicketDoc && trifectaTicketDoc.exists),
+                quiz: !!(quizProofDoc && quizProofDoc.exists && (quizProofDoc.data().count || 0) > 0),
+                trivia: !!(triviaProofDoc && triviaProofDoc.exists),
+                poll: !!(pollProofDoc && pollProofDoc.exists),
+            });
+            if (bonus.tickets > 0) {
+                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(bonus.tickets);
+                bonus.kinds.forEach(function(kind) {
+                    t.set(userRef.collection('award_claims').doc(ticketGrants.claimId(kind, offsetToday)), {
+                        action: kind,
+                        tickets: ticketGrants.get(kind).tickets,
+                        day: offsetToday,
+                        at: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                });
+            }
+
+            // Save the badge even when the daily cap drops the XP.
+            if (badgeAwardRef) {
                 t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: action });
                 userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
@@ -3567,7 +3528,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 });
             }
-            if (awarded > 0) {
+            if (awarded > 0 || badgeAwardRef) {
                 t.set(countRef, {
                     count: nextCount,
                     lastAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -3595,9 +3556,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     reason: reason,
                     day: offsetToday,
                     xp: awarded,
-                    tickets: 0,
+                    tickets: bonus.tickets,
                     freezes: 0,
-                    badgeId: (awarded > 0 && badgeAwardRef) ? badgeId : null,
+                    badgeId: badgeAwardRef ? badgeId : null,
                     pointsBefore: userData.points || 0,
                     pointsDelta: totalPointsOut,
                     prevById: rankPrevById,
@@ -3612,6 +3573,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 
             return {
                 awarded: awarded,
+                tickets: bonus.tickets,
                 capped: capped,
                 dropped: dropped,
                 dailyUsed: dailyUsed + awarded,
@@ -3619,6 +3581,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 overflowRedeemed: 0,
                 pendingOverflow: userData.pendingOverflow || 0,
                 channelTracked: channelTracked,
+                doubled: xpBoost.doubled,
+                doubleXpUntil: xpBoost.until || 0,
             };
         });
     } catch (e) {
@@ -3627,6 +3591,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         }
         if (e.message === 'BANNED') {
             return { success: true, awarded: 0, tickets: 0, banned: true };
+        }
+        if (e.message === 'DOUBLE_XP_REQUIRED') {
+            return { success: false, error: 'Double XP is not active', awarded: 0, tickets: 0 };
         }
         if (e.message && e.message.startsWith('BADGE_ALREADY_AWARDED:')) {
             return { success: false, error: 'Badge already awarded', badgeDuplicate: true, awarded: 0, tickets: 0 };
@@ -3657,9 +3624,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         overflowRedeemed: 0,
         pendingOverflow: transactionResult.pendingOverflow,
         channelTracked: transactionResult.channelTracked,
+        doubled: !!transactionResult.doubled,
+        doubleXpUntil: transactionResult.doubleXpUntil || 0,
     };
-
-    // (dead-code block below removed 2026-04-16 - was a leftover from a pre-refactor commit that prevented Cloud Functions deploys)
 });
 
 // ===== FAUCET ADMIN - getFaucetStats =====
@@ -4067,148 +4034,114 @@ exports.pollVote = functionsV1.https.onCall(async (data, context) => {
     return { success: true, sats: pollData.sats || 0, bits: pollData.bits || 0 };
 });
 
-// ---- PVP Answer Submission (server-side validation) ----
-exports.pvpSubmitAnswer = functionsV1.https.onCall(async (data, context) => {
+// ---- PVP Answer Submission (server records the choice; pvpResolveRound grades it) ----
+async function pvpRateLimit(uid, bucket, maxCount, windowMs) {
+    const ref = db.collection('rate_limits').doc('pvp_' + bucket + '_' + uid);
+    await db.runTransaction(async (tx) => {
+        const doc = await tx.get(ref);
+        const now = Date.now();
+        if (doc.exists) {
+            const d = doc.data() || {};
+            const start = d.windowStartMs || 0;
+            if (now - start < windowMs) {
+                if ((d.count || 0) >= maxCount) {
+                    throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many PvP requests');
+                }
+                tx.update(ref, { count: (d.count || 0) + 1 });
+            } else {
+                tx.set(ref, { windowStartMs: now, count: 1 });
+            }
+        } else {
+            tx.set(ref, { windowStartMs: now, count: 1 });
+        }
+    });
+}
+
+exports.pvpSubmitAnswer = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    const uid = context.auth.uid;
+    await pvpRateLimit(uid, 'answer', 30, 60000);
 
     const { matchId, questionIndex, answerIndex } = data || {};
     if (!matchId || typeof questionIndex !== 'number' || typeof answerIndex !== 'number') {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing matchId, questionIndex, or answerIndex');
     }
-    if (questionIndex < 0 || questionIndex > 4 || answerIndex < -1 || answerIndex > 3) {
+    if (!Number.isInteger(questionIndex) || !Number.isInteger(answerIndex)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid question or answer index');
+    }
+    if (questionIndex < 0 || questionIndex > 4 || answerIndex < -1 || answerIndex > 5) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid question or answer index');
     }
 
-    const uid = context.auth.uid;
-    const matchRef = db.collection('pvp_matches').doc(matchId);
-
+    const matchRef = db.collection('pvp_matches').doc(String(matchId));
     const result = await db.runTransaction(async (tx) => {
         const matchDoc = await tx.get(matchRef);
+        const keyDoc = await tx.get(db.collection('pvp_answer_keys').doc(String(matchId)));
         if (!matchDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
-
         const match = matchDoc.data();
         if (match.status !== 'active') throw new functionsV1.https.HttpsError('failed-precondition', 'Match not active');
         if (match.currentQ !== questionIndex) throw new functionsV1.https.HttpsError('failed-precondition', 'Wrong question index');
 
-        // Determine which player this is
-        let myKey, oppKey;
-        if (match.player1.uid === uid) { myKey = 'player1'; oppKey = 'player2'; }
-        else if (match.player2.uid === uid) { myKey = 'player2'; oppKey = 'player1'; }
-        else throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
+        const myKey = pvpFlow.playerKeyForUid(keyDoc.exists ? keyDoc.data().playerUids : null, uid);
+        if (!myKey) throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
 
-        const myAnswers = match[myKey].answers || [];
-        if (myAnswers.length > questionIndex) {
-            return { alreadyAnswered: true }; // Idempotent
+        const myAnswers = (match[myKey].answers || []).slice();
+        if (myAnswers.length > questionIndex) return { alreadyAnswered: true };
+        if (myAnswers.length !== questionIndex) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Answer the current question first');
         }
 
-        // Server validates correctness from the stored questions
-        const question = match.questions[questionIndex];
-        if (!question) throw new functionsV1.https.HttpsError('internal', 'Question not found');
-
-        // Read answer key from server-only collection
-        // The key is written by pvpStoreAnswerKey (for client-created matches) or
-        // pvpCreateMatch (for CF-created matches). No fallback to the match doc —
-        // that field is intentionally stripped (vuln-3 fix).
-        const keyDoc = await tx.get(db.collection('pvp_answer_keys').doc(matchId));
-        if (!keyDoc.exists) {
-            // Key not yet stored (race: player 2 created match and immediately answered
-            // before pvpStoreAnswerKey CF completed). Reject — client should retry.
-            throw new functionsV1.https.HttpsError('failed-precondition', 'Answer key not ready — please try again');
-        }
-        const keyEntry = keyDoc.data().keys && keyDoc.data().keys.find(k => k.questionIndex === questionIndex);
-        if (!keyEntry || typeof keyEntry.correct !== 'number') {
-            throw new functionsV1.https.HttpsError('internal', 'Answer key missing for this question');
-        }
-        const correctAnswer = keyEntry.correct;
-
-        const isCorrect = answerIndex === correctAnswer;
-        const answerObj = {
+        // selected only. correct/won are written by pvpResolveRound from the answer key.
+        myAnswers.push({
             selected: answerIndex,
-            correct: isCorrect,
-            answeredAt: new Date().toISOString(),
-            won: false
-        };
-
-        const newMyAnswers = myAnswers.slice();
-        newMyAnswers.push(answerObj);
-
-        const oppAnswers = match[oppKey].answers || [];
+            answeredAt: new Date().toISOString()
+        });
         const update = {};
-        update[myKey + '.answers'] = newMyAnswers;
-
-        // If both have answered this question, resolve the round
-        if (oppAnswers.length > questionIndex) {
-            const oppAnswer = oppAnswers[questionIndex];
-            const myCorrect = isCorrect;
-            const oppCorrect = oppAnswer.correct;
-
-            if (myCorrect && !oppCorrect) {
-                // I win this round
-                newMyAnswers[questionIndex] = Object.assign({}, answerObj, { won: true });
-                update[myKey + '.answers'] = newMyAnswers;
-                update[myKey + '.score'] = (match[myKey].score || 0) + 10;
-                update[myKey + '.correct'] = (match[myKey].correct || 0) + 1;
-                update.questionWinner = myKey;
-            } else if (!myCorrect && oppCorrect) {
-                // Opponent wins this round
-                const newOppAnswers = oppAnswers.slice();
-                newOppAnswers[questionIndex] = Object.assign({}, oppAnswer, { won: true });
-                update[oppKey + '.answers'] = newOppAnswers;
-                update[oppKey + '.score'] = (match[oppKey].score || 0) + 10;
-                update[oppKey + '.correct'] = (match[oppKey].correct || 0) + 1;
-                update.questionWinner = oppKey;
-            } else if (myCorrect && oppCorrect) {
-                // Both correct - second answerer wins (already answered = opponent was first)
-                const newOppAnswers = oppAnswers.slice();
-                newOppAnswers[questionIndex] = Object.assign({}, oppAnswer, { won: true });
-                update[oppKey + '.answers'] = newOppAnswers;
-                update[oppKey + '.score'] = (match[oppKey].score || 0) + 10;
-                update[oppKey + '.correct'] = (match[oppKey].correct || 0) + 1;
-                update.questionWinner = oppKey;
-            } else {
-                // Both wrong - reroll
-                update.questionWinner = 'reroll';
-            }
-
-            // Count completed rounds to check if match is finished
-            let completedRounds = 0;
-            for (let i = 0; i <= questionIndex; i++) {
-                const a1 = (i === questionIndex ? newMyAnswers : (match[myKey].answers || []))[i];
-                const a2 = (i === questionIndex ? (update[oppKey + '.answers'] || oppAnswers) : oppAnswers)[i];
-                if (a1 && a2 && (a1.won || a2.won)) completedRounds++;
-            }
-            update.status = completedRounds >= 5 ? 'finished' : 'question_result';
-
-            // If match finished, update PVP stats server-side
-            if (update.status === 'finished') {
-                // Count wins for each player
-                const finalMyAnswers = update[myKey + '.answers'] || match[myKey].answers || [];
-                const finalOppAnswers = update[oppKey + '.answers'] || match[oppKey].answers || [];
-                let myWins = 0, oppWins = 0;
-                for (let r = 0; r < 5; r++) {
-                    if (finalMyAnswers[r] && finalMyAnswers[r].won) myWins++;
-                    if (finalOppAnswers[r] && finalOppAnswers[r].won) oppWins++;
-                }
-                // Update winner/loser stats
-                const myUidFinal = match[myKey].uid;
-                const oppUidFinal = match[oppKey].uid;
-                if (myWins > oppWins) {
-                    tx.update(db.collection('users').doc(myUidFinal), { pvpWins: admin.firestore.FieldValue.increment(1) });
-                    tx.update(db.collection('users').doc(oppUidFinal), { pvpLosses: admin.firestore.FieldValue.increment(1) });
-                } else if (oppWins > myWins) {
-                    tx.update(db.collection('users').doc(oppUidFinal), { pvpWins: admin.firestore.FieldValue.increment(1) });
-                    tx.update(db.collection('users').doc(myUidFinal), { pvpLosses: admin.firestore.FieldValue.increment(1) });
-                }
-                // Draw: no stat changes
-            }
-        }
-
+        update[myKey + '.answers'] = myAnswers;
         tx.update(matchRef, update);
-        return { success: true, correct: isCorrect, isCorrect, correctIndex: correctAnswer };
+        return { success: true, alreadyAnswered: false };
     });
-
     return result;
 });
+
+// Opponent went quiet. The caller must already have answered, and the question
+// must have been open for at least 15s (questionStartedAt is a server timestamp).
+exports.pvpTimeoutOpponent = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    const uid = context.auth.uid;
+    await pvpRateLimit(uid, 'timeout', 10, 60000);
+    const matchId = data && data.matchId;
+    if (!matchId || typeof matchId !== 'string') {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing matchId');
+    }
+    const matchRef = db.collection('pvp_matches').doc(matchId);
+    return db.runTransaction(async (tx) => {
+        const matchDoc = await tx.get(matchRef);
+        const keyDoc = await tx.get(db.collection('pvp_answer_keys').doc(matchId));
+        if (!matchDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
+        const match = matchDoc.data();
+        if (match.status !== 'active') throw new functionsV1.https.HttpsError('failed-precondition', 'Match not active');
+        const myKey = pvpFlow.playerKeyForUid(keyDoc.exists ? keyDoc.data().playerUids : null, uid);
+        if (!myKey) throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
+        const oppKey = myKey === 'player1' ? 'player2' : 'player1';
+        const q = match.currentQ || 0;
+        const myAnswers = (match[myKey] && match[myKey].answers) || [];
+        const oppAnswers = ((match[oppKey] && match[oppKey].answers) || []).slice();
+        if (myAnswers.length <= q) throw new functionsV1.https.HttpsError('failed-precondition', 'Answer first');
+        if (oppAnswers.length > q) return { alreadyAnswered: true };
+        const started = pvpFlow.lastSeenMs(match.questionStartedAt);
+        if (!started || (Date.now() - started) < 15000) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Too early to time out');
+        }
+        oppAnswers.push({ selected: -1, answeredAt: new Date().toISOString() });
+        const update = {};
+        update[oppKey + '.answers'] = oppAnswers;
+        tx.update(matchRef, update);
+        return { success: true };
+    });
+});
+
+
 
 // ---- Daily Spin (server-side validation + reward) ----
 exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
@@ -4285,6 +4218,9 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
+        // The wheel is once a day and is not run through the daily points cap,
+        // so Double XP does not apply here.
+        const spinDoubled = false;
 
         // Atomic update
         const update = {};
@@ -4330,6 +4266,8 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             closet: reward.closet,
             rare: reward.rare,
             rareLabel,
+            doubled: spinDoubled,
+            doubleXpUntil: doubleXp.untilMillis(userData) || 0,
         };
     });
 
@@ -4338,14 +4276,19 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
 
 // ---- Update PVP Stats (server-side) ----
 // updatePvpStats and incrementUserStat REMOVED - exploitable without verification.
-// PVP stats are handled atomically inside pvpSubmitAnswer when match finishes.
+// PVP stats and points are settled once in settlePvpMatch when a match ends.
 // Forum/market stats are display-only (not gated or redeemable).
 
-// ── PVP Store Answer Key (called by player-2 matchmaker after client-side match creation) ──
-// Validates that the caller is a player in the match before accepting keys.
-exports.pvpStoreAnswerKey = functionsV1.https.onCall(async (data, context) => {
+// ── PVP Store Answer Key ──
+// pvpCreateMatch writes the key. Clients cannot overwrite a slot (that was a
+// mid-match cheat: change the correct index after seeing the question).
+exports.pvpStoreAnswerKey = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const { matchId, keys, keyIndex } = data || {};
+    if (typeof keyIndex === 'number') {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Answer keys are server-owned');
+    }
+    await pvpRateLimit(context.auth.uid, 'key', 6, 60000);
     // keys: array of correct-answer integers
     // keyIndex: when set, this is a reroll — update one specific slot rather than the full array
     if (!matchId || !Array.isArray(keys) || keys.length < 1 || keys.length > 10) {
@@ -4358,45 +4301,25 @@ exports.pvpStoreAnswerKey = functionsV1.https.onCall(async (data, context) => {
         }
     }
     const uid = context.auth.uid;
-    const matchSnap = await db.collection('pvp_matches').doc(matchId).get();
-    if (!matchSnap.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
-    const match = matchSnap.data();
-    // Only a player in the match can store the answer key
-    if (match.player1.uid !== uid && match.player2.uid !== uid) {
-        throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
-    }
     const keyRef = db.collection('pvp_answer_keys').doc(matchId);
     const existing = await keyRef.get();
-
-    if (typeof keyIndex === 'number' && keyIndex >= 0 && keyIndex <= 4) {
-        // Reroll update: patch one specific slot in an existing key document
-        if (!existing.exists) throw new functionsV1.https.HttpsError('not-found', 'Answer key not found for reroll');
-        const existingKeys = existing.data().keys || [];
-        const updated = existingKeys.slice();
-        // Find or create the entry for this index
-        const slotIdx = updated.findIndex(k => k.questionIndex === keyIndex);
-        if (slotIdx >= 0) {
-            updated[slotIdx] = { questionIndex: keyIndex, correct: keys[0] };
-        } else {
-            updated.push({ questionIndex: keyIndex, correct: keys[0] });
-        }
-        await keyRef.update({ keys: updated });
-        return { success: true, reroll: true };
+    // Keys and player uids are written by pvpCreateMatch. Clients cannot plant either.
+    if (!existing.exists) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Answer keys are server-owned');
     }
-
-    // Initial store: only if not already set
-    if (existing.exists) return { success: true, alreadySet: true };
-    await keyRef.set({
-        keys: keys.map((correct, i) => ({ questionIndex: i, correct })),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        setBy: uid
-    });
-    return { success: true };
+    const mine = pvpFlow.playerKeyForUid(existing.data().playerUids, uid);
+    if (!mine) throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
+    return { success: true, alreadySet: true };
 });
 
+function pvpSafePic(url) {
+    return pvpFlow.pvpPicAllowed(url);
+}
+
 // ── PVP Match Creation (server-side, hides answer keys) ──
-exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
+exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    await pvpRateLimit(context.auth.uid, 'create', 10, 60000);
 
     // [SECURITY FIX] Caller is always player2 (the matchmaker who found an opponent).
     // Pin player2.uid to context.auth.uid — never trust client-supplied uid.
@@ -4408,20 +4331,34 @@ exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
     if (!lobbyDocId || !player2 || !questions || !Array.isArray(questions)) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing required fields');
     }
-    if (questions.length < 1 || questions.length > 10) {
+    if (questions.length < 1 || questions.length > 5) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid question count');
     }
+    if (typeof lobbyDocId !== 'string' || lobbyDocId.length < 4 || lobbyDocId.length > 128) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid lobby');
+    }
 
-    // Store answer keys separately (not readable by clients)
-    const answerKeys = questions.map((q, i) => ({ questionIndex: i, correct: q.correct }));
-
-    // Strip correct answer — clients must NOT receive the answer key in the match doc.
-    // Server validates answers via pvpSubmitAnswer CF only.
-    const clientQuestions = questions.map(q => ({
-        q: q.q,
-        options: q.options
-        // correct intentionally omitted — stored only in pvp_answer_keys
-    }));
+    // Shuffle option order so the caller cannot keep the index they submitted.
+    // The key stays in pvp_answer_keys. The match doc never contains `correct`.
+    const shuffled = questions.map((q) => {
+        if (!q || typeof q.q !== 'string' || q.q.length < 1 || q.q.length > 300) {
+            throw new functionsV1.https.HttpsError('invalid-argument', 'Bad question');
+        }
+        if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 6) {
+            throw new functionsV1.https.HttpsError('invalid-argument', 'Bad options');
+        }
+        if (typeof q.correct !== 'number' || !Number.isInteger(q.correct) || q.correct < 0 || q.correct >= q.options.length) {
+            throw new functionsV1.https.HttpsError('invalid-argument', 'Bad answer key');
+        }
+        for (const opt of q.options) {
+            if (typeof opt !== 'string' || opt.length < 1 || opt.length > 200) {
+                throw new functionsV1.https.HttpsError('invalid-argument', 'Bad option');
+            }
+        }
+        return pvpFlow.shuffleQuestion(q);
+    });
+    const answerKeys = shuffled.map((q, i) => ({ questionIndex: i, correct: q.correct }));
+    const clientQuestions = shuffled.map(q => ({ q: q.q, options: q.options }));
 
     // Use a transaction to atomically claim the lobby doc and create the match.
     // This prevents the race condition where both players try to create a match
@@ -4450,20 +4387,25 @@ exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
         if (p1Uid === callerUid) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Cannot match against yourself');
         }
+        const p1User = await tx.get(db.collection('users').doc(p1Uid));
+        const p2User = await tx.get(db.collection('users').doc(callerUid));
+        const p1Name = pvpFlow.safeDisplayName(p1User.exists ? p1User.data().username : lobbyData.name);
+        const p2Name = pvpFlow.safeDisplayName(p2User.exists ? p2User.data().username : (player2 && player2.name));
+        const p2Pic = pvpSafePic(player2 && player2.profilePic);
 
         // Create the match document
         tx.set(matchRef, {
             player1: {
                 uid: p1Uid,
-                name: (lobbyData.name || 'Anonymous').substring(0, 30),
-                profilePic: lobbyData.profilePic || '',
+                name: p1Name,
+                profilePic: pvpSafePic(lobbyData.profilePic),
                 score: 0, correct: 0, answers: []
             },
             player2: {
                 // uid pinned to verified caller — never from client payload
                 uid: callerUid,
-                name: (player2.name || 'Anonymous').substring(0, 30),
-                profilePic: player2.profilePic || '',
+                name: p2Name,
+                profilePic: p2Pic,
                 score: 0, correct: 0, answers: []
             },
             questions: clientQuestions,
@@ -4477,6 +4419,9 @@ exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
         // Store answer keys in server-only collection
         tx.set(db.collection('pvp_answer_keys').doc(matchRef.id), {
             keys: answerKeys,
+            playerUids: { player1: p1Uid, player2: callerUid },
+            player1Name: p1Name,
+            player2Name: p2Name,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
@@ -4484,9 +4429,9 @@ exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
         tx.update(lobbyRef, {
             status: 'matched',
             matchId: matchRef.id,
-            opponentName: (player2.name || 'Anonymous').substring(0, 30),
+            opponentName: p2Name,
             opponentUid: callerUid,
-            opponentProfilePic: player2.profilePic || ''
+            opponentProfilePic: p2Pic
         });
     });
 
@@ -4615,10 +4560,13 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const update = {};
         update[attemptField] = today;
 
+        let pointsAwarded = 0;
         if (passed) {
             // Award points server-side. Still increments directly (outside daily cap by design),
             // but now limited to ONCE per cert type thanks to the alreadyPassed gate above.
-            update.points = admin.firestore.FieldValue.increment(2100);
+            pointsAwarded = 2100;
+            update.points = admin.firestore.FieldValue.increment(pointsAwarded);
+            update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
@@ -4641,10 +4589,10 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             }
         }
 
-        return { score, passed, type };
+        return { score, passed, type, pointsAwarded };
     });
 
-    return { success: true, score: result.score, passed: result.passed, type: result.type };
+    return { success: true, score: result.score, passed: result.passed, type: result.type, pointsAwarded: result.pointsAwarded || 0 };
 });
 
 // ── Quest: Server-Side Grading ──
@@ -4745,12 +4693,16 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
         let awarded = 0;
         let capped = false;
         let dropped = 0;
+        let doubled = false;
         if (pts > 0) {
             const userDoc = await tx.get(userRef);
             const userData = userDoc.exists ? userDoc.data() : {};
             if (userData.ban_reason) {
                 dropped = pts;
             } else {
+                const questBoost = doubleXp.boostPoints(pts, userData, Date.now());
+                pts = questBoost.points;
+                doubled = questBoost.doubled;
                 const dailyDoc = await tx.get(dailyPtsRef);
                 const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
                 const triviaQuizUsed = dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
@@ -4769,6 +4721,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                 if (awarded > 0) {
                     tx.update(userRef, {
                         points: admin.firestore.FieldValue.increment(awarded),
+                        activeDayKeys: referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now()),
                     });
                     tx.set(dailyPtsRef, {
                         total: dailyUsed + awarded,
@@ -4812,7 +4765,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
             });
         }
 
-        return { score, pts, awarded, capped, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
+        return { score, pts, awarded, capped, doubled, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
     });
 
     return result;
@@ -4898,6 +4851,9 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         // Skip bot/nacho/system messages so the counter reflects real users
         if (data.uid === 'nacho-bot' || data.uid === 'system') return null;
         if (data.isNachoAuto === true) return null;
+        if (data.uid && String(data.text || '').trim()) {
+            await grantServerTickets(data.uid, 'daily_chat_ticket');
+        }
         try {
             await db.collection('stats').doc('global').set({
                 chatMessages: admin.firestore.FieldValue.increment(1)
@@ -4906,21 +4862,27 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         return null;
     });
 
-// PVP match finished → bump pvpMatches (only once per match)
+// PVP match reaches a terminal status → count it once and settle rewards once.
 exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (event) => {
-    const change = { before: event.data.before, after: event.data.after }; const _context = { params: event.params };
-        const before = change.before.data() || {};
-        const after = change.after.data() || {};
-        // Count only the transition into finished (not forfeit, not repeated writes)
-        if (before.status === 'finished') return null;
-        if (after.status !== 'finished') return null;
+    const before = (event.data.before && event.data.before.data()) || {};
+    const after = (event.data.after && event.data.after.data()) || {};
+    const matchId = event.params.matchId;
+    const becameFinished = before.status !== 'finished' && after.status === 'finished';
+    const becameTerminal = before.status !== after.status
+        && (after.status === 'finished' || after.status === 'forfeit');
+    if (!becameTerminal) return null;
+    if (becameFinished) {
         try {
             await db.collection('stats').doc('global').set({
                 pvpMatches: admin.firestore.FieldValue.increment(1)
             }, { merge: true });
-        } catch (e) { console.error('[onPvpMatchFinished] failed:', e); }
-        return null;
-    });
+        } catch (e) { console.error('[onPvpMatchFinished] stats failed:', e.message); }
+    }
+    try {
+        await settlePvpMatch(matchId, after);
+    } catch (e) { console.error('[onPvpMatchFinished] settle failed:', e.message); }
+    return null;
+});
 
 // New user doc created → bump userCount + assign plebNumber
 exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
@@ -5960,6 +5922,9 @@ exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
                 athlete_profile: data.athlete ? data.athlete.profile : '',
                 updated_at: admin.firestore.FieldValue.serverTimestamp()
             });
+            await grantServerTickets(uid, 'strava_connect_ticket', {
+                athleteId: data.athlete && data.athlete.id,
+            });
             return res.redirect('https://bitcoineducation.quest/#explore?strava=success');
         } else {
             console.error("Strava exchange error:", data);
@@ -6926,6 +6891,7 @@ async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
             period: winnerKey,
             label,
             winners,
+            uids: winners.map(function(w) { return w.uid; }),
             ticketsPerWinner,
             settledAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -7393,7 +7359,20 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
         if (g.streakFreezes)  update.streakFreezes  = admin.firestore.FieldValue.increment(g.streakFreezes);
         if (g.hashBoosters)   update.hashBoosters   = admin.firestore.FieldValue.increment(g.hashBoosters * qty);
         if (g.hintTokens)     update.hintTokens     = admin.firestore.FieldValue.increment(g.hintTokens);
-        if (g.doubleXP)       update.doubleXPCharges = admin.firestore.FieldValue.increment(g.doubleXP * qty);
+        let doubleXpUntil = 0;
+        if (itemId === 'double_xp') {
+            // Buying starts or extends the window immediately. Leftover charges
+            // stay put so an older activateDoubleXP call can still spend them.
+            doubleXpUntil = doubleXp.extendUntil(
+                doubleXp.untilMillis(userData),
+                Date.now(),
+                doubleXp.DOUBLE_XP_MS * qty
+            );
+            update.doubleXpUntil = doubleXpUntil;
+            update.doubleXPExpiry = doubleXpUntil;
+        } else if (g.doubleXP) {
+            update.doubleXPCharges = admin.firestore.FieldValue.increment(g.doubleXP * qty);
+        }
         if (g.bonusSpins)        update.bonusSpins        = admin.firestore.FieldValue.increment(g.bonusSpins * qty);
         if (g.raffleEntries)     update.raffleEntries     = admin.firestore.FieldValue.increment(g.raffleEntries * qty);
         if (g.secondRigCharges)  update.secondRigCharges  = admin.firestore.FieldValue.increment(g.secondRigCharges * qty);
@@ -7461,7 +7440,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             streakFreezes:  (userData.streakFreezes  || 0) + (g.streakFreezes  ? g.streakFreezes        : 0),
             hashBoosters:   (userData.hashBoosters   || 0) + (g.hashBoosters   ? g.hashBoosters * qty   : 0),
             hintTokens:     (userData.hintTokens     || 0) + (g.hintTokens     ? g.hintTokens           : 0),
-            doubleXPCharges:(userData.doubleXPCharges|| 0) + (g.doubleXP       ? g.doubleXP * qty       : 0),
+            doubleXPCharges:(userData.doubleXPCharges|| 0) + (itemId === 'double_xp' ? 0 : (g.doubleXP ? g.doubleXP * qty : 0)),
             bonusSpins:       (userData.bonusSpins       || 0) + (g.bonusSpins       ? g.bonusSpins * qty       : 0),
             raffleEntries:    (userData.raffleEntries    || 0) + (g.raffleEntries    ? g.raffleEntries * qty    : 0),
             secondRigCharges: (userData.secondRigCharges || 0) + (g.secondRigCharges ? g.secondRigCharges * qty : 0),
@@ -7475,6 +7454,8 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             quantity: qty,
             itemName: item.name,
             inventory: newInventory,
+            doubleXpUntil: doubleXpUntil,
+            minutesLeft: doubleXp.minutesLeft(doubleXpUntil, Date.now()),
         };
     });
 });
@@ -7682,18 +7663,17 @@ exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
             throw new functionsV1.https.HttpsError('failed-precondition', 'No Double XP charges available.');
         }
 
-        // Already active? extend or reject
-        const now = admin.firestore.Timestamp.now();
-        const existingExpiry = userData.doubleXPExpiry;
-        const alreadyActive = existingExpiry && existingExpiry.toMillis() > now.toMillis();
-
-        // Set expiry to now+60min (or extend if already active)
-        const base = alreadyActive ? existingExpiry.toMillis() : now.toMillis();
-        const newExpiry = admin.firestore.Timestamp.fromMillis(base + 3600000);
+        // Leftover charges from before the purchase started the timer.
+        // Extend the same way a new purchase does, and store a number so the
+        // client countdown can compare it to Date.now() across reloads.
+        const nowMs = Date.now();
+        const alreadyActive = doubleXp.isActive(userData, nowMs);
+        const until = doubleXp.extendUntil(doubleXp.untilMillis(userData), nowMs, doubleXp.DOUBLE_XP_MS);
 
         tx.update(userRef, {
             doubleXPCharges: admin.firestore.FieldValue.increment(-1),
-            doubleXPExpiry: newExpiry,
+            doubleXpUntil: until,
+            doubleXPExpiry: until,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         try {
@@ -7709,9 +7689,11 @@ exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
 
         return {
             success: true,
-            doubleXPExpiry: newExpiry.toMillis(),
+            doubleXPExpiry: until,
+            doubleXpUntil: until,
             charges: charges - 1,
             extended: alreadyActive,
+            minutesLeft: doubleXp.minutesLeft(until, nowMs),
         };
     });
 });
@@ -7969,33 +7951,463 @@ exports.raidBossWeeklyAnnouncement = onSchedule(
   }
 );
 
-// ===== PVP LOBBY CLEANUP =====
-// Runs every 10 minutes. Deletes pvp_lobby docs whose lastSeen is older than
-// 60 seconds (2x the client heartbeat interval of 5s, well beyond the 30s
-// stale threshold). Prevents stale lobby docs from blocking matchmaking.
-exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 60 minutes', timeZone: 'UTC' }, async (ctx) => {
-    const STALE_MS = 60 * 1000; // 60 seconds
-    const cutoff = Date.now() - STALE_MS;
+// One Nacho global_chat doc per shout, then the same Telegram mirror other
+// Nacho shoutouts use. A repeat call sees the doc and does not post again.
+async function postNachoPvpMessage(plan) {
+    if (!plan || !plan.docId || !plan.text) return;
+    const ref = db.collection('global_chat').doc(plan.docId);
+    const existing = await ref.get();
+    if (existing.exists) {
+        await mirrorShoutoutOnce({ db: db, docId: plan.docId, collection: 'global_chat', text: plan.text });
+        return;
+    }
+    await ref.set({
+        uid: 'nacho-bot',
+        name: '🦌 Nacho',
+        text: String(plan.text).slice(0, 500),
+        isNachoAuto: false,
+        mentionUid: String(plan.mentionUid || ''),
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+        pvpShout: true,
+    });
+    await mirrorShoutoutOnce({ db: db, docId: plan.docId, collection: 'global_chat', text: plan.text });
+}
+
+async function pvpAccountFlags(uid) {
+    const [userSnap, ledgerSnap] = await Promise.all([
+        db.collection('users').doc(uid).get(),
+        db.collection('faucet_ledger').doc(uid).get(),
+    ]);
+    const ban = faucetGuard.assessBan(
+        userSnap.exists ? userSnap.data() : {},
+        ledgerSnap.exists ? ledgerSnap.data() : {}
+    );
+    let anonymous = true;
     try {
-        const snap = await db.collection('pvp_lobby').get();
-        const batch = db.batch();
-        let count = 0;
-        snap.forEach(doc => {
-            const d = doc.data();
-            // Delete if: no lastSeen, OR lastSeen is stale
-            if (!d.lastSeen || d.lastSeen < cutoff) {
-                batch.delete(doc.ref);
-                count++;
-            }
-        });
-        if (count > 0) {
-            await batch.commit();
-            console.log('[PVP CLEANUP] Deleted', count, 'stale lobby docs');
-        } else {
-            console.log('[PVP CLEANUP] No stale lobby docs found');
+        const authUser = await admin.auth().getUser(uid);
+        const providers = authUser.providerData || [];
+        anonymous = !authUser.email && providers.length === 0;
+    } catch (e) { anonymous = true; }
+    return {
+        banned: ban.ok !== true,
+        anonymous: anonymous,
+        username: userSnap.exists ? userSnap.data().username : '',
+        pushEnabled: userSnap.exists && userSnap.data().pushEnabled === true,
+        pvpAlertsMuted: userSnap.exists && userSnap.data().pvpAlertsMuted === true,
+    };
+}
+
+// Grant match XP, W/L, and one win ticket from the server-owned player uids.
+// pvp_rewards/{matchId} is the claim lock, so a replay cannot mint a second ticket.
+async function settlePvpMatch(matchId, after) {
+    if (!after || (after.status !== 'finished' && after.status !== 'forfeit')) return;
+    if (after.rewardsGranted === true) return;
+    const keySnap = await db.collection('pvp_answer_keys').doc(matchId).get();
+    const keyData = keySnap.exists ? keySnap.data() : {};
+    const ids = keyData.playerUids || null;
+    if (!ids || !ids.player1 || !ids.player2) return;
+    const p1 = after.player1 || {};
+    const p2 = after.player2 || {};
+    const [f1, f2] = await Promise.all([pvpAccountFlags(ids.player1), pvpAccountFlags(ids.player2)]);
+    const plan = pvpFlow.planPvpReward({
+        matchId: matchId,
+        status: after.status,
+        alreadyGranted: false,
+        forfeitedBy: after.forfeitedBy || '',
+        forfeitReason: after.forfeitReason || '',
+        player1: {
+            uid: ids.player1,
+            name: keyData.player1Name || '',
+            score: p1.score || 0,
+            roundWins: pvpFlow.countWins(p1.answers),
+            banned: f1.banned, anonymous: f1.anonymous,
+        },
+        player2: {
+            uid: ids.player2,
+            name: keyData.player2Name || '',
+            score: p2.score || 0,
+            roundWins: pvpFlow.countWins(p2.answers),
+            banned: f2.banned, anonymous: f2.anonymous,
+        },
+    });
+    if (!plan.grant) {
+        if (plan.reason === 'disconnect') {
+            await db.collection('pvp_matches').doc(matchId).set({ rewardsGranted: true, rewards: {} }, { merge: true });
         }
+        return;
+    }
+    const rewardRef = db.collection('pvp_rewards').doc(plan.claimId);
+    const offsetToday = getOffsetDateKey();
+    const wrote = await db.runTransaction(async (tx) => {
+        const existing = await tx.get(rewardRef);
+        if (existing.exists) return false;
+        const userRefs = plan.players.map(function (p) { return db.collection('users').doc(p.uid); });
+        const dailyRefs = plan.players.map(function (p) {
+            return db.collection('users').doc(p.uid).collection('daily_points').doc(offsetToday);
+        });
+        const ticketRefs = plan.players.map(function (p) {
+            return db.collection('users').doc(p.uid).collection('daily_action_counts').doc(offsetToday + '_pvp_win_ticket');
+        });
+        const userSnaps = [];
+        const dailySnaps = [];
+        const ticketSnaps = [];
+        for (let i = 0; i < userRefs.length; i++) {
+            userSnaps.push(await tx.get(userRefs[i]));
+            dailySnaps.push(await tx.get(dailyRefs[i]));
+            ticketSnaps.push(await tx.get(ticketRefs[i]));
+        }
+        const applied = [];
+        for (let i = 0; i < plan.players.length; i++) {
+            const p = plan.players[i];
+            if (!userSnaps[i].exists) {
+                applied.push({ uid: p.uid, points: 0, overflowAdded: 0, tickets: 0, outcome: p.outcome });
+                continue;
+            }
+            const used = dailySnaps[i].exists ? (dailySnaps[i].data().total || 0) : 0;
+            const grant = awardActions.planGrant({
+                xp: p.points,
+                dailyUsed: used,
+                dailyCap: awardActions.DAILY_CAP,
+            });
+            const write = pvpFlow.planXpWrite(grant.awarded);
+            const ticket = pvpFlow.planWinTicket(Object.assign({}, p, {
+                ticketClaimedToday: ticketSnaps[i].exists,
+            }));
+            const upd = {};
+            if (write.write) {
+                upd.points = admin.firestore.FieldValue.increment(write.points);
+                upd.weeklyXP = admin.firestore.FieldValue.increment(write.weeklyXP);
+                upd.monthlyXP = admin.firestore.FieldValue.increment(write.monthlyXP);
+            }
+            if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
+            if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
+            if (ticket.tickets > 0) upd.orangeTickets = admin.firestore.FieldValue.increment(ticket.tickets);
+            if (Object.keys(upd).length) tx.update(userRefs[i], upd);
+            if (write.write) {
+                tx.set(dailyRefs[i], { total: admin.firestore.FieldValue.increment(write.points) }, { merge: true });
+            }
+            if (ticket.tickets > 0) {
+                tx.set(ticketRefs[i], {
+                    awardedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    action: 'pvp_win_ticket',
+                });
+            }
+            applied.push({
+                uid: p.uid,
+                points: write.points,
+                weeklyXP: write.weeklyXP,
+                monthlyXP: write.monthlyXP,
+                overflowAdded: write.overflowAdded,
+                pendingOverflow: userSnaps[i].data().pendingOverflow || 0,
+                tickets: ticket.tickets,
+                outcome: p.outcome,
+            });
+        }
+        const rewardsMap = {};
+        applied.forEach(function (a) {
+            rewardsMap[a.uid] = { points: a.points, outcome: a.outcome, tickets: a.tickets };
+        });
+        tx.set(rewardRef, {
+            matchId: matchId,
+            reason: plan.reason,
+            applied: applied,
+            at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        tx.set(db.collection('pvp_matches').doc(matchId), {
+            rewardsGranted: true,
+            rewards: rewardsMap,
+        }, { merge: true });
+        return true;
+    });
+    if (wrote && plan.shout && plan.shout.post) {
+        try { await postNachoPvpMessage(plan.shout); }
+        catch (e) { console.warn('[pvp] result shout failed'); }
+    }
+}
+
+async function pushPvpLobby(joinerUid, name) {
+    const now = Date.now();
+    const globalRef = db.collection('pvp_rate').doc('global');
+    const globalSnap = await globalRef.get();
+    const room = pvpFlow.lobbyGlobalRoom(globalSnap.exists ? globalSnap.data() : {}, now);
+    if (!room.push) return;
+    const order = pvpFlow.pushShardOrder(Math.floor(Math.random() * 10));
+    const messages = [];
+    for (let s = 0; s < order.length && !messages.length; s++) {
+        const usersSnap = await db.collection('users').where('pvpPushShard', '==', order[s]).limit(40).get();
+        const docs = usersSnap.docs.slice();
+        for (let i = docs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = docs[i];
+            docs[i] = docs[j];
+            docs[j] = tmp;
+        }
+        for (const userDoc of docs) {
+            const uid = userDoc.id;
+            const data = userDoc.data() || {};
+            if (data.pvpPushEnabled !== true) continue;
+            const rateRef = db.collection('pvp_rate').doc(uid);
+            const rate = await rateRef.get();
+            const rateData = rate.exists ? rate.data() : {};
+            const decision = pvpFlow.decidePvpPush({
+                uid: uid,
+                joinerUid: joinerUid,
+                optedIn: true,
+                muted: data.pvpAlertsMuted === true,
+                lastPushMs: rateData.lastPvpPushMs,
+                pushTimes: rateData.pvpPushTimes || [],
+                nowMs: now,
+            });
+            if (!decision.send) continue;
+            const tokenDoc = await db.collection('push_tokens').doc(uid).get();
+            if (!tokenDoc.exists || !tokenDoc.data().token) continue;
+            const prev = Array.isArray(rateData.pvpPushTimes) ? rateData.pvpPushTimes.filter(function (t) {
+                return typeof t === 'number' && (now - t) < pvpFlow.PUSH_WEEK_MS;
+            }) : [];
+            prev.push(now);
+            await rateRef.set({ lastPvpPushMs: now, pvpPushTimes: prev.slice(-5) }, { merge: true });
+            messages.push({
+                token: tokenDoc.data().token,
+                notification: {
+                    title: '⚔️ PvP lobby',
+                    body: pvpFlow.safeDisplayName(name) + ' is waiting for a PvP match!',
+                },
+                data: { url: 'https://bitcoineducation.quest/#pvp' },
+                webpush: { fcmOptions: { link: 'https://bitcoineducation.quest/#pvp' } },
+            });
+            if (messages.length >= 20) break;
+        }
+    }
+    if (!messages.length) return;
+    await globalRef.set({
+        windowStart: room.windowStart,
+        shoutCount: room.shoutCount,
+        pushCount: room.pushCount + 1,
+        lastPushWaveMs: now,
+    }, { merge: true });
+    await admin.messaging().sendEach(messages);
+}
+
+async function syncPvpLobbyLive(docId, before, after) {
+    const now = Date.now();
+    const liveRef = db.collection('pvp_lobby_live').doc('current');
+    if (before && after) {
+        const peek = await liveRef.get();
+        const row = peek.exists && peek.data().entries ? peek.data().entries[docId] : null;
+        if (pvpFlow.shouldSkipLobbySummary(before, after, row, now)) return;
+    }
+    const becameWaiting = !!(after && after.status === 'waiting' && (!before || before.status !== 'waiting'));
+    let trustedName = '';
+    let blocked = false;
+    if (becameWaiting) {
+        const flags = await pvpAccountFlags(docId);
+        const username = String(flags.username || '').trim();
+        trustedName = username ? pvpFlow.safeDisplayName(username) : '';
+        blocked = flags.banned || flags.anonymous || !username || trustedName === 'a Bitcoiner';
+    }
+    await db.runTransaction(async (tx) => {
+        const snap = await tx.get(liveRef);
+        const entries = (snap.exists && snap.data().entries) || {};
+        let row = after;
+        if (after && after.status === 'waiting') {
+            const keptRow = entries[docId];
+            const kept = keptRow && keptRow.name;
+            if (becameWaiting && !blocked) {
+                row = Object.assign({}, after, { name: trustedName, uid: docId });
+            } else if (!becameWaiting && kept) {
+                row = Object.assign({}, after, { name: kept, uid: keptRow.uid || docId });
+            } else {
+                row = Object.assign({}, after, { status: 'blocked' });
+            }
+        }
+        const next = pvpFlow.mergeLobbyEntry(entries, docId, row, now);
+        tx.set(liveRef, {
+            entries: next,
+            count: Object.keys(next).length,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    });
+    if (!becameWaiting || blocked) return;
+    const rateRef = db.collection('pvp_rate').doc(docId);
+    const globalRef = db.collection('pvp_rate').doc('global');
+    const chatDecision = pvpFlow.shouldPostLobbyShout({
+        uid: docId,
+        username: trustedName,
+        nowMs: now,
+        lastPostMs: null,
+        banned: false,
+        anonymous: false,
+        globalCap: false,
+    });
+    if (!chatDecision.post) return;
+    const chatRef = db.collection('global_chat').doc(chatDecision.docId);
+    const posted = await db.runTransaction(async (tx) => {
+        const rate = await tx.get(rateRef);
+        const global = await tx.get(globalRef);
+        const chat = await tx.get(chatRef);
+        const room = pvpFlow.lobbyGlobalRoom(global.exists ? global.data() : {}, Date.now());
+        const again = pvpFlow.shouldPostLobbyShout({
+            uid: docId,
+            username: trustedName,
+            nowMs: Date.now(),
+            lastPostMs: rate.exists ? rate.data().lastLobbyShoutMs : null,
+            banned: false,
+            anonymous: false,
+            globalCap: !room.shout,
+        });
+        if (!again.post || chat.exists) return null;
+        tx.set(rateRef, { lastLobbyShoutMs: Date.now() }, { merge: true });
+        tx.set(globalRef, {
+            windowStart: room.windowStart,
+            shoutCount: room.shoutCount + 1,
+            pushCount: room.pushCount,
+        }, { merge: true });
+        tx.set(chatRef, {
+            uid: 'nacho-bot',
+            name: '🦌 Nacho',
+            text: again.text,
+            isNachoAuto: false,
+            mentionUid: docId,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+            pvpShout: true,
+        });
+        return again;
+    });
+    if (!posted) return;
+    try {
+        await mirrorShoutoutOnce({ db: db, docId: posted.docId, collection: 'global_chat', text: posted.text });
+    } catch (e) { console.warn('[pvp] telegram mirror failed'); }
+    try { await pushPvpLobby(docId, trustedName); }
+    catch (e) { console.warn('[pvp] push failed'); }
+}
+
+// Maintains the one summary doc clients listen to, and posts Nacho's lobby line.
+exports.onPvpLobbyLive = onDocumentWritten('pvp_lobby/{docId}', async (event) => {
+    const before = event.data.before.exists ? event.data.before.data() : null;
+    const after = event.data.after.exists ? event.data.after.data() : null;
+    try {
+        await syncPvpLobbyLive(event.params.docId, before, after);
+    } catch (e) {
+        console.error('[pvp lobby]', e && e.message ? e.message : e);
+    }
+    return null;
+});
+
+async function pvpHousekeepMatches(now) {
+    const countdown = await db.collection('pvp_matches').where('status', '==', 'countdown').limit(15).get();
+    for (const doc of countdown.docs) {
+        const created = pvpFlow.lastSeenMs(doc.data().createdAt);
+        if (created && (now - created) > 20000) {
+            await doc.ref.update({
+                status: 'active',
+                currentQ: doc.data().currentQ || 0,
+                questionStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+    }
+    const active = await db.collection('pvp_matches').where('status', '==', 'active').limit(15).get();
+    for (const doc of active.docs) {
+        const d = doc.data();
+        const started = pvpFlow.lastSeenMs(d.questionStartedAt);
+        if (!started || (now - started) < 20000) continue;
+        const q = d.currentQ || 0;
+        const a1 = (d.player1 && d.player1.answers) || [];
+        const a2 = (d.player2 && d.player2.answers) || [];
+        const p1missing = a1.length <= q;
+        const p2missing = a2.length <= q;
+        if (p1missing && p2missing && (now - started) > 90000) {
+            await doc.ref.update({ status: 'forfeit', forfeitedBy: '', forfeitReason: 'disconnect' });
+            continue;
+        }
+        if (p1missing === p2missing) continue;
+        const key = p1missing ? 'player1' : 'player2';
+        const answers = (p1missing ? a1 : a2).slice();
+        answers.push({ selected: -1, answeredAt: new Date().toISOString() });
+        const update = {};
+        update[key + '.answers'] = answers;
+        await doc.ref.update(update);
+    }
+    const results = await db.collection('pvp_matches').where('status', '==', 'question_result').limit(15).get();
+    for (const doc of results.docs) {
+        const d = doc.data();
+        const resolved = typeof d.resolvedAt === 'number' ? d.resolvedAt : 0;
+        if (!resolved || (now - resolved) < 20000) continue;
+        const p1w = pvpFlow.countWins(d.player1 && d.player1.answers);
+        const p2w = pvpFlow.countWins(d.player2 && d.player2.answers);
+        if (d.questionWinner === 'reroll') {
+            await doc.ref.update({
+                status: 'active',
+                questionWinner: null,
+                questionStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } else if ((d.currentQ || 0) + 1 >= 5 || pvpFlow.matchShouldFinish(p1w, p2w)) {
+            await doc.ref.update({ status: 'finished' });
+        } else {
+            await doc.ref.update({
+                status: 'active',
+                currentQ: (d.currentQ || 0) + 1,
+                questionWinner: null,
+                questionStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+    }
+}
+
+// ===== PVP LOBBY CLEANUP =====
+// Every 5 minutes. Drops lobby docs with no heartbeat in 45s and rewrites the
+// single pvp_lobby_live summary. Also unsticks countdown / unanswered rounds.
+exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 5 minutes', timeZone: 'UTC' }, async () => {
+    const now = Date.now();
+    try {
+        const snap = await db.collection('pvp_lobby').limit(200).get();
+        const liveSnap = await db.collection('pvp_lobby_live').doc('current').get();
+        const trusted = (liveSnap.exists && liveSnap.data().entries) || {};
+        const entries = {};
+        let batch = db.batch();
+        let ops = 0;
+        let deleted = 0;
+        for (const doc of snap.docs) {
+            const d = doc.data() || {};
+            const seen = pvpFlow.lastSeenMs(d.lastSeen);
+            const alive = d.status === 'waiting' && seen && (now - seen) < pvpFlow.LOBBY_STALE_MS;
+            if (!alive) {
+                batch.delete(doc.ref);
+                ops++;
+                deleted++;
+                if (ops >= 400) {
+                    await batch.commit();
+                    batch = db.batch();
+                    ops = 0;
+                }
+                continue;
+            }
+            const flags = await pvpAccountFlags(doc.id);
+            const kept = pvpFlow.trustedLobbyKeep(
+                trusted[doc.id], d, now, flags.banned || flags.anonymous, doc.id
+            );
+            if (kept) entries[doc.id] = kept;
+        }
+        batch.set(db.collection('pvp_lobby_live').doc('current'), {
+            entries: entries,
+            count: Object.keys(entries).length,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await batch.commit();
+        console.log('[PVP CLEANUP] Deleted', deleted, 'stale lobby docs');
+        await pvpHousekeepMatches(now);
     } catch (e) {
         console.error('[PVP CLEANUP] Error:', e.message);
+    }
+    try {
+        const { deleteExpiredRateRows } = require('./src/rateLimitSalt');
+        const swept = await deleteExpiredRateRows(db, Date.now(), {
+            documentIdField: admin.firestore.FieldPath.documentId(),
+        });
+        if (swept.rateLimits || swept.salts || swept.legacy) {
+            console.log('[RATE CLEANUP] Deleted', swept.rateLimits, 'expired limits,', swept.salts, 'salts,', swept.legacy, 'legacy address rows');
+        }
+    } catch (e) {
+        console.error('[RATE CLEANUP] Error:', e.message);
     }
     return null;
 });
@@ -8612,3 +9024,13 @@ exports.claimSayHi = sayHiFns.claimSayHi;
 const { bindReplyBonus } = require('./src/replyBonus');
 const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
 exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
+
+// Account deletion. Owner (recent sign-in) or admin. Admin SDK writes only.
+const { bindDeleteAccount } = require('./src/deleteAccount');
+const deleteAccountFns = bindDeleteAccount(functionsV1, admin, db);
+exports.deleteAccount = deleteAccountFns.deleteAccount;
+
+// Daily Timechain TV watch reward. Presence counting stays on
+// tctvAggregatePresence; this callable only credits watch time.
+const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
+exports.tctvWatchHeartbeat = tctvWatchHeartbeat;

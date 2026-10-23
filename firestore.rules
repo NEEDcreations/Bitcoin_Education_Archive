@@ -106,6 +106,9 @@ service cloud.firestore {
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
                         'orangeTickets', 'tickets',
+                        // Timechain TV daily watch (tctvWatchHeartbeat only)
+                        'tctvWatchSeconds', 'tctvWatchDay', 'tctvWatchLastCredit',
+                        'tctvWatchAwardedDay', 'tctvWatchToastSeen',
                         // Streak / activity (CF-managed)
                         'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
                         'readChannels', 'visitedChannelsList',
@@ -115,7 +118,7 @@ service cloud.firestore {
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
-                        'hintTokens', 'doubleXPCharges', 'doubleXPExpiry',
+                        'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',
                         'bonusSpins', 'raffleEntries', 'secondRigCharges',
                         // Bonus spin server flag (CF-only, one-time use)
                         'bonusSpinGranted',
@@ -139,7 +142,9 @@ service cloud.firestore {
                         'ciphersDecryptedToday', 'ciphersDecryptedDate',
                         'keysSentDate', 'keysSentTo',
                         'marketListings', 'marketMessages',
-                        'referralTicketsEarned', 'referralCode',
+                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited',
+                        'referredBy', 'referralVerified', 'scholarPoints', 'activeDayKeys',
+                        'tipChallengeDate', 'tipConfirmedDate',
                         'pointsDonated', 'donationBadges',
                         // Anonymous badge merge (CF-only, one-time guard)
                         'anonBadgesMerged',
@@ -161,6 +166,7 @@ service cloud.firestore {
                         // Price-prediction stats are server-only (resolvePredictions).
                         // The nested `predictions` map used to be client-incremented.
                         'predictions',
+                        'pvpWins', 'pvpLosses',
                         'predCorrect', 'predTotal', 'predLastResult', 'predAccuracy',
                         'predPending', 'predStreak', 'predBestStreak', 'reachedAt', 'reachedSort',
                         'weekKey', 'weekCorrect', 'weekTotal', 'weekAccuracy', 'weekReachedAt', 'weekReachedSort',
@@ -189,6 +195,11 @@ service cloud.firestore {
                             && request.resource.data.country.size() >= 2
                             && request.resource.data.country.size() <= 60
                             && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
+                    // Home invite card. Owner may only store open, minimized, or dismissed.
+                    && (!('inviteCard' in request.resource.data)
+                        || request.resource.data.inviteCard == 'open'
+                        || request.resource.data.inviteCard == 'min'
+                        || request.resource.data.inviteCard == 'off')
                     && lightningLockOk();
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
@@ -240,6 +251,11 @@ service cloud.firestore {
       match /shop_purchases/{purchaseId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow write: if false; // Cloud Function (Admin SDK) only
+      }
+
+      // Tip confirmations — one doc per UTC day. Cloud Function writes only.
+      match /tip_confirmations/{dateId} {
+        allow read, write: if false;
       }
 
       // Per-user in-app notifications (shop, exchange, etc.) — owner read/update, CF creates
@@ -323,7 +339,8 @@ service cloud.firestore {
       // Admin emails have unrestricted write (for resets and maintenance).
       //
       // Whitelisted fields: channelVisits, questsCompleted, chatMessages, spins,
-      //                     pvpMatches, userCount, watchTimeMinutes
+      //                     userCount, watchTimeMinutes
+      // pvpMatches is incremented only by onPvpMatchFinished.
       //
       // Risk: a determined attacker with a console can inflate counters, but these
       // are cosmetic engagement metrics only — no points, sats, or access granted.
@@ -352,9 +369,6 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spins'])
                         && request.resource.data.spins == resource.data.get('spins', 0) + 1)
                       ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pvpMatches'])
-                        && request.resource.data.pvpMatches == resource.data.get('pvpMatches', 0) + 1)
-                      ||
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userCount'])
                         && request.resource.data.userCount == resource.data.get('userCount', 0) + 1)
                       ||
@@ -367,7 +381,7 @@ service cloud.firestore {
                     && request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.keys()
-                       .hasOnly(['channelVisits','questsCompleted','chatMessages','spins','pvpMatches','userCount','watchTimeMinutes'])
+                       .hasOnly(['channelVisits','questsCompleted','chatMessages','spins','userCount','watchTimeMinutes'])
                     && request.resource.data.keys().size() == 1
                     && request.resource.data.values()[0] is int
                     && request.resource.data.values()[0] >= 1
@@ -451,22 +465,44 @@ service cloud.firestore {
     // Format: docId is the UID of the new user being referred
     // =============================================
     match /referrals/{referralId} {
-      allow read: if request.auth != null;
-      // Only the referred user can create their own referral record
-      allow create: if request.auth != null
-                    && referralId == request.auth.uid
-                    && request.resource.data.referredUserUid == request.auth.uid;
-      // Client can update their own doc BUT cannot self-verify or self-award tickets.
-      // Those fields are Cloud-Function-only (verifyReferral admin path).
-      allow update: if request.auth != null
-                    && referralId == request.auth.uid
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                        'verified', 'verifiedAt', 'ticketsAwarded', 'rejectedAt',
-                        'rejectionFlags', 'referrerUid', 'referredUid', 'referrerCode'
-                    ]));
-      // Admin override (your personal email + ops email)
-      allow update: if request.auth != null
-                    && isAdmin();
+      // The two parties only. A referrerCode query cannot be proven by this
+      // rule, so the client filters on referrerUid.
+      allow read: if request.auth != null
+                  && (resource.data.referrerUid == request.auth.uid
+                      || resource.data.referredUserUid == request.auth.uid);
+      // Created and paid only by Cloud Functions. Clients cannot write a
+      // referral, verify it, or award tickets.
+      allow create, update, delete: if false;
+    }
+
+    // Signup IP and other fraud signals. Admin SDK only.
+    match /referral_signals/{signalId} {
+      allow read, write: if false;
+    }
+
+    // Hourly pending-referral cursor. Admin SDK only.
+    match /referral_scan/{docId} {
+      allow read, write: if false;
+    }
+
+    // Referral code index. Server writes one doc per user. Clients cannot
+    // mint or overwrite a code.
+    match /referralCodes/{code} {
+      allow read, write: if false;
+    }
+
+    match /tip_confirmations/{docId} {
+      allow read, write: if false;
+    }
+
+    // Payment hashes that already earned tip XP. Admin SDK only.
+    match /tip_hashes/{hashId} {
+      allow read, write: if false;
+    }
+
+    // Paid-referral timestamps used for the per-referrer cap. Admin SDK only.
+    match /referral_pay_limits/{uid} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -847,20 +883,58 @@ service cloud.firestore {
     // PVP LOBBY
     // [AUDIT FIX L-NEW-7] Enforce 1 entry per user via document ID
     // =============================================
+    function pvpPicOk(url) {
+      return url is string
+             && url.size() <= 400
+             && (url == ''
+                 || url.matches('https://firebasestorage\\.googleapis\\.com/.*')
+                 || url.matches('https://[a-z0-9-]+\\.firebasestorage\\.app/.*')
+                 || url.matches('https://assets\\.bitcoineducation\\.quest/.*')
+                 || url.matches('https://lh3\\.googleusercontent\\.com/.*'));
+    }
+
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
+      // Signed-in, non-anonymous, own uid, strict field list. No extra payload.
       allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && docId == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      // Owner can update anything; opponent can only claim the match with their own UID
+                    && request.resource.data.keys().hasOnly(['uid', 'name', 'profilePic', 'status', 'createdAt', 'lastSeen'])
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == 'waiting'
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() >= 2
+                    && request.resource.data.name.size() <= 30
+                    && request.resource.data.name.matches('[^\\[\\]()@#*`_]+')
+                    && pvpPicOk(request.resource.data.profilePic)
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.lastSeen is number
+                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000
+                    && request.resource.data.lastSeen >= request.time.toMillis() - 120000;
+      // Heartbeat only, and not faster than once every 4 seconds.
       allow update: if request.auth != null
-                    && (docId == request.auth.uid
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'opponentName', 'opponentProfilePic', 'matchId', 'status'])
-                            && request.resource.data.opponentUid == request.auth.uid
-                            && request.resource.data.status == 'matched'));
-      // [AUDIT FIX] Only lobby owner can delete their entry
+                    && docId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
+                    && request.resource.data.lastSeen is number
+                    && request.resource.data.lastSeen >= resource.data.lastSeen + 4000
+                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000;
       allow delete: if request.auth != null
                     && docId == request.auth.uid;
+    }
+
+    // One summary of who is waiting. Clients listen to this doc only.
+    // onPvpLobbyLive maintains it. Clients cannot write it.
+    match /pvp_lobby_live/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /pvp_rewards/{matchId} {
+      allow read, write: if false;
+    }
+
+    match /pvp_rate/{uid} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -886,44 +960,47 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource.data.player1.uid == request.auth.uid
                       || resource.data.player2.uid == request.auth.uid);
-      // Match creation still client-side (lobby system), but answers go through Cloud Function
-      allow create: if request.auth != null
-                    && (request.resource.data.player1.uid == request.auth.uid
-                        || request.resource.data.player2.uid == request.auth.uid)
-                    && request.resource.data.player1.uid != request.resource.data.player2.uid;
-      // Clients may only write: own answers, flow fields (advance), heartbeats, self-forfeit.
-      // Clients may NOT set status=finished/question_result, touch opponent answers,
-      // or modify questions[]. The questions array is immutable after match creation —
-      // only the pvpResolveRound CF (admin SDK) may write it (e.g. reroll new questions).
-      // [SECURITY FIX] Removed 'questions' from hasOnly — clients could swap in
-      // questions they knew the answers to, rigging pvpResolveRound grading.
+      // Matches are created by pvpCreateMatch (admin SDK). Clients cannot
+      // plant a questions array or an answer key.
+      allow create: if false;
+      // No client writes once the match is finished or forfeited.
+      // player1 and player2 are server-owned (uids live in pvp_answer_keys).
+      // A client may forfeit only as itself, and only with manual_leave.
+      // questionWinner may be cleared to null. The timer moves only when a round starts.
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
-                    // Field set is still bounded — 'questions' intentionally excluded
+                    && resource.data.status in ['countdown', 'active', 'question_result']
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['player1', 'player2',
-                                 'status', 'currentQ', 'questionWinner', 'questionStartedAt',
+                       .hasOnly(['status', 'currentQ', 'questionWinner', 'questionStartedAt',
                                  'player1LastSeen', 'player2LastSeen',
-                                 'forfeitedBy', 'forfeitReason'])
-                    // Scores/correct are immutable from clients — CF (admin) owns them
-                    && request.resource.data.player1.score   == resource.data.player1.score
-                    && request.resource.data.player1.correct == resource.data.player1.correct
-                    && request.resource.data.player2.score   == resource.data.player2.score
-                    && request.resource.data.player2.correct == resource.data.player2.correct
-                    // Clients can only set status to 'active' or 'forfeit'
-                    // 'finished' and 'question_result' are written exclusively by CF
+                                 'forfeitedBy', 'forfeitReason', 'lastTaunt'])
                     && (request.resource.data.status == resource.data.status
-                        || request.resource.data.status == 'active'
-                        || request.resource.data.status == 'forfeit')
-                    // Forfeit: forfeitedBy must be the requesting player
-                    && (!request.resource.data.keys().hasAny(['forfeitedBy'])
-                        || request.resource.data.forfeitedBy == request.auth.uid)
-                    // Each player can only write their own answers array
-                    && (resource.data.player1.uid == request.auth.uid
-                        || request.resource.data.player1.answers == resource.data.player1.answers)
-                    && (resource.data.player2.uid == request.auth.uid
-                        || request.resource.data.player2.answers == resource.data.player2.answers);
+                        || (request.resource.data.status == 'active'
+                            && resource.data.status in ['countdown', 'question_result'])
+                        || (request.resource.data.status == 'forfeit'
+                            && request.resource.data.forfeitedBy == request.auth.uid
+                            && request.resource.data.forfeitReason == 'manual_leave'))
+                    && (request.resource.data.currentQ == resource.data.currentQ
+                        || (resource.data.status == 'question_result'
+                            && request.resource.data.status == 'active'
+                            && request.resource.data.currentQ == resource.data.currentQ + 1))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionWinner'])
+                        || request.resource.data.questionWinner == null)
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionStartedAt'])
+                        || (request.resource.data.status == 'active'
+                            && request.resource.data.status != resource.data.status
+                            && request.resource.data.questionStartedAt == request.time))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['forfeitedBy', 'forfeitReason'])
+                        || (request.resource.data.status == 'forfeit'
+                            && request.resource.data.forfeitedBy == request.auth.uid
+                            && request.resource.data.forfeitReason == 'manual_leave'))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastTaunt'])
+                        || (request.resource.data.lastTaunt.uid == request.auth.uid
+                            && request.resource.data.lastTaunt.emoji is string
+                            && request.resource.data.lastTaunt.emoji.size() > 0
+                            && request.resource.data.lastTaunt.emoji.size() <= 8
+                            && request.resource.data.lastTaunt.ts is number));
     }
 
     // =============================================
@@ -1974,6 +2051,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Daily HMAC salt for network rate limits. Admin SDK only.
+    match /rate_limit_salts/{docId} {
+      allow read, write: if false;
+    }
+
     // Nacho activity shoutouts. Claims and rate limits are server-only so a
     // client cannot forge a Nacho post or reset the cap.
     // One marker per listing so onMarketplaceListingCount cannot double-count.
@@ -1986,6 +2068,15 @@ service cloud.firestore {
     }
     match /shoutout_limits/{limitId} {
       allow read, write: if false;
+    }
+
+    // Daily Timechain TV watch ledger. The owner may read progress for the
+    // home button. Watch time, the daily claim, XP, and orange tickets are
+    // written only by tctvWatchHeartbeat (Admin SDK). Clients cannot write.
+    match /tctv_watch/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
     }
 
     match /{document=**} {

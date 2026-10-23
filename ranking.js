@@ -2349,6 +2349,23 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
+window._doubleXpUntilMs = function(u) {
+    if (!u) return 0;
+    var raw = u.doubleXpUntil != null && u.doubleXpUntil !== '' ? u.doubleXpUntil : u.doubleXPExpiry;
+    if (raw == null || raw === '') return 0;
+    if (typeof raw === 'number' && isFinite(raw)) return raw;
+    if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw);
+    if (typeof raw.toMillis === 'function') {
+        var ms = raw.toMillis();
+        return typeof ms === 'number' && isFinite(ms) ? ms : 0;
+    }
+    if (typeof raw === 'object') {
+        if (typeof raw.seconds === 'number') return raw.seconds * 1000;
+        if (typeof raw._seconds === 'number') return raw._seconds * 1000;
+    }
+    return 0;
+};
+
 async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
     if (!currentUser || !rankingReady) return;
 
@@ -2490,13 +2507,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     var _isBadgeEarned = !!(badgeId);
     var _eagerNotifyTs = null; // timestamp of eager log entry — used to correct it post-CF if capped
     try {
-        // 🎯 Double XP: check if active before sending points (client-side boost signal)
-        var doubleXPExpiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
-        var doubleXPActive = doubleXPExpiry > Date.now();
-        if (doubleXPActive && pts > 0) {
-            pts = Math.min(2200, pts * 2); // double, respect anti-abuse cap
-        }
-        // Eager notify AFTER double-XP so the logged amount matches what we sent to CF
+        // The server applies 2× from doubleXpUntil. The client must not multiply.
         if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
             _eagerNotifyTs = notifySelfPoints(pts, reason);
         }
@@ -2507,7 +2518,6 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
-        if (doubleXPActive) payload.doubleXP = true; // inform CF for logging
         if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
@@ -2521,6 +2531,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var overflowRedeemed = result.data.overflowRedeemed || 0;
             var overflowAdded = result.data.overflowAdded || 0;
             if (typeof result.data.pendingOverflow !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) currentUser.pendingOverflow = result.data.pendingOverflow;
+            if (result.data.doubleXpUntil && typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.doubleXpUntil = result.data.doubleXpUntil;
+                currentUser.doubleXPExpiry = result.data.doubleXpUntil;
+            }
             var pendingOverflow = result.data.pendingOverflow || 0;
             var totalAdded = awarded + overflowRedeemed;
             // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
@@ -3595,9 +3609,13 @@ window.showDeleteAccountConfirm = function() {
                     '<div>❌ All forum posts and replies</div>' +
                     '<div>❌ Marketplace listings</div>' +
                     '<div>❌ DM conversations</div>' +
+                    '<div>❌ Global Chat messages (shown as [deleted])</div>' +
+                    '<div>❌ Uploaded music, images, and avatar</div>' +
+                    '<div>❌ Notifications and push tokens</div>' +
                     '<div>❌ Nacho chat history</div>' +
                     '<div>❌ Leaderboard ranking</div>' +
                     '<div>❌ Orange Tickets and quest progress</div>' +
+                    '<div>❌ Referral signup record</div>' +
                 '</div>' +
             '</div>' +
             '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;text-align:center;margin-bottom:16px;">⚠️ This action is IRREVERSIBLE. There is no undo.</div>' +
@@ -3624,52 +3642,14 @@ window.confirmDeleteAccount = async function() {
     try {
         var user = auth.currentUser;
         if (!user) throw new Error('Not signed in');
-        var uid = user.uid;
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            throw new Error('Account deletion is unavailable. Reload and try again.');
+        }
 
-        // 1. Delete Firestore user document
-        try { await db.collection('users').doc(uid).delete(); } catch(e) { console.warn('User doc delete failed:', e); }
+        // Server wipe. The owner must have signed in recently. Data deletes
+        // happen in the Cloud Function, not from this browser.
+        await firebase.functions().httpsCallable('deleteAccount', { timeout: 540000 })({});
 
-        // 2. Delete forum posts by this user
-        try {
-            var posts = await db.collection('forum_posts').where('authorId', '==', uid).get();
-            var batch1 = db.batch();
-            posts.forEach(function(doc) { batch1.delete(doc.ref); });
-            if (!posts.empty) await batch1.commit();
-        } catch(e) { console.warn('Forum posts delete failed:', e); }
-
-        // 3. Delete forum replies by this user
-        try {
-            var replies = await db.collection('forum_replies').where('authorId', '==', uid).get();
-            var batch2 = db.batch();
-            replies.forEach(function(doc) { batch2.delete(doc.ref); });
-            if (!replies.empty) await batch2.commit();
-        } catch(e) { console.warn('Forum replies delete failed:', e); }
-
-        // 4. Delete marketplace listings
-        try {
-            var listings = await db.collection('marketplace').where('sellerUid', '==', uid).get();
-            var batch3 = db.batch();
-            listings.forEach(function(doc) { batch3.delete(doc.ref); });
-            if (!listings.empty) await batch3.commit();
-        } catch(e) { console.warn('Marketplace delete failed:', e); }
-
-        // 5. Delete DM conversations
-        try {
-            var convos = await db.collection('conversations').where('participants', 'array-contains', uid).get();
-            var batch4 = db.batch();
-            convos.forEach(function(doc) { batch4.delete(doc.ref); });
-            if (!convos.empty) await batch4.commit();
-        } catch(e) { console.warn('DM delete failed:', e); }
-
-        // 6. Delete suggestions
-        try {
-            var suggestions = await db.collection('suggestions').where('uid', '==', uid).get();
-            var batch5 = db.batch();
-            suggestions.forEach(function(doc) { batch5.delete(doc.ref); });
-            if (!suggestions.empty) await batch5.commit();
-        } catch(e) { console.warn('Suggestions delete failed:', e); }
-
-        // 7. Clear all localStorage
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i);
@@ -3680,8 +3660,16 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // 8. Delete Firebase Auth account
-        await user.delete();
+        // Delete the server-only referral signup record, then finish any
+        // Auth session still cached in the browser. The server wipe already
+        // deletes the Firebase user, so user-not-found means that step is done.
+        try { await firebase.functions().httpsCallable('deleteMyReferralSignal')({}); } catch (e) { console.warn('Referral signal delete failed:', e); }
+        try {
+            await user.delete();
+        } catch (authErr) {
+            var authCode = authErr && authErr.code;
+            if (authCode !== 'auth/user-not-found' && authCode !== 'auth/user-token-expired') throw authErr;
+        }
 
         // 9. Close overlay and show confirmation
         var overlay = document.getElementById('deleteAccountOverlay');
@@ -3698,12 +3686,68 @@ window.confirmDeleteAccount = async function() {
 
     } catch(e) {
         console.error('Account deletion error:', e);
-        if (e.code === 'auth/requires-recent-login') {
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        if (/2FA code/i.test(msg)) {
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            window._promptDeleteAccountTotp();
+            return;
+        }
+        if (code === 'auth/requires-recent-login' || code === 'functions/failed-precondition' || code === 'failed-precondition' || /sign in again/i.test(msg) || /recent login/i.test(msg)) {
             showToast('🔒 For security, please sign out and sign back in, then try again.');
         } else {
             showToast('Error deleting account: ' + (e.message || 'Unknown error'));
         }
         if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+    }
+};
+
+// Shown when deleteAccount asks for the authenticator code. totpCheck writes
+// the server session, then the same deletion is tried again.
+window._promptDeleteAccountTotp = function() {
+    if (document.getElementById('deleteTotpOverlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'deleteTotpOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100020;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid #ef4444;border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
+            '<div style="font-size:2.2rem;margin-bottom:10px;">📱</div>' +
+            '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Enter your 2FA code</div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Enter your 2FA code, then try again.</div>' +
+            '<input id="deleteTotpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
+            '<div id="deleteTotpStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
+            '<button id="deleteTotpBtn" type="button" style="width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify and delete</button>' +
+            '<button type="button" id="deleteTotpCancel" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    document.getElementById('deleteTotpCancel').onclick = function() { overlay.remove(); };
+    var submit = async function() {
+        var inp = document.getElementById('deleteTotpInput');
+        var statusEl = document.getElementById('deleteTotpStatus');
+        var verifyBtn = document.getElementById('deleteTotpBtn');
+        if (!inp) return;
+        var code = inp.value.trim();
+        if (code.length < 6) {
+            if (statusEl) statusEl.textContent = 'Enter the full 6-digit code';
+            return;
+        }
+        if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
+        try {
+            var checkFn = firebase.functions().httpsCallable('totpCheck');
+            await checkFn({ code: code });
+            overlay.remove();
+            window.confirmDeleteAccount();
+        } catch (err) {
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify and delete'; }
+            if (statusEl) statusEl.textContent = (err && err.message) ? err.message : 'Verification failed';
+            if (inp) { inp.value = ''; inp.focus(); }
+        }
+    };
+    document.getElementById('deleteTotpBtn').onclick = submit;
+    var inp = document.getElementById('deleteTotpInput');
+    if (inp) {
+        inp.focus();
+        inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
     }
 };
 
@@ -5042,7 +5086,7 @@ function showSettingsPage(tab) {
         // Partnership levels info
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚡ Partnership Levels</div>';
-        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">When you open a cipher with a key a peer sent you, or you open a gift they sent under the old system, the partnership grows. Both of you earn XP at each level.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">When you open a cipher with a key a peer sent you, the partnership grows. Both of you earn XP at each level.</div>';
         var _pLevels = [
             { emoji: '⬜', name: 'Unconfirmed',        gifts: '0 exchanges',   xp: '—',           desc: 'Just connected.' },
             { emoji: '🟨', name: 'Opening Channel',    gifts: '1 exchange',    xp: '+3,000 XP',   desc: 'First exchange. The channel is opening.' },
@@ -5804,13 +5848,14 @@ function showSettingsPage(tab) {
         html += '<div id="advPrefsPanel" style="display:none;">';
 
         // Nacho mascot toggle
-        const nachoOn = localStorage.getItem('btc_nacho_hidden') !== 'true';
+        const _nachoHiddenPref = localStorage.getItem('btc_nacho_hidden');
+        const nachoOn = _nachoHiddenPref !== 'true' && _nachoHiddenPref !== 'user';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🦌 Nacho (Mascot)</div>' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span style="color:var(--text);font-size:0.85rem;">Show Nacho</span>' +
             '<button onclick="if(typeof ' + (nachoOn ? 'hideNacho' : 'showNacho') + '===\'function\'){' + (nachoOn ? 'hideNacho()' : 'showNacho()') + '}showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoOn ? 'ON' : 'OFF') + '</button></div>' +
-            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Long-press him to hide.</div>';
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Tap – on him to minimize, then tap 🦌 to bring him back.</div>';
 
         // Nacho sound toggle
         const nachoSoundOn = localStorage.getItem('btc_nacho_sound') !== 'false';
@@ -5863,11 +5908,23 @@ function showSettingsPage(tab) {
                 '🎡 <strong>Spin reminders</strong> - a couple times a week, never daily<br>' +
                 '🔥 <strong>Streak alerts</strong> - don\'t lose your streak!<br>' +
                 '📰 <strong>New content</strong> - when we add major new topics<br>' +
-                 +
                 '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
             '</div>' +
             '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
             '</div>';
+
+        var pvpPushOn = localStorage.getItem('btc_pvp_push') === '1';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚔️ PvP lobby push</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Lobby push</span><div style="color:var(--text-faint);font-size:0.7rem;">Off unless you turn this on. When on, at most 3 a week.</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_pvp_push\',localStorage.getItem(\'btc_pvp_push\')===\'1\'?\'0\':\'1\');if(window._pvpSyncPushOptIn)window._pvpSyncPushOptIn(localStorage.getItem(\'btc_pvp_push\')===\'1\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pvpPushOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pvpPushOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pvpPushOn ? 'ON' : 'OFF') + '</button></div></div>';
+        var pvpAlertsMuted = localStorage.getItem('btc_pvp_alerts_muted') === '1';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚔️ PvP alerts</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Mute PvP alerts</span><div style="color:var(--text-faint);font-size:0.7rem;">Hide the in-app lobby popup when someone is waiting</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_pvp_alerts_muted\',localStorage.getItem(\'btc_pvp_alerts_muted\')===\'1\'?\'0\':\'1\');if(window._pvpSyncAlertMute)window._pvpSyncAlertMute(localStorage.getItem(\'btc_pvp_alerts_muted\')===\'1\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pvpAlertsMuted ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pvpAlertsMuted ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pvpAlertsMuted ? 'ON' : 'OFF') + '</button></div></div>';
 
         // Signal Ticker
         var _tickerPref = localStorage.getItem('btc_ticker_enabled'); const tickerOn = _tickerPref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _tickerPref === 'true';
@@ -7983,7 +8040,7 @@ window._submitMFASignIn = async function() {
     }
 };
 if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
-if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (auth && auth.currentUser) { var uid = auth.currentUser.uid; db.collection('users').doc(uid).delete().then(function() { return auth.currentUser.delete(); }).then(function() { localStorage.clear(); location.reload(); }).catch(function(e) { showToast('Error: ' + e.message); }); } };
+if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (typeof showToast === 'function') showToast('Reload the page, then try deleting your account again.'); };
 async function loadTotpStatus() {
     var section = document.getElementById('totpSection');
     if (!section) return;

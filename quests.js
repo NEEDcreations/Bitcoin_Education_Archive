@@ -3638,6 +3638,10 @@ function _nookBuyItem(itemId, qty, btnEl) {
                     if (inv.hashBoosters    !== undefined) currentUser.hashBoosters    = inv.hashBoosters;
                     if (inv.hintTokens      !== undefined) currentUser.hintTokens      = inv.hintTokens;
                     if (inv.doubleXPCharges !== undefined) currentUser.doubleXPCharges = inv.doubleXPCharges;
+                    if (d.doubleXpUntil) {
+                        currentUser.doubleXpUntil = d.doubleXpUntil;
+                        currentUser.doubleXPExpiry = d.doubleXpUntil;
+                    }
                     if (inv.bonusSpins      !== undefined) currentUser.bonusSpins      = inv.bonusSpins;
                     if (inv.raffleEntries      !== undefined) currentUser.raffleEntries      = inv.raffleEntries;
                     if (inv.secondRigCharges   !== undefined) currentUser.secondRigCharges   = inv.secondRigCharges;
@@ -3645,7 +3649,11 @@ function _nookBuyItem(itemId, qty, btnEl) {
                 }
             }
             if (typeof updateRankUI === 'function') updateRankUI();
-            if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>');
+            if (itemId === 'double_xp' && typeof window._startDoubleXPWidget === 'function') window._startDoubleXPWidget();
+            var boughtMsg = itemId === 'double_xp' && d.minutesLeft
+                ? ('✅ Double XP extended — ' + d.minutesLeft + ' min left. Balance: ' + d.newTickets + ' tickets')
+                : ('✅ Purchased! Balance: ' + d.newTickets + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>');
+            if (typeof showToast === 'function') showToast(boughtMsg);
             // Cosmetic post-purchase effects
             // second_rig is consumable (not cosmetic) but still gets a purchase tip toast
             var _postPurchaseTipIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook','second_rig'];
@@ -3746,7 +3754,10 @@ function _renderNookShop() {
     html += itemRow('⚡','Hash Booster','+100 instant hashes — no cooldown. Activate from Inventory during an open SF window.',10,buyBtn('hash_booster',10,1,'Buy'));
     html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',3,buyBtn('hint_token',3,1,'Buy'));
     html += itemRow('🧠','5× Hint Tokens','Bundle deal',12,buyBtn('hint_token_5',12,1,'Bundle'));
-    html += itemRow('🎯','Double XP (60 min)','2× XP multiplier for 1 hour',15,buyBtn('double_xp',15,1,'Buy'));
+    var dxUntil = (typeof window._doubleXpUntilMs === 'function') ? window._doubleXpUntilMs(u) : 0;
+    var dxLeft = dxUntil > Date.now() ? Math.ceil((dxUntil - Date.now()) / 60000) : 0;
+    var dxLabel = dxLeft > 0 ? ('Extend +60 min (' + dxLeft + ' min left)') : 'Buy';
+    html += itemRow('🎯','Double XP (60 min)','2× XP for 1 hour. Buying again adds another hour.',15,buyBtn('double_xp',15,1,dxLabel));
     html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel',5,buyBtn('bonus_spin',5,1,'Buy'));
     html += '</div>';
 
@@ -3892,7 +3903,7 @@ function _renderNookInventory() {
                 var fresh = doc.data();
                 // Sync all inventory fields from server into currentUser
                 var invFields = ['streakFreezes','hintTokens','hashBoosters','doubleXPCharges','bonusSpins',
-                    'raffleEntries','secondRigCharges','ownedCosmetics','orangeTickets','doubleXPExpiry'];
+                    'raffleEntries','secondRigCharges','ownedCosmetics','orangeTickets','doubleXPExpiry','doubleXpUntil'];
                 invFields.forEach(function(f) {
                     if (fresh[f] !== undefined) currentUser[f] = fresh[f];
                     else if (currentUser[f] === undefined) currentUser[f] = null;
@@ -3923,9 +3934,9 @@ function _renderNookInventoryContent(el) {
     var secondRigCharges = u.secondRigCharges || 0;
     var ownedCosmetics = u.ownedCosmetics || [];
 
-    // Double XP active countdown
-    var doubleXPExpiry = u.doubleXPExpiry;
-    var doubleXPActive = doubleXPExpiry && (doubleXPExpiry > Date.now());
+    // Double XP active countdown. Prefer the server epoch field; fall back to a number expiry.
+    var doubleXPExpiry = (typeof window._doubleXpUntilMs === 'function') ? window._doubleXpUntilMs(u) : (typeof u.doubleXpUntil === 'number' ? u.doubleXpUntil : (typeof u.doubleXPExpiry === 'number' ? u.doubleXPExpiry : 0));
+    var doubleXPActive = doubleXPExpiry > Date.now();
     var doubleXPMin = doubleXPActive ? Math.ceil((doubleXPExpiry - Date.now()) / 60000) : 0;
 
      function invRow(icon, name, qty, actionHtml, noteHtml) {
@@ -3966,7 +3977,7 @@ function _renderNookInventoryContent(el) {
         'Used automatically from quiz screen — shows 💡 button');
 
     // Double XP
-    html += invRow('🎯', 'Double XP Charges', doubleXPCharges,
+    html += invRow('🎯', 'Double XP', Math.max(doubleXPCharges, doubleXPActive ? 1 : 0),
         doubleXPActive
             ? '<div style="margin-top:4px;padding:4px 10px;background:rgba(34,197,94,0.15);border:1px solid #22c55e;border-radius:8px;font-size:0.72rem;color:#22c55e;font-weight:700;">✅ Active — '+doubleXPMin+' min left</div>'
             : '<button onclick="_nookActivateDoubleXP(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>',
@@ -4017,7 +4028,7 @@ function _renderNookInventoryContent(el) {
         html += '</div>';
     }
 
-    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
+    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && !doubleXPActive && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
         html = '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>' +
             '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
@@ -4082,7 +4093,8 @@ window._nookActivateDoubleXP = function(btnEl) {
         if (d && d.success) {
             if (typeof currentUser !== 'undefined' && currentUser) {
                 currentUser.doubleXPCharges = d.charges;
-                currentUser.doubleXPExpiry = d.doubleXPExpiry;
+                currentUser.doubleXpUntil = d.doubleXpUntil || d.doubleXPExpiry;
+                currentUser.doubleXPExpiry = currentUser.doubleXpUntil;
             }
             var msg = d.extended ? '🎯 Double XP extended! Active for another hour.' : '🎯 Double XP activated! 2× XP for the next 60 minutes!';
             if (typeof showToast === 'function') showToast(msg);
@@ -8494,7 +8506,8 @@ window._startDoubleXPWidget = function() {
     if (window._doubleXPWidgetTimer) clearInterval(window._doubleXPWidgetTimer);
 
     function getExpiry() {
-        return typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+        if (typeof window._doubleXpUntilMs === 'function') return window._doubleXpUntilMs(typeof currentUser !== 'undefined' ? currentUser : null);
+        return typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXpUntil || currentUser.doubleXPExpiry || 0) : 0;
     }
 
     function render() {
@@ -8532,7 +8545,9 @@ window._startDoubleXPWidget = function() {
 };
 
 window._checkDoubleXPWidget = function() {
-    var expiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+    var expiry = (typeof window._doubleXpUntilMs === 'function')
+        ? window._doubleXpUntilMs(typeof currentUser !== 'undefined' ? currentUser : null)
+        : (typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXpUntil || 0) : 0);
     if (expiry > Date.now()) window._startDoubleXPWidget();
 };
 

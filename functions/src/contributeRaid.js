@@ -10,6 +10,8 @@
 
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const ticketGrants = require('./ticketGrants');
+const { grantServerTickets } = require('./grantServerTickets');
 
 const db = admin.firestore();
 
@@ -169,6 +171,7 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
     // Update participant doc (store scaled damage, not raw metric amount)
     const scaledDamage = Math.round(effectiveAmount * damageScale * 1000) / 1000;
     const participantUpdate = {
+      uid,
       contributed: admin.firestore.FieldValue.increment(scaledDamage),
       lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -207,7 +210,7 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
 
   // Persist username on participant doc
   try {
-    await activeBossRef.collection('participants').doc(uid).set({ username }, { merge: true });
+    await activeBossRef.collection('participants').doc(uid).set({ username, uid }, { merge: true });
   } catch (e) {}
 
   // Recalculate total from all participants
@@ -287,6 +290,13 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
   } else {
     // Not defeated — update current count if we didn't already do so in the tx
     // (the tx handles this; this branch is a no-op safety fallback)
+  }
+
+  if (metric === 'flashcardCompletions' && effectiveAmount > 0) {
+    await grantServerTickets(uid, 'flashcard_ticket');
+  }
+  if (scaledDamage > 0) {
+    await grantServerTickets(uid, 'raid_damage_ticket', { damage: scaledDamage });
   }
 
   return {

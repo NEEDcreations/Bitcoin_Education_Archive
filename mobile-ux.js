@@ -264,8 +264,7 @@ window.checkDailyChallenge = function() {
     if (challenge.check()) {
         localStorage.setItem('btc_challenge_done', today);
         if (typeof awardPoints === 'function') awardPoints(100, '🎯 Daily challenge!');
-        if (typeof awardOrangeTickets === 'function') awardOrangeTickets(5, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP + 🎫 5 tickets!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP');
         haptic('success');
         renderDailyChallenge();
         // Pulse the card to draw attention

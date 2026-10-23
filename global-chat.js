@@ -156,6 +156,8 @@ window._showReactTipFromBtn = function(btn) {
 window._showReactTipForUids = function(btn, uids) {
     clearTimeout(_reactTipTimer);
     if (!uids || !uids.length) return;
+    uids = uids.filter(function(uid) { return uid && uid !== 'deleted'; });
+    if (!uids.length) return;
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var names = uids.slice(0, 12).map(function(uid) {
         if (uid === myUid) return 'You';
@@ -581,7 +583,7 @@ function renderChatMessages(msgs) {
 
     // Cache usernames for @mention autocomplete
     for (var u = 0; u < visibleMsgs.length; u++) {
-        if (visibleMsgs[u].uid && visibleMsgs[u].name && visibleMsgs[u].uid !== 'nacho-bot') {
+        if (visibleMsgs[u].uid && visibleMsgs[u].name && visibleMsgs[u].uid !== 'nacho-bot' && visibleMsgs[u].uid !== 'deleted' && visibleMsgs[u].deleted !== true) {
             _chatUsers[visibleMsgs[u].uid] = visibleMsgs[u].name;
         }
     }
@@ -597,6 +599,7 @@ function renderChatMessages(msgs) {
     for (var i = 0; i < visibleMsgs.length; i++) {
         var m = visibleMsgs[i];
         var isMe = m.uid === myUid;
+        var isDeleted = m.deleted === true || m.uid === 'deleted';
         var dateStr = m.ts ? (m.ts.toDate ? m.ts.toDate() : new Date(m.ts)).toLocaleDateString() : '';
 
         if (dateStr !== lastDate) {
@@ -619,9 +622,15 @@ function renderChatMessages(msgs) {
         // Cosmetics: chat flair prefix & nacho skin avatar
         var _chatFlairPrefix = (!isNacho && m.hasChatFlair) ? '<span style="font-size:0.85rem;margin-right:2px;">' + esc(m.chatFlairEmoji || '🔥') + '</span>' : '';
         var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.style.display=\'none\'" />' : '';
-        html += '<span style="font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
+        var nameStyle = 'font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';';
+        var nameClick = '';
+        if (!isDeleted) {
+            nameStyle += 'cursor:pointer;';
+            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+        }
+        html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
-        if (myUid) {
+        if (myUid && !isDeleted) {
             html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
         if (isMe || isAdmin) {
@@ -662,7 +671,7 @@ function renderChatMessages(msgs) {
         for (var emoji in reactions) {
             // Validate: reaction keys must be 1-4 char emoji only (no HTML/scripts)
             if (!emoji || emoji.length > 10 || /[<>"'\\&;(){}]/.test(emoji)) continue;
-            var users = reactions[emoji] || [];
+            var users = (reactions[emoji] || []).filter(function(id) { return id && id !== 'deleted'; });
             var count = users.length;
             if (count === 0) continue;
             var iReacted = myUid && users.indexOf(myUid) !== -1;
@@ -672,7 +681,7 @@ function renderChatMessages(msgs) {
         }
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
-            if (!isMe && !isNacho && m.uid !== 'system') {
+            if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
                 html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + (m.uid || '') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }

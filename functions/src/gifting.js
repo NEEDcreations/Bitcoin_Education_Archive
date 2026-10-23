@@ -15,6 +15,7 @@ const { rollCipherReward } = require('./cipherReward');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
 const rewardNotify = require('./rewardNotify');
+const doubleXp = require('./doubleXp');
 const {
     assessCipherClaim,
     isSatsBanned,
@@ -524,7 +525,8 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         const already = prevDate === todayUtc && Array.isArray(sender.keysSentTo) ? sender.keysSentTo.slice() : [];
         if (already.indexOf(recipientUid) === -1) already.push(recipientUid);
         const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-        const xpSplit = splitDailyXp(dailyUsed, KEY_SEND_XP, DAILY_POINTS_CAP);
+        const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
+        const xpSplit = splitDailyXp(dailyUsed, keyXp, DAILY_POINTS_CAP);
         xpAwarded = xpSplit.awarded;
         const senderUpdate = {
             keysSentDate: todayUtc,

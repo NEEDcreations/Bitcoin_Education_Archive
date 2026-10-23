@@ -1114,17 +1114,8 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
 };
 
 // awardOrangeTickets
-window.awardOrangeTickets = function(amount, reason) {
-    if (typeof currentUser !== 'undefined' && currentUser) {
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
-        // Award tickets through server-side Cloud Function (orangeTickets blocked in Firestore rules)
-        if (!currentUser._isLocal && typeof awardPoints === 'function') {
-            awardPoints(0, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
-        }
-    }
-    var local = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-    localStorage.setItem('btc_orange_tickets', (local + amount).toString());
-    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
+window.awardOrangeTickets = function() {
+    return { success: false, awarded: 0, tickets: 0 };
 };
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens

@@ -188,7 +188,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: 'Daily Spin', pts: 50 }, 50],
         [{ action: 'Daily Spin', pts: 100 }, 50],
         [{ action: 'Daily Spin', pts: 200 }, 50],
-        [{ action: 'tctv_watch_10m', pts: 10 }, 10],
         [{ action: '💬 Global Chat', pts: 5 }, 5],
         [{ action: '🔥 3-day chat streak!', pts: 10 }, 10],
         [{ action: '🔥 3-day chat streak!', pts: 20 }, 20],
@@ -209,14 +208,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: '🦌 Nacho Quest: pick_topic', pts: 25 }, 25],
         [{ action: '🦌 Nacho Quest: first_quiz', pts: 50 }, 50],
         [{ action: '🦌 Nacho Quest: first_quiz', pts: 100 }, 100],
-        [{ action: '🧠 PVP Practice', pts: 10 }, 10],
-        [{ action: '⚔️ PVP Draw', pts: 5 }, 5],
-        [{ action: '⚔️ PVP Victory!', pts: 30 }, 30],
-        [{ action: '⚔️ PVP Victory!', pts: 60 }, 50],
-        [{ action: '⚔️ PVP Win (unranked vs guest)', pts: 15 }, 15],
-        [{ action: '⚔️ PVP Consolation', pts: 25 }, 25],
-        [{ action: '⚔️ PVP Consolation', pts: 40 }, 25],
-        [{ action: '⚔️ PVP Victory (opponent forfeited)', pts: 10 }, 10],
         [{ action: '📖 Learning Quest: What is Bitcoin? lesson', pts: 50, actionKey: 'lq_lesson' }, 50],
         [{ action: '🔥 Trio Combo! 3 features today', pts: 50, actionKey: 'combo_bonus', comboTier: 'combo_trio' }, 50],
         [{ action: '💥 MEGA COMBO! 5 features unlocked', pts: 200, actionKey: 'combo_bonus', comboTier: 'combo_mega' }, 200],
@@ -228,6 +219,25 @@ test('legit client phrases keep today amounts', function () {
         assert.strictEqual(resolved.xp, row[1], JSON.stringify(row[0]));
         assert.strictEqual(resolved.tickets, 0);
     });
+    [
+        { action: '🧠 PVP Practice', pts: 10 },
+        { action: '⚔️ PVP Draw', pts: 5 },
+        { action: '⚔️ PVP Victory!', pts: 30 },
+        { action: '⚔️ PVP Victory!', pts: 60 },
+        { action: '⚔️ PVP Win (unranked vs guest)', pts: 15 },
+        { action: '⚔️ PVP Consolation', pts: 25 },
+        { action: '⚔️ PVP Victory (opponent forfeited)', pts: 10 },
+        { actionKey: 'pvp_win_ticket', action: 'ticket', pts: 0 },
+        { action: 'free pvp xp please', pts: 50 },
+        { actionKey: 'pvp_victory', action: 'daily visit', pts: 50 },
+    ].forEach(function (row) {
+        const resolved = awardActions.resolveAction(row);
+        assert.strictEqual(resolved.ok, false, JSON.stringify(row));
+        assert.strictEqual(resolved.tickets, 0);
+    });
+    const badge = awardActions.resolveAction({ action: '🏅 Badge: pvp_first', badgeId: 'pvp_first', pts: 25 });
+    assert.strictEqual(badge.ok, true);
+    assert.strictEqual(badge.badge, true);
     awardActions.LQ_TITLES.forEach(function (title) {
         const phrase = '📖 Learning Quest: ' + title + ' lesson';
         assert.ok(phrase.length <= 100, phrase);
@@ -242,6 +252,12 @@ test('legit client phrases keep today amounts', function () {
     assert.strictEqual(badQuest.ok, false);
     const badSpin = awardActions.resolveAction({ action: 'Daily Spin', pts: 40 });
     assert.strictEqual(badSpin.ok, false);
+    const tctv = awardActions.resolveAction({ action: 'tctv_watch_10m', pts: 10 });
+    assert.strictEqual(tctv.ok, false);
+    assert.strictEqual(tctv.awarded, 0);
+    assert.strictEqual(tctv.tickets, 0);
+    const tctvInflated = awardActions.resolveAction({ action: 'tctv_watch_10m', pts: 100 });
+    assert.strictEqual(tctvInflated.ok, false);
 });
 
 test('server source no longer keyword-matches or banks overflow', function () {
@@ -252,7 +268,11 @@ test('server source no longer keyword-matches or banks overflow', function () {
     const body = src.slice(start, end);
     assert.ok(body.indexOf('ACTION_KEYWORDS') === -1);
     assert.ok(body.indexOf('.includes(') === -1);
-    assert.ok(body.indexOf('orangeTickets') === -1);
+    assert.ok(body.indexOf('data.tickets') === -1);
+    assert.ok(body.indexOf('bonusTickets') > 0);
+    assert.ok(body.indexOf('DOUBLE_XP_REQUIRED') > 0);
+    assert.ok(body.indexOf('if (badgeAwardRef)') > 0);
+    assert.ok(body.indexOf('if (awarded > 0 && badgeAwardRef)') === -1);
     assert.ok(body.indexOf('userUpdate.pendingOverflow') === -1);
     assert.ok(body.indexOf('resolveAction') > 0);
     assert.ok(body.indexOf('planGrant') > 0);

@@ -5,22 +5,29 @@
 // =============================================
 // Earn <svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets:
 //   +1 per daily login
-//   +50 per verified referral (referred user must log in & earn 2100+ pts)
+//   +50 per verified referral (referred user reaches Maxi, 2,140 pts)
 // =============================================
 
 const TICKET_CONFIG = {
     dailyLogin: 1,
     referral: 50,
-    referralSignupBonus: 50,  // Tickets awarded to referred user when they reach Maxi rank
+    referralSignupBonus: 50,  // Tickets awarded to both sides when the referred user reaches Maxi
     referralPointsThreshold: 2140,  // Maxi rank threshold
     pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
 
 // ---- Generate or retrieve referral code ----
 function getReferralCode() {
-    if (!currentUser || !currentUser.uid) return null;
-    // Use first 8 chars of uid as referral code (unique per user)
-    return currentUser.uid.substring(0, 8);
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    if (!user && !authUser) return null;
+    // Prefer the code the server stored on the user doc. Fall back to the
+    // uid prefix, which is the same code ensureReferralCode writes.
+    var stored = user && user.referralCode;
+    if (typeof stored === 'string' && /^[A-Za-z0-9]{6,28}$/.test(stored)) return stored;
+    var uid = (user && user.uid) || (authUser && authUser.uid) || '';
+    if (!uid) return null;
+    return String(uid).substring(0, 8);
 }
 
 function getReferralLink() {
@@ -62,187 +69,57 @@ function captureReferralCode() {
 
 // ---- Award daily login ticket ----
 async function awardDailyTicket() {
-    try {
-        if (!currentUser || !db || !auth || !auth.currentUser) return;
-        if (auth.currentUser.isAnonymous) return;
-
-        const today = new Date().toISOString().split('T')[0];
-        if (currentUser.lastTicketDate === today) return; // Already awarded today
-
-        const ticketsToAdd = TICKET_CONFIG.dailyLogin;
-        const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
-        const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
-
-        // Award tickets + points through server-side Cloud Function (Fix permission error)
-        // Cloud Function now handles 'lastTicketDate' update server-side for security
-        if (typeof awardPoints === 'function') {
-            const result = await awardPoints(bonusPoints, '🎫 Daily tickets', null, ticketsToAdd);
-            if (!result || !result.success) return; // Silent return if already claimed or error
-        }
-        
-        currentUser.lastTicketDate = today;
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
-
-        // Delay toast so page is settled and user can see it
-        setTimeout(function() {
-            if (typeof showToast === 'function') showToast('🎫 +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
-        }, 2500);
-
-        if (typeof updateRankUI === 'function') updateRankUI();
-
-        // Check ticket badges after earning
-        if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-    } catch(e) {
-        console.warn('Daily ticket error:', e);
-    }
+    return;
 }
 
 // ---- Attach referral to new user on account creation ----
 async function attachReferral(uid) {
     const refCode = localStorage.getItem('btc_referral_code');
-    if (!refCode) return;
-
-    // Don't let users refer themselves
-    if (uid.startsWith(refCode)) return;
-
+    if (!refCode || !uid) return;
+    if (String(uid).indexOf(refCode) === 0) return;
     try {
-        // Find referrer by matching uid prefix
-        const snapshot = await db.collection('users')
-            .where('referralCode', '==', refCode)
-            .limit(1)
-            .get();
-
-        let referrerUid = null;
-
-        if (!snapshot.empty) {
-            referrerUid = snapshot.docs[0].id;
-        } else {
-            // Fallback: scan users whose uid starts with the refCode
-            // Since referralCode field may not exist yet on old users,
-            // we store the raw refCode and resolve it later
-            referrerUid = null;
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var fn = firebase.functions().httpsCallable('registerReferral');
+        var result = await fn({ refCode: refCode });
+        var data = result && result.data;
+        if (data && (data.success || data.reason === 'self' || data.reason === 'late' || data.reason === 'account-age' || data.reason === 'points' || data.reason === 'exists')) {
+            localStorage.removeItem('btc_referral_code');
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
+                currentUser.referredBy = refCode;
+            }
         }
-
-        // Save referral info on the new user — bonus tickets awarded when they reach Maxi rank
-        await db.collection('users').doc(uid).update({
-            referredBy: refCode,
-            referralVerified: false,
-        });
-
-        // Also record in referrals collection for tracking
-        // Include signup source so Stacker News / Pleb Underground links are attributable
-        var _refSource = localStorage.getItem('btc_signup_source') || '';
-        var _refDoc = {
-            referredUser: uid,
-            referrerCode: refCode,
-            referrerUid: referrerUid || '',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            verified: false,
-            ticketsAwarded: false,
-        };
-        if (_refSource) _refDoc.source = _refSource;
-        await db.collection('referrals').doc(uid).set(_refDoc);
-
-        localStorage.removeItem('btc_referral_code');
     } catch (e) {
+        // Keep btc_referral_code so a later session can retry the callable.
         console.log('Referral attach error:', e);
     }
 }
 
-// ---- Check if referred users have qualified (2100+ pts) ----
-async function checkReferralQualifications() {
-    if (!currentUser || !db || !auth || !auth.currentUser) return;
-    if (auth.currentUser.isAnonymous) return;
+// Referral records and ticket awards are server-side (registerReferral,
+// the user-doc trigger, and the hourly scan). The browser must not write them.
+async function checkReferralQualifications() {}
 
-    // Only check once per session (heavy query)
-    if (window._referralChecked) return;
-    window._referralChecked = true;
 
-    const refCode = getReferralCode();
-    if (!refCode) return;
+async function ensureReferralCode() {}
 
-    try {
-        // Find all referrals where this user is the referrer and tickets not yet awarded
-        const snapshot = await db.collection('referrals')
-            .where('referrerCode', '==', refCode)
-            .where('ticketsAwarded', '==', false)
-            .get();
-
-        if (snapshot.empty) return;
-
-        let ticketsEarned = 0;
-
-        for (const refDoc of snapshot.docs) {
-            const refData = refDoc.data();
-            const referredUid = refData.referredUser;
-
-            // Check if referred user has 2100+ points and has logged in
-            const userDoc = await db.collection('users').doc(referredUid).get();
-            if (!userDoc.exists) continue;
-
-            const userData = userDoc.data();
-            if ((userData.points || 0) >= TICKET_CONFIG.referralPointsThreshold && (userData.totalVisits || 0) >= 2) {
-                // Qualified! Award tickets
-                ticketsEarned += TICKET_CONFIG.referral;
-
-                // Mark referral as verified and tickets awarded
-                await db.collection('referrals').doc(refDoc.id).update({
-                    verified: true,
-                    ticketsAwarded: true,
-                    verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                });
-
-                // Also mark on the referred user's doc
-                await db.collection('users').doc(referredUid).update({
-                    referralVerified: true,
-                });
-            }
-        }
-
-        if (ticketsEarned > 0) {
-            const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
-            const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
-            // Award tickets + points through server-side Cloud Function
-            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 Referral tickets', null, ticketsEarned);
-            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
-            showToast('🎫 +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
-            if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
-            updateRankUI();
-
-            // Check ticket badges after earning
-            if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-        }
-    } catch (e) {
-        console.log('Referral check error:', e);
-    }
-}
-
-// ---- Ensure referralCode field exists on user doc ----
-async function ensureReferralCode() {
-    if (!currentUser || !db || !auth || !auth.currentUser) return;
-    if (auth.currentUser.isAnonymous) return;
-
-    if (!currentUser.referralCode) {
-        const code = getReferralCode();
-        if (code) {
-            await db.collection('users').doc(currentUser.uid).update({
-                referralCode: code,
-            });
-            currentUser.referralCode = code;
-        }
-    }
-}
 
 // ---- Get referral stats for display ----
-async function getReferralStats() {
-    if (!currentUser || !db) return { total: 0, verified: 0, pending: 0 };
+var _inviteStatsCache = { uid: '', at: 0, stats: null };
+var INVITE_STATS_MS = 5 * 60 * 1000;
 
-    const refCode = getReferralCode();
-    if (!refCode) return { total: 0, verified: 0, pending: 0 };
+async function getReferralStats() {
+    if (!currentUser || !db) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous)
+        ? auth.currentUser.uid : '';
+    if (!uid) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
+
+    var now = Date.now();
+    if (_inviteStatsCache.uid === uid && _inviteStatsCache.stats && (now - _inviteStatsCache.at) < INVITE_STATS_MS) {
+        return _inviteStatsCache.stats;
+    }
 
     try {
         const snapshot = await db.collection('referrals')
-            .where('referrerCode', '==', refCode)
+            .where('referrerUid', '==', uid)
             .get();
 
         let total = snapshot.size;
@@ -250,13 +127,22 @@ async function getReferralStats() {
         let pending = 0;
 
         snapshot.forEach(doc => {
-            if (doc.data().verified) verified++;
+            var data = doc.data() || {};
+            var reached = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
+            if (reached) verified++;
             else pending++;
         });
 
-        return { total, verified, pending };
+        var stats = { total: total, verified: verified, pending: pending, invited: total, maxi: verified };
+        _inviteStatsCache = { uid: uid, at: now, stats: stats };
+        return stats;
     } catch (e) {
-        return { total: 0, verified: 0, pending: 0 };
+        var invited = parseInt(currentUser.referralInvited, 10);
+        var maxi = parseInt(currentUser.referralCount, 10) || 0;
+        if (!isNaN(invited)) {
+            return { total: invited, verified: maxi, pending: Math.max(0, invited - maxi), invited: invited, maxi: maxi };
+        }
+        return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
     }
 }
 
@@ -287,62 +173,45 @@ function renderTicketsSection() {
 }
 
 // ---- Render referral section in settings ----
+// The link is filled with textContent after this HTML is inserted.
 function renderReferralSection() {
-    const link = getReferralLink();
     const code = getReferralCode();
-
     if (!code) return '';
 
-    let html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Referral Program</div>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Share your link with friends. Earn <strong style="color:#f7931a;">50 Orange Tickets</strong> for each referral who logs in and earns 2,140+ points (Maxi rank).' +
-        '</div>' +
-        '<div style="position:relative;margin-bottom:12px;">' +
-        '<input type="text" id="referralLinkInput" readonly value="' + link + '" style="width:100%;padding:10px 80px 10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;box-sizing:border-box;" onclick="this.select()">' +
-        '<button onclick="copyReferralLink()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Copy</button>' +
-        '</div>' +
-        '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;">Loading referral stats...</div>' +
+    return '<div id="inviteSettingsBlock" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite friends</div>' +
+        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>' +
+        '<p id="inviteSettingsLink" style="margin:0 0 12px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;word-break:break-all;"></p>' +
+        '<button type="button" onclick="openInviteFriends(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Invite friends</button>' +
+        '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;"></div>' +
         '</div>';
-
-    return html;
 }
 
 function copyReferralLink() {
-    const input = document.getElementById('referralLinkInput');
-    if (!input) return;
-
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(input.value).then(function() {
-            showToast('🔗 Referral link copied!');
-        });
-    } else {
-        input.select();
-        document.execCommand('copy');
-        showToast('🔗 Referral link copied!');
+    var link = getReferralLink();
+    var el = document.getElementById('inviteSettingsLink');
+    if (el && el.textContent) link = el.textContent;
+    if (!link) return;
+    if (_copyTextNow(link) && typeof showToast === 'function') showToast('Referral link copied!');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).catch(function() {});
     }
 }
 
 // ---- Load and display referral stats async ----
 async function loadReferralStatsUI() {
-    const el = document.getElementById('referralStats');
+    var linkEl = document.getElementById('inviteSettingsLink');
+    if (linkEl) linkEl.textContent = getReferralLink();
+    var el = document.getElementById('referralStats');
     if (!el) return;
-
-    const stats = await getReferralStats();
-    if (stats.total === 0) {
-        el.innerHTML = '<span style="color:var(--text-faint);">No referrals yet. Share your link to start earning!</span>';
-    } else {
-        el.innerHTML = '<div style="display:flex;gap:16px;">' +
-            '<span>👥 Total: <strong>' + stats.total + '</strong></span>' +
-            '<span style="color:#22c55e;">✅ Verified: <strong>' + stats.verified + '</strong></span>' +
-            '<span style="color:#eab308;">⏳ Pending: <strong>' + stats.pending + '</strong></span>' +
-            '</div>';
-    }
+    var stats = await getReferralStats();
+    el.textContent = _inviteCountLine(stats);
 }
 
 // ---- Initialize tickets system ----
 // Called after user loads (from loadUser or createUser)
 async function onUserLoadedTickets() {
+    if (typeof refreshReferFriendCard === 'function') refreshReferFriendCard();
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
 
     await ensureReferralCode();
@@ -353,29 +222,310 @@ async function onUserLoadedTickets() {
 
     // Start Double XP floating widget if active
     if (typeof window._checkDoubleXPWidget === 'function') window._checkDoubleXPWidget();
+    refreshInviteCard();
 }
 
 // ---- Award tickets for content uploads ----
-window.awardTickets = async function(amount, reason) {
-    if (!amount || amount < 1) return;
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
-    if (typeof currentUser === 'undefined' || !currentUser) return;
-
-    var newTotal = (currentUser.orangeTickets || 0) + amount;
-    var bonusPoints = amount * TICKET_CONFIG.pointsPerTicket;
-
-    try {
-        // Award tickets + points through server-side Cloud Function
-        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
-        if (typeof updateRankUI === 'function') updateRankUI();
-    } catch(e) { console.warn('[tickets] Award error:', e); }
-
-    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Tickets! ' + (reason || ''));
+window.awardTickets = async function() {
+    return { success: false, awarded: 0, tickets: 0 };
 };
 
-// Run on page load
+// ---- Home "Invite friends" corner card ----
+// Top-right. Signed-in users get the link. Guests see nothing unless this
+// session has no other popup, in which case one short sign-up line appears.
+
+var INVITE_STATES = { open: 1, min: 1, off: 1 };
+
+function _inviteSignedIn() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+}
+
+function _inviteUid() {
+    if (!_inviteSignedIn()) return '';
+    return String(auth.currentUser.uid || '');
+}
+
+function _inviteStorageKey(uid) {
+    return 'btc_invite_card_' + String(uid || '');
+}
+
+function _inviteReadStored(uid) {
+    var fromUser = '';
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
+        fromUser = String(currentUser.inviteCard);
+    }
+    if (INVITE_STATES[fromUser]) return fromUser;
+    try {
+        var local = localStorage.getItem(_inviteStorageKey(uid));
+        if (INVITE_STATES[local]) return local;
+    } catch (e) {}
+    return 'open';
+}
+
+function _inviteWriteStored(state) {
+    var uid = _inviteUid();
+    if (!uid || !INVITE_STATES[state]) return;
+    try { localStorage.setItem(_inviteStorageKey(uid), state); } catch (e) {}
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.inviteCard = state;
+    if (typeof db === 'undefined' || !db) return;
+    db.collection('users').doc(uid).update({ inviteCard: state }).catch(function() {});
+}
+
+function _inviteHomeVisible() {
+    var home = document.getElementById('home');
+    if (!home) return false;
+    if (home.classList.contains('hidden')) return false;
+    if (home.style.display === 'none') return false;
+    return true;
+}
+
+function _invitePopupTaken() {
+    try {
+        var cur = sessionStorage.getItem('btc_session_popup');
+        return !!(cur && cur !== 'invite');
+    } catch (e) { return false; }
+}
+
+function _claimInvitePopup() {
+    if (typeof window.btcClaimSessionPopup === 'function') return window.btcClaimSessionPopup('invite');
+    if (typeof window.claimSessionPopup === 'function') return window.claimSessionPopup('invite');
+    try {
+        if (sessionStorage.getItem('btc_session_popup')) return sessionStorage.getItem('btc_session_popup') === 'invite';
+        sessionStorage.setItem('btc_session_popup', 'invite');
+        return true;
+    } catch (e) { return false; }
+}
+
+function _guestBannerVisible() {
+    var banner = document.getElementById('guestPointsBanner');
+    if (!banner) return false;
+    if (banner.style.display === 'none') return false;
+    return true;
+}
+
+function _copyTextNow(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', 'readonly');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    if (ta.focus) ta.focus({ preventScroll: true });
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+}
+
+function _inviteCountLine(stats) {
+    var invited = stats && typeof stats.invited === 'number' ? stats.invited : 0;
+    var maxi = stats && typeof stats.maxi === 'number' ? stats.maxi : 0;
+    if (!invited && !maxi) return 'No invites yet.';
+    var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
+    var maxiLabel = maxi === 1 ? '1 reached Maxi' : maxi + ' reached Maxi';
+    return invitedLabel + ' · ' + maxiLabel;
+}
+
+function _fillInviteCard() {
+    var linkEl = document.getElementById('inviteLink');
+    if (linkEl) linkEl.textContent = getReferralLink();
+    var share = document.getElementById('inviteShare');
+    if (share) share.hidden = !navigator.share;
+    var copyBtn = document.getElementById('inviteCopy');
+    if (copyBtn && copyBtn.textContent !== 'Copied!') copyBtn.textContent = 'Copy';
+}
+
+function _paintInviteCounts(stats) {
+    var el = document.getElementById('inviteCounts');
+    if (el) el.textContent = _inviteCountLine(stats);
+}
+
+function _loadInviteCounts() {
+    getReferralStats().then(function(stats) {
+        if (stats && stats.failed) throw new Error('counts');
+        _paintInviteCounts(stats || { invited: 0, maxi: 0 });
+    }).catch(function() {
+        var maxi = 0;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            maxi = parseInt(currentUser.referralCount, 10) || 0;
+        }
+        var el = document.getElementById('inviteCounts');
+        if (!el) return;
+        if (maxi) el.textContent = maxi + (maxi === 1 ? ' reached Maxi' : ' reached Maxi');
+        else el.textContent = 'Invite counts load when you are online.';
+    });
+}
+
+function _applyInviteState(state) {
+    var card = document.getElementById('inviteCard');
+    if (!card) return;
+    card.setAttribute('data-state', state);
+    card.setAttribute('data-show', state === 'off' ? '0' : '1');
+}
+
+function refreshInviteCard() {
+    var card = document.getElementById('inviteCard');
+    if (!card) return;
+    if (!_inviteHomeVisible()) {
+        card.setAttribute('data-show', '0');
+        return;
+    }
+    if (typeof auth === 'undefined' || !auth) {
+        card.setAttribute('data-show', '0');
+        return;
+    }
+    if (_inviteSignedIn()) {
+        var state = _inviteReadStored(_inviteUid());
+        _applyInviteState(state);
+        if (state === 'open') {
+            _fillInviteCard();
+            _loadInviteCounts();
+        }
+        return;
+    }
+    var dismissed = false;
+    try { dismissed = sessionStorage.getItem('btc_invite_guest_dismissed') === '1'; } catch (e) {}
+    if (dismissed || _guestBannerVisible() || _invitePopupTaken() || !_claimInvitePopup()) {
+        _applyInviteState('off');
+        return;
+    }
+    _applyInviteState('guest');
+}
+
+function openInviteFriends(force) {
+    if (!_inviteSignedIn()) {
+        if (!force && (_invitePopupTaken() || !_claimInvitePopup())) return;
+        try { sessionStorage.removeItem('btc_invite_guest_dismissed'); } catch (e) {}
+        if (typeof goHome === 'function') goHome();
+        _applyInviteState('guest');
+        return;
+    }
+    if (force) _inviteWriteStored('open');
+    var modal = document.getElementById('usernameModal');
+    if (modal) modal.classList.remove('open');
+    if (typeof goHome === 'function') goHome();
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
+}
+
+function minimizeInviteCard() {
+    if (!_inviteSignedIn()) return;
+    _inviteWriteStored('min');
+    _applyInviteState('min');
+}
+
+function expandInviteCard() {
+    if (!_inviteSignedIn()) return;
+    _inviteWriteStored('open');
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
+}
+
+function dismissInviteCard() {
+    if (!_inviteSignedIn()) {
+        try { sessionStorage.setItem('btc_invite_guest_dismissed', '1'); } catch (e) {}
+        _applyInviteState('off');
+        return;
+    }
+    _inviteWriteStored('off');
+    _applyInviteState('off');
+}
+
+function toggleInviteHow() {
+    var panel = document.getElementById('inviteHow');
+    var btn = document.getElementById('inviteHowBtn');
+    if (!panel || !btn) return;
+    var open = panel.hasAttribute('hidden');
+    if (open) panel.removeAttribute('hidden');
+    else panel.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function copyInviteLink() {
+    var linkEl = document.getElementById('inviteLink');
+    var btn = document.getElementById('inviteCopy');
+    var text = (linkEl && linkEl.textContent) || getReferralLink();
+    if (!text) return;
+    function mark() {
+        if (!btn) return;
+        btn.textContent = 'Copied!';
+        clearTimeout(window._inviteCopiedTimer);
+        window._inviteCopiedTimer = setTimeout(function() {
+            if (btn) btn.textContent = 'Copy';
+        }, 2500);
+    }
+    var copied = _copyTextNow(text);
+    if (copied) mark();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(mark).catch(function() {
+            if (!copied && typeof showToast === 'function') showToast('Select the link and copy it');
+        });
+    } else if (!copied && typeof showToast === 'function') {
+        showToast('Select the link and copy it');
+    }
+}
+
+function shareInviteLink() {
+    var linkEl = document.getElementById('inviteLink');
+    var link = (linkEl && linkEl.textContent) || getReferralLink();
+    if (!link || !navigator.share) return;
+    navigator.share({
+        title: 'Bitcoin Quest',
+        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
+        url: link
+    }).catch(function() {});
+}
+
+function inviteGuestSignup() {
+    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+    else {
+        var modal = document.getElementById('usernameModal');
+        if (modal) modal.classList.add('open');
+    }
+}
+
 if (typeof window !== 'undefined') {
-    // Capture referral code from URL immediately
     captureReferralCode();
+    window.openInviteFriends = openInviteFriends;
+    window.minimizeInviteCard = minimizeInviteCard;
+    window.expandInviteCard = expandInviteCard;
+    window.dismissInviteCard = dismissInviteCard;
+    window.toggleInviteHow = toggleInviteHow;
+    window.copyInviteLink = copyInviteLink;
+    window.shareInviteLink = shareInviteLink;
+    window.inviteGuestSignup = inviteGuestSignup;
+    window.refreshInviteCard = refreshInviteCard;
+    function bindInviteAuth() {
+        if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') return false;
+        if (window._inviteAuthBound) return true;
+        window._inviteAuthBound = true;
+        auth.onAuthStateChanged(function() { refreshInviteCard(); });
+        refreshInviteCard();
+        return true;
+    }
+    function watchInviteHome() {
+        var home = document.getElementById('home');
+        if (!home || home._inviteWatch) return;
+        home._inviteWatch = true;
+        if (typeof MutationObserver === 'function') {
+            new MutationObserver(function() { refreshInviteCard(); }).observe(home, { attributes: true, attributeFilter: ['class', 'style'] });
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', watchInviteHome);
+    } else {
+        watchInviteHome();
+    }
+    if (!bindInviteAuth()) {
+        var inviteTries = 0;
+        var inviteWatch = setInterval(function() {
+            inviteTries++;
+            if (bindInviteAuth() || inviteTries > 60) clearInterval(inviteWatch);
+        }, 1000);
+    }
+    refreshInviteCard();
 }

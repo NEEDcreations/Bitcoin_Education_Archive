@@ -25,13 +25,19 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Timechain TV — Terms of Service</h1>
-    <p class="subtitle">Last updated: May 4, 2026</p>
+    <p class="subtitle">Last updated: October 22, 2026</p>
 
     <p>These Terms of Service ("Terms") govern your access to and use of Bitcoin Education Archive, Timechain TV, and Bitcoin Beats (the "Service"), operated by 603BTC LLC ("we," "us," or "our"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.</p>
+    <p>PvP matches, lobby alerts, and push notifications are part of the Service. Those features are also described in the main <a href="/terms.html">Terms of Service</a> and <a href="/privacy.html">Privacy Policy</a>, including how lobby usernames are shown and that a banned player's wins and losses are still recorded with no XP.</p>
 
     <h2>1. Description of the Service</h2>
     <p>The Service provides a curated, channel-based interface for discovering publicly available video content hosted on YouTube. All video content displayed through the Service is streamed directly from YouTube via YouTube's official embedded player. We do not host, store, copy, transcode, modify, or redistribute any video files. The Service functions as an organizational and discovery layer; YouTube remains the source and host of all video content.</p>
-    <p>Your use of any video content on the Service is also governed by <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube's Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>. By using the Service, you acknowledge and agree to YouTube's Terms of Service.</p>
+    <p>Your use of any video content on the Service is also governed by <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube's Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>. By using the Service, you acknowledge and agree to YouTube's Terms of Service. We do not send your Bitcoin Education Archive account id to YouTube. YouTube still receives whatever its embedded player normally receives.</p>
+
+    <h2>1a. Presence, watch time, and the daily watch challenge</h2>
+    <p>While Timechain TV is open, your browser writes a presence heartbeat about every 30 seconds. The record has the channel you are on and a timestamp. Signed-in viewers are keyed by their account id. Other viewers are keyed by a random id stored in this browser as <code>tctv_viewerId</code>. The heartbeat is used for the live viewer count. It expires after a short idle period (about 10 minutes in the client) and a cleanup job deletes stale rows. It does not include your IP address.</p>
+    <p>Minutes watched are counted in this browser for badges. Signed-in viewers also add minutes to a site-wide counter that is not labeled with your name. The first tune of a channel on a given day may be stored as a view record (viewer id, channel, day). The daily watch challenge pays 100 XP and 1 Orange Ticket once per reward day after the server credits 10 minutes from heartbeats, subject to the daily XP cap in our <a href="/terms.html">Terms of Service</a>. The server stores that day's progress.</p>
+    <p>What we store is also described in our <a href="/privacy.html">Privacy Policy</a>.</p>
 
     <h2>2. Eligibility</h2>
     <p>You must be at least 13 years old to use the Service. If you are under 18, you represent that you have your parent or legal guardian's permission to use the Service. By using the Service, you represent and warrant that you meet these requirements.</p>

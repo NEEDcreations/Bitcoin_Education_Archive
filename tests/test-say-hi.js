@@ -399,6 +399,7 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes('openSayHi()'));
     assert.ok(html.includes('#em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }'));
     assert.ok(html.includes('@media (max-width: 480px)') && html.includes('#em-quick-actions { grid-template-columns: repeat(3, 1fr); }'));
+    assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2301'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2295'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2293'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2272'") === false);
@@ -406,15 +407,21 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
+    assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2279'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2295'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2301'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2295'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2293'") === false);
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2286'") === false);
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2279'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2272'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(sw.includes('nacho-fly.svg') === false);
     assert.ok(sw.includes('nacho-deer.svg'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
+    assert.ok(html.includes('ranking.js?v=20261022_v2301'));
 });
 
 test('Nacho and search can open Say hi', function () {
