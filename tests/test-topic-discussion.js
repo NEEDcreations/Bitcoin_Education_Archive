@@ -583,7 +583,8 @@ test('conversation buttons open the discussion and posts show server date-time',
         button.focus();
         assert.strictEqual(plan.document.activeElement, button);
     });
-    assert.ok(read('topic-discussions.js').includes('margin:12px 0 8px'));
+    assert.ok(read('topic-discussions.js').includes('margin:12px 0 16px'));
+    assert.ok(read('topic-discussions.js').includes('margin:10px 0 14px'));
     assert.ok(read('topic-discussions.js').includes('function tightenPromptGap'));
     ['UL', 'OL', 'PRE', 'TABLE', 'BLOCKQUOTE', 'IFRAME'].forEach(function(tag) {
         topic.text.childNodes.forEach(function(child) {
