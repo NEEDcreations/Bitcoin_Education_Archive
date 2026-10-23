@@ -2495,7 +2495,7 @@ function _renderFavorTab(body) {
         '<div id="sfMyContribution" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
             '<span id="sfMyContributionText" style="font-size:0.78rem;font-weight:700;color:var(--text);"></span>' +
         '</div>' +
-        '<div id="sfUnclaimedPool" style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
+        '<div id="sfUnclaimedPool" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
             '<span id="sfScoreUnaffiliated" style="font-size:0.75rem;font-weight:800;color:var(--text-muted);font-family:monospace;">Unclaimed: 0 pts</span>' +
         '</div>' +
         '<div id="sfNoFactionNote" style="display:none;"></div>' +
@@ -2739,6 +2739,7 @@ function _startFactionScoreboardListener() {
         if (elH) elH.textContent = hornets.toLocaleString();
         if (elB) elB.textContent = badgers.toLocaleString();
         if (elU) elU.textContent = 'Unclaimed: ' + unaffiliated.toLocaleString() + ' pts';
+        var poolRow = document.getElementById('sfUnclaimedPool');
 
         // Leader label
         if (elLeader) {
@@ -2782,6 +2783,7 @@ function _startFactionScoreboardListener() {
                 if (sfChoose) sfChoose.style.display = 'inline-block';
             }
         }
+        if (poolRow) poolRow.style.display = (userFaction === 'cyber_hornets' || userFaction === 'honey_badgers') ? 'block' : 'none';
 
         // Show backfill button for admin
         var elAdmin = document.getElementById('sfAdminBackfill');

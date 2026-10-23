@@ -353,6 +353,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(quests.indexOf('Your faction: Cyber Hornets') > 0);
     assert.ok(quests.indexOf('Your faction: Honey Badgers') > 0);
     assert.ok(quests.indexOf("'Unclaimed: ' + unaffiliated.toLocaleString() + ' pts'") > 0);
+    assert.ok(quests.indexOf("poolRow.style.display = (userFaction === 'cyber_hornets' || userFaction === 'honey_badgers') ? 'block' : 'none'") > 0);
     assert.ok(quests.indexOf('Choose a faction') > 0);
     assert.ok(quests.indexOf('sfLabel.innerHTML') === -1);
     assert.ok(quests.indexOf('window._openFactionPicker') > 0);
