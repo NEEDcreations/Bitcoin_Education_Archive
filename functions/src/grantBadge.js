@@ -1,7 +1,5 @@
 'use strict';
 
-const BADGE_DAILY_CAP = 1000;
-
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
     return shifted.toISOString().slice(0, 10);
@@ -72,5 +70,4 @@ module.exports = {
     grantFamily: grantFamily,
     familyFor: familyFor,
     offsetDateKey: offsetDateKey,
-    BADGE_DAILY_CAP: BADGE_DAILY_CAP,
 };

@@ -422,7 +422,7 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(ranking.indexOf('deleteMyReferralSignal') !== -1);
     const indexJs = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
     const scholar = indexJs.slice(indexJs.indexOf('exports.gradeScholarExam'), indexJs.indexOf('exports.startQuest'));
-    assert.ok(scholar.indexOf('pointsAwarded = 2100') !== -1);
+    assert.ok(scholar.indexOf('planDailyXp(scholarUsed, 2100)') !== -1);
     assert.ok(scholar.indexOf('scholarPoints') !== -1);
     assert.ok(indexJs.indexOf('activeDayKeys') !== -1);
     assert.ok(rules.includes('resource.data.referrerUid == request.auth.uid'));

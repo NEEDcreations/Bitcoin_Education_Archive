@@ -2,7 +2,9 @@
 
 // Live comments and questions on educational topic channels.
 // Clients may only read topic_discussions. Every write goes through these
-// callables. No XP and no tickets are awarded for posting.
+// callables. Conversation XP is awarded in the same transaction that accepts
+// the post (see topicConversationXp). Tickets are not awarded. Mirrored copies
+// award nothing.
 //
 // Account deletion (PR #53, agent bc-6466c0e4): when a uid is deleted,
 // delete or anonymize every topic_discussions/{channelId}/posts doc whose
@@ -14,6 +16,7 @@
 const { classifyChatText, maskChatProfanity } = require('./chatProfanity');
 const { mirrorShoutoutOnce } = require('./telegramBridge');
 const forumMirror = require('./topicForumMirror');
+const topicXp = require('./topicConversationXp');
 
 const TOPIC_CHANNELS = require('./topicChannels.json');
 const TOPIC_GROUNDING = require('./topicGrounding.json');
@@ -450,11 +453,29 @@ function createTopicDiscussion(deps) {
                     };
                 }
             }
-            const limitNext = {
+            const xp = await topicXp.grantInTransaction(tx, {
+                db: db,
+                day: rate.dayKey,
+                nowMs: nowMs,
+                text: prepared.text,
+                isStart: isTop,
+                authorUid: who.uid,
+                authorRef: userRef,
+                authorUser: user,
+                authorLedger: ledgerSnap.exists ? ledgerSnap.data() : null,
+                authorLimit: limit,
+                selfReply: !!(parent && parent.uid === who.uid),
+                starterUid: parent && parent.uid ? parent.uid : '',
+                starterIsNacho: !!(parent && (parent.isNacho === true || parent.uid === NACHO_UID)),
+                channelId: channelId,
+                postId: postRef.id,
+                moderationBlock: moderationBlock,
+            });
+            const limitNext = Object.assign({
                 lastPostMs: rate.lastPostMs,
                 dayKey: rate.dayKey,
                 dayCount: rate.dayCount,
-            };
+            }, xp.authorLimitPatch);
             if (openForum && forumSlot) {
                 limitNext.forumDayKey = forumSlot.forumDayKey;
                 limitNext.forumDayCount = forumSlot.forumDayCount;
@@ -487,6 +508,7 @@ function createTopicDiscussion(deps) {
                 replyCount: 0,
                 forumPostId: openForum ? forumPostId : '',
             };
+            Object.assign(post, xp.postFields);
             if (openForum) {
                 const forumDoc = forumMirror.buildForumPostDoc({
                     channelId: channelId,
@@ -511,6 +533,7 @@ function createTopicDiscussion(deps) {
                 const replyCount = Number(parent.replyCount) || 0;
                 tx.set(parentRef, { replyCount: replyCount + 1 }, { merge: true });
             }
+            topicXp.commitGrant(tx, xp);
             return {
                 postId: postRef.id,
                 name: name,
@@ -521,6 +544,8 @@ function createTopicDiscussion(deps) {
                 parentId: parentId || '',
                 forumPostId: (openForum ? forumPostId : '') || (parent && parent.forumPostId) || '',
                 post: post,
+                xp: xp.awarded,
+                toast: xp.toast,
             };
         });
 
@@ -593,6 +618,8 @@ function createTopicDiscussion(deps) {
             postId: planned.postId,
             announced: !!(planned.announce),
             nacho: nachoPosted === true,
+            xp: planned.xp || 0,
+            toast: planned.toast || '',
         };
     }
 
@@ -648,6 +675,8 @@ function createTopicDiscussion(deps) {
             const privateSnap = await tx.get(privateRef);
             if (!postSnap.exists) fail('not-found', 'That comment is no longer there.');
             const post = postSnap.data() || {};
+            const nowMs = nowFn();
+            const claw = action === 'unhide' ? null : await topicXp.clawbackReads(tx, db, post, nowMs, postId, channelId);
             let after;
             if (action === 'hide') {
                 if (post.text) {
@@ -659,18 +688,19 @@ function createTopicDiscussion(deps) {
                         hiddenAtMs: nowFn(),
                     });
                 }
-                after = Object.assign({}, post, { hidden: true, text: '', deleted: false });
-                tx.set(postRef, { hidden: true, text: '', deleted: false }, { merge: true });
+                after = Object.assign({}, post, { hidden: true, text: '', deleted: false, xpClawed: claw ? true : post.xpClawed === true });
+                tx.set(postRef, { hidden: true, text: '', deleted: false, xpClawed: claw ? true : post.xpClawed === true }, { merge: true });
             } else if (action === 'unhide') {
                 const saved = privateSnap.exists ? (privateSnap.data() || {}) : {};
                 after = Object.assign({}, post, { hidden: false, text: saved.text || post.text || '', deleted: false });
                 tx.set(postRef, { hidden: false, text: saved.text || post.text || '' }, { merge: true });
                 tx.delete(privateRef);
             } else {
-                after = Object.assign({}, post, { deleted: true, hidden: false, text: '' });
-                tx.set(postRef, { deleted: true, hidden: false, text: '' }, { merge: true });
+                after = Object.assign({}, post, { deleted: true, hidden: false, text: '', xpClawed: claw ? true : post.xpClawed === true });
+                tx.set(postRef, { deleted: true, hidden: false, text: '', xpClawed: claw ? true : post.xpClawed === true }, { merge: true });
                 tx.delete(privateRef);
             }
+            if (claw) topicXp.clawbackWrites(tx, claw);
             return { before: post, after: after };
         });
         try {
@@ -701,9 +731,12 @@ function createTopicDiscussion(deps) {
             if (!postSnap.exists) fail('not-found', 'That comment is no longer there.');
             const post = postSnap.data() || {};
             if (post.uid !== who.uid || post.isNacho === true) fail('permission-denied', 'You can only delete your own comment.');
-            tx.set(postRef, { deleted: true, text: '', hidden: false }, { merge: true });
+            const nowMs = nowFn();
+            const claw = await topicXp.clawbackReads(tx, db, post, nowMs, postId, channelId);
+            tx.set(postRef, { deleted: true, text: '', hidden: false, xpClawed: claw ? true : post.xpClawed === true }, { merge: true });
             tx.delete(privateRef);
-            return { before: post, after: Object.assign({}, post, { deleted: true, text: '', hidden: false }) };
+            if (claw) topicXp.clawbackWrites(tx, claw);
+            return { before: post, after: Object.assign({}, post, { deleted: true, text: '', hidden: false, xpClawed: claw ? true : post.xpClawed === true }) };
         });
         try {
             await forumMirror.syncTopicToForum({

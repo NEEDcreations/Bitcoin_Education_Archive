@@ -1472,16 +1472,12 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
                 if (manual && typeof showToast === 'function') showToast('✅ You already aced ' + _actualTopicKey.replace(/[-_]+/g, ' ') + ' Part ' + _parts[1] + ' with a perfect score!');
                 return;
             }
+            var _staticPartIndex = parseInt(_parts[1], 10) - 1;
             var _staticSelected = _staticQuest.questions.map(function(q) {
                 var opts = [q.a, ...q.wrong].sort(() => Math.random() - 0.5);
-                return { q: q.q, options: opts, answer: opts.indexOf(q.a) };
+                return { q: q.q, options: opts, answer: opts.indexOf(q.a), topicKey: _actualTopicKey, questIndex: _staticPartIndex };
             });
-            currentQuest = { id: _staticQuestId, topicKey: _actualTopicKey, partNum: parseInt(_parts[1]), totalParts: _staticQuest.totalParts, title: _getStaticQuestTitle(_actualTopicKey, parseInt(_parts[1]), _staticQuest.totalParts), questions: _staticSelected };
-            window._currentQuestServerId = null;
-            window._currentQuestServerIdPromise = null;
-            if (typeof firebase !== 'undefined' && firebase.functions) {
-                window._currentQuestServerIdPromise = firebase.functions().httpsCallable('startQuest')({ questions: _staticSelected.map(function(q) { return { answer: q.answer }; }), topicKey: _actualTopicKey }).then(function(res) { window._currentQuestServerId = res.data.questId; return res.data.questId; }).catch(function(e) { console.warn('Quest registration failed:', e); return null; });
-            }
+            currentQuest = { id: _staticQuestId, topicKey: _actualTopicKey, questIndex: _staticPartIndex, partNum: parseInt(_parts[1]), totalParts: _staticQuest.totalParts, title: _getStaticQuestTitle(_actualTopicKey, parseInt(_parts[1]), _staticQuest.totalParts), questions: _staticSelected };
             showQuest(currentQuest, false);
             return;
         }
@@ -1594,28 +1590,22 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     const newAsked = [...askedQuestions, ...selected.map(q => q.q)];
     localStorage.setItem('btc_asked_questions', JSON.stringify(newAsked));
 
-    // Build multiple choice format
+    // Build multiple choice format. The server grades the chosen answer text.
     const questions = selected.map(q => {
         const options = [q.a, ...q.wrong].sort(() => Math.random() - 0.5);
         const correctIdx = options.indexOf(q.a);
-        return { q: q.q, options, answer: correctIdx };
+        var topicKey = q.source || _actualTopicKey || '';
+        var questIndex = 0;
+        if (topicKey && QUESTION_BANK[topicKey]) {
+            var bank = QUESTION_BANK[topicKey];
+            for (var qi = 0; qi < bank.length; qi++) {
+                if (bank[qi].q === q.q) { questIndex = Math.floor(qi / 5); break; }
+            }
+        }
+        return { q: q.q, options: options, answer: correctIdx, topicKey: topicKey, questIndex: questIndex };
     });
 
-    currentQuest = { id: questId, topicKey: _actualTopicKey || null, title: getQuestTitle(questCount, _actualTopicKey), questions };
-
-    // Register quest server-side for secure grading
-    // Store the promise so submitQuest can await it if the user finishes quickly
-    window._currentQuestServerId = null;
-    window._currentQuestServerIdPromise = null;
-    if (typeof firebase !== 'undefined' && firebase.functions) {
-        window._currentQuestServerIdPromise = firebase.functions().httpsCallable('startQuest')({
-            questions: questions.map(function(q) { return { answer: q.answer }; }),
-            topicKey: targetChannelId || null
-        }).then(function(res) {
-            window._currentQuestServerId = res.data.questId;
-            return res.data.questId;
-        }).catch(function(e) { console.warn('Quest registration failed:', e); return null; });
-    }
+    currentQuest = { id: questId, topicKey: _actualTopicKey || null, questIndex: questions.length ? questions[0].questIndex : 0, title: getQuestTitle(questCount, _actualTopicKey), questions };
 
     showQuest(currentQuest, false);
 }
@@ -1847,6 +1837,29 @@ window._useQuestHint = function(qIdx) {
     }
 };
 
+async function _gradeQuestOnServer(quest, answerIndexes, retry) {
+    if (!quest || typeof firebase === 'undefined' || !firebase.functions) return null;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return null;
+    var payloadAnswers = (quest.questions || []).map(function(q, i) {
+        var idx = answerIndexes[i];
+        var chosen = (q.options && idx >= 0) ? q.options[idx] : '';
+        return {
+            q: q.q,
+            topicKey: q.topicKey || quest.topicKey || '',
+            questIndex: (typeof q.questIndex === 'number') ? q.questIndex : (quest.questIndex || 0),
+            chosen: chosen
+        };
+    });
+    var first = payloadAnswers[0] || {};
+    var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
+        topicKey: quest.topicKey || first.topicKey || '',
+        questIndex: (typeof quest.questIndex === 'number') ? quest.questIndex : (first.questIndex || 0),
+        isRetry: !!retry,
+        answers: payloadAnswers
+    });
+    return gradeResult && gradeResult.data ? gradeResult.data : null;
+}
+
 async function submitQuest() {
     // Prevent double-submit
     if (window._questSubmitted) return;
@@ -1857,40 +1870,8 @@ async function submitQuest() {
     const answers = window._questAnswers;
     const correct = window._questCorrect;
 
-    // --- INSTANT LOCAL GRADE (no network wait) ---
     let score = 0;
     answers.forEach((a, i) => { if (a === correct[i]) score++; });
-    const isPerfectLocal = score === 5;
-    const isTopicQuestLocal = !!(currentQuest && currentQuest.topicKey);
-    let pts = 0;
-    if (isRetry) {
-        if (score >= 3) pts = 25;
-    } else {
-        if (isPerfectLocal) pts = 100;
-        else if (score >= 3) pts = 50;
-    }
-
-    // Fire server grading in background — does not block UI
-    // Store the promise so we can update the local XP log with the actual server-awarded amount
-    window._lastQuestGradingPromise = null;
-    if (window._currentQuestServerIdPromise || window._currentQuestServerId) {
-        window._lastQuestGradingPromise = (async function() {
-            try {
-                if (!window._currentQuestServerId && window._currentQuestServerIdPromise) {
-                    await window._currentQuestServerIdPromise;
-                }
-                if (window._currentQuestServerId && typeof firebase !== 'undefined' && firebase.functions) {
-                    var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
-                        questId: window._currentQuestServerId,
-                        answers: answers,
-                        isRetry: !!isRetry
-                    });
-                    return gradeResult && gradeResult.data ? gradeResult.data : null;
-                }
-            } catch(e) { console.warn('Background quest grading failed:', e); }
-            return null;
-        })();
-    }
 
     // Highlight correct/wrong
     const questions = document.querySelectorAll('.quest-q');
@@ -1903,13 +1884,23 @@ async function submitQuest() {
         });
     });
 
+    var serverData = null;
+    try {
+        serverData = await _gradeQuestOnServer(currentQuest, answers, !!isRetry);
+    } catch (e) {
+        console.warn('Quest grading failed:', e);
+    }
+    // XP on screen is only what gradeQuest actually paid.
+    var awarded = serverData && typeof serverData.awarded === 'number' ? serverData.awarded : 0;
+    var pts = awarded;
+    var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP!' : '';
+
     let msg = '';
     var isPerfect = score === 5;
     var isTopicQuest = !!(currentQuest.topicKey);
     if (isRetry) {
         if (score >= 3) {
-            if (!pts) pts = 25;
-            msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' XP!';
+            msg = '🎉 ' + score + '/5 correct on retry!' + xpSuffix;
             // Only permanently lock on perfect 5/5 for topic quests
             if (isPerfect || !isTopicQuest) {
                 completedQuests.add(currentQuest.id);
@@ -1920,8 +1911,7 @@ async function submitQuest() {
         }
     } else {
         if (isPerfect) {
-            if (!pts) pts = 100;
-            msg = '🏆 PERFECT! 5/5! +' + pts + ' XP!';
+            msg = '🏆 PERFECT! 5/5!' + xpSuffix;
             completedQuests.add(currentQuest.id);
             questCount++;
             // Nacho celebrates perfect scores in global chat
@@ -1931,8 +1921,7 @@ async function submitQuest() {
                 window.nachoGlobalAnnounce('🏆 @' + _pqName + ' just aced ' + _pqTopic + ' with a PERFECT 5/5! Think you can do the same? ➡️ [Quest Hub](#quests)', auth.currentUser.uid);
             }
         } else if (score >= 3) {
-            if (!pts) pts = 50;
-            msg = '🎉 ' + score + '/5 correct! +' + pts + ' XP!';
+            msg = '🎉 ' + score + '/5 correct!' + xpSuffix;
             // Non-perfect: award XP but DON'T lock topic quest (allow retake for 5/5)
             if (!isTopicQuest) {
                 completedQuests.add(currentQuest.id);
@@ -1953,40 +1942,14 @@ async function submitQuest() {
     qLog.lastTitle = currentQuest.title || null;
     localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
 
-    if (pts > 0) {
-        // Points already awarded server-side by gradeQuest.
-        // Log optimistically now; correct the entry once the server responds.
+    var serverQualified = !!(serverData && serverData.graded && (serverData.pts || 0) > 0 && !serverData.banned);
+    if (awarded > 0) {
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
-        if (typeof notifySelfPoints === 'function') notifySelfPoints(pts, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
-        // Correct local log entry if server actually awarded fewer (e.g. daily cap hit)
-        if (window._lastQuestGradingPromise) {
-            var _logReason = '🏆 Quest: ' + (currentQuest.title || 'Quest');
-            var _optimisticPts = pts;
-            window._lastQuestGradingPromise.then(function(serverData) {
-                if (!serverData) return;
-                var actualAwarded = typeof serverData.awarded === 'number' ? serverData.awarded : _optimisticPts;
-                if (actualAwarded !== _optimisticPts && typeof notifySelfPoints === 'function') {
-                    // Patch the most recent matching log entry to reflect actual award
-                    try {
-                        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-                        for (var _i = log.length - 1; _i >= 0; _i--) {
-                            if (log[_i].reason === _logReason && log[_i].pts === _optimisticPts) {
-                                log[_i].pts = actualAwarded;
-                                log[_i].serverConfirmed = true;
-                                if (actualAwarded === 0) log.splice(_i, 1); // remove if 0 awarded
-                                localStorage.setItem('btc_points_log', JSON.stringify(log));
-                                if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
-                                break;
-                            }
-                        }
-                    } catch(e) {}
-                }
-            }).catch(function() {});
-        }
-        // Raid Boss: quiz completion
+        if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
+        if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
+    }
+    if (serverQualified) {
         if (typeof window._raidOnQuizComplete === 'function') window._raidOnQuizComplete();
-        if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(pts);
-
         // Mark quiz done for the day and check if all 3 daily activities complete
         _markDailyActivity('quiz');
         _checkDailyAllThree();
@@ -4548,23 +4511,25 @@ function _renderCharityTabInner(body) {
         '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">🏅 Donation Badges</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
     var donorBadges = [
-        { id:'donor_100',    emoji:'🫷', name:'Giving Pleb',           thresh:'100 XP',    reward:'50 XP' },
-        { id:'donor_500',    emoji:'💛', name:'Stack Sharer',          thresh:'500 XP',    reward:'150 XP' },
-        { id:'donor_1000',   emoji:'🧡', name:'Community Builder',     thresh:'1,000 XP',  reward:'300 XP' },
-        { id:'donor_5000',   emoji:'❤️', name:'Archive Patron',        thresh:'5,000 XP',  reward:'1,000 XP' },
-        { id:'donor_10000',  emoji:'🔥', name:'Sats Saint',            thresh:'10,000 XP', reward:'2,000 XP' },
-        { id:'donor_25000',  emoji:'⚡', name:'Lightning Philanthropist', thresh:'25,000 XP', reward:'4,000 XP' },
-        { id:'donor_50000',  emoji:'🏆', name:"Satoshi's Steward",    thresh:'50,000 XP', reward:'7,500 XP' },
-        { id:'donor_100000', emoji:'👑', name:'Legend of the Archive', thresh:'100,000 XP',reward:'15,000 XP' },
+        { id:'donor_100',    emoji:'🫷', name:'Giving Pleb',           thresh:'100 XP' },
+        { id:'donor_500',    emoji:'💛', name:'Stack Sharer',          thresh:'500 XP' },
+        { id:'donor_1000',   emoji:'🧡', name:'Community Builder',     thresh:'1,000 XP' },
+        { id:'donor_5000',   emoji:'❤️', name:'Archive Patron',        thresh:'5,000 XP' },
+        { id:'donor_10000',  emoji:'🔥', name:'Sats Saint',            thresh:'10,000 XP' },
+        { id:'donor_25000',  emoji:'⚡', name:'Lightning Philanthropist', thresh:'25,000 XP' },
+        { id:'donor_50000',  emoji:'🏆', name:"Satoshi's Steward",    thresh:'50,000 XP' },
+        { id:'donor_100000', emoji:'👑', name:'Legend of the Archive', thresh:'100,000 XP' },
     ];
     var earnedBadges = typeof safeJSON === 'function' ? safeJSON('btc_hidden_badges', []) : [];
     donorBadges.forEach(function(b) {
         var earned = earnedBadges.includes(b.id) || (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.donationBadges) && currentUser.donationBadges.includes(b.id));
+        var cat = (window.BADGE_CATALOG && window.BADGE_CATALOG[b.id]) || {};
+        var rewardXp = typeof cat.xp === 'number' ? cat.xp : 0;
         html += '<div style="padding:10px;border-radius:10px;border:1px solid ' + (earned ? 'rgba(239,68,68,0.4)' : 'var(--border)') + ';background:' + (earned ? 'rgba(239,68,68,0.06)' : 'none') + ';text-align:center;">' +
             '<div style="font-size:1.4rem;margin-bottom:2px;' + (earned ? '' : 'filter:grayscale(1);opacity:0.4;') + '">' + b.emoji + '</div>' +
             '<div style="font-size:0.72rem;font-weight:700;color:' + (earned ? 'var(--heading)' : 'var(--text-faint)') + ';">' + b.name + '</div>' +
             '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">' + b.thresh + ' donated</div>' +
-            '<div style="font-size:0.65rem;color:#ef4444;margin-top:1px;">+' + b.reward + ' reward</div>' +
+            '<div style="font-size:0.65rem;color:#ef4444;margin-top:1px;">+' + rewardXp.toLocaleString() + ' XP reward</div>' +
         '</div>';
     });
     html += '</div></div>';
@@ -4811,6 +4776,14 @@ function _renderQuizTab(body) {
 // TRIVIA QUEST SYSTEM - 1 per day, standalone question
 // ============================================================
 
+// Firestore option_<idx> is the published bank slot. Display order may
+// be shuffled (bankIndexOfDisplay); without that map the indexes match.
+function _triviaStatIndex(trivia, displayIdx) {
+    var map = trivia && trivia.bankIndexOfDisplay;
+    if (map && map[displayIdx] != null) return map[displayIdx];
+    return displayIdx;
+}
+
 function _getTriviaToday() {
     if (typeof TRIVIA_BANK === 'undefined' || !TRIVIA_BANK || !TRIVIA_BANK.length) return null;
     // Deterministic daily rotation keyed by getDailyKey (resets at 5 AM UTC)
@@ -4846,7 +4819,7 @@ function _renderTriviaTab(body, optimisticVote) {
         '<div style="font-size:2.5rem;margin-bottom:8px;">🧠</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Trivia Quest</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">1 new question every day</div>' +
-        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP correct · +10 XP for trying</div>' +
+        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP for a correct answer</div>' +
     '</div>';
 
     // Question card
@@ -4898,7 +4871,7 @@ function _renderTriviaTab(body, optimisticVote) {
         // bars render correctly right away.  Once Firestore settles the onSnapshot /
         // next tab-open will show the real community totals.
         _triviaOptimisticStats = { total: 1 };
-        _triviaOptimisticStats['option_' + optimisticVote.chosenIdx] = 1;
+        _triviaOptimisticStats['option_' + _triviaStatIndex(t, optimisticVote.chosenIdx)] = 1;
     } else if (answered && typeof db !== 'undefined') {
         // Normal re-open path: read real community stats from Firestore and patch DOM
         // after body.innerHTML is set (deferred below).
@@ -4929,7 +4902,7 @@ function _renderTriviaTab(body, optimisticVote) {
             var _ots = _triviaOptimisticStats;
             var _otTotal = _ots.total || 1;
             for (var oi = 0; oi < t.options.length; oi++) {
-                var _oCount = _ots['option_' + oi] || 0;
+                var _oCount = _ots['option_' + _triviaStatIndex(t, oi)] || 0;
                 var _oPct = Math.round((_oCount / _otTotal) * 100);
                 var _oBar = document.getElementById('triviaBar_' + oi);
                 var _oPctEl = document.getElementById('triviaPct_' + oi);
@@ -4946,7 +4919,7 @@ function _renderTriviaTab(body, optimisticVote) {
                 var total = stats.total || 0;
                 if (total < 1) return; // nothing to show yet
                 for (var j = 0; j < _capturedOptions; j++) {
-                    var count = stats['option_' + j] || 0;
+                    var count = stats['option_' + _triviaStatIndex(t, j)] || 0;
                     var pct = Math.round((count / total) * 100);
                     var barEl = document.getElementById('triviaBar_' + j);
                     var pctEl = document.getElementById('triviaPct_' + j);
@@ -4967,70 +4940,74 @@ window.triviaAnswer = function(chosenIdx) {
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = _getTriviaState();
     if (state.date === todayKey) return; // Already answered
+    if (window._triviaSubmitting) return;
+    window._triviaSubmitting = true;
 
-    var isCorrect = chosenIdx === t.answer;
-    var xp = isCorrect ? 50 : 10;
+    var chosenText = t.options[chosenIdx];
 
-    // Save state
-    state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: isCorrect };
-    _setTriviaState(state);
-
-    // Award XP
-    if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt', null, 0, 0, null, { triviaChoice: chosenIdx });
-    // Raid Boss: trivia + XP
-    if (isCorrect && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
-    // Weekly community challenge: increment trivia_answers if correct
-    if (isCorrect && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        try {
-            firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
-        } catch(e) {}
-    }
-    if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(xp);
-
-    // Mark trivia done for daily all-three check
-    _markDailyActivity('trivia');
-    _checkDailyAllThree();
-
-    // lastTriviaDate and triviaStreak are written by awardPoints. A client
-    // date would let someone forge the streak.
-
-    // Track answer distribution — cumulative doc (permanent, keyed by trivia index)
-    if (typeof db !== 'undefined') {
-        var _triviaIdx = today.index;
-        var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: _triviaIdx };
-        statsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        // Write to cumulative doc (all-time totals for this question) — no re-render needed here
-        // because we already rendered optimistically below
-        db.collection('trivia_cumulative').doc('t_' + _triviaIdx).set(statsUpdate, { merge: true }).catch(function() {});
-        // Also write per-day doc
-        var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
-        dayStatsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true })
-            .then(function() { return db.collection('trivia_stats').doc(todayKey).get(); })
-            .then(function(doc) {
-                if (!doc.exists) return;
-                var stats = doc.data();
-                var total = stats.total || 1;
-                for (var _j = 0; _j < t.options.length; _j++) {
-                    var _count = stats['option_' + _j] || 0;
-                    var _pct = Math.round((_count / total) * 100);
-                    var _bar = document.getElementById('triviaBar_' + _j);
-                    var _pct2 = document.getElementById('triviaPct_' + _j);
-                    if (_bar) _bar.style.width = _pct + '%';
-                    if (_pct2) _pct2.textContent = _pct + '% (' + _count + ')';
-                }
-                var _totEl = document.getElementById('triviaTotalVotes');
-                if (_totEl) _totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
-            }).catch(function() {});
+    function _finishTrivia(isCorrect, awarded, banned) {
+        state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: !!isCorrect };
+        _setTriviaState(state);
+        if (isCorrect && !banned && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
+        if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
+        if (isCorrect && !banned && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            try {
+                firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
+            } catch(e) {}
+        }
+        if (!banned) {
+            _markDailyActivity('trivia');
+            _checkDailyAllThree();
+        }
+        if (typeof db !== 'undefined') {
+            var _bankIdx = _triviaStatIndex(t, chosenIdx);
+            var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: today.index };
+            statsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
+            db.collection('trivia_cumulative').doc('t_' + today.index).set(statsUpdate, { merge: true }).catch(function() {});
+            var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
+            dayStatsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
+            db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true }).catch(function() {});
+        }
+        var body = document.getElementById('questHubBody');
+        if (body) _renderTriviaTab(body, { chosenIdx: chosenIdx });
+        if (typeof showToast === 'function') {
+            var toast = isCorrect
+                ? (awarded > 0 ? '✅ Correct! +' + awarded + ' XP 🧠' : '✅ Correct!')
+                : '❌ Not quite';
+            showToast(toast, 3000);
+        }
+        window._triviaSubmitting = false;
     }
 
-    // Re-render immediately with optimistic +1 so count is correct before Firestore write settles
-    var body = document.getElementById('questHubBody');
-    if (body) _renderTriviaTab(body, { chosenIdx: chosenIdx });
-
-    if (typeof showToast === 'function') {
-        showToast(isCorrect ? '✅ Correct! +50 XP 🧠' : '❌ Wrong - +10 XP for trying!', 3000);
+    var signedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
+        && typeof firebase !== 'undefined' && firebase.functions;
+    if (!signedIn) {
+        _finishTrivia(chosenIdx === t.answer, 0, false);
+        return;
     }
+
+    firebase.functions().httpsCallable('answerTrivia')({
+        dayKey: todayKey,
+        questionIndex: today.index,
+        q: t.q,
+        chosen: chosenText
+    }).then(function(res) {
+        var d = (res && res.data) || {};
+        if (d.success === false && d.reason && d.reason !== 'incorrect') {
+            window._triviaSubmitting = false;
+            if (typeof showToast === 'function') {
+                showToast(d.reason === 'wrong-question'
+                    ? 'Trivia updated, please refresh'
+                    : '❌ Could not grade trivia. Try again.');
+            }
+            return;
+        }
+        var awarded = typeof d.awarded === 'number' ? d.awarded : 0;
+        _finishTrivia(d.correct === true, awarded, d.banned === true);
+    }).catch(function() {
+        window._triviaSubmitting = false;
+        if (typeof showToast === 'function') showToast('❌ Could not grade trivia. Try again.');
+    });
 };
 
 // ============================================================
@@ -5913,7 +5890,7 @@ window._contributeRaidNav = function() {
     // Load trivia bank
     if (typeof TRIVIA_BANK === 'undefined') {
         var ts = document.createElement('script');
-        ts.src = 'data/trivia-bank.js?v=20260528';
+        ts.src = 'data/trivia-bank.js?v=20261022_v2270';
         ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
         document.head.appendChild(ts);
     }

@@ -9,6 +9,8 @@
 // mirrored again. Doc ids are deterministic so a retry overwrites the same
 // doc. Mirrored copies award no XP, tickets, or badges.
 
+const topicXp = require('./topicConversationXp');
+
 const FORUM_DAILY_MAX = 5;
 const FORUM_RATE_MS = 30 * 1000;
 const SUMMARY_MAX = 280;
@@ -355,14 +357,35 @@ async function mirrorForumReplyToTopic(opts) {
             result = { mirrored: false, reason: 'removed' };
             return;
         }
-        const rate = api.decideRate(limitSnap.exists ? limitSnap.data() : {}, nowMs);
+        const limitData = limitSnap.exists ? limitSnap.data() : {};
+        const rate = api.decideRate(limitData, nowMs);
         if (!rate.ok) {
             result = { mirrored: false, reason: rate.code };
             return;
         }
+        const xp = await topicXp.grantInTransaction(tx, {
+            db: db,
+            day: rate.dayKey,
+            nowMs: nowMs,
+            text: prepared.text,
+            isStart: false,
+            authorUid: who.uid,
+            authorRef: db.collection('users').doc(who.uid),
+            authorLimit: limitData,
+            selfReply: root.uid === who.uid,
+            starterUid: root.uid || '',
+            starterIsNacho: root.isNacho === true || root.uid === 'nacho-bot',
+            channelId: channelId,
+            postId: topicId,
+            moderationBlock: api.moderationBlock,
+        });
         const sync = mirrorSyncOf(prepared.text, false, false);
-        tx.set(limitRef, { lastPostMs: rate.lastPostMs, dayKey: rate.dayKey, dayCount: rate.dayCount }, { merge: true });
-        tx.set(topicRef, {
+        tx.set(limitRef, Object.assign({
+            lastPostMs: rate.lastPostMs,
+            dayKey: rate.dayKey,
+            dayCount: rate.dayCount,
+        }, xp.authorLimitPatch), { merge: true });
+        tx.set(topicRef, Object.assign({
             channelId: channelId,
             uid: who.uid,
             name: who.name,
@@ -381,7 +404,7 @@ async function mirrorForumReplyToTopic(opts) {
             mirrorOf: replyId,
             forumReplyId: replyId,
             mirrorSync: sync,
-        });
+        }, xp.postFields));
         tx.set(rootRef, { replyCount: (Number(root.replyCount) || 0) + 1 }, { merge: true });
         tx.set(forumReplyRef, {
             authorId: who.uid,
@@ -390,7 +413,8 @@ async function mirrorForumReplyToTopic(opts) {
             topicPost: topicId,
             mirrorSync: sync,
         }, { merge: true });
-        result = { mirrored: true, reason: 'ok', topicPostId: topicId };
+        topicXp.commitGrant(tx, xp);
+        result = { mirrored: true, reason: 'ok', topicPostId: topicId, xp: xp.awarded, toast: xp.toast };
     });
     return result;
 }
@@ -511,6 +535,11 @@ async function syncForumReplyDelete(opts) {
         return { synced: false, reason: 'exists' };
     }
     await topicRef.set({ deleted: true, hidden: false, text: '', mirrorSync: hash }, { merge: true });
+    try {
+        await topicXp.clawbackTopicPost(o.db, channelId, topicPostId, typeof o.nowMs === 'number' ? o.nowMs : Date.now());
+    } catch (err) {
+        console.warn('[topicForumMirror] reply clawback failed');
+    }
     return { synced: true, topicPostId: topicPostId };
 }
 
@@ -528,6 +557,11 @@ async function syncForumPostDelete(opts) {
     const current = snap.data() || {};
     if (current.deleted === true && current.mirrorSync === hash) return { synced: false, reason: 'exists' };
     await topicRef.set({ deleted: true, hidden: false, text: '', mirrorSync: hash }, { merge: true });
+    try {
+        await topicXp.clawbackTopicPost(o.db, channelId, topicPostId, typeof o.nowMs === 'number' ? o.nowMs : Date.now());
+    } catch (err) {
+        console.warn('[topicForumMirror] post clawback failed');
+    }
     return { synced: true, topicPostId: topicPostId };
 }
 

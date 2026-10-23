@@ -369,6 +369,51 @@ const LEVEL_MIN_POINTS = {
   'Sovereign': 100000, 'Cypherpunk': 133337, 'Satoshi': 210000,
 };
 
+// Normie and Curious are on the level list, and the client does not award
+// Favor for them. How it works: Pleb/Stacker 1, Maxi 5, Papa John or higher 10.
+function levelFavorRows() {
+  const rows = [];
+  Object.keys(LEVEL_TIERS).forEach(function (source) {
+    LEVEL_TIERS[source].forEach(function (name) {
+      if (name === 'Normie' || name === 'Curious') return;
+      if (LEVEL_MIN_POINTS[name] == null || !POINT_VALUES[source]) return;
+      rows.push({
+        name: name,
+        min: LEVEL_MIN_POINTS[name],
+        source: source,
+        points: POINT_VALUES[source],
+      });
+    });
+  });
+  rows.sort(function (a, b) { return a.min - b.min; });
+  return rows;
+}
+
+function planLevelFavor(pointsBefore, pointsAfter) {
+  const before = Number(pointsBefore) || 0;
+  const after = Number(pointsAfter) || 0;
+  if (after <= before) return [];
+  return levelFavorRows().filter(function (row) {
+    return before < row.min && after >= row.min;
+  });
+}
+
+function levelNameForPoints(points) {
+  const n = Number(points) || 0;
+  const ranks = Object.keys(LEVEL_MIN_POINTS).map(function (name) {
+    return { name: name, min: LEVEL_MIN_POINTS[name] };
+  }).sort(function (a, b) { return a.min - b.min; });
+  let name = 'Normie';
+  ranks.forEach(function (row) {
+    if (n >= row.min) name = row.name;
+  });
+  return name;
+}
+
+exports.planLevelFavor = planLevelFavor;
+exports.levelNameForPoints = levelNameForPoints;
+exports.levelFavorRows = levelFavorRows;
+
 // Max bonus minutes cap (prevent infinite favor window)
 const MAX_BONUS_MINUTES = 180; // 3 hours max extension
 const MAX_POINTS = 42; // 2x activation threshold — prevents unbounded accumulation

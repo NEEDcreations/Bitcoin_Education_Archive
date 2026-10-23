@@ -1,0 +1,899 @@
+id,name,category,current_xp,current_path,old_awardPoints_xp,shown_xp,criterion,est_days,proposed_tier,proposed_xp,server_verifiable,flags
+first_channel,First Steps,,10,awardBadge,10,10,channelsVisited>=1,0.1,1-Starter,10,yes,
+explorer_10,Curious Pleb,,15,awardBadge,15,15,channelsVisited>=10,0.5,1-Starter,10,yes,
+explorer_25,Rabbit Holer,,30,awardBadge,30,30,channelsVisited>=25,1.3,2-Easy,50,yes,
+explorer_50,Half Stack,,50,awardBadge,50,50,channelsVisited>=50,2.5,2-Easy,50,yes,
+explorer_100,Century Club,,100,awardBadge,100,100,channelsVisited>=100,5,2-Easy,50,yes,
+explorer_all,Archive Master,,500,awardBadge,500,500,channelsVisited>=145,7.3,3-Medium,150,yes,
+global_citizen,Global Citizen,,100,awardBadge,100,100,text:country,1,1-Starter,10,yes,
+quest_1,Quester,,10,awardBadge,10,10,questsPassed>=1,1,1-Starter,10,yes,
+quest_3,Quest Seeker,,25,awardBadge,25,25,questsPassed>=3,3,2-Easy,50,yes,
+quest_5,Quest Champion,,50,awardBadge,50,50,questsPassed>=5,5,2-Easy,50,yes,
+quest_10,Quest Veteran,,100,awardBadge,100,100,questsPassed>=10,10,3-Medium,150,yes,
+quest_25,Quest Crusader,,200,awardBadge,200,200,questsPassed>=25,25,3-Medium,150,yes,
+quest_50,Quest Master,,400,awardBadge,400,400,questsPassed>=50,50,4-Hard,500,yes,
+quest_100,Quest Legend,,750,awardBadge,750,750,questsPassed>=100,100,4-Hard,500,yes,
+cert_scholar,Bitcoin Scholar,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+cert_tech,Protocol Expert,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+cert_double,Double Scholar,,0,"none (cosmetic: client-only, no server proof)",250,250,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+all_certs,Grand Scholar,,0,"none (cosmetic: client-only, no server proof)",1500,1500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_tuned_in,Tuned In,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_couch_potato,Couch Potato,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_binge_watcher,Binge Watcher,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_couch_king,Couch King,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_satellite,Satellite,,0,"none (cosmetic: client-only, no server proof)",750,750,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_channel_hopper,Channel Hopper,,0,"none (cosmetic: client-only, no server proof)",5,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_remote_warrior,Remote Warrior,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_dial_spinner,Dial Spinner,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_signal_seeker,Signal Seeker,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_antenna_wizard,Antenna Wizard,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tctv_timechain_surfer,Timechain Surfer,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_chatterbox,Nacho Chatterbox,,0,"none (cosmetic: client-only, no server proof)",30,30,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_bestie,Nacho's Bestie,,0,"none (cosmetic: client-only, no server proof)",200,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_asked_10,Curious,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_asked_100,Nacho Scholar,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_whisper,Nacho's Confidant,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_eli5,ELI5 Mode,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_first,First Words,,10,awardBadge,10,10,chatCount>=1,0.1,1-Starter,10,yes,
+chat_10,Chatty,,15,awardBadge,15,15,chatCount>=10,0.5,1-Starter,10,yes,
+chat_50,Conversationalist,,25,awardBadge,25,25,chatCount>=50,2.5,2-Easy,50,yes,
+chat_100,Town Crier,,50,awardBadge,50,50,chatCount>=100,5,2-Easy,50,yes,
+chat_500,Chat Legend,,250,awardBadge,250,250,chatCount>=500,25,3-Medium,150,yes,
+chat_streak_3,Regular,,0,"none (cosmetic: client-only, no server proof)",20,20,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_streak_7,Devoted Chatter,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_streak_30,Chat Addict,,0,"none (cosmetic: client-only, no server proof)",300,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_first,First Set,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_5,Resident DJ,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_25,Club Legend,,0,"none (cosmetic: client-only, no server proof)",300,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_songs_10,Playlist Pro,,0,"none (cosmetic: client-only, no server proof)",30,30,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_songs_50,Jukebox Hero,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_songs_100,Vinyl Master,,0,"none (cosmetic: client-only, no server proof)",400,400,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_listener,Good Listener,,0,"none (cosmetic: client-only, no server proof)",20,20,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_listener_50,Groupie,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+producer_1,Producer,,50,awardBadge,50,50,beatsUploads>=1,3.3,2-Easy,50,yes,
+producer_10,Discographer,,100,awardBadge,100,100,beatsUploads>=10,33.3,4-Hard,500,yes,
+beats_first_listen,First Listen,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_50_plays,Audiophile,,0,"none (cosmetic: client-only, no server proof)",30,30,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_liked_10,Music Fan,,0,"none (cosmetic: client-only, no server proof)",20,20,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_liked_50,Taste Maker,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dm_first,DM Starter,,15,awardBadge,15,15,dmCount>=1,0.1,1-Starter,10,yes,
+dm_10,Inbox Zero,,25,awardBadge,25,25,dmCount>=10,1,1-Starter,10,yes,pays-less-than-easier-dm_buddy
+dm_buddy,Buddy Up,,30,awardBadge,30,30,dmCount>=5,0.5,1-Starter,10,yes,
+react_5,Reactor,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+react_50,Reaction King,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+react_200,Emoji Sensei,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pvp_first,First Blood,,25,awardBadge,25,25,pvpWins>=1,0.3,1-Starter,10,yes,
+pvp_5,Contender,,50,awardBadge,50,50,pvpWins>=5,1.7,2-Easy,50,yes,
+pvp_25,Gladiator,,100,awardBadge,100,100,pvpWins>=25,8.3,3-Medium,150,yes,
+pvp_50,Champion,,200,awardBadge,200,200,pvpWins>=50,16.7,3-Medium,150,yes,
+pvp_100,PVP Legend,,1000,awardBadge,1000,1000,pvpWins>=100,33.3,4-Hard,500,yes,
+referral_1,First Referral,,50,awardBadge,50,50,referralCount>=1,10,3-Medium,150,yes,
+referral_5,Connector,,100,awardBadge,100,100,referralCount>=5,50,4-Hard,500,yes,
+referral_10,Network Effect,,200,awardBadge,200,200,referralCount>=10,100,4-Hard,500,yes,
+referral_25,Orange Pill Machine,,500,awardBadge,500,500,referralCount>=25,250,5-Legendary,2000,yes,
+referral_50,Super Spreader,,1000,awardBadge,1000,1000,referralCount>=50,500,5-Legendary,2000,yes,
+referral_100,Viral Plebian,,2500,awardBadge,2500,2500,referralCount>=100,1000,5-Legendary,2000,yes,
+referred,Referred Friend,,25,awardBadge,25,25,truthy:referredBy,1,1-Starter,10,yes,
+sf_first_hash,First Hash,,10,awardBadge,10,10,sfHashes>=1,0,1-Starter,10,yes,
+sf_10_hashes,Pickaxe Swinger,,25,awardBadge,25,25,sfHashes>=10,0.2,1-Starter,10,yes,
+sf_50_hashes,Mine Foreman,,75,awardBadge,75,75,sfHashes>=50,1,1-Starter,10,yes,
+sf_100_hashes,Hash Machine,,150,awardBadge,150,150,sfHashes>=100,2,2-Easy,50,yes,
+sf_500_hashes,ASIC Mode,,500,awardBadge,500,500,sfHashes>=500,10,3-Medium,150,yes,
+sf_1000_hashes,Mining Rig,,1000,awardBadge,1000,1000,sfHashes>=1000,20,3-Medium,150,yes,
+sf_10000_hashes,Hash Lord,,2100,awardBadge,2100,2100,sfHashes>=10000,200,5-Legendary,2000,yes,
+sf_low_hash,Lucky Strike,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_ultra_low,Golden Nonce,,0,"none (cosmetic: client-only, no server proof)",200,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_block_solver,Block Solver,,1000,awardBadge,1000,1000,truthy:sfBlockSolver,60,4-Hard,500,yes,
+sf_contributor,Community Miner,,50,awardBadge,50,50,sfContributions>=1,1,1-Starter,10,yes,
+sf_contributor_10,Favor Champion,,200,awardBadge,200,200,sfContributions>=10,10,3-Medium,150,yes,
+raid_first,Raid Recruit,,10,awardBadge,10,10,raidDamageAllTime>=1,0.3,1-Starter,10,yes,
+raid_5,Raid Warrior,,50,awardBadge,50,50,raidDamageAllTime>=5,1.7,2-Easy,50,yes,
+raid_10,Raid Veteran,,100,awardBadge,100,100,raidDamageAllTime>=10,3.3,2-Easy,50,yes,
+raid_25,Raid Commander,,250,awardBadge,250,250,raidDamageAllTime>=25,8.3,3-Medium,150,yes,
+raid_50,Raid Legend,,750,awardBadge,750,750,raidDamageAllTime>=50,16.7,3-Medium,150,yes,
+raid_100,Raid Warlord,,1500,awardBadge,1500,1500,raidDamageAllTime>=100,33.3,4-Hard,500,yes,
+raid_boss_slayer,Boss Slayer,,50,awardBadge,50,50,raidBossesDefeated>=1,6.7,2-Easy,50,yes,
+raid_boss_slayer_5,Boss Hunter,,150,awardBadge,150,150,raidBossesDefeated>=5,33.3,4-Hard,500,yes,
+raid_boss_slayer_10,Dragon Slayer,,500,awardBadge,500,500,raidBossesDefeated>=10,66.7,4-Hard,500,yes,
+raid_winner,Raid Champion,,250,awardBadge,250,250,raidWins>=1,10,3-Medium,150,yes,
+trivia_first,Quiz Curious,,10,awardBadge,10,10,triviaCorrect>=1,0,1-Starter,10,yes,duplicate-of-trivia_correct_1
+trivia_correct_1,Trivia Warm-Up,,15,awardBadge,15,15,triviaCorrect>=1,1,1-Starter,10,yes,
+trivia_correct_10,Fact Checker,,30,awardBadge,30,30,triviaCorrect>=10,10,3-Medium,150,yes,
+trivia_correct_30,Big Brain,,75,awardBadge,75,75,triviaCorrect>=30,30,3-Medium,150,yes,
+trivia_correct_100,Trivia Titan,,500,awardBadge,500,500,triviaCorrect>=100,100,4-Hard,500,yes,
+trivia_streak_7,Daily Habit,,50,awardBadge,50,50,triviaStreak>=7,10.5,3-Medium,150,yes,
+trivia_streak_30,Trivia Devotee,,300,awardBadge,300,300,triviaStreak>=30,45,4-Hard,500,yes,
+poll_first,Opinionated,,10,awardBadge,10,10,pollDays>=1,1,1-Starter,10,yes,
+poll_10,Regular Voter,,25,awardBadge,25,25,pollDays>=10,10,3-Medium,150,yes,pays-less-than-easier-poll_days_7
+poll_50,Civic Plebian,,100,awardBadge,100,100,pollDays>=50,50,4-Hard,500,yes,pays-less-than-easier-poll_days_30
+poll_100,Democracy Maxi,,400,awardBadge,400,400,pollDays>=100,0,1-Starter,10,yes,duplicate-of-poll_days_100
+daily_triple_1,Triple Play,,25,awardBadge,25,25,trifectaDays>=1,1,1-Starter,10,yes,
+daily_triple_7,Consistent Stacker,,100,awardBadge,100,100,trifectaDays>=7,7,2-Easy,50,yes,
+daily_triple_30,Trifecta Engine,,500,awardBadge,500,500,trifectaDays>=30,30,3-Medium,150,yes,
+market_browse,Window Shopper,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+market_listed_1,Vendor,,30,awardBadge,30,30,marketListings>=1,1,1-Starter,10,yes,
+market_listed_5,Merchant,,75,awardBadge,75,75,marketListings>=5,5,2-Easy,50,yes,
+market_saved_5,Wishlist,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+market_message,Dealmaker,,20,awardBadge,20,20,marketMessages>=1,1,1-Starter,10,yes,
+bookmarks_1,Earmarked,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+bookmarks_10,Archivist,,0,"none (cosmetic: client-only, no server proof)",30,30,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+favs_10,Curator,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+favs_25,Collection,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tip_first,First Tip,,25,awardBadge,25,25,tipsVerified>=1,1,1-Starter,10,yes,
+tip_10,Generous Pleb,,75,awardBadge,75,75,tipsVerified>=10,33.3,4-Hard,500,yes,
+tip_magnet,Tip Magnet,,100,awardBadge,100,100,tipsReceived>=10,50,4-Hard,500,yes,
+tip_whale,Whale Tipper,,150,awardBadge,150,150,tipsSentSats>=1000,5,2-Easy,50,yes,
+tip_received_1,Tip Received,,20,awardBadge,20,20,tipsReceived>=1,5,2-Easy,50,yes,
+tip_received_50,Community Darling,,500,awardBadge,500,500,tipsReceived>=50,250,5-Legendary,2000,yes,
+tip_sats_10k,Sat Slinger,,300,awardBadge,300,300,tipsSentSats>=10000,50,4-Hard,500,yes,
+predict_1,Oracle,,10,awardBadge,10,10,predTotal>=1,1,1-Starter,10,yes,
+predict_10,Market Watcher,,25,awardBadge,25,25,predTotal>=10,10,3-Medium,150,yes,
+predict_50,Chartist,,75,awardBadge,75,75,predTotal>=50,50,4-Hard,500,yes,
+predict_correct_5,Crystal Ball,,75,awardBadge,75,75,predCorrect>=5,10,3-Medium,150,yes,
+predict_correct_25,Pattern Reader,,200,awardBadge,200,200,predCorrect>=25,50,4-Hard,500,yes,
+predict_correct_100,Time Traveler,,750,awardBadge,750,750,predCorrect>=100,200,5-Legendary,2000,yes,
+predict_streak_3,Oracle Streak,,50,awardBadge,50,50,predBestStreak>=3,9,3-Medium,150,yes,
+predict_streak_10,Nostradamus,,250,awardBadge,250,250,predBestStreak>=10,30,3-Medium,150,yes,
+irl_attend_1,Show Up,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+irl_attend_5,Scene Regular,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+irl_host,Event Host,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+irl_host_5,Community Builder,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+irl_host_10,Regional Leader,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+spin_30,Lucky Spinner,,75,awardBadge,75,75,spinDays>=30,30,3-Medium,150,yes,
+spin_streak_7,Spin Streak,,50,awardBadge,50,50,spinStreak>=7,10.5,3-Medium,150,yes,
+spin_jackpot,Jackpot Winner,,100,awardBadge,100,100,truthy:spinHitRare,20,3-Medium,150,yes,
+lightning_setup,Lightning Rod,,100,awardBadge,100,100,text:lightningAddress,0,1-Starter,10,yes,duplicate-of-lightning_address_set
+forum_5,Voice of the People,,25,awardBadge,25,25,forumPosts>=5,2.5,2-Easy,50,yes,
+forum_25,Thought Leader,,75,awardBadge,75,75,forumPosts>=25,12.5,3-Medium,150,yes,
+article_1,Author,,50,awardBadge,50,50,articlesPublished>=1,5,2-Easy,50,yes,
+first_purchase,Bitcoiner,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sats_first,First Sats,,25,awardBadge,25,25,satsWithdrawn>=1,0,1-Starter,10,yes,
+sats_1k,Stacker,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sats_5k,Sat Whale,,0,"none (cosmetic: client-only, no server proof)",250,250,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sats_10k,Sat Hoarder,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sats_21k,21 Million Dreams,,0,"none (cosmetic: client-only, no server proof)",2100,2100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+streak_7,Week Warrior,,50,awardBadge,50,50,bestStreak>=7,10.5,3-Medium,150,yes,
+streak_14,Two Weeks Strong,,75,awardBadge,75,75,bestStreak>=14,21,3-Medium,150,yes,
+streak_30,Monthly Maxi,,150,awardBadge,150,150,bestStreak>=30,45,4-Hard,500,yes,
+streak_60,Two Month Maxi,,400,awardBadge,400,400,bestStreak>=60,90,4-Hard,500,yes,
+streak_100,Diamond Hands,,1000,awardBadge,1000,1000,bestStreak>=100,150,5-Legendary,2000,yes,
+streak_200,Sovereign Individual,,2100,awardBadge,2100,2100,bestStreak>=200,300,5-Legendary,2000,yes,
+streak_365,HODLer Supreme,,5000,awardBadge,5000,5000,bestStreak>=365,547.5,5-Legendary,2000,yes,
+story_begun,Story Begun,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+story_halfway,Halfway There,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+story_complete,Story Master,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_meadow,Meadow Walker,,0,"none (cosmetic: client-only, no server proof)",200,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_mountain,Mountain Climber,,0,"none (cosmetic: client-only, no server proof)",400,400,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_summit,Summit Conqueror,,0,"none (cosmetic: client-only, no server proof)",750,750,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_all,Trail Master,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lq_what_is_bitcoin,🟠 Bitcoin Basics,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_mining,⛏️ Hash Slinger,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_nodes,🖥️ Node Runner,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_self_custody,🔑 Sovereign Stacker,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_lightning,⚡ Lightning Pleb,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_scarcity,💎 21M Believer,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_bitcoin_only,🛡️ Bitcoin Maximalist,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_privacy,🕵️ Cypherpunk,,100,awardBadge,100,100,includes:lqPassed,2,2-Easy,50,yes,
+lq_graduate,📖 Learning Quest Graduate,,250,awardBadge,250,250,includes:lqPassed,14,3-Medium,150,yes,
+flex_rookie,Healthy Start,,25,awardBadge,25,25,flexSum>=10,2,2-Easy,50,yes,
+flex_committed,Committed,,75,awardBadge,75,75,flexSum>=50,10,3-Medium,150,yes,
+flex_athlete,Bitcoin Athlete,,200,awardBadge,200,200,flexSum>=200,40,4-Hard,500,yes,
+flex_legend,Flex Legend,,1000,awardBadge,1000,1000,flexSum>=1000,200,5-Legendary,2000,yes,
+flex_all_once,Full Stack Human,,150,awardBadge,150,150,flexAll,6,2-Easy,50,yes,
+flex_steak_1,flex_steak_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_steak_5,flex_steak_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_steak_50,flex_steak_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_steak_500,flex_steak_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sunlight_1,flex_sunlight_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sunlight_5,flex_sunlight_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sunlight_50,flex_sunlight_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sunlight_500,flex_sunlight_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_dca_1,flex_dca_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_dca_5,flex_dca_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_dca_50,flex_dca_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_dca_500,flex_dca_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_custody_1,flex_custody_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_custody_5,flex_custody_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_custody_50,flex_custody_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_custody_500,flex_custody_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lift_1,flex_lift_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lift_5,flex_lift_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lift_50,flex_lift_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lift_500,flex_lift_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meetup_1,flex_meetup_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meetup_5,flex_meetup_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meetup_50,flex_meetup_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meetup_500,flex_meetup_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lightning_1,flex_lightning_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lightning_5,flex_lightning_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lightning_50,flex_lightning_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lightning_500,flex_lightning_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_read_1,flex_read_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_read_5,flex_read_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_read_50,flex_read_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_read_500,flex_read_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sleep_1,flex_sleep_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sleep_5,flex_sleep_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sleep_50,flex_sleep_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sleep_500,flex_sleep_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_nokyc_1,flex_nokyc_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_nokyc_5,flex_nokyc_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_nokyc_50,flex_nokyc_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_nokyc_500,flex_nokyc_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_node_1,flex_node_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_node_5,flex_node_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_node_50,flex_node_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_node_500,flex_node_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_cold_1,flex_cold_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_cold_5,flex_cold_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_cold_50,flex_cold_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_cold_500,flex_cold_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_fast_1,flex_fast_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_fast_5,flex_fast_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_fast_50,flex_fast_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_fast_500,flex_fast_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_walk_1,flex_walk_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_walk_5,flex_walk_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_walk_50,flex_walk_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_walk_500,flex_walk_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_journal_1,flex_journal_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_journal_5,flex_journal_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_journal_50,flex_journal_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_journal_500,flex_journal_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meditate_1,flex_meditate_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meditate_5,flex_meditate_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meditate_50,flex_meditate_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meditate_500,flex_meditate_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_teach_1,flex_teach_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_teach_5,flex_teach_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_teach_50,flex_teach_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_teach_500,flex_teach_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_water_1,flex_water_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_water_5,flex_water_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_water_50,flex_water_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_water_500,flex_water_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_gratitude_1,flex_gratitude_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_gratitude_5,flex_gratitude_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_gratitude_50,flex_gratitude_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_gratitude_500,flex_gratitude_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_verify_1,flex_verify_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_verify_5,flex_verify_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_verify_50,flex_verify_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_verify_500,flex_verify_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_focus_1,flex_focus_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_focus_5,flex_focus_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_focus_50,flex_focus_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_focus_500,flex_focus_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_risk_1,flex_risk_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_risk_5,flex_risk_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_risk_50,flex_risk_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_risk_500,flex_risk_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_pattern_1,flex_pattern_1,,2,awardBadge,5,2,flex>=1,1,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_pattern_5,flex_pattern_5,,10,awardBadge,5,10,flex>=5,5,1-Starter,10,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_pattern_50,flex_pattern_50,,100,awardBadge,5,100,flex>=50,50,3-Medium,150,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_pattern_500,flex_pattern_500,,1000,awardBadge,5,1000,flex>=500,500,4-Hard,500,yes,old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_findq_1,flex_findq_1,,2,awardBadge,2,2,flex>=1,1,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_findq_5,flex_findq_5,,10,awardBadge,10,10,flex>=5,5,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_findq_50,flex_findq_50,,100,awardBadge,100,100,flex>=50,50,3-Medium,150,yes,flex-parallel-ladder(-1 tier)
+flex_findq_500,flex_findq_500,,1000,awardBadge,1000,1000,flex>=500,500,4-Hard,500,yes,flex-parallel-ladder(-1 tier)
+flex_noleverage_1,flex_noleverage_1,,2,awardBadge,2,2,flex>=1,1,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_noleverage_5,flex_noleverage_5,,10,awardBadge,10,10,flex>=5,5,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_noleverage_50,flex_noleverage_50,,100,awardBadge,100,100,flex>=50,50,3-Medium,150,yes,flex-parallel-ladder(-1 tier)
+flex_noleverage_500,flex_noleverage_500,,1000,awardBadge,1000,1000,flex>=500,500,4-Hard,500,yes,flex-parallel-ladder(-1 tier)
+flex_gunrange_1,flex_gunrange_1,,2,awardBadge,2,2,flex>=1,1,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_gunrange_5,flex_gunrange_5,,10,awardBadge,10,10,flex>=5,5,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_gunrange_50,flex_gunrange_50,,100,awardBadge,100,100,flex>=50,50,3-Medium,150,yes,flex-parallel-ladder(-1 tier)
+flex_gunrange_500,flex_gunrange_500,,1000,awardBadge,1000,1000,flex>=500,500,4-Hard,500,yes,flex-parallel-ladder(-1 tier)
+flex_sellchairs_1,flex_sellchairs_1,,2,awardBadge,2,2,flex>=1,1,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_sellchairs_5,flex_sellchairs_5,,10,awardBadge,10,10,flex>=5,5,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_sellchairs_50,flex_sellchairs_50,,100,awardBadge,100,100,flex>=50,50,3-Medium,150,yes,flex-parallel-ladder(-1 tier)
+flex_sellchairs_500,flex_sellchairs_500,,1000,awardBadge,1000,1000,flex>=500,500,4-Hard,500,yes,flex-parallel-ladder(-1 tier)
+flex_starebtc_1,flex_starebtc_1,,2,awardBadge,2,2,flex>=1,1,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_starebtc_5,flex_starebtc_5,,10,awardBadge,10,10,flex>=5,5,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_starebtc_50,flex_starebtc_50,,100,awardBadge,100,100,flex>=50,50,3-Medium,150,yes,flex-parallel-ladder(-1 tier)
+flex_starebtc_500,flex_starebtc_500,,1000,awardBadge,1000,1000,flex>=500,500,4-Hard,500,yes,flex-parallel-ladder(-1 tier)
+flex_itoldyou_1,flex_itoldyou_1,,2,awardBadge,2,2,flex>=1,1,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_itoldyou_5,flex_itoldyou_5,,10,awardBadge,10,10,flex>=5,5,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_itoldyou_50,flex_itoldyou_50,,100,awardBadge,100,100,flex>=50,50,3-Medium,150,yes,flex-parallel-ladder(-1 tier)
+flex_itoldyou_500,flex_itoldyou_500,,1000,awardBadge,1000,1000,flex>=500,500,4-Hard,500,yes,flex-parallel-ladder(-1 tier)
+flex_pumpndump_1,flex_pumpndump_1,,2,awardBadge,2,2,flex>=1,1,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_pumpndump_5,flex_pumpndump_5,,10,awardBadge,10,10,flex>=5,5,1-Starter,10,yes,flex-parallel-ladder(-1 tier)
+flex_pumpndump_50,flex_pumpndump_50,,100,awardBadge,100,100,flex>=50,50,3-Medium,150,yes,flex-parallel-ladder(-1 tier)
+flex_pumpndump_500,flex_pumpndump_500,,1000,awardBadge,1000,1000,flex>=500,500,4-Hard,500,yes,flex-parallel-ladder(-1 tier)
+flex_all_1,Full Stack Bitcoiner,,25,awardBadge,25,25,flexAllDays>=1,1,1-Starter,10,yes,
+flex_all_5,Consistent Stacker,,100,awardBadge,100,100,flexAllDays>=5,5,2-Easy,50,yes,
+flex_all_50,Sovereign Individual,,500,awardBadge,500,500,flexAllDays>=50,50,4-Hard,500,yes,
+flex_all_500,Proof of Discipline,,5000,awardBadge,5000,5000,flexAllDays>=500,500,5-Legendary,2000,yes,
+donor_100,Giving Pleb,,10,awardBadge,50,50,pointsDonated>=100,0.7,1-Starter,10,yes,shown-xp-differs(50);old-path-paid-50
+donor_500,Stack Sharer,,50,awardBadge,150,150,pointsDonated>=500,3.3,2-Easy,50,yes,shown-xp-differs(150);old-path-paid-150
+donor_1000,Community Builder,,100,awardBadge,300,300,pointsDonated>=1000,6.7,2-Easy,50,yes,shown-xp-differs(300);old-path-paid-300
+donor_5000,Archive Patron,,500,awardBadge,1000,1000,pointsDonated>=5000,33.3,4-Hard,500,yes,shown-xp-differs(1000);old-path-paid-1000
+donor_10000,Sats Saint,,1000,awardBadge,2000,2000,pointsDonated>=10000,66.7,4-Hard,500,yes,shown-xp-differs(2000);old-path-paid-2000
+donor_25000,Lightning Philanthropist,,2500,awardBadge,4000,4000,pointsDonated>=25000,166.7,5-Legendary,2000,yes,shown-xp-differs(4000);old-path-paid-4000
+donor_50000,Satoshi's Steward,,5000,awardBadge,7500,7500,pointsDonated>=50000,333.3,5-Legendary,2000,yes,shown-xp-differs(7500);old-path-paid-7500
+donor_100000,Legend of the Archive,,5000,awardBadge,15000,15000,pointsDonated>=100000,666.7,5-Legendary,2000,yes,shown-xp-differs(15000);old-path-paid-15000
+pow_first_step,First Step,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_marathoner,Marathoner,,0,"none (cosmetic: client-only, no server proof)",200,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_streak_3,3-Day Streak,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_streak_7,7-Day Streak,,0,"none (cosmetic: client-only, no server proof)",300,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_streak_30,30-Day Streak,,0,"none (cosmetic: client-only, no server proof)",1000,1000,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_km_10,10 km Club,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_km_50,50 km Club,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_km_100,Century Walker,,0,"none (cosmetic: client-only, no server proof)",200,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_km_500,500 km Legend,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_km_1000,"1,000 km Titan",,0,"none (cosmetic: client-only, no server proof)",1000,1000,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_km_5000,To the Moon,,0,"none (cosmetic: client-only, no server proof)",2500,2500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+hall_of_fame,Chancellor on Brink,,5000,awardBadge,5000,5000,awards>=50,60,4-Hard,500,yes,
+the_archive,The Archivist,,1500,awardBadge,10000,10000,awards>=100,120,4-Hard,500,yes,shown-xp-differs(10000);old-path-paid-10000;pays-less-than-easier-hall_of_fame
+genesis_block,Hall of Fame,,1500,awardBadge,15000,15000,awards>=150,180,5-Legendary,2000,yes,shown-xp-differs(15000);old-path-paid-15000
+satoshis_ghost,Satoshi's Revenge,,2100,awardBadge,21000,21000,awards>=200,240,5-Legendary,2000,yes,shown-xp-differs(21000);old-path-paid-21000
+block_250,Satoshi's Vendetta,,2500,awardBadge,25000,25000,awards>=250,300,5-Legendary,2000,yes,shown-xp-differs(25000);old-path-paid-25000
+the_hodler,Satoshi's Ghost,,3000,awardBadge,30000,30000,awards>=300,360,5-Legendary,2000,yes,shown-xp-differs(30000);old-path-paid-30000
+satoshis_covenant,Satoshi's Covenant,,4000,awardBadge,42000,42000,awards>=350,420,5-Legendary,2000,yes,shown-xp-differs(42000);old-path-paid-42000
+satoshis_cipher,Satoshi's Cipher,,5000,awardBadge,100000,100000,awards>=400,480,5-Legendary,2000,yes,shown-xp-differs(100000);old-path-paid-100000
+daily_1,First Mission,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+daily_5,Challenge Accepted,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+daily_10,Daily Grinder,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+daily_25,Consistent Warrior,,0,"none (cosmetic: client-only, no server proof)",250,250,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+daily_50,Discipline Protocol,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+daily_100,Centurion,,0,"none (cosmetic: client-only, no server proof)",1000,1000,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+combo_trio,Trio Combo,,50,server cron/combo (verified:true) pays display XP,50,50,,,2-Easy,50,yes (server-granted),verified-path
+combo_mega,Mega Combo,,100,server cron/combo (verified:true) pays display XP,100,100,,,3-Medium,150,yes (server-granted),verified-path
+combo_legend,Legend Mode,,250,server cron/combo (verified:true) pays display XP,250,250,,,4-Hard,500,yes (server-granted),verified-path
+weekly_hero,Community Hero,,100,server cron/combo (verified:true) pays display XP,100,100,,,4-Hard,500,yes (server-granted),verified-path
+set_miner_complete,Master Miner,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_scholar_complete,Satoshi Scholar,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_social_complete,Community Pillar,,500,awardBadge,500,500,set,10,3-Medium,150,yes,
+set_streak_complete,Diamond Hands,,1000,awardBadge,1000,1000,set,547.5,5-Legendary,2000,yes,
+set_pvp_complete,Arena Champion,,750,awardBadge,750,750,set,33.3,4-Hard,500,yes,
+set_builder_complete,Archive Builder,,500,awardBadge,500,500,set,33.3,4-Hard,500,yes,
+set_explorer_complete,World Traveler,,500,awardBadge,500,500,set,8,3-Medium,150,yes,
+set_fun_complete,Bitcoin Calendar Hero,,0,"none (cosmetic: client-only, no server proof)",300,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+first_save,No Longer a Ghost,,50,awardBadge,50,50,signed-in,1,1-Starter,10,yes,
+ghost_mode,Ghost Mode,,0,"none (cosmetic: client-only, no server proof)",0,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_quester,Nacho's Apprentice,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+bio_author,Got Something to Say,,50,awardBadge,50,50,text:bio,1,1-Starter,10,yes,
+lightning_address_set,Zap Me,,75,awardBadge,75,75,text:lightningAddress,1,1-Starter,10,yes,
+profile_curious,People Person,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+profile_explorer_5,Profile Prowler,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+profile_explorer_10,Social Butterfly,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+profile_explorer_25,Community Watcher,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+profile_explorer_50,The Networker,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+profile_explorer_100,Archive Archivist,,0,"none (cosmetic: client-only, no server proof)",300,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_dressed,Fashion Forward,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+explorer_5,Curious Mind,,10,awardBadge,10,10,channelsVisited>=5,0.3,1-Starter,10,yes,
+foundation_builder,Foundation Builder,,75,awardBadge,75,75,includes:visitedChannelsList,2.2,2-Easy,50,yes,
+experienced_pro,Deep Diver,,150,awardBadge,150,150,includes:visitedChannelsList,5.4,2-Easy,50,yes,
+librarian,The Librarian,,150,awardBadge,150,150,includes:visitedChannelsList,6.6,2-Easy,50,yes,
+bookworm,Bookworm,,0,"none (cosmetic: client-only, no server proof)",20,20,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+early_bird,Early Bird,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+night_owl,Night Owl,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_25,Getting Chatty,,20,awardBadge,20,20,chatCount>=25,1.3,2-Easy,50,yes,
+chat_200,Chat Veteran,,100,awardBadge,100,100,chatCount>=200,10,3-Medium,150,yes,
+chat_1000,Chat Immortal,,750,awardBadge,750,750,chatCount>=1000,50,4-Hard,500,yes,
+chat_lurker_5,Chat Lurker,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_lurker_10,Social Butterfly,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_lurker_50,Always Online,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_lurker_100,Chat Addict,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_lurker_500,Global Chat Legend,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lb_lurker_5,Leaderboard Lurker,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lb_lurker_10,Rank Watcher,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lb_lurker_50,Standing Obsession,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lb_lurker_100,Rank Addict,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lb_lurker_500,Leaderboard Legend,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_50,DJ Legend,,0,"none (cosmetic: client-only, no server proof)",750,750,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_listener_100,Super Fan,,0,"none (cosmetic: client-only, no server proof)",400,400,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_100_plays,Music Lover,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_200_plays,Music Junkie,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_500_plays,Audiophile,,0,"none (cosmetic: client-only, no server proof)",200,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_comment_1,Reviewer,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dm_25,Power Networker,,50,awardBadge,50,50,dmCount>=25,2.5,2-Easy,50,yes,
+dm_100,Inbox King,,200,awardBadge,200,200,dmCount>=100,10,3-Medium,150,yes,
+forum_first,First Post,,15,awardBadge,15,15,forumPosts>=1,0.5,1-Starter,10,yes,
+forum_10,Active Voice,,40,awardBadge,40,40,forumPosts>=10,5,2-Easy,50,yes,
+forum_50,Prolific Poster,,150,awardBadge,150,150,forumPosts>=50,25,3-Medium,150,yes,
+forum_100,Forum Legend,,400,awardBadge,400,400,forumPosts>=100,50,4-Hard,500,yes,
+forum_reply_1,Responder,,10,awardBadge,10,10,forumReplies>=1,0.3,1-Starter,10,yes,
+forum_reply_10,Commentator,,40,awardBadge,40,40,forumReplies>=10,3.3,2-Easy,50,yes,
+article_5,Journalist,,150,awardBadge,150,150,articlesPublished>=5,25,3-Medium,150,yes,
+article_10,Staff Writer,,400,awardBadge,400,400,articlesPublished>=10,50,4-Hard,500,yes,
+daily_triple_90,Trifecta Legend,,1500,awardBadge,1500,1500,trifectaDays>=90,90,4-Hard,500,yes,
+daily_triple_365,Satoshi's Disciple,,5000,awardBadge,5000,5000,trifectaDays>=365,365,5-Legendary,2000,yes,
+react_10,Reaction Habit,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+react_100,Reactor,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+react_500,Reaction God,,0,"none (cosmetic: client-only, no server proof)",300,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pvp_played_1,Challenger,,10,awardBadge,10,10,pvpPlayed>=1,0.2,1-Starter,10,yes,
+pvp_played_10,Battle Tested,,25,awardBadge,25,25,pvpPlayed>=10,2,2-Easy,50,yes,
+pvp_played_50,Battle Hardened,,75,awardBadge,75,75,pvpPlayed>=50,10,3-Medium,150,yes,
+pvp_win_streak_3,Hot Streak,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pvp_win_streak_5,Unstoppable,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+streak_3,Three's Company,,15,awardBadge,15,15,bestStreak>=3,4.5,2-Easy,50,yes,
+streak_21,21 Days,,100,awardBadge,100,100,bestStreak>=21,31.5,4-Hard,500,yes,
+trail_started,On the Trail,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_double,Double Summit,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_speed_3,Speedrunner,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_meadow_fast,Speed Hiker,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_perfectionist,No Shortcuts,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_revisit,Back for More,,0,"none (cosmetic: client-only, no server proof)",30,30,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+spin_1,First Spin,,10,awardBadge,10,10,spinDays>=1,1,1-Starter,10,yes,
+spin_7,Spin Week,,20,awardBadge,20,20,spinDays>=7,7,2-Easy,50,yes,
+spin_100,Century Spinner,,250,awardBadge,250,250,spinDays>=100,100,4-Hard,500,yes,
+spin_closet_1,Dressed to Impress,,50,awardBadge,50,50,spinClosetAwards>=1,10,3-Medium,150,yes,
+spin_closet_5,Full Wardrobe,,150,awardBadge,150,150,spinClosetAwards>=5,50,4-Hard,500,yes,
+spin_streak_14,Fortnight Spinner,,75,awardBadge,75,75,spinStreak>=14,21,3-Medium,150,yes,
+spin_streak_30,Wheel Addict,,200,awardBadge,200,200,spinStreak>=30,45,4-Hard,500,yes,
+sf_lucky_1,Lucky Roll,,0,"none (cosmetic: client-only, no server proof)",25,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_lucky_5,Hot Streak,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_lucky_10,Clover Nonce,,0,"none (cosmetic: client-only, no server proof)",150,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_lucky_50,Fortune Miner,,0,"none (cosmetic: client-only, no server proof)",400,400,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_lucky_100,Blessed Nonce,,0,"none (cosmetic: client-only, no server proof)",750,750,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_lucky_1000,Satoshi's Chosen,,0,"none (cosmetic: client-only, no server proof)",2100,2100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_unlucky_1,Off the Mark,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_unlucky_5,Cold Streak,,0,"none (cosmetic: client-only, no server proof)",40,40,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_unlucky_10,Wrong Side of Zero,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_unlucky_50,Perpetual Loser,,0,"none (cosmetic: client-only, no server proof)",200,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_unlucky_100,Cursed Miner,,0,"none (cosmetic: client-only, no server proof)",400,400,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sf_unlucky_1000,Proof of Pain,,0,"none (cosmetic: client-only, no server proof)",1000,1000,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+market_listed_10,Power Seller,,150,awardBadge,150,150,marketListings>=10,10,3-Medium,150,yes,
+predict_correct_50,Half-Oracle,,400,awardBadge,400,400,predCorrect>=50,100,4-Hard,500,yes,
+predict_accuracy_70,Precision Forecaster,,200,awardBadge,200,200,accuracy:predAccuracy>=70,30,3-Medium,150,yes,
+fun_friday,TGIF Pleb,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fun_weekend,Weekend Warrior,,0,"none (cosmetic: client-only, no server proof)",10,10,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fun_midnight,Midnight Maxi,,0,"none (cosmetic: client-only, no server proof)",15,15,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fun_new_year,New Year Stacker,,0,"none (cosmetic: client-only, no server proof)",50,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fun_bitcoin_birthday,Bitcoin Birthday,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fun_halving_day,Halving Day,,0,"none (cosmetic: client-only, no server proof)",100,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fun_pi_day,Pi Day Pleb,,0,"none (cosmetic: client-only, no server proof)",21,21,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fun_whitepaper_day,Whitepaper Day,,0,"none (cosmetic: client-only, no server proof)",75,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_beats_complete,Beats Maestro,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_daily_complete,Challenge Master,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_irl_complete,Community Anchor,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_lightning_complete,Lightning Lord,,0,"none (cosmetic: client-only, no server proof)",750,750,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_pow_complete,Distance Legend,,0,"none (cosmetic: client-only, no server proof)",750,750,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_profile_complete,Archive Legend,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_spin_complete,Wheel Master,,0,"none (cosmetic: client-only, no server proof)",300,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_tctv_complete,Timechain Veteran,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_trails_complete,Trail Blazer,,0,"none (cosmetic: client-only, no server proof)",500,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_trifecta_complete,Trifecta God,,1000,awardBadge,1000,1000,set,365,5-Legendary,2000,yes,
+jack_of_all,Jack of All Trades,,1000,awardBadge,3000,3000,awards>=25,30,3-Medium,150,yes,shown-xp-differs(3000);old-path-paid-3000
+flex_steak_10,flex_steak_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_steak_5
+flex_steak_25,flex_steak_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_steak_100,flex_steak_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_steak_50
+flex_steak_1000,flex_steak_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_steak_500
+flex_sunlight_10,flex_sunlight_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sunlight_5
+flex_sunlight_25,flex_sunlight_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sunlight_100,flex_sunlight_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sunlight_50
+flex_sunlight_1000,flex_sunlight_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sunlight_500
+flex_dca_10,flex_dca_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_dca_5
+flex_dca_25,flex_dca_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_dca_100,flex_dca_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_dca_50
+flex_dca_1000,flex_dca_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_dca_500
+flex_custody_10,flex_custody_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_custody_5
+flex_custody_25,flex_custody_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_custody_100,flex_custody_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_custody_50
+flex_custody_1000,flex_custody_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_custody_500
+flex_lift_10,flex_lift_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_lift_5
+flex_lift_25,flex_lift_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lift_100,flex_lift_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_lift_50
+flex_lift_1000,flex_lift_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_lift_500
+flex_meetup_10,flex_meetup_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_meetup_5
+flex_meetup_25,flex_meetup_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meetup_100,flex_meetup_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_meetup_50
+flex_meetup_1000,flex_meetup_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_meetup_500
+flex_lightning_10,flex_lightning_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_lightning_5
+flex_lightning_25,flex_lightning_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_lightning_100,flex_lightning_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_lightning_50
+flex_lightning_1000,flex_lightning_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_lightning_500
+flex_read_10,flex_read_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_read_5
+flex_read_25,flex_read_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_read_100,flex_read_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_read_50
+flex_read_1000,flex_read_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_read_500
+flex_sleep_10,flex_sleep_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sleep_5
+flex_sleep_25,flex_sleep_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_sleep_100,flex_sleep_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sleep_50
+flex_sleep_1000,flex_sleep_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sleep_500
+flex_nokyc_10,flex_nokyc_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_nokyc_5
+flex_nokyc_25,flex_nokyc_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_nokyc_100,flex_nokyc_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_nokyc_50
+flex_nokyc_1000,flex_nokyc_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_nokyc_500
+flex_node_10,flex_node_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_node_5
+flex_node_25,flex_node_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_node_100,flex_node_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_node_50
+flex_node_1000,flex_node_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_node_500
+flex_cold_10,flex_cold_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_cold_5
+flex_cold_25,flex_cold_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_cold_100,flex_cold_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_cold_50
+flex_cold_1000,flex_cold_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_cold_500
+flex_fast_10,flex_fast_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_fast_5
+flex_fast_25,flex_fast_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_fast_100,flex_fast_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_fast_50
+flex_fast_1000,flex_fast_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_fast_500
+flex_walk_10,flex_walk_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_walk_5
+flex_walk_25,flex_walk_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_walk_100,flex_walk_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_walk_50
+flex_walk_1000,flex_walk_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_walk_500
+flex_journal_10,flex_journal_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_journal_5
+flex_journal_25,flex_journal_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_journal_100,flex_journal_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_journal_50
+flex_journal_1000,flex_journal_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_journal_500
+flex_meditate_10,flex_meditate_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_meditate_5
+flex_meditate_25,flex_meditate_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_meditate_100,flex_meditate_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_meditate_50
+flex_meditate_1000,flex_meditate_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_meditate_500
+flex_teach_10,flex_teach_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_teach_5
+flex_teach_25,flex_teach_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_teach_100,flex_teach_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_teach_50
+flex_teach_1000,flex_teach_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_teach_500
+flex_water_10,flex_water_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_water_5
+flex_water_25,flex_water_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_water_100,flex_water_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_water_50
+flex_water_1000,flex_water_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_water_500
+flex_gratitude_10,flex_gratitude_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_gratitude_5
+flex_gratitude_25,flex_gratitude_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_gratitude_100,flex_gratitude_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_gratitude_50
+flex_gratitude_1000,flex_gratitude_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_gratitude_500
+flex_verify_10,flex_verify_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_verify_5
+flex_verify_25,flex_verify_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_verify_100,flex_verify_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_verify_50
+flex_verify_1000,flex_verify_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_verify_500
+flex_focus_10,flex_focus_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_focus_5
+flex_focus_25,flex_focus_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_focus_100,flex_focus_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_focus_50
+flex_focus_1000,flex_focus_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_focus_500
+flex_risk_10,flex_risk_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_risk_5
+flex_risk_25,flex_risk_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_risk_100,flex_risk_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_risk_50
+flex_risk_1000,flex_risk_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_risk_500
+flex_pattern_10,flex_pattern_10,,0,awardBadge,5,0,flex>=10,10,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_pattern_5
+flex_pattern_25,flex_pattern_25,,0,awardBadge,5,0,flex>=25,25,2-Easy,50,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier)
+flex_pattern_100,flex_pattern_100,,0,awardBadge,5,0,flex>=100,100,3-Medium,150,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_pattern_50
+flex_pattern_1000,flex_pattern_1000,,0,awardBadge,5,0,flex>=1000,1000,4-Hard,500,yes,pays-0;old-path-paid-5;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_pattern_500
+flex_findq_10,flex_findq_10,,0,awardBadge,,0,flex>=10,10,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_findq_5
+flex_findq_25,flex_findq_25,,0,awardBadge,,0,flex>=25,25,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier)
+flex_findq_100,flex_findq_100,,0,awardBadge,,0,flex>=100,100,3-Medium,150,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_findq_50
+flex_findq_1000,flex_findq_1000,,0,awardBadge,,0,flex>=1000,1000,4-Hard,500,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_findq_500
+flex_noleverage_10,flex_noleverage_10,,0,awardBadge,,0,flex>=10,10,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_noleverage_5
+flex_noleverage_25,flex_noleverage_25,,0,awardBadge,,0,flex>=25,25,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier)
+flex_noleverage_100,flex_noleverage_100,,0,awardBadge,,0,flex>=100,100,3-Medium,150,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_noleverage_50
+flex_noleverage_1000,flex_noleverage_1000,,0,awardBadge,,0,flex>=1000,1000,4-Hard,500,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_noleverage_500
+flex_gunrange_10,flex_gunrange_10,,0,awardBadge,,0,flex>=10,10,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_gunrange_5
+flex_gunrange_25,flex_gunrange_25,,0,awardBadge,,0,flex>=25,25,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier)
+flex_gunrange_100,flex_gunrange_100,,0,awardBadge,,0,flex>=100,100,3-Medium,150,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_gunrange_50
+flex_gunrange_1000,flex_gunrange_1000,,0,awardBadge,,0,flex>=1000,1000,4-Hard,500,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_gunrange_500
+flex_sellchairs_10,flex_sellchairs_10,,0,awardBadge,,0,flex>=10,10,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sellchairs_5
+flex_sellchairs_25,flex_sellchairs_25,,0,awardBadge,,0,flex>=25,25,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier)
+flex_sellchairs_100,flex_sellchairs_100,,0,awardBadge,,0,flex>=100,100,3-Medium,150,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sellchairs_50
+flex_sellchairs_1000,flex_sellchairs_1000,,0,awardBadge,,0,flex>=1000,1000,4-Hard,500,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_sellchairs_500
+flex_starebtc_10,flex_starebtc_10,,0,awardBadge,,0,flex>=10,10,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_starebtc_5
+flex_starebtc_25,flex_starebtc_25,,0,awardBadge,,0,flex>=25,25,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier)
+flex_starebtc_100,flex_starebtc_100,,0,awardBadge,,0,flex>=100,100,3-Medium,150,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_starebtc_50
+flex_starebtc_1000,flex_starebtc_1000,,0,awardBadge,,0,flex>=1000,1000,4-Hard,500,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_starebtc_500
+flex_itoldyou_10,flex_itoldyou_10,,0,awardBadge,,0,flex>=10,10,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_itoldyou_5
+flex_itoldyou_25,flex_itoldyou_25,,0,awardBadge,,0,flex>=25,25,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier)
+flex_itoldyou_100,flex_itoldyou_100,,0,awardBadge,,0,flex>=100,100,3-Medium,150,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_itoldyou_50
+flex_itoldyou_1000,flex_itoldyou_1000,,0,awardBadge,,0,flex>=1000,1000,4-Hard,500,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_itoldyou_500
+flex_pumpndump_10,flex_pumpndump_10,,0,awardBadge,,0,flex>=10,10,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_pumpndump_5
+flex_pumpndump_25,flex_pumpndump_25,,0,awardBadge,,0,flex>=25,25,2-Easy,50,yes,pays-0;flex-parallel-ladder(-1 tier)
+flex_pumpndump_100,flex_pumpndump_100,,0,awardBadge,,0,flex>=100,100,3-Medium,150,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_pumpndump_50
+flex_pumpndump_1000,flex_pumpndump_1000,,0,awardBadge,,0,flex>=1000,1000,4-Hard,500,yes,pays-0;flex-parallel-ladder(-1 tier);pays-less-than-easier-flex_pumpndump_500
+first_peer,First Peer,,50,awardBadge,,50,peerCount>=1,0,1-Starter,10,yes,duplicate-of-peer_1
+peer_network_10,Node Runner,,200,awardBadge,,200,peerCount>=10,0,1-Starter,10,yes,duplicate-of-peer_10
+peer_network_50,Signal Booster,,500,awardBadge,,500,peerCount>=50,166.7,5-Legendary,2000,yes,pays-less-than-easier-peer_25
+peer_network_100,Hub Node,,1000,awardBadge,,1000,peerCount>=100,333.3,5-Legendary,2000,yes,
+peer_network_250,Network Sovereign,,2500,awardBadge,,2500,peerCount>=250,833.3,5-Legendary,2000,yes,
+sf_100000_hashes,Hundred Thousand Hashes,Favor,5000,awardBadge,,5000,sfHashes>=100000,2000,5-Legendary,2000,yes,
+the_completionist,the_completionist,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+quest_legend,quest_legend,,0,awardBadge,,0,questsPassed>=100,0,1-Starter,10,yes,pays-0;duplicate-of-quest_100
+hash_lord,hash_lord,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+hash_god,hash_god,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshis_chosen,satoshis_chosen,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+block_solver,block_solver,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+hodler_supreme,hodler_supreme,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sovereign_individual,sovereign_individual,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+the_satellite,the_satellite,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+timechain_surfer,timechain_surfer,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_legend,chat_legend,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+the_devoted,the_devoted,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pvp_legend,pvp_legend,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+raid_warlord,raid_warlord,,0,awardBadge,,0,raidDamageAllTime>=100,0,1-Starter,10,yes,pays-0;duplicate-of-raid_100
+dragon_slayer,dragon_slayer,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+the_viral_plebian,the_viral_plebian,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshis_disciple,satoshis_disciple,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trifecta_legend,trifecta_legend,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+double_scholar,double_scholar,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trivia_titan,trivia_titan,,0,awardBadge,,0,triviaCorrect>=1000,1000,5-Legendary,2000,yes,pays-0;pays-less-than-easier-trivia_correct_100
+the_devotee,the_devotee,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+vinyl_master,vinyl_master,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nachos_confidant,nachos_confidant,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+regional_leader,regional_leader,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+twenty_one_million,twenty_one_million,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+proof_of_pain,proof_of_pain,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_master,trail_master,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+to_the_moon,to_the_moon,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+democracy_maxi,democracy_maxi,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sat_slinger,sat_slinger,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+community_darling,community_darling,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+time_traveler,time_traveler,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+the_long_walker,the_long_walker,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chancellor,chancellor,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+the_archivist_t,the_archivist_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+hall_of_fame_t,hall_of_fame_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshis_revenge_t,satoshis_revenge_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshis_vendetta_t,satoshis_vendetta_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshis_ghost_t,satoshis_ghost_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshis_covenant_t,satoshis_covenant_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshis_cipher_t,satoshis_cipher_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+grand_scholar,grand_scholar,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+jack_of_all_t,jack_of_all_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+master_miner_t,master_miner_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+satoshi_scholar_t,satoshi_scholar_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+community_pillar_t,community_pillar_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+diamond_hands_set_t,diamond_hands_set_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+arena_champion_t,arena_champion_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+archive_builder_t,archive_builder_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+world_traveler_t,world_traveler_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+bitcoin_cal_hero_t,bitcoin_cal_hero_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+challenge_master_t,challenge_master_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+timechain_veteran_t,timechain_veteran_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lightning_lord_t,lightning_lord_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trail_blazer_t,trail_blazer_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+beats_maestro_t,beats_maestro_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+trifecta_god_t,trifecta_god_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+irl_set_t,irl_set_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+spin_set_t,spin_set_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_set_t,pow_set_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_immortal_t,chat_immortal_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+reaction_god_t,reaction_god_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dj_legend_t,dj_legend_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+super_fan_t,super_fan_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+audiophile_t,audiophile_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+forum_legend_t,forum_legend_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+staff_writer_t,staff_writer_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+unstoppable_pvp_t,unstoppable_pvp_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+diamond_hands_100_t,diamond_hands_100_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+wheel_addict_t,wheel_addict_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+century_spinner_t,century_spinner_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+precision_forecaster_t,precision_forecaster_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nostradamus_t,nostradamus_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+flex_legend_t,flex_legend_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+full_stack_human_t,full_stack_human_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+legend_mode_t,legend_mode_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nachos_bestie_t,nachos_bestie_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+super_spreader_t,super_spreader_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sat_hoarder_t,sat_hoarder_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+favor_champion_t,favor_champion_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+golden_nonce_t,golden_nonce_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+asic_mode_t,asic_mode_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+summit_conqueror_t,summit_conqueror_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pow_titan_t,pow_titan_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+story_master_t,story_master_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+scene_regular_t,scene_regular_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+tip_magnet_t,tip_magnet_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+community_hero_t,community_hero_t,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_beats,The Beats Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_builder,The Builder Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_fun,The Calendar Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_daily,The Daily Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_explorer,The Explorer Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_pvp,The Fighter Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_irl,The IRL Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_lightning,The Lightning Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_miner,The Miner Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_pow,The Proof of Walk Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_scholar,The Scholar Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_social,The Social Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_streak,The Streak Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_tctv,The Timechain TV Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_trails,The Trails Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_trifecta,The Trifecta Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_spin,The Wheel Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+set_profile,The Profile Set,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+flex_,flex_,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_friend,Nacho's Friend,,0,"none (cosmetic: client-only, no server proof)",,25,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+genesis,Genesis Reader,,75,awardBadge,,75,includes:visitedChannelsList,1,1-Starter,10,yes,
+nacho_curious,Curious Deer,,0,"none (cosmetic: client-only, no server proof)",,50,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+ticket_bronze,Ticket Fish,,200,awardBadge,,200,orangeTickets>=25,12.5,3-Medium,150,yes,
+ticket_silver,Ticket Shark,,500,awardBadge,,500,orangeTickets>=50,25,3-Medium,150,yes,
+ticket_gold,Ticket Whale,,1000,awardBadge,,1000,orangeTickets>=100,50,4-Hard,500,yes,
+nacho_10q,Inquisitive Buck,,0,"none (cosmetic: client-only, no server proof)",,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+collector,Collector,,0,"none (cosmetic: client-only, no server proof)",,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+first_post,PlebTalk Voice,,100,awardBadge,,100,forumPosts>=1,0,1-Starter,10,yes,duplicate-of-forum_first
+first_reply,Conversationalist,,75,awardBadge,,75,forumReplies>=1,0,1-Starter,10,yes,duplicate-of-forum_reply_1
+market_seller,Shopkeeper,,150,awardBadge,,150,marketListings>=1,0,1-Starter,10,yes,duplicate-of-market_listed_1
+market_buyer,Shopper,,150,awardBadge,,150,marketMessages>=1,0,1-Starter,10,yes,duplicate-of-market_message
+speed_runner,Speed Runner,,0,"none (cosmetic: client-only, no server proof)",,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+scholar,Bitcoin Scholar,,300,awardBadge,,300,either,10,3-Medium,150,yes,
+nacho_20q,20 Questions,,0,"none (cosmetic: client-only, no server proof)",,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+marathon,Marathon Reader,,0,"none (cosmetic: client-only, no server proof)",,150,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+early_adopter,Early Adopter,,0,"none (cosmetic: client-only, no server proof)",,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+weekend_warrior,Weekend Warrior,,0,"none (cosmetic: client-only, no server proof)",,75,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+triple_threat,Triple Threat,,0,"none (cosmetic: client-only, no server proof)",,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_50q,Nacho Sage,,0,"none (cosmetic: client-only, no server proof)",,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+bookmark_collector,Bookmark Hoarder,,0,"none (cosmetic: client-only, no server proof)",,100,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pvp_streak,Undefeated,,0,"none (cosmetic: client-only, no server proof)",,250,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sats_maxed,Faucet King,,1000,awardBadge,,1000,satsWithdrawn>=15000,150,5-Legendary,2000,yes,
+streak_freeze,Ice Shield,,50,awardBadge,,50,streakFreezesUsed>=1,6.7,2-Easy,50,yes,
+nacho_closet_full,Fashionista,,0,"none (cosmetic: client-only, no server proof)",,200,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+ghost_reader,Ghost Reader,,500,awardBadge,,500,ghostReader,10,3-Medium,150,yes,
+whitepaper_pilgrim,Whitepaper Pilgrim,,0,"none (cosmetic: client-only, no server proof)",,750,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+insomniac,Insomniac,,0,"none (cosmetic: client-only, no server proof)",,300,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+contrarian,The Contrarian,,0,"none (cosmetic: client-only, no server proof)",,400,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+block_42,Block 42,,0,"none (cosmetic: client-only, no server proof)",,421,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+rabbit_hole,Rabbit Hole,,0,"none (cosmetic: client-only, no server proof)",,600,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+the_plebeian,The Plebeian,,0,"none (cosmetic: client-only, no server proof)",,350,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+silent_donor,Silent Donor,,777,awardBadge,,777,silentDonor,10,3-Medium,150,yes,
+dust_collector,Dust Collector,,0,"none (cosmetic: client-only, no server proof)",,210,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+hash_obsessed,Hash Obsessed,,2100,awardBadge,,2100,sfHashes>=25000,500,5-Legendary,2000,yes,
+search_sleuth,Search Sleuth,,0,"none (cosmetic: client-only, no server proof)",,500,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+anon,anon,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+q__,q__,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+profile_frame,Profile Frame,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+chat_flair,Chat Flair,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pinned_badge,Pinned Badge,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nacho_skin_nook,Exclusive Nacho Skin,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+steak,Eat Steak,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sunlight,Get Sunlight,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+dca,DCA Bitcoin,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+custody,Self-Custody,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lift,Lift Weights,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+meetup,Host a Meetup,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+lightning,Spend via Lightning,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+read,Read Bitcoin,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sleep,Sleep 8 Hours,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+nokyc,Buy No-KYC,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+node,Run Your Node,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+cold,Cold Plunge,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+fast,Intermittent Fast,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+walk,Walk 10k Steps,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+journal,Journal Today,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+meditate,Meditate,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+teach,Orange-Pill Someone,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+water,Drink Water,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+gratitude,Gratitude Practice,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+verify,Verify a Transaction,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+focus,Focus Mode,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+risk,Risk Assessment,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pattern,Pattern Recognition,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+findq,Spot the FED,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+noleverage,Avoid Leverage,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+gunrange,Gun Range,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+sellchairs,Sell Your Chairs,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+starebtc,Stare at the Price,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+itoldyou,I Told You So,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+pumpndump,Observe a Pump & Dump,,0,"none (cosmetic: client-only, no server proof)",,5,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p01,p01,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p02,p02,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p03,p03,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p04,p04,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p05,p05,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p06,p06,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p07,p07,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p08,p08,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p09,p09,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p10,p10,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p11,p11,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p12,p12,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p13,p13,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p14,p14,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p15,p15,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p16,p16,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p17,p17,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p18,p18,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p19,p19,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p20,p20,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p21,p21,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p22,p22,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p23,p23,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p24,p24,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p25,p25,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p26,p26,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p27,p27,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p28,p28,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p29,p29,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p30,p30,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p31,p31,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p32,p32,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p33,p33,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p34,p34,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p35,p35,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p36,p36,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p37,p37,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p38,p38,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p39,p39,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p40,p40,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p41,p41,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p42,p42,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p43,p43,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p44,p44,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p45,p45,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p46,p46,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p47,p47,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p48,p48,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p49,p49,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p50,p50,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p51,p51,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p52,p52,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p53,p53,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p54,p54,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p55,p55,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p56,p56,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p57,p57,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p58,p58,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p59,p59,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p60,p60,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p61,p61,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p62,p62,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p63,p63,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p64,p64,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p65,p65,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p66,p66,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p67,p67,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p68,p68,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p69,p69,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p70,p70,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p71,p71,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p72,p72,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p73,p73,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p74,p74,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p75,p75,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p76,p76,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p77,p77,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p78,p78,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p79,p79,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+p80,p80,,0,"none (cosmetic: client-only, no server proof)",,0,,,0-Cosmetic (no XP until server-tracked),0,no,cosmetic
+daily_five_1,High Five,Daily Five,50,awardBadge,,50,dailyFiveDays>=1,1,1-Starter,10,yes,
+daily_five_7,Five Alive,Daily Five,150,awardBadge,,150,dailyFiveDays>=7,7,2-Easy,50,yes,
+daily_five_30,Fivefold,Daily Five,500,awardBadge,,500,dailyFiveDays>=30,30,3-Medium,150,yes,
+daily_five_100,Perfect Hundred,Daily Five,1500,awardBadge,,1500,dailyFiveDays>=100,100,4-Hard,500,yes,
+daily_five_streak_7,Five-Day Fever,Daily Five,300,awardBadge,,300,dailyFiveStreak>=7,10.5,3-Medium,150,yes,
+say_hi_1,Hello World,Community Voice,15,awardBadge,,15,sayHiDays>=1,1,1-Starter,10,yes,
+say_hi_7,Friendly Face,Community Voice,75,awardBadge,,75,sayHiDays>=7,7,2-Easy,50,yes,
+say_hi_30,Town Greeter,Community Voice,250,awardBadge,,250,sayHiDays>=30,30,3-Medium,150,yes,
+say_hi_100,Mayor of Chat,Community Voice,750,awardBadge,,750,sayHiDays>=100,100,4-Hard,500,yes,
+tctv_daily_1,Tuned In Daily,Prime Time,25,awardBadge (counter not written yet; fails closed),,25,tctvWatchDays>=1,1,1-Starter,10,yes,waiting-counter
+tctv_daily_7,Regular Viewer,Prime Time,100,awardBadge (counter not written yet; fails closed),,100,tctvWatchDays>=7,7,2-Easy,50,yes,waiting-counter
+tctv_daily_30,Prime Timer,Prime Time,300,awardBadge (counter not written yet; fails closed),,300,tctvWatchDays>=30,30,3-Medium,150,yes,waiting-counter
+tctv_daily_100,Network Exec,Prime Time,1000,awardBadge (counter not written yet; fails closed),,1000,tctvWatchDays>=100,100,4-Hard,500,yes,waiting-counter
+reply_bonus_1,Conversation Starter,Community Voice,15,awardBadge (counter not written yet; fails closed),,15,replyBonusCount>=1,0.3,1-Starter,10,yes,waiting-counter
+reply_bonus_25,Good Listener,Community Voice,75,awardBadge (counter not written yet; fails closed),,75,replyBonusCount>=25,8.3,3-Medium,150,yes,waiting-counter
+reply_bonus_100,Thread Weaver,Community Voice,250,awardBadge (counter not written yet; fails closed),,250,replyBonusCount>=100,33.3,4-Hard,500,yes,waiting-counter
+reply_bonus_500,Community Pillar,Community Voice,750,awardBadge (counter not written yet; fails closed),,750,replyBonusCount>=500,166.7,5-Legendary,2000,yes,waiting-counter
+poll_days_7,Voice of the People,Daily Scholar,50,awardBadge,,50,pollDays>=7,7,2-Easy,50,yes,
+poll_days_30,Poll Regular,Daily Scholar,250,awardBadge,,250,pollDays>=30,30,3-Medium,150,yes,
+poll_days_100,Poll Warden,Daily Scholar,1000,awardBadge,,1000,pollDays>=100,100,4-Hard,500,yes,
+quest_days_7,Quiz Regular,Daily Scholar,50,awardBadge (counter not written yet; fails closed),,50,questDays>=7,7,2-Easy,50,yes,waiting-counter
+quest_days_30,Quiz Devotee,Daily Scholar,250,awardBadge (counter not written yet; fails closed),,250,questDays>=30,30,3-Medium,150,yes,waiting-counter
+quest_days_100,Quiz Master,Daily Scholar,1000,awardBadge (counter not written yet; fails closed),,1000,questDays>=100,100,4-Hard,500,yes,waiting-counter
+sf_trifecta_10,Favor Feeder,Favor,100,awardBadge,,100,trifectaDays>=10,10,3-Medium,150,yes,
+sf_trifecta_50,Favor Regular,Favor,300,awardBadge,,300,trifectaDays>=50,50,4-Hard,500,yes,pays-less-than-easier-daily_triple_30
+sf_trifecta_100,Favor Keeper,Favor,750,awardBadge,,750,trifectaDays>=100,100,4-Hard,500,yes,pays-less-than-easier-daily_triple_90
+peer_1,First Peer,Peer Network,25,awardBadge,,25,peerCount>=1,3.3,2-Easy,50,yes,
+peer_3,Small Circle,Peer Network,75,awardBadge,,75,peerCount>=3,10,3-Medium,150,yes,
+peer_10,Node Operator,Peer Network,250,awardBadge,,250,peerCount>=10,33.3,4-Hard,500,yes,
+peer_25,Hub,Peer Network,750,awardBadge,,750,peerCount>=25,83.3,4-Hard,500,yes,
+market_sold_1,First Sale,Open for Business,50,awardBadge,,50,marketSold>=1,10,3-Medium,150,yes,
+market_sold_5,Trusted Seller,Open for Business,200,awardBadge,,200,marketSold>=5,50,4-Hard,500,yes,
+cipher_1,Decoder,Codebreaker,15,awardBadge,,15,ciphersSolved>=1,1,1-Starter,10,yes,
+cipher_10,Cryptographer,Codebreaker,100,awardBadge,,100,ciphersSolved>=10,10,3-Medium,150,yes,
+cipher_50,Enigma,Codebreaker,400,awardBadge,,400,ciphersSolved>=50,50,4-Hard,500,yes,
+cipher_200,Satoshi's Pen,Codebreaker,1500,awardBadge,,1500,ciphersSolved>=200,200,5-Legendary,2000,yes,
+gift_sent_1,Gift Giver,Open Hand,25,awardBadge (counter not written yet; fails closed),,25,giftsSent>=1,1,1-Starter,10,yes,waiting-counter
+gift_sent_10,Generous,Open Hand,150,awardBadge (counter not written yet; fails closed),,150,giftsSent>=10,20,3-Medium,150,yes,waiting-counter
+gift_sent_50,Santa Sats,Open Hand,600,awardBadge (counter not written yet; fails closed),,600,giftsSent>=50,100,4-Hard,500,yes,waiting-counter
+plebtalk_1,First Words,Community Voice,15,awardBadge (counter not written yet; fails closed),,15,plebTalkSessions>=1,1,1-Starter,10,yes,waiting-counter
+plebtalk_10,Regular Guest,Community Voice,100,awardBadge (counter not written yet; fails closed),,100,plebTalkSessions>=10,10,3-Medium,150,yes,waiting-counter
+plebtalk_50,PlebTalk Host,Community Voice,400,awardBadge (counter not written yet; fails closed),,400,plebTalkSessions>=50,50,4-Hard,500,yes,waiting-counter
+onboarding_complete,Welcome Aboard,Welcome Aboard,100,awardBadge (counter not written yet; fails closed),,100,truthy:onboardingComplete,1,1-Starter,10,yes,waiting-counter
+push_enabled,Ring the Bell,Welcome Aboard,25,awardBadge (counter not written yet; fails closed),,25,truthy:pushToken,1,1-Starter,10,yes,waiting-counter
+profile_complete,Filled In,Welcome Aboard,25,awardBadge,,25,profile,1,1-Starter,10,yes,
+set_daily_five,Daily Five Set,Collections,500,awardBadge,,500,set,8,3-Medium,150,yes,
+set_voice,Community Voice Set,Collections,500,awardBadge,,500,set,8.3,3-Medium,150,yes,
+set_tv,Prime Time Set,Collections,500,awardBadge,,500,set,30,3-Medium,150,yes,
+set_trader,Open for Business Set,Collections,500,awardBadge,,500,set,10,3-Medium,150,yes,
+set_codebreaker,Codebreaker Set,Collections,750,awardBadge,,750,set,50,4-Hard,500,yes,
+set_generous,Open Hand Set,Collections,500,awardBadge,,500,set,20,3-Medium,150,yes,
+set_network,Peer Network Set,Collections,500,awardBadge,,500,set,50,4-Hard,500,yes,
+set_gladiator,Gladiator Set,Collections,750,awardBadge,,750,set,10,3-Medium,150,yes,
+set_scholar_daily,Daily Scholar Set,Collections,750,awardBadge,,750,set,30,3-Medium,150,yes,
+set_newcomer,Welcome Aboard Set,Collections,250,awardBadge,,250,set,8,3-Medium,150,yes,
+set_favor,Favor of Satoshi Set,Collections,1000,awardBadge,,1000,set,60,4-Hard,500,yes,

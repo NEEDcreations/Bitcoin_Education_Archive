@@ -759,7 +759,7 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         assert.strictEqual(saved.name, 'Learner');
         assert.strictEqual(saved.xp, undefined);
         assert.strictEqual(saved.tickets, undefined);
-        assert.ok(!db.dump().some(function(p) { return p.indexOf('daily_points') !== -1; }));
+        assert.notStrictEqual(db.read('users/xss').points, 50);
         postsOf(db, 'mining').forEach(function(post) {
             assert.strictEqual(post.xp, undefined);
             assert.strictEqual(post.tickets, undefined);

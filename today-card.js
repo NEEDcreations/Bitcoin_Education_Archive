@@ -1,5 +1,5 @@
 // Homepage Today card. Paint-only: reads existing local state and opens
-// the same screens the Quest Hub used to. No rewards, grants, or caps.
+// the same screens the Quest Hub used to. The XP meter shows the server total.
 (function () {
     'use strict';
 
@@ -273,6 +273,50 @@
         if (chev) chev.textContent = open ? '\u25B2' : '\u25BC';
     }
 
+    function meterNumber(snap) {
+        var raw = snap.dailyXp != null ? snap.dailyXp : snap.dailyQuizXp;
+        var n = Math.round(Number(raw) || 0);
+        if (!isFinite(n) || n < 0) n = 0;
+        if (n > 1000) n = 1000;
+        return n;
+    }
+
+    window._paintDailyXpMeter = function (snap) {
+        var text = document.getElementById('dailyXpMeterText');
+        var fill = document.getElementById('dailyXpMeterFill');
+        if (!text || !fill) return;
+        var signed = snap && snap.signedIn !== false && (snap.signedIn === true || signedIn());
+        if (!signed) {
+            text.textContent = "Sign in to see today's XP";
+            fill.style.width = '0%';
+            return;
+        }
+        var used = meterNumber(snap || {});
+        text.textContent = used.toLocaleString() + '/1000 XP today';
+        fill.style.width = (used / 10) + '%';
+    };
+
+    function loadDailyXpMeter() {
+        if (!signedIn()) {
+            window._paintDailyXpMeter({ signedIn: false });
+            return;
+        }
+        if (window._serverDailyXp) {
+            window._paintDailyXpMeter(Object.assign({ signedIn: true }, window._serverDailyXp));
+        } else {
+            window._paintDailyXpMeter({ signedIn: true, dailyXp: 0 });
+        }
+        try {
+            if (typeof firebase === 'undefined' || !firebase.functions) return;
+            var callable = firebase.functions().httpsCallable('triviaXpStatus');
+            callable({}).then(function (res) {
+                var data = (res && res.data) || {};
+                window._serverDailyXp = data;
+                window._paintDailyXpMeter(Object.assign({ signedIn: true }, data));
+            }).catch(function () {});
+        } catch (e) {}
+    }
+
     window._paintTodayCard = function () {
         var q = quizDone();
         var t = triviaDone();
@@ -303,6 +347,7 @@
         setDot('todayDotStory', storyNeedsAttention());
         setDot('todayMoreDot', live || storyNeedsAttention());
         paintFavor();
+        loadDailyXpMeter();
     };
 
     window.toggleTodayTrifecta = function () {

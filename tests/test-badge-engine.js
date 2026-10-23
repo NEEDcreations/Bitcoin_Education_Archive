@@ -37,12 +37,36 @@ const admin = {
 
 function memoryDb(seed) {
     const docs = Object.assign({}, seed || {});
+    function collectionAt(prefix) {
+        return {
+            path: prefix,
+            doc: function (id) { return ref(prefix + '/' + id); },
+            get: async function () {
+                const out = [];
+                Object.keys(docs).forEach(function (p) {
+                    const head = prefix + '/';
+                    if (p.indexOf(head) !== 0) return;
+                    const rest = p.slice(head.length);
+                    if (!rest || rest.indexOf('/') !== -1) return;
+                    out.push({
+                        id: rest,
+                        exists: true,
+                        data: function () { return Object.assign({}, docs[p]); },
+                    });
+                });
+                return {
+                    empty: out.length === 0,
+                    size: out.length,
+                    docs: out,
+                    forEach: function (fn) { out.forEach(fn); },
+                };
+            },
+        };
+    }
     function ref(docPath) {
         return {
             path: docPath,
-            collection: function (name) {
-                return { doc: function (id) { return ref(docPath + '/' + name + '/' + id); } };
-            },
+            collection: function (name) { return collectionAt(docPath + '/' + name); },
             get: async function () {
                 const data = docs[docPath];
                 return { exists: data != null, data: function () { return data ? Object.assign({}, data) : undefined; } };
@@ -89,10 +113,10 @@ function memoryDb(seed) {
 const queue = [];
 
 queue.push(test('paying badges stay within the XP cap and cosmetic badges pay nothing', function () {
-    assert.strictEqual(badgeRules.xpOf('satoshis_cipher'), 5000);
-    assert.strictEqual(badgeRules.xpOf('donor_100000'), 5000);
+    assert.strictEqual(badgeRules.xpOf('satoshis_cipher'), 2000);
+    assert.strictEqual(badgeRules.xpOf('donor_100000'), 2000);
     assert.strictEqual(badgeRules.xpOf('donor_100'), 10);
-    assert.strictEqual(badgeRules.xpOf('flex_findq_1'), 2);
+    assert.strictEqual(badgeRules.xpOf('flex_findq_1'), 10);
     assert.strictEqual(badgeRules.isCosmetic('quest_1'), false);
     assert.strictEqual(badgeRules.isCosmetic('night_owl'), true);
     assert.strictEqual(badgeRules.isCosmetic('lq_mining'), false);
@@ -105,16 +129,16 @@ queue.push(test('paying badges stay within the XP cap and cosmetic badges pay no
 
 queue.push(test('market, hash, and peer rules read server counters', function () {
     const market = badgeRules.ruleFor('market_listed_5');
-    assert.strictEqual(market.xp, 75);
+    assert.strictEqual(market.xp, 50);
     assert.strictEqual(market.source.field, 'marketListings');
     assert.strictEqual(badgeRules.meets(market, { marketListings: 5 }, {}), true);
     assert.strictEqual(badgeRules.meets(market, { marketListings: 4 }, {}), false);
     const hashes = badgeRules.ruleFor('sf_100000_hashes');
-    assert.strictEqual(hashes.xp, 5000);
+    assert.strictEqual(hashes.xp, 2000);
     assert.strictEqual(badgeRules.meets(hashes, { sfHashes: 100000 }, {}), true);
     assert.strictEqual(badgeRules.meets(hashes, { totalHashes: 100000 }, {}), false);
-    assert.strictEqual(badgeRules.ruleFor('peer_1').xp, 25);
-    assert.strictEqual(badgeRules.ruleFor('say_hi_1').xp, 15);
+    assert.strictEqual(badgeRules.ruleFor('peer_1').xp, 50);
+    assert.strictEqual(badgeRules.ruleFor('say_hi_1').xp, 10);
     const scholar = badgeRules.ruleFor('scholar');
     assert.strictEqual(scholar.source.type, 'scholarExam');
     assert.strictEqual(scholar.source.examType, 'properties');
@@ -122,7 +146,7 @@ queue.push(test('market, hash, and peer rules read server counters', function ()
     assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamPassed: true }), true);
     assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamsPassed: { properties: true } }), true);
     assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamsPassed: { technical: true } }), false);
-    assert.strictEqual(badgeRules.ruleFor('daily_five_1').xp, 50);
+    assert.strictEqual(badgeRules.ruleFor('daily_five_1').xp, 10);
     assert.strictEqual(badgeRules.ruleFor('set_daily_five').source.type, 'set');
 }));
 
@@ -301,7 +325,7 @@ queue.push(test('every badge grant adds one Favor point once', async function ()
     const second = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now + 1000 });
     assert.strictEqual(first.granted, true);
     assert.strictEqual(first.favor, true);
-    assert.strictEqual(first.xp, 15);
+    assert.strictEqual(first.xp, 10);
     assert.strictEqual(second.reason, 'already');
     assert.strictEqual(second.favor, false);
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
@@ -368,9 +392,14 @@ queue.push(test('the daily XP cap still grants the badge and Favor', async funct
     const result = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: 1700000000000 });
     assert.strictEqual(result.granted, true);
     assert.strictEqual(result.xp, 0);
+    assert.strictEqual(result.overflowAdded, 0);
+    assert.strictEqual(result.dropped, 10);
     assert.strictEqual(result.capped, true);
+    assert.strictEqual(result.capBypass, false);
     assert.strictEqual(result.favor, true);
     assert.strictEqual(db.docs['users/u'].points, 10);
+    assert.strictEqual(db.docs['users/u'].pendingOverflow, undefined);
+    assert.strictEqual(db.docs['users/u/daily_points/2026-10-22'].total, 1000);
     assert.ok(db.docs['users/u/badge_awards/say_hi_1']);
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
 }));
@@ -393,27 +422,30 @@ queue.push(test('clients cannot mint badge Favor or write hiddenBadges', functio
 
 queue.push(test('each activity family grants one Favor point from its server record', async function () {
     const day = { day: '2026-10-22', nowMs: 1700000000000 };
-    async function earn(seed, id) {
-        const db = memoryDb({ 'users/u': Object.assign({ points: 0 }, seed) });
+    async function earn(seed, id, extra) {
+        const docs = { 'users/u': Object.assign({ points: 0 }, seed) };
+        Object.keys(extra || {}).forEach(function (key) { docs[key] = extra[key]; });
+        const db = memoryDb(docs);
         const result = await awardBadge(db, admin, 'u', id, day);
         return { result: result, db: db };
     }
+    const flexClaim = { 'users/u/daily_action_counts/2026-07-04_flex_findq': { actionId: 'findq' } };
     const families = [
-        ['flex', { flexTotals: { findq: 1 } }, 'flex_findq_1', 2],
-        ['learning quest', { lqPassed: ['lq_mining'] }, 'lq_mining', 100],
+        ['flex', {}, 'flex_findq_1', 10, flexClaim],
+        ['learning quest', { lqPassed: ['lq_mining'] }, 'lq_mining', 50],
         ['quest', { questsPassed: 1 }, 'quest_1', 10],
         ['trivia', { triviaCorrect: 1 }, 'trivia_first', 10],
         ['spin', { spinDays: 1 }, 'spin_1', 10],
         ['raid', { raidDamageAllTime: 1 }, 'raid_first', 10],
-        ['tip', { tipsVerified: 1 }, 'tip_first', 25],
-        ['legacy peer', { peerCount: 0, peers: ['a'] }, 'first_peer', 50],
-        ['genesis', { visitedChannelsList: ['whitepaper'] }, 'genesis', 75],
+        ['tip', { tipsVerified: 1 }, 'tip_first', 10],
+        ['legacy peer', { peerCount: 0, peers: ['a'] }, 'first_peer', 10],
+        ['genesis', { visitedChannelsList: ['whitepaper'] }, 'genesis', 10],
         ['streak freeze', { streakFreezesUsed: 1 }, 'streak_freeze', 50],
-        ['ghost reader', { streak: 7, points: 0 }, 'ghost_reader', 500],
+        ['ghost reader', { streak: 7, points: 0 }, 'ghost_reader', 150],
     ];
     for (let i = 0; i < families.length; i++) {
         const row = families[i];
-        const paid = await earn(row[1], row[2]);
+        const paid = await earn(row[1], row[2], row[4]);
         assert.strictEqual(paid.result.granted, true, row[0]);
         assert.strictEqual(paid.result.favor, true, row[0]);
         assert.strictEqual(paid.result.xp, row[3], row[0]);
@@ -425,11 +457,15 @@ queue.push(test('each activity family grants one Favor point from its server rec
     const network = await earn({ peerCount: 0, peers: peers }, 'peer_network_10');
     assert.strictEqual(network.result.granted, true);
     assert.strictEqual(network.result.favor, true);
-    const zeroXp = await earn({ flexTotals: { steak: 10 } }, 'flex_steak_10');
-    assert.strictEqual(zeroXp.result.granted, true);
-    assert.strictEqual(zeroXp.result.xp, 0);
-    assert.strictEqual(zeroXp.result.favor, true);
-    assert.strictEqual(zeroXp.db.docs['users/u'].payingBadgeCount, undefined);
+    const inflated = await earn({ flexTotals: { steak: 10 } }, 'flex_steak_1');
+    assert.strictEqual(inflated.result.reason, 'criteria');
+    assert.strictEqual(inflated.db.docs['users/u/badge_awards/flex_steak_1'], undefined);
+    const claimed = await earn({}, 'flex_steak_1', {
+        'users/u/daily_action_counts/2026-07-04_flex_steak': { actionId: 'steak' },
+    });
+    assert.strictEqual(claimed.result.granted, true);
+    assert.strictEqual(claimed.result.xp, 10);
+    assert.strictEqual(claimed.result.favor, true);
     const clientSpin = await earn({ spinCount: 100 }, 'spin_100');
     assert.strictEqual(clientSpin.result.granted, false);
     assert.strictEqual(clientSpin.result.reason, 'criteria');
@@ -451,8 +487,9 @@ queue.push(test('each activity family grants one Favor point from its server rec
     const flex = progressBadges.progressSpec({}, 'flex_action', { flexId: 'findq' }, '2026-10-22');
     assert.strictEqual(flex.inc['flexTotals.findq'], 1);
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
-    const quest = index.slice(index.indexOf('exports.gradeQuest'), index.indexOf('exports.issueCertificate'));
-    assert.ok(quest.includes('questsPassed'));
+    const questSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'questCallables.js'), 'utf8');
+    assert.ok(questSrc.includes('questsPassed'));
+    assert.ok(questSrc.includes("familyFor('questsPassed')"));
     const spin = index.slice(index.indexOf('exports.dailySpin'), index.indexOf('exports.pvpStoreAnswerKey'));
     assert.ok(spin.includes('spinDays'));
     assert.ok(spin.includes('spinHitRare'));
@@ -638,7 +675,8 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.ok(award.indexOf('triviaGrade') < award.indexOf('progressBadges.progressSpec'));
     assert.ok(!award.includes("source: 'combo_bonus'"));
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
-    assert.ok(quests.includes('triviaChoice: chosenIdx'));
+    assert.ok(quests.includes("httpsCallable('answerTrivia')"));
+    assert.ok(quests.includes('chosen: chosenText'));
 }));
 
 queue.push(test('the scholar badge and the client read the exam record, not a profile flag', function () {
@@ -700,6 +738,200 @@ queue.push(test('the dry-run helper counts failing badges without printing peopl
     const src = fs.readFileSync(path.join(root, 'functions', 'dry-run-badge-criteria.js'), 'utf8');
     assert.ok(src.includes('tally'));
     assert.ok(!src.includes('console.log(uid'));
+}));
+
+queue.push(test('badge ladders never pay a harder rung less, and the UI table matches', function () {
+    const table = require('../functions/src/badge-xp.json');
+    const catalog = badgeRules.catalog;
+    const tableIds = Object.keys(table.badges).sort();
+    const catalogIds = Object.keys(catalog.badges).sort();
+    // The sheet has two non-badges (`anon`, `flex_`). The catalog parser
+    // used to invent those, plus `Raid`, from `uid: 'anon'` and `raid: 'Raid'`.
+    const sheetOnly = tableIds.filter(function (id) { return catalogIds.indexOf(id) === -1; });
+    const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1; });
+    assert.deepStrictEqual(sheetOnly, ['anon', 'flex_']);
+    assert.deepStrictEqual(catalogOnly, []);
+    assert.strictEqual(table.badges.flex_.xp, 0);
+    assert.strictEqual(table.badges.anon.xp, 0);
+    tableIds.forEach(function (id) {
+        if (!catalog.badges[id]) return;
+        assert.strictEqual(catalog.badges[id].xp, table.badges[id].xp, id);
+        const rule = badgeRules.ruleFor(id);
+        if (rule.cosmetic) assert.strictEqual(rule.displayXp, table.badges[id].xp, id);
+        else assert.strictEqual(rule.xp, table.badges[id].xp, id);
+    });
+    const twins = ['trivia_first', 'poll_100', 'lightning_setup', 'first_peer', 'peer_network_10', 'quest_legend', 'raid_warlord', 'first_post', 'first_reply', 'market_seller', 'market_buyer'];
+    twins.forEach(function (id) { assert.strictEqual(badgeRules.xpOf(id), 10, id); });
+    const groups = {};
+    badgeRules.allIds().forEach(function (id) {
+        const rule = badgeRules.ruleFor(id);
+        if (!rule || !rule.source || rule.cosmetic) return;
+        const src = rule.source;
+        let key = null;
+        let rank = null;
+        if (src.type === 'counter') { key = 'c:' + src.field; rank = src.gte; }
+        else if (src.type === 'flex') { key = 'flex:' + src.action; rank = src.gte; }
+        else if (src.type === 'flexSum') { key = 'flexSum'; rank = src.gte; }
+        else if (src.type === 'awards') { key = 'awards'; rank = src.gte; }
+        else if (src.type === 'accuracy') { key = 'acc:' + src.field; rank = src.gte; }
+        if (key == null) return;
+        (groups[key] = groups[key] || []).push({ id: id, rank: rank, xp: rule.xp });
+    });
+    Object.keys(groups).forEach(function (key) {
+        const byRank = {};
+        groups[key].forEach(function (row) {
+            (byRank[row.rank] = byRank[row.rank] || []).push(row);
+        });
+        let floor = 0;
+        Object.keys(byRank).map(Number).sort(function (a, b) { return a - b; }).forEach(function (rank) {
+            const best = byRank[rank].reduce(function (max, row) { return Math.max(max, row.xp); }, 0);
+            assert.ok(best >= floor, key + ' at ' + rank + ' pays ' + best + ' under ' + floor);
+            floor = best;
+        });
+    });
+    const badgesSrc = fs.readFileSync(path.join(root, 'badges.js'), 'utf8');
+    assert.ok(badgesSrc.includes('function badgeShownXp'));
+    assert.ok(badgesSrc.includes('window.BADGE_CATALOG'));
+    const clientSrc = fs.readFileSync(path.join(root, 'badges.catalog.js'), 'utf8');
+    const clientStart = clientSrc.indexOf('window.BADGE_CATALOG=') + 'window.BADGE_CATALOG='.length;
+    const clientEnd = clientSrc.indexOf(';\nwindow.BADGE_CATALOG_VERSION');
+    const client = JSON.parse(clientSrc.slice(clientStart, clientEnd));
+    assert.strictEqual(client.satoshis_cipher.xp, 2000);
+    assert.strictEqual(client.donor_100.xp, 10);
+    assert.strictEqual(client.hall_of_fame.xp, 500);
+    assert.strictEqual(client.streak_365.xp, 2000);
+}));
+
+queue.push(test('badge XP tapers at 500, 900, and 1,000 and the backfill bypasses it', async function () {
+    const { applyDailyXp, taperDailyXp } = require('../functions/src/applyDailyXp');
+    const full = taperDailyXp(2000, 0);
+    assert.strictEqual(full.awarded, 1000);
+    assert.strictEqual(full.dailyXp, 1000);
+    assert.strictEqual(full.dropped, 1000);
+    const edge = taperDailyXp(150, 500);
+    assert.strictEqual(edge.awarded, 75);
+    assert.strictEqual(edge.dailyXp, 575);
+    const quarter = taperDailyXp(150, 900);
+    assert.strictEqual(quarter.awarded, 37);
+    assert.strictEqual(quarter.dailyXp, 937);
+    assert.strictEqual(taperDailyXp(10, 1000).awarded, 0);
+    const partial = memoryDb({
+        'users/u': { sayHiDays: 30, points: 0 },
+        'users/u/daily_points/2026-10-22': { total: 900 },
+    });
+    const mid = await awardBadge(partial, admin, 'u', 'say_hi_30', { day: '2026-10-22', nowMs: 1700000000000 });
+    assert.strictEqual(mid.xp, 37);
+    assert.strictEqual(mid.overflowAdded, 0);
+    assert.strictEqual(mid.dropped, 113);
+    assert.strictEqual(partial.docs['users/u'].points, 37);
+    assert.strictEqual(partial.docs['users/u'].pendingOverflow, undefined);
+    assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 937);
+    const fresh = memoryDb({ 'users/u': { bestStreak: 365, points: 0 } });
+    const legend = await awardBadge(fresh, admin, 'u', 'streak_365', { day: '2026-10-22', nowMs: 1700000000000 });
+    assert.strictEqual(legend.xp, 1000);
+    assert.strictEqual(legend.dropped, 1000);
+    assert.strictEqual(fresh.docs['users/u'].pendingOverflow, undefined);
+    assert.strictEqual(fresh.docs['users/u/daily_points/2026-10-22'].total, 1000);
+    const bypass = await applyDailyXp('u', 2000, null, { bypass: true });
+    assert.strictEqual(bypass.bypass, true);
+    assert.strictEqual(bypass.awarded, 2000);
+    assert.strictEqual(bypass.overflowAdded, 0);
+    const src = fs.readFileSync(path.join(root, 'functions', 'src', 'awardBadge.js'), 'utf8');
+    assert.ok(src.includes('applyDailyXp('));
+    assert.ok(!src.includes('pendingOverflow'));
+    assert.ok(!src.includes('BADGE_DAILY_CAP'));
+    const backfill = fs.readFileSync(path.join(root, 'functions', 'scripts', 'backfill_badge_xp.js'), 'utf8');
+    assert.ok(backfill.includes('bypass: true'));
+    assert.ok(backfill.includes("tag: 'badge_xp_backfill'"));
+    assert.ok(!backfill.includes('weeklyXP'));
+    assert.ok(!backfill.includes('monthlyXP'));
+    assert.ok(!backfill.includes("doc('current').set"));
+    assert.ok(!backfill.includes('favorActive'));
+    assert.ok(!backfill.includes('level: plan.level'));
+    assert.ok(backfill.includes('favor cyber_hornets:'));
+    assert.ok(backfill.includes('capped-at-zero badges:'));
+    assert.ok(backfill.includes('capped-at-zero xp:'));
+}));
+
+queue.push(test('badge XP backfill tops up fixtures without clawing back or paying fakes', function () {
+    const { planUserBadges } = require('../functions/src/badgeXpBackfill');
+    const banned = planUserBadges({
+        user: { points: 0, badges: ['say_hi_1'], sayHiDays: 1, banned: true },
+        awardIds: ['say_hi_1'],
+        awardById: { say_hi_1: { xp: 0 } },
+    });
+    assert.strictEqual(banned.banned, true);
+    assert.strictEqual(banned.xp, 0);
+    const hidden = planUserBadges({
+        user: { points: 0, hiddenBadges: ['spin_1'], spinDays: 1 },
+        awardIds: [],
+    });
+    assert.strictEqual(hidden.xp, 0);
+    assert.strictEqual(hidden.excluded['hidden-only'], 1);
+    const inflated = planUserBadges({
+        user: { points: 0, badges: ['flex_findq_1'], flexTotals: { findq: 100 } },
+        awardIds: ['flex_findq_1'],
+        awardById: { flex_findq_1: {} },
+        flexClaimIds: [],
+    });
+    assert.strictEqual(inflated.xp, 0);
+    const flex = planUserBadges({
+        user: { points: 0, badges: ['flex_findq_1'], flexTotals: { findq: 0 } },
+        awardIds: ['flex_findq_1'],
+        awardById: { flex_findq_1: { xp: 2 } },
+        flexClaimIds: ['2026-07-04_flex_findq'],
+    });
+    assert.strictEqual(flex.xp, 8);
+    const again = planUserBadges({
+        user: { points: 0, badges: ['flex_findq_1'] },
+        awardIds: ['flex_findq_1'],
+        awardById: { flex_findq_1: { xp: 2 } },
+        flexClaimIds: ['2026-07-04_flex_findq'],
+        markerIds: ['flex_findq_1'],
+    });
+    assert.strictEqual(again.xp, 0);
+    assert.strictEqual(again.topUps[0].skip, 'marker');
+    const claw = planUserBadges({
+        user: { points: 5000, bestStreak: 365, badges: ['streak_365'] },
+        awardIds: ['streak_365'],
+        awardById: { streak_365: { xp: 5000 } },
+    });
+    assert.strictEqual(claw.xp, 0);
+    assert.strictEqual(claw.topUps[0].skip, 'paid');
+    const level = planUserBadges({
+        user: { points: 130, bestStreak: 7, badges: ['streak_7'], faction: 'honey_badgers' },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 50 } },
+    });
+    assert.strictEqual(level.xp, 100);
+    assert.strictEqual(level.pointsAfter, 230);
+    assert.strictEqual(level.favorPoints, 2);
+    assert.deepStrictEqual(level.levelUps.map(function (row) { return row.name; }), ['Pleb', 'Pleb II']);
+    assert.strictEqual(level.levelUps[0].points, 1);
+    const already = planUserBadges({
+        user: { points: 130, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 50 } },
+        levelContributorIds: ['Pleb', 'Pleb II'],
+    });
+    assert.strictEqual(already.xp, 100);
+    assert.strictEqual(already.favorPoints, 0);
+    assert.strictEqual(already.levelUps.length, 0);
+    const legacy = planUserBadges({
+        user: { points: 0, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 0, source: 'legacy', requestedXp: 0 } },
+    });
+    assert.strictEqual(legacy.topUps[0].alreadyPaid, 50);
+    assert.strictEqual(legacy.xp, 100);
+    assert.strictEqual(legacy.topUps[0].cappedZero, false);
+    const capped = planUserBadges({
+        user: { points: 0, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 0, source: 'awardBadge', requestedXp: 150 } },
+    });
+    assert.strictEqual(capped.xp, 150);
+    assert.strictEqual(capped.topUps[0].cappedZero, true);
 }));
 
 Promise.all(queue).then(function () {

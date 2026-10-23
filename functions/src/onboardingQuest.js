@@ -23,7 +23,7 @@ const GUEST_CHANNEL_CAP = 200;
 const NONCE_MAX_AGE_MS = 30 * 60 * 1000;
 const GUEST_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const { planDailyXp } = require('./dailyXp');
 
 function normalizeMode(mode) {
     if (mode === 'beginner' || mode === 'intermediate' || mode === 'advanced') return mode;
@@ -125,27 +125,19 @@ function planGuestMerge(input) {
     };
 }
 
-// Same daily cap as gradeQuest and say-hi: 500 XP on the 5 AM UTC day.
-// Overflow stays on the user so a later claim can pay it. Weekly and monthly
-// totals use the awarded part only, matching claimSayHi.
+// Same shared cap as every other XP grant: full through 500, half through 900, then a quarter until 1,000.
+// A guest-point merge does not call this. Weekly and monthly use the awarded part.
 function planDailyGrant(input) {
     const src = input || {};
-    const today = src.today || '';
-    let pending = Number(src.pendingOverflow) || 0;
-    if (pending < 0) pending = 0;
-    let redeemed = 0;
-    if (pending > 0 && src.lastOverflowDate && src.lastOverflowDate !== today) {
-        redeemed = Math.min(pending, DAILY_POINTS_CAP);
-        pending -= redeemed;
-    }
-    const split = splitDailyXp(Number(src.dailyUsed) || 0, Number(src.amount) || 0, DAILY_POINTS_CAP);
+    const split = planDailyXp(Number(src.dailyUsed) || 0, Number(src.amount) || 0);
     return {
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
-        overflowRedeemed: redeemed,
-        pendingOverflow: pending + split.overflowAdded,
-        touchOverflow: split.overflowAdded > 0 || redeemed > 0,
-        pointsOut: split.awarded + redeemed,
+        overflowAdded: 0,
+        overflowRedeemed: 0,
+        pendingOverflow: 0,
+        touchOverflow: false,
+        pointsOut: split.awarded,
+        today: src.today || '',
     };
 }
 
@@ -164,5 +156,4 @@ module.exports = {
     GUEST_CHANNEL_CAP,
     NONCE_MAX_AGE_MS,
     GUEST_MAX_AGE_MS,
-    DAILY_POINTS_CAP,
 };

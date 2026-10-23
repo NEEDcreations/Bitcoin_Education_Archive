@@ -134,7 +134,8 @@
         <li>Ranks run from Normie (0 XP) through Maxi (2,140 XP) up to Satoshi (210,000 XP)</li>
         <li>Leaderboard rankings are public and display your chosen username and online status. Three leaderboard periods are available: All-Time, Weekly (resets every Monday), and Monthly (resets on the 1st of each month)</li>
         <li>Weekly and Monthly leaderboards track XP earned during that period only; all-time XP is never reduced</li>
-        <li>XP is awarded on the server. The main award function caps a day at <strong>1,000 XP</strong>. Some actions, including graded quiz quests and some gift and key rewards, use a lower cap (500 XP). XP past the cap can be held and applied on a later day, still inside that day's cap. A change in the browser does not raise the cap</li>
+        <li>XP is awarded on the server. One daily counter, reset at 5:00 UTC, pays full XP until 500 XP that day, then half until 900 XP, then a quarter until 1,000 XP, then nothing more that day. Each tier rounds down on its own. An award that crosses a boundary is split across those rates, and a leftover fraction is not carried into the next tier. Extra XP is not saved for a later day. Quiz, trivia, chat, badges, and the other XP sources share this counter. A change in the browser does not raise the cap</li>
+        <li>Topic conversations can earn XP, and that XP also counts toward the shared daily cap above. Starting a conversation earns 10 XP. A reply earns 5 XP, once, on the original post only: the Pleb Talk copy of that reply does not earn it again. When someone else replies, the person who started the conversation can earn 2 XP, up to 5 of those awards a day. Topic conversation XP is capped at 40 XP per person per day. Nacho's replies do not earn XP. Replying to your own conversation does not earn XP. A post needs at least 15 characters that are not spaces, and it cannot be a near-duplicate of your last 5 messages. A banned person does not earn it. Deleting a post does not refund XP. If a post is deleted or moderated within 10 minutes, that award is taken back</li>
         <li>Quiz quests are graded on the server. The browser sends your answers; we keep the answer key. Daily trivia can award XP through the same server award function. Trivia and quiz grading may run entirely on the server. We do not treat a score you type into the browser as final</li>
         <li>Engagement in Global Chat, including replies, may earn XP. There is no promise of XP for any particular message</li>
         <li>Attempting to manipulate points through automated tools, scripts, browser console commands, or exploits is prohibited and will be detected</li>
@@ -353,7 +354,7 @@
     <ul>
         <li>Each educational topic has a Community discussion where signed-in users can post a comment or a question</li>
         <li>Comments are visible to anyone, including guests. Guests can read. Only a signed-in, non-guest account with a username can post</li>
-        <li>Posting a comment or a question does not award XP, tickets, or sats</li>
+        <li>Starting a conversation can award 10 XP, and a reply can award 5 XP, under the limits in Section 5. Tickets and sats are not awarded for posting</li>
         <li>Nacho may reply when a post is a question. Those replies are educational, can be wrong, and are <strong>not financial, investment, or legal advice</strong></li>
         <li>The first post in a topic thread is also published on Pleb Talk under your username. The forum post names the topic, links back to the thread, and includes a short summary written on the server. Replies on either side are copied to the other, with your name and the server time. Copies do not award XP or tickets</li>
         <li>Before you post, the composer says your message will also be posted publicly to the Pleb Talk forum</li>
@@ -464,7 +465,7 @@
         <li>Signed-in users have a public profile visible to other signed-in users</li>
         <li>Profiles display: username, profile picture, level, points, badges, tickets, streak, channels visited, forum posts, and join date</li>
         <li>Profile pictures are optional (resized to 128px JPEG, stored in Firestore)</li>
-        <li>You may turn on an authenticator app or phone verification in Settings. If you lose the device, a one-time recovery code gets you back in and turns that verification off. Support can turn it off after confirming it is you, and that action is logged</li>
+        <li>You may turn on an authenticator app or phone verification in Settings. You can remember a browser for 30 days after a correct authenticator code. Remembering a browser does not cover changing your Lightning Address, turning two-factor authentication off, creating new recovery codes, or deleting the account. Those ask for a fresh code. If you lose the device, a one-time recovery code gets you back in, turns that verification off, and signs out remembered devices. Support can turn it off after confirming it is you, and that action is logged. Settings lists remembered devices and can sign the others out</li>
         <li>Online status is tracked by default: green (active in last 5 min), yellow (15 min), or offline</li>
         <li>Online status updates every 60 seconds while you're on the Site</li>
         <li>You can <strong>disable online status</strong> in Settings → Prefs → Online Status (you will appear offline to all users)</li>

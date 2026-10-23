@@ -39,7 +39,8 @@ function grabFields(block) {
 
 function collectObjects(text) {
     const out = {};
-    const re = /id\s*:\s*['"]([a-zA-Z0-9_]+)['"]/g;
+    // A word boundary keeps `raid: 'Raid'` from looking like `id: 'Raid'`.
+    const re = /(?:^|[^A-Za-z0-9_])id\s*:\s*['"]([a-zA-Z0-9_]+)['"]/g;
     let m;
     while ((m = re.exec(text))) {
         const id = m[1];
@@ -179,12 +180,12 @@ Object.keys(extra).forEach(function (id) {
     };
 });
 
-// Learning quest rows keep their intended XP for display. The rule module
-// marks them cosmetic until a server-graded lesson exists.
-['lq_what_is_bitcoin', 'lq_mining', 'lq_nodes', 'lq_self_custody', 'lq_lightning', 'lq_scarcity', 'lq_bitcoin_only', 'lq_privacy'].forEach(function (id) {
-    if (badges[id]) badges[id].xp = 100;
+// The proposed sheet is the only XP amount. Display and the server both
+// read it. A missing id keeps the definition it was parsed from.
+const xpTable = require('./badge-xp.json');
+Object.keys(badges).forEach(function (id) {
+    if (xpTable.badges[id]) badges[id].xp = Number(xpTable.badges[id].xp) || 0;
 });
-if (badges.lq_graduate) badges.lq_graduate.xp = 250;
 
 const doc = {
     version: 1,

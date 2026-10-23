@@ -202,6 +202,8 @@ service cloud.firestore {
                         'pointsClaimed', 'pointsExchanged',
                         'lastSatsClaim', 'lastAwards', '_pendingClaim',
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
+                        'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
+                        'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
                         'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',
@@ -696,6 +698,12 @@ service cloud.firestore {
       allow read, write: if false; // Cloud Function only
     }
     match /totp_sessions/{docId} {
+      allow read, write: if false;
+    }
+    match /trusted_devices/{docId} {
+      allow read, write: if false;
+    }
+    match /totp_fresh_proofs/{docId} {
       allow read, write: if false;
     }
     match /recovery_codes/{docId} {
@@ -1721,8 +1729,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Quiz part completions. Cloud Functions only — not the client-editable
+    // completedQuests array on the user doc.
+    match /users/{userId}/quest_completions/{docId} {
+      allow read, write: if false;
+    }
+
+    // One pass per quiz part. gradeQuest writes this so questsPassed cannot be farmed.
+    match /users/{userId}/quest_passes/{docId} {
+      allow read, write: if false;
+    }
+
     // Server-side badge award deduplication (Cloud Function only)
     match /users/{userId}/badge_awards/{docId} {
+      allow read, write: if false;
+    }
+
+    // Topic conversation XP ledger. Written only by the server function that
+    // accepts the post. source is topic_conversation. Clients cannot write it.
+    match /users/{userId}/xp_ledger/{docId} {
       allow read, write: if false;
     }
 

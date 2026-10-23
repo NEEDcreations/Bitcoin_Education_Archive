@@ -18,6 +18,9 @@
 
 const admin = require('firebase-admin');
 const rewardNotify = require('./rewardNotify');
+const { planDailyXp } = require('./dailyXp');
+const { offsetDateKey } = require('./offsetDay');
+const { rewardBlocked } = require('./cipherClaim');
 
 const db = admin.firestore();
 
@@ -64,10 +67,19 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
   const recipRef  = db.collection('users').doc(recipientUid);
 
   const txResult = await db.runTransaction(async (t) => {
-    const [pairDoc, senderDoc, recipDoc] = await Promise.all([
+    const dayKey = offsetDateKey(Date.now());
+    const senderDailyRef = senderRef.collection('daily_points').doc(dayKey);
+    const recipDailyRef = recipRef.collection('daily_points').doc(dayKey);
+    const senderLedgerRef = db.collection('faucet_ledger').doc(senderUid);
+    const recipLedgerRef = db.collection('faucet_ledger').doc(recipientUid);
+    const [pairDoc, senderDoc, recipDoc, senderDaily, recipDaily, senderLedger, recipLedger] = await Promise.all([
       t.get(pairRef),
       t.get(senderRef),
       t.get(recipRef),
+      t.get(senderDailyRef),
+      t.get(recipDailyRef),
+      t.get(senderLedgerRef),
+      t.get(recipLedgerRef),
     ]);
 
     // Both users must still exist
@@ -109,10 +121,18 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
       [`peerData.${senderUid}.giftsExchanged`]: giftsExchanged,
     };
 
-    // ── XP award on level-up — server-side increment only ─────────────────
-    // One-time level XP is not doubled.
-    const senderXp = (didLevelUp && newLevel.xp > 0) ? newLevel.xp : 0;
-    const recipXp = (didLevelUp && newLevel.xp > 0) ? newLevel.xp : 0;
+    // Level-up XP shares the 500 / 900 / 1,000 daily counter. It is not doubled.
+    const rawXp = (didLevelUp && newLevel.xp > 0) ? newLevel.xp : 0;
+    function taperedXp(raw, userDoc, dailyDoc, ledgerDoc) {
+      if (!(raw > 0)) return 0;
+      const user = userDoc.data() || {};
+      const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
+      if (rewardBlocked(user, ledger)) return 0;
+      const used = dailyDoc.exists ? Number((dailyDoc.data() || {}).total || 0) : 0;
+      return planDailyXp(used, raw).awarded;
+    }
+    const senderXp = taperedXp(rawXp, senderDoc, senderDaily, senderLedger);
+    const recipXp = taperedXp(rawXp, recipDoc, recipDaily, recipLedger);
     function xpFields(amount) {
       return {
         points:    admin.firestore.FieldValue.increment(amount),
@@ -120,8 +140,16 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
         monthlyXP: admin.firestore.FieldValue.increment(amount),
       };
     }
-    if (senderXp > 0) Object.assign(senderPeerUpdate, xpFields(senderXp));
-    if (recipXp > 0) Object.assign(recipPeerUpdate, xpFields(recipXp));
+    if (senderXp > 0) {
+      Object.assign(senderPeerUpdate, xpFields(senderXp));
+      const used = senderDaily.exists ? Number((senderDaily.data() || {}).total || 0) : 0;
+      t.set(senderDailyRef, { total: used + senderXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    }
+    if (recipXp > 0) {
+      Object.assign(recipPeerUpdate, xpFields(recipXp));
+      const used = recipDaily.exists ? Number((recipDaily.data() || {}).total || 0) : 0;
+      t.set(recipDailyRef, { total: used + recipXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    }
 
     t.update(senderRef, senderPeerUpdate);
     t.update(recipRef,  recipPeerUpdate);
@@ -168,18 +196,23 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
     } catch (e) {
       console.warn('[peerLevel] notification failed:', e.message);
     }
-    if (txResult.xpAwarded > 0) {
-      await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(),
-        rewardNotify.plan({
-          uid: senderUid,
-          pointsBefore: txResult.senderPoints,
-          pointsDelta: txResult.senderXp,
-        }).concat(rewardNotify.plan({
-          uid: recipientUid,
-          pointsBefore: txResult.recipPoints,
-          pointsDelta: txResult.recipXp,
-        }))
-      );
+    const notices = [];
+    if (txResult.senderXp > 0) {
+      notices.push.apply(notices, rewardNotify.plan({
+        uid: senderUid,
+        pointsBefore: txResult.senderPoints,
+        pointsDelta: txResult.senderXp,
+      }));
+    }
+    if (txResult.recipXp > 0) {
+      notices.push.apply(notices, rewardNotify.plan({
+        uid: recipientUid,
+        pointsBefore: txResult.recipPoints,
+        pointsDelta: txResult.recipXp,
+      }));
+    }
+    if (notices.length) {
+      await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), notices);
     }
     try {
       const { sendUserPush } = require('./push');

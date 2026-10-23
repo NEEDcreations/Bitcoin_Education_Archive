@@ -6,10 +6,12 @@
 // point. Cosmetic means there is no server proof: no badge_awards row, no Favor.
 
 const catalog = require('./badges.catalog.json');
+const badgeXp = require('./badgeXpTable');
 
 const XP_CAP = 5000;
 const SF_MIN_XP = 50;
 
+// Amounts live in badge-xp.json (the proposed sheet). This object is unused.
 const XP_OVERRIDE = {
     satoshis_cipher: 5000,
     satoshis_covenant: 4000,
@@ -381,10 +383,22 @@ function sourceFor(id) {
 
 function fairXp(id, raw, cosmetic) {
     if (cosmetic) return 0;
-    if (Object.prototype.hasOwnProperty.call(XP_OVERRIDE, id)) return XP_OVERRIDE[id];
+    if (badgeXp.has(id)) return badgeXp.xpOf(id);
     const n = Number(raw) || 0;
     if (n > XP_CAP) return XP_CAP;
     return n;
+}
+
+function tallyFlexClaims(ids) {
+    const byAction = {};
+    let sum = 0;
+    (ids || []).forEach(function (id) {
+        const match = /^(\d{4}-\d{2}-\d{2})_flex_([a-z0-9]+)$/.exec(String(id || ''));
+        if (!match || FLEX_ALL_IDS.indexOf(match[2]) === -1) return;
+        byAction[match[2]] = (byAction[match[2]] || 0) + 1;
+        sum += 1;
+    });
+    return { byAction: byAction, sum: sum };
 }
 
 function ruleFor(id) {
@@ -402,7 +416,7 @@ function ruleFor(id) {
         category: row.category || '',
         hidden: row.hidden === true,
         xp: xp,
-        displayXp: Object.prototype.hasOwnProperty.call(XP_OVERRIDE, id) ? XP_OVERRIDE[id] : (Number(row.displayXp != null ? row.displayXp : row.xp) || 0),
+        displayXp: badgeXp.has(id) ? badgeXp.xpOf(id) : (Number(row.displayXp != null ? row.displayXp : row.xp) || 0),
         cosmetic: !pays,
         source: source,
         sf: pays && xp >= SF_MIN_XP,
@@ -454,19 +468,16 @@ function meets(rule, user, ctx) {
         }
         return value >= src.gte;
     }
-    if (src.type === 'flex') {
-        const totals = data.flexTotals && typeof data.flexTotals === 'object' ? data.flexTotals : {};
-        return (Number(totals[src.action]) || 0) >= src.gte;
-    }
-    if (src.type === 'flexSum') {
-        const totals = data.flexTotals && typeof data.flexTotals === 'object' ? data.flexTotals : {};
-        let n = 0;
-        Object.keys(totals).forEach(function (key) { n += Number(totals[key]) || 0; });
-        return n >= src.gte;
-    }
-    if (src.type === 'flexAll') {
-        const totals = data.flexTotals && typeof data.flexTotals === 'object' ? data.flexTotals : {};
-        return src.ids.every(function (action) { return (Number(totals[action]) || 0) >= 1; });
+    if (src.type === 'flex' || src.type === 'flexSum' || src.type === 'flexAll') {
+        const claims = bag.flexClaims || { byAction: {}, sum: 0 };
+        if (src.type === 'flex') return (Number(claims.byAction[src.action]) || 0) >= src.gte;
+        if (src.type === 'flexSum') {
+            const sum = claims.sum != null ? Number(claims.sum) : Object.keys(claims.byAction || {}).reduce(function (n, key) {
+                return n + (Number(claims.byAction[key]) || 0);
+            }, 0);
+            return sum >= src.gte;
+        }
+        return src.ids.every(function (action) { return (Number(claims.byAction[action]) || 0) >= 1; });
     }
     if (src.type === 'truthy') return typeof data[src.field] === 'string' ? data[src.field].length > 0 : !!data[src.field];
     if (src.type === 'either') {
@@ -548,6 +559,7 @@ module.exports = {
     sfEligible: sfEligible,
     countPaying: countPaying,
     meets: meets,
+    tallyFlexClaims: tallyFlexClaims,
     xpMap: xpMap,
     verifiedIds: verifiedIds,
     allIds: allIds,

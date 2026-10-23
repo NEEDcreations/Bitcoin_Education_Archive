@@ -522,7 +522,7 @@
         host.appendChild(forumCrossPostNotice());
         var controls = el('div', 'td-compose-row');
         var hint = el('span', 'td-note');
-        hint.textContent = 'Nacho may answer questions. Posting does not earn XP or tickets.';
+        hint.textContent = 'Nacho may answer questions. A new conversation can earn XP.';
         var send = btn('Post', 'td-send', function() { submit(area, send); });
         controls.appendChild(hint);
         controls.appendChild(count);
@@ -541,7 +541,9 @@
         if (state.parentId) payload.parentId = state.parentId;
         var anchor = window._topicAnchorIndex;
         if (anchor != null && anchor !== '' && !payload.parentId) payload.anchorIndex = anchor;
-        callFn('postTopicComment', payload).then(function() {
+        callFn('postTopicComment', payload).then(function(res) {
+            var data = res && res.data ? res.data : (res || {});
+            if (data && data.toast) toast(data.toast);
             area.value = '';
             state.parentId = '';
             state.replyName = '';

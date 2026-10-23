@@ -12,6 +12,7 @@ const tctvPresence = require('./tctv-presence-lib');
 const watch = require('./src/tctvWatch');
 const rewardNotify = require('./src/rewardNotify');
 const ticketGrants = require('./src/ticketGrants');
+const { rewardBlocked } = require('./src/cipherClaim');
 
 const db = admin.firestore();
 
@@ -67,7 +68,7 @@ const tctvWatchHeartbeat = functionsV1.runWith({
 
         const user = userSnap.data() || {};
         const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
-        const banned = user.satsDisabled === true || ledger.banned === true;
+        const banned = rewardBlocked(user, ledger);
         const presence = presenceSnap.exists ? (presenceSnap.data() || {}) : null;
         const stored = watchSnap.exists ? (watchSnap.data() || {}) : {};
         const lastCredit = watch.creditMillis(stored.lastCreditAt);
@@ -128,15 +129,10 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             if (ticketsOut > 0) {
                 userUpdate.orangeTickets = admin.firestore.FieldValue.increment(ticketsOut);
             }
-            const pointsOut = xpPlan.awarded + xpPlan.overflowRedeemed;
-            if (pointsOut > 0) userUpdate.points = admin.firestore.FieldValue.increment(pointsOut);
             if (xpPlan.awarded > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(xpPlan.awarded);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xpPlan.awarded);
                 userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xpPlan.awarded);
-            }
-            if (xpPlan.touchOverflow) {
-                userUpdate.pendingOverflow = xpPlan.pendingOverflow;
-                userUpdate.lastOverflowDate = view.day || today;
             }
             if (Object.keys(userUpdate).length) tx.update(userRef, userUpdate);
             if (ticketsOut > 0) {

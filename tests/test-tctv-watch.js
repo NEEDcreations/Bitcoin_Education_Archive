@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const vm = require('vm');
 
 const watch = require('../functions/src/tctvWatch');
 
@@ -249,31 +250,31 @@ test('the offset day flips at 05:00 UTC', () => {
     assert.strictEqual(hit.notice, null);
 });
 
-test('xp uses the 1000 daily cap and redeems yesterday overflow', () => {
+test('xp uses the shared taper and does not redeem yesterday overflow', () => {
     const full = watch.planWatchXp(0, 0, '', '2026-10-22');
     assert.strictEqual(full.awarded, 100);
     assert.strictEqual(full.overflowAdded, 0);
     assert.strictEqual(full.overflowRedeemed, 0);
     assert.strictEqual(full.tickets, 1);
     const partial = watch.planWatchXp(950, 0, '', '2026-10-22');
-    assert.strictEqual(partial.awarded, 50);
-    assert.strictEqual(partial.overflowAdded, 50);
-    assert.strictEqual(partial.pendingOverflow, 50);
-    assert.strictEqual(partial.touchOverflow, true);
+    assert.strictEqual(partial.awarded, 25);
+    assert.strictEqual(partial.overflowAdded, 0);
+    assert.strictEqual(partial.pendingOverflow, 0);
+    assert.strictEqual(partial.touchOverflow, false);
     assert.strictEqual(partial.tickets, 1);
     const capped = watch.planWatchXp(1000, 0, '', '2026-10-22');
     assert.strictEqual(capped.awarded, 0);
-    assert.strictEqual(capped.overflowAdded, 100);
-    assert.strictEqual(capped.pendingOverflow, 100);
+    assert.strictEqual(capped.overflowAdded, 0);
+    assert.strictEqual(capped.pendingOverflow, 0);
     assert.strictEqual(capped.tickets, 0);
     const redeem = watch.planWatchXp(0, 80, '2026-10-21', '2026-10-22');
-    assert.strictEqual(redeem.overflowRedeemed, 80);
+    assert.strictEqual(redeem.overflowRedeemed, 0);
     assert.strictEqual(redeem.awarded, 100);
     assert.strictEqual(redeem.pendingOverflow, 0);
-    assert.strictEqual(redeem.touchOverflow, true);
+    assert.strictEqual(redeem.touchOverflow, false);
     const sameDay = watch.planWatchXp(0, 80, '2026-10-22', '2026-10-22');
     assert.strictEqual(sameDay.overflowRedeemed, 0);
-    assert.strictEqual(sameDay.pendingOverflow, 80);
+    assert.strictEqual(sameDay.pendingOverflow, 0);
 });
 
 test('button text shows minutes, then done', () => {
@@ -303,8 +304,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     assert.ok(src.includes("collection('tctv_presence')"));
     assert.ok(src.includes('isFreshPresence'));
     assert.ok(src.includes('isTctvStation'));
-    assert.ok(src.includes('satsDisabled'));
-    assert.ok(src.includes('ledger.banned'));
+    assert.ok(src.includes('rewardBlocked'));
     assert.ok(src.includes('rewardNotify.apply'));
     assert.ok(src.includes('decision.notice'));
     assert.ok(src.includes('planWatchXp'));
@@ -317,7 +317,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     const logic = read('functions/src/tctvWatch.js');
     assert.ok(logic.includes("onceKey: 'tctv_watch_' + cleanDay"));
     assert.ok(logic.includes('rewardNotify.plan'));
-    assert.ok(logic.includes('splitDailyXp'));
+    assert.ok(logic.includes('planDailyXp'));
     assert.ok(logic.includes('offsetDateKey'));
     assert.ok(src.includes('runTransaction'));
     assert.ok(src.includes('orangeTickets'));
@@ -376,7 +376,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('startTctvDailyWatch()'));
     assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
-    assert.ok(html.includes('tctv-watch.js?v=20261022_v2301'));
+    assert.ok(html.includes('tctv-watch.js?v=20261023_v2340'));
+    assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
+    assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('id="tctvWatchSub"'));
     assert.ok(html.includes('>0/10 min</span>'));
     const watchTag = html.slice(html.indexOf('id="tctvWatchBtn"'), html.indexOf('id="tctvWatchBtn"') + 900);
@@ -388,9 +390,15 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261022_v2322'));
+    assert.ok(html.includes('features.registry.js?v=20261023_v2339'));
+    assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
     assert.ok(client.includes('getDailyKey'));
     assert.ok(client.includes('IntersectionObserver'));
+    assert.ok(client.includes('function displayWatchSeconds'));
+    assert.ok(client.includes('setInterval(monitor, 1000)'));
+    assert.ok(client.includes('call({})'));
+    assert.strictEqual(client.includes('call({ seconds'), false);
+    assert.ok(html.includes('.tctv-watch-chip.is-done'));
     assert.strictEqual(client.includes('600000'), false);
     const row = html.slice(html.indexOf('id="em-quick-actions"'), html.indexOf('id="continueReading"'));
     const spin = row.indexOf('id="nqSpinBtn"');
@@ -400,9 +408,354 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2337'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2341'"));
+    assert.ok(!sw.includes('btc-archive-v2340'));
+    assert.ok(!sw.includes('btc-archive-v2339'));
+    assert.ok(!sw.includes('btc-archive-v2338'));
+    assert.ok(!sw.includes('btc-archive-v2334'));
+    assert.ok(!sw.includes('btc-archive-v2333'));
+    assert.ok(!sw.includes('btc-archive-v2332'));
+    assert.ok(!sw.includes('btc-archive-v2331'));
     assert.ok(!sw.includes('btc-archive-v2330'));
+    assert.ok(!sw.includes('btc-archive-v2329'));
     assert.ok(!sw.includes('btc-archive-v2325'));
+});
+
+function syncThen(value) {
+    return {
+        then: function (onOk, onErr) {
+            try {
+                const next = onOk ? onOk(value) : value;
+                return syncThen(next);
+            } catch (err) {
+                if (onErr) return syncThen(onErr(err));
+                throw err;
+            }
+        },
+        catch: function (onErr) {
+            return this.then(null, onErr);
+        }
+    };
+}
+
+function makeEl(id, owner) {
+    const el = {
+        id: id || '',
+        textContent: '',
+        className: '',
+        style: {},
+        attrs: {},
+        children: [],
+        parent: null,
+        owner: owner,
+        setAttribute: function (k, v) { this.attrs[k] = String(v); },
+        getAttribute: function (k) { return this.attrs[k] || null; },
+        remove: function () {
+            if (this.parent) this.parent.children = this.parent.children.filter(function (c) { return c !== this; }, this);
+            if (this.id && this.owner && this.owner[this.id] === this) delete this.owner[this.id];
+            this.parent = null;
+        },
+        appendChild: function (child) {
+            child.remove();
+            child.parent = this;
+            child.owner = this.owner;
+            this.children.push(child);
+            if (child.id) this.owner[child.id] = child;
+        },
+        querySelector: function (sel) {
+            const want = sel.charAt(0) === '.' ? sel.slice(1) : sel;
+            const walk = function (node) {
+                const names = String(node.className || '').split(/\s+/);
+                if (names.indexOf(want) !== -1) return node;
+                for (let i = 0; i < node.children.length; i++) {
+                    const hit = walk(node.children[i]);
+                    if (hit) return hit;
+                }
+                return null;
+            };
+            return walk(this);
+        }
+    };
+    Object.defineProperty(el, 'innerHTML', {
+        set: function (html) {
+            el.children = [];
+            ['tctv-watch-chip-text', 'tctv-watch-chip-bar', 'tctv-watch-chip-fill'].forEach(function (name) {
+                if (html.indexOf(name) === -1) return;
+                const child = makeEl('', el.owner);
+                child.className = name;
+                el.appendChild(child);
+            });
+        }
+    });
+    return el;
+}
+
+// Loads the real page script with a stand-in YouTube player and ledger read.
+function bootWatch(opts) {
+    const ids = {};
+    function el(id) {
+        const node = makeEl(id, ids);
+        if (id) ids[id] = node;
+        return node;
+    }
+    el('tctvWatchBtn');
+    el('tctvWatchEmoji');
+    el('tctvWatchLabel');
+    el('tctvWatchSub');
+    el('tctv-video-container');
+    const timers = [];
+    const calls = [];
+    const toasts = [];
+    let painted = 0;
+    let now = opts.now;
+    let playerState = opts.playerState == null ? 1 : opts.playerState;
+    const user = opts.user === undefined ? { uid: 'user_1', isAnonymous: false } : opts.user;
+    const document = {
+        readyState: 'complete',
+        visibilityState: opts.visibility || 'visible',
+        getElementById: function (id) { return ids[id] || null; },
+        createElement: function () { return makeEl('', ids); },
+        addEventListener: function (name, fn) { document.listeners[name] = fn; },
+        listeners: {}
+    };
+    const sandbox = {
+        console: console,
+        document: document,
+        Date: {
+            now: function () { return now; },
+            parse: Date.parse,
+            UTC: Date.UTC
+        },
+        setInterval: function (fn, ms) {
+            const id = timers.length + 1;
+            timers.push({ id: id, fn: fn, ms: ms, cleared: false });
+            return id;
+        },
+        clearInterval: function (id) {
+            const found = timers.find(function (t) { return t.id === id; });
+            if (found) found.cleared = true;
+        },
+        setTimeout: function (fn) { fn(); return 0; },
+        clearTimeout: function () {}
+    };
+    sandbox.window = sandbox;
+    sandbox.window.getDailyKey = function () { return opts.day || '2026-10-23'; };
+    sandbox.window._tctvActive = opts.active !== false;
+    sandbox.window._tctvYtPlayer = {
+        getPlayerState: function () { return playerState; }
+    };
+    sandbox.window.YT = { PlayerState: { PLAYING: 1, PAUSED: 2, BUFFERING: 3, ENDED: 0 } };
+    sandbox.window.showToast = function (text) { toasts.push(text); };
+    sandbox.window._paintTodayCard = function () { painted += 1; };
+    sandbox.firebase = {
+        auth: function () {
+            return {
+                currentUser: user,
+                onAuthStateChanged: function (cb) { cb(user); }
+            };
+        },
+        firestore: function () {
+            return {
+                collection: function () {
+                    return {
+                        doc: function () {
+                            return {
+                                get: function () {
+                                    return syncThen({
+                                        exists: !!(opts.snap && opts.snap.exists !== false && opts.snap.data),
+                                        data: function () { return (opts.snap && opts.snap.data) || {}; }
+                                    });
+                                }
+                            };
+                        }
+                    };
+                }
+            };
+        },
+        functions: function () {
+            return {
+                httpsCallable: function (name) {
+                    return function (payload) {
+                        calls.push({ name: name, payload: payload });
+                        const data = typeof opts.heartbeat === 'function' ? opts.heartbeat(calls.length) : (opts.heartbeat || { seconds: 0, done: false, reason: 'clock' });
+                        return syncThen({ data: data });
+                    };
+                }
+            };
+        }
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(read('tctv-watch.js'), sandbox, { filename: 'tctv-watch.js' });
+    return {
+        ids: ids,
+        document: document,
+        calls: calls,
+        toasts: toasts,
+        timers: timers,
+        display: sandbox.displayWatchSeconds,
+        setNow: function (value) { now = value; },
+        setState: function (value) { playerState = value; },
+        painted: function () { return painted; },
+        run: function (ms) {
+            timers.filter(function (t) { return !t.cleared && t.ms === ms; }).forEach(function (t) { t.fn(); });
+        },
+        armed: function (ms) {
+            return timers.filter(function (t) { return !t.cleared && t.ms === ms; }).length;
+        }
+    };
+}
+
+function bootReady(opts) {
+    const page = bootWatch(opts);
+    page.run(250);
+    page.run(1000);
+    return page;
+}
+
+test('display seconds stay inside the next server credit', () => {
+    const page = bootWatch({ now: T0, snap: { data: null } });
+    const show = page.display;
+    assert.strictEqual(show(0, null, 30000, T0 + 30000, false), 0);
+    assert.strictEqual(show(120, T0, 0, T0, false), 120);
+    assert.strictEqual(show(120, T0, 30000, T0 + 30000, false), 150);
+    assert.strictEqual(show(120, T0, 90000, T0 + 90000, false), 180);
+    assert.strictEqual(show(120, T0, 30000, T0 + 10000, false), 130);
+    assert.strictEqual(show(120, T0, 30000, T0 + watch.CLOCK_GAP_MS + 1, false), 120);
+    assert.strictEqual(show(540, T0, 90000, T0 + 90000, false), 600);
+    assert.strictEqual(show(120, T0, 90000, T0 + 90000, true), 600);
+    assert.strictEqual(show(50, T0 + 1000, 30000, T0, false), 50);
+});
+
+test('the chip and the button tick while playing, then pause', () => {
+    const page = bootReady({
+        now: T0,
+        snap: { data: { day: '2026-10-23', seconds: 120, lastCreditMs: T0, awardedDay: '' } }
+    });
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '2/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-text').textContent, '📺 2/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '20%');
+    assert.strictEqual(page.calls.length, 0);
+
+    page.setNow(T0 + 30000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '2/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '25%');
+
+    page.setNow(T0 + 60000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '3/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-text').textContent, '📺 3/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '30%');
+
+    page.setNow(T0 + 90000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '3/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '30%');
+
+    page.setState(2);
+    page.setNow(T0 + 120000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '3/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '30%');
+    assert.strictEqual(page.armed(60000), 0);
+
+    page.setState(1);
+    page.setNow(T0 + 121000);
+    page.run(1000);
+    page.document.visibilityState = 'hidden';
+    page.setNow(T0 + 150000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '3/10 min');
+    assert.strictEqual(page.calls.length, 0);
+});
+
+test('a heartbeat snaps the label back to the server total', () => {
+    const page = bootReady({
+        now: T0,
+        snap: { data: { day: '2026-10-23', seconds: 0, lastCreditMs: T0, awardedDay: '' } },
+        heartbeat: { seconds: 60, minutes: 1, done: false, reason: 'credited' }
+    });
+    page.setNow(T0 + 50000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '0/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '8%');
+    page.run(60000);
+    assert.strictEqual(page.calls.length, 1);
+    assert.strictEqual(page.calls[0].name, 'tctvWatchHeartbeat');
+    assert.strictEqual(JSON.stringify(page.calls[0].payload), '{}');
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '1/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '10%');
+});
+
+test('reaching the server goal shows done and keeps the chip', () => {
+    const page = bootReady({
+        now: T0,
+        snap: { data: { day: '2026-10-23', seconds: 600, lastCreditMs: T0, awardedDay: '2026-10-23' } },
+        heartbeat: {
+            seconds: 600,
+            done: true,
+            reason: 'done',
+            showToast: true,
+            toast: watch.TOAST_TEXT
+        }
+    });
+    const chip = page.ids.tctvWatchChip;
+    assert.ok(chip);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, 'Done ✓');
+    assert.strictEqual(chip.querySelector('.tctv-watch-chip-text').textContent, 'Done ✓');
+    assert.strictEqual(chip.querySelector('.tctv-watch-chip-fill').style.width, '100%');
+    assert.ok(chip.className.indexOf('is-done') !== -1);
+    assert.strictEqual(page.painted() > 0, true);
+    page.setNow(T0 + 20000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, 'Done ✓');
+    assert.strictEqual(page.calls.length, 0);
+    assert.strictEqual(page.ids.tctvWatchBtn.getAttribute('aria-label'), 'Watch Timechain TV, done for today');
+});
+
+test('a signed-out viewer does not get a ticking chip', () => {
+    const page = bootReady({
+        now: T0,
+        user: null,
+        snap: { data: { day: '2026-10-23', seconds: 120, lastCreditMs: T0 } }
+    });
+    assert.strictEqual(page.ids.tctvWatchChip, undefined);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '0/10 min');
+    assert.strictEqual(page.calls.length, 0);
+});
+
+test('playback with no server clock asks the server to start it and does not invent minutes', () => {
+    const page = bootReady({
+        now: T0,
+        snap: { data: { day: '2026-10-23', seconds: 40, awardedDay: '' } },
+        heartbeat: { seconds: 40, done: false, reason: 'clock' }
+    });
+    assert.strictEqual(page.calls.length, 1);
+    assert.strictEqual(JSON.stringify(page.calls[0].payload), '{}');
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '0/10 min');
+    page.setNow(T0 + 5000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '0/10 min');
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '8%');
+    page.setState(0);
+    page.run(1000);
+    const sent = page.calls.length;
+    const width = page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width;
+    page.setNow(T0 + 20000);
+    page.run(1000);
+    assert.strictEqual(page.calls.length, sent);
+    assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, width);
+    assert.strictEqual(width, '8%');
+});
+
+test('patch notes keep the live timer as the only Latest line and keep the daily taper', () => {
+    const notes = read('patch-notes.html');
+    const latest = 'Latest: The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
+    const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
+    assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(taper));
+    assert.ok(!notes.includes('Latest: Daily XP'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
