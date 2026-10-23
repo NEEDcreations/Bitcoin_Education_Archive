@@ -2,8 +2,8 @@
 
 // One transaction per badge: prove it, write the award, and add one
 // Satoshi's Favor point. A second award of the same id does not add a second point.
-// Badge XP goes through applyDailyXp. The default is a hard 1,000 cap, and
-// the rest is held on pendingOverflow instead of being thrown away.
+// Badge XP goes through applyDailyXp: full until 600, half until 1,000, then 0.
+// The remainder is dropped. Nothing is saved for a later day.
 // A badge the profile already shows gets an award row with 0 XP and no pool point.
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
@@ -150,22 +150,19 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
             update.monthlyXP = adminSdk.firestore.FieldValue.increment(xp);
         }
-        if (xpGrant.overflowAdded > 0) {
-            update.pendingOverflow = adminSdk.firestore.FieldValue.increment(xpGrant.overflowAdded);
-        }
         t.set(awardRef, {
             awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
-            overflowAdded: xpGrant.overflowAdded,
+            dropped: xpGrant.dropped,
             day: day,
             source: options.source || 'awardBadge',
         });
         t.update(userRef, update);
         if (xp > 0 && xpGrant.dailyRef) {
             t.set(xpGrant.dailyRef, {
-                total: xpGrant.dailyUsed + xp,
+                total: xpGrant.dailyXp,
                 lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }
@@ -234,7 +231,8 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             success: true,
             xp: xp,
             awarded: xp,
-            overflowAdded: xpGrant.overflowAdded,
+            overflowAdded: 0,
+            dropped: xpGrant.dropped,
             capped: xpGrant.capped,
             capBypass: false,
             favor: favor,

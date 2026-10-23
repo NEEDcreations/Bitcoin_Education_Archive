@@ -392,12 +392,13 @@ queue.push(test('the daily XP cap still grants the badge and Favor', async funct
     const result = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: 1700000000000 });
     assert.strictEqual(result.granted, true);
     assert.strictEqual(result.xp, 0);
-    assert.strictEqual(result.overflowAdded, 10);
+    assert.strictEqual(result.overflowAdded, 0);
+    assert.strictEqual(result.dropped, 10);
     assert.strictEqual(result.capped, true);
     assert.strictEqual(result.capBypass, false);
     assert.strictEqual(result.favor, true);
     assert.strictEqual(db.docs['users/u'].points, 10);
-    assert.strictEqual(db.docs['users/u'].pendingOverflow, 10);
+    assert.strictEqual(db.docs['users/u'].pendingOverflow, undefined);
     assert.strictEqual(db.docs['users/u/daily_points/2026-10-22'].total, 1000);
     assert.ok(db.docs['users/u/badge_awards/say_hi_1']);
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
@@ -799,24 +800,43 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     assert.strictEqual(client.streak_365.xp, 2000);
 }));
 
-queue.push(test('badge XP over the hard cap is held, and the backfill bypasses it', async function () {
-    const { applyDailyXp } = require('../functions/src/applyDailyXp');
+queue.push(test('badge XP tapers at 600 and 1,000 and the backfill bypasses it', async function () {
+    const { applyDailyXp, taperDailyXp } = require('../functions/src/applyDailyXp');
+    const full = taperDailyXp(2000, 0);
+    assert.strictEqual(full.awarded, 1000);
+    assert.strictEqual(full.dailyXp, 1000);
+    assert.strictEqual(full.dropped, 1000);
+    const edge = taperDailyXp(150, 500);
+    assert.strictEqual(edge.awarded, 125);
+    assert.strictEqual(edge.dailyXp, 625);
+    const half = taperDailyXp(150, 900);
+    assert.strictEqual(half.awarded, 75);
+    assert.strictEqual(half.dailyXp, 975);
+    assert.strictEqual(taperDailyXp(10, 1000).awarded, 0);
     const partial = memoryDb({
         'users/u': { sayHiDays: 30, points: 0 },
         'users/u/daily_points/2026-10-22': { total: 900 },
     });
     const mid = await awardBadge(partial, admin, 'u', 'say_hi_30', { day: '2026-10-22', nowMs: 1700000000000 });
-    assert.strictEqual(mid.xp, 100);
-    assert.strictEqual(mid.overflowAdded, 50);
-    assert.strictEqual(partial.docs['users/u'].points, 100);
-    assert.strictEqual(partial.docs['users/u'].pendingOverflow, 50);
-    assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 1000);
+    assert.strictEqual(mid.xp, 75);
+    assert.strictEqual(mid.overflowAdded, 0);
+    assert.strictEqual(mid.dropped, 75);
+    assert.strictEqual(partial.docs['users/u'].points, 75);
+    assert.strictEqual(partial.docs['users/u'].pendingOverflow, undefined);
+    assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 975);
+    const fresh = memoryDb({ 'users/u': { bestStreak: 365, points: 0 } });
+    const legend = await awardBadge(fresh, admin, 'u', 'streak_365', { day: '2026-10-22', nowMs: 1700000000000 });
+    assert.strictEqual(legend.xp, 1000);
+    assert.strictEqual(legend.dropped, 1000);
+    assert.strictEqual(fresh.docs['users/u'].pendingOverflow, undefined);
+    assert.strictEqual(fresh.docs['users/u/daily_points/2026-10-22'].total, 1000);
     const bypass = await applyDailyXp('u', 2000, null, { bypass: true });
     assert.strictEqual(bypass.bypass, true);
     assert.strictEqual(bypass.awarded, 2000);
     assert.strictEqual(bypass.overflowAdded, 0);
     const src = fs.readFileSync(path.join(root, 'functions', 'src', 'awardBadge.js'), 'utf8');
     assert.ok(src.includes('applyDailyXp('));
+    assert.ok(!src.includes('pendingOverflow'));
     assert.ok(!src.includes('BADGE_DAILY_CAP'));
     const backfill = fs.readFileSync(path.join(root, 'functions', 'scripts', 'backfill_badge_xp.js'), 'utf8');
     assert.ok(backfill.includes('bypass: true'));
