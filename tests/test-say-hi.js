@@ -415,6 +415,7 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(!sw.includes('btc-archive-v2342'));
     assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2340'));
+    assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2339'));
     assert.ok(!sw.includes('btc-archive-v2338'));
     assert.ok(!sw.includes('btc-archive-v2334'));

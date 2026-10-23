@@ -170,6 +170,7 @@ queue.push(test('dry-run is the default and --apply is explicit', function () {
     assert.ok(!sw.includes('btc-archive-v2342'));
     assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2340'));
+    assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2339'));
     assert.ok(!sw.includes('btc-archive-v2338'));
     assert.ok(!sw.includes('btc-archive-v2334'));

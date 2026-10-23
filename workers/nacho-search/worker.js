@@ -247,8 +247,7 @@ var INJECTION_PATTERNS = [
   /base64/i,
   /eval\s*\(/i,
   /exec\s*\(/i,
-  /import\s+os/i,
-  /act as (a|an)\b/i
+  /import\s+os/i
 ];
 function detectInjection(text) {
   for (const pattern of INJECTION_PATTERNS) {

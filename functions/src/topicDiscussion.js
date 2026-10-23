@@ -42,7 +42,7 @@ const INVITE_RE = /discord\.gg\/|discord(?:app)?\.com\/invite|chat\.whatsapp\.co
 const URL_RE = /\b(?:https?:\/\/|www\.)\S+|\b[a-z0-9][a-z0-9.-]*\.(?:com|org|net|io|gg|ly|me|co|xyz|info|dev|app|link)(?:\/\S*)?/gi;
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
 const PHONE_RE = /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/;
-const INJECTION_RE = /ignore\s+(all|previous|your)\s+instructions|system\s+prompt|jailbreak|pretend\s+to\s+be|act\s+as\s+/i;
+const INJECTION_RE = /ignore\s+(all|previous|your)\s+instructions|system\s+prompt|jailbreak|pretend\s+to\s+be/i;
 const ADVICE_RE = /\b(you should (buy|sell|invest)|i recommend (buying|selling)|buy now|sell now|price target|guaranteed return|go all in)\b/i;
 
 const TOPIC_LIMITS = {

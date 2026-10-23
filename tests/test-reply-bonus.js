@@ -634,6 +634,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2342'));
     assert.ok(!swText.includes('btc-archive-v2341'));
     assert.ok(!swText.includes('btc-archive-v2340'));
+    assert.ok(!swText.includes('btc-archive-v2341'));
     assert.ok(!swText.includes('btc-archive-v2339'));
     assert.ok(!swText.includes('btc-archive-v2338'));
     assert.ok(!swText.includes('btc-archive-v2334'));
@@ -642,7 +643,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2331'));
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 7500);
+    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 7800);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
     assert.ok(notesHtml.includes('Marketplace fixed: you can post, edit, remove and save listings again.'));

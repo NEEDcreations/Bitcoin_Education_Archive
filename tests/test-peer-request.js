@@ -394,7 +394,8 @@ queue.push(test('More quests opens Nook/Inv from the Today card', function() {
     assert.ok(quests.includes('window._focusTodayCard'));
 }));
 
-queue.push(test('cache busters are current and index.html matches 404.html', function() {    const html = read('index.html');
+queue.push(test('cache busters are current and index.html matches 404.html', function() {
+    const html = read('index.html');
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
@@ -471,6 +472,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!sw.includes('btc-archive-v2342'));
     assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2340'));
+    assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2339'));
     assert.ok(!sw.includes('btc-archive-v2338'));
     assert.ok(!sw.includes('btc-archive-v2334'));

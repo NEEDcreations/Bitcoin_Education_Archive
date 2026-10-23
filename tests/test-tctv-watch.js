@@ -415,6 +415,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!sw.includes('btc-archive-v2342'));
     assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2340'));
+    assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2339'));
     assert.ok(!sw.includes('btc-archive-v2338'));
     assert.ok(!sw.includes('btc-archive-v2334'));
@@ -757,10 +758,12 @@ test('patch notes keep the Nacho answer as the only Latest line and keep Google 
     const notes = read('patch-notes.html');
     const latest = 'Latest: Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.';
     const google = 'Google sign-in stays on this page and works on Android with the app installed.';
+    const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(guest));
     assert.ok(notes.includes(google));
     assert.ok(!notes.includes('Latest: Google sign-in'));
     assert.ok(notes.includes(timer));
