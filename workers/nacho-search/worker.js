@@ -1,4 +1,4 @@
-import { collectBtcData, answerTurn } from "./nacho-logic.mjs";
+import { collectBtcData, answerTurn, detectIntents } from "./nacho-logic.mjs";
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -21,6 +21,13 @@ function allowRequest(ip, bucket, limit) {
   return true;
 }
 __name(allowRequest, "allowRequest");
+function fetchWithTimeout(url, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(function () { ctrl.abort(); }, 2500);
+  const next = Object.assign({}, opts || {}, { signal: ctrl.signal });
+  return fetch(url, next).finally(function () { clearTimeout(timer); });
+}
+__name(fetchWithTimeout, "fetchWithTimeout");
 var nacho_ai_worker_default = {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -83,7 +90,7 @@ async function handleSearch(request, env, corsHeaders, url) {
     const count = Math.min(parseInt(url.searchParams.get("count") || "3", 10), 10);
     let braveUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}&safesearch=strict`;
     if (freshness) braveUrl += `&freshness=${encodeURIComponent(freshness)}`;
-    const response = await fetch(braveUrl, {
+    const response = await fetchWithTimeout(braveUrl, {
       headers: {
         "Accept": "application/json",
         "Accept-Encoding": "gzip",
@@ -109,12 +116,18 @@ async function handleSearch(request, env, corsHeaders, url) {
 __name(handleSearch, "handleSearch");
 var BTC_CACHE_TTL = 90;
 var _btcMem = null;
+var _btcInflight = null;
 async function loadBtcSnapshot() {
   const now = Date.now();
   if (_btcMem && now - _btcMem.at < BTC_CACHE_TTL * 1000) return _btcMem.data;
-  const data = await collectBtcData(fetch);
-  _btcMem = { at: now, data: data };
-  return data;
+  if (_btcInflight) return _btcInflight;
+  _btcInflight = collectBtcData(fetch).then(function (data) {
+    _btcMem = { at: Date.now(), data: data };
+    return data;
+  }).finally(function () {
+    _btcInflight = null;
+  });
+  return _btcInflight;
 }
 __name(loadBtcSnapshot, "loadBtcSnapshot");
 async function handleBtcData(request, env, corsHeaders) {
@@ -149,7 +162,7 @@ async function handleBtcCandles(request, env, corsHeaders) {
   const LIMIT = 20;
   let candles = null;
   try {
-    const r = await fetch(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300&limit=${LIMIT}`);
+    const r = await fetchWithTimeout(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300&limit=${LIMIT}`);
     if (r.ok) {
       const raw = await r.json();
       if (Array.isArray(raw) && raw.length) {
@@ -167,7 +180,7 @@ async function handleBtcCandles(request, env, corsHeaders) {
   }
   if (!candles) {
     try {
-      const r = await fetch(`https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=300&limit=${LIMIT}`);
+      const r = await fetchWithTimeout(`https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=300&limit=${LIMIT}`);
       if (r.ok) {
         const raw = await r.json();
         const bars = raw.data?.ohlc;
@@ -284,7 +297,8 @@ async function handleAI(request, env, corsHeaders) {
     if (ctxName || ctxRank) referenceBlock += "Profile label: " + [ctxName, ctxRank, ctxPoints ? String(ctxPoints) : ""].filter(Boolean).join(" ") + "\n";
     if (lang) referenceBlock += "Requested language: " + lang + "\n";
     referenceBlock += "----- END UNTRUSTED REFERENCE DATA -----";
-    const data = await loadBtcSnapshot();
+    const marketIntents = detectIntents(question);
+    const data = marketIntents.length ? await loadBtcSnapshot() : null;
     const result = await answerTurn({
       question,
       history,
@@ -299,7 +313,8 @@ async function handleAI(request, env, corsHeaders) {
       answer: result.answer,
       followUp: result.followUp || "",
       followUps: result.followUps || [],
-      links: result.links || []
+      links: result.links || [],
+      asOf: result.asOf || null
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });

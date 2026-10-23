@@ -97,6 +97,7 @@
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
             '.td-btn{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#1e293b);background:none;color:var(--text-muted,#94a3b8);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;}',
+            '.td-asof{margin-top:6px;font-size:0.72rem;color:var(--text-faint,#64748b);}',
             '.td-links,.td-followups{margin-top:8px;}',
             '.td-extra-label{font-size:0.68rem;color:var(--text-faint,#64748b);margin-bottom:4px;}',
             '.td-topic{display:block;width:100%;margin-top:4px;padding:8px;background:var(--accent,#f97316);border:none;border-radius:8px;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:inherit;text-align:left;}',
@@ -119,10 +120,15 @@
     function avatarFor(post) {
         if (post && post.isNacho) {
             var img = el('img', 'td-avatar');
-            img.src = 'nacho-deer.svg';
-            img.alt = '';
+            img.src = '/nacho-deer.svg';
+            img.alt = 'Nacho';
             img.width = 32;
             img.height = 32;
+            img.addEventListener('error', function () {
+                var fallback = el('div', 'td-avatar-fallback');
+                fallback.textContent = '🦌';
+                if (img.parentNode && img.parentNode.replaceChild) img.parentNode.replaceChild(fallback, img);
+            });
             return img;
         }
         var fallback = el('div', 'td-avatar-fallback');
@@ -164,7 +170,7 @@
         var followUps = Array.isArray(post.followUps) ? post.followUps.slice(0, 3) : [];
         var shown = [];
         followUps.forEach(function(q) {
-            var text = String(q || '').replace(/<[^>]*>/g, '').trim();
+            var text = String(q || '').replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
             if (text.length < 8 || text.length > 90 || text.charAt(text.length - 1) !== '?') return;
             if (/\b(what do you think|do you think|how do you feel|your opinion)\b/i.test(text)) return;
             shown.push(text);
@@ -229,6 +235,21 @@
         else if (!showBody) text.textContent = '';
         else text.textContent = post.text || '';
         main.appendChild(text);
+        if (showBody && post.isNacho && post.asOf != null && post.asOf !== '') {
+            var asMs = typeof post.asOf === 'number' ? post.asOf : Date.parse(post.asOf);
+            if (isFinite(asMs)) {
+                var asof = el('div', 'td-asof');
+                var asIso = '';
+                try { asIso = new Date(asMs).toISOString(); } catch (eAs) { asIso = String(post.asOf); }
+                asof.setAttribute('data-bq-asof', asIso);
+                var asLabel = '';
+                try { asLabel = new Date(asMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); } catch (eAs2) { asLabel = ''; }
+                if (asLabel) {
+                    asof.textContent = 'As of ' + asLabel;
+                    main.appendChild(asof);
+                }
+            }
+        }
         if (showBody) appendNachoExtras(main, post);
         var actions = el('div', 'td-actions');
         if (!post.deleted && !post.parentId && who.signedIn) {

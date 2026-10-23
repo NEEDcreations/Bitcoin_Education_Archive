@@ -76,7 +76,7 @@ const CASES = [
     { q: 'How does Bitcoin mining work?', kind: 'model' },
     { q: 'What is the Lightning Network?', kind: 'model' },
     { q: 'Why is self-custody important?', kind: 'model' },
-    { q: 'What is a seed phrase?', kind: 'model' },
+    { q: 'What is a seed phrase?', kind: 'education' },
     { q: 'What is proof of work?', kind: 'model' },
     { q: 'Why is the supply capped at 21 million?', kind: 'model' },
     { q: 'What is a Bitcoin node?', kind: 'model' },
@@ -111,6 +111,9 @@ const CASES = [
     { q: SEED, kind: 'refuse', needle: /antlers are telling me/ },
     { q: 'what is my private key', kind: 'refuse', needle: /antlers are telling me/ },
     { q: 'how to hack a bitcoin wallet', kind: 'refuse', needle: /antlers are telling me/ },
+    { q: 'How do I protect my seed phrase?', kind: 'education' },
+    { q: 'Where should I store my private key?', kind: 'education' },
+    { q: 'what is a seed phrase', kind: 'education' },
 ];
 
 (async function main() {
@@ -192,7 +195,7 @@ const CASES = [
                 const item = logic.POOL.find(function(p) { return p.q === q; });
                 if (!item || !logic.answerForPoolItem(item, data)) problems.push('follow-up has no answer ' + q);
             });
-            if (!/As of \d{2}:\d{2} UTC|Not financial advice|Bitcoin lesson|able to learn|transaction id|get rich quick|timechain|live figures|live data block|dollar-cost|self-custody/i.test(result.answer)) {
+            if (!/Source:|Not financial advice|Bitcoin lesson|able to learn|transaction id|get rich quick|timechain|live figures|live data block|dollar-cost|self-custody|paper or metal/i.test(result.answer)) {
                 problems.push('thin answer');
             }
             if (/[A-Z][a-z]+ channel/.test(result.answer) && !logic.TOPIC_BY_ID.has('skip')) {
@@ -211,7 +214,9 @@ const CASES = [
             if (aiCalls !== before) problems.push('model ran');
             if (row.num && !row.num(result.answer, data)) problems.push('number off: ' + result.answer);
             if (row.source && !row.source.test(result.answer)) problems.push('missing source');
-            if (!/As of \d{2}:\d{2} UTC/.test(result.answer)) problems.push('missing as-of');
+            if (/[Aa]s of\s+\d/.test(result.answer)) problems.push('as-of leaked into text');
+            if (!result.asOf || !isFinite(Date.parse(result.asOf))) problems.push('missing asOf');
+            if (Math.abs(Date.parse(result.asOf) - Number(data.ts)) > 2000) problems.push('asOf skew');
             if (row.nfa && !/Not financial advice/.test(result.answer)) problems.push('missing nfa');
             if (row.first && result.links[0] && result.links[0].id !== row.first) problems.push('first link ' + (result.links[0] && result.links[0].id));
         }
@@ -220,6 +225,13 @@ const CASES = [
             if (aiCalls !== before) problems.push('model ran');
             if (!/dollar-cost average/i.test(result.answer) || !/self-custody/i.test(result.answer) || !/Not financial advice/.test(result.answer)) problems.push('advice text');
             if (/\byou should buy\b/i.test(result.answer)) problems.push('told the user to buy');
+        }
+        if (row.kind === 'education') {
+            if (!result.deterministic) problems.push('education used the model');
+            if (aiCalls !== before) problems.push('model ran');
+            if (!/paper or metal/i.test(result.answer) || !/private key/i.test(result.answer)) problems.push('not helpful');
+            if (/antlers are telling me|no hacking these antlers/i.test(result.answer)) problems.push('public refusal');
+            if (result.asOf) problems.push('asOf on education');
         }
         if (row.kind === 'model') {
             if (aiCalls !== before + 1) problems.push('model calls ' + (aiCalls - before));
@@ -239,6 +251,122 @@ const CASES = [
     assert.strictEqual(logic.hasSeedPhrase(SEED), true);
     assert.strictEqual(logic.hasSeedPhrase('I am able to learn about Bitcoin'), false);
     assert.strictEqual(logic.stripInventedTopics('Check the Price channel for more.'), 'Check the archive for more.');
+
+    const HEX = TXID;
+    const prefixes = SEED.split(' ').map(function (word) { return word.slice(0, 4); }).join(' ');
+    const numbered = SEED.split(' ').map(function (word, i) { return (i + 1) + '. ' + word; }).join('\n');
+    const withStops = SEED.split(' ').join(' and ');
+    const punctuated = SEED.split(' ').join(', ');
+    const homo = SEED.replace(/a/g, '\u0430');
+    const zw = SEED.replace('abandon', 'aban\u200Bdon');
+    const wide = String.fromCharCode.apply(null, 'abandon'.split('').map(function (ch) { return ch.charCodeAt(0) + 0xFEE0; })) + SEED.slice('abandon'.length);
+    const words24 = 'abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual'.split(' ');
+    assert.strictEqual(words24.length, 24);
+    assert.strictEqual(logic.hasSeedPhrase(prefixes), true);
+    assert.strictEqual(logic.hasSeedPhrase(numbered), true);
+    assert.strictEqual(logic.hasSeedPhrase(withStops), true);
+    assert.strictEqual(logic.hasSeedPhrase(punctuated), true);
+    assert.strictEqual(logic.hasSeedPhrase(homo), true);
+    assert.strictEqual(logic.hasSeedPhrase(zw), true);
+    assert.strictEqual(logic.hasSeedPhrase(wide), true);
+    assert.strictEqual(logic.hasSeedPhrase(words24.join(' ')), true);
+    assert.strictEqual(logic.hasSeedPhrase('abandoning ' + SEED.split(' ').slice(1).join(' ')), false);
+    assert.strictEqual(logic.hasSeedPhrase(SEED.split(' ').slice(0, 11).join(' ')), false);
+    assert.strictEqual(logic.solicitsSecrets('How do I protect my seed phrase?'), false);
+    assert.strictEqual(logic.solicitsSecrets('Where should I store my private key?'), false);
+    assert.strictEqual(logic.solicitsSecrets('what is a seed phrase'), false);
+    assert.strictEqual(logic.solicitsSecrets('what is my private key'), true);
+    assert.strictEqual(logic.solicitsSecrets('send your seed'), true);
+    assert.strictEqual(logic.solicitsSecrets('enter your seed phrase'), true);
+    assert.strictEqual(logic.solicitsSecrets('please share your seed'), true);
+    assert.strictEqual(logic.validateOutput('private key ' + HEX), null);
+    assert.strictEqual(logic.validateOutput('priv key ' + HEX), null);
+    assert.strictEqual(logic.validateOutput('secret ' + HEX), null);
+    assert.strictEqual(logic.validateOutput('key: ' + HEX), null);
+    assert.ok(logic.validateOutput('txid ' + HEX).indexOf(HEX) !== -1);
+    assert.ok(logic.validateOutput('block hash ' + HEX).indexOf(HEX) !== -1);
+    assert.ok(logic.validateOutput('transaction ' + HEX).indexOf(HEX) !== -1);
+    assert.strictEqual(logic.validateOutput('not a scam, guaranteed returns'), null);
+    assert.strictEqual(logic.validateOutput('not a scam guaranteed returns'), null);
+    assert.strictEqual(logic.validateOutput('double your bitcoin today'), null);
+    assert.strictEqual(logic.validateOutput('send your seed to me'), null);
+    assert.ok(logic.validateOutput('Never share your seed phrase with anyone.').indexOf('Never share') !== -1);
+    assert.strictEqual(logic.detectIntents('what is math').length, 0);
+    assert.ok(logic.detectIntents('what is the ath').some(function (intent) { return intent.name === 'ath'; }));
+    assert.strictEqual(logic.scrubUnsourcedNumbers('Bitcoin is $100,000 today.'), logic.NO_FIGURE);
+    assert.strictEqual(logic.scrubUnsourcedNumbers('Bitcoin is up 3% today.'), logic.NO_FIGURE);
+    assert.strictEqual(logic.scrubUnsourcedNumbers('Fees are 12 sat/vB right now.'), logic.NO_FIGURE);
+    assert.ok(logic.scrubUnsourcedNumbers('A satoshi is the smallest unit.').indexOf('satoshi') !== -1);
+
+    const secretScan = require('../functions/src/secretScan');
+    [SEED, prefixes, numbered, withStops, punctuated, homo, zw, wide, 'How do I protect my seed phrase?', 'what is my private key', 'I am able to learn about Bitcoin'].forEach(function (sample) {
+        assert.strictEqual(secretScan.hasSeedPhrase(sample), logic.hasSeedPhrase(sample), sample.slice(0, 40));
+        assert.strictEqual(secretScan.solicitsSecrets(sample), logic.solicitsSecrets(sample), 'solicit ' + sample.slice(0, 40));
+    });
+
+    let inventedCalls = 0;
+    const stale = await logic.answerTurn({
+        question: 'What is the Bitcoin price right now?',
+        data: { ts: Date.now() - 600000, price: 100000 },
+    }, { aiRun: async function () { inventedCalls += 1; return { response: 'Bitcoin is $100,000 right now.' }; } });
+    assert.strictEqual(stale.answer, logic.NO_FIGURE);
+    assert.strictEqual(inventedCalls, 0);
+    assert.strictEqual(stale.asOf, null);
+    assert.strictEqual(stale.deterministic, true);
+    assert.ok(stale.links.length >= 1 && stale.links.length <= 3);
+    assert.ok(stale.followUps.length >= 2 && stale.followUps.length <= 3);
+    assert.ok(!/\$|\d+\s*%|sat\/vb/i.test(stale.answer));
+    const empty = await logic.answerTurn({
+        question: 'What are Bitcoin fees right now?',
+        data: { ts: Date.now() },
+    }, { aiRun: async function () { inventedCalls += 1; return { response: 'Fees are 12 sat/vB.' }; } });
+    assert.strictEqual(empty.answer, logic.NO_FIGURE);
+    assert.strictEqual(inventedCalls, 0);
+    const priceLinks = (await logic.answerTurn({ question: 'What is the Bitcoin price right now?', data: data }, { data: data, aiRun: aiRun })).links.map(function (link) { return link.id; });
+    const light = await logic.answerTurn({ question: 'What is the Lightning Network?', data: data }, { data: data, aiRun: aiRun });
+    assert.ok(priceLinks[0] !== light.links[0].id, 'links carried over');
+    assert.ok(light.followUps.join('|') !== stale.followUps.join('|') || light.links[0].id !== 'charts');
+
+    const started = Date.now();
+    const slow = await logic.collectBtcData(function (_url, opts) {
+        return new Promise(function (_resolve, reject) {
+            const timer = setTimeout(function () { reject(new Error('hung')); }, 8000);
+            if (opts && opts.signal) {
+                opts.signal.addEventListener('abort', function () {
+                    clearTimeout(timer);
+                    const err = new Error('aborted');
+                    err.name = 'AbortError';
+                    reject(err);
+                });
+            }
+        });
+    });
+    assert.ok(Date.now() - started < 6000, 'fetch timeout ' + (Date.now() - started));
+    assert.ok(slow.price == null && slow.blockHeight == null);
+    const missed = await logic.answerTurn({ question: 'What is the Bitcoin price right now?', data: slow }, { data: slow, aiRun: async function () { inventedCalls += 1; return { response: 'Bitcoin is $1.' }; } });
+    assert.strictEqual(missed.answer, logic.NO_FIGURE);
+    assert.strictEqual(inventedCalls, 0);
+
+    const workerSrc = require('fs').readFileSync(path.join(__dirname, '../workers/nacho-search/worker.js'), 'utf8');
+    assert.ok(workerSrc.includes('_btcInflight'));
+    assert.ok(workerSrc.includes('detectIntents(question)'));
+    assert.ok(workerSrc.includes('marketIntents.length ? await loadBtcSnapshot()'));
+    assert.ok(workerSrc.includes('asOf: result.asOf'));
+    assert.ok(/2500/.test(workerSrc));
+    const registry = require('fs').readFileSync(path.join(__dirname, '../features.registry.js'), 'utf8');
+    assert.ok(registry.includes('/\\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\\b/i'));
+    assert.ok(registry.includes('bqNachoGround'));
+    assert.ok(registry.includes('groundQuestion'));
+    assert.strictEqual(/\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i.test('what is math'), false);
+    assert.ok(/\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i.test('what is the ath'));
+    const qa = require('fs').readFileSync(path.join(__dirname, '../nacho-qa.js'), 'utf8');
+    assert.ok(qa.includes('window._bqLastLinks = []'));
+    assert.ok(qa.includes('window._bqLastFollowUps = []'));
+    assert.ok(qa.includes('window._bqLastAsOf = null'));
+    const topicsJs = require('fs').readFileSync(path.join(__dirname, '../topic-discussions.js'), 'utf8');
+    assert.ok(topicsJs.includes("'/nacho-deer.svg'"));
+    assert.ok(topicsJs.includes('🦌'));
+    assert.ok(!topicsJs.includes("src = 'nacho-deer.svg'"));
 
     if (failures.length) {
         console.log(failures.join('\n'));

@@ -3899,8 +3899,16 @@ function fillLiveTemplates(text) {
 function workerGround() {
     return {
         links: Array.isArray(window._bqLastLinks) ? window._bqLastLinks.slice(0, 3) : [],
-        followUps: Array.isArray(window._bqLastFollowUps) ? window._bqLastFollowUps.slice(0, 3) : []
+        followUps: Array.isArray(window._bqLastFollowUps) ? window._bqLastFollowUps.slice(0, 3) : [],
+        asOf: window._bqLastAsOf || null
     };
+}
+
+function resetNachoGround() {
+    window._bqLastLinks = [];
+    window._bqLastFollowUps = [];
+    window._bqLastFollowUp = '';
+    window._bqLastAsOf = null;
 }
 
 async function nachoAIAnswer(question, callback) {
@@ -3991,6 +3999,7 @@ async function nachoAIAnswer(question, callback) {
                 var conversationalAnswer = data.answer;
                 window._bqLastLinks = Array.isArray(data.links) ? data.links.slice(0, 3) : [];
                 window._bqLastFollowUps = Array.isArray(data.followUps) ? data.followUps.filter(Boolean).slice(0, 3) : [];
+                window._bqLastAsOf = data.asOf || null;
                 if (data.followUp) {
                     var _fu = String(data.followUp).replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
                     if (_fu) window._bqLastFollowUp = _fu;
@@ -4895,6 +4904,7 @@ function _nachoStep5Fallback(q, callback, pq, disclaimer) {
 }
 
 window.nachoUnifiedAnswer = function(question, callback) {
+    resetNachoGround();
     var q = question.trim().toLowerCase();
     q = (typeof fixTypos === 'function') ? fixTypos(q) : q;
     q = (typeof expandSynonyms === 'function') ? expandSynonyms(q) : q;
@@ -4986,7 +4996,8 @@ window.nachoUnifiedAnswer = function(question, callback) {
             channel: liveMatch.channel || kbMatch.channel || null,
             channelName: liveMatch.channelName || kbMatch.channelName || null,
             links: _liveGround.links,
-            followUps: _liveGround.followUps
+            followUps: _liveGround.followUps,
+            asOf: _liveGround.asOf
         });
         return;
     }
@@ -5052,14 +5063,14 @@ window.nachoUnifiedAnswer = function(question, callback) {
                     // A refusal must not replace the knowledge-base answer.
                     if (isDeflection || (qWords.length > 2 && relevantWords.length < qWords.length * 0.3)) {
                         nachoRemember(q, kbMatch.answer);
-                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps });
+                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
                     } else {
                         nachoRemember(q, aiAnswer);
-                        callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps });
+                        callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
                     }
                 } else {
                     nachoRemember(q, kbMatch.answer);
-                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps });
+                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
                 }
             });
         } else {
@@ -5081,7 +5092,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
                 if (!isDeflection) {
                     // Maxi AI answered fine — use it
                     nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai', answer: escapeHtml(aiAnswer) + disclaimer, links: _missGround.links, followUps: _missGround.followUps });
+                    callback({ type: 'ai', answer: escapeHtml(aiAnswer) + disclaimer, links: _missGround.links, followUps: _missGround.followUps, asOf: _missGround.asOf });
                     return;
                 }
             }

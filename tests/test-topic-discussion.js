@@ -207,7 +207,9 @@ test('ATTACK rules deny client writes and keep limits private', () => {
     assert.ok(client.includes("classList.add('topic-post-highlight')"));
     assert.ok(client.includes("httpsCallable('postTopicComment')") || client.includes('callFn(\'postTopicComment\''));
     assert.ok(client.includes('textContent'));
-    assert.ok(client.includes('nacho-deer.svg'));
+    assert.ok(client.includes("'/nacho-deer.svg'"));
+    assert.ok(client.includes('🦌'));
+    assert.ok(!client.includes("src = 'nacho-deer.svg'"));
     assert.ok(client.includes('Math.max(containerTop, stickyCover)'));
     assert.ok(read('functions/index.js').includes('exports.postTopicComment'));
     assert.ok(read('functions/index.js').includes('exports.reportTopicComment'));
@@ -254,6 +256,14 @@ test('text policy masks profanity, rejects hate, links, and PII', () => {
     assert.strictEqual(linked.linksRemoved, true);
     assert.strictEqual(td.preparePostText('mail me learner@example.com now').code, 'pii');
     assert.strictEqual(td.preparePostText('call 415-555-1212 tonight').code, 'pii');
+    const seed = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
+    const secret = td.preparePostText(seed);
+    assert.strictEqual(secret.ok, false);
+    assert.strictEqual(secret.code, 'secret');
+    assert.strictEqual(secret.text, undefined);
+    assert.strictEqual(td.preparePostText('How do I protect my seed phrase?').ok, true);
+    assert.strictEqual(td.preparePostText('Where should I store my private key?').ok, true);
+    assert.ok(!td.sanitizeNachoAnswer('Bitcoin is $100,000 right now. As of 19:03 UTC. Not financial advice.').includes('As of'));
     assert.strictEqual(td.sanitizeNachoAnswer('you should buy now'), td.UNSURE);
     assert.strictEqual(td.sanitizeNachoAnswer('<b>hi</b>'), td.UNSURE);
     assert.ok(td.sanitizeNachoAnswer('Miners hash the block header.').indexOf('<') === -1);
@@ -583,6 +593,7 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
             isNacho: true,
             name: '<img src=x>',
             text: 'Bitcoin is $100,000 right now. <script>alert(1)</script>',
+            asOf: '2026-10-23T19:03:00.000Z',
             createdAt: Date.now(),
             links: [{ id: 'charts', title: 'Charts', kind: 'topic' }, { id: 'bad id!', title: 'Nope' }],
             followUps: ['What are Bitcoin fees right now?', 'what do you think?'],
@@ -613,6 +624,68 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         assert.deepStrictEqual(asked, ['What are Bitcoin fees right now?']);
         const name = nodes.filter(function(node) { return String(node.className).indexOf('td-name') !== -1; })[0];
         assert.strictEqual(name.textContent, 'Nacho');
+        const avatar = nodes.filter(function(node) { return node.tag === 'img'; })[0];
+        assert.strictEqual(avatar.src, '/nacho-deer.svg');
+        assert.ok(avatar.listeners.some(function(listener) { return listener.type === 'error'; }));
+        const asof = nodes.filter(function(node) { return node.attrs && node.attrs['data-bq-asof']; })[0];
+        assert.ok(asof);
+        assert.strictEqual(asof.attrs['data-bq-asof'], '2026-10-23T19:03:00.000Z');
+        assert.ok(/^As of /.test(asof.textContent));
+        assert.ok(text.textContent.indexOf('As of') === -1);
+    });
+
+    await testAsync('seed posts are blocked and Nacho never posts a refusal', async function() {
+        const seed = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
+        const blocked = makeApi();
+        seedUser(blocked.db, 'seed');
+        let err = null;
+        try {
+            await blocked.api.postTopicComment({ channelId: 'mining', text: seed }, auth('seed'));
+        } catch (e) { err = e; }
+        assert.ok(err);
+        assert.strictEqual(err.code, 'invalid-argument');
+        assert.ok(/not saved/i.test(err.message));
+        assert.strictEqual(err.message.indexOf('abandon'), -1);
+        assert.strictEqual(postsOf(blocked.db, 'mining').length, 0);
+
+        const gentle = makeApi({
+            answer: function() { return "Hmm, my antlers are telling me I shouldn't go there!"; },
+        });
+        seedUser(gentle.db, 'edu');
+        const taught = await gentle.api.postTopicComment({ channelId: 'mining', text: 'How do I protect my seed phrase?' }, auth('edu'));
+        assert.strictEqual(taught.nacho, true);
+        assert.strictEqual(gentle.calls.ask, 1);
+        const reply = postsOf(gentle.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.strictEqual(reply.text, td.SECRET_NOTE);
+        assert.ok(!/antlers are telling me|no hacking these antlers/i.test(reply.text));
+
+        const mine = makeApi();
+        seedUser(mine.db, 'key');
+        const asked = await mine.api.postTopicComment({ channelId: 'mining', text: 'what is my private key?' }, auth('key'));
+        assert.strictEqual(asked.nacho, true);
+        assert.strictEqual(mine.calls.ask, 0);
+        const note = postsOf(mine.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.strictEqual(note.text, td.SECRET_NOTE);
+        const userPost = postsOf(mine.db, 'mining').filter(function(post) { return post._id === asked.postId; })[0];
+        assert.ok(userPost && userPost.text.indexOf('private key') !== -1);
+
+        const timed = makeApi({
+            answer: function() {
+                return {
+                    answer: 'Bitcoin is $100,000 right now. As of 19:03 UTC. Not financial advice.',
+                    asOf: '2026-10-23T19:03:00.000Z',
+                    links: [{ id: 'charts', title: 'Charts' }],
+                    followUps: ['What are Bitcoin fees right now?', 'What is the current block height?'],
+                };
+            },
+        });
+        seedUser(timed.db, 'time');
+        const priced = await timed.api.postTopicComment({ channelId: 'mining', text: 'What is the Bitcoin price right now?' }, auth('time'));
+        const nacho = postsOf(timed.db, 'mining').filter(function(post) { return post.isNacho && post.parentId === priced.postId; })[0];
+        assert.ok(nacho);
+        assert.strictEqual(nacho.text.indexOf('As of'), -1);
+        assert.strictEqual(nacho.asOf, '2026-10-23T19:03:00.000Z');
+        assert.deepStrictEqual(nacho.links.map(function(link) { return link.id; }), ['charts']);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

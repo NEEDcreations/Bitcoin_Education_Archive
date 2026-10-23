@@ -3417,7 +3417,7 @@ function updateRankUI() {
     // Cosmetics: Nacho skin - show deer avatar next to username
     var _hasNachoSkin = _ownedCosmetics.indexOf('nacho_skin_nook') !== -1;
     var _nachoAvatarHtml = _hasNachoSkin
-        ? '<img src="nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.textContent=\'🦌\';this.style.fontSize=\'0.9rem\'" />'
+        ? '<img src="/nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />'
         : '';
 
     // Cosmetics: pinned badge

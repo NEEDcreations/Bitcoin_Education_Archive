@@ -449,8 +449,8 @@
             hash: 'app/tickets', aliases: ['tickets', 'orange-tickets'], kind: 'settings', arg: 'account' }),
         R({ id: 'xp', title: 'XP and points', group: 'Rewards', term: 'overflow', priority: 50,
             kw: 'xp points experience overflow daily cap earn points',
-            desc: 'XP (points) is how you rank up. Full XP through 600 a day, then half until the 1,000 daily cap.',
-            how: 'Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, the 600 full-rate mark, and the 1,000 cap.',
+            desc: 'XP (points) is how you rank up. Daily XP is full through 500, half through 900, then a quarter until 1,000.',
+            how: 'Earn points by reading, quests, chat, and badges. The Today card shows today’s XP: full through 500, half through 900, then a quarter until 1,000.',
             follow: 'Want a Double XP charge from the Nook?',
             hash: 'app/xp', aliases: ['xp', 'points'], kind: 'settings', arg: 'sats' }),
         R({ id: 'badges', title: 'Badges', group: 'Rewards', term: 'badges', priority: 55,
@@ -1374,16 +1374,27 @@
     }
 
     var GROUND_LINKS = [
-        { re: /price|worth|ath|chart|market|euro|pound|yen/, ids: ['charts', 'market_cap', 'ta_tips'] },
-        { re: /fee|mempool/, ids: ['transaction_fees', 'vbyte', 'blockchain-timechain'] },
-        { re: /height|timechain|current block/, ids: ['blockchain-timechain', 'block_time-block-size'] },
-        { re: /halving|scarce|21 million|subsidy/, ids: ['scarce', 'mining'] },
-        { re: /hashrate|hash rate|mining|difficulty/, ids: ['mining', 'difficulty-adjustment'] },
-        { re: /wallet|seed|custody|private key/, ids: ['self-custody', 'public_key_vs_private_key'] },
-        { re: /lightning/, ids: ['layer-2-lightning', 'lightning_node'] },
-        { re: /buy|invest|dca|should i/, ids: ['investment-strategy', 'self-custody', 'charts'] },
-        { re: /utxo/, ids: ['utxos', 'blockchain-timechain'] },
-        { re: /node|verify|able/, ids: ['nodes', 'consensus'] }
+        { re: /\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i, ids: ['charts', 'market_cap', 'ta_tips'] },
+        { re: /\b(fees?|mempool)\b/i, ids: ['transaction_fees', 'vbyte', 'blockchain-timechain'] },
+        { re: /\b(height|timechain|current block)\b/i, ids: ['blockchain-timechain', 'block_time-block-size'] },
+        { re: /\b(halving|scarce|21 million|subsidy)\b/i, ids: ['scarce', 'mining'] },
+        { re: /\b(hashrate|hash rate|mining|difficulty)\b/i, ids: ['mining', 'difficulty-adjustment'] },
+        { re: /\b(wallet|seed|custody|private key)\b/i, ids: ['self-custody', 'public_key_vs_private_key'] },
+        { re: /\blightning\b/i, ids: ['layer-2-lightning', 'lightning_node'] },
+        { re: /\b(buy|invest|dca|should i)\b/i, ids: ['investment-strategy', 'self-custody', 'charts'] },
+        { re: /\butxos?\b/i, ids: ['utxos', 'blockchain-timechain'] },
+        { re: /\b(node|verify|able)\b/i, ids: ['nodes', 'consensus'] }
+    ];
+    var FOLLOW_BY_RE = [
+        { re: /\b(seed phrase|seed words|private key|custody|wallet)\b/i, qs: ['Why is self-custody important?', 'What is a seed phrase?', 'What does not your keys, not your coins mean?'] },
+        { re: /\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i, qs: ['How much did Bitcoin change in 24 hours?', 'What is 1 Bitcoin in euros?', 'What are Bitcoin fees right now?'] },
+        { re: /\b(fees?|mempool)\b/i, qs: ['What is the current block height?', 'What is a transaction fee?', 'When is the next Bitcoin halving?'] },
+        { re: /\b(halving|subsidy|scarce)\b/i, qs: ['How many bitcoin have been mined?', 'What is the current block height?', 'What is proof of work?'] },
+        { re: /\b(hashrate|hash rate|mining|difficulty)\b/i, qs: ['What is proof of work?', 'When is the next Bitcoin halving?', 'What is a Bitcoin node?'] },
+        { re: /\b(height|timechain|block)\b/i, qs: ['When is the next Bitcoin halving?', 'What is the mempool?', 'What is a UTXO?'] },
+        { re: /\blightning\b/i, qs: ['What is the Lightning Network?', 'What is a satoshi?', 'What are Bitcoin fees right now?'] },
+        { re: /\b(buy|invest|dca)\b/i, qs: ['What is dollar-cost averaging?', 'Why is self-custody important?', 'What is the Bitcoin price right now?'] },
+        { re: /\butxos?\b/i, qs: ['What is a transaction fee?', 'What is the current block height?', 'What is a Bitcoin node?'] }
     ];
     var GROUND_QUESTIONS = [
         'What is the Bitcoin price right now?',
@@ -1424,16 +1435,44 @@
     }
 
     function fallbackFollowUps(q) {
-        var current = String(q || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        var text = String(q || '');
+        var current = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        var picked = null;
+        FOLLOW_BY_RE.forEach(function (row) {
+            if (!picked && row.re.test(text)) picked = row.qs;
+        });
+        var source = picked || GROUND_QUESTIONS;
         var out = [];
-        GROUND_QUESTIONS.forEach(function (item) {
+        source.forEach(function (item) {
             if (out.length >= 3) return;
             var key = item.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
             if (key === current) return;
-            if (item.length > 90) return;
+            if (item.length > 90 || item.charAt(item.length - 1) !== '?') return;
             out.push(item);
         });
         return out.slice(0, 3);
+    }
+
+    win.bqNachoGround = {
+        groundQuestion: function (q) {
+            return { links: fallbackLinks(q), followUps: fallbackFollowUps(q) };
+        }
+    };
+
+    function formatAsOf(value) {
+        var ms = typeof value === 'number' ? value : Date.parse(value);
+        if (!isFinite(ms)) return '';
+        var label = '';
+        try { label = new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); } catch (e) { label = ''; }
+        return label ? ('As of ' + label) : '';
+    }
+
+    function asOfHtml(value) {
+        var label = formatAsOf(value);
+        if (!label) return '';
+        var iso = '';
+        try { iso = new Date(typeof value === 'number' ? value : Date.parse(value)).toISOString(); } catch (e2) { iso = String(value); }
+        return '<div data-bq-asof="' + esc(iso) + '" style="margin-top:6px;font-size:0.72rem;color:var(--text-faint,#666);">' + esc(label) + '</div>';
     }
 
     function resolveGround(q, result) {
@@ -1485,8 +1524,11 @@
         if (result.type === 'crisis' || result.type === 'harm' || result.suppressFollowUps) {
             win._bqLastFollowUp = '';
             win._bqLastFollowUps = [];
+            win._bqLastLinks = [];
+            win._bqLastAsOf = null;
             return result;
         }
+        if (result.asOf && !/data-bq-asof/.test(result.answer)) result.answer += asOfHtml(result.asOf);
         if (/data-bq-links/.test(result.answer) && /data-bq-followups/.test(result.answer)) return result;
         var ground = resolveGround(q, result);
         if (ground.links.length && !/data-bq-links/.test(result.answer)) {
@@ -1516,6 +1558,10 @@
 
     function wrapUnified(orig) {
         var wrapped = function (question, cb) {
+            win._bqLastLinks = [];
+            win._bqLastFollowUps = [];
+            win._bqLastFollowUp = '';
+            win._bqLastAsOf = null;
             // Crisis, harm, and profanity beat every feature card.
             if (typeof win.nachoSafetyCheck === 'function' && win.nachoSafetyCheck(question)) {
                 win._bqLastFollowUp = '';
