@@ -4976,7 +4976,7 @@ window.triviaAnswer = function(chosenIdx) {
     _setTriviaState(state);
 
     // Award XP
-    if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt');
+    if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt', null, 0, 0, null, { triviaChoice: chosenIdx });
     // Raid Boss: trivia + XP
     if (isCorrect && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
     // Weekly community challenge: increment trivia_answers if correct

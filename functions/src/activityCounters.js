@@ -2,6 +2,8 @@
 
 const { grantFamily, familyFor } = require('./grantBadge');
 const { rewardBlocked } = require('./cipherClaim');
+const { noteComboZone } = require('./comboActivity');
+const { offsetDateKey } = require('./offsetDay');
 
 const UID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -33,8 +35,17 @@ function chatAuthor(data) {
     return cleanUid(data.uid);
 }
 
+function noteZone(db, adminSdk, result, zone) {
+    if (!result || !result.bumped || !result.uid) return Promise.resolve(result);
+    return noteComboZone(db, adminSdk, result.uid, zone, offsetDateKey(Date.now())).catch(function () {
+        return null;
+    }).then(function () { return result; });
+}
+
 function recordChat(db, adminSdk, data) {
-    return bumpCounter(db, adminSdk, chatAuthor(data), 'chatCount');
+    return bumpCounter(db, adminSdk, chatAuthor(data), 'chatCount').then(function (result) {
+        return noteZone(db, adminSdk, result, 'chat');
+    });
 }
 
 function recordDm(db, adminSdk, data) {
@@ -43,15 +54,21 @@ function recordDm(db, adminSdk, data) {
 }
 
 function recordForumPost(db, adminSdk, data) {
-    return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumPosts');
+    return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumPosts').then(function (result) {
+        return noteZone(db, adminSdk, result, 'forum');
+    });
 }
 
 function recordForumReply(db, adminSdk, data) {
-    return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumReplies');
+    return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumReplies').then(function (result) {
+        return noteZone(db, adminSdk, result, 'forum');
+    });
 }
 
 function recordBeatsUpload(db, adminSdk, data) {
-    return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'beatsUploads');
+    return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'beatsUploads').then(function (result) {
+        return noteZone(db, adminSdk, result, 'beats');
+    });
 }
 
 function recordArticle(db, adminSdk, data) {
@@ -68,6 +85,11 @@ async function recordPvpPlayed(db, adminSdk, after) {
     if (u1) jobs.push(bumpCounter(db, adminSdk, u1, 'pvpPlayed'));
     if (u2 && u2 !== u1) jobs.push(bumpCounter(db, adminSdk, u2, 'pvpPlayed'));
     await Promise.all(jobs);
+    const day = offsetDateKey(Date.now());
+    const zones = [];
+    if (u1) zones.push(noteComboZone(db, adminSdk, u1, 'pvp', day).catch(function () { return null; }));
+    if (u2 && u2 !== u1) zones.push(noteComboZone(db, adminSdk, u2, 'pvp', day).catch(function () { return null; }));
+    await Promise.all(zones);
     return { bumped: true };
 }
 
@@ -86,6 +108,11 @@ async function recordPvpFinished(db, adminSdk, before, after) {
     if (s1 > s2 && u1) jobs.push(bumpCounter(db, adminSdk, u1, 'pvpWins'));
     if (s2 > s1 && u2) jobs.push(bumpCounter(db, adminSdk, u2, 'pvpWins'));
     await Promise.all(jobs);
+    const day = offsetDateKey(Date.now());
+    const zones = [];
+    if (u1) zones.push(noteComboZone(db, adminSdk, u1, 'pvp', day).catch(function () { return null; }));
+    if (u2 && u2 !== u1) zones.push(noteComboZone(db, adminSdk, u2, 'pvp', day).catch(function () { return null; }));
+    await Promise.all(zones);
     return { bumped: true };
 }
 

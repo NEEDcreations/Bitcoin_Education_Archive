@@ -3,12 +3,15 @@
 // One transaction per badge: prove it, write the award, and add one
 // Satoshi's Favor point. A second award of the same id does not add a second point.
 // The daily XP cap still writes the badge and the Favor point, with 0 XP.
+// A badge the profile already shows gets an award row with 0 XP and no pool point.
+// Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
 const { splitDailyXp } = require('./dailyXp');
 const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
+const { profileHoldsBadge } = require('./badgeProfile');
 
 const BADGE_DAILY_CAP = 1000;
 const ALIASES = { country_set: 'global_citizen' };
@@ -29,6 +32,17 @@ function factionField(faction) {
     if (faction === 'cyber_hornets') return 'cyber_hornets';
     if (faction === 'honey_badgers') return 'honey_badgers';
     return 'unaffiliated';
+}
+
+function legacyAward(adminSdk, badgeId, day) {
+    return {
+        awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+        badge: badgeId,
+        xp: 0,
+        requestedXp: 0,
+        day: day,
+        source: 'legacy',
+    };
 }
 
 async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
@@ -53,25 +67,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
     const needsAwards = !verified && rule.source && (rule.source.type === 'awards' || rule.source.type === 'set');
 
     return db.runTransaction(async function (t) {
-        const reads = [
-            t.get(userRef),
-            t.get(awardRef),
-            t.get(dailyRef),
-            t.get(ledgerRef),
-            t.get(stateRef),
-            t.get(contributorRef),
-            t.get(totalsRef),
-        ];
-        if (needsAwards) reads.push(t.get(userRef.collection('badge_awards')));
-        const snaps = await Promise.all(reads);
-        const userSnap = snaps[0];
-        const awardSnap = snaps[1];
-        const dailySnap = snaps[2];
-        const ledgerSnap = snaps[3];
-        const stateSnap = snaps[4];
-        const contributorSnap = snaps[5];
-        const totalsSnap = snaps[6];
-        const awardsSnap = snaps[7];
+        const userSnap = await t.get(userRef);
+        const awardSnap = await t.get(awardRef);
+        const ledgerSnap = await t.get(ledgerRef);
 
         if (!userSnap.exists) return { granted: false, success: false, reason: 'no_user', awarded: 0, xp: 0, badgeId: badgeId };
         const user = userSnap.data() || {};
@@ -82,7 +80,22 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (awardSnap.exists) {
             return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
+        if (profileHoldsBadge(user, badgeId)) {
+            t.set(awardRef, legacyAward(adminSdk, badgeId, day));
+            return {
+                granted: false,
+                success: true,
+                legacy: true,
+                reason: 'legacy',
+                awarded: 0,
+                xp: 0,
+                favor: false,
+                badgeId: badgeId,
+            };
+        }
 
+        let awardsSnap = null;
+        if (needsAwards) awardsSnap = await t.get(userRef.collection('badge_awards'));
         const awardSet = new Set();
         if (awardsSnap && typeof awardsSnap.forEach === 'function') {
             awardsSnap.forEach(function (doc) { awardSet.add(doc.id); });
@@ -92,6 +105,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn })) {
             return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
+
+        const dailySnap = await t.get(dailyRef);
+        const stateSnap = await t.get(stateRef);
+        const contributorSnap = await t.get(contributorRef);
+        const totalsSnap = await t.get(totalsRef);
 
         const catalogXp = Math.min(
             badgeRules.XP_CAP,

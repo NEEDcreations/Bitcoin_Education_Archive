@@ -1,15 +1,30 @@
 #!/usr/bin/env node
 // Badge economy fields stay server-only.
-//
-//   cd tests/rules && npm install
-//   cd ../.. && npx --yes firebase-tools emulators:exec --only firestore --project demo-badges \
-//     "node tests/rules/badge-attack.js"
-const fs = require('fs');
+// Starts the Firestore emulator when FIRESTORE_EMULATOR_HOST is not set.
+'use strict';
+const { spawnSync } = require('child_process');
 const path = require('path');
+const root = path.join(__dirname, '..', '..');
+
+if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    const child = spawnSync('npx', [
+        '--yes', 'firebase-tools',
+        'emulators:exec',
+        '--only', 'firestore',
+        '--project', 'demo-badges',
+        'node tests/rules/badge-attack.js',
+    ], {
+        cwd: root,
+        stdio: 'inherit',
+        env: Object.assign({}, process.env, { CI: 'true' }),
+    });
+    process.exit(child.status == null ? 1 : child.status);
+}
+
+const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
 const { doc, setDoc, updateDoc, deleteField, increment } = require('firebase/firestore');
 
-const root = path.join(__dirname, '..', '..');
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const emu = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8085';
 const parts = emu.split(':');
@@ -62,16 +77,18 @@ const parts = emu.split(':');
         await expect('completed quests', function () {
             return updateDoc(ref, { completedQuests: ['quest_whitepaper'], questsCompletedToday: 1 });
         }, true);
-        await expect('referred-by', function () { return updateDoc(ref, { referredBy: 'phil' }); }, true);
+        await expect('referred-by', function () { return updateDoc(ref, { referredBy: 'phil' }); }, false);
         await expect('notification prefs', function () {
             return updateDoc(ref, { notificationPrefs: { master: true, rewards: false } });
         }, true);
         await expect('uncensored Beats setting', function () {
             return updateDoc(ref, { beatsShowUncensored: true });
         }, true);
-        await expect('onboarding and authenticator fields', function () {
-            return updateDoc(ref, { nachoQuestDone: true, introSeen: true, totpEnabled: false });
-        }, true);
+        await expect('onboarding quest flag', function () {
+            return updateDoc(ref, { nachoQuestDone: true });
+        }, false);
+        await expect('intro seen', function () { return updateDoc(ref, { introSeen: true }); }, false);
+        await expect('authenticator flag', function () { return updateDoc(ref, { totpEnabled: false }); }, false);
         await expect('ATTACK hiddenBadges', function () {
             return updateDoc(ref, { hiddenBadges: ['night_owl'] });
         }, false);

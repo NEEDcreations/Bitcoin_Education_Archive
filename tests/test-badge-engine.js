@@ -271,6 +271,8 @@ queue.push(test('user updates deny server fields and poll votes are server-only'
         assert.ok(!fn.includes("'" + field + "'"), field + ' is a live client save');
     });
     assert.ok(rules.includes('userProfileServerOnlyKeys()'));
+    const updateRule = rules.slice(rules.indexOf('allow update: if request.auth'), rules.indexOf('allow delete: if false'));
+    assert.ok(updateRule.indexOf("'referredBy'") < updateRule.indexOf('userProfileServerOnlyKeys()'));
     const polls = rules.slice(rules.indexOf('match /poll_votes/{pollId}'), rules.indexOf('match /poll_cumulative/'));
     assert.ok(polls.includes('allow read: if true'));
     assert.ok(polls.includes('allow create, update, delete: if false'));
@@ -456,6 +458,117 @@ queue.push(test('each activity family grants one Favor point from its server rec
     ['flex_findq_1', 'lq_mining', 'quest_1', 'trivia_first', 'spin_1', 'raid_first', 'tip_first', 'first_peer', 'peer_network_10', 'genesis', 'first_post', 'scholar', 'hash_obsessed', 'ticket_bronze', 'streak_freeze', 'ghost_reader'].forEach(function (id) {
         assert.strictEqual(badgeRules.isCosmetic(id), false, id);
     });
+}));
+
+queue.push(test('a profile badge is recorded with 0 XP and does not touch the pool', async function () {
+    const day = { day: '2026-10-22', nowMs: 1700000000000 };
+    function watchPool(db) {
+        let reads = 0;
+        const orig = db.runTransaction;
+        db.runTransaction = function (fn) {
+            return orig.call(db, function (t) {
+                const get = t.get;
+                t.get = function (ref) {
+                    if (ref && String(ref.path || '').indexOf('satoshiFavor') === 0) reads += 1;
+                    return get.call(t, ref);
+                };
+                return fn(t);
+            });
+        };
+        return function () { return reads; };
+    }
+    const arrayDb = memoryDb({ 'users/u': { sayHiDays: 1, points: 40, visibleBadges: ['say_hi_1'] } });
+    const arrayReads = watchPool(arrayDb);
+    const fromArray = await awardBadge(arrayDb, admin, 'u', 'say_hi_1', day);
+    assert.strictEqual(fromArray.reason, 'legacy');
+    assert.strictEqual(fromArray.xp, 0);
+    assert.strictEqual(fromArray.favor, false);
+    assert.strictEqual(arrayDb.docs['users/u/badge_awards/say_hi_1'].source, 'legacy');
+    assert.strictEqual(arrayDb.docs['users/u/badge_awards/say_hi_1'].xp, 0);
+    assert.strictEqual(arrayDb.docs['users/u'].points, 40);
+    assert.strictEqual(arrayDb.docs['satoshiFavor/current'], undefined);
+    assert.strictEqual(arrayReads(), 0);
+    const mapDb = memoryDb({ 'users/u': { sayHiDays: 1, badges: { say_hi_1: true } } });
+    const fromMap = await awardBadge(mapDb, admin, 'u', 'say_hi_1', day);
+    assert.strictEqual(fromMap.reason, 'legacy');
+    assert.strictEqual(mapDb.docs['satoshiFavor/current'], undefined);
+    const fieldDb = memoryDb({ 'users/u': { peerCount: 1, displayBadge: 'peer_1' } });
+    const fromField = await awardBadge(fieldDb, admin, 'u', 'peer_1', day);
+    assert.strictEqual(fromField.reason, 'legacy');
+    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'].xp, 0);
+    const owned = memoryDb({
+        'users/u': { sayHiDays: 1, points: 15 },
+        'users/u/badge_awards/say_hi_1': { xp: 15, source: 'awardBadge' },
+    });
+    const ownedReads = watchPool(owned);
+    const again = await awardBadge(owned, admin, 'u', 'say_hi_1', day);
+    assert.strictEqual(again.reason, 'already');
+    assert.strictEqual(again.favor, false);
+    assert.strictEqual(ownedReads(), 0);
+    assert.strictEqual(owned.docs['satoshiFavor/current'], undefined);
+}));
+
+queue.push(test('backfill dedupes date and name keys and plans faction totals only', function () {
+    const backfill = require('../scripts/backfill-badge-favor');
+    const name = backfill.badgeName('say_hi_1');
+    const nameToken = backfill.keyPart(name);
+    assert.ok(nameToken);
+    const dated = 'u_2026-01-02_badge_' + nameToken;
+    const plan = backfill.planUser({
+        uid: 'u',
+        user: { faction: 'cyber_hornets' },
+        held: ['say_hi_1', 'peer_1', 'spin_1'],
+        contributorIds: [dated, 'u_badge_peer_1'],
+    });
+    assert.strictEqual(plan.missing.length, 1);
+    assert.strictEqual(plan.missing[0].doc.badgeId, 'spin_1');
+    assert.strictEqual(plan.missing[0].doc.pointsAdded, 1);
+    assert.strictEqual(plan.missing[0].doc.source, 'backfill');
+    assert.strictEqual(plan.missing[0].doc.faction, 'cyber_hornets');
+    assert.strictEqual(plan.byFaction.cyber_hornets, 1);
+    assert.strictEqual(plan.byFaction.unaffiliated, 0);
+    const none = backfill.planUser({ uid: 'v', user: {}, held: ['spin_1'], contributorIds: [] });
+    assert.strictEqual(none.missing[0].doc.faction, null);
+    assert.strictEqual(none.byFaction.unaffiliated, 1);
+    assert.strictEqual(backfill.creditsBadge('v_badge_' + nameToken, 'v', 'say_hi_1', name), true);
+    const src = fs.readFileSync(path.join(root, 'scripts', 'backfill-badge-favor.js'), 'utf8');
+    assert.ok(src.includes("source: 'backfill'"));
+    assert.ok(src.includes('pointsAdded: 1'));
+    assert.ok(!src.includes('favorActive'));
+    assert.ok(!src.includes("doc('current').set"));
+    assert.ok(!src.includes("doc('current').update"));
+    assert.ok(src.includes('factionTotals'));
+}));
+
+queue.push(test('combo tiers follow server zones and trivia is graded before the counter', function () {
+    const combo = require('../functions/src/comboActivity');
+    let state = { zones: {}, awarded: {} };
+    let lastGrant = [];
+    ['chat', 'forum', 'spin', 'pvp', 'tctv', 'prediction', 'sf', 'beats'].forEach(function (zone) {
+        const plan = combo.planCombo(state, zone);
+        state = plan.state;
+        lastGrant = plan.grant;
+    });
+    assert.strictEqual(state.awarded.combo_trio, true);
+    assert.strictEqual(state.awarded.combo_mega, true);
+    assert.strictEqual(state.awarded.combo_legend, true);
+    assert.deepStrictEqual(lastGrant, ['combo_legend']);
+    assert.deepStrictEqual(combo.planCombo(state, 'chat').grant, []);
+    assert.deepStrictEqual(combo.planCombo(state, 'combo_legend').grant, []);
+    const trivia = require('../functions/src/triviaBank');
+    const day = '2026-10-22';
+    const question = trivia.questionForDay(day);
+    assert.strictEqual(trivia.grade(day, question.answer).correct, true);
+    assert.strictEqual(trivia.grade(day, question.answer === 0 ? 1 : 0).correct, false);
+    assert.strictEqual(trivia.grade(day, undefined).correct, false);
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const awardAt = index.indexOf('exports.awardPoints');
+    const award = index.slice(awardAt, index.indexOf('exports.getFaucetStats', awardAt));
+    assert.ok(award.indexOf('triviaBank') !== -1);
+    assert.ok(award.indexOf('triviaGrade') < award.indexOf('progressBadges.progressSpec'));
+    assert.ok(!award.includes("source: 'combo_bonus'"));
+    const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
+    assert.ok(quests.includes('triviaChoice: chosenIdx'));
 }));
 
 queue.push(test('the dry-run helper counts failing badges without printing people', function () {

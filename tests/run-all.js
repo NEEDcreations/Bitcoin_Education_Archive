@@ -60,6 +60,7 @@ const TESTS = [
     { name: 'Email link and guest merge', file: 'test-email-link.js' },
     { name: 'Two-factor auth', file: 'test-totp.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
+    { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
 ];
 
 let allPassed = true;

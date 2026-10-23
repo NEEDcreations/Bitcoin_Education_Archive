@@ -827,6 +827,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       const { grantFamily } = require('./grantBadge');
       await grantFamily(db, admin, uid, require('./grantBadge').familyFor('sfHashes'));
       if (isWinner) await grantFamily(db, admin, uid, ['sf_block_solver']);
+      await require('./comboActivity').noteComboZone(db, admin, uid, 'sf', require('./offsetDay').offsetDateKey(Date.now()));
     } catch (grantErr) {
       console.warn('[FAVOR] hash badges', grantErr && grantErr.message);
     }

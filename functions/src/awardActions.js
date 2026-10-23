@@ -10,7 +10,6 @@ const TRIVIA_QUIZ_CAP = 500;
 const ALLOWED_ACTION_KEYS = {
     flex_action: true,
     flex_day_complete: true,
-    combo_bonus: true,
     lq_lesson: true,
 };
 
@@ -28,12 +27,6 @@ const FLEX_ID_SET = new Set(FLEX_IDS);
 
 // Legit client sends 5. Double XP sends 10. The old ceiling was 15; anything else is rejected.
 const FLEX_AMOUNTS = { 5: 5, 10: 10 };
-
-const COMBO_AMOUNTS = {
-    combo_trio: { 50: 50, 100: 100 },
-    combo_mega: { 100: 100, 200: 200 },
-    combo_legend: { 250: 250, 500: 250 },
-};
 
 const LQ_TITLES = new Set([
     'What is Bitcoin?',
@@ -167,24 +160,6 @@ function resolveFlexDay(clientPts) {
         dailyLimit: 1,
         dedupGroup: 'flex_day',
         target: 'day',
-    });
-}
-
-function resolveCombo(comboTier, clientPts) {
-    const amounts = COMBO_AMOUNTS[comboTier];
-    if (!amounts) return unknown();
-    const bases = { combo_trio: { 50: 50 }, combo_mega: { 100: 100 }, combo_legend: { 250: 250 } };
-    const doubles = { combo_trio: { 100: 100 }, combo_mega: { 200: 200 }, combo_legend: { 500: 250 } };
-    const choice = payChoice(clientPts, bases[comboTier], doubles[comboTier]);
-    if (!choice) return unknown();
-    return done({
-        id: 'combo_bonus',
-        xp: choice.xp,
-        requiresDoubleXp: choice.requiresDoubleXp,
-        dailyLimit: 3,
-        dedupGroup: 'combo',
-        target: comboTier,
-        comboTier: comboTier,
     });
 }
 
@@ -422,7 +397,6 @@ function resolveAction(input) {
     const badgeId = String(src.badgeId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
     const channelId = String(src.channelId || '').slice(0, 100);
     const flexActionId = String(src.flexActionId || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
-    const comboTier = String(src.comboTier || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20);
     const clientPts = normalizePts(src.pts);
 
     if (actionKey === 'prediction_correct' || PREDICTION_RESULT.test(action)) {
@@ -438,11 +412,12 @@ function resolveAction(input) {
     if (!badgeClaim && (/pvp/i.test(actionKey) || /pvp/i.test(action))) {
         return { ok: false, error: 'PvP rewards are granted by the server', awarded: 0, tickets: 0 };
     }
+    // Combo XP and badges are granted from server-recorded daily zones.
+    if (actionKey === 'combo_bonus') return unknown();
     if (actionKey && !ALLOWED_ACTION_KEYS[actionKey]) return unknown();
 
     if (actionKey === 'flex_action') return resolveFlex(flexActionId, clientPts);
     if (actionKey === 'flex_day_complete') return resolveFlexDay(clientPts);
-    if (actionKey === 'combo_bonus') return resolveCombo(comboTier, clientPts);
     if (actionKey === 'lq_lesson') return resolveLesson(action);
     return resolvePhrase(action, { badgeId: badgeId, channelId: channelId, clientPts: clientPts });
 }

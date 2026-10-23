@@ -169,6 +169,12 @@ service cloud.firestore {
 
       allow update: if request.auth != null
                     && request.auth.uid == userId
+                    // referredBy is server-only (registerReferral). Checking it inside the
+                    // long denylist below walks that list plus the lock helpers and hits
+                    // the rules complexity limit. This short list denies it first.
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                        'referredBy', 'nachoQuestDone', 'introSeen', 'totpEnabled', 'introSeenAt'
+                    ])
                     // [VULN-2 FIX 2026-06-26] Expanded denylist — all economy, rank, admin,
                     // anti-fraud, and leaderboard fields must be server-only.
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(userProfileServerOnlyKeys())
@@ -589,6 +595,14 @@ service cloud.firestore {
 
     // Payment hashes that already earned tip XP. Admin SDK only.
     match /tip_hashes/{hashId} {
+      allow read, write: if false;
+    }
+
+    // Server-fetched tip invoices and the per-pair daily badge cap. Admin SDK only.
+    match /tip_invoices/{hashId} {
+      allow read, write: if false;
+    }
+    match /tip_pair_days/{docId} {
       allow read, write: if false;
     }
 

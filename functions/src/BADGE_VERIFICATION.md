@@ -32,7 +32,7 @@ These counters are incremented only by Cloud Functions that already checked the 
 - `lqPassed` — the one-time `lq_lesson` claim, mapped from the sanitized lesson title to the eight topic ids. The quiz score itself is still checked in the browser; the badge follows the same callable record the lesson XP uses. `lq_graduate` needs all eight ids
 - `spinDays` / `spinStreak` — the non-bonus `dailySpin` only. The older client field `spinCount` stays writable and is not the proof. `spinHitRare` is set when the server roll is rare. `spinClosetAwards` counts closet rolls, not unique items
 - `raidDamageAllTime` — `contributeRaid` after a counted contribution. On defeat, `users/{uid}/raid_credits/{bossId}` is written once per participant and increments `raidBossesDefeated`; winners also increment `raidWins`
-- `tipsVerified` / `tipsSentSats` / `tipsReceived` — a new `tip_hashes/{paymentHash}` doc from a verified tip. An unverified day lock does not count. Sats are added only when the bolt11 invoice has an amount, so amountless invoices wait on the whale badges. The recipient counter increments once per new hash
+- `tipsVerified` / `tipsSentSats` / `tipsReceived` — only a tip paid through `requestTipInvoice`. The server fetches the invoice from the recipient's Lightning address, stores the payment hash and the decoded amount, and `confirmTipSent` counts it when the verify host is on the custodial allowlist, sender and recipient are different and unbanned, they do not share a fingerprint or IP cluster when that data exists, and the pair has not already been credited that UTC day. Anything else stays a social confirmation: challenge XP can still record, and the badge counters do not move. The amount is the stored invoice, never the client's sats
 - `orangeTickets` — ticket grants inside `awardPoints` and `dailySpin`. `ticket_bronze`, `ticket_silver`, and `ticket_gold` read it
 - `streakFreezesUsed` — `recordDailyVisit` when a freeze covers a missed day
 - `ghost_reader` — server `streak >= 7` and `points === 0`
@@ -45,7 +45,11 @@ These counters are incremented only by Cloud Functions that already checked the 
 
 These have no server proof. `awardBadge` returns `{ success: true, cosmetic: true, awarded: 0 }` and does not write `badge_awards` or Favor. `country_set` is not a catalog id; the server treats it as `global_citizen`.
 
-`weekly_hero` and the combo tiers (`combo_trio`, `combo_mega`, `combo_legend`) stay cosmetic in the catalog. The weekly cron and the allowlisted `combo_bonus` action pass `verified: true`, so those grants pay the catalog display XP through the daily cap and add one Favor point. A later client call with the same id does not add a second point.
+`weekly_hero` stays cosmetic in the catalog. The weekly cron passes `verified: true`, so that grant pays the catalog display XP through the daily cap and adds one Favor point. Combo tiers (`combo_trio`, `combo_mega`, `combo_legend`) stay cosmetic in the catalog and are granted only from server-recorded zones for the offset day (PvP, spin, Timechain TV, forum, prediction, chat, Satoshi's Favor, Beats). Crossing 3, 5, and 8 zones pays the display XP and one Favor point each. A client `combo_bonus` call does not pay XP or grant the badge.
+
+Trivia correct is graded from `data/trivia-bank.js` with the same day index as the client. `triviaCorrect` increments only when `triviaChoice` matches that answer. A missing or wrong choice is the 10 XP attempt and does not move the counter.
+
+A badge the profile already shows (array, map, or display field) gets a `badge_awards` row with `source: legacy`, 0 XP, and no live pool point. Favor for that badge is the backfill. An award row that already exists returns before the pool doc is read.
 
 Trail exams (`trail_*`) are graded in the browser from the question bank. No callable stores a pass, and a client badge id is not accepted as one.
 
@@ -85,7 +89,7 @@ Nothing in this deploy writes these, so claims fail closed:
 
 Existing `badge_awards` and `visibleBadges` entries are left in place. `functions/dry-run-badge-criteria.js` lists, in aggregate, how many held paying badges would fail the new rules. It does not write.
 
-`scripts/backfill-badge-favor.js` writes missing contributor docs only. It does not add pool points or move faction totals. It skips banned users and any badge that already has either `{uid}_badge_{badgeId}` or the legacy name-keyed doc. Dry-run is the default and prints counts. `--apply` writes. It has not been run.
+`scripts/backfill-badge-favor.js` writes missing contributor docs for badges on the profile or in `badge_awards`. It skips banned users and any badge already credited by `{uid}_badge_{badgeId}`, `{uid}_badge_{sanitized name}`, or `{uid}_{YYYY-MM-DD}_badge_{sanitized id or name}`. Each new doc has `pointsAdded: 1`, `source: 'backfill'`, and the user's faction or null. `--apply` increments that faction's total, or `factionTotals.unaffiliated`, by the number written. It does not change live pool points or the Favor window. Dry-run is the default and prints counts per faction. It has not been run.
 
 ## Account deletion
 

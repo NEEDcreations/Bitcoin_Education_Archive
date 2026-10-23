@@ -1347,6 +1347,10 @@ exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
     return tipService.confirmTipSent(data, context);
 });
 
+exports.requestTipInvoice = functionsV1.https.onCall(async (data, context) => {
+    return tipService.requestTipInvoice(data, context);
+});
+
 exports.onUserReferral = onDocumentWritten({
     document: 'users/{uid}',
     secrets: [referralIpSecret],
@@ -3185,7 +3189,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         if (badgeResult.reason === 'banned') {
             return { success: true, awarded: 0, tickets: 0, banned: true };
         }
-        if (badgeResult.reason === 'already') {
+        if (badgeResult.reason === 'already' || badgeResult.reason === 'legacy') {
             return { success: false, error: 'Badge already awarded', badgeDuplicate: true, awarded: 0, tickets: 0 };
         }
         if (!badgeResult.granted) {
@@ -3212,6 +3216,13 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     const reason = action;
     const DAILY_CAP = awardActions.DAILY_CAP;
     const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
+    if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
+        const triviaGrade = require('./src/triviaBank').grade(offsetToday, data && data.triviaChoice);
+        if (matchedAction === 'trivia_correct' && !triviaGrade.correct) {
+            matchedAction = 'trivia_attempt';
+            pts = 10;
+        }
+    }
     const userRef = db.collection('users').doc(uid);
     const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
     const rewardGroup = rewardNotify.groupForAction(matchedAction);
@@ -3532,13 +3543,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         return { success: false, error: 'Internal error', awarded: 0, tickets: 0 };
     }
 
-    if (resolved.comboTier) {
-        try {
-            await awardBadge(db, admin, uid, resolved.comboTier, { verified: true, source: 'combo_bonus', day: offsetToday });
-        } catch (comboBadgeErr) {
-            console.warn('[awardPoints] combo badge', comboBadgeErr && comboBadgeErr.message);
-        }
-    }
     if (transactionResult && transactionResult.channelTracked) {
         try { await grantFamily(db, admin, uid, familyFor('channelsVisited')); }
         catch (channelBadgeErr) { console.warn('[awardPoints] channel badges', channelBadgeErr && channelBadgeErr.message); }
@@ -4247,6 +4251,9 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (result.closet) spinIds.push.apply(spinIds, familyFor('spinClosetAwards'));
         if (result.tickets > 0) spinIds.push.apply(spinIds, familyFor('orangeTickets'));
         await grantFamily(db, admin, uid, spinIds);
+        if (result.countedDay) {
+            await require('./src/comboActivity').noteComboZone(db, admin, uid, 'spin', getOffsetDateKey());
+        }
     } catch (spinBadgeErr) { console.warn('[SPIN] badges', spinBadgeErr && spinBadgeErr.message); }
 
     return { success: true, reward: result };

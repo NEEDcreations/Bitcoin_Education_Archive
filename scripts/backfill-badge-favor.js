@@ -1,20 +1,21 @@
 #!/usr/bin/env node
 /**
- * Write missing Satoshi's Favor contributor docs for badges already awarded.
+ * Write missing Satoshi's Favor contributor docs for badges a profile already holds.
  *
- * This does not add pool points and does not move faction totals. A badge that
- * already has either contributor doc is left alone:
- *   satoshiFavor/current/contributors/{uid}_badge_{badgeId}
- *   satoshiFavor/current/contributors/{uid}_badge_{sanitized badge name}
- * The name key is the legacy client detail (6,866 of those records). Writing
- * the id key beside it would double-count that badge.
+ * Dedupes the permanent id key, the permanent name key, and the legacy
+ * date-keyed contributor docs:
+ *   {uid}_badge_{badgeId}
+ *   {uid}_badge_{sanitized badge name}
+ *   {uid}_{YYYY-MM-DD}_badge_{sanitized id or name}
  *
- * Banned users (ban_reason, banned, satsDisabled, or a faucet-ledger ban)
- * are skipped. Dry-run is the default and prints counts only. --apply writes
- * the missing id-keyed docs with pointsAdded 0.
+ * Each new doc has pointsAdded 1, source backfill, and the user's current
+ * faction (or null when they have none). factionTotals for that faction, or
+ * factionTotals.unaffiliated, increases by the number of docs written so a
+ * later faction choice can move them. This never changes the live pool
+ * points or the Favor window.
  *
- * Auth: Application Default Credentials, or GOOGLE_APPLICATION_CREDENTIALS.
- * No key is embedded in this script. Do not run it as part of a deploy.
+ * Banned users are skipped. Dry-run is the default and prints counts per
+ * faction. --apply writes. Do not run it as part of a deploy.
  *
  *   node scripts/backfill-badge-favor.js
  *   node scripts/backfill-badge-favor.js --apply
@@ -23,6 +24,7 @@
 
 const { rewardBlocked } = require('../functions/src/cipherClaim');
 const badgeRules = require('../functions/src/badgeRules');
+const { profileBadgeIds } = require('../functions/src/badgeProfile');
 
 const PAGE = 200;
 
@@ -30,9 +32,8 @@ function helpText() {
     return [
         'Usage: node scripts/backfill-badge-favor.js [--apply]',
         '',
-        'Dry-run prints counts only. --apply writes contributor docs for',
-        'unbanned users whose badge_awards row has neither an id key nor a',
-        'legacy name key. Pool points are not changed.',
+        'Dry-run prints counts per faction and writes nothing. --apply writes',
+        'contributor docs and increments faction totals. The live pool is not touched.',
     ].join('\n');
 }
 
@@ -47,15 +48,84 @@ function keyPart(value) {
     return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
 }
 
-function badgeName(badgeId, data) {
+function escapeReg(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function badgeName(badgeId) {
     const rule = badgeRules.ruleFor(badgeId);
     if (rule && rule.name) return rule.name;
     const row = badgeRules.catalog && badgeRules.catalog.badges
         ? badgeRules.catalog.badges[badgeId]
         : null;
     if (row && row.name) return row.name;
-    if (data && typeof data.name === 'string') return data.name;
     return '';
+}
+
+function factionOf(user) {
+    const faction = user && user.faction;
+    if (faction === 'cyber_hornets' || faction === 'honey_badgers') return faction;
+    return null;
+}
+
+function factionBucket(faction) {
+    return faction === 'cyber_hornets' || faction === 'honey_badgers' ? faction : 'unaffiliated';
+}
+
+function creditsBadge(docId, uid, badgeId, name) {
+    const idToken = keyPart(badgeId);
+    const nameToken = keyPart(name);
+    if (!uid || !idToken || !docId) return false;
+    if (docId === uid + '_badge_' + idToken) return true;
+    if (nameToken && docId === uid + '_badge_' + nameToken) return true;
+    const tokens = nameToken && nameToken !== idToken ? (idToken + '|' + nameToken) : idToken;
+    const re = new RegExp('^' + escapeReg(uid) + '_\\d{4}-\\d{2}-\\d{2}_badge_(' + tokens + ')$');
+    return re.test(docId);
+}
+
+function planUser(input) {
+    const src = input || {};
+    const uid = String(src.uid || '');
+    const held = [];
+    const seen = {};
+    (src.held || []).forEach(function (id) {
+        const badgeId = keyPart(id);
+        if (!badgeId || seen[badgeId]) return;
+        seen[badgeId] = true;
+        held.push(badgeId);
+    });
+    const faction = factionOf(src.user);
+    const ids = src.contributorIds || [];
+    const missing = [];
+    const skipped = { id: 0, name: 0, date: 0 };
+    held.forEach(function (badgeId) {
+        const name = (src.names && src.names[badgeId]) || badgeName(badgeId);
+        let credited = false;
+        for (let i = 0; i < ids.length; i++) {
+            if (!creditsBadge(ids[i], uid, badgeId, name)) continue;
+            credited = true;
+            if (ids[i] === uid + '_badge_' + keyPart(badgeId)) skipped.id += 1;
+            else if (ids[i].indexOf('_badge_') > uid.length && ids[i].indexOf(uid + '_') === 0 && !/_\d{4}-\d{2}-\d{2}_badge_/.test(ids[i])) skipped.name += 1;
+            else skipped.date += 1;
+            break;
+        }
+        if (credited) return;
+        missing.push({
+            docId: uid + '_badge_' + badgeId,
+            doc: {
+                uid: uid,
+                source: 'backfill',
+                detail: badgeId,
+                badgeId: badgeId,
+                pointsAdded: 1,
+                faction: faction,
+                backfill: true,
+            },
+        });
+    });
+    const byFaction = { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 };
+    byFaction[factionBucket(faction)] = missing.length;
+    return { missing: missing, skipped: skipped, byFaction: byFaction, faction: faction };
 }
 
 async function main() {
@@ -71,10 +141,10 @@ async function main() {
         users: 0,
         banned: 0,
         badgeRecords: 0,
-        alreadyId: 0,
-        alreadyName: 0,
+        alreadyCredited: 0,
         missing: 0,
         written: 0,
+        byFaction: { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 },
     };
     let cursor = null;
     let batch = db.batch();
@@ -103,52 +173,72 @@ async function main() {
                 counts.banned += 1;
                 continue;
             }
+            const held = profileBadgeIds(user);
             const awards = await userDoc.ref.collection('badge_awards').get();
+            awards.docs.forEach(function (award) {
+                const id = keyPart(award.id);
+                if (id) held.add(id);
+            });
             const contrib = db.collection('satoshiFavor').doc('current').collection('contributors');
-            for (let b = 0; b < awards.docs.length; b++) {
-                const award = awards.docs[b];
-                const badgeId = keyPart(award.id);
-                if (!badgeId) continue;
-                counts.badgeRecords += 1;
-                const idKey = userDoc.id + '_badge_' + badgeId;
-                const nameKey = userDoc.id + '_badge_' + keyPart(badgeName(award.id, award.data() || {}));
-                const idSnap = await contrib.doc(idKey).get();
-                if (idSnap.exists) {
-                    counts.alreadyId += 1;
-                    continue;
-                }
-                if (nameKey !== idKey) {
-                    const nameSnap = await contrib.doc(nameKey).get();
-                    if (nameSnap.exists) {
-                        counts.alreadyName += 1;
-                        continue;
-                    }
-                }
+            const existing = await contrib
+                .orderBy(admin.firestore.FieldPath.documentId())
+                .startAt(userDoc.id + '_')
+                .endAt(userDoc.id + '_\uf8ff')
+                .get();
+            const contributorIds = existing.docs.map(function (doc) { return doc.id; });
+            const plan = planUser({
+                uid: userDoc.id,
+                user: user,
+                held: Array.from(held),
+                contributorIds: contributorIds,
+            });
+            counts.badgeRecords += held.size;
+            counts.alreadyCredited += (held.size - plan.missing.length);
+            plan.missing.forEach(function (row) {
                 counts.missing += 1;
-                if (args.apply) {
-                    batch.set(contrib.doc(idKey), {
-                        uid: userDoc.id,
-                        source: 'badge_earned',
-                        detail: badgeId,
-                        badgeId: badgeId,
-                        pointsAdded: 0,
-                        backfill: true,
-                        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                    });
-                    pending += 1;
-                    if (pending >= 400) await flush();
-                }
-            }
+                counts.byFaction[factionBucket(plan.faction)] += 1;
+                if (!args.apply) return;
+                batch.set(contrib.doc(row.docId), Object.assign({}, row.doc, {
+                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                }));
+                pending += 1;
+            });
+            if (pending >= 400) await flush();
         }
         cursor = snap.docs[snap.docs.length - 1];
         if (snap.size < PAGE) break;
     }
     await flush();
+    if (args.apply) {
+        const inc = admin.firestore.FieldValue.increment;
+        const totals = {};
+        ['cyber_hornets', 'honey_badgers', 'unaffiliated'].forEach(function (bucket) {
+            if (counts.byFaction[bucket] > 0) totals[bucket] = inc(counts.byFaction[bucket]);
+        });
+        if (Object.keys(totals).length) {
+            totals.lastUpdated = admin.firestore.FieldValue.serverTimestamp();
+            await db.collection('satoshiFavor').doc('factionTotals').set(totals, { merge: true });
+        }
+    }
     console.log(args.apply ? 'applied' : 'dry-run');
+    console.log('cyber_hornets: ' + counts.byFaction.cyber_hornets);
+    console.log('honey_badgers: ' + counts.byFaction.honey_badgers);
+    console.log('unaffiliated: ' + counts.byFaction.unaffiliated);
     console.log(JSON.stringify(counts));
 }
 
-main().catch(function (err) {
-    console.error(err && err.message ? err.message : err);
-    process.exit(1);
-});
+if (require.main === module) {
+    main().catch(function (err) {
+        console.error(err && err.message ? err.message : err);
+        process.exit(1);
+    });
+}
+
+module.exports = {
+    keyPart: keyPart,
+    creditsBadge: creditsBadge,
+    planUser: planUser,
+    factionOf: factionOf,
+    factionBucket: factionBucket,
+    badgeName: badgeName,
+};
