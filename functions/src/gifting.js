@@ -15,6 +15,7 @@ const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { planDailyXp } = require('./dailyXp');
+const { applyDailyXp } = require('./applyDailyXp');
 const rewardNotify = require('./rewardNotify');
 const doubleXp = require('./doubleXp');
 const {
@@ -492,7 +493,6 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
     const canonicalRef = pairRefs[0];
     const senderRef = db.collection('users').doc(uid);
     const recipRef = db.collection('users').doc(recipientUid);
-    const dailyPtsRef = senderRef.collection('daily_points').doc(todayOffset);
     const keyRefs = keyIds.map(function(id) { return db.collection('keys').doc(id); });
 
     let senderName = 'Someone';
@@ -504,14 +504,12 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         const docs = await Promise.all([
             t.get(senderRef),
             t.get(recipRef),
-            t.get(dailyPtsRef),
         ].concat(pairRefs.map(function(r) { return t.get(r); }), keyRefs.map(function(r) { return t.get(r); })));
 
         const senderDoc = docs[0];
         const recipDoc = docs[1];
-        const dailyDoc = docs[2];
-        const pairDocs = docs.slice(3, 3 + pairRefs.length);
-        const keyDocs = docs.slice(3 + pairRefs.length);
+        const pairDocs = docs.slice(2, 2 + pairRefs.length);
+        const keyDocs = docs.slice(2 + pairRefs.length);
 
         if (!senderDoc.exists) throw httpsError('not-found', 'Sender not found');
         if (!recipDoc.exists) throw httpsError('not-found', 'Recipient not found');
@@ -538,6 +536,10 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             sentLabels.push(key.label);
         });
 
+        const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
+        const xpGrant = await applyDailyXp(uid, keyXp, t, { day: todayOffset, userRef: senderRef });
+        xpAwarded = xpGrant.awarded;
+
         const now = admin.firestore.FieldValue.serverTimestamp();
         for (let i = 0; i < keyDocs.length; i++) {
             t.update(keyRefs[i], {
@@ -562,20 +564,16 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         const prevDate = sender.keysSentDate || '';
         const already = prevDate === todayUtc && Array.isArray(sender.keysSentTo) ? sender.keysSentTo.slice() : [];
         if (already.indexOf(recipientUid) === -1) already.push(recipientUid);
-        const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-        const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
-        const xpSplit = planDailyXp(dailyUsed, keyXp);
-        xpAwarded = xpSplit.awarded;
         const senderUpdate = {
             keysSentDate: todayUtc,
             keysSentTo: already,
         };
-        if (xpSplit.awarded > 0) {
-            senderUpdate.points = admin.firestore.FieldValue.increment(xpSplit.awarded);
-            senderUpdate.weeklyXP = admin.firestore.FieldValue.increment(xpSplit.awarded);
-            senderUpdate.monthlyXP = admin.firestore.FieldValue.increment(xpSplit.awarded);
-            t.set(dailyPtsRef, {
-                total: dailyUsed + xpSplit.awarded,
+        if (xpGrant.awarded > 0) {
+            senderUpdate.points = admin.firestore.FieldValue.increment(xpGrant.awarded);
+            senderUpdate.weeklyXP = admin.firestore.FieldValue.increment(xpGrant.awarded);
+            senderUpdate.monthlyXP = admin.firestore.FieldValue.increment(xpGrant.awarded);
+            t.set(xpGrant.dailyRef, {
+                total: xpGrant.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }

@@ -11,6 +11,7 @@
 // a banned original author gets nothing.
 
 const { planDailyXp } = require('./dailyXp');
+const { applyDailyXp } = require('./applyDailyXp');
 const {
     timestampMs,
     offsetDateKey,
@@ -307,6 +308,13 @@ function createReplyBonusHandlers(opts) {
 
             if (decision.code === 'already' || decision.code === 'rate') return decision;
             if (decision.ok && !pairRef) return fail('not-reply');
+            if (decision.ok) {
+                const grant = await applyDailyXp(uid, decision.nominal, tx, { day: today, userRef: userRef });
+                decision.xp = grant.awarded;
+                decision.dailyXp = grant.dailyXp;
+                decision.dailyRef = grant.dailyRef;
+                decision.showToast = grant.awarded > 0;
+            }
 
             let rankPrev = {};
             if (decision.ok && decision.xp > 0) {
@@ -322,8 +330,8 @@ function createReplyBonusHandlers(opts) {
                 userUpdate.points = admin.firestore.FieldValue.increment(decision.xp);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(decision.xp);
                 userUpdate.monthlyXP = admin.firestore.FieldValue.increment(decision.xp);
-                tx.set(dailyRef, {
-                    total: (Number(dailySnap.exists ? (dailySnap.data() || {}).total : 0) || 0) + decision.xp,
+                tx.set(decision.dailyRef, {
+                    total: decision.dailyXp,
                     lastUpdated: ts,
                 }, { merge: true });
             }

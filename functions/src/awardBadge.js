@@ -6,7 +6,7 @@
 // A badge the profile already shows gets an award row with 0 XP and no pool point.
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
-const { planDailyXp } = require('./dailyXp');
+const { applyDailyXp } = require('./applyDailyXp');
 const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
@@ -58,7 +58,6 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
     const awardRef = userRef.collection('badge_awards').doc(badgeId);
     const nowMs = Number(options.nowMs) || Date.now();
     const day = options.day || offsetDateKey(nowMs);
-    const dailyRef = userRef.collection('daily_points').doc(day);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const stateRef = db.collection('satoshiFavor').doc('current');
     const contributorRef = stateRef.collection('contributors').doc(uid + '_badge_' + badgeId);
@@ -111,7 +110,6 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
 
-        const dailySnap = await t.get(dailyRef);
         const stateSnap = await t.get(stateRef);
         const contributorSnap = await t.get(contributorRef);
         const totalsSnap = await t.get(totalsRef);
@@ -120,8 +118,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             badgeRules.XP_CAP,
             verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0)
         );
-        const dailyUsed = dailySnap.exists ? Number((dailySnap.data() || {}).total || 0) : 0;
-        const split = planDailyXp(dailyUsed, catalogXp);
+        const split = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef });
         const xp = split.awarded > 0 ? split.awarded : 0;
 
         const update = {
@@ -143,8 +140,8 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         });
         t.update(userRef, update);
         if (xp > 0) {
-            t.set(dailyRef, {
-                total: dailyUsed + xp,
+            t.set(split.dailyRef, {
+                total: split.dailyXp,
                 lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }

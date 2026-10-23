@@ -107,21 +107,28 @@ test('every XP path calls planDailyXp and the old per-source caps are gone', fun
         'functions/src/awardActions.js',
         'functions/src/questReward.js',
         'functions/src/sayHi.js',
-        'functions/src/replyBonus.js',
         'functions/src/gifting.js',
-        'functions/src/tipService.js',
         'functions/src/tctvWatch.js',
         'functions/src/onboardingQuest.js',
         'functions/src/pollVote.js',
-        'functions/src/awardBadge.js',
         'functions/src/dailyFive.js',
         'functions/src/predictionJobs.js',
         'functions/src/peerLevel.js',
+        'functions/src/replyBonus.js',
     ];
     callers.forEach(function (rel) {
         const src = fs.readFileSync(path.join(root, rel), 'utf8');
         assert.ok(src.includes('planDailyXp'), rel);
     });
+    ['functions/src/gifting.js', 'functions/src/tipService.js', 'functions/src/replyBonus.js', 'functions/src/awardBadge.js'].forEach(function (rel) {
+        const src = fs.readFileSync(path.join(root, rel), 'utf8');
+        assert.ok(src.includes('applyDailyXp('), rel);
+        assert.strictEqual(src.includes('pendingOverflow'), false, rel);
+    });
+    const hook = fs.readFileSync(path.join(root, 'functions', 'src', 'applyDailyXp.js'), 'utf8');
+    assert.ok(hook.includes('planDailyXp'));
+    assert.ok(hook.includes('async function applyDailyXp(uid, amount, tx, opts)'));
+    assert.ok(hook.includes('options.bypass === true'));
     const gone = ['SAY_HI_DAILY_CAP', 'POLL_CAP', 'WATCH_DAILY_CAP', 'BADGE_DAILY_CAP', 'TRIVIA_QUIZ_CAP', 'DAILY_QUIZ_XP_CAP'];
     const files = walk(path.join(root, 'functions'), []);
     const hits = [];
@@ -156,5 +163,62 @@ test('banned users get no XP', function () {
     assert.strictEqual(Object.keys(mem.claims || {}).length, 0);
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+function fakeDaily(total) {
+    const dailyRef = { id: 'day' };
+    return {
+        dailyRef: dailyRef,
+        userRef: { collection: function () { return { doc: function () { return dailyRef; } }; } },
+        tx: { get: function () { return Promise.resolve({ exists: true, data: function () { return { total: total }; } }); } },
+    };
+}
+
+async function checkApplyDailyXp() {
+    const { applyDailyXp, taperDailyXp } = require('../functions/src/applyDailyXp');
+    assert.strictEqual(taperDailyXp(2, 599).awarded, 1);
+    assert.strictEqual(taperDailyXp(2, 599).dailyXp, 600);
+    assert.strictEqual(taperDailyXp(3, 599).awarded, 2);
+    assert.strictEqual(taperDailyXp(3, 599).dailyXp, 601);
+    assert.strictEqual(taperDailyXp(2, 600).awarded, 1);
+    assert.strictEqual(taperDailyXp(1, 600).awarded, 0);
+    assert.strictEqual(taperDailyXp(2, 999).awarded, 1);
+    assert.strictEqual(taperDailyXp(2, 999).dailyXp, 1000);
+    assert.strictEqual(taperDailyXp(1, 999).awarded, 0);
+    assert.strictEqual(taperDailyXp(50, 1000).awarded, 0);
+    assert.strictEqual(taperDailyXp(50, 1001).dailyXp, 1000);
+    const bypass = await applyDailyXp('u', 2000, null, { bypass: true });
+    assert.strictEqual(bypass.awarded, 2000);
+    assert.strictEqual(bypass.overflowAdded, 0);
+    assert.strictEqual(bypass.dailyRef, null);
+    assert.strictEqual(bypass.bypass, true);
+    let threw = false;
+    try { await applyDailyXp('u', 10, null, { day: '2026-10-23' }); }
+    catch (err) { threw = err && err.message.indexOf('applyDailyXp needs') === 0; }
+    assert.strictEqual(threw, true);
+    const mid = fakeDaily(599);
+    const grant = await applyDailyXp('u', 3, mid.tx, { day: '2026-10-23', userRef: mid.userRef });
+    assert.strictEqual(grant.awarded, 2);
+    assert.strictEqual(grant.dailyXp, 601);
+    assert.strictEqual(grant.overflowAdded, 0);
+    assert.strictEqual(grant.dropped, 1);
+    assert.strictEqual(grant.dailyRef, mid.dailyRef);
+    const top = fakeDaily(999);
+    const edge = await applyDailyXp('u', 2, top.tx, { day: '2026-10-23', userRef: top.userRef });
+    assert.strictEqual(edge.awarded, 1);
+    assert.strictEqual(edge.dailyXp, 1000);
+    const over = fakeDaily(1000);
+    const none = await applyDailyXp('u', 50, over.tx, { day: '2026-10-23', userRef: over.userRef });
+    assert.strictEqual(none.awarded, 0);
+    assert.strictEqual(none.overflowAdded, 0);
+}
+
+checkApplyDailyXp().then(function () {
+    console.log('✅ applyDailyXp hook matches the 600/1000 taper and drops overflow');
+    passed++;
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+}).catch(function (err) {
+    console.log('❌ applyDailyXp hook: ' + err.message);
+    failed++;
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(1);
+});
