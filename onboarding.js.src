@@ -298,35 +298,50 @@
             btn.style.display = 'none';
             return;
         }
-        var narrow = window.innerWidth <= 480;
+        // Phones: left side of the open band under the round logo and above
+        // the title. The Invite pill uses the right side of the band above it.
+        // Ticker shifts that band down 76px. Desktop: right edge under the bell,
+        // above the minimized Invite pill, clear of Nacho and the FAB row.
+        var phone = window.innerWidth <= 900;
+        var ticker = document.body.classList.contains('ticker-visible');
+        var base = 'z-index:2100001;background:var(--accent,#f97316);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,0.25);touch-action:manipulation;';
+        if (phone) {
+            var top = ticker ? 296 : 220;
+            btn.style.cssText = 'position:fixed;display:block;top:calc(' + top + 'px + env(safe-area-inset-top, 0px));left:max(12px, env(safe-area-inset-left, 0px));right:auto;bottom:auto;transform:none;' + base + 'padding:6px 12px;font-size:13px;line-height:1.15;box-shadow:0 2px 8px rgba(0,0,0,0.25);';
+        } else {
+            btn.style.cssText = 'position:fixed;display:block;top:calc(100px + env(safe-area-inset-top, 0px));right:max(12px, env(safe-area-inset-right, 0px));left:auto;bottom:auto;transform:none;' + base;
+        }
         var banner = document.querySelector('.favor-banner-progress');
-        var clearTop = 12;
         if (banner) {
-            var rect = banner.getBoundingClientRect();
-            if (rect.height > 8 && rect.bottom > 0 && rect.top < 220 && rect.bottom < window.innerHeight - 80) {
-                clearTop = Math.round(rect.bottom + 8);
+            var box = btn.getBoundingClientRect();
+            var labels = banner.querySelectorAll('span');
+            for (var i = 0; i < labels.length; i++) {
+                if ((labels[i].textContent || '').indexOf("Satoshi's Favor") === -1) continue;
+                var title = labels[i].getBoundingClientRect();
+                var hit = !(box.right < title.left || box.left > title.right || box.bottom < title.top || box.top > title.bottom);
+                if (!hit) continue;
+                btn.style.top = Math.round(title.bottom + 8) + 'px';
+                btn.style.bottom = 'auto';
+                if (phone) {
+                    btn.style.left = 'max(12px, env(safe-area-inset-left, 0px))';
+                    btn.style.right = 'auto';
+                } else {
+                    btn.style.right = 'max(12px, env(safe-area-inset-right, 0px))';
+                    btn.style.left = 'auto';
+                }
+                btn.style.transform = 'none';
             }
         }
-        var base = 'z-index:2100001;background:var(--accent,#f97316);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,0.25);touch-action:manipulation;';
-        if (narrow) {
-            btn.style.cssText = 'position:fixed;display:block;top:' + clearTop + 'px;right:12px;left:auto;bottom:auto;transform:none;' + base;
-        } else {
-            btn.style.cssText = 'position:fixed;display:block;bottom:80px;left:50%;right:auto;top:auto;transform:translateX(-50%);' + base;
-        }
-        if (!banner) return;
-        var box = btn.getBoundingClientRect();
-        var labels = banner.querySelectorAll('span');
-        for (var i = 0; i < labels.length; i++) {
-            if ((labels[i].textContent || '').indexOf("Satoshi's Favor") === -1) continue;
-            var title = labels[i].getBoundingClientRect();
-            var hit = !(box.right < title.left || box.left > title.right || box.bottom < title.top || box.top > title.bottom);
-            if (!hit) continue;
-            btn.style.top = Math.round(title.bottom + 8) + 'px';
-            btn.style.bottom = 'auto';
-            btn.style.right = '12px';
-            btn.style.left = 'auto';
-            btn.style.transform = 'none';
-        }
+        var invite = document.getElementById('invitePill');
+        var card = document.getElementById('inviteCard');
+        if (!invite || !card || card.getAttribute('data-show') !== '1' || card.getAttribute('data-state') !== 'min') return;
+        var ib = invite.getBoundingClientRect();
+        var qb = btn.getBoundingClientRect();
+        if (ib.width < 1 || ib.height < 1) return;
+        var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
+        if (!stacked) return;
+        btn.style.top = Math.round(ib.bottom + 12) + 'px';
+        btn.style.bottom = 'auto';
     }
 
     window._showNachoQuestPill = function () {
@@ -347,6 +362,12 @@
             var pill = document.getElementById('nachoQuestPill');
             if (pill) placeNachoQuestPill(pill);
         });
+        if (window.MutationObserver) {
+            new MutationObserver(function () {
+                var pill = document.getElementById('nachoQuestPill');
+                if (pill) placeNachoQuestPill(pill);
+            }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }
         var modal = document.getElementById('usernameModal');
         if (modal && window.MutationObserver) {
             new MutationObserver(function () {

@@ -583,11 +583,12 @@
             .invite-card { right: 72px; }
             body.ticker-visible .invite-card { top: 48px; }
         }
-        /* Minimized pill only. Phones: right edge in the gap under the header
-           logos and above the title, clear of the ticker, the hide pill, and
-           the bottom stack. Desktop: right edge around the vertical middle. */
+        /* Minimized pill only. Phones: right edge in the open band under the
+           lightning logo and above the Bitcoin Quest title. The ticker shifts
+           that band down by 76px. Desktop: right edge around the vertical middle.
+           The Quest pill (onboarding.js) uses the left side of the same band. */
         .invite-card[data-state="min"] {
-            top: calc(276px + env(safe-area-inset-top, 0px));
+            top: calc(186px + env(safe-area-inset-top, 0px));
             right: max(12px, env(safe-area-inset-right, 0px));
             left: auto;
             bottom: auto;
@@ -599,7 +600,7 @@
             transform: none;
         }
         body.ticker-visible .invite-card[data-state="min"] {
-            top: calc(276px + env(safe-area-inset-top, 0px));
+            top: calc(262px + env(safe-area-inset-top, 0px));
         }
         @media (min-width: 901px) {
             .invite-card[data-state="min"],
@@ -1726,7 +1727,7 @@
     <script src="today-card.js?v=20261023_v2323" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
-    <script src="onboarding.js?v=20261022_v2322" defer></script>
+    <script src="onboarding.js?v=20261023_v2331" defer></script>
     <script src="learning-quests.js?v=20261023_v2324" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
