@@ -1,6 +1,7 @@
 // Cache-buster pin. This ship branch is btc-archive-v2301.
 // bundle.min.js, features.registry.js, ranking.js, and tctv-watch.js are v2301.
-// global-chat.js is 20261022_acctdel. notifications.js stays on v2262.
+// global-chat.js is 20261022_acctdel. notifications.js, beats.js, and
+// beats-censor.js are 20261022_v2273.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
 const assert = require('assert');
@@ -40,7 +41,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2268'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2265'));
-    assert.ok(html.includes('notifications.js?v=20261022_v2262'));
+    assert.ok(html.includes('notifications.js?v=20261022_v2273'));
+    assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('ranking.js?v=20261022_v2301'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
@@ -50,6 +52,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2252'));
+    assert.ok(html.includes('beats.js?v=20261022_v2273'));
+    assert.ok(!html.includes('beats.js?v=20261013_2307'));
+    assert.ok(html.includes('beats-censor.js?v=20261022_v2273'));
+    assert.ok(html.indexOf('beats-censor.js?v=20261022_v2273') < html.indexOf('beats.js?v=20261022_v2273'));
     assert.ok(html.includes('features.registry.js?v=20261022_v2301'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
