@@ -1,4 +1,4 @@
-import { collectBtcData, answerTurn, detectIntents } from "./nacho-logic.mjs";
+import { collectBtcData, answerTurn, detectIntents, containsKeyMaterial } from "./nacho-logic.mjs";
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -82,6 +82,11 @@ async function handleSearch(request, env, corsHeaders, url) {
   if (!query) {
     return new Response(JSON.stringify({ error: "Missing query" }), {
       status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+  if (containsKeyMaterial(query)) {
+    return new Response(JSON.stringify({ results: [], refused: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }

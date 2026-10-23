@@ -2672,6 +2672,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
+        if (typeof nachoContainsKeyMaterial !== 'function') {
+            if ((window._nachoSecretWait || 0) < 40) {
+                window._nachoSecretWait = (window._nachoSecretWait || 0) + 1;
+                setTimeout(window.nachoModeSend, 50);
+            }
+            return;
+        }
+        window._nachoSecretWait = 0;
+        if (nachoContainsKeyMaterial(q)) {
+            inp.value = '';
+            var hiddenQ = (typeof NACHO_SECRET_HIDDEN === 'string') ? NACHO_SECRET_HIDDEN : '[hidden: looked like a seed phrase or private key]';
+            var hiddenA = (typeof nachoLocalSecretAnswer === 'function') ? nachoLocalSecretAnswer() : escapeHtml(hiddenQ);
+            nachoChatAdd('user', hiddenQ);
+            nachoChatAppend('user', hiddenQ);
+            nachoChatAdd('nacho', '', hiddenA);
+            nachoChatAppend('nacho', '', hiddenA);
+            return;
+        }
         inp.value = '';
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';

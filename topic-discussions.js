@@ -112,7 +112,8 @@
             '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
-            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}}'
+            '@media (max-width:900px){.td-section{margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}.td-follow,.td-topic{scroll-margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}}',
+            '@media (max-width:420px){.td-section{margin:20px 10px calc(180px + env(safe-area-inset-bottom, 0px));}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -642,7 +643,7 @@
             section = el('section', 'td-section');
             section.id = 'community-discussion';
             section.setAttribute('data-channel-id', channelId);
-            var toggle = btn('Community discussion', 'td-toggle', function() {
+            var toggle = btn('🦌 Community discussion', 'td-toggle', function() {
                 var body = document.getElementById('topic-discussion-body');
                 setOpen(body && body.hidden);
             });

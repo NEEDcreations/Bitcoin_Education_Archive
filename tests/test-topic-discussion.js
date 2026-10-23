@@ -256,12 +256,21 @@ test('text policy masks profanity, rejects hate, links, and PII', () => {
     assert.strictEqual(linked.linksRemoved, true);
     assert.strictEqual(td.preparePostText('mail me learner@example.com now').code, 'pii');
     assert.strictEqual(td.preparePostText('call 415-555-1212 tonight').code, 'pii');
-    const seed = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
+    const seed = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
     const secret = td.preparePostText(seed);
     assert.strictEqual(secret.ok, false);
     assert.strictEqual(secret.code, 'secret');
     assert.strictEqual(secret.text, undefined);
     assert.strictEqual(td.preparePostText('How do I protect my seed phrase?').ok, true);
+    assert.strictEqual(td.preparePostText('Anyone who asks you to send your seed phrase is a scammer').ok, true);
+    assert.strictEqual(td.preparePostText('Risk-free profit offers are a red flag').ok, true);
+    assert.strictEqual(td.preparePostText('enter your seed phrase into the new wallet app').ok, true);
+    assert.strictEqual(td.preparePostText('How do people get scammed with guaranteed returns?').ok, true);
+    assert.strictEqual(td.preparePostText('What is a giveaway scam?').ok, true);
+    assert.strictEqual(td.preparePostText('How do I restore my wallet?').ok, true);
+    assert.strictEqual(td.preparePostText('Why would someone ask for my seed?').ok, true);
+    assert.strictEqual(td.preparePostText('guaranteed 10x').ok, false);
+    assert.strictEqual(td.preparePostText('send your seed to me').ok, false);
     assert.strictEqual(td.preparePostText('Where should I store my private key?').ok, true);
     assert.ok(!td.sanitizeNachoAnswer('Bitcoin is $100,000 right now. As of 19:03 UTC. Not financial advice.').includes('As of'));
     assert.strictEqual(td.sanitizeNachoAnswer('you should buy now'), td.UNSURE);
@@ -635,7 +644,7 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
     });
 
     await testAsync('seed posts are blocked and Nacho never posts a refusal', async function() {
-        const seed = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
+        const seed = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
         const blocked = makeApi();
         seedUser(blocked.db, 'seed');
         let err = null;
