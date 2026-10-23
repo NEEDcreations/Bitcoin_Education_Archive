@@ -65,13 +65,23 @@ function isSpammy(text) {
     return false;
 }
 
+function warningOrQuestion(text) {
+    const cleaned = String(text || '')
+        .replace(/\b(?:isn't|is not|not)\s+a\s+scam\b/gi, ' ')
+        .replace(/\bnever\s+(?:miss|forget|ignore|skip)\b/gi, ' ');
+    if (/\?\s*$/.test(cleaned.trim())) return true;
+    return /\b(?:never|anyone who asks|red flag|don't|do not|a scammer will|scammers?|scammed)\b/i.test(cleaned);
+}
+
 function chatTextBlocked(text) {
     const raw = String(text || '');
     if (!raw.trim()) return '';
     if (containsProfanity(raw)) return 'profanity';
     if (isSpammy(raw)) return 'spam';
-    for (let i = 0; i < SCAM_PATTERNS.length; i++) {
-        if (SCAM_PATTERNS[i].test(raw)) return 'scam';
+    if (!warningOrQuestion(raw)) {
+        for (let i = 0; i < SCAM_PATTERNS.length; i++) {
+            if (SCAM_PATTERNS[i].test(raw)) return 'scam';
+        }
     }
     return '';
 }
@@ -89,8 +99,10 @@ function classifyChatText(text) {
     const raw = String(text || '');
     if (!raw.trim()) return '';
     if (hateHit(raw)) return 'hate';
-    for (let i = 0; i < SCAM_PATTERNS.length; i++) {
-        if (SCAM_PATTERNS[i].test(raw)) return 'scam';
+    if (!warningOrQuestion(raw)) {
+        for (let i = 0; i < SCAM_PATTERNS.length; i++) {
+            if (SCAM_PATTERNS[i].test(raw)) return 'scam';
+        }
     }
     if (isSpammy(raw)) return 'spam';
     if (containsProfanity(raw)) return 'profanity';

@@ -847,7 +847,7 @@ function formatChatText(text, mentionUid) {
             _action = "event.preventDefault();if(typeof go==='function')go('" + route + "');";
         }
         var placeholder = '%%INAPPLINK_' + _inAppLinks.length + '%%';
-        _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
+        _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;white-space:nowrap;">' + label + '</a>');
         return placeholder;
     });
     // #channel tags — skip matches inside HTML attributes (href, onclick, style, etc.)

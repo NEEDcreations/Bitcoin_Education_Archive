@@ -1,6 +1,7 @@
 'use strict';
 
 const { grantFamily, familyFor } = require('./grantBadge');
+const { forumActivityAwardable } = require('./topicForumMirror');
 const { rewardBlocked } = require('./cipherClaim');
 const { noteComboZone } = require('./comboActivity');
 const { offsetDateKey } = require('./offsetDay');
@@ -54,15 +55,33 @@ function recordDm(db, adminSdk, data) {
 }
 
 function recordForumPost(db, adminSdk, data) {
+    if (!forumActivityAwardable(data)) return Promise.resolve({ bumped: false, reason: 'mirror' });
     return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumPosts').then(function (result) {
         return noteZone(db, adminSdk, result, 'forum');
     });
 }
 
-function recordForumReply(db, adminSdk, data) {
-    return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumReplies').then(function (result) {
-        return noteZone(db, adminSdk, result, 'forum');
-    });
+async function parentIsTopicMirror(db, data) {
+    const postId = data && typeof data.postId === 'string' ? data.postId : '';
+    if (!db || !/^[A-Za-z0-9_-]{1,400}$/.test(postId)) return false;
+    const snap = await db.collection('forum_posts').doc(postId).get();
+    if (!snap.exists) return false;
+    const parent = snap.data() || {};
+    if (parent.origin === 'topic' || parent.origin === 'forum') return true;
+    if (parent.noAward === true || parent.mirrorOf) return true;
+    if (parent.topicChannel || parent.topicPost) return true;
+    return false;
+}
+
+async function recordForumReply(db, adminSdk, data) {
+    if (!forumActivityAwardable(data)) return { bumped: false, reason: 'mirror' };
+    try {
+        if (await parentIsTopicMirror(db, data)) return { bumped: false, reason: 'mirror' };
+    } catch (err) {
+        return { bumped: false, reason: 'mirror' };
+    }
+    const result = await bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'forumReplies');
+    return noteZone(db, adminSdk, result, 'forum');
 }
 
 function recordBeatsUpload(db, adminSdk, data) {
@@ -117,6 +136,7 @@ async function recordPvpFinished(db, adminSdk, before, after) {
 }
 
 module.exports = {
+    forumActivityAwardable: forumActivityAwardable,
     bumpCounter: bumpCounter,
     chatAuthor: chatAuthor,
     recordChat: recordChat,

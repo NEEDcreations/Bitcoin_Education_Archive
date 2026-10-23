@@ -38,7 +38,7 @@ function initBottomNav() {
         '.bnav-btn:active .bnav-icon{transform:scale(1.2);}' +
         '.bnav-btn.active{color:var(--accent);}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
-        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
+        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:calc(180px + env(safe-area-inset-bottom, 0px))!important;}.home-page{padding-bottom:calc(140px + env(safe-area-inset-bottom, 0px))!important;}}';
     document.head.appendChild(style);
     document.body.appendChild(nav);
 }

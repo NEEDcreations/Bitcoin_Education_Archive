@@ -909,7 +909,7 @@
       "Explain a BOLT11 invoice?",
       "Describe a BOLT11 invoice?"
     ],
-    "answer": "A BOLT11 invoice is a one-time Lightning payment request with an amount, an expiry, and a payment hash the route must satisfy. It is not a reusable offer. It is not an on-chain address, and it is not a private key.",
+    "answer": "A BOLT11 invoice is a one-time Lightning payment request with an amount, an expiry, and a payment hash. Payment succeeds when the preimage matches that hash. It is not a reusable offer. It is not an on-chain address, and it is not a private key.",
     "topics": [
       "layer-2-lightning"
     ],

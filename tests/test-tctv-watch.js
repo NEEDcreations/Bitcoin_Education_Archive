@@ -411,10 +411,12 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2344'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2347'"));
+    assert.ok(!sw.includes('btc-archive-v2346'));
+    assert.ok(!sw.includes('btc-archive-v2345'));
+    assert.ok(!sw.includes('btc-archive-v2344'));
     assert.ok(!sw.includes('btc-archive-v2343'));
     assert.ok(!sw.includes('btc-archive-v2342'));
-    assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2340'));
     assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2339'));
@@ -769,6 +771,10 @@ test('patch notes keep the knowledge base as the only Latest line and keep Googl
     assert.ok(!notes.includes('Latest: Nacho answers live'));
     assert.ok(notes.includes(guest));
     assert.ok(notes.includes(google));
+    assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
+    assert.ok(!notes.includes('Latest: Topic conversations'));
+    assert.ok(notes.includes('Topic pages include a Start a conversation button between the paragraphs, and each discussion post shows its date and time.'));
+    assert.ok(!notes.includes('Latest: Topic pages include'));
     assert.ok(!notes.includes('Latest: Google sign-in'));
     assert.ok(notes.includes(timer));
     assert.ok(!notes.includes('Latest: The TCTV'));

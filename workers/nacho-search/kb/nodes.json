@@ -734,7 +734,7 @@
       "Clarify whether do I have to upgrade my node?",
       "Is this the case: do I have to upgrade my node?"
     ],
-    "answer": "You should leave a release that has a known serious bug. You do not have to take every user-interface change on day one. A consensus change only affects you if you run software that enforces it.",
+    "answer": "You should leave a release that has a known serious bug. You do not have to take every user-interface change on day one. A soft fork can still affect a node that has not upgraded, because that node may accept a new opcode as an anyone-can-spend NOP.",
     "topics": [
       "core-source-code",
       "nodes",

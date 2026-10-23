@@ -391,6 +391,7 @@
         msgsEl.innerHTML += navHtml;
 
         msgsEl.classList.add('fade-in');
+        if (!galleryMode && typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();
     }
 
     // Twitter/X embed
@@ -1368,6 +1369,7 @@
                 '.nm-nacho .nm-time { text-align:left; }' +
                 '.nm-user .nm-time { text-align:right; }' +
                 '@media(max-width:768px){.nm-hero-avatar{width:36px!important;height:36px!important;}.nm-hero-avatar img{width:36px!important;height:36px!important;}.nm-hero-title{font-size:0.9rem!important;letter-spacing:2px!important;}.nm-hero-bar{gap:4px!important;}}' +
+                '@media(max-width:900px){#nachoModeScreen{box-sizing:border-box;padding-bottom:calc(128px + env(safe-area-inset-bottom, 0px));}#nachoModeChat{scroll-padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));}}' +
             '</style>' +
             /* ===== COMPACT HEADER ===== */
             '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.06) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:8px 12px;position:relative;">' +
@@ -2672,6 +2674,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
+        if (typeof nachoContainsKeyMaterial !== 'function') {
+            if ((window._nachoSecretWait || 0) < 40) {
+                window._nachoSecretWait = (window._nachoSecretWait || 0) + 1;
+                setTimeout(window.nachoModeSend, 50);
+            }
+            return;
+        }
+        window._nachoSecretWait = 0;
+        if (nachoContainsKeyMaterial(q)) {
+            inp.value = '';
+            var hiddenQ = (typeof NACHO_SECRET_HIDDEN === 'string') ? NACHO_SECRET_HIDDEN : '[hidden: looked like a seed phrase or private key]';
+            var hiddenA = (typeof nachoLocalSecretAnswer === 'function') ? nachoLocalSecretAnswer() : escapeHtml(hiddenQ);
+            nachoChatAdd('user', hiddenQ);
+            nachoChatAppend('user', hiddenQ);
+            nachoChatAdd('nacho', '', hiddenA);
+            nachoChatAppend('nacho', '', hiddenA);
+            return;
+        }
         inp.value = '';
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';
@@ -4158,6 +4178,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             });
             btn.insertAdjacentHTML('beforebegin', html);
             window._currentOffset = offset + 50;
+            if (typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();
             if (window._currentOffset >= msgs.length) { btn.remove(); window._scrollObserver && window._scrollObserver.disconnect(); }
             else { btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)'; }
         };

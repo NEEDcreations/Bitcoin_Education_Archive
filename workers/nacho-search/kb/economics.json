@@ -1277,7 +1277,7 @@
       "For what reason can a price index miss quality changes?",
       "What is the reason can a price index miss quality changes?"
     ],
-    "answer": "Economists debate whether a price index captures quality changes, because the basket and the method change over time. A single percentage is not the whole of purchasing power. Read the method before treating an index as truth.",
+    "answer": "Economists debate how a price index treats goods that get better or worse. That method is called quality adjustment. A single percentage is not the whole of purchasing power.",
     "topics": [
       "problems-of-money",
       "money"

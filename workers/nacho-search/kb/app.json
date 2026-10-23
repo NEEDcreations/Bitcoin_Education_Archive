@@ -198,7 +198,7 @@
       "Describe how Lightning withdrawals work here?",
       "In what way do Lightning withdrawals work here?"
     ],
-    "answer": "Lightning withdrawals pay a saved Lightning address that looks like an email, and the address is treated as permanent unless support changes it. The lifetime cap is 15,000 sats per code. The Lightning page can also connect with WebLN or NWC. This describes an app rule, not income and not financial advice.",
+    "answer": "Lightning withdrawals pay a saved Lightning address that looks like an email, and the address is treated as permanent unless support changes it. The lifetime cap is 15,000 sats per user. The Lightning page can also connect with WebLN or NWC. This describes an app rule, not income and not financial advice.",
     "topics": [
       "sats",
       "ln-address",
@@ -548,11 +548,11 @@
   {
     "id": "app-trails-what",
     "category": "app",
-    "question": "What is Nacho's Trails in Bitcoin Quest?",
+    "question": "What are Nacho's Trails?",
     "alts": [
-      "Define Nacho's Trails in Bitcoin Quest?",
-      "Explain Nacho's Trails in Bitcoin Quest?",
-      "Describe Nacho's Trails in Bitcoin Quest?"
+      "Explain Nacho's Trails?",
+      "Describe Nacho's Trails?",
+      "Define Nacho's Trails?"
     ],
     "answer": "Nacho's Trails are guided learning paths: Meadow, Mountain, and Summit. Open Trails and start a trail. Read the topics, then take the exam at the end. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -569,11 +569,11 @@
   {
     "id": "app-trails-how",
     "category": "app",
-    "question": "How do I use Nacho's Trails in the app?",
+    "question": "How do I start a Nacho Trail?",
     "alts": [
-      "How can I use Nacho's Trails in the app?",
-      "Show me how to use Nacho's Trails in the app?",
-      "What is the way to use Nacho's Trails in the app?"
+      "How can I start a Nacho Trail?",
+      "Show me how to start a Nacho Trail?",
+      "What is the way to start a Nacho Trail?"
     ],
     "answer": "Nacho's Trails are guided learning paths: Meadow, Mountain, and Summit. Open Trails and start a trail. Read the topics, then take the exam at the end. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -590,11 +590,11 @@
   {
     "id": "app-learning-quests-what",
     "category": "app",
-    "question": "What is Learning Quests in Bitcoin Quest?",
+    "question": "What are Learning Quests?",
     "alts": [
-      "Define Learning Quests in Bitcoin Quest?",
-      "Explain Learning Quests in Bitcoin Quest?",
-      "Describe Learning Quests in Bitcoin Quest?"
+      "Explain Learning Quests?",
+      "Describe Learning Quests?",
+      "Define Learning Quests?"
     ],
     "answer": "Learning Quests are short lesson slideshows with a quiz at the end. Open Learning Quests and pick a lesson. Each one is a slideshow plus a quiz. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -611,11 +611,11 @@
   {
     "id": "app-learning-quests-how",
     "category": "app",
-    "question": "How do I use Learning Quests in the app?",
+    "question": "How do I open a Learning Quest?",
     "alts": [
-      "How can I use Learning Quests in the app?",
-      "Show me how to use Learning Quests in the app?",
-      "What is the way to use Learning Quests in the app?"
+      "How can I open a Learning Quest?",
+      "Show me how to open a Learning Quest?",
+      "What is the way to open a Learning Quest?"
     ],
     "answer": "Learning Quests are short lesson slideshows with a quiz at the end. Open Learning Quests and pick a lesson. Each one is a slideshow plus a quiz. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -674,11 +674,11 @@
   {
     "id": "app-flashcards-what",
     "category": "app",
-    "question": "What is Flashcards in Bitcoin Quest?",
+    "question": "What are flashcards in the app?",
     "alts": [
-      "Define Flashcards in Bitcoin Quest?",
-      "Explain Flashcards in Bitcoin Quest?",
-      "Describe Flashcards in Bitcoin Quest?"
+      "Explain flashcards in the app?",
+      "Describe flashcards in the app?",
+      "Define flashcards in the app?"
     ],
     "answer": "Flashcards help you study Bitcoin topics. Open Settings, then the Scholar page, and start the flashcards. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -695,11 +695,11 @@
   {
     "id": "app-flashcards-how",
     "category": "app",
-    "question": "How do I use Flashcards in the app?",
+    "question": "How do I study with flashcards?",
     "alts": [
-      "How can I use Flashcards in the app?",
-      "Show me how to use Flashcards in the app?",
-      "What is the way to use Flashcards in the app?"
+      "How can I study with flashcards?",
+      "Show me how to study with flashcards?",
+      "What is the way to study with flashcards?"
     ],
     "answer": "Flashcards help you study Bitcoin topics. Open Settings, then the Scholar page, and start the flashcards. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -716,11 +716,11 @@
   {
     "id": "app-scholar-what",
     "category": "app",
-    "question": "What is Scholar certification in Bitcoin Quest?",
+    "question": "What is Scholar certification?",
     "alts": [
-      "Define Scholar certification in Bitcoin Quest?",
-      "Explain Scholar certification in Bitcoin Quest?",
-      "Describe Scholar certification in Bitcoin Quest?"
+      "Define Scholar certification?",
+      "Explain Scholar certification?",
+      "Describe Scholar certification?"
     ],
     "answer": "The Scholar and technical certifications, plus shareable certificates. Open Settings → Scholar and take the exam. A passing certificate gets a public #cert link. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -737,11 +737,11 @@
   {
     "id": "app-scholar-how",
     "category": "app",
-    "question": "How do I use Scholar certification in the app?",
+    "question": "How do I take the Scholar exam?",
     "alts": [
-      "How can I use Scholar certification in the app?",
-      "Show me how to use Scholar certification in the app?",
-      "What is the way to use Scholar certification in the app?"
+      "How can I take the Scholar exam?",
+      "Show me how to take the Scholar exam?",
+      "What is the way to take the Scholar exam?"
     ],
     "answer": "The Scholar and technical certifications, plus shareable certificates. Open Settings → Scholar and take the exam. A passing certificate gets a public #cert link. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -800,11 +800,11 @@
   {
     "id": "app-story-what",
     "category": "app",
-    "question": "What is Nacho's Story in Bitcoin Quest?",
+    "question": "What is Nacho's Story?",
     "alts": [
-      "Define Nacho's Story in Bitcoin Quest?",
-      "Explain Nacho's Story in Bitcoin Quest?",
-      "Describe Nacho's Story in Bitcoin Quest?"
+      "Define Nacho's Story?",
+      "Explain Nacho's Story?",
+      "Describe Nacho's Story?"
     ],
     "answer": "Nacho's Story unlocks one new chapter a day. Open Nacho's Story from Nacho and read today's chapter. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -821,11 +821,11 @@
   {
     "id": "app-story-how",
     "category": "app",
-    "question": "How do I use Nacho's Story in the app?",
+    "question": "How do I open Nacho's Story?",
     "alts": [
-      "How can I use Nacho's Story in the app?",
-      "Show me how to use Nacho's Story in the app?",
-      "What is the way to use Nacho's Story in the app?"
+      "How can I open Nacho's Story?",
+      "Show me how to open Nacho's Story?",
+      "What is the way to open Nacho's Story?"
     ],
     "answer": "Nacho's Story unlocks one new chapter a day. Open Nacho's Story from Nacho and read today's chapter. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -842,11 +842,11 @@
   {
     "id": "app-nacho-mode-what",
     "category": "app",
-    "question": "What is Nacho Mode in Bitcoin Quest?",
+    "question": "What is Nacho Mode?",
     "alts": [
-      "Define Nacho Mode in Bitcoin Quest?",
-      "Explain Nacho Mode in Bitcoin Quest?",
-      "Describe Nacho Mode in Bitcoin Quest?"
+      "Define Nacho Mode?",
+      "Explain Nacho Mode?",
+      "Describe Nacho Mode?"
     ],
     "answer": "Nacho Mode is the full-screen chat with Nacho. Open Nacho Mode with the button or by pressing N. The little bubble is a smaller version of the same chat. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -863,11 +863,11 @@
   {
     "id": "app-nacho-mode-how",
     "category": "app",
-    "question": "How do I use Nacho Mode in the app?",
+    "question": "How do I turn on Nacho Mode?",
     "alts": [
-      "How can I use Nacho Mode in the app?",
-      "Show me how to use Nacho Mode in the app?",
-      "What is the way to use Nacho Mode in the app?"
+      "How can I turn on Nacho Mode?",
+      "Show me how to turn on Nacho Mode?",
+      "What is the way to turn on Nacho Mode?"
     ],
     "answer": "Nacho Mode is the full-screen chat with Nacho. Open Nacho Mode with the button or by pressing N. The little bubble is a smaller version of the same chat. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -926,11 +926,11 @@
   {
     "id": "app-quiz-me-what",
     "category": "app",
-    "question": "What is Quiz Me in Bitcoin Quest?",
+    "question": "What is Quiz Me?",
     "alts": [
-      "Define Quiz Me in Bitcoin Quest?",
-      "Explain Quiz Me in Bitcoin Quest?",
-      "Describe Quiz Me in Bitcoin Quest?"
+      "Define Quiz Me?",
+      "Explain Quiz Me?",
+      "Describe Quiz Me?"
     ],
     "answer": "Quiz Me is Nacho's quick Bitcoin quiz. Say \"quiz me\" and Nacho starts a short quiz. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -947,11 +947,11 @@
   {
     "id": "app-quiz-me-how",
     "category": "app",
-    "question": "How do I use Quiz Me in the app?",
+    "question": "How do I start Quiz Me?",
     "alts": [
-      "How can I use Quiz Me in the app?",
-      "Show me how to use Quiz Me in the app?",
-      "What is the way to use Quiz Me in the app?"
+      "How can I start Quiz Me?",
+      "Show me how to start Quiz Me?",
+      "What is the way to start Quiz Me?"
     ],
     "answer": "Quiz Me is Nacho's quick Bitcoin quiz. Say \"quiz me\" and Nacho starts a short quiz. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -968,11 +968,11 @@
   {
     "id": "app-closet-what",
     "category": "app",
-    "question": "What is Nacho's Closet in Bitcoin Quest?",
+    "question": "What is Nacho's Closet?",
     "alts": [
-      "Define Nacho's Closet in Bitcoin Quest?",
-      "Explain Nacho's Closet in Bitcoin Quest?",
-      "Describe Nacho's Closet in Bitcoin Quest?"
+      "Define Nacho's Closet?",
+      "Explain Nacho's Closet?",
+      "Describe Nacho's Closet?"
     ],
     "answer": "Nacho's Closet is where you dress Nacho in outfits you unlock. Open Settings and the Nacho section to change the outfit. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -989,11 +989,11 @@
   {
     "id": "app-closet-how",
     "category": "app",
-    "question": "How do I use Nacho's Closet in the app?",
+    "question": "How do I open Nacho's Closet?",
     "alts": [
-      "How can I use Nacho's Closet in the app?",
-      "Show me how to use Nacho's Closet in the app?",
-      "What is the way to use Nacho's Closet in the app?"
+      "How can I open Nacho's Closet?",
+      "Show me how to open Nacho's Closet?",
+      "What is the way to open Nacho's Closet?"
     ],
     "answer": "Nacho's Closet is where you dress Nacho in outfits you unlock. Open Settings and the Nacho section to change the outfit. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1010,11 +1010,11 @@
   {
     "id": "app-eli5-what",
     "category": "app",
-    "question": "What is ELI5 mode in Bitcoin Quest?",
+    "question": "What is ELI5 mode?",
     "alts": [
-      "Define ELI5 mode in Bitcoin Quest?",
-      "Explain ELI5 mode in Bitcoin Quest?",
-      "Describe ELI5 mode in Bitcoin Quest?"
+      "Define ELI5 mode?",
+      "Explain ELI5 mode?",
+      "Describe ELI5 mode?"
     ],
     "answer": "ELI5 mode makes Nacho explain like you are five. In Nacho Mode, open ELI5 and turn it on. Answers stay short and simple. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1031,11 +1031,11 @@
   {
     "id": "app-eli5-how",
     "category": "app",
-    "question": "How do I use ELI5 mode in the app?",
+    "question": "How do I turn on ELI5 mode?",
     "alts": [
-      "How can I use ELI5 mode in the app?",
-      "Show me how to use ELI5 mode in the app?",
-      "What is the way to use ELI5 mode in the app?"
+      "How can I turn on ELI5 mode?",
+      "Show me how to turn on ELI5 mode?",
+      "What is the way to turn on ELI5 mode?"
     ],
     "answer": "ELI5 mode makes Nacho explain like you are five. In Nacho Mode, open ELI5 and turn it on. Answers stay short and simple. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1220,11 +1220,11 @@
   {
     "id": "app-qh-flex-what",
     "category": "app",
-    "question": "What is Flex in Bitcoin Quest?",
+    "question": "What is the Flex quest?",
     "alts": [
-      "Define Flex in Bitcoin Quest?",
-      "Explain Flex in Bitcoin Quest?",
-      "Describe Flex in Bitcoin Quest?"
+      "Define the Flex quest?",
+      "Explain the Flex quest?",
+      "Describe the Flex quest?"
     ],
     "answer": "Flex is the Quest Hub tab of healthy Bitcoiner habits. Open Quest Hub → Flex. Each habit is a small action worth XP, and the list resets on the daily schedule. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1241,11 +1241,11 @@
   {
     "id": "app-qh-flex-how",
     "category": "app",
-    "question": "How do I use Flex in the app?",
+    "question": "How do I finish the Flex quest?",
     "alts": [
-      "How can I use Flex in the app?",
-      "Show me how to use Flex in the app?",
-      "What is the way to use Flex in the app?"
+      "How can I finish the Flex quest?",
+      "Show me how to finish the Flex quest?",
+      "What is the way to finish the Flex quest?"
     ],
     "answer": "Flex is the Quest Hub tab of healthy Bitcoiner habits. Open Quest Hub → Flex. Each habit is a small action worth XP, and the list resets on the daily schedule. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1304,11 +1304,11 @@
   {
     "id": "app-raid-what",
     "category": "app",
-    "question": "What is Raid Boss in Bitcoin Quest?",
+    "question": "What is the Raid Boss?",
     "alts": [
-      "Define Raid Boss in Bitcoin Quest?",
-      "Explain Raid Boss in Bitcoin Quest?",
-      "Describe Raid Boss in Bitcoin Quest?"
+      "Define the Raid Boss?",
+      "Explain the Raid Boss?",
+      "Describe the Raid Boss?"
     ],
     "answer": "The raid boss is a community fight. You deal damage by earning badges and doing activities. Open Quest Hub → Raid to see the boss, your damage, and the prize. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1325,11 +1325,11 @@
   {
     "id": "app-raid-how",
     "category": "app",
-    "question": "How do I use Raid Boss in the app?",
+    "question": "How do I fight the Raid Boss?",
     "alts": [
-      "How can I use Raid Boss in the app?",
-      "Show me how to use Raid Boss in the app?",
-      "What is the way to use Raid Boss in the app?"
+      "How can I fight the Raid Boss?",
+      "Show me how to fight the Raid Boss?",
+      "What is the way to fight the Raid Boss?"
     ],
     "answer": "The raid boss is a community fight. You deal damage by earning badges and doing activities. Open Quest Hub → Raid to see the boss, your damage, and the prize. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1346,11 +1346,11 @@
   {
     "id": "app-citadel-what",
     "category": "app",
-    "question": "What is Citadel in Bitcoin Quest?",
+    "question": "What is the Citadel?",
     "alts": [
-      "Define Citadel in Bitcoin Quest?",
-      "Explain Citadel in Bitcoin Quest?",
-      "Describe Citadel in Bitcoin Quest?"
+      "Define the Citadel?",
+      "Explain the Citadel?",
+      "Describe the Citadel?"
     ],
     "answer": "The Citadel is the coming-soon place to spend XP. Open Quest Hub → Citadel. It is marked coming soon, so you can look but not spend yet. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1367,11 +1367,11 @@
   {
     "id": "app-citadel-how",
     "category": "app",
-    "question": "How do I use Citadel in the app?",
+    "question": "How do I open the Citadel?",
     "alts": [
-      "How can I use Citadel in the app?",
-      "Show me how to use Citadel in the app?",
-      "What is the way to use Citadel in the app?"
+      "How can I open the Citadel?",
+      "Show me how to open the Citadel?",
+      "What is the way to open the Citadel?"
     ],
     "answer": "The Citadel is the coming-soon place to spend XP. Open Quest Hub → Citadel. It is marked coming soon, so you can look but not spend yet. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1388,11 +1388,11 @@
   {
     "id": "app-charity-what",
     "category": "app",
-    "question": "What is Charity in Bitcoin Quest?",
+    "question": "What is the charity page?",
     "alts": [
-      "Define Charity in Bitcoin Quest?",
-      "Explain Charity in Bitcoin Quest?",
-      "Describe Charity in Bitcoin Quest?"
+      "Define the charity page?",
+      "Explain the charity page?",
+      "Describe the charity page?"
     ],
     "answer": "Charity lets you donate XP. Your faction (Honey Badger or Cyber Hornet) is on the same screen. Open Quest Hub → Charity, pick an amount of XP, and donate. This is separate from donating to the site. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1409,11 +1409,11 @@
   {
     "id": "app-charity-how",
     "category": "app",
-    "question": "How do I use Charity in the app?",
+    "question": "How do I open the charity page?",
     "alts": [
-      "How can I use Charity in the app?",
-      "Show me how to use Charity in the app?",
-      "What is the way to use Charity in the app?"
+      "How can I open the charity page?",
+      "Show me how to open the charity page?",
+      "What is the way to open the charity page?"
     ],
     "answer": "Charity lets you donate XP. Your faction (Honey Badger or Cyber Hornet) is on the same screen. Open Quest Hub → Charity, pick an amount of XP, and donate. This is separate from donating to the site. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1430,11 +1430,11 @@
   {
     "id": "app-community-what",
     "category": "app",
-    "question": "What is Community Challenge in Bitcoin Quest?",
+    "question": "What is a Community Challenge?",
     "alts": [
-      "Define Community Challenge in Bitcoin Quest?",
-      "Explain Community Challenge in Bitcoin Quest?",
-      "Describe Community Challenge in Bitcoin Quest?"
+      "Define a Community Challenge?",
+      "Explain a Community Challenge?",
+      "Describe a Community Challenge?"
     ],
     "answer": "The community challenge is a shared weekly goal in Quest Hub. Open Quest Hub → Community to see the goal and chip in. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1451,11 +1451,11 @@
   {
     "id": "app-community-how",
     "category": "app",
-    "question": "How do I use Community Challenge in the app?",
+    "question": "How do I join a Community Challenge?",
     "alts": [
-      "How can I use Community Challenge in the app?",
-      "Show me how to use Community Challenge in the app?",
-      "What is the way to use Community Challenge in the app?"
+      "How can I join a Community Challenge?",
+      "Show me how to join a Community Challenge?",
+      "What is the way to join a Community Challenge?"
     ],
     "answer": "The community challenge is a shared weekly goal in Quest Hub. Open Quest Hub → Community to see the goal and chip in. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1514,11 +1514,11 @@
   {
     "id": "app-inventory-what",
     "category": "app",
-    "question": "What is Inventory in Bitcoin Quest?",
+    "question": "What is the inventory?",
     "alts": [
-      "Define Inventory in Bitcoin Quest?",
-      "Explain Inventory in Bitcoin Quest?",
-      "Describe Inventory in Bitcoin Quest?"
+      "Define the inventory?",
+      "Explain the inventory?",
+      "Describe the inventory?"
     ],
     "answer": "Inventory is the Nook tab that holds items you own, including keys and locked ciphers. Open Quest Hub → Nook/Inventory and switch to Inventory. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1535,11 +1535,11 @@
   {
     "id": "app-inventory-how",
     "category": "app",
-    "question": "How do I use Inventory in the app?",
+    "question": "How do I open my inventory?",
     "alts": [
-      "How can I use Inventory in the app?",
-      "Show me how to use Inventory in the app?",
-      "What is the way to use Inventory in the app?"
+      "How can I open my inventory?",
+      "Show me how to open my inventory?",
+      "What is the way to open my inventory?"
     ],
     "answer": "Inventory is the Nook tab that holds items you own, including keys and locked ciphers. Open Quest Hub → Nook/Inventory and switch to Inventory. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1976,11 +1976,11 @@
   {
     "id": "app-peers-what",
     "category": "app",
-    "question": "What is Peers in Bitcoin Quest?",
+    "question": "What are peers in the app?",
     "alts": [
-      "Define Peers in Bitcoin Quest?",
-      "Explain Peers in Bitcoin Quest?",
-      "Describe Peers in Bitcoin Quest?"
+      "Explain peers in the app?",
+      "Describe peers in the app?",
+      "Define peers in the app?"
     ],
     "answer": "Peers are people you connect with so you can send keys and grow a partnership. Open Settings → Account → Peers. Send a peer request, and accept the ones you want. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -1997,11 +1997,11 @@
   {
     "id": "app-peers-how",
     "category": "app",
-    "question": "How do I use Peers in the app?",
+    "question": "How do I find my peers?",
     "alts": [
-      "How can I use Peers in the app?",
-      "Show me how to use Peers in the app?",
-      "What is the way to use Peers in the app?"
+      "How can I find my peers?",
+      "Show me how to find my peers?",
+      "What is the way to find my peers?"
     ],
     "answer": "Peers are people you connect with so you can send keys and grow a partnership. Open Settings → Account → Peers. Send a peer request, and accept the ones you want. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2438,11 +2438,11 @@
   {
     "id": "app-proof-of-play-what",
     "category": "app",
-    "question": "What is Proof of Play arcade in Bitcoin Quest?",
+    "question": "What is the Proof of Play arcade?",
     "alts": [
-      "Define Proof of Play arcade in Bitcoin Quest?",
-      "Explain Proof of Play arcade in Bitcoin Quest?",
-      "Describe Proof of Play arcade in Bitcoin Quest?"
+      "Define the Proof of Play arcade?",
+      "Explain the Proof of Play arcade?",
+      "Describe the Proof of Play arcade?"
     ],
     "answer": "Proof of Play is the arcade of Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2459,11 +2459,11 @@
   {
     "id": "app-proof-of-play-how",
     "category": "app",
-    "question": "How do I use Proof of Play arcade in the app?",
+    "question": "How do I open Proof of Play?",
     "alts": [
-      "How can I use Proof of Play arcade in the app?",
-      "Show me how to use Proof of Play arcade in the app?",
-      "What is the way to use Proof of Play arcade in the app?"
+      "How can I open Proof of Play?",
+      "Show me how to open Proof of Play?",
+      "What is the way to open Proof of Play?"
     ],
     "answer": "Proof of Play is the arcade of Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2480,11 +2480,11 @@
   {
     "id": "app-proof-of-walk-what",
     "category": "app",
-    "question": "What is Proof of Walk in Bitcoin Quest?",
+    "question": "What does Proof of Walk record?",
     "alts": [
-      "Define Proof of Walk in Bitcoin Quest?",
-      "Explain Proof of Walk in Bitcoin Quest?",
-      "Describe Proof of Walk in Bitcoin Quest?"
+      "Explain what Proof of Walk record?",
+      "Clarify what Proof of Walk record?",
+      "Describe what Proof of Walk record?"
     ],
     "answer": "Proof of Walk connects Strava so a walk can earn XP. The support page is separate. Open Proof of Walk and connect Strava. If the feature is paused, the page says so. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2501,11 +2501,11 @@
   {
     "id": "app-proof-of-walk-how",
     "category": "app",
-    "question": "How do I use Proof of Walk in the app?",
+    "question": "How do I connect Proof of Walk?",
     "alts": [
-      "How can I use Proof of Walk in the app?",
-      "Show me how to use Proof of Walk in the app?",
-      "What is the way to use Proof of Walk in the app?"
+      "How can I connect Proof of Walk?",
+      "Show me how to connect Proof of Walk?",
+      "What is the way to connect Proof of Walk?"
     ],
     "answer": "Proof of Walk connects Strava so a walk can earn XP. The support page is separate. Open Proof of Walk and connect Strava. If the feature is paused, the page says so. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2522,11 +2522,11 @@
   {
     "id": "app-pow-support-what",
     "category": "app",
-    "question": "What is Proof of Walk support in Bitcoin Quest?",
+    "question": "What is Proof of Walk support?",
     "alts": [
-      "Define Proof of Walk support in Bitcoin Quest?",
-      "Explain Proof of Walk support in Bitcoin Quest?",
-      "Describe Proof of Walk support in Bitcoin Quest?"
+      "Define Proof of Walk support?",
+      "Explain Proof of Walk support?",
+      "Describe Proof of Walk support?"
     ],
     "answer": "The Proof of Walk support page explains the Strava connection. Open the support page from its link. The walk feature itself is Proof of Walk. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2543,11 +2543,11 @@
   {
     "id": "app-pow-support-how",
     "category": "app",
-    "question": "How do I use Proof of Walk support in the app?",
+    "question": "How do I open Proof of Walk support?",
     "alts": [
-      "How can I use Proof of Walk support in the app?",
-      "Show me how to use Proof of Walk support in the app?",
-      "What is the way to use Proof of Walk support in the app?"
+      "How can I open Proof of Walk support?",
+      "Show me how to open Proof of Walk support?",
+      "What is the way to open Proof of Walk support?"
     ],
     "answer": "The Proof of Walk support page explains the Strava connection. Open the support page from its link. The walk feature itself is Proof of Walk. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2564,11 +2564,11 @@
   {
     "id": "app-leaderboard-what",
     "category": "app",
-    "question": "What is Leaderboard in Bitcoin Quest?",
+    "question": "What is the leaderboard?",
     "alts": [
-      "Define Leaderboard in Bitcoin Quest?",
-      "Explain Leaderboard in Bitcoin Quest?",
-      "Describe Leaderboard in Bitcoin Quest?"
+      "Define the leaderboard?",
+      "Explain the leaderboard?",
+      "Describe the leaderboard?"
     ],
     "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2585,11 +2585,11 @@
   {
     "id": "app-leaderboard-how",
     "category": "app",
-    "question": "How do I use Leaderboard in the app?",
+    "question": "How do I open the leaderboard?",
     "alts": [
-      "How can I use Leaderboard in the app?",
-      "Show me how to use Leaderboard in the app?",
-      "What is the way to use Leaderboard in the app?"
+      "How can I open the leaderboard?",
+      "Show me how to open the leaderboard?",
+      "What is the way to open the leaderboard?"
     ],
     "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2774,11 +2774,11 @@
   {
     "id": "app-forum-what",
     "category": "app",
-    "question": "What is PlebTalk forum in Bitcoin Quest?",
+    "question": "What is the PlebTalk forum?",
     "alts": [
-      "Define PlebTalk forum in Bitcoin Quest?",
-      "Explain PlebTalk forum in Bitcoin Quest?",
-      "Describe PlebTalk forum in Bitcoin Quest?"
+      "Define the PlebTalk forum?",
+      "Explain the PlebTalk forum?",
+      "Describe the PlebTalk forum?"
     ],
     "answer": "PlebTalk is the forum. Articles are the long-form tab inside it. Nacho posts a new discussion in Global Chat. Open PlebTalk to read or start a discussion. A new top-level post can show up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2795,11 +2795,11 @@
   {
     "id": "app-forum-how",
     "category": "app",
-    "question": "How do I use PlebTalk forum in the app?",
+    "question": "How do I open the PlebTalk forum?",
     "alts": [
-      "How can I use PlebTalk forum in the app?",
-      "Show me how to use PlebTalk forum in the app?",
-      "What is the way to use PlebTalk forum in the app?"
+      "How can I open the PlebTalk forum?",
+      "Show me how to open the PlebTalk forum?",
+      "What is the way to open the PlebTalk forum?"
     ],
     "answer": "PlebTalk is the forum. Articles are the long-form tab inside it. Nacho posts a new discussion in Global Chat. Open PlebTalk to read or start a discussion. A new top-level post can show up in Global Chat. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2900,11 +2900,11 @@
   {
     "id": "app-meetup-builder-what",
     "category": "app",
-    "question": "What is Meetup Builder in Bitcoin Quest?",
+    "question": "What is Meetup Builder?",
     "alts": [
-      "Define Meetup Builder in Bitcoin Quest?",
-      "Explain Meetup Builder in Bitcoin Quest?",
-      "Describe Meetup Builder in Bitcoin Quest?"
+      "Define Meetup Builder?",
+      "Explain Meetup Builder?",
+      "Describe Meetup Builder?"
     ],
     "answer": "Meetup Builder helps you plan, share, and discover Bitcoin meetups. Open Meetup Builder, add the details, and share the plan. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2921,11 +2921,11 @@
   {
     "id": "app-meetup-builder-how",
     "category": "app",
-    "question": "How do I use Meetup Builder in the app?",
+    "question": "How do I use Meetup Builder?",
     "alts": [
-      "How can I use Meetup Builder in the app?",
-      "Show me how to use Meetup Builder in the app?",
-      "What is the way to use Meetup Builder in the app?"
+      "How can I use Meetup Builder?",
+      "Show me how to use Meetup Builder?",
+      "What is the way to use Meetup Builder?"
     ],
     "answer": "Meetup Builder helps you plan, share, and discover Bitcoin meetups. Open Meetup Builder, add the details, and share the plan. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2942,11 +2942,11 @@
   {
     "id": "app-sats-vs-bits-what",
     "category": "app",
-    "question": "What is Sats vs Bits in Bitcoin Quest?",
+    "question": "What is Sats vs Bits?",
     "alts": [
-      "Define Sats vs Bits in Bitcoin Quest?",
-      "Explain Sats vs Bits in Bitcoin Quest?",
-      "Describe Sats vs Bits in Bitcoin Quest?"
+      "Define Sats vs Bits?",
+      "Explain Sats vs Bits?",
+      "Describe Sats vs Bits?"
     ],
     "answer": "Sats vs Bits is the live vote on what to call the small unit. Open the chat hub and vote sats or bits. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -2963,11 +2963,11 @@
   {
     "id": "app-sats-vs-bits-how",
     "category": "app",
-    "question": "How do I use Sats vs Bits in the app?",
+    "question": "How do I open Sats vs Bits?",
     "alts": [
-      "How can I use Sats vs Bits in the app?",
-      "Show me how to use Sats vs Bits in the app?",
-      "What is the way to use Sats vs Bits in the app?"
+      "How can I open Sats vs Bits?",
+      "Show me how to open Sats vs Bits?",
+      "What is the way to open Sats vs Bits?"
     ],
     "answer": "Sats vs Bits is the live vote on what to call the small unit. Open the chat hub and vote sats or bits. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3152,11 +3152,11 @@
   {
     "id": "app-beats-what",
     "category": "app",
-    "question": "What is Bitcoin Beats in Bitcoin Quest?",
+    "question": "What is Bitcoin Beats?",
     "alts": [
-      "Define Bitcoin Beats in Bitcoin Quest?",
-      "Explain Bitcoin Beats in Bitcoin Quest?",
-      "Describe Bitcoin Beats in Bitcoin Quest?"
+      "Define Bitcoin Beats?",
+      "Explain Bitcoin Beats?",
+      "Describe Bitcoin Beats?"
     ],
     "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3173,11 +3173,11 @@
   {
     "id": "app-beats-how",
     "category": "app",
-    "question": "How do I use Bitcoin Beats in the app?",
+    "question": "How do I open Bitcoin Beats?",
     "alts": [
-      "How can I use Bitcoin Beats in the app?",
-      "Show me how to use Bitcoin Beats in the app?",
-      "What is the way to use Bitcoin Beats in the app?"
+      "How can I open Bitcoin Beats?",
+      "Show me how to open Bitcoin Beats?",
+      "What is the way to open Bitcoin Beats?"
     ],
     "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3194,11 +3194,11 @@
   {
     "id": "app-hot-topics-what",
     "category": "app",
-    "question": "What is Hot Topics in Bitcoin Quest?",
+    "question": "What are Hot Topics?",
     "alts": [
-      "Define Hot Topics in Bitcoin Quest?",
-      "Explain Hot Topics in Bitcoin Quest?",
-      "Describe Hot Topics in Bitcoin Quest?"
+      "Explain Hot Topics?",
+      "Describe Hot Topics?",
+      "Define Hot Topics?"
     ],
     "answer": "Hot Topics is the weekly list in the sidebar. Go home and scroll the sidebar to the Hot Topics section. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3215,11 +3215,11 @@
   {
     "id": "app-hot-topics-how",
     "category": "app",
-    "question": "How do I use Hot Topics in the app?",
+    "question": "How do I read Hot Topics?",
     "alts": [
-      "How can I use Hot Topics in the app?",
-      "Show me how to use Hot Topics in the app?",
-      "What is the way to use Hot Topics in the app?"
+      "How can I read Hot Topics?",
+      "Show me how to read Hot Topics?",
+      "What is the way to read Hot Topics?"
     ],
     "answer": "Hot Topics is the weekly list in the sidebar. Go home and scroll the sidebar to the Hot Topics section. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3236,11 +3236,11 @@
   {
     "id": "app-dashboard-what",
     "category": "app",
-    "question": "What is Bitcoin dashboard in Bitcoin Quest?",
+    "question": "What is the Bitcoin dashboard?",
     "alts": [
-      "Define Bitcoin dashboard in Bitcoin Quest?",
-      "Explain Bitcoin dashboard in Bitcoin Quest?",
-      "Describe Bitcoin dashboard in Bitcoin Quest?"
+      "Define the Bitcoin dashboard?",
+      "Explain the Bitcoin dashboard?",
+      "Describe the Bitcoin dashboard?"
     ],
     "answer": "The dashboard shows mempool, fees, hashrate, and other network stats. Open the Bitcoin dashboard from the menu or the network link. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3257,11 +3257,11 @@
   {
     "id": "app-dashboard-how",
     "category": "app",
-    "question": "How do I use Bitcoin dashboard in the app?",
+    "question": "How do I open the Bitcoin dashboard?",
     "alts": [
-      "How can I use Bitcoin dashboard in the app?",
-      "Show me how to use Bitcoin dashboard in the app?",
-      "What is the way to use Bitcoin dashboard in the app?"
+      "How can I open the Bitcoin dashboard?",
+      "Show me how to open the Bitcoin dashboard?",
+      "What is the way to open the Bitcoin dashboard?"
     ],
     "answer": "The dashboard shows mempool, fees, hashrate, and other network stats. Open the Bitcoin dashboard from the menu or the network link. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3278,11 +3278,11 @@
   {
     "id": "app-notifications-what",
     "category": "app",
-    "question": "What is Notifications in Bitcoin Quest?",
+    "question": "What are app notifications?",
     "alts": [
-      "Define Notifications in Bitcoin Quest?",
-      "Explain Notifications in Bitcoin Quest?",
-      "Describe Notifications in Bitcoin Quest?"
+      "Explain app notifications?",
+      "Describe app notifications?",
+      "Define app notifications?"
     ],
     "answer": "The bell opens your notifications. Tap the bell icon to open the notifications panel. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3299,11 +3299,11 @@
   {
     "id": "app-notifications-how",
     "category": "app",
-    "question": "How do I use Notifications in the app?",
+    "question": "How do I open my notifications?",
     "alts": [
-      "How can I use Notifications in the app?",
-      "Show me how to use Notifications in the app?",
-      "What is the way to use Notifications in the app?"
+      "How can I open my notifications?",
+      "Show me how to open my notifications?",
+      "What is the way to open my notifications?"
     ],
     "answer": "The bell opens your notifications. Tap the bell icon to open the notifications panel. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3320,11 +3320,11 @@
   {
     "id": "app-settings-what",
     "category": "app",
-    "question": "What is Settings in Bitcoin Quest?",
+    "question": "What are the app settings?",
     "alts": [
-      "Define Settings in Bitcoin Quest?",
-      "Explain Settings in Bitcoin Quest?",
-      "Describe Settings in Bitcoin Quest?"
+      "Explain the app settings?",
+      "Describe the app settings?",
+      "Define the app settings?"
     ],
     "answer": "Settings has Account, Scholar, Sats, Prefs, Security, and Data. Open Settings and pick a page along the top. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3341,11 +3341,11 @@
   {
     "id": "app-settings-how",
     "category": "app",
-    "question": "How do I use Settings in the app?",
+    "question": "How do I open settings?",
     "alts": [
-      "How can I use Settings in the app?",
-      "Show me how to use Settings in the app?",
-      "What is the way to use Settings in the app?"
+      "How can I open settings?",
+      "Show me how to open settings?",
+      "What is the way to open settings?"
     ],
     "answer": "Settings has Account, Scholar, Sats, Prefs, Security, and Data. Open Settings and pick a page along the top. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3404,11 +3404,11 @@
   {
     "id": "app-security-what",
     "category": "app",
-    "question": "What is Security and 2FA in Bitcoin Quest?",
+    "question": "What is Security and 2FA?",
     "alts": [
-      "Define Security and 2FA in Bitcoin Quest?",
-      "Explain Security and 2FA in Bitcoin Quest?",
-      "Describe Security and 2FA in Bitcoin Quest?"
+      "Define Security and 2FA?",
+      "Explain Security and 2FA?",
+      "Describe Security and 2FA?"
     ],
     "answer": "The Security page has 2FA, your password, linked accounts, blocking, and account deletion. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3425,11 +3425,11 @@
   {
     "id": "app-security-how",
     "category": "app",
-    "question": "How do I use Security and 2FA in the app?",
+    "question": "How do I open Security and 2FA?",
     "alts": [
-      "How can I use Security and 2FA in the app?",
-      "Show me how to use Security and 2FA in the app?",
-      "What is the way to use Security and 2FA in the app?"
+      "How can I open Security and 2FA?",
+      "Show me how to open Security and 2FA?",
+      "What is the way to open Security and 2FA?"
     ],
     "answer": "The Security page has 2FA, your password, linked accounts, blocking, and account deletion. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3446,11 +3446,11 @@
   {
     "id": "app-prefs-what",
     "category": "app",
-    "question": "What is Preferences in Bitcoin Quest?",
+    "question": "What are the preference settings?",
     "alts": [
-      "Define Preferences in Bitcoin Quest?",
-      "Explain Preferences in Bitcoin Quest?",
-      "Describe Preferences in Bitcoin Quest?"
+      "Explain the preference settings?",
+      "Describe the preference settings?",
+      "Define the preference settings?"
     ],
     "answer": "Preferences cover theme, dark mode, OLED, font size, language, the price ticker, Nacho, and experience mode. Open Settings → Prefs and switch the theme to dark mode or light mode. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3467,11 +3467,11 @@
   {
     "id": "app-prefs-how",
     "category": "app",
-    "question": "How do I use Preferences in the app?",
+    "question": "How do I open preferences?",
     "alts": [
-      "How can I use Preferences in the app?",
-      "Show me how to use Preferences in the app?",
-      "What is the way to use Preferences in the app?"
+      "How can I open preferences?",
+      "Show me how to open preferences?",
+      "What is the way to open preferences?"
     ],
     "answer": "Preferences cover theme, dark mode, OLED, font size, language, the price ticker, Nacho, and experience mode. Open Settings → Prefs and switch the theme to dark mode or light mode. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3740,11 +3740,11 @@
   {
     "id": "app-exploration-map-what",
     "category": "app",
-    "question": "What is Exploration Map in Bitcoin Quest?",
+    "question": "What is the Exploration Map?",
     "alts": [
-      "Define Exploration Map in Bitcoin Quest?",
-      "Explain Exploration Map in Bitcoin Quest?",
-      "Describe Exploration Map in Bitcoin Quest?"
+      "Define the Exploration Map?",
+      "Explain the Exploration Map?",
+      "Describe the Exploration Map?"
     ],
     "answer": "The Exploration Map shows which topics you have visited. Go home and open the Exploration Map to see your coverage. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3761,11 +3761,11 @@
   {
     "id": "app-exploration-map-how",
     "category": "app",
-    "question": "How do I use Exploration Map in the app?",
+    "question": "How do I open the Exploration Map?",
     "alts": [
-      "How can I use Exploration Map in the app?",
-      "Show me how to use Exploration Map in the app?",
-      "What is the way to use Exploration Map in the app?"
+      "How can I open the Exploration Map?",
+      "Show me how to open the Exploration Map?",
+      "What is the way to open the Exploration Map?"
     ],
     "answer": "The Exploration Map shows which topics you have visited. Go home and open the Exploration Map to see your coverage. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3782,11 +3782,11 @@
   {
     "id": "app-online-status-what",
     "category": "app",
-    "question": "What is Online Status in Bitcoin Quest?",
+    "question": "What is online status?",
     "alts": [
-      "Define Online Status in Bitcoin Quest?",
-      "Explain Online Status in Bitcoin Quest?",
-      "Describe Online Status in Bitcoin Quest?"
+      "Define online status?",
+      "Explain online status?",
+      "Describe online status?"
     ],
     "answer": "Online Status lets you show or hide whether you are online to other people. Open Settings → Prefs and change your online status. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3803,11 +3803,11 @@
   {
     "id": "app-online-status-how",
     "category": "app",
-    "question": "How do I use Online Status in the app?",
+    "question": "How do I change my online status?",
     "alts": [
-      "How can I use Online Status in the app?",
-      "Show me how to use Online Status in the app?",
-      "What is the way to use Online Status in the app?"
+      "How can I change my online status?",
+      "Show me how to change my online status?",
+      "What is the way to change my online status?"
     ],
     "answer": "Online Status lets you show or hide whether you are online to other people. Open Settings → Prefs and change your online status. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3824,11 +3824,11 @@
   {
     "id": "app-profile-picture-what",
     "category": "app",
-    "question": "What is Profile Picture in Bitcoin Quest?",
+    "question": "What is a profile picture here?",
     "alts": [
-      "Define Profile Picture in Bitcoin Quest?",
-      "Explain Profile Picture in Bitcoin Quest?",
-      "Describe Profile Picture in Bitcoin Quest?"
+      "Define a profile picture here?",
+      "Explain a profile picture here?",
+      "Describe a profile picture here?"
     ],
     "answer": "Your profile picture is the photo other people see on your account. Open Settings → Account and upload or change your profile picture. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
@@ -3845,11 +3845,11 @@
   {
     "id": "app-profile-picture-how",
     "category": "app",
-    "question": "How do I use Profile Picture in the app?",
+    "question": "How do I set a profile picture?",
     "alts": [
-      "How can I use Profile Picture in the app?",
-      "Show me how to use Profile Picture in the app?",
-      "What is the way to use Profile Picture in the app?"
+      "How can I set a profile picture?",
+      "Show me how to set a profile picture?",
+      "What is the way to set a profile picture?"
     ],
     "answer": "Your profile picture is the photo other people see on your account. Open Settings → Account and upload or change your profile picture. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [

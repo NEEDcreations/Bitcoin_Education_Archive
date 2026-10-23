@@ -67,7 +67,40 @@ const APP_QUESTIONS = {
     nook: ["What is inside Nacho's Nook?", "How do I open Nacho's Nook?"],
     tv: ["Where is Timechain TV in the app?", "How do I open Timechain TV?"],
     buddy: ["What is Bitcoin Buddy?", "How do I find a Bitcoin buddy?"],
-    faction: ["What is a faction on Bitcoin Quest?", "How do I choose a faction?"]
+    faction: ["What is a faction on Bitcoin Quest?", "How do I choose a faction?"],
+    trails: ["What are Nacho's Trails?", "How do I start a Nacho Trail?"],
+    "learning-quests": ["What are Learning Quests?", "How do I open a Learning Quest?"],
+    flashcards: ["What are flashcards in the app?", "How do I study with flashcards?"],
+    scholar: ["What is Scholar certification?", "How do I take the Scholar exam?"],
+    story: ["What is Nacho's Story?", "How do I open Nacho's Story?"],
+    "nacho-mode": ["What is Nacho Mode?", "How do I turn on Nacho Mode?"],
+    "quiz-me": ["What is Quiz Me?", "How do I start Quiz Me?"],
+    closet: ["What is Nacho's Closet?", "How do I open Nacho's Closet?"],
+    eli5: ["What is ELI5 mode?", "How do I turn on ELI5 mode?"],
+    "qh-flex": ["What is the Flex quest?", "How do I finish the Flex quest?"],
+    raid: ["What is the Raid Boss?", "How do I fight the Raid Boss?"],
+    citadel: ["What is the Citadel?", "How do I open the Citadel?"],
+    charity: ["What is the charity page?", "How do I open the charity page?"],
+    community: ["What is a Community Challenge?", "How do I join a Community Challenge?"],
+    inventory: ["What is the inventory?", "How do I open my inventory?"],
+    peers: ["What are peers in the app?", "How do I find my peers?"],
+    "proof-of-play": ["What is the Proof of Play arcade?", "How do I open Proof of Play?"],
+    "proof-of-walk": ["What does Proof of Walk record?", "How do I connect Proof of Walk?"],
+    "pow-support": ["What is Proof of Walk support?", "How do I open Proof of Walk support?"],
+    leaderboard: ["What is the leaderboard?", "How do I open the leaderboard?"],
+    forum: ["What is the PlebTalk forum?", "How do I open the PlebTalk forum?"],
+    "meetup-builder": ["What is Meetup Builder?", "How do I use Meetup Builder?"],
+    "sats-vs-bits": ["What is Sats vs Bits?", "How do I open Sats vs Bits?"],
+    beats: ["What is Bitcoin Beats?", "How do I open Bitcoin Beats?"],
+    "hot-topics": ["What are Hot Topics?", "How do I read Hot Topics?"],
+    dashboard: ["What is the Bitcoin dashboard?", "How do I open the Bitcoin dashboard?"],
+    notifications: ["What are app notifications?", "How do I open my notifications?"],
+    settings: ["What are the app settings?", "How do I open settings?"],
+    security: ["What is Security and 2FA?", "How do I open Security and 2FA?"],
+    prefs: ["What are the preference settings?", "How do I open preferences?"],
+    "exploration-map": ["What is the Exploration Map?", "How do I open the Exploration Map?"],
+    "online-status": ["What is online status?", "How do I change my online status?"],
+    "profile-picture": ["What is a profile picture here?", "How do I set a profile picture?"]
 };
 
 function featureName(title) {
@@ -172,8 +205,9 @@ function appEntries(topicIds) {
                 sources: "features.registry.js entry " + feature.id + "."
             });
         }
-        const what = custom ? custom[0] : "What is " + name + " in Bitcoin Quest?";
-        const howQ = custom ? custom[1] : "How do I use " + name + " in the app?";
+        const plural = /(?:cards|quests|trails|peers|topics|notifications|settings|preferences)$/i.test(name);
+        const what = custom ? custom[0] : ((plural ? "What are " : "What is ") + name + "?");
+        const howQ = custom ? custom[1] : ("How do I use " + name + "?");
         push("what", what);
         push("how", howQ);
     });

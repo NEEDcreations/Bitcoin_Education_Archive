@@ -906,8 +906,8 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
         @media (max-width: 900px) {
-            #nacho-container { bottom: 76px; left: 32px; }
             #nacho-avatar { width: 56px; height: 56px; }
+            #nacho-container { bottom: calc(120px + env(safe-area-inset-bottom, 0px)); left: 32px; }
             #nacho-bubble {
                 max-width: min(260px, calc(100vw - 80px));
                 max-height: 40vh;
@@ -915,19 +915,22 @@ function createNacho() {
                 -webkit-overflow-scrolling: touch;
                 min-width: 140px;
                 font-size: 0.85rem;
-                padding: 12px 14px;
+                padding: 12px 14px calc(96px + env(safe-area-inset-bottom, 0px));
+                scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
                 border-radius: 14px;
             }
+            #nacho-text { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: 76px; left: 32px; }
+            #nacho-container { bottom: calc(120px + env(safe-area-inset-bottom, 0px)); left: 32px; }
             #nacho-avatar { width: 52px; height: 52px; }
             #nacho-bubble {
                 max-width: min(230px, calc(100vw - 72px));
                 max-height: 38vh;
                 font-size: 0.82rem;
-                padding: 12px 14px;
+                padding: 12px 14px calc(96px + env(safe-area-inset-bottom, 0px));
+                scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
             }
             #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
@@ -1321,7 +1324,7 @@ function createNacho() {
 function setPose(pose) {
     currentPose = pose || 'default';
     const emoji = document.getElementById('nacho-pose-emoji');
-    if (emoji) emoji.textContent = POSES[currentPose] || POSES.default;
+    if (emoji) emoji.textContent = '🦌';
 }
 
 function resetPose() {
