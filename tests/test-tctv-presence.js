@@ -253,14 +253,16 @@ test('single-field index is declared for tctv_presence.ts', () => {
     assert.ok(orders.includes('ASCENDING:COLLECTION'));
 });
 
-test('cache name is v2295 and the TV script cache-buster moved', () => {
+test('cache name is v2317 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2295'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2317'"));
+    assert.ok(!sw.includes('btc-archive-v2295'));
     assert.ok(!sw.includes('btc-archive-v2293'));
     assert.ok(!sw.includes('nacho-fly.svg'));
     assert.ok(sw.includes('nacho-deer.svg'));
     assert.ok(!sw.includes('btc-archive-v2277'));
     assert.ok(!sw.includes('btc-archive-v2276'));
+    assert.ok(!sw.includes('btc-archive-v2273'));
     assert.ok(!sw.includes('btc-archive-v2272'));
     assert.ok(!sw.includes('btc-archive-v2271'));
     assert.ok(!sw.includes('btc-archive-v2270'));
@@ -294,7 +296,9 @@ test('cache name is v2295 and the TV script cache-buster moved', () => {
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('timechain-tv.js?v=20261022_tctv3'));
     assert.ok(html.includes('gifting.js?v=20261022_v2254'));
-    assert.ok(html.includes('notifications.js?v=20261022_v2262'));
+    assert.ok(html.includes('notifications.js?v=20261022_v2317'));
+    assert.ok(!html.includes('notifications.js?v=20261022_v2273'));
+    assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
     assert.ok(!html.includes('gifting.js?v=20261022_lightfix'));
     assert.ok(!html.includes('notifications.js?v=20261022_gifts'));
@@ -314,7 +318,9 @@ test('cache name is v2295 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2261'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2252'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2246'));
-    assert.ok(html.includes('global-chat.js?v=20261022_v2272'));
+    assert.ok(html.includes('global-chat.js?v=20261022_v2317'));
+    assert.ok(!html.includes('global-chat.js?v=20261022_v2273'));
+    assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));

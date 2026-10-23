@@ -2704,6 +2704,16 @@ var _djSongCount = 0; // tracks how many songs the current DJ has played
 var _djIsMe = false;
 var _djQueuePosition = -1; // -1 = not in queue
 
+// Public DJ strings ignore the listener's uncensored switch.
+function djShown(str, fallback) {
+    var raw = (str == null || str === '') ? (fallback || '') : String(str);
+    return (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
+}
+function djPublic(str, fallback) {
+    var raw = (str == null || str === '') ? (fallback || '') : String(str);
+    return (typeof beatsCensor === 'function') ? beatsCensor(raw, true) : raw;
+}
+
 // DJ broadcasts: go live or join queue
 window.djBroadcast = function() {
     if (!window._beatsNowPlaying || !window._beatsAudio) {
@@ -2718,9 +2728,12 @@ window.djBroadcast = function() {
     if (!username) { if (typeof showToast === 'function') showToast('Set a username first!'); return; }
 
     var track = window._beatsQueue[window._beatsQueueIdx];
-    if (!track) return;
-    if (track.needsReview === true || track.hidden === true) {
-        if (typeof showToast === 'function') showToast(track.needsReview === true ? 'pending verification' : 'That track is hidden');
+    if (!track || track.hidden === true || (typeof _beatsIsHidden === 'function' && _beatsIsHidden(track))) {
+        if (typeof showToast === 'function') showToast('This track is unavailable');
+        return;
+    }
+    if (track.needsReview === true) {
+        if (typeof showToast === 'function') showToast('pending verification');
         return;
     }
     var uid = auth.currentUser.uid;
@@ -2801,7 +2814,7 @@ window.showDJControlPanel = function() {
         var np = document.getElementById('djControlNowPlaying');
         if (!np) return;
         var track = window._beatsQueue && window._beatsQueue[window._beatsQueueIdx];
-        if (track) np.textContent = '♫ ' + (track.title || 'Untitled') + ' — ' + (track.artist || track.authorName || 'Unknown');
+        if (track) np.textContent = '♫ ' + djShown(track.title, 'Untitled') + ' — ' + djShown(track.artist || track.authorName, 'Unknown');
     }
     updateDJPanel();
     window._djPanelInterval = setInterval(updateDJPanel, 3000);
@@ -2823,8 +2836,8 @@ function djRenderUpNext() {
         html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:8px;">' +
             '<span style="color:var(--accent);font-weight:700;font-size:0.7rem;">' + (i + 1) + '</span>' +
             '<div style="flex:1;min-width:0;overflow:hidden;">' +
-                '<div style="font-size:0.75rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.title || 'Untitled') : (t.title || 'Untitled')) + '</div>' +
-                '<div style="font-size:0.65rem;color:var(--text-faint);">' + (typeof escapeHtml === 'function' ? escapeHtml(t.artist || t.authorName || '') : (t.artist || t.authorName || '')) + '</div>' +
+                '<div style="font-size:0.75rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (typeof escapeHtml === 'function' ? escapeHtml(djShown(t.title, 'Untitled')) : djShown(t.title, 'Untitled')) + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);">' + (typeof escapeHtml === 'function' ? escapeHtml(djShown(t.artist || t.authorName, '')) : djShown(t.artist || t.authorName, '')) + '</div>' +
             '</div>' +
             '<span onclick="window._djUpNext.splice(' + i + ',1);djRenderUpNext()" style="cursor:pointer;font-size:0.7rem;color:#ef4444;padding:2px 4px;" title="Remove">✕</span>' +
         '</div>';
@@ -2859,8 +2872,8 @@ window.djShowTrackPicker = function() {
         var t = tracks[i];
         var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
         listHtml += '<div class="djPickerItem" data-search="' + esc((t.title || '') + ' ' + (t.artist || t.authorName || '')).toLowerCase() + '" onclick="djAddToQueue(' + i + ')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'none\'">' +
-            '<div style="font-size:0.8rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(t.title || 'Untitled') + '</div>' +
-            '<div style="font-size:0.65rem;color:var(--text-faint);">' + esc(t.artist || t.authorName || 'Unknown') + '</div>' +
+            '<div style="font-size:0.8rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(djShown(t.title, 'Untitled')) + '</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);">' + esc(djShown(t.artist || t.authorName, 'Unknown')) + '</div>' +
         '</div>';
     }
     listHtml += '</div>';
@@ -2894,8 +2907,9 @@ window.djAddToQueue = function(idx) {
     }
     var tracks = window._beatsQueue || [];
     var t = tracks[idx];
-    if (!t || t.hidden === true || t.needsReview === true) {
-        if (t && t.needsReview === true && typeof showToast === 'function') showToast('pending verification');
+    if (!t || t.hidden === true || (typeof _beatsIsHidden === 'function' && _beatsIsHidden(t))) return;
+    if (t.needsReview === true) {
+        if (typeof showToast === 'function') showToast('pending verification');
         return;
     }
     // Don't add duplicates
@@ -2907,7 +2921,7 @@ window.djAddToQueue = function(idx) {
     }
     window._djUpNext.push(t);
     djRenderUpNext();
-    if (typeof showToast === 'function') showToast('🎵 Added: ' + (t.title || 'Untitled'));
+    if (typeof showToast === 'function') showToast('🎵 Added: ' + djShown(t.title, 'Untitled'));
     var picker = document.getElementById('djTrackPicker');
     if (picker) picker.remove();
 };
@@ -2957,8 +2971,8 @@ function djGoLive(uid, username, track) {
     var djData = {
         djUid: uid,
         djName: username,
-        trackTitle: track.title || 'Untitled',
-        trackArtist: track.artist || track.authorName || 'Unknown',
+        trackTitle: djPublic(track.title, 'Untitled'),
+        trackArtist: djPublic(track.artist || track.authorName, 'Unknown'),
         trackCoverArt: track.coverArt || '',
         trackAudioUrl: djPlayableUrl(track),
         trackId: track.id || '',
@@ -2989,7 +3003,7 @@ function djGoLive(uid, username, track) {
         if (djSets === 25 && typeof awardPoints === 'function') awardPoints(75, '🏆 Club Legend — 25 sets!');
         db.collection(CHAT_COLLECTION).add({
             uid: 'system', name: '🎧 DJ Mode',
-            text: '🎶 @' + username + ' is now DJing! Playing: "' + (track.title || 'Untitled') + '" by ' + (track.artist || track.authorName || 'Unknown') + '. Tune in! 🔊',
+            text: '🎶 @' + username + ' is now DJing! Playing: "' + djPublic(track.title, 'Untitled') + '" by ' + djPublic(track.artist || track.authorName, 'Unknown') + '. Tune in! 🔊',
             ts: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function() {});
         // Remove self from queue if was there
@@ -3017,8 +3031,8 @@ function djGoLive(uid, username, track) {
             _djSongCount++;
             var t = window._beatsQueue[lastTrackIdx];
             if (t) {
-                updateData.trackTitle = t.title || 'Untitled';
-                updateData.trackArtist = t.artist || t.authorName || 'Unknown';
+                updateData.trackTitle = djPublic(t.title, 'Untitled');
+                updateData.trackArtist = djPublic(t.artist || t.authorName, 'Unknown');
                 updateData.trackCoverArt = t.coverArt || '';
                 updateData.trackAudioUrl = djPlayableUrl(t);
                 updateData.trackId = t.id || '';

@@ -9,10 +9,13 @@
 // Falz is flagged needsReview by default. A later import never clears
 // hidden, hiddenReason, or coverRemovedReason, and it does not put back a
 // coverUrl that was removed on purpose.
+// A new or updated track whose title, artist, or album matches the explicit
+// check is hidden. An existing hide is never cleared or renamed.
 // --takedown hides a track and deletes its Storage audio object.
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
+const { beatsCensor } = require('../../beats-censor.js');
 
 const DEFAULT_FLAG_ARTISTS = ['Falz'];
 
@@ -357,6 +360,18 @@ function applyTrackFields(target, raw) {
     });
 }
 
+function beatsTextIsExplicit(value) {
+    if (typeof value !== 'string' || !value) return false;
+    return beatsCensor(value, true) !== value;
+}
+
+function trackIsExplicit(track) {
+    if (!track) return false;
+    return ['title', 'artist', 'authorName', 'albumTitle', 'album', 'feedTitle'].some(function (key) {
+        return beatsTextIsExplicit(track[key]);
+    });
+}
+
 function flagged(track, flagArtists) {
     return (flagArtists || []).some(function (name) {
         return artistMatch(track && track.artist, name) || artistMatch(track && track.authorName, name);
@@ -388,6 +403,7 @@ function planCatalog(input) {
         feedsFetched: 0,
         feedsFailed: 0,
         needsReview: 0,
+        explicit: 0,
         auditTracksListed: 0,
         auditGrindcoreListed: 0,
         skipped: 0
@@ -496,6 +512,19 @@ function planCatalog(input) {
         counts.needsReview++;
     });
 
+    // Hide a visible track when its title, artist, or album matches the
+    // explicit check. Existing hides are restored in the next pass and are
+    // never cleared here.
+    finalTracks.forEach(function (track) {
+        const before = originals[track.id];
+        if (before && before.hidden === true) return;
+        if (!track.v4vGuid || !seenGuids[track.v4vGuid]) return;
+        if (!trackIsExplicit(track)) return;
+        track.hidden = true;
+        track.hiddenReason = 'explicit';
+        track.needsReview = true;
+    });
+
     // Moderation hides and removed covers survive every import path, including
     // a catalog row that still has the old coverUrl.
     finalTracks.forEach(function (track) {
@@ -511,6 +540,10 @@ function planCatalog(input) {
         else track.coverUrl = before.coverUrl;
         if (!before.coverArt) delete track.coverArt;
         else track.coverArt = before.coverArt;
+    });
+
+    finalTracks.forEach(function (track) {
+        if (track.hidden === true && track.hiddenReason === 'explicit') counts.explicit++;
     });
 
     finalTracks.forEach(function (track) {
@@ -607,6 +640,7 @@ function printCounts(mode, counts) {
         'feeds_fetched: ' + (counts.feedsFetched || 0),
         'feeds_failed: ' + (counts.feedsFailed || 0),
         'needs_review: ' + counts.needsReview,
+        'hidden_explicit: ' + (counts.explicit || 0),
         'audit_tracks_listed: ' + counts.auditTracksListed,
         'audit_grindcore_listed: ' + counts.auditGrindcoreListed,
         'skipped: ' + counts.skipped
@@ -877,7 +911,8 @@ module.exports = {
     storageObjectFromUrl: storageObjectFromUrl,
     hiddenFieldCleared: hiddenFieldCleared,
     mergeFlagArtists: mergeFlagArtists,
-    payloadFrom: payloadFrom
+    payloadFrom: payloadFrom,
+    trackIsExplicit: trackIsExplicit
 };
 
 if (require.main === module) {

@@ -13,6 +13,9 @@
  *   FIREBASE_PROJECT_ID   — Firebase project ID
  */
 
+import beatsCensorMod from '../../beats-censor.js';
+var beatsCensor = (beatsCensorMod && beatsCensorMod.beatsCensor) || beatsCensorMod;
+
 const TG_API = 'https://api.telegram.org/bot';
 const SCOPES = 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/devstorage.read_write';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -229,7 +232,7 @@ async function nachoDJCheck(env) {
   var tracks = await queryFirestore(env, 'beats_tracks', 200);
   if (tracks.length === 0) return { status: 'no_tracks' };
 
-  // Skip hidden tracks. Prefer the publisher's enclosure over a Storage copy.
+  // Skip hidden and unverified tracks. Prefer the publisher's enclosure over a Storage copy.
   tracks = tracks.filter(function(t) { return beatsPlayableUrl(t); });
   if (tracks.length === 0) return { status: 'no_playable_tracks' };
 
@@ -259,8 +262,8 @@ async function nachoDJCheck(env) {
   await updateFirestoreDoc(env, 'global_chat_meta/live_dj', {
     djUid: { stringValue: 'nacho-dj' },
     djName: { stringValue: '🦌 Nacho' },
-    trackTitle: { stringValue: track.title || 'Untitled' },
-    trackArtist: { stringValue: track.artist || track.authorName || 'Unknown' },
+    trackTitle: { stringValue: beatsCensor(track.title || 'Untitled') },
+    trackArtist: { stringValue: beatsCensor(track.artist || track.authorName || 'Unknown') },
     trackCoverArt: { stringValue: track.coverArt || '' },
     trackAudioUrl: { stringValue: beatsPlayableUrl(track) },
     trackId: { stringValue: track._id || '' },
@@ -274,7 +277,7 @@ async function nachoDJCheck(env) {
     isNachoDJ: { booleanValue: true }
   });
 
-  return { status: 'nacho_new_track', track: track.title, artist: track.artist || track.authorName };
+  return { status: 'nacho_new_track', track: beatsCensor(track.title || ''), artist: beatsCensor(track.artist || track.authorName || '') };
 }
 
 // [SECURITY FIX] Constant-time string comparison — prevents timing oracle attacks on secrets.

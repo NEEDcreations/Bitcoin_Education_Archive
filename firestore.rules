@@ -231,6 +231,9 @@ service cloud.firestore {
                             && request.resource.data.country.size() >= 2
                             && request.resource.data.country.size() <= 60
                             && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
+                    && (!('beatsShowUncensored' in request.resource.data)
+                        || request.resource.data.beatsShowUncensored == true
+                        || request.resource.data.beatsShowUncensored == false)
                     && lightningLockOk();
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second

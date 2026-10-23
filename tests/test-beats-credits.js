@@ -85,6 +85,7 @@ test('archive.org tracks get a credit line from the stored license', function ()
     context.escapeHtml = function (str) {
         return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     };
+    context.beatsCensor = require(path.join(root, 'beats-censor.js')).beatsCensor;
     context.window = context;
     context.document = {
         getElementById: function () { return null; },
@@ -144,6 +145,18 @@ test('archive.org tracks get a credit line from the stored license', function ()
     const upload = context._beatsCreditHtml({ title: 'My Upload', artist: 'Phil' });
     assert.ok(upload.indexOf('My Upload') !== -1);
     assert.ok(upload.indexOf('Phil') !== -1);
+    const explicit = context._beatsCreditHtml({
+        title: 'Digital Gold (Fuck Your Control)',
+        artist: 'Shit Artist',
+        albumTitle: 'Bullshit Sessions',
+        feedTitle: 'Fuck Feed',
+        source: 'catalog'
+    });
+    assert.ok(explicit.indexOf('F**k Your Control') !== -1);
+    assert.ok(explicit.indexOf('S**t Artist') !== -1);
+    assert.ok(explicit.indexOf('F**k Feed') !== -1);
+    assert.ok(explicit.indexOf('Fuck') === -1);
+    assert.ok(explicit.indexOf('Shit') === -1);
 });
 
 test('clients cannot write catalog credit or hide fields', function () {
@@ -178,12 +191,16 @@ test('patch notes and cache busters announce the catalog', function () {
     const notes = read('patch-notes.html');
     assert.ok(notes.includes('The open-music catalog import is ready and has not been applied yet.'));
     assert.ok(!notes.includes('1,600+ new free-to-use tracks'));
-    assert.ok(notes.includes('October 22, 2026 · v2277'));
+    assert.ok(notes.includes('October 22, 2026 · v2317'));
+    assert.ok(notes.includes('New Beats imports hide explicit titles and never un-hide a track.'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('beats.js?v=20261022_v2277'));
+    assert.ok(html.includes('beats.js?v=20261022_v2317'));
+    assert.ok(!html.includes('beats.js?v=20261022_v2277'));
     assert.ok(!html.includes('beats.js?v=20261022_v2276'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2277'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2317'"));
+    assert.ok(!read('sw.js').includes('btc-archive-v2295'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2277'));
     assert.ok(!read('sw.js').includes('btc-archive-v2276'));
     assert.ok(!read('sw.js').includes('btc-archive-v2268'));
 });

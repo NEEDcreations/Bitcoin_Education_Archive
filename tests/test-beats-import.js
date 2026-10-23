@@ -52,6 +52,7 @@ test('dry-run prints counts only and does not require credentials', function () 
         'feeds_fetched: 0',
         'feeds_failed: 0',
         'needs_review: 1',
+        'hidden_explicit: 0',
         'audit_tracks_listed: 2',
         'audit_grindcore_listed: 0',
         'skipped: 0'
@@ -198,6 +199,65 @@ test('Falz is needsReview without a CLI flag', function () {
     assert.strictEqual(plan.trackWrites[0].after.needsReview, true);
     assert.notStrictEqual(plan.trackWrites[0].after.hidden, true);
     assert.deepStrictEqual(importer.mergeFlagArtists(['falz', 'Other']), ['Falz', 'Other']);
+});
+
+test('explicit titles are hidden and an existing hide is not cleared', function () {
+    const plan = importer.planCatalog({
+        tracks: [
+            {
+                v4vGuid: 'explicit-new',
+                title: 'Digital Gold (Fuck Your Control)',
+                artist: 'Clean Artist',
+                albumTitle: 'Open',
+                source: 'incompetech',
+                license: 'CC BY 4.0',
+                audioUrl: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/x.mp3'
+            },
+            {
+                v4vGuid: 'explicit-kept',
+                title: 'Now Clean',
+                artist: 'Clean Artist',
+                source: 'incompetech',
+                license: 'CC BY 4.0',
+                audioUrl: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/y.mp3'
+            },
+            {
+                v4vGuid: 'clean-new',
+                title: 'Aces High',
+                artist: 'Kevin MacLeod',
+                albumTitle: 'Royalty Free',
+                source: 'incompetech',
+                license: 'CC BY 4.0',
+                audioUrl: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/z.mp3'
+            }
+        ],
+        artists: [],
+        feeds: [],
+        audit: [],
+        existingTracks: [{
+            id: 'already-explicit',
+            v4vGuid: 'explicit-kept',
+            title: 'Old Explicit',
+            artist: 'Clean Artist',
+            hidden: true,
+            hiddenReason: 'explicit',
+            audioUrl: 'https://storage.googleapis.com/b/a.mp3'
+        }],
+        existingArtists: []
+    });
+    const byGuid = {};
+    plan.tracks.forEach(function (row) { if (row.v4vGuid) byGuid[row.v4vGuid] = row; });
+    assert.strictEqual(byGuid['explicit-new'].hidden, true);
+    assert.strictEqual(byGuid['explicit-new'].hiddenReason, 'explicit');
+    assert.strictEqual(byGuid['explicit-new'].needsReview, true);
+    assert.strictEqual(byGuid['explicit-kept'].hidden, true);
+    assert.strictEqual(byGuid['explicit-kept'].hiddenReason, 'explicit');
+    assert.strictEqual(byGuid['explicit-kept'].title, 'Now Clean');
+    assert.notStrictEqual(byGuid['clean-new'].hidden, true);
+    assert.strictEqual(plan.counts.explicit, 2);
+    const kept = plan.trackWrites.filter(function (row) { return row.id === 'already-explicit'; })[0];
+    assert.strictEqual(importer.hiddenFieldCleared(kept.before, kept.after), false);
+    assert.strictEqual(importer.payloadFrom(kept.after, { firestore: { FieldValue: { serverTimestamp: function () { return 'ts'; } } } }, false, kept.before).hiddenReason, 'explicit');
 });
 
 test('a takedown hide survives an import that includes the guid', function () {
