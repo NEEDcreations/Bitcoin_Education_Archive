@@ -385,12 +385,12 @@ queue.push(test('the daily XP cap still grants the badge and Favor', async funct
     const result = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: 1700000000000 });
     assert.strictEqual(result.granted, true);
     assert.strictEqual(result.xp, 0);
-    assert.strictEqual(result.overflowAdded, 10);
+    assert.strictEqual(result.overflowAdded, 0);
     assert.strictEqual(result.capped, true);
     assert.strictEqual(result.capBypass, false);
     assert.strictEqual(result.favor, true);
     assert.strictEqual(db.docs['users/u'].points, 10);
-    assert.strictEqual(db.docs['users/u'].pendingOverflow, 10);
+    assert.strictEqual(db.docs['users/u'].pendingOverflow, undefined);
     assert.strictEqual(db.docs['users/u/daily_points/2026-10-22'].total, 1000);
     assert.ok(db.docs['users/u/badge_awards/say_hi_1']);
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
@@ -740,18 +740,18 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     assert.strictEqual(client.streak_365.xp, 2000);
 }));
 
-queue.push(test('badge XP over the hard cap is held, and the backfill bypasses it', async function () {
+queue.push(test('badge XP over the taper is dropped, and the backfill bypasses it', async function () {
     const { applyDailyXp } = require('../functions/src/applyDailyXp');
     const partial = memoryDb({
         'users/u': { sayHiDays: 30, points: 0 },
         'users/u/daily_points/2026-10-22': { total: 900 },
     });
     const mid = await awardBadge(partial, admin, 'u', 'say_hi_30', { day: '2026-10-22', nowMs: 1700000000000 });
-    assert.strictEqual(mid.xp, 100);
-    assert.strictEqual(mid.overflowAdded, 50);
-    assert.strictEqual(partial.docs['users/u'].points, 100);
-    assert.strictEqual(partial.docs['users/u'].pendingOverflow, 50);
-    assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 1000);
+    assert.strictEqual(mid.xp, 75);
+    assert.strictEqual(mid.overflowAdded, 0);
+    assert.strictEqual(partial.docs['users/u'].points, 75);
+    assert.strictEqual(partial.docs['users/u'].pendingOverflow, undefined);
+    assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 975);
     const bypass = await applyDailyXp('u', 2000, null, { bypass: true });
     assert.strictEqual(bypass.bypass, true);
     assert.strictEqual(bypass.awarded, 2000);

@@ -80,10 +80,12 @@ Hidden-badge XP is no longer paid by the client. Firestore rules deny client wri
 
 Nothing in this deploy writes these, so claims fail closed:
 
-- `questDays` — quest day badges, until server grading
-- `plebTalkSessions`, `onboardingComplete`, `pushToken`
-- `tctvWatchDays` — Timechain TV watch-day badges. The all-five check uses the daily ticket claim, not this counter
-- `giftsSent`
+- `plebTalkSessions` — there is no PlebTalk session writer
+- `replyBonusCount` — the reply-bonus counter is still not incremented on this path
+
+`questDays` is written once per offset day in `gradeQuest`. `tctvWatchDays` increments when `tctvWatchHeartbeat` creates the daily ticket claim. `giftsSent` counts peer keys that were actually used. `onboardingComplete` is set when onboarding finishes. `pushEnabled` is set by `onPushDeviceWritten` after a device token is stored. `pushToken` is not the proof field.
+
+Badge XP and the new per-action XP (peer key use, first accepted peer, counted topic comment) taper after 600 and stop at 1,000. Overflow from that path is dropped. Quest, Timechain TV, reply, and key-send XP still use the 500 cap and may bank overflow.
 
 ## Not revoked
 

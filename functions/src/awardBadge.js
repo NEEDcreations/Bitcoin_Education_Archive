@@ -2,8 +2,8 @@
 
 // One transaction per badge: prove it, write the award, and add one
 // Satoshi's Favor point. A second award of the same id does not add a second point.
-// Badge XP goes through applyDailyXp. The default is a hard 1,000 cap, and
-// the rest is held on pendingOverflow instead of being thrown away.
+// Badge XP goes through applyDailyXp. Full credit until 600, half rate until
+// 1,000, then nothing. Overflow is dropped and is not written to pendingOverflow.
 // A badge the profile already shows gets an award row with 0 XP and no pool point.
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
@@ -143,9 +143,6 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             update.points = adminSdk.firestore.FieldValue.increment(xp);
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
             update.monthlyXP = adminSdk.firestore.FieldValue.increment(xp);
-        }
-        if (xpGrant.overflowAdded > 0) {
-            update.pendingOverflow = adminSdk.firestore.FieldValue.increment(xpGrant.overflowAdded);
         }
         t.set(awardRef, {
             awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),

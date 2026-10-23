@@ -138,6 +138,8 @@ function createChooseFactionHandlers(deps) {
             outcome.moved = moved;
         });
 
+        try { await require('./badgeCredit').grantIds(db, admin, uid, ['faction_chosen']); }
+        catch (e) { console.warn('[chooseFaction] badge', e && e.message); }
         return { success: true, moved: outcome.moved, pointsSynced: outcome.moved };
     }
 

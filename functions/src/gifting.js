@@ -283,6 +283,7 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
     let rewardResult = null;
     let peerSender = null;
     let giftPointsBefore = 0;
+    let shoutoutWon = false;
 
     await db.runTransaction(async (t) => {
         const giftDoc = await t.get(giftRef);
@@ -325,8 +326,13 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
                 nowMs: Date.now(),
             });
             reward = cap.reward;
-            if (cap.awarded) userUpdate.lastShoutoutAt = now;
+            if (cap.awarded) {
+                userUpdate.lastShoutoutAt = now;
+                userUpdate.giftShoutoutWon = true;
+                shoutoutWon = true;
+            }
         }
+        userUpdate.giftsOpened = admin.firestore.FieldValue.increment(1);
 
         if (reward.rewardType === 'tickets') {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount || 1);
@@ -398,9 +404,16 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
     });
 
     if (peerSender) {
-        try { await updatePeerLevelAfterGift(peerSender, uid); }
-        catch (e) { console.warn('[openGift] peerLevel failed:', e.message); }
+        try {
+            const level = await updatePeerLevelAfterGift(peerSender, uid);
+            await require('./badgeCredit').creditPeerLevel(db, admin, peerSender, uid, level);
+        } catch (e) { console.warn('[openGift] peerLevel failed:', e.message); }
     }
+    try {
+        const ids = require('./grantBadge').familyFor('giftsOpened');
+        if (shoutoutWon) ids.push('gift_lucky_shoutout');
+        await require('./badgeCredit').grantIds(db, admin, uid, ids);
+    } catch (e) { console.warn('[openGift] badges', e.message); }
 
     if (rewardResult) {
         const spec = { uid: uid, sourceLabel: 'opening a gift', icon: '🎁', pointsBefore: giftPointsBefore, pointsDelta: 0 };
@@ -526,6 +539,7 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 sentByName: senderName,
                 sentAt: now,
                 ownerId: recipientUid,
+                sendPairId: canonicalRef.id,
             });
         }
 
@@ -660,6 +674,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             ciphersDecryptedDate: today,
             ciphersSolved: admin.firestore.FieldValue.increment(1),
         };
+        if (decToday + 1 >= CIPHER_OPENS_PER_DAY) userUpdate.cipherFullRing = true;
         const now = admin.firestore.FieldValue.serverTimestamp();
         let winId = null;
         let satsStatus = null;
@@ -703,14 +718,27 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         applied = {
             reward: Object.assign({}, reward, { winId: winId, satsStatus: satsStatus }),
             keySentBy: peerKey ? (key.sentBy || null) : null,
+            sendPairId: peerKey ? (key.sendPairId || '') : '',
             opensToday: decToday + 1,
+            fullRing: decToday + 1 >= CIPHER_OPENS_PER_DAY,
             username: safeName(user.username),
         };
     });
 
     if (applied && applied.keySentBy && applied.keySentBy !== uid) {
-        try { await updatePeerLevelAfterGift(applied.keySentBy, uid); }
-        catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
+        try {
+            await require('./badgeCredit').creditPeerKeyUse(db, admin, {
+                openerUid: uid,
+                senderUid: applied.keySentBy,
+                pairId: applied.sendPairId,
+                keyId: keyId,
+                opensToday: applied.opensToday,
+            });
+        } catch (e) { console.warn('[decryptCipher] peer key credit', e.message); }
+        try {
+            const level = await updatePeerLevelAfterGift(applied.keySentBy, uid);
+            await require('./badgeCredit').creditPeerLevel(db, admin, applied.keySentBy, uid, level);
+        } catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
     }
 
     if (applied && applied.reward) {
@@ -746,6 +774,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     try {
         const { grantFamily, familyFor } = require('./grantBadge');
         await grantFamily(db, admin, uid, familyFor('ciphersSolved'));
+        if (applied && applied.fullRing) await grantFamily(db, admin, uid, ['cipher_full_ring']);
     } catch (cipherBadgeErr) {
         console.warn('[decryptCipher] badges', cipherBadgeErr && cipherBadgeErr.message);
     }
@@ -948,6 +977,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
             sourceLabel: 'a cipher win',
             icon: '⚡',
         }));
+        try {
+            await require('./badgeCredit').creditCipherPaid(db, admin, uid, amount, winRef);
+        } catch (e) { console.warn('[claimCipherWin] badge', e.message); }
 
         try {
             await postNacho(nachoSatsText(username, amount), uid);
@@ -1113,6 +1145,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     let winnerUid = '';
     let amount = 0;
     let shouldAnnounce = false;
+    let newlyPaid = false;
 
     await db.runTransaction(async (t) => {
         const winDoc = await t.get(winRef);
@@ -1133,6 +1166,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
             throw httpsError('failed-precondition', 'This win cannot be marked paid');
         }
         shouldAnnounce = true;
+        newlyPaid = true;
         t.update(winRef, {
             status: 'paid',
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1142,6 +1176,10 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
         });
     });
 
+    if (newlyPaid && winnerUid) {
+        try { await require('./badgeCredit').creditCipherPaid(db, admin, winnerUid, amount, winRef); }
+        catch (e) { console.warn('[adminMarkCipherWinPaid] badge', e.message); }
+    }
     if (shouldAnnounce) {
         try { await postNacho(nachoSatsText(username, amount), winnerUid); }
         catch (e) {

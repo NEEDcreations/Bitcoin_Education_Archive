@@ -216,7 +216,10 @@ function registerOnboarding(deps) {
             };
             applyPointFields(update, admin, grant);
             if (again.tickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(again.tickets);
-            if (complete) update.nachoQuestDone = true;
+            if (complete) {
+                update.nachoQuestDone = true;
+                update.onboardingComplete = true;
+            }
             tx.update(userRef, update);
             writeDailyPoints(tx, admin, dailyRef, dailyUsed, grant);
             return {
@@ -228,6 +231,10 @@ function registerOnboarding(deps) {
                 complete: complete,
             };
         });
+        if (written.complete) {
+            try { await require('./badgeCredit').grantIds(db, admin, uid, ['onboarding_complete']); }
+            catch (e) { console.warn('[onboarding] badge', e && e.message); }
+        }
         const totals = quest.catalogTotals(written.mode || snap.mode);
         return {
             ok: !!written.ok,

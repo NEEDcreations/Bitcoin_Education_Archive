@@ -466,6 +466,16 @@ function createTopicDiscussion(deps) {
                 replyCount: 0,
             };
             tx.set(postRef, post);
+            if (String(prepared.text || '').trim().length >= 20) {
+                tx.set(db.collection('topic_comment_pending').doc(channelId + '_' + postRef.id), {
+                    open: true,
+                    uid: who.uid,
+                    channelId: channelId,
+                    postId: postRef.id,
+                    createdAtMs: nowMs,
+                    dayKey: offsetDateKey(nowMs),
+                });
+            }
             if (parentRef) {
                 const replyCount = Number(parent.replyCount) || 0;
                 tx.set(parentRef, { replyCount: replyCount + 1 }, { merge: true });
@@ -582,11 +592,15 @@ function createTopicDiscussion(deps) {
         if (!channelMeta(channelId, channels) || !postId || !action) fail('invalid-argument', 'That moderation action is not valid.');
         const postRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(postId);
         const privateRef = db.collection('topic_discussion_private').doc(channelId + '~' + postId);
+        let counted = null;
         await db.runTransaction(async function(tx) {
             const postSnap = await tx.get(postRef);
             const privateSnap = await tx.get(privateRef);
             if (!postSnap.exists) fail('not-found', 'That comment is no longer there.');
             const post = postSnap.data() || {};
+            if ((action === 'hide' || action === 'delete') && post.badgeCounted === true && post.badgeRevoked !== true) {
+                counted = { badgeCounted: true, channelId: post.channelId || channelId, uid: post.uid || '' };
+            }
             if (action === 'hide') {
                 if (post.text) {
                     tx.set(privateRef, {
@@ -597,16 +611,20 @@ function createTopicDiscussion(deps) {
                         hiddenAtMs: nowFn(),
                     });
                 }
-                tx.set(postRef, { hidden: true, text: '', deleted: false }, { merge: true });
+                tx.set(postRef, { hidden: true, text: '', deleted: false, badgeRevoked: counted ? true : post.badgeRevoked === true }, { merge: true });
             } else if (action === 'unhide') {
                 const saved = privateSnap.exists ? (privateSnap.data() || {}) : {};
                 tx.set(postRef, { hidden: false, text: saved.text || post.text || '' }, { merge: true });
                 tx.delete(privateRef);
             } else {
-                tx.set(postRef, { deleted: true, hidden: false, text: '' }, { merge: true });
+                tx.set(postRef, { deleted: true, hidden: false, text: '', badgeRevoked: counted ? true : post.badgeRevoked === true }, { merge: true });
                 tx.delete(privateRef);
             }
         });
+        if (counted) {
+            try { await require('./badgeCredit').revokeTopicCredit(db, admin, counted); }
+            catch (e) { console.warn('[topicDiscussion] revoke', e.message); }
+        }
         return { ok: true };
     }
 
@@ -618,14 +636,22 @@ function createTopicDiscussion(deps) {
         if (!channelMeta(channelId, channels) || !postId) fail('invalid-argument', 'That comment could not be deleted.');
         const postRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(postId);
         const privateRef = db.collection('topic_discussion_private').doc(channelId + '~' + postId);
+        let counted = null;
         await db.runTransaction(async function(tx) {
             const postSnap = await tx.get(postRef);
             if (!postSnap.exists) fail('not-found', 'That comment is no longer there.');
             const post = postSnap.data() || {};
             if (post.uid !== who.uid || post.isNacho === true) fail('permission-denied', 'You can only delete your own comment.');
-            tx.set(postRef, { deleted: true, text: '', hidden: false }, { merge: true });
+            if (post.badgeCounted === true && post.badgeRevoked !== true) {
+                counted = { badgeCounted: true, channelId: post.channelId || channelId, uid: post.uid || '' };
+            }
+            tx.set(postRef, { deleted: true, text: '', hidden: false, badgeRevoked: !!counted || post.badgeRevoked === true }, { merge: true });
             tx.delete(privateRef);
         });
+        if (counted) {
+            try { await require('./badgeCredit').revokeTopicCredit(db, admin, counted); }
+            catch (e) { console.warn('[topicDiscussion] revoke', e.message); }
+        }
         return { ok: true };
     }
 
