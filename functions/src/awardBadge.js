@@ -100,9 +100,15 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (awardsSnap && typeof awardsSnap.forEach === 'function') {
             awardsSnap.forEach(function (doc) { awardSet.add(doc.id); });
         }
+        let scholarExamPassed = false;
+        if (!verified && rule.source && rule.source.type === 'scholarExam') {
+            const examType = rule.source.examType || 'properties';
+            const priorSnap = await t.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+            scholarExamPassed = !!require('./scholarExam').passedExam(priorSnap, examType, null);
+        }
         const payingCount = badgeRules.countPaying(awardSet);
         const signedIn = options.signedIn !== false;
-        if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn })) {
+        if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, scholarExamPassed: scholarExamPassed })) {
             return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
 

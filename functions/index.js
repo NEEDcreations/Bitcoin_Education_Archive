@@ -4521,17 +4521,37 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const keyPrefix = type === 'technical' ? 'tech' : 'prop';
         const today = new Date().toISOString().split('T')[0];
 
-        // Read user doc to enforce once-per-day + once-per-cert rules
+        // Read user doc for the daily cooldown. The pass guard is a
+        // scholar_exam_keys row. The client cannot write or delete those.
+        // gradeScholarExam is the only writer of certPassed_*, certPassedAt_*,
+        // and lastExamAttempt_*.
         const userRef = db.collection('users').doc(uid);
         const userDoc = await tx.get(userRef);
         const userData = userDoc.exists ? userDoc.data() : {};
-        const alreadyPassed = userData['certPassed_' + keyPrefix] === true;
+        const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+        const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, examId);
         const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
 
-        // Block double-dipping: once passed, no more points for this cert type
+        // A passed exam record means no more XP for this cert type, even if
+        // the profile flags were cleared.
         if (alreadyPassed) {
-            tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'already_certified', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-            throw new functionsV1.https.HttpsError('failed-precondition', 'You already hold this certification.');
+            tx.update(examRef, {
+                graded: true,
+                score: 0,
+                passed: false,
+                blocked: 'already_certified',
+                gradedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            if (userDoc.exists) {
+                const repair = {};
+                repair['lastExamAttempt_' + keyPrefix] = today;
+                repair['certPassed_' + keyPrefix] = true;
+                if (!userData['certPassedAt_' + keyPrefix]) {
+                    repair['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
+                }
+                tx.update(userRef, repair);
+            }
+            return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified' };
         }
         // Block rapid retakes same day (daily cooldown)
         if (lastAttempt === today) {
@@ -4595,7 +4615,14 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         try { await grantFamily(db, admin, uid, ['scholar']); }
         catch (scholarBadgeErr) { console.warn('[SCHOLAR] badge', scholarBadgeErr && scholarBadgeErr.message); }
     }
-    return { success: true, score: result.score, passed: result.passed, type: result.type, pointsAwarded: result.pointsAwarded || 0 };
+    return {
+        success: true,
+        score: result.score,
+        passed: result.passed,
+        type: result.type,
+        pointsAwarded: result.pointsAwarded || 0,
+        blocked: result.blocked || null
+    };
 });
 
 // ── Quest: Server-Side Grading ──
@@ -4811,22 +4838,19 @@ exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
     if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
     const userData = userDoc.data();
 
-    // Verify passing status from server-authoritative fields only
-    // Note: These fields are updated via Admin SDK in grading functions
+    // Scholar and protocol certificates require a passed scholar_exam_keys row.
+    // Profile flags are not proof. Trail certificates still use trails_passed.
     let passed = false;
     let title = 'Bitcoiner';
     let score = null;
 
-    if (type === 'scholar') {
-        // gradeScholarExam writes certPassed_prop; support legacy scholar_exam_passed too
-        passed = userData.certPassed_prop === true || userData.scholar_exam_passed === true;
-        title = 'Bitcoin Scholar';
-        score = userData.scholar_exam_score || 'Passed';
-    } else if (type === 'technical') {
-        // gradeScholarExam writes certPassed_tech; support legacy scholar_tech_passed too
-        passed = userData.certPassed_tech === true || userData.scholar_tech_passed === true;
-        title = 'Bitcoin Protocol Expert';
-        score = userData.scholar_tech_score || 'Passed';
+    if (type === 'scholar' || type === 'technical') {
+        const examType = type === 'technical' ? 'technical' : 'properties';
+        const prior = await db.collection('scholar_exam_keys').where('uid', '==', uid).get();
+        const examRow = require('./src/scholarExam').passedExam(prior, examType, null);
+        passed = !!examRow;
+        title = type === 'technical' ? 'Bitcoin Protocol Expert' : 'Bitcoin Scholar';
+        score = examRow && examRow.score != null ? examRow.score : (passed ? 'Passed' : null);
     } else if (type.startsWith('trail_')) {
         // Find the specific trail in the list of passed trails
         const passedTrails = userData.trails_passed || [];

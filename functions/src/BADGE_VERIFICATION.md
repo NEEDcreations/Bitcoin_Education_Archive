@@ -36,7 +36,7 @@ These counters are incremented only by Cloud Functions that already checked the 
 - `orangeTickets` — ticket grants inside `awardPoints` and `dailySpin`. `ticket_bronze`, `ticket_silver`, and `ticket_gold` read it
 - `streakFreezesUsed` — `recordDailyVisit` when a freeze covers a missed day
 - `ghost_reader` — server `streak >= 7` and `points === 0`
-- `genesis` — `visitedChannelsList` contains `whitepaper`. `first_post`, `first_reply`, `market_seller`, `market_buyer`, `scholar` (`certPassed_prop` or `scholar_exam_passed`), and `hash_obsessed` (`sfHashes >= 25000`) read the same counters as their public twins
+- `genesis` — `visitedChannelsList` contains `whitepaper`. `first_post`, `first_reply`, `market_seller`, `market_buyer`, and `hash_obsessed` (`sfHashes >= 25000`) read the same counters as their public twins. `scholar` is a `scholar_exam_keys` doc for that account with `type: properties` and `passed: true`. Profile flags such as `certPassed_prop` and `scholar_exam_passed` are not the proof
 - Milestone and set badges — count of non-cosmetic `badge_awards`. A set now requires any member that has a server source, including tip, trivia, and quest members
 
 `replyBonusCount` is incremented inside `claimReplyBonus` after that function's own checks (PR #46 is on this base).
