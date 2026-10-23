@@ -374,7 +374,8 @@ queue.push(test('server and chat announcements are always censored', function() 
     const beats = read('beats.js');
     const notes = read('patch-notes.html');
     assert.ok(functions.includes("if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');"));
-    assert.ok(functions.includes('const { beatsCensor } = require(\'../beats-censor.js\');'));
+    assert.ok(functions.includes('const { beatsCensor } = require(\'./src/beats-censor.js\');'));
+    assert.ok(!functions.includes('require(\'../beats-censor.js\')'));
     assert.strictEqual((functions.match(/if \(t\.hidden === true\) return;/g) || []).length, 2);
     assert.ok(functions.includes('const publicTitle = beatsCensor(track.title || \'Untitled\');'));
     assert.ok(functions.includes('const publicArtist = beatsCensor(track.artist || track.authorName || \'Unknown\');'));
@@ -412,6 +413,13 @@ queue.push(test('server and chat announcements are always censored', function() 
     assert.ok(announcement.includes('F**k Your Control'));
     assert.ok(announcement.includes('S**t Artist'));
     assert.ok(!announcement.includes('Fuck'));
+}));
+
+queue.push(test('client and functions beats-censor copies are identical', function() {
+    assert.strictEqual(read('beats-censor.js'), read('functions/src/beats-censor.js'));
+    const deployed = require('../functions/src/beats-censor.js');
+    assert.strictEqual(typeof deployed.beatsCensor, 'function');
+    assert.strictEqual(deployed.beatsCensor('Fuck', true), beatsCensor('Fuck', true));
 }));
 
 queue.reduce(function(chain, next) {
