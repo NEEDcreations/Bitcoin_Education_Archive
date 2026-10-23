@@ -115,6 +115,13 @@ queue.push(test('market, hash, and peer rules read server counters', function ()
     assert.strictEqual(badgeRules.meets(hashes, { totalHashes: 100000 }, {}), false);
     assert.strictEqual(badgeRules.ruleFor('peer_1').xp, 25);
     assert.strictEqual(badgeRules.ruleFor('say_hi_1').xp, 15);
+    const scholar = badgeRules.ruleFor('scholar');
+    assert.strictEqual(scholar.source.type, 'scholarExam');
+    assert.strictEqual(scholar.source.examType, 'properties');
+    assert.strictEqual(badgeRules.meets(scholar, { certPassed_prop: true, scholar_exam_passed: true }, {}), false);
+    assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamPassed: true }), true);
+    assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamsPassed: { properties: true } }), true);
+    assert.strictEqual(badgeRules.meets(scholar, {}, { scholarExamsPassed: { technical: true } }), false);
     assert.strictEqual(badgeRules.ruleFor('daily_five_1').xp, 50);
     assert.strictEqual(badgeRules.ruleFor('set_daily_five').source.type, 'set');
 }));
@@ -264,7 +271,7 @@ queue.push(test('user updates deny server fields and poll votes are server-only'
     const fnAt = rules.indexOf('function userProfileServerOnlyKeys()');
     assert.ok(fnAt > 0);
     const fn = rules.slice(fnAt, rules.indexOf('match /users/{userId}'));
-    ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak', 'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay', 'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare', 'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived', 'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed'].forEach(function (field) {
+    ['points', 'visibleBadges', 'hiddenBadges', 'marketListings', 'dailyTripleCount', 'badgeCounters', 'sayHiArmedDay', 'replyBonusCount', 'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak', 'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay', 'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare', 'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived', 'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed', 'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech', 'lastExamAttempt_prop', 'lastExamAttempt_tech', 'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score'].forEach(function (field) {
         assert.ok(fn.includes("'" + field + "'"), field + ' must stay server-only');
     });
     ['lqProgress', 'trailProgress', 'earnedTitles', 'nachoStoryProgress', 'spinCount', 'completedQuests', 'notificationPrefs', 'beatsShowUncensored', 'bio'].forEach(function (field) {
@@ -632,6 +639,58 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.ok(!award.includes("source: 'combo_bonus'"));
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     assert.ok(quests.includes('triviaChoice: chosenIdx'));
+}));
+
+queue.push(test('the scholar badge and the client read the exam record, not a profile flag', function () {
+    const root = path.join(__dirname, '..');
+    const scholarJs = fs.readFileSync(path.join(root, 'scholar.js'), 'utf8');
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const grade = index.slice(index.indexOf('exports.gradeScholarExam'), index.indexOf('exports.startQuest'));
+    const issue = index.slice(index.indexOf('exports.issueCertificate'), index.indexOf('exports.onChatMessageCreated'));
+    assert.ok(scholarJs.includes('certPassed_prop === true'));
+    assert.ok(scholarJs.includes('A local score is not a pass'));
+    assert.ok(!scholarJs.includes("localStorage.setItem('btc_scholar_' + keyPrefix + '_passed'"));
+    assert.ok(!scholarJs.includes('falling back'));
+    assert.ok(!scholarJs.includes("collection('users')"));
+    assert.ok(ranking.includes('currentUser.certPassed_prop === true'));
+    assert.ok(ranking.includes('currentUser.certPassed_tech === true'));
+    assert.ok(!ranking.includes('btc_scholar_prop_passed'));
+    assert.ok(!ranking.includes('btc_scholar_tech_passed'));
+    assert.ok(grade.includes(".where('uid', '==', uid)"));
+    assert.ok(grade.includes('passedExam'));
+    assert.ok(grade.includes('pointsAwarded: 0'));
+    assert.ok(!grade.includes('scholar_exam_passed'));
+    assert.ok(issue.includes('passedExam'));
+    const helper = fs.readFileSync(path.join(root, 'functions', 'src', 'scholarExam.js'), 'utf8');
+    assert.ok(helper.includes('row.passed === true'));
+    assert.ok(helper.includes('exceptId'));
+    const scholarExam = require('../functions/src/scholarExam');
+    const onlyCurrent = {
+        forEach: function (fn) {
+            fn({ id: 'current', data: function () { return { type: 'properties', passed: true }; } });
+        },
+    };
+    assert.strictEqual(scholarExam.passedExam(onlyCurrent, 'properties', 'current'), null);
+    const prior = {
+        forEach: function (fn) {
+            fn({ id: 'current', data: function () { return { type: 'properties', passed: false }; } });
+            fn({ id: 'old', data: function () { return { type: 'properties', passed: true, score: 22 }; } });
+            fn({ id: 'tech', data: function () { return { type: 'technical', passed: true }; } });
+        },
+    };
+    assert.strictEqual(scholarExam.passedExam(prior, 'properties', 'current').score, 22);
+    assert.strictEqual(scholarExam.passedExam(prior, 'technical', 'current').passed, true);
+    assert.ok(!issue.includes('scholar_exam_passed'));
+    assert.ok(!issue.includes('scholar_tech_passed'));
+    assert.ok(!issue.includes('scholar_tech_score'));
+    const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
+    assert.ok(privacy.includes('scholar_exam_keys'));
+    const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
+    assert.ok(terms.includes('A profile flag is not enough'));
+    const held = heldThatFail({ certPassed_prop: true, scholar_exam_passed: true }, ['scholar']);
+    assert.deepStrictEqual(held, ['scholar']);
+    assert.deepStrictEqual(heldThatFail({}, ['scholar'], { scholarExamPassed: true }), []);
 }));
 
 queue.push(test('the dry-run helper counts failing badges without printing people', function () {

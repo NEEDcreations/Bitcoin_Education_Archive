@@ -55,6 +55,15 @@ const parts = emu.split(':');
                 points: 10,
                 visibleBadges: ['peer_1'],
                 pendingLeaderboardReward: { xp: 5 },
+                certPassed_prop: true,
+                certPassed_tech: true,
+                certPassedAt_prop: '2026-10-01',
+                certPassedAt_tech: '2026-10-01',
+                lastExamAttempt_prop: '2026-10-22',
+                lastExamAttempt_tech: '2026-10-22',
+                scholar_exam_passed: true,
+                scholar_tech_passed: true,
+                scholar_tech_score: 25,
             });
         });
         const ref = doc(user, 'users', 'user1');
@@ -116,6 +125,20 @@ const parts = emu.split(':');
         await expect('ATTACK triviaStreak', function () { return updateDoc(ref, { triviaStreak: 30 }); }, false);
         await expect('ATTACK sayHiArmedDay', function () { return updateDoc(ref, { sayHiArmedDay: '2026-10-22' }); }, false);
         await expect('ATTACK replyBonusCount', function () { return updateDoc(ref, { replyBonusCount: 10 }); }, false);
+        const examFields = [
+            'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
+            'lastExamAttempt_prop', 'lastExamAttempt_tech',
+            'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
+        ];
+        for (let i = 0; i < examFields.length; i++) {
+            const field = examFields[i];
+            const attack = {};
+            attack[field] = field === 'scholar_tech_score' ? 21 : (field.indexOf('At_') !== -1 || field.indexOf('Attempt_') !== -1 ? '2026-10-23' : false);
+            await expect('ATTACK set ' + field, function () { return updateDoc(ref, attack); }, false);
+            const clear = {};
+            clear[field] = deleteField();
+            await expect('ATTACK clear ' + field, function () { return updateDoc(ref, clear); }, false);
+        }
         await expect('delete a pending leaderboard reward', function () {
             return updateDoc(ref, { pendingLeaderboardReward: deleteField() });
         }, true);

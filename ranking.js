@@ -1967,9 +1967,7 @@ async function loadUser(uid, prefetchedDoc) {
                 var mergedItems = [...new Set([...existingItems, ...currentUser.spinClosetItems])];
                 localStorage.setItem('btc_spin_closet_items', JSON.stringify(mergedItems));
             }
-            if (currentUser.scholarPassed) {
-                localStorage.setItem('btc_scholar_passed', 'true');
-            }
+            if (typeof window.refreshScholarFromProfile === 'function') window.refreshScholarFromProfile(currentUser);
             // Restore milestone/celebration state from Firestore (prevents re-triggering)
             if (currentUser.nachoMilestones) {
                 localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(currentUser.nachoMilestones));
@@ -2059,7 +2057,6 @@ async function loadUser(uid, prefetchedDoc) {
                 _syncFlag('btc_spin_hit_rare',        'spinHitRare',        'true');
                 _syncFlag('btc_lightning_setup',      'lightningSetup',     'true');
                 _syncFlag('btc_fp_completed',         'fpCompleted',        'true');
-                _syncFlag('btc_scholar_tech_passed',  'scholarTechPassed',  'true');
                 _syncFlag('btc_nacho_eli5',           'nachoEli5',          'true');
                 _syncFlag('btc_nacho_story_awarded',  'nachoStoryAwarded',  'true');
 
@@ -5504,8 +5501,8 @@ function showSettingsPage(tab) {
             '<button onclick="hideUsernamePrompt(); startQuestManual();" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">⚡ Start a Quest</button>' +
             '</div>';
 
-        // Scholar Certification - Properties
-        var propPassed = localStorage.getItem('btc_scholar_prop_passed') === 'true';
+        // Scholar Certification - Properties. Pass flags are server-owned.
+        var propPassed = !!(currentUser && currentUser.certPassed_prop === true);
         html += '<div style="background:linear-gradient(135deg, rgba(247,147,26,0.1), rgba(247,147,26,0.02));border:1px solid '+(propPassed ? '#22c55e' : 'var(--accent)')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(propPassed ? '✅' : '📜')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Scholar Certification</div>' +
@@ -5514,7 +5511,7 @@ function showSettingsPage(tab) {
             '</div>';
 
         // Scholar Certification - Technical
-        var techPassed = localStorage.getItem('btc_scholar_tech_passed') === 'true';
+        var techPassed = !!(currentUser && currentUser.certPassed_tech === true);
         html += '<div style="background:linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.02));border:1px solid '+(techPassed ? '#22c55e' : '#3b82f6')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(techPassed ? '✅' : '🛠️')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Protocol Expert</div>' +

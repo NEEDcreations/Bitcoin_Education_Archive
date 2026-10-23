@@ -98,13 +98,19 @@ async function refreshBadgeDistribution(db, adminSdk, opts) {
     return { totalUsers: totalUsers, activeUsers30d: activeUsers30d, badgeCount: Object.keys(counts).length };
 }
 
-function heldThatFail(user, awardIds) {
+function heldThatFail(user, awardIds, ctx) {
     const failed = [];
+    const extra = ctx || {};
     (awardIds || []).forEach(function (id) {
         const rule = badgeRules.ruleFor(id);
         if (!rule || rule.cosmetic) return;
         const set = new Set(awardIds);
-        if (!badgeRules.meets(rule, user || {}, { awardSet: set, payingCount: badgeRules.countPaying(set), signedIn: true })) {
+        const bag = Object.assign({
+            awardSet: set,
+            payingCount: badgeRules.countPaying(set),
+            signedIn: true,
+        }, extra);
+        if (!badgeRules.meets(rule, user || {}, bag)) {
             failed.push(id);
         }
     });

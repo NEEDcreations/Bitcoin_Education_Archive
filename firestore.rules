@@ -117,7 +117,10 @@ service cloud.firestore {
         'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay',
         'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',
         'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived',
-        'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed'
+        'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed',
+        'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
+        'lastExamAttempt_prop', 'lastExamAttempt_tech',
+        'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score'
       ];
     }
 

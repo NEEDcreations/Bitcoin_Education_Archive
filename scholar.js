@@ -3806,15 +3806,41 @@ const SCHOLAR_TECHNICAL_POOL = [
 // Scholar state
 
 // Scholar state
-let scholarType = 'properties'; 
-let scholarAttemptDate = { 
-    properties: localStorage.getItem('btc_scholar_prop_attempt_date') || '', 
-    technical: localStorage.getItem('btc_scholar_tech_attempt_date') || '' 
-};
-let scholarPassed = { 
-    properties: localStorage.getItem('btc_scholar_prop_passed') === 'true', 
-    technical: localStorage.getItem('btc_scholar_tech_passed') === 'true' 
-};
+let scholarType = 'properties';
+let scholarAttemptDate = { properties: '', technical: '' };
+let scholarPassed = { properties: false, technical: false };
+
+// Pass and attempt state come from the signed-in profile. gradeScholarExam
+// is the only writer of certPassed_* and lastExamAttempt_*. This file does
+// not write those fields.
+function scholarServerProfile(profile) {
+    if (profile && typeof profile === 'object') return profile;
+    if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) return currentUser;
+    return null;
+}
+
+function applyScholarProfile(profile) {
+    var u = scholarServerProfile(profile);
+    if (!u) {
+        scholarPassed.properties = false;
+        scholarPassed.technical = false;
+        scholarAttemptDate.properties = '';
+        scholarAttemptDate.technical = '';
+        return;
+    }
+    scholarPassed.properties = u.certPassed_prop === true;
+    scholarPassed.technical = u.certPassed_tech === true;
+    scholarAttemptDate.properties = typeof u.lastExamAttempt_prop === 'string' ? u.lastExamAttempt_prop : '';
+    scholarAttemptDate.technical = typeof u.lastExamAttempt_tech === 'string' ? u.lastExamAttempt_tech : '';
+}
+
+function scholarLocalAttempt(type) {
+    var key = type === 'technical' ? 'btc_scholar_tech_attempt_date' : 'btc_scholar_prop_attempt_date';
+    try { return localStorage.getItem(key) || ''; } catch (e) { return ''; }
+}
+
+window.refreshScholarFromProfile = applyScholarProfile;
+applyScholarProfile();
 let scholarTimer = null;
 let scholarTimeLeft = 600; 
 let scholarAnswers = [];
@@ -3830,14 +3856,16 @@ function startScholarQuest(type) {
         return;
     }
 
+    applyScholarProfile();
     if (scholarPassed[scholarType]) {
         showScholarCertificate(scholarType);
         return;
     }
 
-    // Anti-cheat check
+    // Anti-cheat check. The server date is authoritative. A local date only
+    // covers an exit that has not been graded yet.
     const today = new Date().toISOString().split('T')[0];
-    if (scholarAttemptDate[scholarType] === today) {
+    if (scholarAttemptDate[scholarType] === today || scholarLocalAttempt(scholarType) === today) {
         // Check if there is an active session we can resume
         const saved = sessionStorage.getItem('btc_scholar_session_' + keyPrefix);
         if (saved) {
@@ -4125,56 +4153,64 @@ async function submitScholarQuest() {
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
     sessionStorage.removeItem('btc_scholar_session_' + keyPrefix);
 
-    // Grade server-side if exam was registered
+    // The server grades the exam. A local score is not a pass.
     let score = 0;
     let passed = false;
+    let blocked = null;
     const today = new Date().toISOString().split('T')[0];
-
-    if (window._scholarExamId && typeof firebase !== 'undefined' && firebase.functions) {
-        try {
-            const gradeResult = await firebase.functions().httpsCallable('gradeScholarExam')({
-                examId: window._scholarExamId,
-                answers: scholarAnswers
-            });
-            score = gradeResult.data.score;
-            passed = gradeResult.data.passed;
-        } catch(e) {
-            console.error('Server grading failed, falling back:', e);
-            // Fallback to client grading if server fails
-            scholarQuestions.forEach((q, i) => { if (scholarAnswers[i] === q.a) score++; });
-            passed = score >= 20;
-        }
-    } else {
-        // Fallback for offline/unsigned
-        scholarQuestions.forEach((q, i) => { if (scholarAnswers[i] === q.a) score++; });
-        passed = score >= 20;
-    }
-
-    localStorage.setItem('btc_scholar_' + keyPrefix + '_attempt_date', today);
-    scholarAttemptDate[scholarType] = today;
-
-    if (passed) {
-        localStorage.setItem('btc_scholar_' + keyPrefix + '_passed', 'true');
-        scholarPassed[scholarType] = true;
-        
-        // Points already awarded server-side by gradeScholarExam (2100 XP)
-        // Notify the XP panel manually since gradeScholarExam bypasses awardPoints()
-        if (typeof notifySelfPoints === 'function') {
-            notifySelfPoints(2100, (scholarType === 'technical' ? '🛠️ Protocol Expert' : '🎓 Bitcoin Scholar') + ' Certification Passed!');
-        }
-        // Badge still awarded client-side via checkBadges() — cert_scholar/cert_tech are
-        // in BADGE_DEFS and will fire on next checkBadges() cycle now that localStorage is set.
-        // awardHiddenBadge is intentionally NOT called here — it goes to hiddenBadges, not
-        // the main badge flow. checkBadges() handles SF + GG chat announce automatically.
-    }
-
     const inner = document.getElementById('questInner');
+
+    if (!window._scholarExamId || typeof firebase === 'undefined' || !firebase.functions) {
+        inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;">Exam system unavailable. Please refresh and try again.</div>';
+        return;
+    }
+
+    let gradeResult;
+    try {
+        gradeResult = await firebase.functions().httpsCallable('gradeScholarExam')({
+            examId: window._scholarExamId,
+            answers: scholarAnswers
+        });
+    } catch (e) {
+        console.error('Server grading failed:', e);
+        var failMsg = (e && e.message) ? e.message : 'Grading failed. Please try again.';
+        inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;">⚠️ ' + failMsg + '</div>';
+        return;
+    }
+
+    score = gradeResult.data.score;
+    passed = gradeResult.data.passed === true;
+    blocked = gradeResult.data.blocked || null;
+    var pointsAwarded = gradeResult.data.pointsAwarded || 0;
+
+    try { localStorage.setItem('btc_scholar_' + keyPrefix + '_attempt_date', today); } catch (e) {}
+    if (typeof currentUser === 'object' && currentUser) {
+        currentUser['lastExamAttempt_' + keyPrefix] = today;
+        if (passed || blocked === 'already_certified') currentUser['certPassed_' + keyPrefix] = true;
+        applyScholarProfile(currentUser);
+    } else {
+        scholarAttemptDate[scholarType] = today;
+    }
+
+    if (passed && pointsAwarded > 0 && typeof notifySelfPoints === 'function') {
+        notifySelfPoints(pointsAwarded, (scholarType === 'technical' ? '🛠️ Protocol Expert' : '🎓 Bitcoin Scholar') + ' Certification Passed!');
+    }
+
+    var headline = passed ? 'Congratulations!' : (blocked === 'already_certified' ? 'Already certified' : 'Not quite there yet');
+    var detail = passed
+        ? ("You've earned the " + (scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar') + " certification and 2,100 XP!")
+        : (blocked === 'already_certified'
+            ? 'You already hold this certification. No extra XP was awarded.'
+            : 'You needed 20 correct picks to pass. This quest is now locked for the day. Come back tomorrow for a fresh set of 25 questions!');
+    var nextBtn = (passed || blocked === 'already_certified')
+        ? "showScholarCertificate('" + scholarType + "')"
+        : "showSettingsPage('scholar')";
     inner.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
         '<div style="font-size:4rem;margin-bottom:20px;">' + (passed ? '🎉' : '📝') + '</div>' +
-        '<h2 style="color:var(--heading);">' + (passed ? 'Congratulations!' : 'Not quite there yet') + '</h2>' +
+        '<h2 style="color:var(--heading);">' + headline + '</h2>' +
         '<div style="font-size:1.5rem;font-weight:800;color:' + (passed ? '#22c55e' : '#ef4444') + ';margin:15px 0;">' + score + ' / 25 Correct</div>' +
-        '<p style="color:var(--text-muted);margin-bottom:30px;">' + (passed ? "You've earned the " + (scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar') + " certification and 2,100 XP!" : 'You needed 20 correct picks to pass. This quest is now locked for the day. Come back tomorrow for a fresh set of 25 questions!') + '</p>' +
-        '<button onclick="closeQuest(); ' + (passed ? "showScholarCertificate('" + scholarType + "')" : "showSettingsPage('scholar')") + '" style="padding:14px 40px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:bold;cursor:pointer;">' + (passed ? 'View Certificate' : 'Continue Learning') + '</button>' +
+        '<p style="color:var(--text-muted);margin-bottom:30px;">' + detail + '</p>' +
+        '<button onclick="closeQuest(); ' + nextBtn + '" style="padding:14px 40px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:bold;cursor:pointer;">' + ((passed || blocked === 'already_certified') ? 'View Certificate' : 'Continue Learning') + '</button>' +
     '</div>';
 }
 

@@ -67,6 +67,7 @@ const TESTS = [
     { name: 'Two-factor auth', file: 'test-totp.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
+    { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
 ];
 
 let allPassed = true;
