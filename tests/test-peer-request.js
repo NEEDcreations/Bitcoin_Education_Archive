@@ -382,7 +382,7 @@ queue.push(test('More quests opens Nook/Inv from the Today card', function() {
     const buttons = html.match(/<button[^>]*id="todayNookBtn"[^>]*>[\s\S]*?<\/button>/g) || [];
     assert.strictEqual(buttons.length, 1);
     assert.ok(buttons[0].includes('aria-label="Nook / Inventory"'));
-    assert.ok(buttons[0].includes('Nook/Inv'));
+    assert.ok(buttons[0].includes('>Nook/Inventory</span>'));
     assert.ok(html.includes('id="todayCard"'));
     assert.ok(html.includes('id="todayFavorStrip"'));
     assert.ok(html.includes('>Earn Favor</button>'));
