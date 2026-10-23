@@ -343,7 +343,10 @@ async function confirmTipSent(data, context) {
         }
         const boost = doubleXp.boostPoints(call.awardXp, user, now);
         const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-        const split = splitDailyXp(dailyUsed, boost.points);
+        const senderLedger = senderLedgerDoc && senderLedgerDoc.exists ? (senderLedgerDoc.data() || {}) : {};
+        const split = rewardBlocked(user, senderLedger)
+            ? { awarded: 0, overflowAdded: 0, capped: false }
+            : splitDailyXp(dailyUsed, boost.points);
         const userUpdate = { tipConfirmedDate: today };
         if (call.challengeCompleted) userUpdate.tipChallengeDate = today;
         if (split.awarded > 0) {
@@ -354,10 +357,6 @@ async function confirmTipSent(data, context) {
                 total: dailyUsed + split.awarded,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-        }
-        if (split.overflowAdded > 0) {
-            userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(split.overflowAdded);
-            userUpdate.lastOverflowDate = capDay;
         }
         let tipsCounted = false;
         let countedSats = 0;

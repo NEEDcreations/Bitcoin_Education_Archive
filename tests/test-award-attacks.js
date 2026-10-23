@@ -126,25 +126,28 @@ test('cap overflow is dropped and not banked', function () {
     assert.strictEqual(later.awarded, 5);
 });
 
-test('trivia and quiz share a 500 xp ceiling', function () {
+test('trivia and chat share the one daily counter', function () {
     const mem = fresh();
-    mem.daily.u = { total: 100, triviaQuiz: 490 };
+    mem.daily.u = { total: 990 };
     const quiz = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
-    assert.strictEqual(quiz.awarded, 10);
-    assert.strictEqual(mem.daily.u.triviaQuiz, 500);
-    const more = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
-    assert.strictEqual(more.awarded, 0);
+    assert.strictEqual(quiz.awarded, 5);
+    assert.strictEqual(mem.daily.u.total, 995);
     const chat = grant(mem, { action: '💬 Global Chat', pts: 5 });
-    assert.strictEqual(chat.awarded, 5);
+    assert.strictEqual(chat.awarded, 2);
+    assert.strictEqual(mem.daily.u.total, 997);
+    const more = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
+    assert.strictEqual(more.awarded, 3);
+    assert.strictEqual(mem.daily.u.total, 1000);
 });
 
-test('gradeQuest planner drops overflow inside the shared 500 cap', function () {
+test('planGrant tapers on the shared counter and drops the rest', function () {
     const under = awardActions.planGrant({
-        xp: 100, dailyUsed: 450, triviaQuizUsed: 450, triviaQuiz: true, dailyCap: 500, triviaCap: 500,
+        xp: 100, dailyUsed: 590, triviaQuiz: true, dailyCap: 500, triviaCap: 500,
     });
-    assert.strictEqual(under.awarded, 50);
-    assert.strictEqual(under.dropped, 50);
+    assert.strictEqual(under.awarded, 55);
+    assert.strictEqual(under.dropped, 45);
     assert.strictEqual(under.overflowAdded, 0);
+    assert.strictEqual(under.dailyXp, 645);
     const wrong = awardActions.planGrant({
         xp: 0, dailyUsed: 0, triviaQuizUsed: 0, triviaQuiz: true, dailyCap: 500, triviaCap: 500,
     });
@@ -280,13 +283,11 @@ test('server source no longer keyword-matches or banks overflow', function () {
     assert.ok(body.indexOf('ban_reason') > 0);
     assert.ok(body.indexOf("error === 'BANNED'") > 0 || body.indexOf("=== 'BANNED'") > 0);
 
-    const questStart = src.indexOf('exports.gradeQuest = functionsV1.https.onCall');
-    const questEnd = src.indexOf('exports.issueCertificate = functionsV1.https.onCall');
-    const quest = src.slice(questStart, questEnd);
+    const quest = fs.readFileSync(path.join(__dirname, '..', 'functions/src/questCallables.js'), 'utf8');
     assert.ok(quest.indexOf('pendingOverflow') === -1);
-    assert.ok(quest.indexOf('planGrant') > 0);
-    assert.ok(quest.indexOf('triviaQuiz') > 0);
-    assert.ok(quest.indexOf('ban_reason') > 0);
+    assert.ok(quest.indexOf('daily_points') > 0);
+    assert.ok(quest.indexOf('isRewardBanned') > 0);
+    assert.ok(quest.indexOf('triviaXpStatus') > 0);
 
     const reportSrc = fs.readFileSync(path.join(__dirname, '..', 'functions/orange-ticket-report.js'), 'utf8');
     ['.set(', '.update(', '.delete(', '.commit(', '.create(', '.add(', 'batch('].forEach(function (needle) {

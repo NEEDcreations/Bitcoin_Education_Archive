@@ -202,6 +202,8 @@ service cloud.firestore {
                         'pointsClaimed', 'pointsExchanged',
                         'lastSatsClaim', 'lastAwards', '_pendingClaim',
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
+                        'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
+                        'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
                         'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',

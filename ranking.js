@@ -2717,10 +2717,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             // Track pts for ghost banner re-show
             if (typeof window._ghostTrackPts === 'function') window._ghostTrackPts(pts);
         }
-        // Track points in localStorage. Daily cap 500. Server-side validation happens
-        // later if they ever sign in (via anon_merge), so this is purely UX reward.
+        // Local preview only. The server cap is full through 600, then half until 1,000.
+        // Guest points are not banked, and a later sign-in does not redeem them as overflow.
         var DAILY_CAP = 1000;
-        var _today = new Date().toISOString().split('T')[0];
+        var FULL_UNTIL = 600;
+        var _today = new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
         var _capKey = 'btc_daily_pts_' + _today;
         var _dailyUsed = parseInt(localStorage.getItem(_capKey) || '0', 10);
         if (isNaN(_dailyUsed)) _dailyUsed = 0;
@@ -2743,63 +2744,41 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
         }
 
-        // Anon overflow mirror: redeem yesterday's overflow first, then award today's pts.
-        var _overflowKey = 'btc_pts_overflow';
-        var _overflowDateKey = 'btc_pts_overflow_date';
-        var _overflow = parseInt(localStorage.getItem(_overflowKey) || '0', 10) || 0;
-        var _overflowDate = localStorage.getItem(_overflowDateKey) || '';
-        var overflowRedeemed = 0;
-        if (_overflow > 0 && _overflowDate && _overflowDate !== _today) {
-            overflowRedeemed = Math.min(_overflow, DAILY_CAP);
-            _overflow -= overflowRedeemed;
-            try { localStorage.setItem(_overflowKey, String(_overflow)); } catch(e) {}
-        }
-
         var awarded = pts;
-        var overflowAdded = 0;
-        if (_dailyUsed >= DAILY_CAP) {
+        var cursor = _dailyUsed;
+        var left = pts;
+        if (cursor >= DAILY_CAP) {
             awarded = 0;
-            overflowAdded = pts;
-        } else if (_dailyUsed + pts > DAILY_CAP) {
-            awarded = DAILY_CAP - _dailyUsed;
-            overflowAdded = pts - awarded;
+        } else {
+            awarded = 0;
+            if (cursor < FULL_UNTIL) {
+                var fullRoom = Math.min(left, FULL_UNTIL - cursor);
+                awarded += fullRoom;
+                cursor += fullRoom;
+                left -= fullRoom;
+            }
+            if (left > 0 && cursor < DAILY_CAP) {
+                awarded += Math.min(Math.floor(left / 2), DAILY_CAP - cursor);
+            }
         }
 
-        var totalAdded = awarded + overflowRedeemed;
-        if (totalAdded > 0) {
-            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + totalAdded;
+        if (awarded > 0) {
+            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + awarded;
             try {
                 localStorage.setItem('btc_points', String(newPoints));
-                if (awarded > 0) localStorage.setItem(_capKey, String(_dailyUsed + awarded));
+                localStorage.setItem(_capKey, String(_dailyUsed + awarded));
             } catch(e) {}
             currentUser.points = newPoints;
             _showPointsToast(awarded, reason);
             if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, reason);
-            if (overflowRedeemed > 0 && typeof showToast === 'function') {
-                setTimeout(function() {
-                    showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
-                }, 1200);
-            }
         }
 
-        if (overflowAdded > 0) {
-            _overflow += overflowAdded;
-            try {
-                localStorage.setItem(_overflowKey, String(_overflow));
-                localStorage.setItem(_overflowDateKey, _today);
-            } catch(e) {}
-            var _overflowNotifKey = 'btc_overflow_notified_' + _today;
-            if (!localStorage.getItem(_overflowNotifKey)) {
-                try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow. Sign in to convert to sats.', 8000);
-                if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
-            }
-        } else if (_dailyUsed + awarded >= DAILY_CAP) {
+        if (_dailyUsed + awarded >= DAILY_CAP) {
             // Daily cap notification (once per day)
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -2850,15 +2829,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         }
         if (result.data && result.data.success) {
             var awarded = result.data.awarded || 0;
-            var overflowRedeemed = result.data.overflowRedeemed || 0;
-            var overflowAdded = result.data.overflowAdded || 0;
-            if (typeof result.data.pendingOverflow !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) currentUser.pendingOverflow = result.data.pendingOverflow;
             if (result.data.doubleXpUntil && typeof currentUser !== 'undefined' && currentUser) {
                 currentUser.doubleXpUntil = result.data.doubleXpUntil;
                 currentUser.doubleXPExpiry = result.data.doubleXpUntil;
             }
-            var pendingOverflow = result.data.pendingOverflow || 0;
-            var totalAdded = awarded + overflowRedeemed;
+            var totalAdded = awarded;
             // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
             if (_isBadgeEarned && awarded > 0 && typeof notifySelfPoints === 'function') {
                 notifySelfPoints(awarded, reason);
@@ -2870,27 +2845,22 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
-                // Notification already logged eagerly before CF call (or above for badges)
-                if (overflowRedeemed > 0) {
-                    setTimeout(function() {
-                        showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
-                    }, 1200);
-                }
             }
-            if (overflowAdded > 0) {
-                var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
-                if (!localStorage.getItem(_overflowKey)) {
-                    localStorage.setItem(_overflowKey, '1');
-                    showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow.', 8000);
-                    _updateCapIndicator(true);
-                }
-                // Cache pendingOverflow locally for the CAP indicator tooltip
-                try { localStorage.setItem('btc_pts_overflow', String(pendingOverflow)); } catch(e) {}
-            } else if (result.data.capped) {
-                var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+            if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
+                window._serverDailyXp = {
+                    signedIn: true,
+                    dailyXp: result.data.dailyXp,
+                    dailyCap: result.data.dailyCap || 1000,
+                    fullUntil: result.data.fullUntil || 600,
+                    pastCap: result.data.pastCap === true
+                };
+                window._paintDailyXpMeter(window._serverDailyXp);
+            }
+            if (result.data.capped || result.data.pastCap) {
+                var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow.', 8000);
+                    showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -3262,11 +3232,10 @@ function _updateCapIndicator(atCap) {
     var _today = new Date().toISOString().split('T')[0];
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-    var _overflow = parseInt(localStorage.getItem('btc_pts_overflow') || '0');
     if (atCap || _dailyPts >= 1000) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = '🎯 Daily XP cap reached (1,000/1,000)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        el.title = 'Daily XP cap reached (1,000). Full through 600, then half.';
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -5809,7 +5778,7 @@ function showSettingsPage(tab) {
             html += '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">';
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-weight:700;font-size:0.85rem;color:#a5b4fc;">⏳ Queued Overflow XP</div><div style="font-size:0.6rem;font-weight:800;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 8px;border-radius:20px;">~' + _ofDL + ' day' + (_ofDL !== 1 ? 's' : '') + '</div></div>';
             html += '<div style="font-size:1.3rem;font-weight:900;font-family:monospace;color:#c7d2fe;margin-bottom:8px;">+' + _pendingOf.toLocaleString() + ' XP</div>';
-            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">You hit the daily cap before all XP could be awarded. This queued XP drips <strong style="color:#a5b4fc;">1,000 XP per day</strong> automatically on future visits — counts toward your sats balance once redeemed.</div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">This is leftover XP from before the shared daily cap. New XP is not added here. A day pays full XP through 600, then half until 1,000.</div>';
             html += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:10px;">';
             var _tileCap = Math.min(_ofDL, 10);
             for (var _td = 0; _td < _tileCap; _td++) {

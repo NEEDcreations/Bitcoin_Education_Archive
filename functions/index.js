@@ -3270,7 +3270,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             const [
                 cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc,
                 tctvTicketDoc, trifectaTicketDoc, quizProofDoc, triviaProofDoc, pollProofDoc,
-                flexProofDoc
+                flexProofDoc, ledgerDoc
             ] = await Promise.all([
                 cooldownRef ? t.get(cooldownRef) : Promise.resolve(null),
                 badgeAwardRef ? t.get(badgeAwardRef) : Promise.resolve(null),
@@ -3284,6 +3284,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 triviaProofRef ? t.get(triviaProofRef) : Promise.resolve(null),
                 pollProofRef ? t.get(pollProofRef) : Promise.resolve(null),
                 flexProofRef ? t.get(flexProofRef) : Promise.resolve(null),
+                t.get(db.collection('faucet_ledger').doc(uid)),
             ]);
 
             if (cooldownDoc && cooldownDoc.exists) {
@@ -3304,7 +3305,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
-            if (userData.ban_reason) throw new Error('BANNED');
+            const ledger = ledgerDoc && ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+            if (userData.ban_reason || userData.banned === true || userData.satsDisabled === true || ledger.banned === true) {
+                throw new Error('BANNED');
+            }
             if (resolved.requiresDoubleXp && !doubleXp.isActive(userData, Date.now())) {
                 throw new Error('DOUBLE_XP_REQUIRED');
             }
@@ -3374,14 +3378,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (claimDoc && claimDoc.exists) throw new Error('ALREADY_CLAIMED');
 
             const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            const triviaQuizUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
             const grant = awardActions.planGrant({
                 xp: pts,
                 dailyUsed: dailyUsed,
-                triviaQuizUsed: triviaQuizUsed,
-                triviaQuiz: resolved.triviaQuiz,
                 dailyCap: DAILY_CAP,
-                triviaCap: awardActions.TRIVIA_QUIZ_CAP,
             });
             const awarded = grant.awarded;
             const capped = grant.capped;
@@ -3470,12 +3470,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.update(userRef, userUpdate);
             }
             if (awarded > 0) {
-                const dailyWrite = {
+                t.set(dailyPtsRef, {
                     total: dailyUsed + awarded,
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-                };
-                if (resolved.triviaQuiz) dailyWrite.triviaQuiz = triviaQuizUsed + awarded;
-                t.set(dailyPtsRef, dailyWrite, { merge: true });
+                }, { merge: true });
             }
             if (cooldownRef && awarded > 0) {
                 t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
@@ -3512,6 +3510,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 overflowAdded: 0,
                 overflowRedeemed: 0,
                 pendingOverflow: userData.pendingOverflow || 0,
+                pastCap: grant.pastCap,
+                dailyXp: grant.dailyXp,
+                dailyCap: grant.dailyCap,
+                fullUntil: grant.fullUntil,
                 channelTracked: channelTracked,
                 progress: progress,
                 doubled: xpBoost.doubled,
@@ -3585,6 +3587,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         overflowAdded: 0,
         overflowRedeemed: 0,
         pendingOverflow: transactionResult.pendingOverflow,
+        pastCap: transactionResult.pastCap === true,
+        dailyXp: transactionResult.dailyXp,
+        dailyCap: transactionResult.dailyCap,
+        fullUntil: transactionResult.fullUntil,
         channelTracked: transactionResult.channelTracked,
         doubled: !!transactionResult.doubled,
         doubleXpUntil: transactionResult.doubleXpUntil || 0,
@@ -4162,7 +4168,12 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     }
 
     const result = await db.runTransaction(async (tx) => {
+        const spinDay = getOffsetDateKey();
+        const dailyRef = userRef.collection('daily_points').doc(spinDay);
+        const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const userDoc = await tx.get(userRef);
+        const dailyDoc = await tx.get(dailyRef);
+        const ledgerDoc = await tx.get(ledgerRef);
         if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
@@ -4191,9 +4202,15 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
-        // The wheel is once a day and is not run through the daily points cap,
-        // so Double XP does not apply here.
+        // Double XP does not apply. The wheel still shares the 600 / 1,000 cap.
         const spinDoubled = false;
+        const spinLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+        const spinBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || spinLedger.banned === true;
+        const spinUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
+        if (spinBlocked) totalPts = 0;
+        else if (totalPts > 0) {
+            totalPts = require('./src/dailyXp').planDailyXp(spinUsed, totalPts).awarded;
+        }
 
         // Atomic update
         const update = {};
@@ -4216,6 +4233,12 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) update.spinClosetAwards = admin.firestore.FieldValue.increment(1);
         const spinRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, totalPts);
         tx.update(userRef, update);
+        if (totalPts > 0) {
+            tx.set(dailyRef, {
+                total: spinUsed + totalPts,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
         try {
             const spinGains = reward.closet ? ['👔 a closet drop'] : [];
             rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
@@ -4535,7 +4558,12 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         // gradeScholarExam is the only writer of certPassed_*, certPassedAt_*,
         // and lastExamAttempt_*.
         const userRef = db.collection('users').doc(uid);
+        const scholarDay = getOffsetDateKey();
+        const dailyRef = userRef.collection('daily_points').doc(scholarDay);
+        const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const userDoc = await tx.get(userRef);
+        const dailyDoc = await tx.get(dailyRef);
+        const ledgerDoc = await tx.get(ledgerRef);
         const userData = userDoc.exists ? userDoc.data() : {};
         const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
         const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, examId);
@@ -4576,8 +4604,14 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         }
 
         const passed = score >= 20;
-        const scholarRankPrev = passed
-            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, 2100)
+        const scholarLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+        const scholarBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || scholarLedger.banned === true;
+        const scholarUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
+        const scholarPlan = (passed && !scholarBlocked)
+            ? require('./src/dailyXp').planDailyXp(scholarUsed, 2100)
+            : { awarded: 0 };
+        const scholarRankPrev = scholarPlan.awarded > 0
+            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.awarded)
             : {};
 
         // Mark exam as graded
@@ -4590,26 +4624,33 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         let pointsAwarded = 0;
         if (passed) {
-            // Award points server-side. Still increments directly (outside daily cap by design),
-            // but now limited to ONCE per cert type thanks to the alreadyPassed gate above.
-            pointsAwarded = 2100;
-            update.points = admin.firestore.FieldValue.increment(pointsAwarded);
-            update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
+            // Once per cert type. The 2,100 XP still shares the daily 600 / 1,000 taper.
+            pointsAwarded = scholarPlan.awarded;
+            if (pointsAwarded > 0) {
+                update.points = admin.firestore.FieldValue.increment(pointsAwarded);
+                update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
+            }
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
 
         tx.update(userRef, update);
-        if (passed) {
+        if (pointsAwarded > 0) {
+            tx.set(dailyRef, {
+                total: scholarUsed + pointsAwarded,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+        if (passed && pointsAwarded > 0) {
             try {
                 rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
                     uid: uid,
                     onceKey: 'scholar_' + keyPrefix,
-                    xp: 2100,
+                    xp: pointsAwarded,
                     sourceLabel: type === 'technical' ? 'the protocol exam' : 'the scholar exam',
                     icon: '🎓',
                     pointsBefore: userData.points || 0,
-                    pointsDelta: 2100,
+                    pointsDelta: pointsAwarded,
                     prevById: scholarRankPrev,
                 }));
             } catch (notifyErr) {
@@ -4636,10 +4677,11 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
 // ── Quest and trivia rewards. Graded from the bundled bank in questReward.js.
 // Client answer keys are ignored. See src/questCallables.js.
-const { answerTrivia, gradeQuest, startQuest } = require('./src/questCallables');
+const { answerTrivia, gradeQuest, startQuest, triviaXpStatus } = require('./src/questCallables');
 exports.answerTrivia = answerTrivia;
 exports.gradeQuest = gradeQuest;
 exports.startQuest = startQuest;
+exports.triviaXpStatus = triviaXpStatus;
 
 
 // =============================================
@@ -8041,10 +8083,12 @@ async function settlePvpMatch(matchId, after) {
         const userSnaps = [];
         const dailySnaps = [];
         const ticketSnaps = [];
+        const ledgerSnaps = [];
         for (let i = 0; i < userRefs.length; i++) {
             userSnaps.push(await tx.get(userRefs[i]));
             dailySnaps.push(await tx.get(dailyRefs[i]));
             ticketSnaps.push(await tx.get(ticketRefs[i]));
+            ledgerSnaps.push(await tx.get(db.collection('faucet_ledger').doc(plan.players[i].uid)));
         }
         const applied = [];
         for (let i = 0; i < plan.players.length; i++) {
@@ -8054,8 +8098,11 @@ async function settlePvpMatch(matchId, after) {
                 continue;
             }
             const used = dailySnaps[i].exists ? (dailySnaps[i].data().total || 0) : 0;
+            const pvpUser = userSnaps[i].data() || {};
+            const pvpLedger = ledgerSnaps[i].exists ? (ledgerSnaps[i].data() || {}) : {};
+            const pvpBlocked = !!(pvpUser.ban_reason) || pvpUser.banned === true || pvpUser.satsDisabled === true || pvpLedger.banned === true;
             const grant = awardActions.planGrant({
-                xp: p.points,
+                xp: pvpBlocked ? 0 : p.points,
                 dailyUsed: used,
                 dailyCap: awardActions.DAILY_CAP,
             });

@@ -25,7 +25,7 @@ const GOAL_SECONDS = 600;
 const REWARD_XP = 100;
 // Same once-per-offset-day ticket #64 grants for a paying watch block.
 const REWARD_TICKETS = ticketGrants.get('tctv_watch_ticket').tickets;
-// Same 1,000 cap claimSayHi uses. The default in splitDailyXp is 500.
+// Shared 600 full / 1,000 cap. A watch at the cap still records the minutes.
 const WATCH_DAILY_CAP = 1000;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_MAX = 4;
@@ -99,19 +99,16 @@ function buildWatchNotice(uid, day, xp, tickets) {
 
 // Same shape as planSayHiXp. Tickets are not capped by the daily XP ledger.
 function planWatchXp(dailyUsed, pendingOverflow, lastOverflowDate, today) {
-    let pending = Number(pendingOverflow) || 0;
-    let redeemed = 0;
-    if (pending > 0 && lastOverflowDate && lastOverflowDate !== today) {
-        redeemed = Math.min(pending, WATCH_DAILY_CAP);
-        pending -= redeemed;
-    }
+    void pendingOverflow;
+    void lastOverflowDate;
+    void today;
     const split = splitDailyXp(Number(dailyUsed) || 0, REWARD_XP, WATCH_DAILY_CAP);
     return {
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
-        overflowRedeemed: redeemed,
-        pendingOverflow: pending + split.overflowAdded,
-        touchOverflow: split.overflowAdded > 0 || redeemed > 0,
+        overflowAdded: 0,
+        overflowRedeemed: 0,
+        pendingOverflow: 0,
+        touchOverflow: false,
         tickets: split.awarded > 0 ? REWARD_TICKETS : 0,
     };
 }

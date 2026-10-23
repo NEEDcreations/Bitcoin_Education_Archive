@@ -2,6 +2,7 @@
 
 const POLL_BANK = require('./pollBank.json');
 const { splitDailyXp } = require('./dailyXp');
+const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily, offsetDateKey } = require('./grantBadge');
 
 const POLL_XP = 50;
@@ -40,14 +41,16 @@ function createPollVote(opts) {
         const proofRef = userRef.collection('daily_action_counts').doc(day + '_poll_vote');
         const dailyRef = userRef.collection('daily_points').doc(day);
         const tallyRef = db.collection('poll_votes').doc((today.poll.id || 'poll') + '_' + day);
+        const ledgerRef = db.collection('faucet_ledger').doc(uid);
 
         const result = await db.runTransaction(async function (t) {
-            const [userSnap, voteSnap, dailySnap, tallySnap] = await Promise.all([
-                t.get(userRef), t.get(voteRef), t.get(dailyRef), t.get(tallyRef),
+            const [userSnap, voteSnap, dailySnap, tallySnap, ledgerSnap] = await Promise.all([
+                t.get(userRef), t.get(voteRef), t.get(dailyRef), t.get(tallyRef), t.get(ledgerRef),
             ]);
             if (!userSnap.exists) throw new HttpsError('not-found', 'Profile not found');
             const user = userSnap.data() || {};
-            if (user.ban_reason || user.banned === true) throw new HttpsError('permission-denied', 'Voting is unavailable');
+            const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : null;
+            if (rewardBlocked(user, ledger)) throw new HttpsError('permission-denied', 'Voting is unavailable');
             if (voteSnap.exists) return { already: true, day: day };
             const prevVotes = tallySnap.exists && Array.isArray(tallySnap.data().votes)
                 ? tallySnap.data().votes.slice(0, 4) : [0, 0, 0, 0];

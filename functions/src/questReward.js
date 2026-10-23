@@ -5,9 +5,8 @@
 // are ignored. Points are decided from functions/reward-banks.json, which
 // build.sh copies from data/trivia-bank.js, quests.js, and learning-quests.js.
 //
-// Daily quiz XP cap is 500. That is the cap gradeQuest already applied on the
-// offset-day daily_points doc (functions/src/dailyXp.js). awardPoints still
-// uses its own 1,000 cap for other actions. Trivia and quiz rewards use 500.
+// Trivia and quiz XP use the shared daily counter: full through 600, then
+// half until 1,000, on the offset-day daily_points doc. Wrong answers pay 0.
 
 const crypto = require('crypto');
 const banks = require('../reward-banks.json');
@@ -64,7 +63,17 @@ function triviaIndexForDay(dayKey, length) {
 }
 
 function isRewardBanned(user, ledger) {
+    if (user && user.ban_reason) return true;
+    if (user && user.banned === true) return true;
     return !!(user && user.satsDisabled === true) || !!(ledger && ledger.banned === true);
+}
+
+function nextActivityStreak(lastDate, streak, today, yesterday) {
+    const last = String(lastDate || '');
+    const current = Math.max(0, Math.floor(Number(streak) || 0));
+    if (last && last === String(today || '')) return current || 1;
+    if (last && last === String(yesterday || '')) return current + 1;
+    return 1;
 }
 
 function nextCallRate(existing, nowMs, windowMs, max) {
@@ -446,6 +455,7 @@ module.exports = {
     triviaLength: triviaLength,
     questionsFor: questionsFor,
     isRewardBanned: isRewardBanned,
+    nextActivityStreak: nextActivityStreak,
     nextCallRate: nextCallRate,
     gradeTrivia: gradeTrivia,
     gradeQuestSubmission: gradeQuestSubmission,

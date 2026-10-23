@@ -57,9 +57,10 @@ function answersFor(topicKey, questIndex, pick) {
     });
 }
 
-test('daily quiz and trivia cap is the grading-path cap of 500', function() {
-    assert.strictEqual(reward.DAILY_QUIZ_XP_CAP, 500);
-    assert.strictEqual(dailyXp.DAILY_POINTS_CAP, 500);
+test('daily quiz and trivia use the shared 1000 cap', function() {
+    assert.strictEqual(reward.DAILY_QUIZ_XP_CAP, 1000);
+    assert.strictEqual(dailyXp.DAILY_POINTS_CAP, 1000);
+    assert.strictEqual(dailyXp.TAPER_FULL_UNTIL, 600);
     assert.strictEqual(reward.offsetDateKey(NOW), '2026-10-22');
     if (reward.triviaLength() === 158) {
         assert.strictEqual(reward.triviaIndexForDay(DAY), 134);
@@ -110,16 +111,18 @@ test('banned accounts and the daily cap hold for trivia', function() {
     assert.strictEqual(banned.awarded, 0);
     assert.strictEqual(banned.reason, 'banned');
     assert.strictEqual(reward.isRewardBanned({ satsDisabled: true }, null), true);
+    assert.strictEqual(reward.isRewardBanned({ ban_reason: 'spam' }, null), true);
+    assert.strictEqual(reward.isRewardBanned({ banned: true }, null), true);
     assert.strictEqual(reward.isRewardBanned({}, { banned: true }), true);
     assert.strictEqual(reward.isRewardBanned({}, { banned: false }), false);
 
-    const capped = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 500 }));
+    const capped = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 1000 }));
     assert.strictEqual(capped.awarded, 0);
-    assert.strictEqual(capped.overflowAdded, 50);
+    assert.strictEqual(capped.overflowAdded, 0);
     assert.strictEqual(capped.capped, true);
-    const partial = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 480 }));
+    const partial = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 980 }));
     assert.strictEqual(partial.awarded, 20);
-    assert.strictEqual(partial.overflowAdded, 30);
+    assert.strictEqual(partial.overflowAdded, 0);
 });
 
 test('forged quiz keys are ignored and grading uses answer text', function() {
@@ -212,25 +215,26 @@ test('the daily quiz cap holds and banned accounts are paid nothing', function()
     });
     const full = reward.settleQuizReward({
         graded: graded,
-        dailyUsed: 500,
+        dailyUsed: 1000,
         questsToday: 0,
         banned: false,
         alreadyPerfect: false,
     });
     assert.strictEqual(full.awarded, 0);
-    assert.strictEqual(full.overflowAdded, 100);
+    assert.strictEqual(full.overflowAdded, 0);
     assert.strictEqual(full.capped, true);
     assert.strictEqual(full.pts, 100);
+    assert.strictEqual(full.countQuest, true);
 
     const room = reward.settleQuizReward({
         graded: graded,
-        dailyUsed: 450,
+        dailyUsed: 980,
         questsToday: 0,
         banned: false,
         alreadyPerfect: false,
     });
-    assert.strictEqual(room.awarded, 50);
-    assert.strictEqual(room.overflowAdded, 50);
+    assert.strictEqual(room.awarded, 20);
+    assert.strictEqual(room.overflowAdded, 0);
     assert.strictEqual(room.capped, true);
 
     const banned = reward.settleQuizReward({

@@ -184,9 +184,11 @@ test('daily cap still grants the ticket when XP overflows', function () {
     assert.strictEqual(full.xp.awarded, 0);
     assert.strictEqual(full.xp.tickets, 1);
     assert.strictEqual(full.ok, true);
-    const partial = sayHi.planSayHiXp(980, 0, '', '2026-10-22');
+    const partial = sayHi.planSayHiXp(980, 40, '2026-10-21', '2026-10-22');
     assert.strictEqual(partial.awarded, 20);
-    assert.strictEqual(partial.overflowAdded, 30);
+    assert.strictEqual(partial.overflowAdded, 0);
+    assert.strictEqual(partial.overflowRedeemed, 0);
+    assert.strictEqual(partial.tickets, 1);
 });
 
 test('handlers refuse signed-out and anonymous callers', async function () {
@@ -409,8 +411,10 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2279'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2331'"));
-    assert.ok(!sw.includes('btc-archive-v2330'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2330'"));
+    assert.ok(sw.includes('btc-archive-v2329') === false);
+    assert.ok(sw.includes('btc-archive-v2327') === false);
+    assert.ok(sw.includes('btc-archive-v2326') === false);
     assert.ok(sw.includes('btc-archive-v2325') === false);
     assert.ok(sw.includes('btc-archive-v2324') === false);
     assert.ok(sw.includes('btc-archive-v2322') === false);

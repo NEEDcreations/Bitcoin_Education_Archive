@@ -327,10 +327,6 @@ function createReplyBonusHandlers(opts) {
                     lastUpdated: ts,
                 }, { merge: true });
             }
-            if (decision.overflowAdded > 0) {
-                userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(decision.overflowAdded);
-                userUpdate.lastOverflowDate = today;
-            }
             userUpdate.replyBonusCount = admin.firestore.FieldValue.increment(1);
             if (Object.keys(userUpdate).length) tx.update(userRef, userUpdate);
 

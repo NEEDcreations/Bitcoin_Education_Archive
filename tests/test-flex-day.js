@@ -102,7 +102,7 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261023_v2323') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261023_v2330') > 0);
     const quests = read('quests.js');
     assert.ok(quests.indexOf("actionKey: 'flex_day_complete'") > 0);
     assert.ok(quests.indexOf('data.flexFullDays') > 0);

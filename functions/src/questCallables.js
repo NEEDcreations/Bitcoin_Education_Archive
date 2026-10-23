@@ -13,6 +13,7 @@ const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const reward = require('./questReward');
 const rewardNotify = require('./rewardNotify');
+const { DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
@@ -35,6 +36,20 @@ function requireUser(context) {
 
 function onCall(handler) {
     return functionsV1.runWith({ enforceAppCheck: true }).https.onCall(handler);
+}
+
+function meterFrom(used, awarded) {
+    const before = Math.max(0, Number(used) || 0);
+    const paid = Math.max(0, Number(awarded) || 0);
+    const dailyXp = before + paid;
+    return {
+        dailyXp: dailyXp,
+        dailyCap: DAILY_CAP,
+        fullUntil: TAPER_FULL_UNTIL,
+        pastCap: before >= DAILY_CAP,
+        dailyQuizXp: dailyXp,
+        dailyQuizCap: DAILY_CAP,
+    };
 }
 
 function applyRate(tx, rateRef, rateDoc, now, max, kind) {
@@ -117,10 +132,6 @@ const answerTrivia = onCall(async (data, context) => {
                     lastUpdated: FieldValue.serverTimestamp(),
                 }, { merge: true });
             }
-            if (graded.overflowAdded > 0) {
-                userUpdate.pendingOverflow = FieldValue.increment(graded.overflowAdded);
-                userUpdate.lastOverflowDate = dayKey;
-            }
             tx.update(userRef, userUpdate);
             tx.set(claimRef, {
                 count: 1,
@@ -145,7 +156,7 @@ const answerTrivia = onCall(async (data, context) => {
             }
         }
 
-        return {
+        return Object.assign({
             success: true,
             correct: graded.correct === true,
             awarded: graded.awarded || 0,
@@ -154,7 +165,7 @@ const answerTrivia = onCall(async (data, context) => {
             alreadyClaimed: false,
             graded: true,
             reason: banned ? 'banned' : (graded.correct ? '' : 'incorrect'),
-        };
+        }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)));
     });
 });
 
@@ -236,16 +247,19 @@ const gradeQuest = onCall(async (data, context) => {
             }, { merge: true });
         }
         const userUpdate = {};
+        if (settled.countQuest) {
+            const yesterday = reward.previousDateKey(dayKey);
+            userUpdate.lastQuizDate = dayKey;
+            userUpdate.quizStreak = reward.nextActivityStreak(user.lastQuizDate || '', user.quizStreak || 0, dayKey, yesterday);
+            userUpdate.quizAnswered = FieldValue.increment(5);
+            if ((settled.score || 0) > 0) userUpdate.quizCorrect = FieldValue.increment(settled.score);
+        }
         if (settled.awarded > 0) {
             userUpdate.points = FieldValue.increment(settled.awarded);
             tx.set(dailyPtsRef, {
                 total: dailyUsed + settled.awarded,
                 lastUpdated: FieldValue.serverTimestamp(),
             }, { merge: true });
-        }
-        if (settled.overflowAdded > 0) {
-            userUpdate.pendingOverflow = FieldValue.increment(settled.overflowAdded);
-            userUpdate.lastOverflowDate = dayKey;
         }
         if (settled.completionKey && completionRef) {
             tx.set(completionRef, {
@@ -273,7 +287,7 @@ const gradeQuest = onCall(async (data, context) => {
             }
         }
 
-        return {
+        return Object.assign({
             success: true,
             score: settled.score,
             pts: settled.pts,
@@ -284,7 +298,7 @@ const gradeQuest = onCall(async (data, context) => {
             graded: true,
             questsToday: questsToday + (settled.countQuest ? 1 : 0),
             dailyQuestLimit: reward.DAILY_QUEST_LIMIT,
-        };
+        }, meterFrom(dailyUsed, settled.awarded || 0));
     });
 });
 
@@ -305,8 +319,18 @@ const startQuest = onCall(async (data, context) => {
     };
 });
 
+const triviaXpStatus = onCall(async (data, context) => {
+    void data;
+    const uid = requireUser(context);
+    const dayKey = reward.offsetDateKey(Date.now());
+    const snap = await db.collection('users').doc(uid).collection('daily_points').doc(dayKey).get();
+    const used = snap.exists ? (Number((snap.data() || {}).total) || 0) : 0;
+    return Object.assign({ day: dayKey }, meterFrom(used, 0));
+});
+
 module.exports = {
     answerTrivia: answerTrivia,
     gradeQuest: gradeQuest,
     startQuest: startQuest,
+    triviaXpStatus: triviaXpStatus,
 };
