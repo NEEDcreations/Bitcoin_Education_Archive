@@ -1067,12 +1067,14 @@ service cloud.firestore {
                               && (get(/databases/$(database)/documents/beats_tracks/$(trackId)/comments/$(request.resource.data.commentEventId)).data.authorId == request.auth.uid
                                   || isAdmin()))
                           ))
-                    ))
+                    )))
                     // Moderated tracks stay hidden. A partial update (plays, likes,
                     // title) still sees the existing flag. A rewrite that drops it,
                     // or sets hidden to anything other than true, is rejected.
+                    // This sits outside the admin-or-author group, so an admin
+                    // moderation write cannot clear hidden either.
                     && (resource.data.get('hidden', false) != true
-                        || request.resource.data.hidden == true));
+                        || request.resource.data.hidden == true);
       allow delete: if request.auth != null
                     && (
                       isAdmin()
