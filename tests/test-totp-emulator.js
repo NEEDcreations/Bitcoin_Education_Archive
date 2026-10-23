@@ -913,7 +913,9 @@ async function main() {
         }, enrolled.context);
         assert.ok(remembered.deviceToken);
         const before = await admin.auth().getUser(uid);
-        await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+        const createdMs = Date.parse(before.metadata && before.metadata.creationTime);
+        const hold = (Number.isFinite(createdMs) ? Math.max(0, createdMs + 2200 - Date.now()) : 0) + 200;
+        await new Promise(function (resolve) { setTimeout(resolve, hold); });
         await admin.auth().updateUser(uid, { password: 'test-pass-456' });
         const after = await admin.auth().getUser(uid);
         assert.ok(after.tokensValidAfterTime, 'password change did not set tokensValidAfterTime');

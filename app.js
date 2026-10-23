@@ -391,6 +391,7 @@
         msgsEl.innerHTML += navHtml;
 
         msgsEl.classList.add('fade-in');
+        if (!galleryMode && typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();
     }
 
     // Twitter/X embed
@@ -4156,6 +4157,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             });
             btn.insertAdjacentHTML('beforebegin', html);
             window._currentOffset = offset + 50;
+            if (typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();
             if (window._currentOffset >= msgs.length) { btn.remove(); window._scrollObserver && window._scrollObserver.disconnect(); }
             else { btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)'; }
         };

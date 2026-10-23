@@ -437,7 +437,7 @@
         <li>Your <strong>profile picture</strong> is visible on the leaderboard, PVP, and user profiles</li>
         <li>Your <strong>uploaded music tracks</strong> (including albums/EPs) on Bitcoin Beats are publicly playable by all users</li>
         <li>Your <strong>Global Chat messages</strong> are visible to all users in real time</li>
-        <li>Your <strong>topic discussion comments</strong> (username and comment text) are visible publicly on that topic, including to people who are not signed in</li>
+        <li>Your <strong>topic discussion comments</strong> (username and comment text) are visible publicly on that topic, including to people who are not signed in. The first post of a thread is also published automatically on the public Pleb Talk forum under your username, with the topic name, a link back, and the start of your message. A short summary may replace that opening after the post is accepted. Replies are mirrored both ways between the topic thread and that forum post, still under the name of the person who wrote them. Conversation XP for that message is recorded once. If the cross-post limit is already used, the message stays on the topic and is not added to Pleb Talk</li>
         <li>Your <strong>DJ broadcasts</strong> (currently playing track, sound effects) are heard by all listeners</li>
         <li>Your <strong>online presence</strong> (username, active status) is visible via the online users counter</li>
         <li>Your <strong>PVP battle results</strong> may be displayed on leaderboards</li>
@@ -483,6 +483,7 @@
         <li>Questions you ask Nacho are first checked <strong>in your browser</strong> against saved Bitcoin answers</li>
         <li>If that is not enough, we send your question, a short recent Nacho conversation, your display name, rank, and point total, your language, whether simple-explanation mode is on, a knowledge snippet, and a short note about matching app features. If you are signed in, the request may also include your Firebase sign-in token. We do not put your email, Lightning address, or wallet in the prompt</li>
         <li>When you ask a question in a topic discussion, the server sends that question text plus a short excerpt of the topic notes to the same Cloudflare Workers AI proxy. Your username and user ID are not included. The reply is posted in the thread as Nacho</li>
+        <li>When you start a topic thread and the cross-post is accepted, the forum post is saved first with the topic name and the opening of your message. The server may then send that opening to the same proxy, as untrusted data rather than as instructions, to write a short public summary. The summary is checked and stored on that post. It is not requested for a post that was refused, and it is not written again for later replies. Your username and user ID are not included. If the summary cannot be written, the forum post keeps the topic name and the opening of your message</li>
         <li>Nacho chat history for the session is stored <strong>in your browser</strong></li>
         <li>A local list of recent questions stays on your device</li>
         <li>Nacho uses your username for greetings</li>

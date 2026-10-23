@@ -359,6 +359,25 @@ function forumRenderPosts(posts, container) {
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
 window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
+function forumTopicContinueLink(p) {
+    if (!p || p.origin !== 'topic') return '';
+    var channel = String(p.topicChannel || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var post = String(p.topicPost || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : '';
+    if (!href && /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(String(p.topicLink || ''))) href = String(p.topicLink);
+    if (!href) return '';
+    var name = '';
+    var title = String(p.title || '').replace(/[\u0000-\u001F]/g, '').trim();
+    if (title.indexOf('Discussion: ') === 0) name = title.slice('Discussion: '.length).trim();
+    if (!name) {
+        var slug = channel || href.split('/')[1] || '';
+        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this';
+    }
+    name = name.replace(/\s+/g, ' ').trim();
+    if (name.length > 80) name = name.slice(0, 80).trim();
+    return '<a href="' + fEsc(href) + '" style="display:inline-block;margin:0 0 12px;color:var(--accent);font-size:0.9rem;font-weight:800;text-decoration:none;white-space:nowrap;">Continue in the ' + fEsc(name) + ' topic</a>';
+}
+
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
@@ -392,7 +411,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
                 '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
-                '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+                '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
         if (p.body) {
@@ -404,7 +423,10 @@ window.forumViewPost = async function(postId, fromPopState) {
             html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;overflow-x:hidden;">' + bodyHtml + '</div>';
         }
 
-        if (p.link) {
+        var topicContinue = forumTopicContinueLink(p);
+        if (topicContinue) {
+            html += topicContinue;
+        } else if (p.link) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
@@ -455,6 +477,25 @@ window.forumViewPost = async function(postId, fromPopState) {
     }
 };
 
+function forumExactTime(ts) {
+    var ms = 0;
+    if (!ts) return '';
+    if (typeof ts.toMillis === 'function') ms = ts.toMillis();
+    else if (typeof ts.toDate === 'function') ms = ts.toDate().getTime();
+    else if (typeof ts.seconds === 'number') ms = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
+    else if (typeof ts === 'number') ms = ts;
+    if (!ms) return '';
+    var date = new Date(ms);
+    if (isNaN(date.getTime())) return '';
+    var datePart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+    var timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date);
+    var text = datePart + ' · ' + timePart;
+    return '<time datetime="' + date.toISOString() + '" title="' + text + '">' + text + '</time>';
+}
+function forumWhen(ts) {
+    return forumExactTime(ts) || (typeof timeAgo === 'function' ? timeAgo(ts) : '');
+}
+
 // ---- Load Replies ----
 async function forumLoadReplies(postId) {
     var container = document.getElementById('forumReplies');
@@ -464,6 +505,7 @@ async function forumLoadReplies(postId) {
         var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
         var replies = [];
         snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        replies = replies.filter(function(r) { return r.deleted !== true && r.hidden !== true; });
 
         if (replies.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">No replies yet. Be the first!</div>';
@@ -498,7 +540,7 @@ async function forumLoadReplies(postId) {
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
-                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
+                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
@@ -738,6 +780,15 @@ window.forumCancelReplyTo = function() {
 };
 
 // ---- Submit Reply ----
+function forumPostIsTopicMirror(post) {
+    if (!post) return false;
+    if (post.origin === 'topic' || post.origin === 'forum') return true;
+    if (post.noAward === true) return true;
+    if (post.mirrorOf) return true;
+    if (post.topicChannel || post.topicPost) return true;
+    return false;
+}
+
 window.forumSubmitReply = async function(postId) {
     // [AUDIT FIX] Double-submit protection
     if (window._forumReplySubmitting) return;
@@ -788,11 +839,14 @@ window.forumSubmitReply = async function(postId) {
             replyCount: firebase.firestore.FieldValue.increment(1)
         });
 
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
-        // Combo tracking
-        if (typeof window._trackCombo === 'function') window._trackCombo('forum');
-try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
-        try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+        var skipForumReplyAward = forumPostIsTopicMirror(forumCurrentPost);
+        if (!skipForumReplyAward && typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        // Combo tracking. A mirrored topic reply already earns conversation XP.
+        if (!skipForumReplyAward && typeof window._trackCombo === 'function') window._trackCombo('forum');
+        if (!skipForumReplyAward) {
+            try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+            try { var _frc2 = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc2.toString()); } catch(e2) {}
+        }
         // Notify post author (for top-level replies) or parent reply author (for nested)
         var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
         if (replyingTo && replyingTo.replyId) {
@@ -812,11 +866,13 @@ try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') 
         }
         // Notify @mentioned users
         forumNotifyMentions(body, 'forum_post', postId, forumCurrentPost ? forumCurrentPost.title : '');
-        // Track for badge
-        db.collection('users').doc(auth.currentUser.uid).update({
-            forumReplies: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(e) { console.error('[forum] Error:', e); });
-        if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
+        // Track for badge. Skip when this reply is on a mirrored topic thread.
+        if (!skipForumReplyAward) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                forumReplies: firebase.firestore.FieldValue.increment(1)
+            }).catch(function(e) { console.error('[forum] Error:', e); });
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
+        }
         input.value = '';
         // Clear reply-to state
         window.forumCancelReplyTo();
