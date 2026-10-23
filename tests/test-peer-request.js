@@ -410,7 +410,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
-    assert.ok(html.includes('bundle.min.js?v=20261023_v2333'));
+    assert.ok(html.includes('bundle.min.js?v=20261023_v2340'));
+    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2333'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2295'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2293'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2279'), false);

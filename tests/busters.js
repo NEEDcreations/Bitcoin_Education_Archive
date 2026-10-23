@@ -1,5 +1,5 @@
 // Cache-buster pin. This ship branch is btc-archive-v2339.
-// bundle.min.js is 20261023_v2333.
+// bundle.min.js is 20261023_v2340.
 // ranking.js, features.registry.js, nacho-qa.js, and guide.js are 20261023_v2339.
 // global-chat.js is 20261023_v2333.
 // today-card.js and scholar.js stay 20261023_v2330.
@@ -37,7 +37,8 @@ test('service worker cache is v2339', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2333/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2340/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261023_v2333'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2325'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2324'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2295'));
