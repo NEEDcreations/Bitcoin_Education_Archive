@@ -233,10 +233,8 @@ function planTopicCredit(input) {
     const day = src.day || post.dayKey;
     const counted = dayCount(user, 'topicCountDay', 'topicCountToday', day);
     if (counted >= COMMENT_BADGE_CAP) {
-        // Stay open. The nightly job caps against its own offset day, so a
-        // backlog from several post days cannot add more than 5 in one run,
-        // and the extras still count on a later day.
-        out.close = false;
+        // At most 5 posts count on this offset day. The extras are not
+        // counted, and the pending doc closes so it cannot fill a later run.
         out.reason = 'badge-cap';
         return out;
     }

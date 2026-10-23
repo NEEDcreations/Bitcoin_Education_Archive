@@ -301,7 +301,7 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
         day: '2026-10-22',
     });
     assert.strictEqual(capped.credit, false);
-    assert.strictEqual(capped.close, false);
+    assert.strictEqual(capped.close, true);
     assert.strictEqual(capped.reason, 'badge-cap');
     const backlog = progress.planTopicCredit({
         post: Object.assign({}, post, { dayKey: '2026-10-01' }),
@@ -310,7 +310,7 @@ test('topic comments wait a day, cap the badge count, and can be revoked', funct
         day: '2026-10-23',
     });
     assert.strictEqual(backlog.credit, false);
-    assert.strictEqual(backlog.close, false);
+    assert.strictEqual(backlog.close, true);
     const hidden = progress.planTopicCredit({
         post: Object.assign({}, post, { hidden: true }),
         user: person('ada'),
@@ -380,7 +380,71 @@ test('counter backfill raises peersAtL3 and onboarding without paying XP', funct
     const script = fs.readFileSync(path.join(root, 'functions/scripts/backfill_badge_counters.js'), 'utf8');
     assert.ok(script.indexOf('rewardBlocked') !== -1);
     assert.ok(script.indexOf('--apply') !== -1);
-    assert.ok(script.indexOf('applyDailyXp') === -1);
+    assert.ok(script.indexOf('args.apply && args.payXp') !== -1);
+    assert.ok(script.indexOf("source: 'badge_backfill'") !== -1);
+    assert.ok(script.indexOf('bypass: true') !== -1);
+    const sendIds = {};
+    ['k1', 'k2', 'k3'].forEach(function () {
+        sendIds[counters.giftSendId({
+            sentBy: 'ada',
+            ownerId: 'bob',
+            sendPairId: 'ada_bob_2026-10-23',
+        })] = true;
+    });
+    assert.strictEqual(Object.keys(sendIds).length, 1);
+    const dayA = counters.giftSendId({ sentBy: 'ada', ownerId: 'bob', sentAt: Date.parse('2026-10-23T12:00:00Z') });
+    const dayB = counters.giftSendId({ sentBy: 'ada', ownerId: 'bob', sentAt: Date.parse('2026-10-24T12:00:00Z') });
+    assert.notStrictEqual(dayA, dayB);
+    const old = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    const accounts = {
+        ada: { user: { created: old, username: 'ada' }, ledger: {} },
+        bob: { user: { created: old, username: 'bob' }, ledger: {} },
+        kid: { user: { created: Date.now(), username: 'kid' }, ledger: {} },
+        ban: { user: { created: old, banned: true }, ledger: {} },
+    };
+    assert.strictEqual(counters.keyPairCounts('ada', 'bob', accounts, Date.now()), true);
+    assert.strictEqual(counters.keyPairCounts('ada', 'kid', accounts, Date.now()), false);
+    assert.strictEqual(counters.keyPairCounts('kid', 'ada', accounts, Date.now()), true);
+    assert.strictEqual(counters.keyPairCounts('ada', 'ban', accounts, Date.now()), false);
+    assert.strictEqual(counters.peerPairCounts('ada', 'bob', accounts, Date.now()), true);
+    assert.strictEqual(counters.peerPairCounts('ada', 'kid', accounts, Date.now()), false);
+    assert.strictEqual(counters.peerPairCounts('kid', 'ada', accounts, Date.now()), false);
+    const paidIds = counters.payBadgeIds(['gift_open_1'], ['onboarding_complete'], ['gift_open_1', 'shop_10']);
+    assert.deepStrictEqual(paidIds, ['gift_open_1', 'onboarding_complete', 'shop_10']);
+    const topicRow = { topicComments: 0, topicChannels: {}, topicChannelCounts: {}, topicMarks: {} };
+    const mature = Date.now() - progress.COMMENT_MATURE_MS - 1000;
+    counters.noteTopic(topicRow, {
+        uid: 'ada', channelId: 'mining', postId: 'p1', text: 'this comment is long enough to count', createdAtMs: mature,
+    }, Date.now(), accounts);
+    counters.noteTopic(topicRow, {
+        uid: 'ada', channelId: 'mining', postId: 'p2', text: 'this counted comment is long enough', createdAtMs: mature, badgeCounted: true,
+    }, Date.now(), accounts);
+    counters.noteTopic(topicRow, {
+        uid: 'ada', channelId: 'mining', postId: 'p3', text: 'this young comment is long enough to count', createdAtMs: Date.now(),
+    }, Date.now(), accounts);
+    assert.strictEqual(topicRow.topicComments, 2);
+    assert.ok(topicRow.topicMarks.mining_p1);
+    assert.strictEqual(topicRow.topicMarks.mining_p2, undefined);
+    const legacy = counters.legacyDecision(
+        { giftsOpened: 1 },
+        {},
+        new Set(['gift_open_1', 'gift_open_25'])
+    );
+    assert.ok(legacy.write.indexOf('gift_open_1') !== -1);
+    assert.ok(legacy.skipped.indexOf('gift_open_25') !== -1);
+    const pay = counters.planBadgePay({ points: 0 }, ['onboarding_complete'], [], []);
+    assert.strictEqual(pay.xp, badgeRules.xpOf('onboarding_complete'));
+    assert.strictEqual(pay.badgeFavor, 1);
+    const paidAlready = counters.planBadgePay({ points: 0 }, ['onboarding_complete'], ['onboarding_complete'], []);
+    assert.strictEqual(paidAlready.xp, 0);
+    const { planUserBadges } = require('../functions/src/badgeXpBackfill');
+    const blocked = planUserBadges({
+        user: { points: 0, giftsOpened: 1, visibleBadges: ['gift_open_1'] },
+        awardIds: ['gift_open_1'],
+        awardById: { gift_open_1: { xp: 0, xpSource: 'badge_backfill', source: 'counter_backfill' } },
+        markerIds: [],
+    });
+    assert.ok(blocked.topUps.every(function (row) { return row.topUp === 0; }));
 });
 
 test('rules deny the new counters and the cert fields', function () {
@@ -406,5 +470,185 @@ test('rules deny the new counters and the cert fields', function () {
     assert.ok(client.indexOf('set_raffle') !== -1);
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+const { creditMatureTopicComments } = require('../functions/src/badgeCredit');
+const { offsetDateKey } = require('../functions/src/offsetDay');
+
+function topicQueueDb(seed) {
+    const docs = Object.assign({}, seed || {});
+    function snap(path) {
+        const data = docs[path];
+        return {
+            id: path.slice(path.lastIndexOf('/') + 1),
+            exists: data != null,
+            ref: ref(path),
+            data: function () { return data ? Object.assign({}, data) : undefined; },
+        };
+    }
+    function applyWrite(path, data, update) {
+        if (!update) {
+            docs[path] = Object.assign({}, data);
+            return;
+        }
+        const next = Object.assign({}, docs[path]);
+        Object.keys(data).forEach(function (key) {
+            const value = data[key];
+            if (value && value._increment) next[key] = (Number(next[key]) || 0) + value._increment;
+            else if (value && value._arrayUnion) {
+                const cur = Array.isArray(next[key]) ? next[key].slice() : [];
+                value._arrayUnion.forEach(function (item) {
+                    if (cur.indexOf(item) === -1) cur.push(item);
+                });
+                next[key] = cur;
+            } else next[key] = value;
+        });
+        docs[path] = next;
+    }
+    function ref(path) {
+        return {
+            path: path,
+            id: path.slice(path.lastIndexOf('/') + 1),
+            collection: function (name) { return collection(path + '/' + name); },
+            get: function () { return Promise.resolve(snap(path)); },
+        };
+    }
+    function collection(prefix) {
+        return {
+            doc: function (id) { return ref(prefix + '/' + id); },
+            where: function () { return this; },
+            orderBy: function () { return this; },
+            limit: function (n) { this._limit = n; return this; },
+            get: function () {
+                const limit = this._limit || 400;
+                const rows = [];
+                Object.keys(docs).forEach(function (path) {
+                    const head = prefix + '/';
+                    if (path.indexOf(head) !== 0) return;
+                    const rest = path.slice(head.length);
+                    if (!rest || rest.indexOf('/') !== -1) return;
+                    const data = docs[path];
+                    if (!data || data.open !== true) return;
+                    rows.push(snap(path));
+                });
+                rows.sort(function (a, b) { return a.data().createdAtMs - b.data().createdAtMs; });
+                const page = rows.slice(0, limit);
+                return Promise.resolve({
+                    empty: page.length === 0,
+                    size: page.length,
+                    docs: page,
+                    forEach: function (fn) { page.forEach(fn); },
+                });
+            },
+        };
+    }
+    return {
+        docs: docs,
+        collection: function (name) { return collection(name); },
+        runTransaction: function (fn) {
+            const staged = [];
+            const removed = [];
+            const tx = {
+                get: function (r) { return r.get(); },
+                set: function (r, data, opts) {
+                    staged.push({ path: r.path, data: data, update: !!(opts && opts.merge) });
+                },
+                update: function (r, data) { staged.push({ path: r.path, data: data, update: true }); },
+                delete: function (r) { removed.push(r.path); },
+            };
+            return Promise.resolve(fn(tx)).then(function (result) {
+                staged.forEach(function (w) { applyWrite(w.path, w.data, w.update); });
+                removed.forEach(function (path) { delete docs[path]; });
+                return result;
+            });
+        },
+    };
+}
+
+const queueAdmin = {
+    firestore: {
+        FieldValue: {
+            serverTimestamp: function () { return { _serverTimestamp: true }; },
+            increment: function (n) { return { _increment: n }; },
+            arrayUnion: function () { return { _arrayUnion: Array.prototype.slice.call(arguments) }; },
+        },
+    },
+};
+
+function finish(err) {
+    if (err) {
+        console.log('❌ ' + (err && err.message ? err.message : err));
+        failed += 1;
+    }
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+}
+
+const queueNow = Date.parse('2026-10-23T12:00:00Z');
+const queueDay = offsetDateKey(queueNow);
+const queueSeed = {};
+const cappedText = 'this capped comment is long enough to count';
+for (let i = 0; i < 401; i++) {
+    const postId = 'c' + i;
+    const created = queueNow - 10 * 24 * 60 * 60 * 1000 + i;
+    queueSeed['topic_comment_pending/mining_' + postId] = {
+        open: true,
+        uid: 'full',
+        channelId: 'mining',
+        postId: postId,
+        createdAtMs: created,
+    };
+    queueSeed['topic_discussions/mining/posts/' + postId] = {
+        uid: 'full',
+        channelId: 'mining',
+        text: cappedText,
+        createdAtMs: created,
+        hidden: false,
+        deleted: false,
+    };
+}
+const openCreated = queueNow - 9 * 24 * 60 * 60 * 1000;
+queueSeed['topic_comment_pending/mining_open1'] = {
+    open: true,
+    uid: 'open',
+    channelId: 'mining',
+    postId: 'open1',
+    createdAtMs: openCreated,
+};
+queueSeed['topic_discussions/mining/posts/open1'] = {
+    uid: 'open',
+    channelId: 'mining',
+    text: 'this open comment is long enough to count',
+    createdAtMs: openCreated,
+    hidden: false,
+    deleted: false,
+};
+queueSeed['users/full'] = {
+    uid: 'full',
+    created: queueNow - 30 * 24 * 60 * 60 * 1000,
+    topicCountDay: queueDay,
+    topicCountToday: 5,
+    points: 0,
+};
+queueSeed['users/open'] = {
+    uid: 'open',
+    created: queueNow - 30 * 24 * 60 * 60 * 1000,
+    topicCountDay: queueDay,
+    topicCountToday: 0,
+    points: 0,
+};
+
+const queueDb = topicQueueDb(queueSeed);
+creditMatureTopicComments(queueDb, queueAdmin, queueNow, 400).then(function (first) {
+    assert.strictEqual(first.scanned, 400);
+    assert.strictEqual(first.credited, 0);
+    assert.strictEqual(queueDb.docs['users/open'].topicComments, undefined);
+    return creditMatureTopicComments(queueDb, queueAdmin, queueNow, 400);
+}).then(function (second) {
+    assert.strictEqual(second.credited, 1);
+    assert.strictEqual(queueDb.docs['users/open'].topicComments, 1);
+    assert.strictEqual(queueDb.docs['users/full'].topicComments, undefined);
+    assert.strictEqual(queueDb.docs['topic_comment_pending/mining_open1'], undefined);
+    assert.strictEqual(queueDb.docs['topic_comment_pending/mining_c400'], undefined);
+    console.log('✅ capped topic posts are deleted and do not block the next post');
+    passed += 1;
+    finish();
+}).catch(finish);
