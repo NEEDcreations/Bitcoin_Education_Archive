@@ -983,6 +983,7 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
         ['rate_limits', 'delete_' + uid],
         ['rate_limits', 'reply_' + uid],
         ['totp_rate_limits', uid],
+        ['totp_rate_limits', uid + '_day'],
         ['totp_rate_limits', uid + '_verify'],
         ['totp_rate_limits', uid + '_disable'],
         ['totp_rate_limits', uid + '_regen'],

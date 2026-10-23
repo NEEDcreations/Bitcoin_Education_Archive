@@ -196,7 +196,7 @@ const FAUCET = {
 // New setups fail closed until TOTP_ENCRYPTION_KEY is a 64-hex secret.
 // Existing plaintext secrets still verify. Deploy the bound functions, then
 // run migrate-totp-secrets.js (dry run, then --apply).
-const { initSecondFactor } = require('./src/secondFactor');
+const { initSecondFactor, sweepExpiredMfaRows } = require('./src/secondFactor');
 const secondFactor = initSecondFactor({
     db: db,
     admin: admin,
@@ -8516,18 +8516,7 @@ exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 5 minutes', timeZo
         console.error('[PVP CLEANUP] Error:', e.message);
     }
     try {
-        const expiredSessions = await db.collection('totp_sessions').where('expireAt', '<', new Date()).limit(200).get();
-        if (!expiredSessions.empty) {
-            const sessionBatch = db.batch();
-            expiredSessions.docs.forEach(function (doc) { sessionBatch.delete(doc.ref); });
-            await sessionBatch.commit();
-        }
-        const expiredAttempts = await db.collection('totp_rate_limits').where('expireAt', '<', new Date()).limit(200).get();
-        if (!expiredAttempts.empty) {
-            const attemptBatch = db.batch();
-            expiredAttempts.docs.forEach(function (doc) { attemptBatch.delete(doc.ref); });
-            await attemptBatch.commit();
-        }
+        await sweepExpiredMfaRows(db, new Date());
     } catch (e) {
         console.error('[MFA CLEANUP] Error:', e.message);
     }

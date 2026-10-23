@@ -675,29 +675,45 @@ function initSecondFactor(deps) {
         return { failed: 0, windowStart: nowMs };
     }
 
-    function writeGuessLimit(tx, ref, attempts, windowStart, failed, failStart) {
+    function guessDayRef(uid) {
+        return db.collection('totp_rate_limits').doc(uid + '_day');
+    }
+
+    function writeGuessWindow(tx, ref, attempts, windowStart, uid) {
         tx.set(ref, {
+            uid: uid,
             attempts: attempts,
             windowStartMs: windowStart,
             expireAt: new Date(windowStart + RATE_WINDOW_MS),
+        });
+    }
+
+    function writeGuessDay(tx, ref, failed, failStart, uid) {
+        tx.set(ref, {
+            uid: uid,
             failedAttempts: failed,
             failedWindowStartMs: failStart,
-            failedExpireAt: new Date(failStart + DAILY_WINDOW_MS),
+            expireAt: new Date(failStart + DAILY_WINDOW_MS),
         });
     }
 
     // One bucket per user for every authenticator guess and device resume.
-    // Five tries in two minutes, then twenty failures in a day.
+    // Five tries in two minutes live on {uid}. Twenty failures in a day live
+    // on {uid}_day, whose expireAt is a full day so the lobby sweeper can
+    // delete the short window without wiping the daily count.
     async function chargeTotpGuess(uid, nowMs) {
         const ref = db.collection('totp_rate_limits').doc(uid);
+        const dayRef = guessDayRef(uid);
         const result = await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
+            const daySnap = await tx.get(dayRef);
             const row = snap.exists ? (snap.data() || {}) : {};
-            const day = guessDay(row, nowMs);
+            const dayRow = daySnap.exists ? (daySnap.data() || {}) : {};
+            const day = guessDay(dayRow, nowMs);
             const win = guessWindow(row, nowMs);
             if (day.failed >= DAILY_FAIL_MAX) return { limited: 'day' };
             if (win.attempts >= RATE_MAX) return { limited: 'window' };
-            writeGuessLimit(tx, ref, win.attempts + 1, win.windowStart, day.failed, day.windowStart);
+            writeGuessWindow(tx, ref, win.attempts + 1, win.windowStart, uid);
             return { limited: '' };
         });
         if (result.limited === 'day') throw httpError('resource-exhausted', 'Too many attempts. Try again tomorrow.');
@@ -705,13 +721,12 @@ function initSecondFactor(deps) {
     }
 
     async function recordTotpGuessFailure(uid, nowMs) {
-        const ref = db.collection('totp_rate_limits').doc(uid);
+        const ref = guessDayRef(uid);
         await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
             const row = snap.exists ? (snap.data() || {}) : {};
             const day = guessDay(row, nowMs);
-            const win = guessWindow(row, nowMs);
-            writeGuessLimit(tx, ref, win.attempts, win.windowStart, day.failed + 1, day.windowStart);
+            writeGuessDay(tx, ref, day.failed + 1, day.windowStart, uid);
         });
     }
 
@@ -719,10 +734,12 @@ function initSecondFactor(deps) {
         const ref = db.collection('totp_rate_limits').doc(uid);
         await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
-            const row = snap.exists ? (snap.data() || {}) : {};
-            const day = guessDay(row, nowMs);
-            writeGuessLimit(tx, ref, 0, nowMs, day.failed, day.windowStart);
+            writeGuessWindow(tx, ref, 0, nowMs, uid);
         });
+    }
+
+    async function clearTotpGuessDay(uid) {
+        await guessDayRef(uid).delete().catch(function () {});
     }
 
     async function passwordBoundaryMs(uid) {
@@ -766,6 +783,7 @@ function initSecondFactor(deps) {
         if (outcome.error === 'replay') throw httpError('invalid-argument', 'This code was already used. Wait for the next one.');
         if (outcome.error === 'invalid') throw httpError('invalid-argument', 'Invalid code');
         await clearTotpGuessWindow(uid, nowMs);
+        await clearTotpGuessDay(uid);
         return outcome;
     }
 
@@ -906,6 +924,7 @@ function initSecondFactor(deps) {
         await db.collection('users').doc(uid).set({ totpEnabled: true }, { merge: true });
         await db.collection('totp_pending').doc(uid).delete().catch(function () {});
         await clearTotpGuessWindow(uid, nowMs);
+        await clearTotpGuessDay(uid);
         const recoveryCodes = await storeRecoveryCodes(uid, 'totp');
         const session = await issueSession(uid, nowMs);
         return {
@@ -1066,6 +1085,7 @@ function initSecondFactor(deps) {
         });
         if (!consumed) throw httpError('invalid-argument', 'Invalid recovery code');
         await clearTotp(uid);
+        await clearTotpGuessDay(uid);
         await db.collection('users').doc(uid).set({ totpEnabled: false, phoneVerified: false }, { merge: true });
         forgetPhone(uid);
         await clearAttempt(recoverDocId);
@@ -1110,7 +1130,10 @@ function initSecondFactor(deps) {
             await recordTotpGuessFailure(uid, nowMs);
             throw httpError('failed-precondition', 'Device is not trusted.');
         }
-        if (found.row.uid !== uid) throw httpError('permission-denied', 'Device is not trusted.');
+        if (found.row.uid !== uid) {
+            await recordTotpGuessFailure(uid, nowMs);
+            throw httpError('permission-denied', 'Device is not trusted.');
+        }
         if (found.row.revoked === true) {
             await recordTotpGuessFailure(uid, nowMs);
             throw httpError('failed-precondition', 'Device is not trusted.');
@@ -1323,8 +1346,28 @@ function requireFreshStepUp(context, action) {
     return requireReady().requireFreshStepUp(context, action);
 }
 
+// Same delete the scheduled lobby cleanup runs. nowDate is the cutoff so a
+// test can sweep a two-minute window without waiting out the day counter.
+async function sweepExpiredMfaRows(db, nowDate) {
+    const cutoff = nowDate instanceof Date ? nowDate : new Date(nowDate);
+    const expiredSessions = await db.collection('totp_sessions').where('expireAt', '<', cutoff).limit(200).get();
+    if (!expiredSessions.empty) {
+        const sessionBatch = db.batch();
+        expiredSessions.docs.forEach(function (doc) { sessionBatch.delete(doc.ref); });
+        await sessionBatch.commit();
+    }
+    const expiredAttempts = await db.collection('totp_rate_limits').where('expireAt', '<', cutoff).limit(200).get();
+    if (!expiredAttempts.empty) {
+        const attemptBatch = db.batch();
+        expiredAttempts.docs.forEach(function (doc) { attemptBatch.delete(doc.ref); });
+        await attemptBatch.commit();
+    }
+    return { sessions: expiredSessions.size, attempts: expiredAttempts.size };
+}
+
 module.exports = {
     initSecondFactor: initSecondFactor,
+    sweepExpiredMfaRows: sweepExpiredMfaRows,
     stamp: stamp,
     requireSecondFactor: requireSecondFactor,
     requireFreshStepUp: requireFreshStepUp,

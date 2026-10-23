@@ -84,9 +84,12 @@ test('server session, recovery hashes, and fail-closed key live in the second-fa
     assert.ok(!src.includes('console.log'));
     assert.ok(index.includes('requireSecondFactor'));
     assert.ok(src.includes('expireAt: new Date(windowStart + RATE_WINDOW_MS)'));
+    assert.ok(src.includes("doc(uid + '_day')"), 'daily failure doc');
+    assert.ok(src.includes('expireAt: new Date(failStart + DAILY_WINDOW_MS)'));
+    assert.ok(src.includes('sweepExpiredMfaRows'));
     assert.ok(src.includes("networkRateDocId(db, 'recover_'"), 'recovery bucket');
     assert.ok(!src.includes("takeAttempt('recover_' + "));
-    assert.ok(index.includes("collection('totp_rate_limits')"));
+    assert.ok(index.includes('sweepExpiredMfaRows(db, new Date())'));
     const gated = ['claimSats', 'awardPoints', 'dailySpin', 'donatePoints', 'v4vSplitRelay',
         'spendTickets', 'spendTicketsForFreeze', 'convertPointsToTickets', 'activateHashBooster',
         'useHintToken', 'activateDoubleXP', 'useBonusSpin', 'mergeAnonBadges'];

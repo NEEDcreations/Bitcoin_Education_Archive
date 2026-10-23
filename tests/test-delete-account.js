@@ -410,6 +410,7 @@ function world() {
         'rate_limits/announce_u1': { n: 1 },
         'rate_limits/nostr_203_0_113_8': { n: 1 },
         'totp_rate_limits/u1': { n: 1 },
+        'totp_rate_limits/u1_day': { failedAttempts: 3 },
         'totp_rate_limits/u1_verify': { n: 1 },
         'weekly_challenges/w1': { participants: { u1: true, u2: true } },
         'weekly_challenges/w1/user_contribs/u1_chat': { count: 2 },
@@ -752,6 +753,7 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('rate_limits/announce_u1'), false);
         assert.strictEqual(db.docs.get('rate_limits/nostr_203_0_113_8').n, 1);
         assert.strictEqual(db.docs.has('totp_rate_limits/u1'), false);
+        assert.strictEqual(db.docs.has('totp_rate_limits/u1_day'), false);
         assert.strictEqual(db.docs.has('totp_rate_limits/u1_verify'), false);
         assert.strictEqual(db.docs.get('weekly_challenges/w1').participants.u1, undefined);
         assert.strictEqual(db.docs.get('weekly_challenges/w1').participants.u2, true);
@@ -1280,6 +1282,7 @@ function auth(uid, extras) {
             'totp_pending/u1': { secret: 'pending' },
             'recovery_codes/u1': { codes: [{ used: false }] },
             'totp_rate_limits/u1_regen': { attempts: 1 },
+            'totp_rate_limits/u1_day': { failedAttempts: 2 },
             ['totp_sessions/u1_' + sessionId]: {
                 uid: 'u1',
                 sessionId: sessionId,
@@ -1304,6 +1307,7 @@ function auth(uid, extras) {
         assert.strictEqual(fresh.docs.has('totp_pending/u1'), false);
         assert.strictEqual(fresh.docs.has('recovery_codes/u1'), false);
         assert.strictEqual(fresh.docs.has('totp_rate_limits/u1_regen'), false);
+        assert.strictEqual(fresh.docs.has('totp_rate_limits/u1_day'), false);
         assert.strictEqual(fresh.docs.has('totp_sessions/u1_' + sessionId), false);
 
         const off = createFakeDb({ 'users/u1': { username: 'Alice' } });

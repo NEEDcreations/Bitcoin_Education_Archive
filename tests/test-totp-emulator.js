@@ -605,6 +605,8 @@ async function main() {
         await expectThrow(function () {
             return fns.totpResumeDevice.run({ deviceToken: checked.deviceToken }, other.context);
         }, 'permission-denied', 'Device is not trusted');
+        const stolenDay = await db.collection('totp_rate_limits').doc(otherUid + '_day').get();
+        assert.strictEqual(stolenDay.data().failedAttempts, 1);
 
         for (let i = 0; i < 5; i++) {
             await expectThrow(function () {
@@ -818,12 +820,28 @@ async function main() {
         }, 'resource-exhausted', 'Too many attempts');
         const stepBucket = await db.collection('totp_rate_limits').doc(uid + '_step_deleteAccount').get();
         assert.strictEqual(stepBucket.exists, false);
+        const dayBefore = await db.collection('totp_rate_limits').doc(uid + '_day').get();
+        assert.strictEqual(dayBefore.data().failedAttempts, 5);
+        assert.ok(dayBefore.data().expireAt.toDate().getTime() >= now + (24 * 60 * 60 * 1000) - 1000);
+        const windowBefore = await db.collection('totp_rate_limits').doc(uid).get();
+        assert.strictEqual(windowBefore.data().failedAttempts, undefined);
+        await db.collection('totp_rate_limits').doc('e2eexpireday_day').set({
+            uid: 'e2eexpireday',
+            failedAttempts: 4,
+            failedWindowStartMs: now - (24 * 60 * 60 * 1000),
+            expireAt: new Date(now - 1000),
+        });
+        const swept = await secondFactor.sweepExpiredMfaRows(db, new Date(now + (3 * 60 * 1000)));
+        assert.ok(swept.attempts >= 2);
+        assert.strictEqual((await db.collection('totp_rate_limits').doc(uid).get()).exists, false);
+        const dayKept = await db.collection('totp_rate_limits').doc(uid + '_day').get();
+        assert.strictEqual(dayKept.data().failedAttempts, 5);
+        assert.strictEqual((await db.collection('totp_rate_limits').doc('e2eexpireday_day').get()).exists, false);
         now += 120000;
         const afterWindow = await fns.totpCheck.run({ code: codeAt(enrolled.secret, now) }, context);
         assert.ok(afterWindow.sessionId);
-        const midway = await db.collection('totp_rate_limits').doc(uid).get();
-        assert.strictEqual(midway.data().failedAttempts, 5);
-        let failed = 5;
+        assert.strictEqual((await db.collection('totp_rate_limits').doc(uid + '_day').get()).exists, false);
+        let failed = 0;
         while (failed < secondFactor.DAILY_FAIL_MAX) {
             now += 120000;
             const room = Math.min(5, secondFactor.DAILY_FAIL_MAX - failed);
@@ -838,8 +856,10 @@ async function main() {
         await expectThrow(function () {
             return fns.regenerateRecoveryCodes.run({ code: codeAt(enrolled.secret, now) }, context);
         }, 'resource-exhausted', 'tomorrow');
-        const capped = await db.collection('totp_rate_limits').doc(uid).get();
+        const capped = await db.collection('totp_rate_limits').doc(uid + '_day').get();
         assert.strictEqual(capped.data().failedAttempts, secondFactor.DAILY_FAIL_MAX);
+        await fns.useRecoveryCode.run({ email: email, code: enrolled.codes[0] }, context);
+        assert.strictEqual((await db.collection('totp_rate_limits').doc(uid + '_day').get()).exists, false);
 
         now = 1700030000000;
         const capUid = 'e2edevicecap';
