@@ -179,6 +179,7 @@ function initRanking() {
                 if (anonData) {
                     anonData.email = user.email || '';
                     if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
+                    anonData.created = firebase.firestore.FieldValue.serverTimestamp();
                     await db.collection('users').doc(user.uid).set(anonData);
                 } else {
                     await db.collection('users').doc(user.uid).set({
@@ -499,6 +500,7 @@ async function finishEmailSignIn(email, _signInUrl) {
         if (!existingDoc.exists && anonData) {
             // Migrate anonymous data to email account
             anonData.email = email;
+            anonData.created = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('users').doc(emailUid).set(anonData);
         } else if (existingDoc.exists && anonData) {
             // Existing email user - merge points if anon had more (one-time only)
@@ -1123,6 +1125,7 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
             if (clientLnValid(_anonLn)) { anonData.lightning = _anonLn; anonData.lightningAddress = _anonLn; }
             if (_pendingFaction) { anonData.faction = _pendingFaction; }
             if (_pendingCountry) { anonData.country = _pendingCountry; }
+            anonData.created = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('users').doc(user.uid).set(anonData);
         } else {
             var _newUN = _pendingUN || user.displayName || 'Bitcoiner';

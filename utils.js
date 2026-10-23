@@ -167,3 +167,45 @@ var PREMIUM_CONFIG = {
     LIFETIME_SATS: 210000,
     TIER_NAME: 'Bitcoin Maxi'
 };
+
+// ---- Education topic cache buster ----
+// Appended to channel JSON fetches so a data edit is not stuck in the SW cache.
+var DATA_CACHE_BUSTER = '20261022b';
+function withDataCacheBuster(url) {
+    if (!url || typeof url !== 'string') return url;
+    if (/[?&]v=/.test(url)) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + DATA_CACHE_BUSTER;
+}
+
+// ---- Display-time strong-language mask ----
+// Shared helper in the same role as a Beats beatsCensor: captions stay intact
+// in the data files, and the reader sees the first and last letter (F**k).
+// URLs are left untouched here so links keep working; censorUrlLabel masks
+// the visible label only.
+function maskStrongWord(word) {
+    if (!word) return word;
+    if (word.length <= 2) return word.charAt(0) + '*';
+    var stars = '';
+    for (var i = 0; i < word.length - 2; i++) stars += '*';
+    return word.charAt(0) + stars + word.charAt(word.length - 1);
+}
+function censorUrlLabel(url) {
+    if (!url) return url;
+    return String(url).replace(/motherfuck(?:ing|ed|ers|er|s)?|fuck(?:ing|ed|ers|er|s)?/gi, function(w) {
+        return maskStrongWord(w);
+    });
+}
+function censorText(text) {
+    if (!text || typeof text !== 'string') return text || '';
+    var urls = [];
+    var protectedText = text.replace(/https?:\/\/[^\s<>"']+/gi, function(u) {
+        urls.push(u);
+        return '\u0000URL' + (urls.length - 1) + '\u0000';
+    });
+    protectedText = protectedText.replace(/\b(?:motherfuck(?:ing|ed|ers|er|s)?|fuck(?:ing|ed|ers|er|s)?)\b/gi, function(w) {
+        return maskStrongWord(w);
+    });
+    return protectedText.replace(/\u0000URL(\d+)\u0000/g, function(_, i) {
+        return urls[Number(i)];
+    });
+}

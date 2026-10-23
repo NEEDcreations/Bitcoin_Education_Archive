@@ -112,14 +112,25 @@ test('banned accounts and the daily cap hold for trivia', function() {
     assert.strictEqual(reward.isRewardBanned({ satsDisabled: true }, null), true);
     assert.strictEqual(reward.isRewardBanned({}, { banned: true }), true);
     assert.strictEqual(reward.isRewardBanned({}, { banned: false }), false);
+    assert.strictEqual(reward.isRewardBanned({ ban_reason: 'spam' }, null), true);
+    assert.strictEqual(reward.isRewardBanned({ ban_reason: '' }, null), false);
 
-    const capped = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 500 }));
+    const capped = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 200, triviaQuizUsed: 500 }));
     assert.strictEqual(capped.awarded, 0);
-    assert.strictEqual(capped.overflowAdded, 50);
+    assert.strictEqual(capped.overflowAdded, 0);
+    assert.strictEqual(capped.dropped, 50);
     assert.strictEqual(capped.capped, true);
-    const partial = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 480 }));
+    const partial = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 200, triviaQuizUsed: 480 }));
     assert.strictEqual(partial.awarded, 20);
-    assert.strictEqual(partial.overflowAdded, 30);
+    assert.strictEqual(partial.overflowAdded, 0);
+    assert.strictEqual(partial.dropped, 30);
+    const otherXp = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 800, triviaQuizUsed: 0 }));
+    assert.strictEqual(otherXp.awarded, 50);
+    assert.strictEqual(otherXp.overflowAdded, 0);
+    const general = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 1000, triviaQuizUsed: 0 }));
+    assert.strictEqual(general.awarded, 0);
+    assert.strictEqual(general.overflowAdded, 0);
+    assert.strictEqual(general.dropped, 50);
 });
 
 test('forged quiz keys are ignored and grading uses answer text', function() {
@@ -212,26 +223,41 @@ test('the daily quiz cap holds and banned accounts are paid nothing', function()
     });
     const full = reward.settleQuizReward({
         graded: graded,
-        dailyUsed: 500,
+        dailyUsed: 200,
+        triviaQuizUsed: 500,
         questsToday: 0,
         banned: false,
         alreadyPerfect: false,
     });
     assert.strictEqual(full.awarded, 0);
-    assert.strictEqual(full.overflowAdded, 100);
+    assert.strictEqual(full.overflowAdded, 0);
+    assert.strictEqual(full.dropped, 100);
     assert.strictEqual(full.capped, true);
     assert.strictEqual(full.pts, 100);
 
     const room = reward.settleQuizReward({
         graded: graded,
-        dailyUsed: 450,
+        dailyUsed: 200,
+        triviaQuizUsed: 450,
         questsToday: 0,
         banned: false,
         alreadyPerfect: false,
     });
     assert.strictEqual(room.awarded, 50);
-    assert.strictEqual(room.overflowAdded, 50);
+    assert.strictEqual(room.overflowAdded, 0);
+    assert.strictEqual(room.dropped, 50);
     assert.strictEqual(room.capped, true);
+
+    const otherXp = reward.settleQuizReward({
+        graded: graded,
+        dailyUsed: 800,
+        triviaQuizUsed: 0,
+        questsToday: 0,
+        banned: false,
+        alreadyPerfect: false,
+    });
+    assert.strictEqual(otherXp.awarded, 100);
+    assert.strictEqual(otherXp.overflowAdded, 0);
 
     const banned = reward.settleQuizReward({
         graded: graded,
@@ -305,6 +331,10 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     assert.ok(callables.includes('enforceAppCheck: true'));
     assert.ok(callables.includes('faucet_ledger'));
     assert.ok(callables.includes('isRewardBanned'));
+    assert.ok(callables.includes('planGrant'));
+    assert.ok(callables.includes('ban_reason'));
+    assert.ok(callables.includes('triviaQuiz'));
+    assert.strictEqual(callables.includes('pendingOverflow'), false);
     assert.ok(callables.includes('rate_limits'));
     assert.ok(callables.includes("require('./rewardNotify')"));
     assert.ok(callables.includes('quest_completions'));

@@ -1,4 +1,4 @@
-var CHANNELS = {"decentralized":{"cat":"Properties Layer 1","title":"👪decentralized-censorship-resistant-ungovernable-incorruptible-trustless-unconfiscatable-updatable","desc":"Why no single person, company, or government controls Bitcoin — and why that's the most important feature.","file":"data/D_decentralized.json"},"dominant":{"cat":"Properties Layer 1","title":"🏆dominant-recognizable-brand-legitimate-limitless-infinite-exponential-transformative-revolutionary","desc":"Bitcoin's brand recognition, network effects, and why it has maintained the #1 position since 2009.","file":"data/D_dominant.json"},"money":{"cat":"Properties Layer 1","title":"💰money-deflationary-salable-durable-anti-fragile-divisible-portable-transmittable-verifiable-fair","desc":"What money actually is, how it works, and why Bitcoin satisfies every property of sound money better than anything before it.","file":"data/D_money.json"},"organic":{"cat":"Properties Layer 1","title":"🌳organic-empowering-elegant-freedom-centric-irrefutable-unseizable-irreversible-unbreakable","desc":"How Bitcoin grew from an idea worth nothing to a trillion-dollar network — without marketing, without a company, without a leader.","file":"data/D_organic.json"},"peaceful":{"cat":"Properties Layer 1","title":"☮peaceful-neutral-voluntary-open-universal-permissionless-borderless-global-inevitable-unstoppable","desc":"Bitcoin is voluntary, permissionless, borderless, and unstoppable. No one forces you to use it — and no one can stop you.","file":"data/D_peaceful.json"},"programmable":{"cat":"Properties Layer 1","title":"🤖programable-interoperable-deflationary-pseudonymous-opt-in-resilient-adiabatic-egalitarian","desc":"Bitcoin as programmable money — interoperable, pseudonymous, resilient, and thermodynamically sound.","file":"data/D_programmable.json"},"scarce":{"cat":"Properties Layer 1","title":"🍀scarce-unforgeable-hedge-scalable-p2p-instant-open-source-auditable-inaliable","desc":"Only 21 million will ever exist. Explore what makes Bitcoin the scarcest asset humanity has ever created.","file":"data/D_scarce.json"},"secure":{"cat":"Properties Layer 1","title":"™secure-fungible-immutable-incorruptible-immalleable-infallible-reliable-predictable-irreplicable","desc":"How Bitcoin's network security makes it virtually impossible to hack — protected by more computing power than anything on Earth.","file":"data/D_secure.json"},"supranational":{"cat":"Properties Layer 1","title":"🕊supranational-lindy-inviolate-dilution-proof-frictionless-freely-accessible-settlement-finality","desc":"Bitcoin transcends nations and governments. Explore the Lindy Effect, settlement finality, and dilution-proof money.","file":"data/D_supranational.json"},"use-cases":{"cat":"Properties Layer 1","title":"✔use-cases","desc":"Real-world uses for Bitcoin: savings, payments, remittances, store of value, and more.","file":"data/D_use-cases.json"},"whitepaper":{"cat":"Properties Layer 1","title":"📄whitepaper","desc":"The 9-page document that started it all. Published October 31, 2008 by Satoshi Nakamoto — the foundation of Bitcoin.","file":"data/D_whitepaper.json"},"bitvm":{"cat":"Experienced Topics","title":"🖥bitvm","desc":"BitVM: computation on Bitcoin without changing the protocol. A new frontier for Bitcoin programmability.","file":"data/E_bitvm.json"},"blockchain-timechain":{"cat":"Experienced Topics","title":"⛓blockchain-timechain-transactions-addresses","desc":"How the Bitcoin blockchain (timechain) works — blocks, transactions, timestamps, and the immutable ledger.","file":"data/E_blockchain-timechain.json"},"chaumian-mints":{"cat":"Experienced Topics","title":"💸layer-2-chaumian-mints-ecash","desc":"Chaumian ecash, Cashu, and blinded signatures — the cutting edge of Bitcoin privacy technology.","file":"data/E_chaumian-mints.json"},"consensus":{"cat":"Additional Info","title":"🤝Consensus","desc":"How Bitcoin achieves consensus without a central authority — Nakamoto Consensus and beyond.","file":"data/H_consensus.json"},"core-source-code":{"cat":"Experienced Topics","title":"💾core-source-code-forks-testnet-future-potential-upgrades","desc":"Bitcoin Core's source code, forks, testnet, and the open-source development process.","file":"data/E_core-source-code.json"},"cryptography":{"cat":"Experienced Topics","title":"🔒cryptography-cypherpunks","desc":"The cryptographic foundations of Bitcoin — SHA-256, elliptic curves, digital signatures, and the cypherpunk legacy.","file":"data/E_cryptography.json"},"ctv-covenants":{"cat":"Experienced Topics","title":"📜ctv-bip119-covenants","desc":"BIP-119, CTV, and Bitcoin covenants — proposed upgrades and the debates around them.","file":"data/E_ctv-covenants.json"},"developers":{"cat":"Experienced Topics","title":"🖥developers","desc":"Building on Bitcoin — resources, guides, and paths for developers who want to contribute.","file":"data/E_developers.json"},"difficulty-adjustment":{"cat":"Experienced Topics","title":"😤difficulty-adjustment","desc":"The most elegant part of Bitcoin's design — how the network self-adjusts every 2,016 blocks.","file":"data/E_difficulty-adjustment.json"},"energy":{"cat":"Experienced Topics","title":"💡energy","desc":"The truth about Bitcoin's energy use: 0.1% of global energy, renewable mining, methane capture, and grid stabilization.","file":"data/E_energy.json"},"evidence-against-alts":{"cat":"Experienced Topics","title":"⚠evidence-against-ethereum-other-alt-coins-crypto-defi-nfts-web3-monero-bsv-bch-cbdcs-other-projects","desc":"Why every altcoin fails against Bitcoin — premines, centralization, broken promises, and the evidence.","file":"data/E_evidence-against-alts.json"},"extension-blocks":{"cat":"Experienced Topics","title":"🚧extension-blocks-and-other-proposed-scaling-solutions","desc":"Extension blocks and other proposed scaling solutions for Bitcoin.","file":"data/E_extension-blocks.json"},"fedi-ark":{"cat":"Experienced Topics","title":"🛡layer-2-fedi-ark","desc":"Fedimints, Ark, and Bitcoin's privacy/scaling layers — community custody with enhanced privacy.","file":"data/E_fedi-ark.json"},"investment-strategy":{"cat":"Experienced Topics","title":"🤑investment-strategy-taxes-retirement-inheritance-loans-donate-gift-consulting-remittance","desc":"DCA, HODL, lump sum strategies, taxes, retirement planning, and thinking long-term with Bitcoin.","file":"data/E_investment-strategy.json"},"layer-2-lightning":{"cat":"Experienced Topics","title":"⚡layer-2-lightning","desc":"The Lightning Network: instant, nearly-free Bitcoin payments. How Bitcoin scales without sacrificing decentralization.","file":"data/E_layer-2-lightning.json"},"layer-3-sidechains":{"cat":"Experienced Topics","title":"📱layer-3-sidechain-applications","desc":"Sidechains, Liquid Network, and layer-3 applications built on top of Bitcoin.","file":"data/E_layer-3-sidechains.json"},"maximalism":{"cat":"Experienced Topics","title":"💯maximalism","desc":"Why people who study Bitcoin the most become maximalists. The case for Bitcoin-only.","file":"data/E_maximalism.json"},"mining":{"cat":"Experienced Topics","title":"🌋mining","desc":"How Bitcoin mining actually works — nonces, SHA-256 hashing, difficulty adjustment, and the brute-force lottery.","file":"data/E_mining.json"},"nodes":{"cat":"Experienced Topics","title":"💻nodes","desc":"Run your own Bitcoin node. Don't trust, verify. How 14,000+ nodes keep the network decentralized.","file":"data/E_nodes.json"},"op-codes":{"cat":"Experienced Topics","title":"👨‍💻op-codes-simplicity","desc":"OP_CAT, Simplicity, and Bitcoin's scripting language — the building blocks of smart functionality.","file":"data/E_op-codes.json"},"pow-vs-pos":{"cat":"Experienced Topics","title":"💪proof-of-work-vs-proof-of-stake","desc":"Why Proof of Work is fundamentally superior to Proof of Stake — energy, security, fairness, and decentralization.","file":"data/E_pow-vs-pos.json"},"privacy-nonkyc":{"cat":"Experienced Topics","title":"🤫privacy-nonkyc-stacking-self-sovereignty","desc":"Financial privacy as a human right. KYC, non-KYC stacking, and protecting your sovereignty.","file":"data/E_privacy-nonkyc.json"},"problems-of-money":{"cat":"Experienced Topics","title":"📉the-problems-of-todays-money-and-freedom","desc":"The broken fiat system: inflation, money printing, the Cantillon Effect, and why today's money is failing everyone.","file":"data/E_problems-of-money.json"},"regulation":{"cat":"Experienced Topics","title":"🏛regulation-policy-legal","desc":"Bitcoin and government: bans, adoption, legal tender, ETFs, and why regulation can't stop decentralization.","file":"data/E_regulation.json"},"self-custody":{"cat":"Experienced Topics","title":"🔑personal-storage-self-custody-security","desc":"Not your keys, not your coins. Learn how to truly own your Bitcoin with wallets, seed phrases, and security.","file":"data/E_self-custody.json"},"smart-contracts":{"cat":"Experienced Topics","title":"📱smart-contracts","desc":"Smart contracts on Bitcoin — what's possible, what's coming, and why Bitcoin's approach is different.","file":"data/E_smart-contracts.json"},"stablecoins":{"cat":"Additional Info","title":"🪙Stablecoins","desc":"The role of stablecoins in the Bitcoin economy — and why they're not a threat to Bitcoin.","file":"data/H_stablecoins.json"},"0_mining__hashing":{"cat":"Additional Info","title":"0⃣Mining (Hashing)","desc":"Deep dive into Bitcoin mining and hashing — how SHA-256 works at the bit level.","file":"data/H_0_mining__hashing.json"},"100_sats":{"cat":"Additional Info","title":"💯100 sats","desc":"What can you do with just 100 satoshis? More than you think.","file":"data/H_100_sats.json"},"1_first_principles":{"cat":"Additional Info","title":"1⃣First Principles","desc":"First principles thinking applied to Bitcoin — reasoning from fundamentals, not analogies.","file":"data/H_1_first_principles.json"},"2__solved_technical_problems":{"cat":"Additional Info","title":"2⃣ Solved Technical Problems","desc":"The technical problems Bitcoin solved — digital scarcity, double-spending, and Byzantine fault tolerance.","file":"data/H_2__solved_technical_problems.json"},"analogies":{"cat":"Additional Info","title":"🔋Analogies","desc":"The best analogies for explaining Bitcoin to anyone — from trees to brains to hearts.","file":"data/H_analogies.json"},"austrian_school_of_economics":{"cat":"Additional Info","title":"🇦🇹Austrian School of Economics","desc":"Austrian Economics and Bitcoin: Mises, Hayek, sound money theory, and the intellectual foundation.","file":"data/H_austrian_school_of_economics.json"},"bip119":{"cat":"Additional Info","title":"🚧BIP119","desc":"BIP-119 (CheckTemplateVerify) — what it is, why it's controversial, and the community debate.","file":"data/H_bip119.json"},"bitcoin_exam":{"cat":"Additional Info","title":"🎓Bitcoin Exam","desc":"Test questions for a Bitcoin exam — study material and self-assessment.","file":"data/H_bitcoin_exam.json"},"bitcoin_vs_real_estate":{"cat":"Additional Info","title":"Bitcoin vs Real Estate","desc":"Bitcoin vs. real estate as an investment — comparing the two hardest assets.","file":"data/H_bitcoin_vs_real_estate.json"},"block_time-block-size":{"cat":"Additional Info","title":"⏰Block Time-Block-Size","desc":"Why Bitcoin uses 10-minute blocks and how block size affects the network.","file":"data/H_block_time-block-size.json"},"burn_bitcoin":{"cat":"Additional Info","title":"Burn bitcoin","desc":"How Bitcoin can be burned (made permanently unspendable) and why people do it.","file":"data/H_burn_bitcoin.json"},"byzantine_generals__problem":{"cat":"Additional Info","title":"⚔Byzantine Generals’ Problem","desc":"The Byzantine Generals' Problem — the computer science challenge Satoshi solved.","file":"data/H_byzantine_generals__problem.json"},"chaumian_e-cash_and_blind_signatures":{"cat":"Additional Info","title":"💲Chaumian E-cash and Blind Signatures","desc":"David Chaum's ecash, blind signatures, and the cryptographic foundations of digital privacy.","file":"data/H_chaumian_e-cash_and_blind_signatures.json"},"coin_mixing_coinjoin_coin_control_utxo":{"cat":"Additional Info","title":"🌀Coin Mixing/Coinjoin/Coin Control/UTXO Management","desc":"CoinJoin, coin mixing, UTXO management — advanced Bitcoin privacy techniques.","file":"data/H_coin_mixing_coinjoin_coin_control_utxo.json"},"cyles":{"cat":"Additional Info","title":"🚲Cyles","desc":"Bitcoin's 4-year cycles, Gartner Hype Cycles, and whether the pattern continues.","file":"data/H_cyles.json"},"derivation_path":{"cat":"Additional Info","title":"↕Derivation Path","desc":"HD wallet derivation paths — how your seed phrase generates all your addresses.","file":"data/H_derivation_path.json"},"discrete_log_contracts__dlcs":{"cat":"Additional Info","title":"📝Discrete Log Contracts (DLCs)?","desc":"DLCs (Discrete Log Contracts) — smart contracts on Bitcoin using oracle signatures.","file":"data/H_discrete_log_contracts__dlcs.json"},"dollar-bitcoin_milkshake_theory":{"cat":"Additional Info","title":"🥤Dollar-Bitcoin Milkshake Theory","desc":"The Dollar-Bitcoin Milkshake Theory — how global dollar demand and Bitcoin intersect.","file":"data/H_dollar-bitcoin_milkshake_theory.json"},"dust":{"cat":"Additional Info","title":"⏳Dust","desc":"Dust UTXOs: what they are, why they're a problem, and how to manage them.","file":"data/H_dust.json"},"elevator_pitches":{"cat":"Additional Info","title":"↕Elevator Pitches","desc":"Quick 20-30 second explanations of why Bitcoin matters — for every audience.","file":"data/H_elevator_pitches.json"},"environment___energy":{"cat":"Additional Info","title":"🌳Environment & Energy","desc":"Bitcoin and the environment: energy usage facts, renewable mining, and debunking the FUD.","file":"data/H_environment___energy.json"},"faith___religion":{"cat":"Additional Info","title":"🙏Faith & Religion","desc":"Bitcoin and faith — how sound money relates to religious and spiritual values.","file":"data/H_faith___religion.json"},"fedimints":{"cat":"Additional Info","title":"💚Fedimints","desc":"Fedimints: community custody with enhanced privacy using federated Chaumian mints.","file":"data/H_fedimints.json"},"feedback_loops":{"cat":"Additional Info","title":"➰Feedback Loops","desc":"Bitcoin's feedback loops — the self-reinforcing cycles that drive adoption and security.","file":"data/H_feedback_loops.json"},"free_and_open_source_software__foss":{"cat":"Additional Info","title":"💿Free and Open Source Software (FOSS)","desc":"Free and open source software (FOSS) projects connected to Bitcoin.","file":"data/H_free_and_open_source_software__foss.json"},"game_theory":{"cat":"Additional Info","title":"🏈Game Theory","desc":"Game theory and Bitcoin: Nash equilibrium, prisoner's dilemma, and strategic incentives.","file":"data/H_game_theory.json"},"geopolitics___macroeconomics":{"cat":"Additional Info","title":"💰Geopolitics & Macroeconomics","desc":"Bitcoin's role in geopolitics: nation-state adoption, reserve currencies, and macro trends.","file":"data/H_geopolitics___macroeconomics.json"},"governance":{"cat":"Additional Info","title":"🏛Governance","desc":"How Bitcoin is governed — consensus mechanisms, BIPs, and decentralized decision-making.","file":"data/H_governance.json"},"ham_radio":{"cat":"Additional Info","title":"Ham Radio","desc":"Using Bitcoin without internet — ham radio, mesh networks, and offline transactions.","file":"data/H_ham_radio.json"},"human_rights__social_justice_and_freedo":{"cat":"Additional Info","title":"🗽Human Rights, Social Justice and Freedom","desc":"Bitcoin as a tool for human rights, social justice, and financial freedom worldwide.","file":"data/H_human_rights__social_justice_and_freedo.json"},"improved_incentive_structure":{"cat":"Additional Info","title":"✅Improved Incentive Structure","desc":"How Bitcoin's incentive structure improves civilization — aligning individual and collective interests.","file":"data/H_improved_incentive_structure.json"},"laws_of_thermodynamics":{"cat":"Additional Info","title":"🔥Laws of Thermodynamics","desc":"How Bitcoin follows the laws of thermodynamics — energy, entropy, and proof of work.","file":"data/H_laws_of_thermodynamics.json"},"lightning_node":{"cat":"Additional Info","title":"⚡ Lightning Node","desc":"Running a Lightning Network node — setup guides, routing, and earning sats.","file":"data/H_lightning_node.json"},"lindy_effect":{"cat":"Additional Info","title":"👴Lindy Effect","desc":"The Lindy Effect: the longer Bitcoin survives, the longer it will survive.","file":"data/H_lindy_effect.json"},"market_cap":{"cat":"Additional Info","title":"🧢Market Cap","desc":"Bitcoin's market cap potential — can it reach millions per coin? The math says yes.","file":"data/H_market_cap.json"},"math":{"cat":"Additional Info","title":"➕Math","desc":"The mathematics of Bitcoin — from SHA-256 to elliptic curves to probability.","file":"data/H_math.json"},"mathematics":{"cat":"Additional Info","title":"➕Mathematics","desc":"Advanced mathematical concepts underlying Bitcoin's protocol and security.","file":"data/H_mathematics.json"},"mev":{"cat":"Additional Info","title":"⛏MEV","desc":"MEV (Miner Extractable Value) in Bitcoin — what it is and its implications.","file":"data/H_mev.json"},"network_effects":{"cat":"Additional Info","title":"🌐Network Effects","desc":"Bitcoin's network effects — why the most adopted network wins and keeps winning.","file":"data/H_network_effects.json"},"open_source":{"cat":"Additional Info","title":"⭕Open Source","desc":"What free and open source really means — and why it matters for Bitcoin.","file":"data/H_open_source.json"},"oracle":{"cat":"Additional Info","title":"🔮Oracle","desc":"Oracles in Bitcoin — how external data connects to the blockchain.","file":"data/H_oracle.json"},"orange-pilling":{"cat":"Additional Info","title":"🟠Orange-Pilling","desc":"The art of orange-pilling — strategies for explaining Bitcoin to different audiences.","file":"data/H_orange-pilling.json"},"ordinals":{"cat":"Additional Info","title":"Ordinals","desc":"Bitcoin Ordinals and inscriptions — NFTs on the world's most secure blockchain.","file":"data/H_ordinals.json"},"ordinals__nfts_on_bitcoin__and_block_spa":{"cat":"Additional Info","title":"Ordinals, NFTs on Bitcoin, and Block Space","desc":"The Ordinals debate: NFTs on Bitcoin, block space economics, and community perspectives.","file":"data/H_ordinals__nfts_on_bitcoin__and_block_spa.json"},"peace_and_anti-war":{"cat":"Additional Info","title":"☮Peace and Anti-War","desc":"Can a Bitcoin Standard end wars? The case for Bitcoin as a force for peace.","file":"data/H_peace_and_anti-war.json"},"philosophy":{"cat":"Additional Info","title":"🍎Philosophy","desc":"The philosophy of Bitcoin — from first principles to existential implications.","file":"data/H_philosophy.json"},"politics":{"cat":"Additional Info","title":"🏛Politics","desc":"Bitcoin and politics — how Bitcoin intersects with government policy and elections.","file":"data/H_politics.json"},"predictions":{"cat":"Additional Info","title":"🔮Predictions","desc":"Bitcoin predictions timestamped by the community — bold calls and their outcomes.","file":"data/H_predictions.json"},"public_key_vs_private_key":{"cat":"Additional Info","title":"🗝Public Key vs Private Key","desc":"Public keys vs. private keys — the cryptographic foundation of Bitcoin ownership.","file":"data/H_public_key_vs_private_key.json"},"rbf":{"cat":"Additional Info","title":"↔RBF","desc":"Replace-By-Fee (RBF) — how to speed up stuck Bitcoin transactions.","file":"data/H_rbf.json"},"referral-links":{"cat":"Referral Links","title":"🔗free-btc-referral-links","desc":"Curated Bitcoin referral links — earn free sats with trusted platforms like River, Fold, and Strike.","file":"data/H_referral-links.json"},"risks__threats__attack_vectors__weaknes":{"cat":"Additional Info","title":"⚔Risks, Threats, Attack Vectors, Weaknesses, Issues","desc":"Bitcoin's risks, threats, and attack vectors — what could go wrong and why it probably won't.","file":"data/H_risks__threats__attack_vectors__weaknes.json"},"rollups":{"cat":"Additional Info","title":"🥐Rollups","desc":"Rollups on Bitcoin — scaling and privacy solutions using off-chain computation.","file":"data/H_rollups.json"},"sats__or__bits":{"cat":"Additional Info","title":"\"Sats\" or \"Bits\"?","desc":"The sats vs. bits debate — which denomination should Bitcoin use?","file":"data/H_sats__or__bits.json"},"scalability":{"cat":"Additional Info","title":"🌐Scalability","desc":"Can Bitcoin scale to serve the world? Layers, Lightning, and the path forward.","file":"data/H_scalability.json"},"sidechains":{"cat":"Additional Info","title":"♻Sidechains","desc":"Bitcoin sidechains like Liquid — benefits, tradeoffs, and use cases.","file":"data/H_sidechains.json"},"simplified_payment_verification__spv":{"cat":"Additional Info","title":"✔Simplified Payment Verification (SPV)","desc":"SPV (Simplified Payment Verification) — lightweight Bitcoin verification without a full node.","file":"data/H_simplified_payment_verification__spv.json"},"soft_vs_hard_forks":{"cat":"Additional Info","title":"🍴Soft vs Hard Forks","desc":"Soft forks vs. hard forks — how Bitcoin upgrades while maintaining consensus.","file":"data/H_soft_vs_hard_forks.json"},"softwar":{"cat":"Additional Info","title":"Softwar","desc":"Jason Lowery's Softwar thesis — Bitcoin as a non-lethal alternative to physical warfare.","file":"data/H_softwar.json"},"stratum_v2":{"cat":"Additional Info","title":"🟩Stratum V2","desc":"Stratum V2 — the next-generation mining protocol for better decentralization and efficiency.","file":"data/H_stratum_v2.json"},"submarine_swap":{"cat":"Additional Info","title":"⛵Submarine Swap","desc":"Submarine swaps — trustlessly moving Bitcoin between on-chain and Lightning.","file":"data/H_submarine_swap.json"},"swaps":{"cat":"Additional Info","title":"↔Swaps","desc":"How to swap between on-chain Bitcoin and Lightning — tools, techniques, and protocols.","file":"data/H_swaps.json"},"ta_tips":{"cat":"Additional Info","title":"📈TA Tips","desc":"Technical analysis tips for Bitcoin — chart patterns, indicators, and trading education.","file":"data/H_ta_tips.json"},"tail_emission":{"cat":"Additional Info","title":"🐈Tail Emission","desc":"The tail emission debate — should Bitcoin ever have perpetual block rewards?","file":"data/H_tail_emission.json"},"taproot":{"cat":"Additional Info","title":"🧰Taproot","desc":"Taproot: Bitcoin's latest major upgrade — Schnorr signatures, script improvements, and privacy.","file":"data/H_taproot.json"},"taro":{"cat":"Additional Info","title":"🥕Taro","desc":"Taro (now Taproot Assets) — issuing assets on the Bitcoin and Lightning networks.","file":"data/H_taro.json"},"the_future":{"cat":"Additional Info","title":"🔮The Future","desc":"How Bitcoin could change the future — hyperbitcoinization, global adoption, and beyond.","file":"data/H_the_future.json"},"time":{"cat":"Additional Info","title":"⏰Time","desc":"How Bitcoin keeps time — block time, timestamps, and the decentralized clock.","file":"data/H_time.json"},"time_preference":{"cat":"Additional Info","title":"🕑Time Preference","desc":"Time preference: how sound money encourages long-term thinking and civilization building.","file":"data/H_time_preference.json"},"toxicity":{"cat":"Additional Info","title":"☣ Toxicity","desc":"Is Bitcoin community toxicity real? Or is it integrity? The debate and its meaning.","file":"data/H_toxicity.json"},"transaction_fees":{"cat":"Additional Info","title":"💲Transaction Fees","desc":"Bitcoin transaction fees — how they work, fee markets, and long-term sustainability.","file":"data/H_transaction_fees.json"},"unpopular_opinions":{"cat":"Additional Info","title":"💀Unpopular Opinions","desc":"Unpopular opinions in the Bitcoin space — controversial takes and honest debates.","file":"data/H_unpopular_opinions.json"},"utxos":{"cat":"Additional Info","title":"🕳UTXOs","desc":"UTXOs (Unspent Transaction Outputs) — the fundamental building block of Bitcoin transactions.","file":"data/H_utxos.json"},"vbyte":{"cat":"Additional Info","title":"🏋vByte","desc":"Virtual bytes (vBytes) — how Bitcoin measures transaction weight for fee calculation.","file":"data/H_vbyte.json"},"apps-tools":{"cat":"Resources","title":"🍎apps-tools-services-models","desc":"Bitcoin apps, tools, services, and platforms — everything you need to use Bitcoin daily.","file":"data/R_apps-tools.json"},"art-inspiration":{"cat":"Resources","title":"🤩art-inspiration-motivation","desc":"Bitcoin art, inspiration, and motivational content from the community.","file":"data/R_art-inspiration.json"},"articles-threads":{"cat":"Resources","title":"📃articles-threads","desc":"The best Bitcoin articles and Twitter threads — curated deep dives into every aspect of Bitcoin.","file":"data/R_articles-threads.json"},"books":{"cat":"Resources","title":"📚books","desc":"The essential Bitcoin reading list: The Bitcoin Standard, 21 Lessons, Mastering Bitcoin, and more.","file":"data/R_books.json"},"charts":{"cat":"Resources","title":"📊charts","desc":"Bitcoin price charts, on-chain analytics, stock-to-flow, and data visualizations.","file":"data/R_charts.json"},"curriculum":{"cat":"Resources","title":"🎓curriculum-presentations","desc":"Bitcoin education curriculum and presentations for teachers and students.","file":"data/R_curriculum.json"},"faq-glossary":{"cat":"Resources","title":"❓faq-glossary-search-ai-calendar","desc":"Bitcoin FAQ, glossary of terms, and quick answers to common questions.","file":"data/R_faq-glossary.json"},"fun-facts":{"cat":"Resources","title":"🎉fun-facts","desc":"Mind-blowing Bitcoin trivia: Pizza Day, Satoshi's birthday code, lost coins, and 200+ amazing facts.","file":"data/R_fun-facts.json"},"games":{"cat":"Resources","title":"🎮games","desc":"Bitcoin-themed games and gamified learning experiences.","file":"data/R_games.json"},"giga-chad":{"cat":"Resources","title":"👑giga-chad","desc":"Michael Saylor, MicroStrategy, and the corporate Bitcoin movement.","file":"data/R_giga-chad.json"},"graphics":{"cat":"Resources","title":"🎨graphics","desc":"Bitcoin infographics, charts, diagrams, and visual explanations.","file":"data/R_graphics.json"},"hardware":{"cat":"Resources","title":"💻hardware","desc":"Bitcoin hardware: mining rigs, hardware wallets, nodes, and open-source projects like Bitaxe.","file":"data/R_hardware.json"},"health":{"cat":"Resources","title":"🥩health","desc":"Bitcoin and health: low time preference living, breaking free from the system.","file":"data/R_health.json"},"history":{"cat":"Resources","title":"📆history","desc":"The complete history of Bitcoin — from the cypherpunks to today.","file":"data/R_history.json"},"informational-sites":{"cat":"Resources","title":"📃informational-sites-courses-workshops-newsletters-projects-communities-meetups-conferences","desc":"Bitcoin dashboards, tools, courses, newsletters, communities, and educational websites.","file":"data/R_informational-sites.json"},"international":{"cat":"Resources","title":"🌍international","desc":"Bitcoin resources in multiple languages and global adoption stories.","file":"data/R_international.json"},"jobs-earn":{"cat":"Resources","title":"👷job-postings-employer-info-entrepreneurship-earn-bitcoin-stack-sats","desc":"Bitcoin job boards, entrepreneurship resources, and ways to earn sats.","file":"data/R_jobs-earn.json"},"memes-funny":{"cat":"Resources","title":"😂memes-funny","desc":"The best Bitcoin memes, jokes, and humor from the community. Laugh while you learn.","file":"data/R_memes-funny.json"},"misconceptions-fud":{"cat":"Resources","title":"🤡common-misconceptions-fud-debunked","desc":"Every Bitcoin myth debunked: too volatile, wastes energy, used by criminals, no intrinsic value — all wrong.","file":"data/R_misconceptions-fud.json"},"movies-tv":{"cat":"Resources","title":"🎬movies-tv-documentaries","desc":"Bitcoin documentaries, films, and TV appearances. From The Big Short to Bitcoin-specific docs.","file":"data/R_movies-tv.json"},"music":{"cat":"Resources","title":"🎵music","desc":"Bitcoin-inspired music, songs, and audio content from the community.","file":"data/R_music.json"},"news-adoption":{"cat":"Resources","title":"📰news-adoption","desc":"Latest Bitcoin news, adoption milestones, and real-world usage stories.","file":"data/R_news-adoption.json"},"nostr":{"cat":"Resources","title":"💜nostr","desc":"Nostr: the decentralized social protocol Bitcoiners are building on. Social media you can't be censored from.","file":"data/R_nostr.json"},"one-stop-shop":{"cat":"Resources","title":"🛑one-stop-shop","desc":"The best resources to understand Bitcoin's value as fast as possible. Start here if you're new.","file":"data/R_one-stop-shop.json"},"podcasts":{"cat":"Resources","title":"🔊podcasts","desc":"Top Bitcoin podcasts: Bitcoin Audible, What Bitcoin Did, Stephan Livera, and more.","file":"data/R_podcasts.json"},"poems-stories":{"cat":"Resources","title":"📒poems-stories-jokes","desc":"Bitcoin poetry, short stories, jokes, and creative writing from the community.","file":"data/R_poems-stories.json"},"projects-diy":{"cat":"Resources","title":"🔧projects-diy","desc":"DIY Bitcoin projects: build your own node, Lightning ATM, and more.","file":"data/R_projects-diy.json"},"research-theses":{"cat":"Resources","title":"✍research-theses","desc":"Academic research papers and theses on Bitcoin, monetary policy, and cryptographic systems.","file":"data/R_research-theses.json"},"satoshi-nakamoto":{"cat":"Resources","title":"🦸satoshi-nakamoto","desc":"The mystery of Bitcoin's creator: who was Satoshi Nakamoto? The evidence, theories, and legacy.","file":"data/R_satoshi-nakamoto.json"},"social-media":{"cat":"Resources","title":"👍social-media-proponents","desc":"Bitcoin Twitter/X accounts, influencers, and social media communities to follow.","file":"data/R_social-media.json"},"swag-merch":{"cat":"Resources","title":"👕swag-merch-businesses-spend","desc":"Bitcoin merchandise, clothing, and businesses where you can spend your sats.","file":"data/R_swag-merch.json"},"videos":{"cat":"Resources","title":"📺videos","desc":"Must-watch Bitcoin lectures, talks, and presentations from Andreas Antonopoulos, Michael Saylor, and others.","file":"data/R_videos.json"},"web5":{"cat":"Resources","title":"5⃣web5","desc":"Web5 and decentralized web technologies built on Bitcoin.","file":"data/R_web5.json"}};// ============================================================
+var CHANNELS = {"decentralized":{"cat":"Properties Layer 1","title":"👪decentralized-censorship-resistant-ungovernable-incorruptible-trustless-unconfiscatable-updatable","desc":"Why no single person, company, or government controls Bitcoin — and why that's the most important feature.","file":"data/D_decentralized.json"},"dominant":{"cat":"Properties Layer 1","title":"🏆dominant-recognizable-brand-legitimate-limitless-infinite-exponential-transformative-revolutionary","desc":"Bitcoin's brand recognition, network effects, and why it has maintained the #1 position since 2009.","file":"data/D_dominant.json"},"money":{"cat":"Properties Layer 1","title":"💰money-deflationary-salable-durable-anti-fragile-divisible-portable-transmittable-verifiable-fair","desc":"What money actually is, how it works, and why Bitcoin satisfies every property of sound money better than anything before it.","file":"data/D_money.json"},"organic":{"cat":"Properties Layer 1","title":"🌳organic-empowering-elegant-freedom-centric-irrefutable-unseizable-irreversible-unbreakable","desc":"How Bitcoin grew from an idea worth nothing to a trillion-dollar network — without marketing, without a company, without a leader.","file":"data/D_organic.json"},"peaceful":{"cat":"Properties Layer 1","title":"☮peaceful-neutral-voluntary-open-universal-permissionless-borderless-global-inevitable-unstoppable","desc":"Bitcoin is voluntary, permissionless, borderless, and unstoppable. No one forces you to use it — and no one can stop you.","file":"data/D_peaceful.json"},"programmable":{"cat":"Properties Layer 1","title":"🤖programable-interoperable-deflationary-pseudonymous-opt-in-resilient-adiabatic-egalitarian","desc":"Bitcoin as programmable money — interoperable, pseudonymous, resilient, and thermodynamically sound.","file":"data/D_programmable.json"},"scarce":{"cat":"Properties Layer 1","title":"🍀scarce-unforgeable-hedge-scalable-p2p-instant-open-source-auditable-inaliable","desc":"Only 21 million will ever exist. Explore what makes Bitcoin the scarcest asset humanity has ever created.","file":"data/D_scarce.json"},"secure":{"cat":"Properties Layer 1","title":"™secure-fungible-immutable-incorruptible-immalleable-infallible-reliable-predictable-irreplicable","desc":"How Bitcoin's network security makes it virtually impossible to hack — protected by more computing power than anything on Earth.","file":"data/D_secure.json"},"supranational":{"cat":"Properties Layer 1","title":"🕊supranational-lindy-inviolate-dilution-proof-frictionless-freely-accessible-settlement-finality","desc":"Bitcoin transcends nations and governments. Explore the Lindy Effect, settlement finality, and dilution-proof money.","file":"data/D_supranational.json"},"use-cases":{"cat":"Properties Layer 1","title":"✔use-cases","desc":"Real-world uses for Bitcoin: savings, payments, remittances, store of value, and more.","file":"data/D_use-cases.json"},"whitepaper":{"cat":"Properties Layer 1","title":"📄whitepaper","desc":"The 9-page document that started it all. Published October 31, 2008 by Satoshi Nakamoto — the foundation of Bitcoin.","file":"data/D_whitepaper.json"},"bitvm":{"cat":"Experienced Topics","title":"🖥bitvm","desc":"BitVM: computation on Bitcoin without changing the protocol. A new frontier for Bitcoin programmability.","file":"data/E_bitvm.json"},"blockchain-timechain":{"cat":"Experienced Topics","title":"⛓blockchain-timechain-transactions-addresses","desc":"How the Bitcoin blockchain (timechain) works — blocks, transactions, timestamps, and the immutable ledger.","file":"data/E_blockchain-timechain.json"},"chaumian-mints":{"cat":"Experienced Topics","title":"💸layer-2-chaumian-mints-ecash","desc":"Chaumian ecash, Cashu, and blinded signatures — the cutting edge of Bitcoin privacy technology.","file":"data/E_chaumian-mints.json"},"consensus":{"cat":"Additional Info","title":"🤝Consensus","desc":"How Bitcoin achieves consensus without a central authority — Nakamoto Consensus and beyond.","file":"data/H_consensus.json"},"core-source-code":{"cat":"Experienced Topics","title":"💾core-source-code-forks-testnet-future-potential-upgrades","desc":"Bitcoin Core's source code, forks, testnet, and the open-source development process.","file":"data/E_core-source-code.json"},"cryptography":{"cat":"Experienced Topics","title":"🔒cryptography-cypherpunks","desc":"The cryptographic foundations of Bitcoin — SHA-256, elliptic curves, digital signatures, and the cypherpunk legacy.","file":"data/E_cryptography.json"},"ctv-covenants":{"cat":"Experienced Topics","title":"📜ctv-bip119-covenants","desc":"BIP-119, CTV, and Bitcoin covenants — proposed upgrades and the debates around them.","file":"data/E_ctv-covenants.json"},"developers":{"cat":"Experienced Topics","title":"🖥developers","desc":"Building on Bitcoin — resources, guides, and paths for developers who want to contribute.","file":"data/E_developers.json"},"difficulty-adjustment":{"cat":"Experienced Topics","title":"😤difficulty-adjustment","desc":"The most elegant part of Bitcoin's design — how the network self-adjusts every 2,016 blocks.","file":"data/E_difficulty-adjustment.json"},"energy":{"cat":"Experienced Topics","title":"💡energy","desc":"The truth about Bitcoin's energy use: 0.1% of global energy, renewable mining, methane capture, and grid stabilization.","file":"data/E_energy.json"},"evidence-against-alts":{"cat":"Experienced Topics","title":"⚠evidence-against-ethereum-other-alt-coins-crypto-defi-nfts-web3-monero-bsv-bch-cbdcs-other-projects","desc":"Why every altcoin fails against Bitcoin — premines, centralization, broken promises, and the evidence.","file":"data/E_evidence-against-alts.json"},"extension-blocks":{"cat":"Experienced Topics","title":"🚧extension-blocks-and-other-proposed-scaling-solutions","desc":"Extension blocks and other proposed scaling solutions for Bitcoin.","file":"data/E_extension-blocks.json"},"fedi-ark":{"cat":"Experienced Topics","title":"🛡layer-2-fedi-ark","desc":"Fedimints, Ark, and Bitcoin's privacy/scaling layers — community custody with enhanced privacy.","file":"data/E_fedi-ark.json"},"investment-strategy":{"cat":"Experienced Topics","title":"🤑investment-strategy-taxes-retirement-inheritance-loans-donate-gift-consulting-remittance","desc":"DCA, HODL, lump sum strategies, taxes, retirement planning, and thinking long-term with Bitcoin.","file":"data/E_investment-strategy.json"},"layer-2-lightning":{"cat":"Experienced Topics","title":"⚡layer-2-lightning","desc":"The Lightning Network: instant, nearly-free Bitcoin payments. How Bitcoin scales without sacrificing decentralization.","file":"data/E_layer-2-lightning.json"},"layer-3-sidechains":{"cat":"Experienced Topics","title":"📱layer-3-sidechain-applications","desc":"Sidechains, Liquid Network, and layer-3 applications built on top of Bitcoin.","file":"data/E_layer-3-sidechains.json"},"maximalism":{"cat":"Experienced Topics","title":"💯maximalism","desc":"Why people who study Bitcoin the most become maximalists. The case for Bitcoin-only.","file":"data/E_maximalism.json"},"mining":{"cat":"Experienced Topics","title":"🌋mining","desc":"How Bitcoin mining actually works — nonces, SHA-256 hashing, difficulty adjustment, and the brute-force lottery.","file":"data/E_mining.json"},"nodes":{"cat":"Experienced Topics","title":"💻nodes","desc":"Run your own Bitcoin node. Don't trust, verify. Full nodes keep the network decentralized.","file":"data/E_nodes.json"},"op-codes":{"cat":"Experienced Topics","title":"👨‍💻op-codes-simplicity","desc":"OP_CAT, Simplicity, and Bitcoin's scripting language — the building blocks of smart functionality.","file":"data/E_op-codes.json"},"pow-vs-pos":{"cat":"Experienced Topics","title":"💪proof-of-work-vs-proof-of-stake","desc":"Why Proof of Work is fundamentally superior to Proof of Stake — energy, security, fairness, and decentralization.","file":"data/E_pow-vs-pos.json"},"privacy-nonkyc":{"cat":"Experienced Topics","title":"🤫privacy-nonkyc-stacking-self-sovereignty","desc":"Financial privacy as a human right. KYC, non-KYC stacking, and protecting your sovereignty.","file":"data/E_privacy-nonkyc.json"},"problems-of-money":{"cat":"Experienced Topics","title":"📉the-problems-of-todays-money-and-freedom","desc":"The broken fiat system: inflation, money printing, the Cantillon Effect, and why today's money is failing everyone.","file":"data/E_problems-of-money.json"},"regulation":{"cat":"Experienced Topics","title":"🏛regulation-policy-legal","desc":"Bitcoin and government: bans, adoption, legal tender, ETFs, and why regulation can't stop decentralization.","file":"data/E_regulation.json"},"self-custody":{"cat":"Experienced Topics","title":"🔑personal-storage-self-custody-security","desc":"Not your keys, not your coins. Learn how to truly own your Bitcoin with wallets, seed phrases, and security.","file":"data/E_self-custody.json"},"smart-contracts":{"cat":"Experienced Topics","title":"📱smart-contracts","desc":"Smart contracts on Bitcoin — what's possible, what's coming, and why Bitcoin's approach is different.","file":"data/E_smart-contracts.json"},"stablecoins":{"cat":"Additional Info","title":"🪙Stablecoins","desc":"The role of stablecoins in the Bitcoin economy — and why they're not a threat to Bitcoin.","file":"data/H_stablecoins.json"},"0_mining__hashing":{"cat":"Additional Info","title":"0⃣Mining (Hashing)","desc":"Deep dive into Bitcoin mining and hashing — how SHA-256 works at the bit level.","file":"data/H_0_mining__hashing.json"},"100_sats":{"cat":"Additional Info","title":"💯100 sats","desc":"What can you do with just 100 satoshis? More than you think.","file":"data/H_100_sats.json"},"1_first_principles":{"cat":"Additional Info","title":"1⃣First Principles","desc":"First principles thinking applied to Bitcoin — reasoning from fundamentals, not analogies.","file":"data/H_1_first_principles.json"},"2__solved_technical_problems":{"cat":"Additional Info","title":"2⃣ Solved Technical Problems","desc":"The technical problems Bitcoin solved — digital scarcity, double-spending, and Byzantine fault tolerance.","file":"data/H_2__solved_technical_problems.json"},"analogies":{"cat":"Additional Info","title":"🔋Analogies","desc":"The best analogies for explaining Bitcoin to anyone — from trees to brains to hearts.","file":"data/H_analogies.json"},"austrian_school_of_economics":{"cat":"Additional Info","title":"🇦🇹Austrian School of Economics","desc":"Austrian Economics and Bitcoin: Mises, Hayek, sound money theory, and the intellectual foundation.","file":"data/H_austrian_school_of_economics.json"},"bip119":{"cat":"Additional Info","title":"🚧BIP119","desc":"BIP-119 (CheckTemplateVerify) — what it is, why it's controversial, and the community debate.","file":"data/H_bip119.json"},"bitcoin_exam":{"cat":"Additional Info","title":"🎓Bitcoin Exam","desc":"Test questions for a Bitcoin exam — study material and self-assessment.","file":"data/H_bitcoin_exam.json"},"bitcoin_vs_real_estate":{"cat":"Additional Info","title":"Bitcoin vs Real Estate","desc":"Bitcoin vs. real estate as an investment — comparing the two hardest assets.","file":"data/H_bitcoin_vs_real_estate.json"},"block_time-block-size":{"cat":"Additional Info","title":"⏰Block Time-Block-Size","desc":"Why Bitcoin uses 10-minute blocks and how block size affects the network.","file":"data/H_block_time-block-size.json"},"burn_bitcoin":{"cat":"Additional Info","title":"Burn bitcoin","desc":"How Bitcoin can be burned (made permanently unspendable) and why people do it.","file":"data/H_burn_bitcoin.json"},"byzantine_generals__problem":{"cat":"Additional Info","title":"⚔Byzantine Generals’ Problem","desc":"The Byzantine Generals' Problem — the computer science challenge Satoshi solved.","file":"data/H_byzantine_generals__problem.json"},"chaumian_e-cash_and_blind_signatures":{"cat":"Additional Info","title":"💲Chaumian E-cash and Blind Signatures","desc":"David Chaum's ecash, blind signatures, and the cryptographic foundations of digital privacy.","file":"data/H_chaumian_e-cash_and_blind_signatures.json"},"coin_mixing_coinjoin_coin_control_utxo":{"cat":"Additional Info","title":"🌀Coin Mixing/Coinjoin/Coin Control/UTXO Management","desc":"CoinJoin, coin mixing, UTXO management — advanced Bitcoin privacy techniques.","file":"data/H_coin_mixing_coinjoin_coin_control_utxo.json"},"cyles":{"cat":"Additional Info","title":"🚲Cyles","desc":"Bitcoin's 4-year cycles, Gartner Hype Cycles, and whether the pattern continues.","file":"data/H_cyles.json"},"derivation_path":{"cat":"Additional Info","title":"↕Derivation Path","desc":"HD wallet derivation paths — how your seed phrase generates all your addresses.","file":"data/H_derivation_path.json"},"discrete_log_contracts__dlcs":{"cat":"Additional Info","title":"📝Discrete Log Contracts (DLCs)?","desc":"DLCs (Discrete Log Contracts) — smart contracts on Bitcoin using oracle signatures.","file":"data/H_discrete_log_contracts__dlcs.json"},"dollar-bitcoin_milkshake_theory":{"cat":"Additional Info","title":"🥤Dollar-Bitcoin Milkshake Theory","desc":"The Dollar-Bitcoin Milkshake Theory — how global dollar demand and Bitcoin intersect.","file":"data/H_dollar-bitcoin_milkshake_theory.json"},"dust":{"cat":"Additional Info","title":"⏳Dust","desc":"Dust UTXOs: what they are, why they're a problem, and how to manage them.","file":"data/H_dust.json"},"elevator_pitches":{"cat":"Additional Info","title":"↕Elevator Pitches","desc":"Quick 20-30 second explanations of why Bitcoin matters — for every audience.","file":"data/H_elevator_pitches.json"},"environment___energy":{"cat":"Additional Info","title":"🌳Environment & Energy","desc":"Bitcoin and the environment: energy usage facts, renewable mining, and debunking the FUD.","file":"data/H_environment___energy.json"},"faith___religion":{"cat":"Additional Info","title":"🙏Faith & Religion","desc":"Bitcoin and faith — how sound money relates to religious and spiritual values.","file":"data/H_faith___religion.json"},"fedimints":{"cat":"Additional Info","title":"💚Fedimints","desc":"Fedimints: community custody with enhanced privacy using federated Chaumian mints.","file":"data/H_fedimints.json"},"feedback_loops":{"cat":"Additional Info","title":"➰Feedback Loops","desc":"Bitcoin's feedback loops — the self-reinforcing cycles that drive adoption and security.","file":"data/H_feedback_loops.json"},"free_and_open_source_software__foss":{"cat":"Additional Info","title":"💿Free and Open Source Software (FOSS)","desc":"Free and open source software (FOSS) projects connected to Bitcoin.","file":"data/H_free_and_open_source_software__foss.json"},"game_theory":{"cat":"Additional Info","title":"🏈Game Theory","desc":"Game theory and Bitcoin: Nash equilibrium, prisoner's dilemma, and strategic incentives.","file":"data/H_game_theory.json"},"geopolitics___macroeconomics":{"cat":"Additional Info","title":"💰Geopolitics & Macroeconomics","desc":"Bitcoin's role in geopolitics: nation-state adoption, reserve currencies, and macro trends.","file":"data/H_geopolitics___macroeconomics.json"},"governance":{"cat":"Additional Info","title":"🏛Governance","desc":"How Bitcoin is governed — consensus mechanisms, BIPs, and decentralized decision-making.","file":"data/H_governance.json"},"ham_radio":{"cat":"Additional Info","title":"Ham Radio","desc":"Using Bitcoin without internet — ham radio, mesh networks, and offline transactions.","file":"data/H_ham_radio.json"},"human_rights__social_justice_and_freedo":{"cat":"Additional Info","title":"🗽Human Rights, Social Justice and Freedom","desc":"Bitcoin as a tool for human rights, social justice, and financial freedom worldwide.","file":"data/H_human_rights__social_justice_and_freedo.json"},"improved_incentive_structure":{"cat":"Additional Info","title":"✅Improved Incentive Structure","desc":"How Bitcoin's incentive structure improves civilization — aligning individual and collective interests.","file":"data/H_improved_incentive_structure.json"},"laws_of_thermodynamics":{"cat":"Additional Info","title":"🔥Laws of Thermodynamics","desc":"How Bitcoin follows the laws of thermodynamics — energy, entropy, and proof of work.","file":"data/H_laws_of_thermodynamics.json"},"lightning_node":{"cat":"Additional Info","title":"⚡ Lightning Node","desc":"Running a Lightning Network node — setup guides, routing, and earning sats.","file":"data/H_lightning_node.json"},"lindy_effect":{"cat":"Additional Info","title":"👴Lindy Effect","desc":"The Lindy Effect: the longer Bitcoin survives, the longer it will survive.","file":"data/H_lindy_effect.json"},"market_cap":{"cat":"Additional Info","title":"🧢Market Cap","desc":"Bitcoin's market cap potential — can it reach millions per coin? The math says yes.","file":"data/H_market_cap.json"},"math":{"cat":"Additional Info","title":"➕Math","desc":"The mathematics of Bitcoin — from SHA-256 to elliptic curves to probability.","file":"data/H_math.json"},"mathematics":{"cat":"Additional Info","title":"➕Mathematics","desc":"Advanced mathematical concepts underlying Bitcoin's protocol and security.","file":"data/H_mathematics.json"},"mev":{"cat":"Additional Info","title":"⛏MEV","desc":"MEV (Miner Extractable Value) in Bitcoin — what it is and its implications.","file":"data/H_mev.json"},"network_effects":{"cat":"Additional Info","title":"🌐Network Effects","desc":"Bitcoin's network effects — why the most adopted network wins and keeps winning.","file":"data/H_network_effects.json"},"open_source":{"cat":"Additional Info","title":"⭕Open Source","desc":"What free and open source really means — and why it matters for Bitcoin.","file":"data/H_open_source.json"},"oracle":{"cat":"Additional Info","title":"🔮Oracle","desc":"Oracles in Bitcoin — how external data connects to the blockchain.","file":"data/H_oracle.json"},"orange-pilling":{"cat":"Additional Info","title":"🟠Orange-Pilling","desc":"The art of orange-pilling — strategies for explaining Bitcoin to different audiences.","file":"data/H_orange-pilling.json"},"ordinals":{"cat":"Additional Info","title":"Ordinals","desc":"Bitcoin Ordinals and inscriptions — NFTs on the world's most secure blockchain.","file":"data/H_ordinals.json"},"ordinals__nfts_on_bitcoin__and_block_spa":{"cat":"Additional Info","title":"Ordinals, NFTs on Bitcoin, and Block Space","desc":"The Ordinals debate: NFTs on Bitcoin, block space economics, and community perspectives.","file":"data/H_ordinals__nfts_on_bitcoin__and_block_spa.json"},"peace_and_anti-war":{"cat":"Additional Info","title":"☮Peace and Anti-War","desc":"Can a Bitcoin Standard end wars? The case for Bitcoin as a force for peace.","file":"data/H_peace_and_anti-war.json"},"philosophy":{"cat":"Additional Info","title":"🍎Philosophy","desc":"The philosophy of Bitcoin — from first principles to existential implications.","file":"data/H_philosophy.json"},"politics":{"cat":"Additional Info","title":"🏛Politics","desc":"Bitcoin and politics — how Bitcoin intersects with government policy and elections.","file":"data/H_politics.json"},"predictions":{"cat":"Additional Info","title":"🔮Predictions","desc":"Bitcoin predictions timestamped by the community — bold calls and their outcomes.","file":"data/H_predictions.json"},"public_key_vs_private_key":{"cat":"Additional Info","title":"🗝Public Key vs Private Key","desc":"Public keys vs. private keys — the cryptographic foundation of Bitcoin ownership.","file":"data/H_public_key_vs_private_key.json"},"rbf":{"cat":"Additional Info","title":"↔RBF","desc":"Replace-By-Fee (RBF) — how to speed up stuck Bitcoin transactions.","file":"data/H_rbf.json"},"referral-links":{"cat":"Referral Links","title":"🔗free-btc-referral-links","desc":"Curated Bitcoin referral links — earn free sats with trusted platforms like River, Fold, and Strike.","file":"data/H_referral-links.json"},"risks__threats__attack_vectors__weaknes":{"cat":"Additional Info","title":"⚔Risks, Threats, Attack Vectors, Weaknesses, Issues","desc":"Bitcoin's risks, threats, and attack vectors — what could go wrong and why it probably won't.","file":"data/H_risks__threats__attack_vectors__weaknes.json"},"rollups":{"cat":"Additional Info","title":"🥐Rollups","desc":"Rollups on Bitcoin — scaling and privacy solutions using off-chain computation.","file":"data/H_rollups.json"},"sats__or__bits":{"cat":"Additional Info","title":"\"Sats\" or \"Bits\"?","desc":"The sats vs. bits debate — which denomination should Bitcoin use?","file":"data/H_sats__or__bits.json"},"scalability":{"cat":"Additional Info","title":"🌐Scalability","desc":"Can Bitcoin scale to serve the world? Layers, Lightning, and the path forward.","file":"data/H_scalability.json"},"sidechains":{"cat":"Additional Info","title":"♻Sidechains","desc":"Bitcoin sidechains like Liquid — benefits, tradeoffs, and use cases.","file":"data/H_sidechains.json"},"simplified_payment_verification__spv":{"cat":"Additional Info","title":"✔Simplified Payment Verification (SPV)","desc":"SPV (Simplified Payment Verification) — lightweight Bitcoin verification without a full node.","file":"data/H_simplified_payment_verification__spv.json"},"soft_vs_hard_forks":{"cat":"Additional Info","title":"🍴Soft vs Hard Forks","desc":"Soft forks vs. hard forks — how Bitcoin upgrades while maintaining consensus.","file":"data/H_soft_vs_hard_forks.json"},"softwar":{"cat":"Additional Info","title":"Softwar","desc":"Jason Lowery's Softwar thesis — Bitcoin as a non-lethal alternative to physical warfare.","file":"data/H_softwar.json"},"stratum_v2":{"cat":"Additional Info","title":"🟩Stratum V2","desc":"Stratum V2 — the next-generation mining protocol for better decentralization and efficiency.","file":"data/H_stratum_v2.json"},"submarine_swap":{"cat":"Additional Info","title":"⛵Submarine Swap","desc":"Submarine swaps — trustlessly moving Bitcoin between on-chain and Lightning.","file":"data/H_submarine_swap.json"},"swaps":{"cat":"Additional Info","title":"↔Swaps","desc":"How to swap between on-chain Bitcoin and Lightning — tools, techniques, and protocols.","file":"data/H_swaps.json"},"ta_tips":{"cat":"Additional Info","title":"📈TA Tips","desc":"Technical analysis tips for Bitcoin — chart patterns, indicators, and trading education.","file":"data/H_ta_tips.json"},"tail_emission":{"cat":"Additional Info","title":"🐈Tail Emission","desc":"The tail emission debate — should Bitcoin ever have perpetual block rewards?","file":"data/H_tail_emission.json"},"taproot":{"cat":"Additional Info","title":"🧰Taproot","desc":"Taproot: Bitcoin's latest major upgrade — Schnorr signatures, script improvements, and privacy.","file":"data/H_taproot.json"},"taro":{"cat":"Additional Info","title":"🥕Taproot Assets","desc":"Taproot Assets (formerly Taro) — issuing assets on Bitcoin that can move over Lightning.","file":"data/H_taro.json"},"the_future":{"cat":"Additional Info","title":"🔮The Future","desc":"How Bitcoin could change the future — hyperbitcoinization, global adoption, and beyond.","file":"data/H_the_future.json"},"time":{"cat":"Additional Info","title":"⏰Time","desc":"How Bitcoin keeps time — block time, timestamps, and the decentralized clock.","file":"data/H_time.json"},"time_preference":{"cat":"Additional Info","title":"🕑Time Preference","desc":"Time preference: how sound money encourages long-term thinking and civilization building.","file":"data/H_time_preference.json"},"toxicity":{"cat":"Additional Info","title":"☣ Toxicity","desc":"Is Bitcoin community toxicity real? Or is it integrity? The debate and its meaning.","file":"data/H_toxicity.json"},"transaction_fees":{"cat":"Additional Info","title":"💲Transaction Fees","desc":"Bitcoin transaction fees — how they work, fee markets, and long-term sustainability.","file":"data/H_transaction_fees.json"},"unpopular_opinions":{"cat":"Additional Info","title":"💀Unpopular Opinions","desc":"Unpopular opinions in the Bitcoin space — controversial takes and honest debates.","file":"data/H_unpopular_opinions.json"},"utxos":{"cat":"Additional Info","title":"🕳UTXOs","desc":"UTXOs (Unspent Transaction Outputs) — the fundamental building block of Bitcoin transactions.","file":"data/H_utxos.json"},"vbyte":{"cat":"Additional Info","title":"🏋vByte","desc":"Virtual bytes (vBytes) — how Bitcoin measures transaction weight for fee calculation.","file":"data/H_vbyte.json"},"apps-tools":{"cat":"Resources","title":"🍎apps-tools-services-models","desc":"Bitcoin apps, tools, services, and platforms — everything you need to use Bitcoin daily.","file":"data/R_apps-tools.json"},"art-inspiration":{"cat":"Resources","title":"🤩art-inspiration-motivation","desc":"Bitcoin art, inspiration, and motivational content from the community.","file":"data/R_art-inspiration.json"},"articles-threads":{"cat":"Resources","title":"📃articles-threads","desc":"The best Bitcoin articles and Twitter threads — curated deep dives into every aspect of Bitcoin.","file":"data/R_articles-threads.json"},"books":{"cat":"Resources","title":"📚books","desc":"The essential Bitcoin reading list: The Bitcoin Standard, 21 Lessons, Mastering Bitcoin, and more.","file":"data/R_books.json"},"charts":{"cat":"Resources","title":"📊charts","desc":"Bitcoin price charts, on-chain analytics, stock-to-flow, and data visualizations.","file":"data/R_charts.json"},"curriculum":{"cat":"Resources","title":"🎓curriculum-presentations","desc":"Bitcoin education curriculum and presentations for teachers and students.","file":"data/R_curriculum.json"},"faq-glossary":{"cat":"Resources","title":"❓faq-glossary-search-ai-calendar","desc":"Bitcoin FAQ, glossary of terms, and quick answers to common questions.","file":"data/R_faq-glossary.json"},"fun-facts":{"cat":"Resources","title":"🎉fun-facts","desc":"Mind-blowing Bitcoin trivia: Pizza Day, Satoshi's birthday code, lost coins, and 200+ amazing facts.","file":"data/R_fun-facts.json"},"games":{"cat":"Resources","title":"🎮games","desc":"Bitcoin-themed games and gamified learning experiences.","file":"data/R_games.json"},"giga-chad":{"cat":"Resources","title":"👑giga-chad","desc":"Michael Saylor, MicroStrategy, and the corporate Bitcoin movement.","file":"data/R_giga-chad.json"},"graphics":{"cat":"Resources","title":"🎨graphics","desc":"Bitcoin infographics, charts, diagrams, and visual explanations.","file":"data/R_graphics.json"},"hardware":{"cat":"Resources","title":"💻hardware","desc":"Bitcoin hardware: mining rigs, hardware wallets, nodes, and open-source projects like Bitaxe.","file":"data/R_hardware.json"},"health":{"cat":"Resources","title":"🥩health","desc":"Bitcoin and health: low time preference living, breaking free from the system.","file":"data/R_health.json"},"history":{"cat":"Resources","title":"📆history","desc":"The complete history of Bitcoin — from the cypherpunks to today.","file":"data/R_history.json"},"informational-sites":{"cat":"Resources","title":"📃informational-sites-courses-workshops-newsletters-projects-communities-meetups-conferences","desc":"Bitcoin dashboards, tools, courses, newsletters, communities, and educational websites.","file":"data/R_informational-sites.json"},"international":{"cat":"Resources","title":"🌍international","desc":"Bitcoin resources in multiple languages and global adoption stories.","file":"data/R_international.json"},"jobs-earn":{"cat":"Resources","title":"👷job-postings-employer-info-entrepreneurship-earn-bitcoin-stack-sats","desc":"Bitcoin job boards, entrepreneurship resources, and ways to earn sats.","file":"data/R_jobs-earn.json"},"memes-funny":{"cat":"Resources","title":"😂memes-funny","desc":"The best Bitcoin memes, jokes, and humor from the community. Laugh while you learn.","file":"data/R_memes-funny.json"},"misconceptions-fud":{"cat":"Resources","title":"🤡common-misconceptions-fud-debunked","desc":"Every Bitcoin myth debunked: too volatile, wastes energy, used by criminals, no intrinsic value — all wrong.","file":"data/R_misconceptions-fud.json"},"movies-tv":{"cat":"Resources","title":"🎬movies-tv-documentaries","desc":"Bitcoin documentaries, films, and TV appearances. From The Big Short to Bitcoin-specific docs.","file":"data/R_movies-tv.json"},"music":{"cat":"Resources","title":"🎵music","desc":"Bitcoin-inspired music, songs, and audio content from the community.","file":"data/R_music.json"},"news-adoption":{"cat":"Resources","title":"📰news-adoption","desc":"Latest Bitcoin news, adoption milestones, and real-world usage stories.","file":"data/R_news-adoption.json"},"nostr":{"cat":"Resources","title":"💜nostr","desc":"Nostr: the decentralized social protocol Bitcoiners are building on. Social media you can't be censored from.","file":"data/R_nostr.json"},"one-stop-shop":{"cat":"Resources","title":"🛑one-stop-shop","desc":"The best resources to understand Bitcoin's value as fast as possible. Start here if you're new.","file":"data/R_one-stop-shop.json"},"podcasts":{"cat":"Resources","title":"🔊podcasts","desc":"Top Bitcoin podcasts: Bitcoin Audible, What Bitcoin Did, Stephan Livera, and more.","file":"data/R_podcasts.json"},"poems-stories":{"cat":"Resources","title":"📒poems-stories-jokes","desc":"Bitcoin poetry, short stories, jokes, and creative writing from the community.","file":"data/R_poems-stories.json"},"projects-diy":{"cat":"Resources","title":"🔧projects-diy","desc":"DIY Bitcoin projects: build your own node, Lightning ATM, and more.","file":"data/R_projects-diy.json"},"research-theses":{"cat":"Resources","title":"✍research-theses","desc":"Academic research papers and theses on Bitcoin, monetary policy, and cryptographic systems.","file":"data/R_research-theses.json"},"satoshi-nakamoto":{"cat":"Resources","title":"🦸satoshi-nakamoto","desc":"The mystery of Bitcoin's creator: who was Satoshi Nakamoto? The evidence, theories, and legacy.","file":"data/R_satoshi-nakamoto.json"},"social-media":{"cat":"Resources","title":"👍social-media-proponents","desc":"Bitcoin Twitter/X accounts, influencers, and social media communities to follow.","file":"data/R_social-media.json"},"swag-merch":{"cat":"Resources","title":"👕swag-merch-businesses-spend","desc":"Bitcoin merchandise, clothing, and businesses where you can spend your sats.","file":"data/R_swag-merch.json"},"videos":{"cat":"Resources","title":"📺videos","desc":"Must-watch Bitcoin lectures, talks, and presentations from Andreas Antonopoulos, Michael Saylor, and others.","file":"data/R_videos.json"},"web5":{"cat":"Resources","title":"5⃣web5","desc":"Web5 and decentralized web technologies built on Bitcoin.","file":"data/R_web5.json"}};// ============================================================
 // Bitcoin Education Archive — Shared Utilities
 // [AUDIT FIX] Extracted from duplicate definitions across files.
 // Load BEFORE all other local scripts in index.html.
@@ -167,6 +167,48 @@ var PREMIUM_CONFIG = {
     LIFETIME_SATS: 210000,
     TIER_NAME: 'Bitcoin Maxi'
 };
+
+// ---- Education topic cache buster ----
+// Appended to channel JSON fetches so a data edit is not stuck in the SW cache.
+var DATA_CACHE_BUSTER = '20261022b';
+function withDataCacheBuster(url) {
+    if (!url || typeof url !== 'string') return url;
+    if (/[?&]v=/.test(url)) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + DATA_CACHE_BUSTER;
+}
+
+// ---- Display-time strong-language mask ----
+// Shared helper in the same role as a Beats beatsCensor: captions stay intact
+// in the data files, and the reader sees the first and last letter (F**k).
+// URLs are left untouched here so links keep working; censorUrlLabel masks
+// the visible label only.
+function maskStrongWord(word) {
+    if (!word) return word;
+    if (word.length <= 2) return word.charAt(0) + '*';
+    var stars = '';
+    for (var i = 0; i < word.length - 2; i++) stars += '*';
+    return word.charAt(0) + stars + word.charAt(word.length - 1);
+}
+function censorUrlLabel(url) {
+    if (!url) return url;
+    return String(url).replace(/motherfuck(?:ing|ed|ers|er|s)?|fuck(?:ing|ed|ers|er|s)?/gi, function(w) {
+        return maskStrongWord(w);
+    });
+}
+function censorText(text) {
+    if (!text || typeof text !== 'string') return text || '';
+    var urls = [];
+    var protectedText = text.replace(/https?:\/\/[^\s<>"']+/gi, function(u) {
+        urls.push(u);
+        return '\u0000URL' + (urls.length - 1) + '\u0000';
+    });
+    protectedText = protectedText.replace(/\b(?:motherfuck(?:ing|ed|ers|er|s)?|fuck(?:ing|ed|ers|er|s)?)\b/gi, function(w) {
+        return maskStrongWord(w);
+    });
+    return protectedText.replace(/\u0000URL(\d+)\u0000/g, function(_, i) {
+        return urls[Number(i)];
+    });
+}
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -8976,7 +9018,7 @@ function _actualRenderMarketplace(options) {
     }
 
     // Header
-    var html = '<div style="max-width:900px;margin:0 auto;padding:16px;">';
+    var html = '<div data-mkt-root="1" style="max-width:900px;margin:0 auto;padding:16px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
         '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
         '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
@@ -9000,7 +9042,7 @@ function _actualRenderMarketplace(options) {
 
     // Search bar
     html += '<div style="margin-bottom:14px;">' +
-        '<input type="text" id="marketSearch" placeholder="🔍 Search listings..." value="' + (searchQuery || '') + '" ' +
+        '<input type="text" id="marketSearch" placeholder="🔍 Search listings..." value="' + escapeHtml(searchQuery || '') + '" ' +
         'oninput="clearTimeout(window._mktSearchTimer);window._mktSearchTimer=setTimeout(function(){renderMarketplace({search:document.getElementById(\'marketSearch\').value,category:\'' + activeCategory + '\',sort:\'' + sortBy + '\'})},400)" ' +
         'style="width:100%;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
     '</div>';
@@ -9018,7 +9060,7 @@ function _actualRenderMarketplace(options) {
     for (var si = 0; si < sectionTabs.length; si++) {
         var sec = sectionTabs[si];
         var secActive = activeSection === sec.id;
-        html += '<button onclick="renderMarketplace({section:\'' + sec.id + '\',category:\'all\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+        html += '<button type="button" data-mkt-action="browse" data-mkt-section="' + escapeHtml(sec.id) + '" data-mkt-category="all" data-mkt-search="' + escapeHtml(searchQuery) + '" data-mkt-sort="' + escapeHtml(sortBy) + '" ' +
             'style="flex:1;padding:10px 8px;background:' + (secActive ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (secActive ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.8rem;font-weight:' + (secActive ? '700' : '500') + ';cursor:pointer;font-family:inherit;transition:0.2s;">' + sec.emoji + ' ' + sec.name + '</button>';
     }
     html += '</div>';
@@ -9113,12 +9155,12 @@ function _actualRenderMarketplace(options) {
     // Subcategory pills (filtered by active section)
     var visibleCats = activeSection === 'all' ? MARKETPLACE_CATEGORIES : MARKETPLACE_CATEGORIES.filter(function(c) { return c.section === activeSection; });
     html += '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;">';
-    html += '<button onclick="renderMarketplace({section:\'' + activeSection + '\',category:\'all\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+    html += '<button type="button" data-mkt-action="browse" data-mkt-section="' + escapeHtml(activeSection) + '" data-mkt-category="all" data-mkt-search="' + escapeHtml(searchQuery) + '" data-mkt-sort="' + escapeHtml(sortBy) + '" ' +
         'style="padding:6px 14px;border-radius:20px;border:1px solid ' + (activeCategory === 'all' ? 'var(--accent)' : 'var(--border)') + ';background:' + (activeCategory === 'all' ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (activeCategory === 'all' ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600;">All</button>';
     for (var c = 0; c < visibleCats.length; c++) {
         var cat = visibleCats[c];
         var isActive = activeCategory === cat.id;
-        html += '<button onclick="renderMarketplace({section:\'' + activeSection + '\',category:\'' + cat.id + '\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+        html += '<button type="button" data-mkt-action="browse" data-mkt-section="' + escapeHtml(activeSection) + '" data-mkt-category="' + escapeHtml(cat.id) + '" data-mkt-search="' + escapeHtml(searchQuery) + '" data-mkt-sort="' + escapeHtml(sortBy) + '" ' +
             'style="padding:6px 14px;border-radius:20px;border:1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';background:' + (isActive ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (isActive ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600;">' + cat.emoji + ' ' + cat.name + '</button>';
     }
     html += '</div>';
@@ -9127,7 +9169,7 @@ function _actualRenderMarketplace(options) {
     // Sort dropdown
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
         '<span id="marketResultCount" style="font-size:0.75rem;color:var(--text-faint);">Loading...</span>' +
-        '<select id="marketSort" onchange="renderMarketplace({section:\'' + activeSection + '\',category:\'' + activeCategory + '\',search:\'' + searchQuery + '\',sort:this.value})" ' +
+        '<select id="marketSort" data-mkt-action="sort" data-mkt-section="' + escapeHtml(activeSection) + '" data-mkt-category="' + escapeHtml(activeCategory) + '" data-mkt-search="' + escapeHtml(searchQuery) + '" ' +
         'style="padding:6px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-family:inherit;">';
     for (var s = 0; s < SORT_OPTIONS.length; s++) {
         html += '<option value="' + SORT_OPTIONS[s].id + '"' + (sortBy === SORT_OPTIONS[s].id ? ' selected' : '') + '>' + SORT_OPTIONS[s].label + '</option>';
@@ -9227,7 +9269,7 @@ function loadMarketListings(category, search, sort, section) {
             else if (l.priceSats >= 1000) priceDisplay = Math.floor(l.priceSats / 1000) + 'K sats';
             else priceDisplay = l.priceSats.toLocaleString() + ' sats';
 
-            return '<div onclick="renderMarketplace({listingId:\'' + l.id + '\'})" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+            return '<div data-mkt-action="open" data-listing-id="' + escapeHtml(l.id) + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                 // Image or placeholder
                 (l.imageUrl
                     ? '<div style="width:100%;aspect-ratio:1;background:url(\'' + (l.imageUrl && /^(https:\/\/|data:image\/)/.test(l.imageUrl) ? l.imageUrl.replace(/['"\\()<>]/g, '') : '') + '\') center/cover;border-bottom:1px solid var(--border);"></div>'
@@ -9239,7 +9281,7 @@ function loadMarketListings(category, search, sort, section) {
                     (satsToUSD(l.priceSats) ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:4px;">' + satsToUSD(l.priceSats) + '</div>' : '<div style="margin-bottom:4px;"></div>') +
                     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
                         '<span style="font-size:0.65rem;color:' + condColor + ';font-weight:600;">' + condLabel + '</span>' +
-                        '<span onclick="event.stopPropagation();toggleMarketSave(\'' + l.id + '\')"  style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
+                        '<span data-mkt-action="save" data-listing-id="' + escapeHtml(l.id) + '" style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -9255,7 +9297,7 @@ function loadMarketListings(category, search, sort, section) {
                     snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; if (d.status === 'active') fallbackListings.push(d); });
                     if (fallbackListings.length > 0) {
                         grid.innerHTML = fallbackListings.map(function(l) {
-                            return '<div onclick="renderMarketplace({listingId:\'' + l.id + '\'})" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                            return '<div data-mkt-action="open" data-listing-id="' + escapeHtml(l.id) + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                                 '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);margin-bottom:4px;">' + escapeHtml(l.title || 'Untitled') + '</div>' +
                                 '<div style="font-size:0.8rem;color:var(--accent);font-weight:800;">⚡ ' + (l.priceSats || 0).toLocaleString() + ' sats</div>' +
                                 '</div>';
@@ -9315,7 +9357,7 @@ function renderListingDetail(container, listingId) {
 
         var timeAgo = getTimeAgo(l.createdAt ? l.createdAt.toDate() : new Date());
 
-        var html = '<div style="max-width:600px;margin:0 auto;padding:16px;">';
+        var html = '<div data-mkt-root="1" style="max-width:600px;margin:0 auto;padding:16px;">';
 
         // Back button
         html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back</button>';
@@ -9352,8 +9394,8 @@ function renderListingDetail(container, listingId) {
         // Seller info
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Seller</div>' +
-            '<div onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (l.sellerUid || '') + '\')"  style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
-                '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + (l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
+            '<div data-mkt-action="profile" data-seller-uid="' + escapeHtml(l.sellerUid || '') + '" style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
+                '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + escapeHtml(l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
                 '<div style="flex:1;">' +
                     '<div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + escapeHtml(l.sellerName || 'Anonymous') + '</div>' +
                     (l.sellerRank ? '<div style="font-size:0.7rem;color:var(--text-muted);">' + escapeHtml(l.sellerRank) + '</div>' : '') +
@@ -9365,10 +9407,10 @@ function renderListingDetail(container, listingId) {
         // Action buttons
         if (!isOwner) {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button data-listing-id="' + escapeHtml(l.id) + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" onclick="contactSeller(this.dataset.listingId,this.dataset.sellerName)"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
-                '<button onclick="toggleMarketSave(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
-                '<button data-seller-uid="' + escapeHtml(l.sellerUid || '') + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" onclick="if(typeof reportUser===\'function\')reportUser(this.dataset.sellerUid,this.dataset.sellerName)"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
-                (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
+                '<button data-mkt-action="contact" data-listing-id="' + escapeHtml(l.id) + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
+                '<button data-mkt-action="save" data-listing-id="' + escapeHtml(l.id) + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
+                '<button data-mkt-action="report" data-seller-uid="' + escapeHtml(l.sellerUid || '') + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
+                (isAdmin ? '<button data-mkt-action="delete" data-listing-id="' + escapeHtml(l.id) + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
             '</div>';
             // Safety notice
             html += '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
@@ -9381,8 +9423,8 @@ function renderListingDetail(container, listingId) {
             }
         } else {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button onclick="editListing(\'' + l.id + '\')"  style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
-                '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
+                '<button data-mkt-action="edit" data-listing-id="' + escapeHtml(l.id) + '" style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
+                '<button data-mkt-action="delete" data-listing-id="' + escapeHtml(l.id) + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
             '</div>';
         }
 
@@ -9482,7 +9524,6 @@ window.submitListing = function() {
         if (typeof showToast === 'function') showToast('⏳ Wait 60 seconds between listings');
         return;
     }
-    _lastMktListingTime = _mktNow;
     var title = (document.getElementById('mktTitle').value || '').trim();
     var price = parseInt(document.getElementById('mktPrice').value);
     var category = document.getElementById('mktCategory').value;
@@ -9498,64 +9539,111 @@ window.submitListing = function() {
     if (!title || title.length < 3) { showToast('Please enter a title (3+ characters)'); return; }
     if (!price || price < 1 || price > 100000000000) { showToast('Price must be between 1 and 100B sats'); return; }
 
-    var sellerName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anonymous';
-    var sellerRank = '';
-    if (typeof currentUser !== 'undefined' && currentUser && typeof getLevel === 'function') {
-        var lv = getLevel(currentUser.points || 0);
-        sellerRank = lv.emoji + ' ' + lv.name;
+    if (!auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to create a listing!');
+        return;
     }
 
-    var listing = {
-        title: title,
-        description: desc,
-        priceSats: price,
-        category: category,
-        condition: condition,
-        imageUrl: imageUrl || null,
-        lightningAddress: lightning || null,
-        shipping: shipping,
-        localPickup: local,
-        sellerUid: auth.currentUser.uid,
-        sellerName: sellerName,
-        sellerRank: sellerRank,
-        status: 'active',
-        views: 0,
-        saves: 0,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    };
+    window._mktSubmitting = true;
 
-    db.collection('marketplace').add(listing).then(function() {
-        window._mktUploadedImage = null;
-        var overlay = document.getElementById('createListingOverlay');
-        if (overlay) overlay.remove();
-        if (typeof showToast === 'function') showToast('🛒 Listing posted!');
-        if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
-        if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
-        if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
-        // Track for badge
-        if (auth && auth.currentUser) {
-            db.collection('users').doc(auth.currentUser.uid).update({
-                marketListings: firebase.firestore.FieldValue.increment(1)
-            }).catch(function(e) { console.error('[marketplace] Error:', e); });
-            if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketListings = (currentUser.marketListings || 0) + 1;
+    function finishSubmit(err) {
+        window._mktSubmitting = false;
+        if (!err) return;
+        console.error('Marketplace post error:', err);
+        showToast('Error posting: ' + (err.code || err.message || 'Unknown error'));
+    }
+
+    // Profile username only. An empty name is allowed when the profile has none.
+    // Anything else is rejected by the rules, so a crafted client cannot impersonate.
+    function sellerNameFromProfile(userDoc) {
+        if (userDoc && userDoc.exists) {
+            var profile = userDoc.data() || {};
+            if (typeof profile.username === 'string') return profile.username;
         }
-        renderMarketplace();
-    }).catch(function(e) {
-        console.error('Marketplace post error:', e);
-        showToast('Error posting: ' + (e.code || e.message || 'Unknown error'));
+        return '';
+    }
+
+    function sendListing(sellerName) {
+        if (typeof sellerName !== 'string' || sellerName.trim().length === 0) {
+            window._mktSubmitting = false;
+            if (typeof showToast === 'function') showToast('Set a username before posting a listing');
+            if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            return;
+        }
+        _lastMktListingTime = Date.now();
+        var sellerRank = '';
+        if (typeof currentUser !== 'undefined' && currentUser && typeof getLevel === 'function') {
+            var lv = getLevel(currentUser.points || 0);
+            sellerRank = lv.emoji + ' ' + lv.name;
+        }
+        if (sellerRank.length > 40) sellerRank = sellerRank.substring(0, 40);
+
+        var listing = {
+            title: title,
+            description: desc,
+            priceSats: price,
+            category: category,
+            condition: condition,
+            imageUrl: imageUrl || null,
+            lightningAddress: lightning || null,
+            shipping: shipping,
+            localPickup: local,
+            sellerUid: auth.currentUser.uid,
+            sellerName: sellerName,
+            sellerRank: sellerRank,
+            status: 'active',
+            views: 0,
+            saves: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        };
+
+        db.collection('marketplace').add(listing).then(function() {
+            window._mktUploadedImage = null;
+            var overlay = document.getElementById('createListingOverlay');
+            if (overlay) overlay.remove();
+            if (typeof showToast === 'function') showToast('🛒 Listing posted!');
+            if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
+            if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
+            if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
+            // The listing counter is written by onMarketplaceListingCount.
+            if (auth && auth.currentUser) refreshMarketListingBadges(auth.currentUser.uid);
+            renderMarketplace();
+            finishSubmit();
+        }).catch(function(e) {
+            finishSubmit(e);
+        });
+    }
+
+    db.collection('users').doc(auth.currentUser.uid).get().then(function(userDoc) {
+        sendListing(sellerNameFromProfile(userDoc));
+    }).catch(function() {
+        var fallback = (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.username === 'string') ? currentUser.username : '';
+        sendListing(fallback);
     });
 };
 
 // ---- Save/Unsave Listings ----
 window.toggleMarketSave = function(listingId) {
+    if (!auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to save listings');
+        return;
+    }
+    var uid = auth.currentUser.uid;
     var saved = safeJSON('btc_market_saved', []);
     var idx = saved.indexOf(listingId);
+    var listingRef = db.collection('marketplace').doc(listingId);
     if (idx !== -1) {
         saved.splice(idx, 1);
-        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(-1) }).catch(function(e) { console.error('[marketplace] Error:', e); });
+        listingRef.update({
+            saves: firebase.firestore.FieldValue.increment(-1),
+            savedBy: firebase.firestore.FieldValue.arrayRemove(uid)
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
     } else {
         saved.push(listingId);
-        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(1) }).catch(function(e) { console.error('[marketplace] Error:', e); });
+        listingRef.update({
+            saves: firebase.firestore.FieldValue.increment(1),
+            savedBy: firebase.firestore.FieldValue.arrayUnion(uid)
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
     }
     localStorage.setItem('btc_market_saved', JSON.stringify(saved));
     // Sync to Firestore
@@ -9582,7 +9670,7 @@ window.contactSeller = function(listingId, sellerName) {
         '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:400px;width:100%;">' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">💬 Message ' + escapeHtml(sellerName) + '</div>' +
         '<textarea id="mktMessage" rows="4" placeholder="Hi! I\'m interested in your listing..." style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;"></textarea>' +
-        '<button onclick="sendMarketMessage(\'' + listingId + '\')"  style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
+        '<button data-mkt-action="message" data-listing-id="' + escapeHtml(listingId) + '" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
         '</div></div>';
     var div = document.createElement('div');
     div.innerHTML = html;
@@ -9648,7 +9736,7 @@ window.showMyListings = function(fromPopState) {
         .where('sellerUid', '==', auth.currentUser.uid)
         .orderBy('createdAt', 'desc')
         .get().then(function(snap) {
-            var html = '<div style="max-width:600px;margin:0 auto;padding:16px;">';
+            var html = '<div data-mkt-root="1" style="max-width:600px;margin:0 auto;padding:16px;">';
             html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back to LightningMart</button>';
             html += '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:16px;">📋 My Listings</div>';
 
@@ -9666,7 +9754,7 @@ window.showMyListings = function(fromPopState) {
                         '</div>' +
                         '<div style="display:flex;gap:8px;align-items:center;">' +
                             '<span style="font-size:0.65rem;color:' + statusColor + ';font-weight:700;text-transform:uppercase;">' + (l.status || 'active') + '</span>' +
-                            (l.status === 'active' ? '<button onclick="markSold(\'' + doc.id + '\')"  style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
+                            (l.status === 'active' ? '<button data-mkt-action="sold" data-listing-id="' + escapeHtml(doc.id) + '" style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
                         '</div>' +
                     '</div>';
                 });
@@ -9781,7 +9869,7 @@ window.editListing = function(listingId) {
             if (imgEl && l.imageUrl && !l.imageUrl.startsWith('data:')) imgEl.value = l.imageUrl || '';
             if (lnEl) lnEl.value = l.lightningAddress || '';
             if (shipEl) shipEl.checked = !!l.shipping;
-            if (localEl) localEl.checked = !!l.local;
+            if (localEl) localEl.checked = !!(l.localPickup || l.local);
             // Change header and button to "Update"
             var overlay = document.getElementById('createListingOverlay');
             if (overlay) {
@@ -9813,7 +9901,7 @@ window.updateExistingListing = function(listingId) {
     var local = document.getElementById('mktLocal').checked;
 
     if (!title || title.length < 3) { showToast('Please enter a title (3+ characters)'); return; }
-    if (!price || price < 1) { showToast('Please enter a price in sats'); return; }
+    if (!price || price < 1 || price > 100000000000) { showToast('Price must be between 1 and 100B sats'); return; }
 
     var updateData = {
         title: title.substring(0, 80),
@@ -9824,6 +9912,7 @@ window.updateExistingListing = function(listingId) {
         lightningAddress: lightning,
         shipping: shipping,
         local: local,
+        localPickup: local,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
     if (imageUrl) updateData.imageUrl = imageUrl;
@@ -9845,7 +9934,7 @@ window.deleteListing = function(listingId) {
     if (!confirm(isAdmin ? 'Admin: Delete this listing?' : 'Delete this listing?')) return;
     db.collection('marketplace').doc(listingId).update({
         status: 'deleted',
-        deletedBy: isAdmin ? 'admin' : 'owner',
+        deletedBy: auth.currentUser.uid,
         deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }).then(function() {
         showToast('🗑️ Listing deleted');
@@ -9953,6 +10042,102 @@ window.clearMktImage = function() {
     var fileInput = document.getElementById('mktImageFile');
     if (fileInput) fileInput.value = '';
 };
+
+function refreshMarketListingBadges(uid) {
+    if (!db || !uid) return;
+    var started = (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.marketListings === 'number')
+        ? currentUser.marketListings : 0;
+    var tries = 0;
+    function tick() {
+        db.collection('users').doc(uid).get().then(function(snap) {
+            var data = snap.exists ? (snap.data() || {}) : {};
+            var n = data.marketListings;
+            if (typeof n === 'number' && n > started) {
+                if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketListings = n;
+                if (typeof checkBadges === 'function') checkBadges();
+                return;
+            }
+            tries += 1;
+            if (tries < 8) setTimeout(tick, 500);
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
+    }
+    setTimeout(tick, 400);
+}
+
+function mktInMarketplace(node) {
+    var el = node;
+    while (el && el !== document) {
+        if (el.id === 'contactSellerOverlay' || el.id === 'createListingOverlay') return true;
+        if (el.getAttribute && el.getAttribute('data-mkt-root') === '1') return true;
+        el = el.parentNode;
+    }
+    return false;
+}
+
+function mktActionEl(node) {
+    while (node && node !== document) {
+        if (node.getAttribute && node.getAttribute('data-mkt-action')) return node;
+        node = node.parentNode;
+    }
+    return null;
+}
+
+function mktOnClick(ev) {
+    var el = mktActionEl(ev.target);
+    if (!el || !mktInMarketplace(el)) return;
+    var action = el.getAttribute('data-mkt-action');
+    var id = el.getAttribute('data-listing-id') || '';
+    if (action === 'save') {
+        ev.stopPropagation();
+        window.toggleMarketSave(id);
+        return;
+    }
+    if (action === 'open') {
+        window.renderMarketplace({ listingId: id });
+        return;
+    }
+    if (action === 'edit') { window.editListing(id); return; }
+    if (action === 'delete') { window.deleteListing(id); return; }
+    if (action === 'sold') { window.markSold(id); return; }
+    if (action === 'profile') {
+        if (typeof showUserProfile === 'function') showUserProfile(el.getAttribute('data-seller-uid') || '');
+        return;
+    }
+    if (action === 'contact') {
+        window.contactSeller(id, el.getAttribute('data-seller-name') || '');
+        return;
+    }
+    if (action === 'report') {
+        if (typeof reportUser === 'function') reportUser(el.getAttribute('data-seller-uid') || '', el.getAttribute('data-seller-name') || '');
+        return;
+    }
+    if (action === 'message') { window.sendMarketMessage(id); return; }
+    if (action === 'browse') {
+        window.renderMarketplace({
+            section: el.getAttribute('data-mkt-section') || '',
+            category: el.getAttribute('data-mkt-category') || 'all',
+            search: el.getAttribute('data-mkt-search') || '',
+            sort: el.getAttribute('data-mkt-sort') || 'newest'
+        });
+    }
+}
+
+function mktOnChange(ev) {
+    var el = ev.target;
+    if (!el || !mktInMarketplace(el) || el.getAttribute('data-mkt-action') !== 'sort') return;
+    window.renderMarketplace({
+        section: el.getAttribute('data-mkt-section') || '',
+        category: el.getAttribute('data-mkt-category') || 'all',
+        search: el.getAttribute('data-mkt-search') || '',
+        sort: el.value || 'newest'
+    });
+}
+
+if (!window._mktClicksBound) {
+    window._mktClicksBound = true;
+    document.addEventListener('click', mktOnClick);
+    document.addEventListener('change', mktOnChange);
+}
 
 function getTimeAgo(date) {
     var seconds = Math.floor((new Date() - date) / 1000);
@@ -16322,6 +16507,23 @@ document.addEventListener('btcProfileSaved', function() {
         renderContent(id);
     }
 
+    function ageNoteBadge(m) {
+        if (!m || m.ageNote == null || m.ageNote === '') return '';
+        return '<div class="age-note" style="display:inline-block;margin:0 0 8px;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.16);color:#fecaca;border:1px solid rgba(248,113,113,0.45);font-size:0.68rem;font-weight:800;letter-spacing:0.06em;">' + escapeHtml(String(m.ageNote)) + '</div>';
+    }
+
+    function updatedNoteBadge(m) {
+        if (!m || m.updatedNote == null || m.updatedNote === '') return '';
+        var html = '<div class="updated-note" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 8px;">';
+        html += '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(34,197,94,0.16);color:#bbf7d0;border:1px solid rgba(74,222,128,0.45);font-size:0.68rem;font-weight:800;letter-spacing:0.04em;">' + escapeHtml(String(m.updatedNote)) + '</span>';
+        if (m.source && /^https:\/\//i.test(String(m.source))) {
+            var label = m.sourceLabel ? String(m.sourceLabel) : 'Source';
+            html += '<a class="msg-link" href="' + escapeHtml(String(m.source)) + '" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;">' + escapeHtml(label) + '</a>';
+        }
+        html += '</div>';
+        return html;
+    }
+
     function renderContent(id) {
         const d = currentChannelData;
         if (!d) return;
@@ -16372,8 +16574,10 @@ document.addEventListener('btcProfileSaved', function() {
 
                 batch.forEach((m, bi) => {
                     html += '<div class="msg" id="msg-' + (startIdx + bi) + '">';
+                    html += ageNoteBadge(m);
+                    html += updatedNoteBadge(m);
                     if (m.text) {
-                        let t = m.text;
+                        let t = (typeof censorText === 'function') ? censorText(m.text) : m.text;
                         // Embed YouTube videos — extract them first, replace with placeholders
                         let ytEmbeds = [];
                         t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
@@ -16392,7 +16596,7 @@ document.addEventListener('btcProfileSaved', function() {
                             return '%%TW' + (twEmbeds.length - 1) + '%%';
                         });
                         // Now linkify remaining URLs
-                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + eu + '</a>'; });
+                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); var label = escapeHtml(typeof censorUrlLabel === 'function' ? censorUrlLabel(url) : url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + label + '</a>'; });
                         // Restore YouTube embeds
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
                             return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
@@ -16550,7 +16754,7 @@ document.addEventListener('btcProfileSaved', function() {
             d = channelCache[channelId];
         } else {
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 d = await resp.json();
                 channelCache[channelId] = d;
             } catch(e) { return; }
@@ -17399,11 +17603,13 @@ document.addEventListener('btcProfileSaved', function() {
                 '@keyframes nachoModeBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }' +
                 '@keyframes nachoModeTalk { 0%,100%{transform:scale(1)} 15%{transform:scale(1.03)} 30%{transform:scale(0.98)} 45%{transform:scale(1.02)} }' +
                 '@keyframes nachoModeGlow { 0%,100%{filter:drop-shadow(0 0 20px rgba(247,147,26,0.4))} 50%{filter:drop-shadow(0 0 40px rgba(247,147,26,0.7))} }' +
-                '@keyframes nachoCapeBlow { 0%,100%{transform:rotate(-5deg) skewX(-2deg)} 50%{transform:rotate(-12deg) skewX(-5deg)} }' +
                 '@keyframes nmTitleGlow { 0%,100%{text-shadow:0 0 20px rgba(247,147,26,0.3),0 0 40px rgba(247,147,26,0.1)} 50%{text-shadow:0 0 30px rgba(247,147,26,0.6),0 0 60px rgba(247,147,26,0.2)} }' +
                 '#nachoHeroAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; transition: transform 0.3s; cursor:pointer; }' +
                 '#nachoHeroAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
                 '#nachoHeroAvatar:hover { transform: scale(1.08); }' +
+                '#nachoModeAvatar { animation: nachoModeBounce 3.2s ease-in-out infinite, nachoModeGlow 4.5s ease-in-out infinite; }' +
+                '.nm-hero-avatar img, #nachoModeAvatar img { display:block; object-fit:contain; }' +
+                '@media (prefers-reduced-motion: reduce) { #nachoHeroAvatar, #nachoHeroAvatar.talking, #nachoModeAvatar { animation: none !important; } }' +
                 '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 16px; scroll-behavior:smooth; }' +
                 '#nachoModeChat::-webkit-scrollbar { width:4px; }' +
                 '#nachoModeChat::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }' +
@@ -17424,7 +17630,7 @@ document.addEventListener('btcProfileSaved', function() {
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
                         '<div id="nachoHeroAvatar" class="nm-hero-avatar" style="position:relative;display:inline-block;width:40px;height:40px;" onclick="nachoModeAvatarTap()">' +
-                            '<img src="/nacho-fly.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
+                            '<img src="/nacho-deer.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
                             '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
                         '</div>' +
                         '<div style="min-width:0;overflow:hidden;">' +
@@ -18413,7 +18619,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
             chat.innerHTML =
                 '<div style="text-align:center;padding:30px 20px;">' +
-                    '<div id="nachoModeAvatar" style="width:180px;height:180px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="/nacho-fly.svg" alt="Nacho" style="width:180px;height:180px;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<div style=\\\'font-size:100px;line-height:180px;text-align:center;\\\'>🦌</div>\';"></div>' +
+                    '<div id="nachoModeAvatar" style="width:180px;height:180px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="/nacho-deer.svg" alt="Nacho" style="width:180px;height:180px;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<div style=\\\'font-size:100px;line-height:180px;text-align:center;\\\'>🦌</div>\';"></div>' +
                     '<div style="color:var(--accent);font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
                     '<div style="color:var(--heading);font-size:1.2rem;font-weight:800;margin-bottom:12px;">' +
                         (userName ? 'Hey ' + escapeHtml(userName) + '! Let\'s talk Bitcoin.' : 'Hey! Let\'s talk Bitcoin.') +
@@ -20070,7 +20276,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             d = channelCache[id];
         } else {
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 d = await resp.json();
                 channelCache[id] = d;
             } catch(e) {
@@ -20161,7 +20367,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             let html = '';
             nextBatch.forEach((m, bi) => {
                 html += '<div class="msg" id="msg-' + (offset + bi) + '">';
-                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                html += ageNoteBadge(m);
+                    html += updatedNoteBadge(m);
+                if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
                 html += '</div>';
             });
@@ -20241,7 +20449,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const promises = Object.entries(CHANNELS).map(async ([key, meta]) => {
             if (channelCache[key]) { searchFullData[key] = channelCache[key]; return; }
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 const d = await resp.json();
                 channelCache[key] = d;
                 searchFullData[key] = d;
@@ -20470,6 +20678,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                         let idx = m.text.toLowerCase().indexOf(scheduledQ);
                         let start = Math.max(0, idx - 30);
                         let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + scheduledQ.length + 30).replace(/<[^>]+>/g, '') + '...';
+                        if (typeof censorText === 'function') snippet = censorText(snippet);
                         deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet, msgIdx: mi});
                         break;
                     }
@@ -21478,6 +21687,9 @@ if (locked) {
             // generation counter and cancelling the already-in-progress go() call, which
             // is what causes the "skeleton that never resolves" on SW-update reloads.
             var navInFlight = (window._navGeneration || 0) > 0;
+            // Quest Hub rewrites the hash to #questhub. Skip this late pass when a deep
+            // link already ran or the hub is open, or it opens Raid over the chosen tab.
+            if (window._bqDeepLinkHandled || document.getElementById('questHubOverlay')) return;
             if (h && !navInFlight && document.getElementById('home') && !document.getElementById('home').classList.contains('hidden')) {
                 console.log('[HASH] Post-load fallback routing to:', h);
                 handleHash();
@@ -23029,7 +23241,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                 // Store channel JSON URL for SW to cache
                 if ('caches' in window) {
                     caches.open('btc-offline-channels').then(function(cache) {
-                        cache.add(ch.file).catch(function() {});
+                        cache.add(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(ch.file) : ch.file).catch(function() {});
                     });
                 }
                 cached[window.currentChannelId] = { ts: Date.now() };
@@ -23041,7 +23253,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                         delete cached[keys[i]];
                         if ('caches' in window) {
                             var file = CHANNELS[keys[i]] && CHANNELS[keys[i]].file;
-                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(file).catch(function() {}); });
+                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(file) : file).catch(function() {}); });
                         }
                     }
                 }

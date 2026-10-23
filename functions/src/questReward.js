@@ -5,13 +5,13 @@
 // are ignored. Points are decided from functions/reward-banks.json, which
 // build.sh copies from data/trivia-bank.js, quests.js, and learning-quests.js.
 //
-// Daily quiz XP cap is 500. That is the cap gradeQuest already applied on the
-// offset-day daily_points doc (functions/src/dailyXp.js). awardPoints still
-// uses its own 1,000 cap for other actions. Trivia and quiz rewards use 500.
+// Trivia and quiz share the allowlist trivia/quiz counter (500 XP) and the
+// general daily cap (1,000 XP). awardPoints uses the same planGrant helper.
+// XP past either cap is dropped. Other actions still bank overflow in dailyXp.js.
 
 const crypto = require('crypto');
 const banks = require('../reward-banks.json');
-const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const awardActions = require('./awardActions');
 
 // Previous published bank. build-reward-banks.js writes this when the
 // client banks change, with validUntil 72 hours later. Grading uses it
@@ -23,7 +23,18 @@ try {
     prevDoc = null;
 }
 
-const DAILY_QUIZ_XP_CAP = DAILY_POINTS_CAP;
+const DAILY_QUIZ_XP_CAP = awardActions.TRIVIA_QUIZ_CAP;
+
+function planTriviaQuizGrant(pts, dailyUsed, triviaQuizUsed) {
+    return awardActions.planGrant({
+        xp: pts,
+        dailyUsed: dailyUsed || 0,
+        triviaQuizUsed: triviaQuizUsed || 0,
+        triviaQuiz: true,
+        dailyCap: awardActions.DAILY_CAP,
+        triviaCap: awardActions.TRIVIA_QUIZ_CAP,
+    });
+}
 const TRIVIA_CORRECT_XP = 50;
 const QUEST_PERFECT_XP = 100;
 const QUEST_PARTIAL_XP = 50;
@@ -64,6 +75,7 @@ function triviaIndexForDay(dayKey, length) {
 }
 
 function isRewardBanned(user, ledger) {
+    if (user && user.ban_reason) return true;
     return !!(user && user.satsDisabled === true) || !!(ledger && ledger.banned === true);
 }
 
@@ -267,13 +279,14 @@ function gradeTrivia(input) {
         return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected };
     }
     const pts = correct ? TRIVIA_CORRECT_XP : 0;
-    const split = splitDailyXp(src.dailyUsed || 0, pts, DAILY_QUIZ_XP_CAP);
+    const grant = planTriviaQuizGrant(pts, src.dailyUsed, src.triviaQuizUsed);
     return {
         ok: true,
         correct: correct,
-        awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
-        capped: split.capped,
+        awarded: grant.awarded,
+        overflowAdded: 0,
+        dropped: grant.dropped,
+        capped: grant.capped,
         pts: pts,
         reason: correct ? '' : 'incorrect',
         questionIndex: expected,
@@ -415,11 +428,12 @@ function settleQuizReward(input) {
     // when this call will not write the completion doc.
     const already = src.alreadyPerfect === true;
     const pts = already ? 0 : (graded.pts || 0);
-    const split = splitDailyXp(src.dailyUsed || 0, pts, DAILY_QUIZ_XP_CAP);
+    const grant = planTriviaQuizGrant(pts, src.dailyUsed, src.triviaQuizUsed);
     return {
-        awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
-        capped: split.capped,
+        awarded: grant.awarded,
+        overflowAdded: 0,
+        dropped: grant.dropped,
+        capped: grant.capped,
         pts: pts,
         score: score,
         reason: already ? 'already-perfect' : '',

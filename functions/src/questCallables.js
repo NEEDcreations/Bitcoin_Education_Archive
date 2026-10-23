@@ -2,8 +2,10 @@
 
 // answerTrivia and gradeQuest. App Check is required. A per-uid rate limit
 // sits in the same transaction as the payout. Banned accounts
-// (users.satsDisabled or faucet_ledger.banned) receive nothing.
-// Grading uses questReward.js and the bundled bank, never client answer keys.
+// (users.ban_reason, users.satsDisabled, or faucet_ledger.banned) receive nothing.
+// Trivia and quiz share the 500 XP triviaQuiz counter and the 1,000 XP daily cap.
+// XP past either cap is dropped. Grading uses questReward.js and the bundled bank,
+// never client answer keys.
 // A perfect part is stored under users/{uid}/quest_completions.
 // An older server key on completedQuests (quest_<topic> for part 1,
 // quest_<topic>__N for part N) also blocks a repeat payout. It never grants one.
@@ -12,6 +14,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const reward = require('./questReward');
+const awardActions = require('./awardActions');
 const rewardNotify = require('./rewardNotify');
 
 const db = admin.firestore();
@@ -67,9 +70,11 @@ const answerTrivia = onCall(async (data, context) => {
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
         const ledger = ledgerDoc.exists ? ledgerDoc.data() : null;
-        const banned = reward.isRewardBanned(user, ledger);
+        const banned = reward.isRewardBanned(user, ledger) || !!(user && user.ban_reason);
         const alreadyClaimed = claimDoc.exists;
-        const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+        const dailyData = dailyDoc.exists ? (dailyDoc.data() || {}) : {};
+        const dailyUsed = Number(dailyData.total) || 0;
+        const triviaQuizUsed = Number(dailyData.triviaQuiz) || 0;
         const graded = reward.gradeTrivia({
             dayKey: payload.dayKey,
             questionIndex: payload.questionIndex,
@@ -77,9 +82,19 @@ const answerTrivia = onCall(async (data, context) => {
             chosen: payload.chosen,
             now: now,
             banned: banned,
-            dailyUsed: alreadyClaimed ? 0 : dailyUsed,
+            dailyUsed: dailyUsed,
+            triviaQuizUsed: triviaQuizUsed,
         });
-        const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
+        const payable = (graded.ok && !alreadyClaimed && !banned) ? (graded.pts || 0) : 0;
+        const grant = awardActions.planGrant({
+            xp: payable,
+            dailyUsed: dailyUsed,
+            triviaQuizUsed: triviaQuizUsed,
+            triviaQuiz: true,
+            dailyCap: awardActions.DAILY_CAP,
+            triviaCap: awardActions.TRIVIA_QUIZ_CAP,
+        });
+        const awarded = grant.awarded;
         const pointsBefore = user.points || 0;
         const prevById = await rewardNotify.readRankPrev(tx, db, uid, pointsBefore, awarded);
 
@@ -110,16 +125,13 @@ const answerTrivia = onCall(async (data, context) => {
                 triviaStreak: newStreak,
             };
             if (graded.correct) userUpdate.triviaCorrect = FieldValue.increment(1);
-            if (graded.awarded > 0) {
-                userUpdate.points = FieldValue.increment(graded.awarded);
+            if (awarded > 0) {
+                userUpdate.points = FieldValue.increment(awarded);
                 tx.set(dailyPtsRef, {
-                    total: dailyUsed + graded.awarded,
+                    total: dailyUsed + awarded,
+                    triviaQuiz: triviaQuizUsed + awarded,
                     lastUpdated: FieldValue.serverTimestamp(),
                 }, { merge: true });
-            }
-            if (graded.overflowAdded > 0) {
-                userUpdate.pendingOverflow = FieldValue.increment(graded.overflowAdded);
-                userUpdate.lastOverflowDate = dayKey;
             }
             tx.update(userRef, userUpdate);
             tx.set(claimRef, {
@@ -148,8 +160,8 @@ const answerTrivia = onCall(async (data, context) => {
         return {
             success: true,
             correct: graded.correct === true,
-            awarded: graded.awarded || 0,
-            capped: graded.capped === true,
+            awarded: awarded,
+            capped: grant.capped === true,
             banned: banned,
             alreadyClaimed: false,
             graded: true,
@@ -196,18 +208,32 @@ const gradeQuest = onCall(async (data, context) => {
         const completionDoc = completionRef ? await tx.get(completionRef) : null;
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
-        const banned = reward.isRewardBanned(user, ledgerDoc.exists ? ledgerDoc.data() : null);
+        const banned = reward.isRewardBanned(user, ledgerDoc.exists ? ledgerDoc.data() : null) || !!(user && user.ban_reason);
         const questsToday = questCountDoc.exists ? (questCountDoc.data().count || 0) : 0;
-        const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+        const dailyData = dailyDoc.exists ? (dailyDoc.data() || {}) : {};
+        const dailyUsed = Number(dailyData.total) || 0;
+        const triviaQuizUsed = Number(dailyData.triviaQuiz) || 0;
         const settled = graded.ok ? reward.settleQuizReward({
             graded: graded,
             banned: banned,
             dailyUsed: dailyUsed,
+            triviaQuizUsed: triviaQuizUsed,
             alreadyPerfect: !!(completionDoc && completionDoc.exists)
                 || reward.legacyPartRecorded(user.completedQuests, graded.topicKey, graded.questIndex),
             questsToday: questsToday,
-        }) : { awarded: 0, reason: graded.reason || 'need-text-answers' };
-        const awarded = settled.awarded || 0;
+        }) : { awarded: 0, pts: 0, reason: graded.reason || 'need-text-answers' };
+        const payable = (graded.ok && !banned && settled.reason !== 'banned' && settled.reason !== 'daily-limit')
+            ? (settled.pts || 0)
+            : 0;
+        const grant = awardActions.planGrant({
+            xp: payable,
+            dailyUsed: dailyUsed,
+            triviaQuizUsed: triviaQuizUsed,
+            triviaQuiz: true,
+            dailyCap: awardActions.DAILY_CAP,
+            triviaCap: awardActions.TRIVIA_QUIZ_CAP,
+        });
+        const awarded = grant.awarded;
         const pointsBefore = user.points || 0;
         const prevById = await rewardNotify.readRankPrev(tx, db, uid, pointsBefore, awarded);
 
@@ -236,16 +262,13 @@ const gradeQuest = onCall(async (data, context) => {
             }, { merge: true });
         }
         const userUpdate = {};
-        if (settled.awarded > 0) {
-            userUpdate.points = FieldValue.increment(settled.awarded);
+        if (awarded > 0) {
+            userUpdate.points = FieldValue.increment(awarded);
             tx.set(dailyPtsRef, {
-                total: dailyUsed + settled.awarded,
+                total: dailyUsed + awarded,
+                triviaQuiz: triviaQuizUsed + awarded,
                 lastUpdated: FieldValue.serverTimestamp(),
             }, { merge: true });
-        }
-        if (settled.overflowAdded > 0) {
-            userUpdate.pendingOverflow = FieldValue.increment(settled.overflowAdded);
-            userUpdate.lastOverflowDate = dayKey;
         }
         if (settled.completionKey && completionRef) {
             tx.set(completionRef, {
@@ -277,8 +300,8 @@ const gradeQuest = onCall(async (data, context) => {
             success: true,
             score: settled.score,
             pts: settled.pts,
-            awarded: settled.awarded,
-            capped: settled.capped === true,
+            awarded: awarded,
+            capped: grant.capped === true,
             banned: banned === true,
             reason: settled.reason || '',
             graded: true,

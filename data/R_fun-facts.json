@@ -66,8 +66,8 @@
       "link": "https://news.bitcoin.com/the-many-facts-pointing-to-cypherpunk-len-sassaman-being-satoshi-nakamoto/"
     },
     {
-      "text": "- 17 brilliant quotes by Satoshi Nakamoto, the creator of Bitcoin: https://coindiligent.com/interesting-quotes-satoshi-nakamoto",
-      "link": "https://coindiligent.com/interesting-quotes-satoshi-nakamoto"
+      "text": "- 17 brilliant quotes by Satoshi Nakamoto, the creator of Bitcoin: https://web.archive.org/web/20220127023650/https://coindiligent.com/interesting-quotes-satoshi-nakamoto",
+      "link": "https://web.archive.org/web/20220127023650/https://coindiligent.com/interesting-quotes-satoshi-nakamoto"
     },
     {
       "text": "- The protocol requires that the 50 bitcoins at block 0 cannot be transferred. This means that these coins are practically non-existent in the blockchain. There are clearly a lot more that are blocked (the bitcoins belonging to those who have lost their private keys), but the bitcoins at block 0 don’t even have a key for anyone to be able to transfer them."
@@ -245,10 +245,6 @@
       "text": "Hash of the Genesis Block:\n000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
     },
     {
-      "text": "Satoshi Dice gambling game \nhttps://en.bitcoin.it/wiki/Satoshi_Dice",
-      "link": "https://en.bitcoin.it/wiki/Satoshi_Dice"
-    },
-    {
       "text": "Bitcoin's Whitepaper is encoded in block 230,009 \nhttps://bitcoin.stackexchange.com/questions/35959/how-is-the-whitepaper-decoded-from-the-blockchain-tx-with-1000x-m-of-n-multisi",
       "link": "https://bitcoin.stackexchange.com/questions/35959/how-is-the-whitepaper-decoded-from-the-blockchain-tx-with-1000x-m-of-n-multisi"
     },
@@ -295,7 +291,7 @@
       "link": "https://twitter.com/100trillionUSD/status/1547905541879410688?t=6eRGBfS4TPjnQvhTB61cSw&s=19"
     },
     {
-      "text": "History/description on design choice Bitcoin's B logo on this site (scroll down):\n12.5° Angled Cut\n\nIn the bottom left part of the “B” back, protruding leg, there is an angled cut. This is linked to the chosen port number for the Bitcoin network: 8333. The 8 was chosen because it’s the number that looked most like a “B” – for Bitcoin and Block. If you offset four “B”s like “BBBB,” it looks like “8333”. Which also represents a Chain of Blocks. 100 divided by 8 equals 12.5. That angle is a hidden “B” representing the link between Bitcoin and Blocks. The curved corners were to make the two left-hand-side bars look like a serif font.\n\nhttp://Thebitcoinflag.com",
+      "text": "History/description on design choice Bitcoin's B logo on this site (scroll down):\n12.5° Angled Cut\n\nIn the bottom left part of the “B” back, protruding leg, there is an angled cut. This is linked to the chosen port number for the Bitcoin network: 8333. The 8 was chosen because it’s the number that looked most like a “B” – for Bitcoin and Block. If you offset four “B”s like “BBBB,” it looks like “8333”. Which also represents a Chain of Blocks. 100 divided by 8 equals 12.5. That angle is a hidden “B” representing the link between Bitcoin and Blocks. The curved corners were to make the two left-hand-side bars look like a serif font.",
       "link": ""
     },
     {
@@ -418,7 +414,10 @@
       "text": "The mempool by default is 300mb"
     },
     {
-      "text": "A Bitcoin transaction is typically 300 to 400 bytes. 1,000,000 bytes in a megabyte. 1mb+ blocksize leaves room for 3000-4000 txs"
+      "text": "A Bitcoin transaction is often a few hundred bytes. Since SegWit (BIP 141) the block limit is 4,000,000 weight units, not a flat 1 MB. A block made only of legacy transactions is still about 1 MB, which is room for a few thousand typical transactions. A block that uses witness data can be larger than 1 MB, so \"1 MB leaves room for 3,000–4,000 transactions\" is only a rough pre-SegWit sketch, not the current limit.",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki",
+      "sourceLabel": "BIP 141"
     },
     {
       "text": "A recent block (759475 October 2022) was incorrectly mined and NiceHash lost the Coinbase tx. 6.309 BTC can never be recovered https://twitter.com/hash_bender/status/1583148802034532352?t=YxZuNJXxSw8_9x7-x6EeSg&s=19",
@@ -592,7 +591,7 @@
       "link": "https://themonetaryfuture.blogspot.com/2011/06/bitcoin-is-economic-singularity.html?m=1"
     },
     {
-      "text": "Satoshi's emails satoshin@gmx.com or satoshi@vistomail.com\nhttps://satoshi.nakamotoinstitute.org/emails/",
+      "text": "Satoshi's emails [email removed] or satoshi [at] vistomail.com\nhttps://satoshi.nakamotoinstitute.org/emails/",
       "link": "https://satoshi.nakamotoinstitute.org/emails/"
     },
     {
@@ -725,10 +724,6 @@
     {
       "text": "Biggest transaction ever 500,000 BTC \nhttps://mempool.space/tx/29a3efd3ef04f9153d47a990bd7b048a4b2d213daaa5fb8ed670fb85f13bdbcf",
       "link": "https://mempool.space/tx/29a3efd3ef04f9153d47a990bd7b048a4b2d213daaa5fb8ed670fb85f13bdbcf"
-    },
-    {
-      "text": "Satoshi Dice https://en.bitcoin.it/wiki/Satoshi_Dice",
-      "link": "https://en.bitcoin.it/wiki/Satoshi_Dice"
     },
     {
       "text": "transaction fee = inputs - outputs\n\nwhen you broadcast a transaction to the #Bitcoin network, you don't explicitly set the transaction fee or the fee rate? Instead, the fee is simply the remainder of whatever isn't spent from the inputs to the outputs.\n\nhttps://x.com/w_s_bitcoin/status/1747327796181942434?s=20",
@@ -1187,9 +1182,6 @@
     },
     {
       "text": "Pizza day",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_012_0.png"
-      ],
       "link": "https://x.com/i/status/2058387155119202805"
     }
   ]

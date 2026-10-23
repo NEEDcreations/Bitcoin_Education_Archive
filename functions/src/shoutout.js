@@ -23,7 +23,9 @@ function shoutoutDocId(prizeId) {
 
 function shoutoutText(username) {
     const name = safeName(username);
-    return '🎉 Shoutout to @' + name + '! They just unlocked a rare Nacho Shoutout. Go send @' + name + ' a peer request! 🤝';
+    // One @ only. mentionUid turns that first @name into the profile tag.
+    // A second @name is plain text, so a multi-word name is not split.
+    return '🎉 Shoutout to @' + name + '! They just unlocked a rare Nacho Shoutout. Go send ' + name + ' a peer request! 🤝';
 }
 
 // One Nacho shoutout per user per rolling 7 days. openGift applies this

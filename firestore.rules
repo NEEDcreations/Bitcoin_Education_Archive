@@ -91,7 +91,11 @@ service cloud.firestore {
                     && (!('lightningAddress' in request.resource.data) || request.resource.data.lightningAddress == '' || lnShape(request.resource.data.lightningAddress))
                     && (!('lightning' in request.resource.data) || !('lightningAddress' in request.resource.data)
                         || request.resource.data.lightning == '' || request.resource.data.lightningAddress == ''
-                        || request.resource.data.lightning == request.resource.data.lightningAddress);
+                        || request.resource.data.lightning == request.resource.data.lightningAddress)
+                    // created is optional: Nostr link and TOS acceptance can create a partial
+                    // doc without it. When the field is sent, it must be the server clock.
+                    // Signup, provider, Lightning, and Nostr profile creates send serverTimestamp().
+                    && (!('created' in request.resource.data) || request.resource.data.created == request.time);
 
       allow update: if request.auth != null
                     && request.auth.uid == userId
@@ -125,6 +129,10 @@ service cloud.firestore {
                         // Say-hi reward (armSayHi / claimSayHi). Server only.
                         'sayHiArmedDay', 'sayHiArmedAt',
                         'sayHiClaimedDay', 'sayHiClaimedMessageId', 'sayHiToastSeen',
+                        // Reply bonus (claimReplyBonus). Server only. The first-reward
+                        // flag lives in reply_bonus_state, never on this doc. These
+                        // names are denied so a client cannot plant them.
+                        'replyBonusClaimed', 'replyBonusFirstClaimed', 'replyBonusLastAt', 'replyBonusCount',
                         // Gifting system (CF-only)
                         'lastGiftSpinDate', 'giftsOpenedToday', 'giftsOpenedDate',
                         'lastShoutoutAt',
@@ -560,43 +568,177 @@ service cloud.firestore {
                         || isAdmin());
     }
 
+    // Listing photo: https URL, or a jpeg/png/webp data URL. Blocks javascript: and other schemes.
+    function marketImageValueOk(url) {
+      return url == null
+        || (url is string
+            && url.size() <= 700000
+            && (url.matches('^https://[^\\s"<>]+$')
+                || url.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')));
+    }
+
+    function marketCategoryOk(v) {
+      return v in ['books','courses','hardware_edu','nodes','kids','tools','edu_other','mining','merch','art','stickers','services','electronics','other'];
+    }
+
+    function marketConditionOk(v) {
+      return v in ['new','like_new','good','fair','for_parts'];
+    }
+
+    // sellerName must be the profile username. A missing user doc, a missing
+    // username, or an empty username may only publish an empty sellerName.
+    function marketUsernameOk(username, name) {
+      return (username is string && username.size() > 0 && name == username)
+        || ((!(username is string) || username.size() == 0) && name == '');
+    }
+
+    function marketSellerNameMatches() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let name = request.resource.data.get('sellerName', '');
+      return (!exists(userPath) && name == '')
+        || (exists(userPath) && marketUsernameOk(get(userPath).data.get('username', ''), name));
+    }
+
+    // Owner edit. sellerUid, views, saves, and createdAt stay put.
+    // Status may move active → sold, active → deleted, or sold → deleted.
+    // Deleted is final for the owner (an admin restores through isAdmin()).
+    // Price, title, and other content change only while the listing stays active.
+    // Content edits stamp updatedAt with request.time. Soft-delete stamps
+    // deletedAt with request.time. deletedBy is the caller's uid. The live
+    // client still sends the literals 'owner' and 'admin' until that build
+    // ships, so those two strings are accepted from the owner as well.
+    // A sale is status 'sold' only: deletedAt stays unset, so a Nacho
+    // listing shoutout remains. Status 'deleted' is what retracts it.
+    function marketDeletedByOk(by) {
+      return by == request.auth.uid || by == 'owner' || by == 'admin';
+    }
+
+    function marketOwnerEdit() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let d = request.resource.data;
+      let oldStatus = resource.data.get('status', 'active');
+      let newStatus = d.get('status', oldStatus);
+      return resource.data.sellerUid == request.auth.uid
+        && oldStatus != 'deleted'
+        && changed.hasOnly(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','local','localPickup','status','updatedAt','deletedBy','deletedAt'])
+        && d.get('sellerUid', '') == resource.data.get('sellerUid', '')
+        && d.get('views', 0) == resource.data.get('views', 0)
+        && d.get('saves', 0) == resource.data.get('saves', 0)
+        && d.get('createdAt', null) == resource.data.get('createdAt', null)
+        && (!changed.hasAny(['title']) || (d.title is string && d.title.size() >= 3 && d.title.size() <= 80))
+        && (!changed.hasAny(['description']) || (d.description is string && d.description.size() <= 1000))
+        && (!changed.hasAny(['priceSats']) || (d.priceSats is int && d.priceSats >= 1 && d.priceSats <= 100000000000))
+        && (!changed.hasAny(['category']) || marketCategoryOk(d.category))
+        && (!changed.hasAny(['condition']) || marketConditionOk(d.condition))
+        && (!changed.hasAny(['imageUrl']) || marketImageValueOk(d.imageUrl))
+        && (!changed.hasAny(['lightningAddress']) || d.lightningAddress == null || (d.lightningAddress is string && d.lightningAddress.size() <= 120))
+        && (!changed.hasAny(['shipping']) || d.shipping is bool)
+        && (!changed.hasAny(['local']) || d.local is bool)
+        && (!changed.hasAny(['localPickup']) || d.localPickup is bool)
+        // Deleting status must not look like "status unchanged": get() would
+        // fall back to the old value, so the field has to stay a string.
+        && (!changed.hasAny(['status']) || d.status is string)
+        && (newStatus == oldStatus
+            || (oldStatus == 'active' && (newStatus == 'sold' || newStatus == 'deleted'))
+            || (oldStatus == 'sold' && newStatus == 'deleted'))
+        && (!changed.hasAny(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','local','localPickup','updatedAt'])
+            || (oldStatus == 'active' && newStatus == 'active' && d.updatedAt == request.time))
+        && (!changed.hasAny(['deletedBy','deletedAt']) || newStatus == 'deleted')
+        && (newStatus != 'deleted'
+            || (marketDeletedByOk(d.deletedBy) && d.deletedAt == request.time));
+    }
+
+    // An owner may hard-delete an active, sold, or self-removed listing.
+    // A listing an admin removed stays in place so the moderation record
+    // survives. deletedBy 'admin', 'admin-mod', or another uid blocks the
+    // owner. moderated, moderationHidden, and hidden do too. The admin
+    // custom claim can still hard-delete it.
+    function marketOwnerHardDelete() {
+      return resource.data.sellerUid == request.auth.uid
+        && resource.data.get('moderated', false) != true
+        && resource.data.get('moderationHidden', false) != true
+        && resource.data.get('hidden', false) != true
+        && (resource.data.get('status', 'active') != 'deleted'
+            || resource.data.get('deletedBy', '') == request.auth.uid
+            || resource.data.get('deletedBy', '') == 'owner');
+    }
+
+    // Detail view: any signed-in user may add exactly 1 to views.
+    function marketViewBump() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+        && request.resource.data.views is int
+        && request.resource.data.views == resource.data.get('views', 0) + 1;
+    }
+
+    // Save or unsave. saves moves by exactly 1, and savedBy gains or loses
+    // only the caller's uid. A uid already in savedBy cannot save again.
+    function marketSaveToggle() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let oldSaved = resource.data.get('savedBy', []);
+      let newSaved = request.resource.data.savedBy;
+      let uid = request.auth.uid;
+      return changed.hasOnly(['saves', 'savedBy'])
+        && oldSaved is list
+        && newSaved is list
+        && request.resource.data.saves is int
+        && (
+          (!(uid in oldSaved)
+            && (uid in newSaved)
+            && newSaved.hasAll(oldSaved)
+            && newSaved.size() == oldSaved.size() + 1
+            && request.resource.data.saves == resource.data.get('saves', 0) + 1)
+          || ((uid in oldSaved)
+            && !(uid in newSaved)
+            && oldSaved.hasAll(newSaved)
+            && newSaved.size() == oldSaved.size() - 1
+            && request.resource.data.saves == resource.data.get('saves', 0) - 1
+            && request.resource.data.saves >= 0)
+        );
+    }
+
     // =============================================
     // MARKETPLACE LISTINGS
     // =============================================
     match /marketplace/{listingId} {
       allow read: if true;
+      // Client payload from marketplace.js submitListing(). sellerName is the
+      // profile username (or empty when that username is missing).
       allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && listingId.matches('^[A-Za-z0-9]{20}$')
+                    && request.resource.data.keys().hasOnly(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','localPickup','sellerUid','sellerName','sellerRank','status','views','saves','createdAt'])
+                    && request.resource.data.keys().hasAll(['title','priceSats','category','sellerUid','status','views','saves','createdAt'])
                     && request.resource.data.sellerUid == request.auth.uid
-                    // F-003: field allowlist prevents inflating views/saves at creation time
-                    && request.resource.data.keys().hasOnly(['sellerUid','title','price','description','imageUrl','createdAt','category'])
-                    && (!('imageUrl' in request.resource.data)
-                        || request.resource.data.imageUrl == ''
-                        || request.resource.data.imageUrl == null
-                        || request.resource.data.imageUrl.matches('^https://.*')
-                        || request.resource.data.imageUrl.matches('^data:image/.*'));
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.views == 0
+                    && request.resource.data.saves == 0
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 80
+                    && request.resource.data.get('description', '') is string
+                    && request.resource.data.get('description', '').size() <= 1000
+                    && request.resource.data.priceSats is int
+                    && request.resource.data.priceSats >= 1 && request.resource.data.priceSats <= 100000000000
+                    && marketCategoryOk(request.resource.data.category)
+                    && marketConditionOk(request.resource.data.get('condition', 'good'))
+                    && marketImageValueOk(request.resource.data.get('imageUrl', null))
+                    && (request.resource.data.get('lightningAddress', null) == null
+                        || (request.resource.data.lightningAddress is string
+                            && request.resource.data.lightningAddress.size() <= 120))
+                    && request.resource.data.get('shipping', false) is bool
+                    && request.resource.data.get('localPickup', false) is bool
+                    && request.resource.data.get('sellerName', '') is string
+                    && request.resource.data.get('sellerName', '').size() <= 40
+                    && marketSellerNameMatches()
+                    && request.resource.data.get('sellerRank', '') is string
+                    && request.resource.data.get('sellerRank', '').size() <= 40;
       allow update: if request.auth != null
-                    && (// LOW-8 FIX: seller updates — field allowlist prevents adding arbitrary fields
-                        (resource.data.sellerUid == request.auth.uid
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['title','price','description','imageUrl','category','lightningAddress','status']))
+                    && (marketOwnerEdit()
                         || isAdmin()
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves', 'savedBy'])
-                            && request.resource.data.views == resource.data.get('views', 0) + 1
-                            && (
-                                // No change to saves
-                                request.resource.data.saves == resource.data.get('saves', 0) 
-                                || 
-                                // New save: must append UID to savedBy, increment saves by 1
-                                (
-                                  !(request.auth.uid in resource.data.get('savedBy', []))
-                                  && request.resource.data.saves == resource.data.get('saves', 0) + 1
-                                  && request.resource.data.savedBy.size() == resource.data.get('savedBy', []).size() + 1
-                                  && request.auth.uid in request.resource.data.savedBy
-                                )
-                            )
-                        ));
+                        || marketViewBump()
+                        || marketSaveToggle());
       allow delete: if request.auth != null
-                    && (resource.data.sellerUid == request.auth.uid
+                    && (marketOwnerHardDelete()
                         || isAdmin());
     }
 
@@ -1116,7 +1258,13 @@ service cloud.firestore {
                     // Reply fields: length-cap so they can't carry large payloads
                     && (!('replyToName' in request.resource.data) || (request.resource.data.replyToName is string && request.resource.data.replyToName.size() <= 60))
                     && (!('replyToText' in request.resource.data) || (request.resource.data.replyToText is string && request.resource.data.replyToText.size() <= 300))
-                    && (!('replyTo'     in request.resource.data) || request.resource.data.replyTo is string)
+                    && (!('replyTo' in request.resource.data) || (
+                        request.resource.data.replyTo is string
+                        && request.resource.data.replyTo.size() >= 8
+                        && request.resource.data.replyTo.size() <= 128
+                        && request.resource.data.replyTo.matches('^[A-Za-z0-9_-]+$')
+                        && request.resource.data.replyTo != msgId
+                    ))
                     && (request.resource.data.uid == request.auth.uid
                         || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
                             && isAdmin()))
@@ -1815,13 +1963,30 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Say-hi callable rate limit. Admin SDK only.
+    // Reply-bonus callable state. Admin SDK only. Clients cannot read or
+    // write the first-reward flag, the per-message claim, or the pair window.
+    match /reply_bonus_state/{docId} {
+      allow read, write: if false;
+    }
+    match /reply_bonus_claims/{docId} {
+      allow read, write: if false;
+    }
+    match /reply_bonus_pairs/{docId} {
+      allow read, write: if false;
+    }
+
+    // Callable rate limits (say-hi and reply_{uid}). Admin SDK only.
     match /rate_limits/{docId} {
       allow read, write: if false;
     }
 
     // Nacho activity shoutouts. Claims and rate limits are server-only so a
     // client cannot forge a Nacho post or reset the cap.
+    // One marker per listing so onMarketplaceListingCount cannot double-count.
+    match /market_listing_counts/{listingId} {
+      allow read, write: if false;
+    }
+
     match /shoutout_claims/{claimId} {
       allow read, write: if false;
     }

@@ -10,6 +10,9 @@ const path = require('path');
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
+    { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Marketplace Client', file: 'test-marketplace.js' },
+    { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
@@ -26,10 +29,12 @@ const TESTS = [
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
+    { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
-    { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
+    { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
 ];
 
 let allPassed = true;
