@@ -300,6 +300,8 @@ queue.push(test('every badge grant adds one Favor point once', async function ()
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
     assert.strictEqual(db.docs['satoshiFavor/current/contributors/u_badge_say_hi_1'].pointsAdded, 1);
     assert.strictEqual(db.docs['satoshiFavor/factionTotals'].cyber_hornets, 1);
+    assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].uid, 'u');
+    assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].points._increment, 1);
     assert.ok(db.docs['users/u/badge_awards/say_hi_1']);
     const banned = memoryDb({ 'users/u': { sayHiDays: 1, banned: true } });
     const blocked = await awardBadge(banned, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now });

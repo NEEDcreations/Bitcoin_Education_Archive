@@ -194,6 +194,12 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
                 });
             }
             t.set(stateRef, next);
+            const userSfRef = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid);
+            t.set(userSfRef, {
+                uid: uid,
+                points: adminSdk.firestore.FieldValue.increment(1),
+                updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
             favor = true;
         }
 
