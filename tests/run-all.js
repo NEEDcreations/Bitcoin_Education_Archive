@@ -42,6 +42,7 @@ const TESTS = [
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
+    { name: 'Quote of the Day', file: 'test-quotes.js' },
     { name: 'Referrals', file: 'test-referrals.js' },
     { name: 'Double XP', file: 'test-double-xp.js' },
     { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },

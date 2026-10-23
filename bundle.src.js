@@ -13055,140 +13055,118 @@ function renderExplorationMap() {
 window.renderExplorationMap = renderExplorationMap;
 
 // ---- DAILY BITCOIN QUOTE ----
-var BITCOIN_QUOTES = [
-    { text: "If you don't believe it or don't get it, I don't have the time to try to convince you, sorry.", author: "Satoshi Nakamoto", channel: 'satoshi-nakamoto' },
-    { text: "The root problem with conventional currency is all the trust that's required to make it work.", author: "Satoshi Nakamoto", channel: 'satoshi-nakamoto' },
-    { text: "It might make sense just to get some in case it catches on.", author: "Satoshi Nakamoto", channel: 'satoshi-nakamoto' },
-    { text: "Running bitcoin.", author: "Hal Finney", channel: 'history' },
-    { text: "Bitcoin is a remarkable cryptographic achievement and the ability to create something that is not duplicable in the digital world has enormous value.", author: "Eric Schmidt", channel: 'dominant' },
-    { text: "Bitcoin is a technological tour de force.", author: "Bill Gates", channel: 'one-stop-shop' },
-    { text: "I think the internet is going to be one of the major forces for reducing the role of government. The one thing that's missing, but that will soon be developed, is a reliable e-cash.", author: "Milton Friedman (1999)", channel: 'videos' },
-    { text: "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.", author: "Bitcoin Genesis Block", channel: 'history' },
-    { text: "Not your keys, not your coins.", author: "Bitcoin Proverb", channel: 'self-custody' },
-    { text: "Stay humble, stack sats.", author: "Bitcoin Community", channel: 'investment-strategy' },
-    { text: "In the long run, hard money is superior to soft money.", author: "Gigi, 21 Lessons", channel: 'articles-threads' },
-    { text: "Bitcoin is the first truly digital solution to the problem of money.", author: "Saifedean Ammous", channel: 'books' },
-    { text: "Fix the money, fix the world.", author: "Bitcoin Mantra", channel: 'problems-of-money' },
-    { text: "The supply of Bitcoin is limited. Period. No central bank is going to come along and print more.", author: "Andreas Antonopoulos", channel: 'scarce' },
-    { text: "Everyone is a scammer until proven otherwise. Don't trust, verify.", author: "Bitcoin Culture", channel: 'secure' },
-    { text: "Bitcoin makes money great again. It lets you transact freely, save freely, and live freely.", author: "Michael Saylor", channel: 'giga-chad' },
-    { text: "There is no second best.", author: "Michael Saylor", channel: 'maximalism' },
-    { text: "I don't think there's anything more important in my lifetime to work on.", author: "Jack Dorsey", channel: 'giga-chad' },
-    { text: "Bitcoin is the most important invention in the history of the world since the internet.", author: "Roger Ver (before he fell off)", channel: 'history' },
-    { text: "The computer can be used as a tool to liberate and protect people, rather than to control them.", author: "Hal Finney", channel: 'cryptography' },
-    { text: "One of the greatest things that Satoshi did was disappear.", author: "Gigi, 21 Lessons", channel: 'satoshi-nakamoto' },
-    { text: "Bitcoin has no CEO, no marketing department, no headquarters. It has math.", author: "Bitcoin Education Archive", channel: 'decentralized' },
-    { text: "We are all Satoshi.", author: "Bitcoin Community", channel: 'satoshi-nakamoto' },
-    { text: "Cypherpunks write code.", author: "Eric Hughes", channel: 'cryptography' },
-    { text: "Privacy is necessary for an open society in the electronic age.", author: "Eric Hughes, A Cypherpunk's Manifesto", channel: 'privacy-nonkyc' },
-    { text: "Money is a tool for trading human time.", author: "Robert Breedlove", channel: 'articles-threads' },
-    { text: "Bitcoin is Time.", author: "Gigi", channel: 'time' },
-    { text: "The root cause of the housing crisis, student debt crisis, and healthcare crisis is the money crisis.", author: "Saifedean Ammous", channel: 'problems-of-money' },
-    { text: "Tick tock, next block.", author: "Bitcoin Community", channel: 'blockchain-timechain' },
-    { text: "The difficulty adjustment is the most elegant feature of Bitcoin.", author: "Bitcoin Educators", channel: 'difficulty-adjustment' },
-    { text: "Every informed person needs to know about Bitcoin because it might be one of the world's most important developments.", author: "Leon Luow", channel: 'one-stop-shop' },
-    { text: "Bitcoin is the only commodity in the world that the more demand there is, the more supply does NOT increase.", author: "Parker Lewis", channel: 'scarce' },
-    { text: "Gradually, then suddenly.", author: "Parker Lewis / Ernest Hemingway", channel: 'articles-threads' },
-    { text: "You can't stop an idea whose time has come.", author: "Victor Hugo (on Bitcoin)", channel: 'organic' },
-    { text: "Bitcoin is a hedge against the entire system.", author: "Lyn Alden", channel: 'investment-strategy' },
-    { text: "The question isn't what Bitcoin's price will be. The question is what the dollar's price will be.", author: "Bitcoiners", channel: 'problems-of-money' },
-    { text: "I was once told that nobody ever lost money saving in Bitcoin for 4+ years. I checked. It's true.", author: "Anonymous Bitcoiner", channel: 'investment-strategy' },
-    { text: "Bitcoin is the exit.", author: "Bitcoin Maximalists", channel: 'maximalism' },
-    { text: "Don't trust, verify.", author: "Bitcoin Ethos", channel: 'nodes' },
-    { text: "Number go up technology.", author: "Bitcoin Twitter", channel: 'fun-facts' },
-    { text: "Energy is the universal currency. Bitcoin makes that literal.", author: "Bitcoin Mining Community", channel: 'energy' },
-    { text: "Bitcoin is not an investment — it is a savings technology.", author: "Bitcoin Educators", channel: 'money' },
-    { text: "Fiat currency always returns to its intrinsic value — zero.", author: "Voltaire", channel: 'problems-of-money' },
-    { text: "Give me control of a nation's money supply, and I care not who makes its laws.", author: "Mayer Amschel Rothschild", channel: 'problems-of-money' },
-    { text: "Inflation is taxation without legislation.", author: "Milton Friedman", channel: 'problems-of-money' },
-    { text: "Bitcoin is for enemies. That's the whole point.", author: "Bitcoin Community", channel: 'game_theory' },
-    { text: "When you understand Bitcoin, you understand everything else differently.", author: "Many Bitcoiners", channel: 'philosophy' },
-    { text: "Bitcoin doesn't care about your feelings.", author: "Bitcoin Proverb", channel: 'fun-facts' },
-    { text: "Stack sats and stay humble.", author: "Matt Odell", channel: 'investment-strategy' },
-    { text: "Number go up because money printer go brr.", author: "Bitcoin Memes", channel: 'memes-funny' },
-
-    // Freedom & Sovereignty
-    { text: "Those who would give up essential liberty, to purchase a little temporary safety, deserve neither liberty nor safety.", author: "Benjamin Franklin", channel: 'human_rights__social_justice_and_freedo' },
-    { text: "Freedom is never more than one generation away from extinction.", author: "Ronald Reagan", channel: 'human_rights__social_justice_and_freedo' },
-    { text: "The only way to deal with an unfree world is to become so absolutely free that your very existence is an act of rebellion.", author: "Albert Camus", channel: 'philosophy' },
-    { text: "If the American people ever allow private banks to control the issue of their currency, first by inflation, then by deflation, the banks and corporations that will grow up around them will deprive the people of all property.", author: "Thomas Jefferson", channel: 'problems-of-money' },
-    { text: "It is well enough that people of the nation do not understand our banking and monetary system, for if they did, I believe there would be a revolution before tomorrow morning.", author: "Henry Ford", channel: 'problems-of-money' },
-    { text: "The most dangerous man to any government is the man who is able to think things out for himself.", author: "H.L. Mencken", channel: 'philosophy' },
-    { text: "In a time of deceit, telling the truth is a revolutionary act.", author: "George Orwell", channel: 'philosophy' },
-    { text: "The urge to save humanity is almost always a false front for the urge to rule it.", author: "H.L. Mencken", channel: 'philosophy' },
-    { text: "A society that puts equality before freedom will get neither. A society that puts freedom before equality will get a high degree of both.", author: "Milton Friedman", channel: 'philosophy' },
-    { text: "The state is that great fiction by which everyone tries to live at the expense of everyone else.", author: "Frédéric Bastiat", channel: 'austrian_school_of_economics' },
-
-    // Austrian Economics & Sound Money
-    { text: "There is no means of avoiding the final collapse of a boom brought about by credit expansion.", author: "Ludwig von Mises", channel: 'austrian_school_of_economics' },
-    { text: "The first panacea for a mismanaged nation is inflation of the currency; the second is war. Both bring a temporary prosperity; both bring a permanent ruin.", author: "Ernest Hemingway", channel: 'problems-of-money' },
-    { text: "Gold is money. Everything else is credit.", author: "J.P. Morgan", channel: 'money' },
-    { text: "We don't have a trillion-dollar debt because we haven't taxed enough; we have a trillion-dollar debt because we spend too much.", author: "Ronald Reagan", channel: 'problems-of-money' },
-    { text: "Government is the only institution that can take a valuable commodity like paper, and make it worthless by applying ink.", author: "Ludwig von Mises", channel: 'problems-of-money' },
-    { text: "Whenever destroyers appear among men, they start by destroying money.", author: "Ayn Rand", channel: 'problems-of-money' },
-    { text: "The way to crush the bourgeoisie is to grind them between the millstones of taxation and inflation.", author: "Vladimir Lenin", channel: 'problems-of-money' },
-    { text: "Savings represent goods produced but not yet consumed. That's what real wealth is — not digits in a bank database.", author: "Saifedean Ammous", channel: 'money' },
-    { text: "Civilization is in a race between education and catastrophe. Let us learn the truth and spread it as far and wide as our circumstances allow.", author: "H.G. Wells", channel: 'one-stop-shop' },
-    { text: "Paper money eventually returns to its intrinsic value — zero.", author: "Voltaire", channel: 'problems-of-money' },
-
-    // Bitcoin Wisdom
-    { text: "Bitcoin is the separation of money and state.", author: "Bitcoin Community", channel: 'maximalism' },
-    { text: "Bitcoin is the first money in the history of the world where the supply is entirely unaffected by an increase in demand.", author: "Jeff Booth", channel: 'scarce' },
-    { text: "In a world where everything is printed, scarcity is the ultimate feature.", author: "Bitcoin Educators", channel: 'scarce' },
-    { text: "Bitcoin is hope for humanity.", author: "Jack Mallers", channel: 'one-stop-shop' },
-    { text: "The cost of Bitcoin is measured in electricity. The cost of fiat is measured in human freedom.", author: "Bitcoin Community", channel: 'energy' },
-    { text: "Your savings should not be someone else's liability.", author: "Bitcoin Educators", channel: 'self-custody' },
-    { text: "Bitcoin is the peaceful protest that cannot be silenced.", author: "Alex Gladstein", channel: 'human_rights__social_justice_and_freedo' },
-    { text: "Bitcoin gives us the ability to opt out of a system that was designed to extract value from us.", author: "Many Bitcoiners", channel: 'problems-of-money' },
-    { text: "Proof of work means proof of energy. Energy is the one thing that cannot be faked.", author: "Bitcoin Mining Community", channel: 'mining' },
-    { text: "The Bitcoin network processes more value per year than Visa. Without a CEO.", author: "Bitcoin Stats", channel: 'decentralized' },
-    { text: "If Bitcoin is a bubble, it's the only bubble that reflated itself five times in a row.", author: "Bitcoin Community", channel: 'fun-facts' },
-    { text: "Bitcoin has died 474 times according to the media. It's still here.", author: "Bitcoin Obituaries", channel: 'misconceptions-fud' },
-    { text: "Your grandchildren will ask you why you didn't buy Bitcoin when it was under six figures.", author: "Bitcoin Twitter", channel: 'predictions' },
-    { text: "The next 4 years are going to be very exciting for Bitcoin.", author: "Every Bitcoiner, Every Year", channel: 'fun-facts' },
-    { text: "Bitcoin isn't getting more expensive. Your dollars are getting cheaper.", author: "Bitcoin Community", channel: 'problems-of-money' },
-    { text: "If you can't hold it, you don't own it. If you didn't earn it, you'll lose it.", author: "Bitcoin Wisdom", channel: 'self-custody' },
-    { text: "Think in sats, not dollars.", author: "Bitcoin Community", channel: 'sats__or__bits' },
-    { text: "The best time to buy Bitcoin was 10 years ago. The second best time is now.", author: "Bitcoin Proverb", channel: 'investment-strategy' },
-    { text: "Work is the transfer of energy over time. Money should measure exactly that.", author: "Jason Lowery", channel: 'energy' },
-    { text: "Bitcoin is not anti-government. Bitcoin is anti-fraud.", author: "Bitcoin Educators", channel: 'regulation' },
-
-    // Technology & Cypherpunk
-    { text: "We must defend our own privacy if we expect to have any.", author: "Eric Hughes, A Cypherpunk's Manifesto", channel: 'privacy-nonkyc' },
-    { text: "Cryptography is the ultimate form of non-violent direct action.", author: "Julian Assange", channel: 'cryptography' },
-    { text: "Strong cryptography can resist an unlimited application of violence.", author: "Jacob Appelbaum", channel: 'cryptography' },
-    { text: "The Net interprets censorship as damage and routes around it.", author: "John Gilmore", channel: 'privacy-nonkyc' },
-    { text: "Bitcoin is a weapon of peace.", author: "Jason Lowery, Softwar", channel: 'geopolitics___macroeconomics' },
-    { text: "Running a node means nobody can change the rules on you.", author: "Bitcoin Node Runners", channel: 'nodes' },
-    { text: "Hashrate is the heartbeat of Bitcoin. As long as miners mine, Bitcoin lives.", author: "Bitcoin Mining Community", channel: 'mining' },
-    { text: "Lightning is what makes Bitcoin usable for 8 billion people.", author: "Lightning Network Community", channel: 'layer-2-lightning' },
-    { text: "2,099,999,997,690,000 satoshis. That's all there will ever be.", author: "The Bitcoin Protocol", channel: 'scarce' },
-    { text: "Code is speech. Math is law. Cryptography is defense.", author: "Cypherpunks", channel: 'cryptography' },
-
-    // Historical Perspective
-    { text: "I predict the Internet will go spectacularly supernova and in 1996 catastrophically collapse.", author: "Robert Metcalfe (1995) — They said this about Bitcoin too", channel: 'misconceptions-fud' },
-    { text: "Every generation needs a new revolution.", author: "Thomas Jefferson", channel: 'philosophy' },
-    { text: "First they ignore you, then they laugh at you, then they fight you, then you win.", author: "Often attributed to Gandhi", channel: 'organic' },
-    { text: "I do not think there is any other quality so essential to success of any kind as the quality of perseverance.", author: "John D. Rockefeller", channel: 'philosophy' },
-    { text: "The world is a dangerous place, not because of those who do evil, but because of those who look on and do nothing.", author: "Albert Einstein", channel: 'philosophy' },
-    { text: "Hard times create strong men. Strong men create good times. Good times create weak men. Weak men create hard times.", author: "G. Michael Hopf", channel: 'time_preference' },
-    { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin", channel: 'one-stop-shop' },
+// Full list lives in data/quotes.json so the main bundle stays small.
+// These three are a subset of that file, used only if the fetch fails.
+var QOTD_FALLBACK = [
+    {
+        "text": "The root problem with conventional currency is all the trust that's required to make it work.",
+        "author": "Satoshi Nakamoto",
+        "year": 2009,
+        "source": "Bitcoin open source implementation of P2P currency",
+        "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+        "channel": "satoshi-nakamoto"
+    },
+    {
+        "text": "Running bitcoin",
+        "author": "Hal Finney",
+        "year": 2009,
+        "source": "Twitter @halfin, 10 Jan 2009",
+        "url": "https://web.archive.org/web/20170328054440/https://twitter.com/halfin/status/1110302988",
+        "channel": "history"
+    },
+    {
+        "text": "Cypherpunks write code.",
+        "author": "Eric Hughes",
+        "year": 1993,
+        "source": "A Cypherpunk's Manifesto",
+        "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+        "channel": "cryptography"
+    }
 ];
 
+// QOTD-PURE-START
+function qotdMulberry32(seed) {
+    return function() {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+function qotdOrder(length) {
+    var order = [];
+    var i;
+    for (i = 0; i < length; i++) order.push(i);
+    var rand = qotdMulberry32(0x51544F44);
+    for (i = length - 1; i > 0; i--) {
+        var j = Math.floor(rand() * (i + 1));
+        var tmp = order[i];
+        order[i] = order[j];
+        order[j] = tmp;
+    }
+    return order;
+}
+function qotdDayNumber(date) {
+    var d = date || new Date();
+    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+}
+function qotdIndex(length, date) {
+    if (!length || length < 1) return 0;
+    var order = qotdOrder(length);
+    var day = qotdDayNumber(date);
+    var n = ((day % length) + length) % length;
+    return order[n];
+}
+// QOTD-PURE-END
+
+function qotdHttps(url) {
+    if (!url || typeof url !== 'string') return '';
+    var t = url.trim();
+    if (!/^https:\/\/[^\s<>"']+$/i.test(t)) return '';
+    return t;
+}
+
+function qotdPaint(el, list) {
+    if (!el || !list || !list.length) return;
+    var quote = list[qotdIndex(list.length)];
+    if (!quote || !quote.text) return;
+    var channel = (quote.channel && /^[a-z0-9_-]+$/.test(quote.channel)) ? quote.channel : 'one-stop-shop';
+    var href = qotdHttps(quote.url);
+    var sourceLine = '';
+    if (href && quote.source) {
+        var label = String(quote.source);
+        if (quote.year) label += ' \u00b7 ' + quote.year;
+        sourceLine = '<div style="margin-top:6px;font-size:0.68rem;line-height:1.35;font-weight:400;">' +
+            '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" style="color:var(--text-dim);text-decoration:none;border-bottom:1px solid rgba(148,163,184,0.45);">' +
+            escapeHtml(label) + '</a></div>';
+    }
+    el.innerHTML = '<div onclick="if(typeof go===\'function\')go(\'' + channel + '\')" style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">\uD83D\uDCAC Quote of the Day</div>' +
+        '<div style="color:var(--text);font-size:0.95rem;font-style:italic;line-height:1.6;margin-bottom:8px;">"' + escapeHtml(quote.text) + '"</div>' +
+        '<div style="color:var(--accent);font-size:0.8rem;font-weight:600;">\u2014 ' + escapeHtml(quote.author || '') + '</div>' +
+        sourceLine +
+    '</div>';
+}
+
+var qotdCache = null;
 window.renderDailyQuote = function() {
     var el = document.getElementById('quoteOfDay');
     if (!el) return;
-    // Pick quote based on day of year
-    var now = new Date();
-    var dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
-    var quote = BITCOIN_QUOTES[dayOfYear % BITCOIN_QUOTES.length];
-    if (!quote) return;
-
-    el.innerHTML = '<div onclick="if(typeof go===\'function\')go(\'' + (quote.channel || 'one-stop-shop') + '\')" style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💬 Quote of the Day</div>' +
-        '<div style="color:var(--text);font-size:0.95rem;font-style:italic;line-height:1.6;margin-bottom:8px;">"' + quote.text + '"</div>' +
-        '<div style="color:var(--accent);font-size:0.8rem;font-weight:600;">— ' + quote.author + '</div>' +
-    '</div>';
+    if (qotdCache) { qotdPaint(el, qotdCache); return; }
+    fetch('data/quotes.json?v=20261022_v2313', { credentials: 'same-origin' })
+        .then(function(r) {
+            if (!r.ok) throw new Error('quotes');
+            return r.json();
+        })
+        .then(function(data) {
+            if (!data || !data.length) throw new Error('quotes');
+            qotdCache = data;
+            qotdPaint(el, data);
+        })
+        .catch(function() {
+            qotdPaint(el, QOTD_FALLBACK);
+        });
 };
 
 // ---- RESTORED MISSING FUNCTIONS ----
