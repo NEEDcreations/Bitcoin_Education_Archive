@@ -928,6 +928,7 @@ function auth(uid, extras) {
             'comments.authorId',
             'participants.uid',
             'participants.username',
+            'posts.uid',
             'winners.uid',
         ]);
         del.INDEX_AUDIT.collectionQueries.forEach(function(query) {

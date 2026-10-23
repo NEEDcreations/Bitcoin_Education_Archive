@@ -195,6 +195,7 @@ const COLLECTION_GROUP_QUERIES = [
     { collection: 'winners', field: 'uid', op: '==', orderBy: '__name__' },
     { collection: 'participants', field: 'uid', op: '==', orderBy: '__name__' },
     { collection: 'participants', field: 'username', op: '==', orderBy: '__name__' },
+    { collection: 'posts', field: 'uid', op: '==', orderBy: 'createdAt' },
 ];
 
 // Document-id ranges. The end is the prefix plus U+F8FF, not a full scan.
@@ -902,6 +903,22 @@ async function stripPollVoters(db, batcher, uid, documentIdField) {
     }
 }
 
+async function deleteTopicPosts(db, batcher, uid, documentIdField) {
+    await deleteExactIfPresent(db, batcher, 'topic_discussion_limits', uid);
+    if (typeof db.collectionGroup !== 'function') return;
+    const posts = await collectDocs(
+        db.collectionGroup('posts').where('uid', '==', uid).orderBy('createdAt', 'desc'),
+        documentIdField,
+        { ordered: true }
+    );
+    for (let i = 0; i < posts.length; i++) {
+        const parts = String(posts[i].ref && posts[i].ref.path || '').split('/');
+        if (parts.length < 4 || parts[0] !== 'topic_discussions' || parts[2] !== 'posts') continue;
+        await deleteDocTree(batcher, posts[i].ref, ['reports'], documentIdField, false);
+        await deleteExactIfPresent(db, batcher, 'topic_discussion_private', parts[1] + '~' + parts[3]);
+    }
+}
+
 async function deleteReplyBonus(db, batcher, uid, documentIdField) {
     await deleteExactIfPresent(db, batcher, 'reply_bonus_state', uid);
     await deleteExactIfPresent(db, batcher, 'rate_limits', 'reply_' + uid);
@@ -1024,6 +1041,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     await anonymizeFavorNames(db, batcher, uid, documentIdField);
     await deleteUsernameReservations(db, batcher, uid, userData, documentIdField);
     await removeBeatsLikes(db, batcher, uid, documentIdField);
+    await deleteTopicPosts(db, batcher, uid, documentIdField);
 
     let deletedDocs = 0;
     for (let i = 0; i < DELETION_QUERIES.length; i++) {

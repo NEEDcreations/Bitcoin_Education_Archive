@@ -2115,6 +2115,29 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Live topic comments. Public read so guests can follow a thread.
+    // Every create, hide, delete, and report goes through a callable.
+    match /topic_discussions/{channelId} {
+      allow read: if true;
+      allow write: if false;
+      match /posts/{postId} {
+        allow read: if true;
+        allow write: if false;
+        match /reports/{reportId} {
+          allow read, write: if false;
+        }
+      }
+    }
+    match /topic_discussion_limits/{docId} {
+      allow read, write: if false;
+    }
+    match /topic_discussion_caps/{docId} {
+      allow read, write: if false;
+    }
+    match /topic_discussion_private/{docId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

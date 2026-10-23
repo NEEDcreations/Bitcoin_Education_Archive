@@ -4211,6 +4211,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             msgs.insertAdjacentHTML('beforeend', sentimentHtml);
         }
 
+        if (typeof window.mountTopicDiscussion === 'function') window.mountTopicDiscussion(id);
+
         // Track channel open time for trivia delay
         window._lastChannelOpenTime = Date.now();
         // Ranking: award points for opening channel
@@ -5322,6 +5324,24 @@ if (locked) {
             if (hash.indexOf('marketplace/listing/') === 0) {
                 var _mlId = hash.slice('marketplace/listing/'.length).split('/')[0];
                 if (typeof window.bqOpenMarketListing === 'function' && window.bqOpenMarketListing(_mlId)) return;
+                return;
+            }
+
+            var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)$/)
+                || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)$/);
+            if (_topicDeep) {
+                if (typeof CHANNELS === 'undefined' || typeof go !== 'function') {
+                    waited += 200;
+                    setTimeout(tryRoute, 200);
+                    return;
+                }
+                if (!CHANNELS[_topicDeep[1]]) return;
+                window._topicDeepLink = { channelId: _topicDeep[1], postId: _topicDeep[2], done: false };
+                if (window.currentChannelId === _topicDeep[1] && document.getElementById('topic-discussion-live')) {
+                    if (typeof window._topicDiscussionFocus === 'function') window._topicDiscussionFocus();
+                    return;
+                }
+                go(_topicDeep[1]);
                 return;
             }
             

@@ -352,6 +352,7 @@
         <li>Power the LightningMart marketplace (listings, buyer-seller communication)</li>
         <li>Host and stream user-uploaded music on Bitcoin Beats (including albums and EPs)</li>
         <li>Power Global Chat — display messages, online user counts, and enable real-time communication</li>
+        <li>Host topic discussions — store comments and questions on educational topics, show them publicly, and let Nacho answer questions</li>
         <li>Power DJ Mode — broadcast music, sound effects, and playback position to listeners</li>
         <li>Track chat activity, DJ sessions, and listener engagement for badge and reward systems</li>
         <li>Facilitate PVP quiz battles between users</li>
@@ -427,6 +428,7 @@
         <li>Your <strong>profile picture</strong> is visible on the leaderboard, PVP, and user profiles</li>
         <li>Your <strong>uploaded music tracks</strong> (including albums/EPs) on Bitcoin Beats are publicly playable by all users</li>
         <li>Your <strong>Global Chat messages</strong> are visible to all users in real time</li>
+        <li>Your <strong>topic discussion comments</strong> (username and comment text) are visible publicly on that topic, including to people who are not signed in</li>
         <li>Your <strong>DJ broadcasts</strong> (currently playing track, sound effects) are heard by all listeners</li>
         <li>Your <strong>online presence</strong> (username, active status) is visible via the online users counter</li>
         <li>Your <strong>PVP battle results</strong> may be displayed on leaderboards</li>
@@ -471,6 +473,7 @@
     <ul>
         <li>Questions you ask Nacho are first checked <strong>in your browser</strong> against saved Bitcoin answers</li>
         <li>If that is not enough, we send your question, a short recent Nacho conversation, your display name, rank, and point total, your language, whether simple-explanation mode is on, a knowledge snippet, and a short note about matching app features. If you are signed in, the request may also include your Firebase sign-in token. We do not put your email, Lightning address, or wallet in the prompt</li>
+        <li>When you ask a question in a topic discussion, the server sends that question text plus a short excerpt of the topic notes to the same Cloudflare Workers AI proxy. Your username and user ID are not included. The reply is posted in the thread as Nacho</li>
         <li>Nacho chat history for the session is stored <strong>in your browser</strong></li>
         <li>A local list of recent questions stays on your device</li>
         <li>Nacho uses your username for greetings</li>
@@ -493,7 +496,8 @@
         <li><strong>Spam detection</strong> — ALL CAPS, repeated characters, and excessive links are flagged</li>
         <li><strong>Username validation</strong> — ASCII-only enforcement prevents Unicode/homoglyph bypass attempts</li>
     </ul>
-    <p>Filtering is performed entirely in your browser. <strong>No message content is sent to external moderation APIs or third-party services.</strong> Blocked messages are never stored in Firebase.</p>
+    <p>Filtering for Global Chat, PlebTalk, DMs, usernames, and articles is performed in your browser. <strong>No message content is sent to external moderation APIs or third-party services.</strong> Blocked messages are never stored in Firebase.</p>
+    <p>Topic discussion comments are checked again on the server before they are stored. Hate, scams, spam, shortened links, and invite links are rejected and not stored. Other links are replaced, and ordinary profanity is masked. A question that Nacho answers is sent to the Cloudflare Workers AI proxy described in Section 8, as question text plus a topic excerpt only.</p>
 
     <h2>10. Messaging & Communication Safety</h2>
     <ul>
@@ -539,6 +543,7 @@
         <li>After the sign-in is deleted: your shoutout claim and rate rows, action cooldowns, raid daily caps, raid deck completions, weekly challenge contribution rows, key-send pair records, quiz and exam answer keys, the daily faucet cap and Proof of Walk dedupe rows stored on the profile, and the per-account rate-limit rows for the chat bridge, Beats imports, Say hi, announcements, account deletion, and reply bonus. Your account id is removed from poll voter lists. The vote totals stay. Reply-bonus state, pair rows, and claim rows are deleted, as are marketplace listing-count markers for your listings, and a Timechain TV watch row when one exists. Files in Storage are removed in that same step, after the sign-in is gone</li>
         <li>Your giveaway entry, visit row, open prediction, and prediction stats</li>
         <li>Your Global Chat DJ queue entry and your Satoshi's Favor personal best</li>
+        <li>Your topic discussion comments, the reports on those comments, the private copy of a hidden comment, and the topic-discussion rate row for the account. Nacho's replies in the thread stay</li>
     </ul>
     <p>Global Chat messages you wrote stay in place, because other messages point at them. The server replaces your name and the message text with <code>[deleted]</code>, clears images, GIFs, and captions on those messages, and replaces quotes of those messages with <code>[deleted]</code>. The reply link stays so the thread still lines up. The chat hides the profile, reply, and tip controls on a deleted message.</p>
     <p>We keep some records after deletion so someone cannot wipe an abuse trail or a payout that already happened:</p>

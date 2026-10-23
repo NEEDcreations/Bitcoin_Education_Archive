@@ -76,8 +76,60 @@ function chatTextBlocked(text) {
     return '';
 }
 
+function hateHit(text) {
+    const lower = normalizeChatText(text);
+    for (let i = 0; i < HATE_PHRASES.length; i++) {
+        if (lower.includes(HATE_PHRASES[i])) return true;
+    }
+    return false;
+}
+
+// Priority: hate and scam are refused. Spam is refused. Ordinary profanity is masked.
+function classifyChatText(text) {
+    const raw = String(text || '');
+    if (!raw.trim()) return '';
+    if (hateHit(raw)) return 'hate';
+    for (let i = 0; i < SCAM_PATTERNS.length; i++) {
+        if (SCAM_PATTERNS[i].test(raw)) return 'scam';
+    }
+    if (isSpammy(raw)) return 'spam';
+    if (containsProfanity(raw)) return 'profanity';
+    return '';
+}
+
+function tokenHitsProfanity(token) {
+    const norm = normalizeChatText(token);
+    if (!norm) return false;
+    const parts = norm.split(/\s+/);
+    for (let i = 0; i < BAD_WORDS.length; i++) {
+        const bad = BAD_WORDS[i];
+        if (bad.indexOf(' ') !== -1) {
+            if (norm.includes(bad)) return true;
+            continue;
+        }
+        for (let p = 0; p < parts.length; p++) {
+            if (parts[p] === bad) return true;
+        }
+        if (bad.length >= 4 && norm.includes(bad)) return true;
+    }
+    return false;
+}
+
+function maskChatProfanity(text) {
+    const raw = String(text || '');
+    if (!raw) return '';
+    return raw.split(/(\s+)/).map(function(part) {
+        if (!part || /^\s+$/.test(part)) return part;
+        if (!tokenHitsProfanity(part)) return part;
+        const first = part.charAt(0);
+        return first + '*'.repeat(Math.max(2, part.length - 1));
+    }).join('');
+}
+
 module.exports = {
     containsProfanity: containsProfanity,
     isSpammy: isSpammy,
     chatTextBlocked: chatTextBlocked,
+    classifyChatText: classifyChatText,
+    maskChatProfanity: maskChatProfanity,
 };
