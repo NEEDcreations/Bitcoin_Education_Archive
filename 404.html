@@ -549,7 +549,7 @@
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
         .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
-        /* Invite friends sits top-right. Nacho is bottom-left; the FABs are bottom-right. */
+        /* Expanded invite card stays top-right. Nacho is bottom-left; the FABs are bottom-right. */
         .invite-card { display: none; position: fixed; top: 16px; right: 16px; z-index: 200; width: min(280px, calc(100vw - 32px)); max-height: min(70dvh, 460px); overflow: auto; box-sizing: border-box; text-align: left; font-family: inherit; }
         .invite-card[data-show="1"] { display: block; }
         .invite-card[data-show="1"][data-state="off"] { display: none !important; }
@@ -583,7 +583,39 @@
             .invite-card { right: 72px; }
             body.ticker-visible .invite-card { top: 48px; }
         }
+        /* Minimized pill only. Phones: right edge in the gap under the header
+           logos and above the title, clear of the ticker, the hide pill, and
+           the bottom stack. Desktop: right edge around the vertical middle. */
+        .invite-card[data-state="min"] {
+            top: calc(276px + env(safe-area-inset-top, 0px));
+            right: max(12px, env(safe-area-inset-right, 0px));
+            left: auto;
+            bottom: auto;
+            width: auto;
+            max-height: none;
+            overflow: visible;
+            margin: 0;
+            z-index: 180;
+            transform: none;
+        }
+        body.ticker-visible .invite-card[data-state="min"] {
+            top: calc(276px + env(safe-area-inset-top, 0px));
+        }
+        @media (min-width: 901px) {
+            .invite-card[data-state="min"],
+            body.ticker-visible .invite-card[data-state="min"] {
+                top: clamp(calc(160px + env(safe-area-inset-top, 0px)), calc(50dvh - 22px), calc(100dvh - 340px - env(safe-area-inset-bottom, 0px)));
+            }
+        }
         body:has(#searchOverlay[data-open="1"]) .invite-card { display: none !important; }
+        body:has(#usernameModal.open) .invite-card[data-state="min"],
+        body:has(#questModal.open) .invite-card[data-state="min"],
+        body:has(#tosModal.open) .invite-card[data-state="min"],
+        body:has(#leaderboard.open) .invite-card[data-state="min"],
+        body:has(#lb.open) .invite-card[data-state="min"] {
+            visibility: hidden;
+            pointer-events: none;
+        }
         .home-credits { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
         .home-credits p { color: var(--text-dim); font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
         .home-credits p:last-child { margin-bottom: 0; }
