@@ -1,6 +1,7 @@
 // Cache-buster pin. This ship branch is btc-archive-v2331.
-// bundle.min.js is 20261023_v2325.
-// ranking.js is 20261023_v2330. global-chat.js, quests.js, learning-quests.js, and modules.js stay 20261023_v2324.
+// bundle.min.js is 20261023_v2325. Service worker stays on gh-pages; renumber at ship.
+// ranking.js is 20261023_v2330. global-chat.js, learning-quests.js, and modules.js stay 20261023_v2324.
+// quests.js is 20261023_v2326 (donation badge XP reads the shared table).
 // lightning.js, today-card.js, and satoshi-favor.js stay 20261023_v2323.
 // tctv-watch.js stays on v2301.
 // index.html and 404.html must stay identical. The precache keeps the
@@ -81,7 +82,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2326/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 0);
     assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
     assert.ok(swVersion && swVersion[1] === 'v2331');
@@ -121,7 +123,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The minimized Invite pill sits clear of the Bitcoin Quest title, and the Quest pill sits clear of the header buttons, the Invite pill, and the buttons along the bottom.'));
+    assert.ok(notes.includes('Latest: Badge XP now follows how long a badge takes to earn, from 10 up to 2,000. Cosmetic badges show 0.'));
+    assert.ok(notes.includes('The minimized Invite pill sits clear of the Bitcoin Quest title, and the Quest pill sits clear of the header buttons, the Invite pill, and the buttons along the bottom.'));
     assert.ok(notes.includes('Scholar and Protocol Expert certificates, and the 2,100 exam XP, are issued only from a server-recorded passing exam. Clearing profile flags cannot grant them again.'));
     assert.ok(notes.includes('The minimized Invite pill sits on the right edge, midway down the screen, clear of the header, the ticker, and the buttons along the bottom.'));
     assert.ok(notes.includes('The homepage topics ring counts the channels you have opened, and the archive lists 145 topics.'));

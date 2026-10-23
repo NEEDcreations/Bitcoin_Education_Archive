@@ -4548,23 +4548,25 @@ function _renderCharityTabInner(body) {
         '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">🏅 Donation Badges</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
     var donorBadges = [
-        { id:'donor_100',    emoji:'🫷', name:'Giving Pleb',           thresh:'100 XP',    reward:'50 XP' },
-        { id:'donor_500',    emoji:'💛', name:'Stack Sharer',          thresh:'500 XP',    reward:'150 XP' },
-        { id:'donor_1000',   emoji:'🧡', name:'Community Builder',     thresh:'1,000 XP',  reward:'300 XP' },
-        { id:'donor_5000',   emoji:'❤️', name:'Archive Patron',        thresh:'5,000 XP',  reward:'1,000 XP' },
-        { id:'donor_10000',  emoji:'🔥', name:'Sats Saint',            thresh:'10,000 XP', reward:'2,000 XP' },
-        { id:'donor_25000',  emoji:'⚡', name:'Lightning Philanthropist', thresh:'25,000 XP', reward:'4,000 XP' },
-        { id:'donor_50000',  emoji:'🏆', name:"Satoshi's Steward",    thresh:'50,000 XP', reward:'7,500 XP' },
-        { id:'donor_100000', emoji:'👑', name:'Legend of the Archive', thresh:'100,000 XP',reward:'15,000 XP' },
+        { id:'donor_100',    emoji:'🫷', name:'Giving Pleb',           thresh:'100 XP' },
+        { id:'donor_500',    emoji:'💛', name:'Stack Sharer',          thresh:'500 XP' },
+        { id:'donor_1000',   emoji:'🧡', name:'Community Builder',     thresh:'1,000 XP' },
+        { id:'donor_5000',   emoji:'❤️', name:'Archive Patron',        thresh:'5,000 XP' },
+        { id:'donor_10000',  emoji:'🔥', name:'Sats Saint',            thresh:'10,000 XP' },
+        { id:'donor_25000',  emoji:'⚡', name:'Lightning Philanthropist', thresh:'25,000 XP' },
+        { id:'donor_50000',  emoji:'🏆', name:"Satoshi's Steward",    thresh:'50,000 XP' },
+        { id:'donor_100000', emoji:'👑', name:'Legend of the Archive', thresh:'100,000 XP' },
     ];
     var earnedBadges = typeof safeJSON === 'function' ? safeJSON('btc_hidden_badges', []) : [];
     donorBadges.forEach(function(b) {
         var earned = earnedBadges.includes(b.id) || (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.donationBadges) && currentUser.donationBadges.includes(b.id));
+        var cat = (window.BADGE_CATALOG && window.BADGE_CATALOG[b.id]) || {};
+        var rewardXp = typeof cat.xp === 'number' ? cat.xp : 0;
         html += '<div style="padding:10px;border-radius:10px;border:1px solid ' + (earned ? 'rgba(239,68,68,0.4)' : 'var(--border)') + ';background:' + (earned ? 'rgba(239,68,68,0.06)' : 'none') + ';text-align:center;">' +
             '<div style="font-size:1.4rem;margin-bottom:2px;' + (earned ? '' : 'filter:grayscale(1);opacity:0.4;') + '">' + b.emoji + '</div>' +
             '<div style="font-size:0.72rem;font-weight:700;color:' + (earned ? 'var(--heading)' : 'var(--text-faint)') + ';">' + b.name + '</div>' +
             '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">' + b.thresh + ' donated</div>' +
-            '<div style="font-size:0.65rem;color:#ef4444;margin-top:1px;">+' + b.reward + ' reward</div>' +
+            '<div style="font-size:0.65rem;color:#ef4444;margin-top:1px;">+' + rewardXp.toLocaleString() + ' XP reward</div>' +
         '</div>';
     });
     html += '</div></div>';
