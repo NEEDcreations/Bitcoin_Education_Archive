@@ -65,6 +65,7 @@ const TESTS = [
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Email link and guest merge', file: 'test-email-link.js' },
     { name: 'Two-factor auth', file: 'test-totp.js' },
+    { name: 'Remembered device retry', file: 'test-mfa-device.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
     { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },

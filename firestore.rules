@@ -698,6 +698,12 @@ service cloud.firestore {
     match /totp_sessions/{docId} {
       allow read, write: if false;
     }
+    match /trusted_devices/{docId} {
+      allow read, write: if false;
+    }
+    match /totp_fresh_proofs/{docId} {
+      allow read, write: if false;
+    }
     match /recovery_codes/{docId} {
       allow read, write: if false;
     }
