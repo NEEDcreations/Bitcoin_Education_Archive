@@ -257,7 +257,7 @@ test('xp uses the shared taper and does not redeem yesterday overflow', () => {
     assert.strictEqual(full.overflowRedeemed, 0);
     assert.strictEqual(full.tickets, 1);
     const partial = watch.planWatchXp(950, 0, '', '2026-10-22');
-    assert.strictEqual(partial.awarded, 50);
+    assert.strictEqual(partial.awarded, 25);
     assert.strictEqual(partial.overflowAdded, 0);
     assert.strictEqual(partial.pendingOverflow, 0);
     assert.strictEqual(partial.touchOverflow, false);
@@ -376,7 +376,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('startTctvDailyWatch()'));
     assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
-    assert.ok(html.includes('tctv-watch.js?v=20261023_v2338'));
+    assert.ok(html.includes('tctv-watch.js?v=20261023_v2340'));
+    assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
     assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('id="tctvWatchSub"'));
     assert.ok(html.includes('>0/10 min</span>'));
@@ -389,7 +390,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261023_v2330'));
+    assert.ok(html.includes('features.registry.js?v=20261023_v2339'));
+    assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
     assert.ok(client.includes('getDailyKey'));
     assert.ok(client.includes('IntersectionObserver'));
     assert.ok(client.includes('function displayWatchSeconds'));
@@ -406,7 +408,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2338'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2340'"));
+    assert.ok(!sw.includes('btc-archive-v2339'));
+    assert.ok(!sw.includes('btc-archive-v2338'));
     assert.ok(!sw.includes('btc-archive-v2334'));
     assert.ok(!sw.includes('btc-archive-v2333'));
     assert.ok(!sw.includes('btc-archive-v2332'));

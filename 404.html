@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261023_v2333" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261023_v2340" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -699,10 +699,14 @@
         #dailyXpMeterText { font-size: 0.82rem; font-weight: 800; color: #e2e8f0; margin: 0 0 6px; }
         .daily-xp-track { position: relative; height: 10px; background: #1e293b; border-radius: 999px; }
         .daily-xp-fill { height: 100%; width: 0; background: linear-gradient(90deg, #f7931a, #fbbf24); border-radius: 999px; }
-        .daily-xp-mark { position: absolute; top: -3px; bottom: -3px; left: 60%; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px; }
+        .daily-xp-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px; }
+        .daily-xp-mark-full { left: 50%; }
+        .daily-xp-mark-half { left: 90%; }
         .daily-xp-scale { position: relative; height: 16px; margin-top: 4px; font-size: 0.65rem; font-weight: 700; color: #94a3b8; }
+        .daily-xp-scale span { white-space: nowrap; }
         .daily-xp-scale span:first-child { position: absolute; left: 0; }
-        .daily-xp-scale span:nth-child(2) { position: absolute; left: 60%; transform: translateX(-50%); color: #e2e8f0; }
+        .daily-xp-scale span:nth-child(2) { position: absolute; left: 50%; transform: translateX(-50%); color: #e2e8f0; }
+        .daily-xp-scale span:nth-child(3) { position: absolute; left: 90%; transform: translateX(-100%); padding-right: 6px; color: #e2e8f0; }
         .daily-xp-scale span:last-child { position: absolute; right: 0; }
         #todayCard:focus { outline: none; }
         #todayCard:focus-visible, #todayCard button:focus-visible { outline: 2px solid var(--accent, #f7931a); outline-offset: 2px; }
@@ -1398,9 +1402,10 @@
                             <div id="dailyXpMeterText">Sign in to see today's XP</div>
                             <div class="daily-xp-track" aria-hidden="true">
                                 <div id="dailyXpMeterFill" class="daily-xp-fill"></div>
-                                <div class="daily-xp-mark" title="600 full XP"></div>
+                                <div class="daily-xp-mark daily-xp-mark-full" title="500 full XP"></div>
+                                <div class="daily-xp-mark daily-xp-mark-half" title="900 half XP"></div>
                             </div>
-                            <div class="daily-xp-scale"><span>0</span><span>600 full</span><span>1,000</span></div>
+                            <div class="daily-xp-scale"><span>0</span><span>500 full</span><span>900 half</span><span>1,000</span></div>
                         </div>
                         <div id="em-quick-actions" role="group" aria-label="Daily checklist">
                             <button type="button" id="todayTrifectaBtn" class="today-tile" aria-expanded="false" aria-controls="todayTrifectaChooser" aria-label="Daily Trifecta, 0 of 3 done. Opens Quiz, Trivia, and Poll." onclick="if(window.toggleTodayTrifecta)window.toggleTodayTrifecta()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span class="today-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="today-ring-track" cx="18" cy="18" r="15"></circle><circle class="today-ring-val" cx="18" cy="18" r="15" stroke-dasharray="0 94.248"></circle></svg><span class="today-ring-icon">🎯</span></span><span>Daily Trifecta</span><span id="todayTrifectaCount">0/3</span></button>
@@ -1742,12 +1747,12 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="ranking.js?v=20261023_v2334" defer></script>
+    <script src="ranking.js?v=20261023_v2339" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261023_v2333" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261023_v2330" defer></script>
-    <script src="tctv-watch.js?v=20261023_v2338" defer></script>
+    <script src="bundle.min.js?v=20261023_v2340" defer fetchpriority="high"></script>
+    <script src="features.registry.js?v=20261023_v2339" defer></script>
+    <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261023_v2330" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
@@ -1768,10 +1773,10 @@
         var _lazyScripts = [
             'quests.js?v=20261023_v2334',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261022_v2263',
+            'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261023_v2339',
             'scholar.js?v=20261023_v2330','beats.js?v=20261022_v2322',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261022_v2322','gifting.js?v=20261022_v2254','guide.js?v=20261022_v2322','modules.js?v=20261023_v2324',
+            'notifications.js?v=20261022_v2322','gifting.js?v=20261022_v2254','guide.js?v=20261023_v2339','modules.js?v=20261023_v2324',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
