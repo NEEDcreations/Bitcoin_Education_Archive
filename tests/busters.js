@@ -1,6 +1,6 @@
-// Cache-buster pin. This ship branch is btc-archive-v2342.
+// Cache-buster pin. This ship branch is btc-archive-v2343.
 // bundle.min.js, features.registry.js, nacho-qa.js, ranking.js,
-// global-chat.js, and quests.js are 20261023_v2342. v2341 is retired.
+// global-chat.js, and quests.js are 20261023_v2343. v2342 and v2341 are retired.
 // guide.js stays 20261023_v2339. tctv-watch.js is 20261023_v2340.
 // today-card.js and scholar.js stay 20261023_v2330.
 // learning-quests.js and modules.js stay 20261023_v2324.
@@ -23,12 +23,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2342', () => {
+test('service worker cache is v2343', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2342'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2343'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -36,7 +36,8 @@ test('service worker cache is v2342', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2342/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2343/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261023_v2342'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2341'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2340'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2333'));
@@ -51,7 +52,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2265'));
     assert.ok(html.includes('notifications.js?v=20261022_v2322'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
-    assert.ok(html.includes('ranking.js?v=20261023_v2342'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2343'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2339'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
@@ -62,7 +64,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261023_v2342'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2343'));
+    assert.ok(!html.includes('global-chat.js?v=20261023_v2342'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2341'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
@@ -78,11 +81,13 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
     assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261022_v2322'));
-    assert.ok(html.includes('features.registry.js?v=20261023_v2342'));
+    assert.ok(html.includes('features.registry.js?v=20261023_v2343'));
+    assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
-    assert.ok(html.includes('nacho-qa.js?v=20261023_v2342'));
+    assert.ok(html.includes('nacho-qa.js?v=20261023_v2343'));
+    assert.ok(!html.includes('nacho-qa.js?v=20261023_v2342'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2341'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2339'));
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
@@ -110,7 +115,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2342/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2343/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2342/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2341/g) || []).length, 0);
     assert.ok(!html.includes('quests.js?v=20261023_v2334'));
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
@@ -121,7 +127,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
     assert.ok(html.includes('guide.js?v=20261023_v2339'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(swVersion && swVersion[1] === 'v2342');
+    assert.ok(swVersion && swVersion[1] === 'v2343');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
