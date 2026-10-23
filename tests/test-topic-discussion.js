@@ -6,6 +6,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const root = path.join(__dirname, '..');
 const td = require('../functions/src/topicDiscussion');
@@ -110,6 +111,15 @@ function createMemoryDb() {
                     staged.set(docRef.path, Object.assign({}, clone(base), clone(data)));
                     deleted.delete(docRef.path);
                 },
+                update: function(docRef, data) {
+                    if (deleted.has(docRef.path) || (!staged.has(docRef.path) && !docs.has(docRef.path))) {
+                        const err = new Error('NOT_FOUND');
+                        err.code = 5;
+                        throw err;
+                    }
+                    const base = staged.has(docRef.path) ? staged.get(docRef.path) : docs.get(docRef.path);
+                    staged.set(docRef.path, Object.assign({}, clone(base), clone(data)));
+                },
                 delete: function(docRef) {
                     deleted.add(docRef.path);
                     staged.delete(docRef.path);
@@ -137,6 +147,10 @@ function makeApi(opts) {
         HttpsError: HttpsError,
         now: function() { return now; },
         askNacho: async function(input) {
+            if (input && input.purpose === 'summary') {
+                if (opts && opts.summary) return { answer: opts.summary(input) };
+                return { answer: '' };
+            }
             calls.ask += 1;
             const produced = opts && opts.answer ? opts.answer(input, calls.ask) : 'A block header includes a nonce that miners change while hashing.';
             if (produced && typeof produced === 'object') return produced;
@@ -226,11 +240,440 @@ test('ATTACK rules deny client writes and keep limits private', () => {
     assert.ok(groups.some(function(idx) {
         return idx.queryScope === 'COLLECTION_GROUP' && idx.fields[0].fieldPath === 'uid';
     }));
-    assert.ok(read('global-chat.js').includes('topic\\/[A-Za-z0-9_-]+\\/[A-Za-z0-9_-]+'));
-    assert.ok(read('global-chat.js').includes('window.bqOpenTopicPost'));
+    const chat = read('global-chat.js');
+    assert.ok(chat.includes('topic\\/[A-Za-z0-9_-]+\\/[A-Za-z0-9_-]+'));
+    assert.ok(chat.includes('window.bqOpenTopicPost'));
+    const inApp = chat.slice(chat.indexOf('_inAppLinks.push'), chat.indexOf('_inAppLinks.push') + 500);
+    assert.ok(inApp.includes('white-space:nowrap'));
     assert.strictEqual(td.topicStickyScrollDelta(100, 54, 54), 38);
     assert.ok(read('terms.html').includes('11a. Topic discussions'));
     assert.ok(read('privacy.html').includes('topic discussion'));
+    assert.ok(client.includes('💬 Start a conversation'));
+    assert.ok(client.includes('Start a conversation about '));
+    assert.ok(client.includes('prefers-reduced-motion: reduce'));
+    assert.ok(client.includes('Intl.DateTimeFormat'));
+    assert.ok(client.includes('Just now'));
+    assert.ok(client.includes("el('time', 'td-time')"));
+    assert.ok(client.includes('bqInjectTopicPrompts'));
+    assert.strictEqual(client.indexOf('innerHTML'), -1);
+    const app = read('app.js');
+    assert.ok(app.includes("if (!galleryMode && typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();"));
+    assert.ok(app.includes("if (typeof window.bqInjectTopicPrompts === 'function') window.bqInjectTopicPrompts();"));
+    assert.ok(app.includes("hash.match(/^topic\\/([A-Za-z0-9_-]+)\\/([A-Za-z0-9_-]+)$/)"));
+    const built = read('bundle.min.js');
+    assert.ok(built.includes('💬 Start a conversation'));
+    assert.ok(built.includes('Just now'));
+    assert.ok(built.includes('Your message will also be posted publicly to the Pleb Talk forum.'));
+    assert.ok(built.includes('<time datetime="'));
+    assert.ok(read('bundle.src.js').includes('function injectTopicPrompts'));
+});
+
+function linkChildren(parent) {
+    var list = parent.childNodes;
+    parent.firstChild = list[0] || null;
+    parent.lastChild = list[list.length - 1] || null;
+    for (var i = 0; i < list.length; i++) {
+        list[i].parentNode = parent;
+        list[i].nextSibling = list[i + 1] || null;
+        list[i].previousSibling = list[i - 1] || null;
+    }
+}
+
+function createDom() {
+    function makeClassList(el) {
+        return {
+            contains: function(name) {
+                return (' ' + (el.className || '') + ' ').indexOf(' ' + name + ' ') !== -1;
+            },
+            add: function(name) {
+                if (!this.contains(name)) el.className = (el.className ? el.className + ' ' : '') + name;
+            },
+            remove: function(name) {
+                el.className = (el.className || '').split(/\s+/).filter(function(part) { return part && part !== name; }).join(' ');
+            }
+        };
+    }
+    function createText(value) {
+        var text = { nodeType: 3, nodeValue: String(value), childNodes: [], parentNode: null, nextSibling: null, previousSibling: null };
+        text.splitText = function(offset) {
+            var current = text.nodeValue || '';
+            var right = createText(current.slice(offset));
+            text.nodeValue = current.slice(0, offset);
+            if (text.parentNode) text.parentNode.insertBefore(right, text.nextSibling);
+            return right;
+        };
+        return text;
+    }
+    function createElement(tag) {
+        var el = {
+            nodeType: 1,
+            tagName: String(tag).toUpperCase(),
+            className: '',
+            id: '',
+            type: '',
+            hidden: false,
+            value: '',
+            placeholder: '',
+            maxLength: 0,
+            childNodes: [],
+            parentNode: null,
+            nextSibling: null,
+            attrs: {},
+            listeners: {},
+            style: {}
+        };
+        el.classList = makeClassList(el);
+        el.appendChild = function(child) {
+            if (child.parentNode) child.parentNode.removeChild(child);
+            el.childNodes.push(child);
+            linkChildren(el);
+            return child;
+        };
+        el.insertBefore = function(child, before) {
+            if (child.parentNode) child.parentNode.removeChild(child);
+            var index = before ? el.childNodes.indexOf(before) : el.childNodes.length;
+            if (index < 0) index = el.childNodes.length;
+            el.childNodes.splice(index, 0, child);
+            linkChildren(el);
+            return child;
+        };
+        el.removeChild = function(child) {
+            var index = el.childNodes.indexOf(child);
+            if (index >= 0) el.childNodes.splice(index, 1);
+            child.parentNode = null;
+            linkChildren(el);
+            return child;
+        };
+        el.remove = function() { if (el.parentNode) el.parentNode.removeChild(el); };
+        el.setAttribute = function(name, value) { el.attrs[name] = String(value); };
+        el.getAttribute = function(name) { return Object.prototype.hasOwnProperty.call(el.attrs, name) ? el.attrs[name] : null; };
+        el.addEventListener = function(type, fn) {
+            el.listeners[type] = el.listeners[type] || [];
+            el.listeners[type].push(fn);
+        };
+        el.click = function() {
+            (el.listeners.click || []).forEach(function(fn) {
+                fn({ preventDefault: function() {}, stopPropagation: function() {} });
+            });
+        };
+        el.focus = function() { document.activeElement = el; };
+        el.compareDocumentPosition = function(other) {
+            var order = [];
+            function walk(node) {
+                if (!node) return;
+                order.push(node);
+                (node.childNodes || []).forEach(walk);
+            }
+            walk(html);
+            var a = order.indexOf(el);
+            var b = order.indexOf(other);
+            if (a < 0 || b < 0 || a === b) return 0;
+            return b < a ? 2 : 4;
+        };
+        el.getBoundingClientRect = function() { return { top: 0, height: 0 }; };
+        el.scrollIntoView = function(opts) { el._view = opts; };
+        el.splitText = function(offset) {
+            var value = el.nodeValue || '';
+            var right = createText(value.slice(offset));
+            el.nodeValue = value.slice(0, offset);
+            if (el.parentNode) el.parentNode.insertBefore(right, el.nextSibling);
+            return right;
+        };
+        Object.defineProperty(el, 'textContent', {
+            get: function() {
+                var out = '';
+                el.childNodes.forEach(function(child) {
+                    if (child.nodeType === 3) out += child.nodeValue || '';
+                    else out += child.textContent || '';
+                });
+                return out;
+            },
+            set: function(value) {
+                el.childNodes = [];
+                if (value != null && String(value) !== '') el.childNodes.push(createText(String(value)));
+                linkChildren(el);
+            }
+        });
+        return el;
+    }
+    var document = {
+        activeElement: null,
+        createElement: createElement,
+        createTextNode: createText,
+        querySelector: function(sel) {
+            var selector = String(sel || '');
+            if (selector.charAt(0) === '#') return document.getElementById(selector.slice(1));
+            if (selector.charAt(0) !== '.') return null;
+            var cls = selector.slice(1);
+            var found = null;
+            function walk(node) {
+                if (!node || found) return;
+                if (node.classList && node.classList.contains(cls)) { found = node; return; }
+                (node.childNodes || []).forEach(walk);
+            }
+            walk(html);
+            return found;
+        }
+    };
+    var html = createElement('html');
+    var head = createElement('head');
+    var body = createElement('body');
+    html.appendChild(head);
+    html.appendChild(body);
+    document.documentElement = html;
+    document.head = head;
+    document.body = body;
+    document.getElementById = function(id) {
+        var found = null;
+        function walk(node) {
+            if (!node || found) return;
+            if (node.id === id) { found = node; return; }
+            (node.childNodes || []).forEach(walk);
+        }
+        walk(html);
+        return found;
+    };
+    return document;
+}
+
+function bootTopicClient(options) {
+    var document = createDom();
+    var session = {};
+    var sandbox = {
+        console: console,
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        document: document,
+        CHANNELS: { mining: { title: '🌋mining' } },
+        currentChannelId: 'mining',
+        sessionStorage: {
+            getItem: function(key) { return Object.prototype.hasOwnProperty.call(session, key) ? session[key] : null; },
+            setItem: function(key, value) { session[key] = String(value); }
+        },
+        matchMedia: function(query) {
+            return { matches: !!(options && options.reduceMotion) && String(query).indexOf('reduce') !== -1 };
+        },
+        firebase: { functions: function() { throw new Error('discussion button tried to post'); } }
+    };
+    sandbox.window = sandbox;
+    if (options && options.signedIn) {
+        sandbox.auth = { currentUser: { uid: 'learner', isAnonymous: false } };
+        sandbox.currentUser = { username: 'Ada' };
+    }
+    vm.runInNewContext(fs.readFileSync(path.join(root, 'topic-discussions.js'), 'utf8'), sandbox, { filename: 'topic-discussions.js' });
+    sandbox.document = document;
+    return sandbox;
+}
+
+function buttonsIn(node) {
+    var found = [];
+    function walk(current) {
+        if (!current || !current.childNodes) return;
+        current.childNodes.forEach(function(child) {
+            if (child.nodeType === 1 && child.classList && child.classList.contains('td-convo-btn')) found.push(child);
+            walk(child);
+        });
+    }
+    walk(node);
+    return found;
+}
+
+function hostTopic(sandbox, paragraphs, extra) {
+    var main = sandbox.document.createElement('div');
+    main.id = 'main';
+    main.scrollTop = 0;
+    main.scrollTo = function(opts) { main._scrolled = opts; };
+    var msgs = sandbox.document.createElement('div');
+    msgs.id = 'msgs';
+    var msg = sandbox.document.createElement('div');
+    msg.className = 'msg';
+    msg.id = 'msg-0';
+    var text = sandbox.document.createElement('div');
+    text.className = 'msg-text';
+    text.textContent = paragraphs.join('\n\n');
+    msg.appendChild(text);
+    if (extra) extra(text, sandbox.document);
+    msgs.appendChild(msg);
+    main.appendChild(msgs);
+    sandbox.document.body.appendChild(main);
+    return { main: main, msgs: msgs, text: text, msg: msg };
+}
+
+test('conversation buttons open the discussion and posts show server date-time', function() {
+    var plan = bootTopicClient({ signedIn: true, reduceMotion: true });
+    function slots(count, useful) {
+        return Array.from(plan.bqPlanTopicConversationButtons(count, useful));
+    }
+    assert.deepStrictEqual(slots(1, false), []);
+    assert.deepStrictEqual(slots(1, true), [0]);
+    assert.deepStrictEqual(slots(3, true), [2]);
+    assert.deepStrictEqual(slots(4, true), [3]);
+    assert.deepStrictEqual(slots(5, true), [2]);
+    assert.deepStrictEqual(slots(6, true), [3]);
+    assert.deepStrictEqual(slots(8, true), [3]);
+    assert.deepStrictEqual(slots(10, true), [3, 7]);
+    assert.deepStrictEqual(slots(12, true), [3, 7]);
+
+    var ms = Date.UTC(2026, 9, 23, 18, 23, 0);
+    var expected = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(ms))
+        + ' · ' + new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(ms));
+    assert.ok(/^[A-Z][a-z]{2} \d{1,2}, \d{4} · \d{1,2}:\d{2} [AP]M$/.test(expected));
+    var formatted = plan.bqFormatTopicPostTime({
+        createdAt: { toMillis: function() { return ms; }, toDate: function() { return new Date(ms); } },
+        createdAtMs: ms + 86400000,
+        clientTime: Date.now()
+    });
+    assert.strictEqual(formatted.text, expected);
+    assert.strictEqual(formatted.iso, new Date(ms).toISOString());
+    assert.strictEqual(formatted.pending, false);
+    assert.strictEqual(plan.bqFormatTopicPostTime({ createdAt: null, createdAtMs: ms }).text, expected);
+    var pendingTime = plan.bqFormatTopicPostTime({ createdAt: null, time: Date.now() });
+    assert.strictEqual(pendingTime.text, 'Just now');
+    assert.strictEqual(pendingTime.iso, '');
+    assert.strictEqual(pendingTime.pending, true);
+
+    var ctx = {
+        viewer: { signedIn: true, uid: 'learner', name: 'Ada', admin: false },
+        onReply: function() {}, onReport: function() {}, onDelete: function() {}, onModerate: function() {}, onToggleReplies: function() {}
+    };
+    var pendingPost = { id: 'p1', name: 'Ada', text: 'What is a nonce?', createdAt: null };
+    var pendingNode = plan._topicDiscussionRenderPost(pendingPost, ctx);
+    var pendingEl = pendingNode.childNodes[1].childNodes[0].childNodes[1];
+    assert.strictEqual(pendingEl.tagName, 'TIME');
+    assert.strictEqual(pendingEl.textContent, 'Just now');
+    assert.strictEqual(pendingEl.getAttribute('datetime'), null);
+    assert.strictEqual(pendingEl.getAttribute('title'), 'Just now');
+    pendingPost.createdAt = { toMillis: function() { return ms; } };
+    var dated = plan._topicDiscussionRenderPost(pendingPost, ctx);
+    var datedEl = dated.childNodes[1].childNodes[0].childNodes[1];
+    assert.strictEqual(datedEl.textContent, expected);
+    assert.strictEqual(datedEl.getAttribute('datetime'), new Date(ms).toISOString());
+    assert.strictEqual(datedEl.getAttribute('title'), expected);
+    var nacho = plan._topicDiscussionRenderPost({
+        id: 'n1', parentId: 'p1', isNacho: true, name: 'Nacho', text: 'Miners vary the nonce.', createdAtMs: ms
+    }, ctx);
+    assert.strictEqual(nacho.childNodes[1].childNodes[0].childNodes[1].textContent, expected);
+
+    var paras = [
+        'Alpha paragraph explains what miners change inside a block header.',
+        'Bravo paragraph explains why the hash has to fall under the target.',
+        'Charlie paragraph explains how difficulty keeps the ten minute heartbeat.',
+        'Delta paragraph explains that finding a block is a guessing lottery.',
+        '- alpha item stays with its list\n- beta item stays with its list',
+        'Echo paragraph continues after the list and should stay readable.',
+        'Foxtrot paragraph keeps going so the prompt is not at the end.',
+        'Golf paragraph is still part of the lesson and not the last word.',
+        'Hotel paragraph closes the section without another prompt beside it.'
+    ];
+    var topic = hostTopic(plan, paras, function(text, document) {
+        ['UL', 'OL', 'PRE', 'TABLE', 'BLOCKQUOTE', 'IFRAME'].forEach(function(tag) {
+            var node = document.createElement(tag);
+            node.textContent = tag + ' block that must not contain a prompt';
+            text.appendChild(node);
+        });
+        var embed = document.createElement('div');
+        embed.className = 'yt-embed';
+        embed.appendChild(document.createElement('iframe'));
+        text.appendChild(embed);
+    });
+    plan.mountTopicDiscussion('mining');
+    plan.bqInjectTopicPrompts();
+    var prompts = buttonsIn(topic.text);
+    assert.ok(prompts.length >= 1);
+    prompts.forEach(function(button) {
+        assert.strictEqual(button.tagName, 'BUTTON');
+        assert.strictEqual(button.type, 'button');
+        assert.strictEqual(button.textContent, '💬 Start a conversation');
+        assert.strictEqual(button.getAttribute('aria-label'), 'Start a conversation about 🌋mining');
+        var following = button.nextSibling;
+        if (following && following.nodeType === 3) assert.ok(!/^\n/.test(String(following.nodeValue || '')));
+        button.focus();
+        assert.strictEqual(plan.document.activeElement, button);
+    });
+    assert.ok(read('topic-discussions.js').includes('margin:12px 0 16px'));
+    assert.ok(read('topic-discussions.js').includes('margin:10px 0 14px'));
+    assert.ok(read('topic-discussions.js').includes('function tightenPromptGap'));
+    ['UL', 'OL', 'PRE', 'TABLE', 'BLOCKQUOTE', 'IFRAME'].forEach(function(tag) {
+        topic.text.childNodes.forEach(function(child) {
+            if (child.tagName === tag) assert.strictEqual(buttonsIn(child).length, 0);
+        });
+    });
+    var sawList = false;
+    var betweenListItems = false;
+    var listPhase = 'before';
+    topic.text.childNodes.forEach(function(child) {
+        if (child.nodeType === 3 && String(child.nodeValue).indexOf('- alpha item') !== -1) {
+            sawList = true;
+            if (String(child.nodeValue).indexOf('- beta item') === -1) listPhase = 'inside';
+            else listPhase = 'done';
+        } else if (child.nodeType === 3 && listPhase === 'inside' && String(child.nodeValue).indexOf('- beta item') !== -1) {
+            listPhase = 'done';
+        } else if (child.nodeType === 1 && child.classList && child.classList.contains('td-convo-btn') && listPhase === 'inside') {
+            betweenListItems = true;
+        }
+    });
+    assert.strictEqual(sawList, true);
+    assert.strictEqual(betweenListItems, false);
+    assert.strictEqual(topic.msg.id, 'msg-0');
+    var body = plan.document.getElementById('topic-discussion-body');
+    var toggle = plan.document.getElementById('community-discussion-toggle');
+    assert.strictEqual(body.hidden, true);
+    assert.strictEqual(toggle.getAttribute('aria-expanded'), 'false');
+    prompts[0].click();
+    assert.strictEqual(body.hidden, false);
+    assert.strictEqual(toggle.getAttribute('aria-expanded'), 'true');
+    var area = plan.document.getElementById('topic-discussion-input');
+    assert.ok(area);
+    assert.strictEqual(area.placeholder, 'Ask a question or leave a comment');
+    assert.strictEqual(area.value, '');
+    assert.strictEqual(plan.document.activeElement, area);
+    assert.strictEqual(topic.main._scrolled.behavior, 'auto');
+    assert.strictEqual(plan.document.getElementById('topic-discussion-live') != null, true);
+    var notice = plan.document.querySelector('.td-forum-notice');
+    assert.ok(notice);
+    assert.strictEqual(notice.textContent, 'Your message will also be posted publicly to the Pleb Talk forum.');
+    assert.ok(notice.compareDocumentPosition(area) & 2);
+    function countNotices(root) {
+        var n = 0;
+        function walk(node) {
+            if (!node) return;
+            if (node.classList && node.classList.contains('td-forum-notice')) n += 1;
+            (node.childNodes || []).forEach(walk);
+        }
+        walk(root);
+        return n;
+    }
+    assert.strictEqual(countNotices(plan.document.body), 1);
+    plan.bqShowCrossPostNote('Your message was posted in this topic. It was not cross-posted to Pleb Talk.');
+    assert.strictEqual(countNotices(plan.document.body), 1);
+    var replaced = plan.document.getElementById('td-crosspost-note');
+    assert.ok(replaced);
+    assert.ok(replaced.classList.contains('td-forum-notice'));
+    assert.strictEqual(replaced.textContent, 'Your message was posted in this topic. It was not cross-posted to Pleb Talk.');
+    assert.strictEqual(plan.document.getElementById('td-forum-crosspost-notice'), null);
+
+    var guest = bootTopicClient({ signedIn: false, reduceMotion: false });
+    var guestTopic = hostTopic(guest, paras);
+    guest.mountTopicDiscussion('mining');
+    var guestButtons = buttonsIn(guestTopic.text);
+    assert.ok(guestButtons.length >= 1);
+    guestButtons[0].click();
+    assert.strictEqual(guest.document.getElementById('topic-discussion-body').hidden, false);
+    assert.strictEqual(guest.document.getElementById('topic-discussion-input'), null);
+    var composer = guest.document.getElementById('topic-discussion-composer');
+    assert.ok(composer.textContent.indexOf('Sign in to ask a question or leave a comment.') !== -1);
+    assert.ok(composer.textContent.indexOf('Your message will also be posted publicly to the Pleb Talk forum.') !== -1);
+    assert.strictEqual(guest.document.activeElement.textContent, 'Sign in');
+    assert.strictEqual(guestTopic.main._scrolled.behavior, 'smooth');
+
+    var tiny = bootTopicClient({ signedIn: true });
+    hostTopic(tiny, ['Hi']);
+    tiny.bqInjectTopicPrompts();
+    assert.strictEqual(buttonsIn(tiny.document.getElementById('msgs')).length, 0);
+    var useful = bootTopicClient({ signedIn: true });
+    hostTopic(useful, ['This single paragraph is long enough to invite a question about Bitcoin.']);
+    useful.bqInjectTopicPrompts();
+    assert.strictEqual(buttonsIn(useful.document.getElementById('msgs')).length, 1);
 });
 
 test('channel id must be a real topic', () => {
@@ -284,10 +727,12 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         text: 'What is a nonce in the block header?',
         channelId: 'mining',
         postId: 'post123',
+        forumPostId: 'tdforum_mining_post123',
         isQuestion: true,
     });
     assert.ok(text.length <= 300);
-    assert.ok(text.includes('[join the discussion](#topic/mining/post123)'));
+    assert.ok(text.includes('[the topic](#topic/mining/post123)'));
+    assert.ok(text.includes('[Pleb Talk](#forum/post/tdforum_mining_post123)'));
     const tg = bridge.toTelegramText(text);
     assert.ok(tg.includes('https://bitcoineducation.quest/#topic=mining&post=post123'));
     assert.strictEqual(td.decideAnnounce({ lastAnnounceAtMs: 0 }, { hourKey: '1', count: 12 }, 3600000).allow, false);
@@ -373,7 +818,7 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         assert.strictEqual(saved.name, 'Learner');
         assert.strictEqual(saved.xp, undefined);
         assert.strictEqual(saved.tickets, undefined);
-        assert.ok(!db.dump().some(function(p) { return p.indexOf('daily_points') !== -1; }));
+        assert.notStrictEqual(db.read('users/xss').points, 50);
         postsOf(db, 'mining').forEach(function(post) {
             assert.strictEqual(post.xp, undefined);
             assert.strictEqual(post.tickets, undefined);
@@ -401,6 +846,8 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         assert.strictEqual(chat.uid, 'nacho-bot');
         assert.strictEqual(chat.name, '🦌 Nacho');
         assert.ok(chat.text.includes('#topic/mining/'));
+        assert.ok(chat.text.includes('#forum/post/'));
+        assert.ok(chat.forumPost);
         assert.strictEqual(local.calls.mirror.length, 1);
         local.advance(31000);
         const second = await local.api.postTopicComment({ channelId: 'mining', text: 'another comment in the same window' }, auth('links'));
