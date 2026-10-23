@@ -408,8 +408,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2341'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2344'"));
     assert.ok(!sw.includes('btc-archive-v2340'));
+    assert.ok(!sw.includes('btc-archive-v2341'));
     assert.ok(!sw.includes('btc-archive-v2339'));
     assert.ok(!sw.includes('btc-archive-v2338'));
     assert.ok(!sw.includes('btc-archive-v2334'));
@@ -754,6 +755,8 @@ test('patch notes keep one Latest line and keep the live timer and daily taper',
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
+    assert.ok(notes.includes('Google sign-in stays on this page and works on Android with the app installed.'));
+    assert.ok(!notes.includes('Latest: Google sign-in'));
     assert.ok(notes.includes(timer));
     assert.ok(!notes.includes('Latest: The TCTV'));
     assert.ok(notes.includes(taper));

@@ -141,10 +141,12 @@ function makeApi(opts) {
         admin: { firestore: { Timestamp: { fromMillis: function(ms) { return ms; } } } },
         HttpsError: HttpsError,
         now: function() { return now; },
+        summaryTimeoutMs: opts && typeof opts.summaryTimeoutMs === 'number' ? opts.summaryTimeoutMs : 2500,
         askNacho: async function(input) {
             if (input && input.purpose === 'summary') {
                 calls.summaries += 1;
                 calls.lastSummary = input;
+                if (opts && opts.hangSummary) return new Promise(function() {});
                 if (opts && opts.summary) return { answer: opts.summary };
                 return { answer: '' };
             }
@@ -173,16 +175,21 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
     mirror.SERVER_FIELDS.forEach(function(field) {
         assert.ok(absent.includes("'" + field + "'"), field);
     });
-    assert.ok(rules.includes('function forumPaceOk()'));
-    assert.ok(rules.includes('lastForumPostMs >= 30000'));
+    assert.ok(!rules.includes('function forumPaceOk()'));
+    assert.ok(!rules.includes('lastForumPostMs >= 30000'));
+    assert.ok(rules.includes('function forumMirroredDoc()'));
+    assert.ok(rules.includes('function forumAuthorMayUpdate(maxBody)'));
+    assert.ok(rules.includes("affectedKeys().hasOnly(['body'])"));
     assert.ok(rules.includes('request.resource.data.authorId == resource.data.authorId'));
     const posts = rules.split('match /forum_posts/{postId}')[1].split('match /forum_replies/{replyId}')[0];
     assert.ok(posts.includes('forumMirrorFieldsAbsent()'));
-    assert.ok(posts.includes('forumPaceOk()'));
+    assert.ok(!posts.includes('forumPaceOk()'));
     assert.ok(posts.includes('forumMirrorFieldsFrozen()'));
-    const replies = rules.split('match /forum_replies/{replyId}')[1].split('match /marketplace/{listingId}')[0];
+    assert.ok(posts.includes('forumAuthorMayUpdate(2000)'));
+    const replies = rules.split('match /forum_replies/{replyId}')[1].split('function marketImageValueOk')[0];
     assert.ok(replies.includes('forumMirrorFieldsAbsent()'));
     assert.ok(replies.includes('forumMirrorFieldsFrozen()'));
+    assert.ok(replies.includes('forumAuthorMayUpdate(1000)'));
     assert.ok(!replies.includes('forumPaceOk()'));
     const index = read('functions/index.js');
     ['onForumReplyToTopic', 'onForumReplyMirrorSync', 'onForumReplyMirrorDelete', 'onForumPostMirrorDelete', 'onTopicPostMirrorSync'].forEach(function(name) {
@@ -190,13 +197,18 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
     });
     assert.ok(index.includes('forumActivityAwardable'));
     const terms = read('terms.html');
-    assert.ok(terms.includes('The first post of a topic discussion is also posted here'));
+    assert.ok(terms.includes('posted here automatically, under your username'));
     assert.ok(terms.includes('Replies are mirrored both ways'));
+    assert.ok(terms.includes("Deleting a message doesn't refund XP, except that XP for a message deleted or removed by moderators within 10 minutes is taken back."));
     const privacy = read('privacy.html');
-    assert.ok(privacy.includes('short server-written summary'));
-    assert.ok(privacy.includes('trimmed excerpt'));
+    assert.ok(privacy.includes('published automatically on the public Pleb Talk forum'));
+    assert.ok(privacy.includes('untrusted data rather than as instructions'));
+    assert.ok(privacy.includes('not requested for a post that was refused'));
     const client = read('topic-discussions.js');
     assert.ok(client.includes('Your message will also be posted publicly to the Pleb Talk forum.'));
+    assert.ok(client.includes('data.crossPostNote'));
+    assert.ok(client.includes('td-crosspost-note'));
+    assert.ok(client.includes('function showCrossPostNote'));
     assert.ok(client.includes('.td-forum-notice{'));
     assert.ok(!client.includes('.td-forum-notice{display:none'));
     assert.ok(!read('functions/src/topicForumMirror.js').match(/\b(ipAddress|clientIp|remoteIp|x-forwarded-for)\b/i));
@@ -212,6 +224,9 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
             calls += 1;
             assert.strictEqual(input.purpose, 'summary');
             assert.ok(input.question.includes('No financial advice'));
+            assert.ok(input.question.includes('\nDATA\n'));
+            assert.ok(input.question.includes('\nEND'));
+            assert.ok(input.question.indexOf('DATA') < input.question.indexOf('What is a nonce'));
             assert.ok(input.question.length <= 500);
             return { answer: 'Miners search for a nonce that makes the block hash small enough.' };
         }, 'What is a nonce in the block header?', 'Mining');
@@ -450,13 +465,13 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         });
         const linked = db.read('forum_replies/clientedit');
         const changed = Object.assign({}, linked, { body: 'A forum reply after an edit.' });
-        const synced = await mirror.syncForumReplyEdit({ db: db, before: linked, after: changed });
+        const synced = await mirror.syncForumReplyEdit({ db: db, before: linked, after: changed, nowMs: now + 120000 });
         assert.strictEqual(synced.synced, true);
         assert.strictEqual(db.read('topic_discussions/mining/posts/tdfrom_clientedit').text, 'A forum reply after an edit.');
-        const syncedAgain = await mirror.syncForumReplyEdit({ db: db, before: changed, after: changed });
+        const syncedAgain = await mirror.syncForumReplyEdit({ db: db, before: changed, after: changed, nowMs: now + 120000 });
         assert.strictEqual(syncedAgain.reason, 'unchanged');
         const filtered = Object.assign({}, changed, { body: 'please kill yourself now' });
-        const blocked = await mirror.syncForumReplyEdit({ db: db, before: changed, after: filtered });
+        const blocked = await mirror.syncForumReplyEdit({ db: db, before: changed, after: filtered, nowMs: now + 180000 });
         assert.strictEqual(blocked.reason, 'filter');
         assert.strictEqual(db.read('topic_discussions/mining/posts/tdfrom_clientedit').text, 'A forum reply after an edit.');
 
@@ -496,8 +511,9 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         const over = await mirror.noteClientForumPost({
             db: db, postId: 'clientfull', nowMs: now, data: db.read('forum_posts/clientfull'),
         });
-        assert.strictEqual(over.deleted, true);
-        assert.strictEqual(db.read('forum_posts/clientfull'), null);
+        assert.strictEqual(over.reason, 'client');
+        assert.notStrictEqual(over.deleted, true);
+        assert.ok(db.read('forum_posts/clientfull'));
         db.seed('forum_posts/tdforum_mining_root1', copy);
         const mirrorSlot = await mirror.noteClientForumPost({
             db: db, postId: 'tdforum_mining_root1', nowMs: now, data: copy,
@@ -510,8 +526,9 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         const paced = await mirror.noteClientForumPost({
             db: db, postId: 'clientpace', nowMs: now, data: db.read('forum_posts/clientpace'),
         });
-        assert.strictEqual(paced.deleted, true);
-        assert.strictEqual(paced.reason, 'rate');
+        assert.strictEqual(paced.reason, 'client');
+        assert.notStrictEqual(paced.deleted, true);
+        assert.ok(db.read('forum_posts/clientpace'));
     });
 
     await testAsync('a new topic thread cross-posts once and mirrors Nacho', async function() {
@@ -572,8 +589,161 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         local.advance(31000);
         const sixth = await local.api.postTopicComment({ channelId: 'mining', text: 'Another thread after the forum day is full.' }, auth('ada'));
         assert.ok(sixth.postId);
+        assert.strictEqual(sixth.crossPosted, false);
+        assert.strictEqual(sixth.crossPostNote, td.CROSS_POST_NOTE);
+        assert.ok(sixth.crossPostNote.includes('not cross-posted'));
         assert.strictEqual(local.db.read('topic_discussions/mining/posts/' + sixth.postId).forumPostId, '');
         assert.strictEqual(paths(local.db, 'forum_posts/').length, 1);
+        assert.strictEqual(posted.crossPosted, true);
+        assert.strictEqual(posted.crossPostNote, '');
+    });
+
+    await testAsync('rejected posts never call the summary model', async function() {
+        const banned = makeApi();
+        seedUser(banned.db, 'ada', { username: 'Ada', banned: true });
+        let threw = false;
+        try {
+            await banned.api.postTopicComment({ channelId: 'mining', text: 'What is a nonce in the block header?' }, auth('ada'));
+        } catch (err) { threw = true; }
+        assert.strictEqual(threw, true);
+        assert.strictEqual(banned.calls.summaries, 0);
+        assert.strictEqual(banned.calls.ask, 0);
+        const paced = makeApi();
+        seedUser(paced.db, 'ada', { username: 'Ada' });
+        paced.db.seed('topic_discussion_limits/ada', { lastPostMs: paced.now() - 1000, dayKey: td.offsetDateKey(paced.now()), dayCount: 1 });
+        threw = false;
+        try {
+            await paced.api.postTopicComment({ channelId: 'mining', text: 'What is a nonce in the block header?' }, auth('ada'));
+        } catch (err) { threw = true; }
+        assert.strictEqual(threw, true);
+        assert.strictEqual(paced.calls.summaries, 0);
+    });
+
+    await testAsync('the forum post is saved with a placeholder before the model answers', async function() {
+        const hung = makeApi({ summaryTimeoutMs: 30, hangSummary: true });
+        seedUser(hung.db, 'ada', { username: 'Ada' });
+        const text = 'What is a nonce in the block header? Miners change it while hashing.';
+        const posted = await hung.api.postTopicComment({ channelId: 'mining', text: text }, auth('ada'));
+        const saved = hung.db.read('topic_discussions/mining/posts/' + posted.postId);
+        const forum = hung.db.read('forum_posts/' + saved.forumPostId);
+        assert.ok(forum.summary && forum.body.includes(forum.summary));
+        assert.ok(forum.summary.includes('What is a nonce') || forum.body.includes('What is a nonce'));
+        assert.ok(!forum.body.includes('<') && !forum.summary.includes('<'));
+        assert.strictEqual(hung.calls.summaries, 1);
+        const nasty = mirror.placeholderSummary('Mining', '<script>alert(1)</script> What is a nonce in mining?');
+        assert.ok(!nasty.includes('<'));
+        assert.ok(!nasty.includes('>'));
+        assert.ok(nasty.includes('Mining:'));
+    });
+
+    await testAsync('author cannot restore a moderated mirror by clearing hidden', async function() {
+        const db = createMemoryDb();
+        const now = Date.UTC(2026, 9, 23, 19, 0, 0);
+        seedUser(db, 'ada', { username: 'Ada' });
+        db.seed('topic_discussions/mining/posts/tdfrom_hidden1', {
+            channelId: 'mining', uid: 'ada', name: 'Ada', text: '', parentId: 'root1',
+            hidden: true, deleted: false, origin: 'forum', mirrorOf: 'hidden1',
+        });
+        const before = {
+            postId: 'tdforum_mining_root1', body: '', authorId: 'ada', authorName: 'Ada',
+            hidden: true, deleted: false, topicChannel: 'mining', topicPost: 'tdfrom_hidden1',
+            origin: 'topic', noAward: true,
+        };
+        const after = Object.assign({}, before, { hidden: false, body: 'Restored by the author after moderation.' });
+        const attack = await mirror.syncForumReplyEdit({ db: db, before: before, after: after, nowMs: now });
+        assert.strictEqual(attack.synced, false);
+        assert.strictEqual(attack.reason, 'removed');
+        const topic = db.read('topic_discussions/mining/posts/tdfrom_hidden1');
+        assert.strictEqual(topic.hidden, true);
+        assert.strictEqual(topic.text, '');
+        db.seed('forum_replies/hidden1', before);
+        db.seed('forum_posts/tdforum_mining_root1', {
+            origin: 'topic', noAward: true, topicChannel: 'mining', topicPost: 'root1',
+            hidden: true, deleted: false, body: '', authorId: 'ada',
+        });
+        db.seed('topic_discussions/mining/posts/root1', {
+            channelId: 'mining', uid: 'ada', text: '', parentId: '', hidden: true, deleted: false,
+            forumPostId: 'tdforum_mining_root1',
+        });
+        const unhide = await mirror.syncTopicToForum({
+            db: db, channelId: 'mining', postId: 'root1',
+            before: db.read('topic_discussions/mining/posts/root1'),
+            after: Object.assign({}, db.read('topic_discussions/mining/posts/root1'), { hidden: false, text: 'Back in view after a moderator unhide.' }),
+        });
+        assert.strictEqual(unhide.synced, false);
+        assert.strictEqual(unhide.reason, 'removed');
+        assert.strictEqual(db.read('forum_posts/tdforum_mining_root1').hidden, true);
+        assert.strictEqual(db.read('forum_posts/tdforum_mining_root1').body, '');
+        seedUser(db, 'ban', { username: 'Ban', banned: true });
+        db.seed('topic_discussions/mining/posts/tdfrom_live1', {
+            channelId: 'mining', uid: 'ban', name: 'Ban', text: 'Original visible reply.', parentId: 'root1',
+            hidden: false, deleted: false,
+        });
+        const liveBefore = {
+            body: 'Original visible reply.', authorId: 'ban', hidden: false, deleted: false,
+            topicChannel: 'mining', topicPost: 'tdfrom_live1',
+        };
+        const bannedEdit = await mirror.syncForumReplyEdit({
+            db: db, before: liveBefore, after: Object.assign({}, liveBefore, { body: 'A banned author rewrote this reply.' }), nowMs: now,
+        });
+        assert.strictEqual(bannedEdit.reason, 'banned');
+        assert.strictEqual(db.read('topic_discussions/mining/posts/tdfrom_live1').text, 'Original visible reply.');
+        seedUser(db, 'mut', { username: 'Mut', muted: true });
+        db.seed('topic_discussions/mining/posts/tdfrom_live2', {
+            channelId: 'mining', uid: 'mut', name: 'Mut', text: 'Muted reply stays put.', parentId: 'root1',
+            hidden: false, deleted: false,
+        });
+        const muteBefore = {
+            body: 'Muted reply stays put.', authorId: 'mut', hidden: false, deleted: false,
+            topicChannel: 'mining', topicPost: 'tdfrom_live2',
+        };
+        const mutedEdit = await mirror.syncForumReplyEdit({
+            db: db, before: muteBefore, after: Object.assign({}, muteBefore, { body: 'A muted author rewrote this reply.' }), nowMs: now,
+        });
+        assert.strictEqual(mutedEdit.reason, 'muted');
+        const seedBefore = {
+            body: 'A short note about headers.', authorId: 'ada', hidden: false, deleted: false,
+            topicChannel: 'mining', topicPost: 'tdfrom_live1',
+        };
+        db.seed('topic_discussion_limits/ada', { lastPostMs: now - 1000 });
+        const seeded = await mirror.syncForumReplyEdit({
+            db: db,
+            before: seedBefore,
+            after: Object.assign({}, seedBefore, { body: 'abandon ability able about above absent absorb abstract absurd abuse access accident' }),
+            nowMs: now,
+        });
+        assert.strictEqual(seeded.reason, 'filter');
+        const paced = await mirror.syncForumReplyEdit({
+            db: db,
+            before: seedBefore,
+            after: Object.assign({}, seedBefore, { body: 'A slower edit of the same visible reply.' }),
+            nowMs: now,
+        });
+        assert.strictEqual(paced.reason, 'rate');
+        assert.strictEqual(db.read('topic_discussions/mining/posts/tdfrom_live1').text, 'Original visible reply.');
+    });
+
+    await testAsync('a reply typed on a mirrored Pleb Talk thread earns forum XP only once', async function() {
+        const db = createMemoryDb();
+        db.seed('forum_posts/tdforum_mining_root1', {
+            origin: 'topic', noAward: true, topicChannel: 'mining', topicPost: 'root1', authorId: 'ada',
+        });
+        const skipped = await counters.recordForumReply(db, null, {
+            authorId: 'bea', postId: 'tdforum_mining_root1', body: 'I am replying on the mirrored thread.',
+        });
+        assert.strictEqual(skipped.bumped, false);
+        assert.strictEqual(skipped.reason, 'mirror');
+        const forumSrc = read('forum.js');
+        const start = forumSrc.indexOf('function forumPostIsTopicMirror');
+        const end = forumSrc.indexOf('window.forumSubmitReply');
+        const forumPostIsTopicMirror = new Function(forumSrc.slice(start, end) + '\nreturn forumPostIsTopicMirror;')();
+        assert.strictEqual(forumPostIsTopicMirror({ origin: 'topic', topicChannel: 'mining', topicPost: 'root1', noAward: true }), true);
+        assert.strictEqual(forumPostIsTopicMirror({ title: 'An ordinary Pleb Talk post', authorId: 'ada' }), false);
+        const replyFn = forumSrc.slice(forumSrc.indexOf('window.forumSubmitReply'), forumSrc.indexOf('window.forumVotePost'));
+        const awardAt = replyFn.indexOf("awardPoints(5, '💬 Forum reply')");
+        assert.ok(awardAt > replyFn.indexOf('forumPostIsTopicMirror(forumCurrentPost)'));
+        assert.ok(replyFn.indexOf('forumReplies: firebase.firestore.FieldValue.increment(1)') > replyFn.indexOf('skipForumReplyAward'));
+        assert.ok(replyFn.includes('if (!skipForumReplyAward)'));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

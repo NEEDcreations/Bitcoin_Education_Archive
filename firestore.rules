@@ -718,8 +718,9 @@ service cloud.firestore {
     // [AUDIT FIX S5] Upvote tracking with voter deduplication
     // =============================================
     // Topic cross-posts are Admin SDK writes. Clients cannot set the mirror
-    // fields or change authorId. A new post also waits out the shared 30s
-    // Pleb Talk pace stored on topic_discussion_limits.
+    // fields, authorId, hidden, or deleted on a mirrored doc. The author of a
+    // mirrored doc may change only body, and only while it is still visible.
+    // Ordinary Pleb Talk posts are not paced by topic_discussion_limits.
     function forumMirrorFieldsAbsent() {
       return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'noAward', 'mirrored']);
     }
@@ -734,12 +735,32 @@ service cloud.firestore {
         && request.resource.data.get('mirrored', null) == resource.data.get('mirrored', null)
         && request.resource.data.authorId == resource.data.authorId;
     }
-    function forumPaceOk() {
-      let row = /databases/$(database)/documents/topic_discussion_limits/$(request.auth.uid);
-      return !exists(row)
-        || !('lastForumPostMs' in get(row).data)
-        || !(get(row).data.lastForumPostMs is int)
-        || request.time.toMillis() - get(row).data.lastForumPostMs >= 30000;
+    function forumMirroredDoc() {
+      return resource.data.get('origin', '') == 'topic'
+        || resource.data.get('origin', '') == 'forum'
+        || resource.data.get('noAward', false) == true
+        || resource.data.get('mirrorOf', '') != ''
+        || resource.data.get('mirrored', false) == true
+        || ('mirrorSync' in resource.data)
+        || ('topicChannel' in resource.data)
+        || ('topicPost' in resource.data)
+        || ('topicLink' in resource.data);
+    }
+    function forumAuthorMayUpdate(maxBody) {
+      return resource.data.authorId == request.auth.uid
+        && (
+          !forumMirroredDoc()
+          || (
+            resource.data.get('hidden', false) != true
+            && resource.data.get('deleted', false) != true
+            && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
+            && request.resource.data.get('deleted', false) == resource.data.get('deleted', false)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body'])
+            && request.resource.data.body is string
+            && request.resource.data.body.size() >= 2
+            && request.resource.data.body.size() <= maxBody
+          )
+        );
     }
 
     match /forum_posts/{postId} {
@@ -750,8 +771,7 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 5
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.authorId == request.auth.uid
-                    && forumMirrorFieldsAbsent()
-                    && forumPaceOk();
+                    && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
                     && (
                       isAdmin()
@@ -773,7 +793,7 @@ service cloud.firestore {
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() - 1
                        && !(request.auth.uid in request.resource.data.voters)
                       )
-                      || resource.data.authorId == request.auth.uid
+                      || forumAuthorMayUpdate(2000)
                         )
                       )
                     );
@@ -805,7 +825,7 @@ service cloud.firestore {
                        && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters)
-                      || resource.data.authorId == request.auth.uid
+                      || forumAuthorMayUpdate(1000)
                         )
                       )
                     );

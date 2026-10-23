@@ -850,111 +850,244 @@ async function finishEmailSignIn(email, _signInUrl) {
     }
 }
 
-// Google Sign-In - uses Google Identity Services (GIS) for PWA compatibility
+// Google Sign-In. The rendered Google button returns an ID token in this page.
+// Firebase accepts it with signInWithCredential / linkWithCredential, so Google
+// never redirects to /__/auth/handler. Popup and redirect stay as the fallback
+// when the Google script cannot load. The ID token is not logged.
 var GOOGLE_CLIENT_ID = '1055248200518-jcn5efjp7vhk0vm8cbmj4mfsgc0edkga.apps.googleusercontent.com';
+
+function gisApiReady() {
+    return typeof google !== 'undefined' && google.accounts && google.accounts.id &&
+        typeof google.accounts.id.renderButton === 'function';
+}
+
+function loadGoogleIdentityScript() {
+    if (gisApiReady()) return Promise.resolve();
+    if (window._gsiLoadPromise) return window._gsiLoadPromise;
+    window._gsiLoadPromise = new Promise(function(resolve, reject) {
+        if (typeof window._loadGSI === 'function') window._loadGSI();
+        var script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+        if (!script) {
+            reject(new Error('gsi-unavailable'));
+            return;
+        }
+        var settled = false;
+        var giveUpAt = Date.now() + 8000;
+        var timer = setInterval(function() {
+            if (settled) return;
+            if (gisApiReady()) finish(true);
+            else if (Date.now() >= giveUpAt) finish(false);
+        }, 50);
+        function finish(ok) {
+            if (settled) return;
+            settled = true;
+            clearInterval(timer);
+            if (ok && gisApiReady()) resolve();
+            else reject(new Error('gsi-unavailable'));
+        }
+        script.addEventListener('load', function() { if (gisApiReady()) finish(true); });
+        script.addEventListener('error', function() { finish(false); });
+    });
+    return window._gsiLoadPromise;
+}
+
+function googleSignInErrorMessage(e) {
+    var code = (e && e.code) || '';
+    if (code === 'auth/unauthorized-domain') return '⚠️ This domain is not authorized for sign-in. Please contact support.';
+    if (code === 'auth/operation-not-allowed') return '⚠️ This sign-in method is not enabled. Try a different option.';
+    if (code === 'auth/account-exists-with-different-credential') return '⚠️ An account with this email exists using a different sign-in method. Try another option.';
+    if (code === 'auth/network-request-failed') return '⚠️ Network error. Check your connection and try again.';
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return '';
+    return 'Sign-in error (' + (code || 'unknown') + '). Please try again.';
+}
+
+function rememberGoogleMfaEmail(idToken) {
+    try {
+        var part = String(idToken).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (part.length % 4) part += '=';
+        var payload = JSON.parse(atob(part));
+        if (payload && payload.email) window._mfaRecoveryEmail = String(payload.email).trim();
+    } catch (ignore) {}
+}
+
+function clearGoogleOneTapChrome() {
+    try { if (gisApiReady()) google.accounts.id.cancel(); } catch (e) {}
+    document.querySelectorAll('[id*="credential_picker"]').forEach(function(el) { el.remove(); });
+}
+
+var _googleCredentialBusy = false;
+
+async function applyGoogleIdToken(idToken) {
+    if (!idToken || typeof idToken !== 'string') throw new Error('No credential received');
+    if (_googleCredentialBusy) return null;
+    _googleCredentialBusy = true;
+    try {
+        var credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+        var guest = auth.currentUser;
+        var anonUid = (guest && guest.isAnonymous) ? guest.uid : null;
+        var resultUser = null;
+        if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+            try {
+                var linked = await guest.linkWithCredential(credential);
+                try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                resultUser = linked.user;
+                anonUid = null;
+            } catch (linkErr) {
+                if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                    var signed = await auth.signInWithCredential(linkErr.credential);
+                    resultUser = signed.user;
+                } else {
+                    throw linkErr;
+                }
+            }
+        }
+        if (!resultUser) {
+            var result = await auth.signInWithCredential(credential);
+            resultUser = result.user;
+        }
+        clearGoogleOneTapChrome();
+        await _handleSignInResultGlobal(resultUser, anonUid, null);
+        return resultUser;
+    } finally {
+        _googleCredentialBusy = false;
+    }
+}
+
+function onGoogleIdentityCredential(response) {
+    var idToken = response && response.credential;
+    if (!idToken) return;
+    applyGoogleIdToken(idToken).catch(function(e) {
+        if (e && e.code === 'auth/multi-factor-auth-required') rememberGoogleMfaEmail(idToken);
+        if (surfaceMfaRequired(e)) return;
+        console.warn('[Auth] Google sign-in failed:', (e && e.code) || 'unknown');
+        var msg = googleSignInErrorMessage(e);
+        if (msg && typeof showToast === 'function') showToast(msg);
+    });
+}
+
+function ensureGoogleIdentityInit() {
+    if (window._gsiInitialized || !gisApiReady()) return;
+    google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: onGoogleIdentityCredential,
+        auto_select: false,
+        cancel_on_tap_outside: false,
+        context: 'signin',
+        ux_mode: 'popup',
+        itp_support: true
+    });
+    window._gsiInitialized = true;
+}
+
+function googleButtonWidth(fallback) {
+    var width = fallback && fallback.offsetWidth ? fallback.offsetWidth : 0;
+    if (width < 200) {
+        var box = document.querySelector('#usernameModal .username-box');
+        width = box && box.clientWidth ? box.clientWidth - 32 : 320;
+    }
+    if (width < 200) width = 280;
+    if (width > 400) width = 400;
+    return Math.floor(width);
+}
+
+function renderGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var host = document.getElementById('gsiButtonHost');
+    var fallback = document.getElementById('googleSignInFallback');
+    if (!host || !gisApiReady()) return;
+    ensureGoogleIdentityInit();
+    if (host.getAttribute('data-gsi-rendered') === '1' && host.childNodes.length) {
+        host.style.display = 'block';
+        if (fallback) fallback.style.display = 'none';
+        return;
+    }
+    host.setAttribute('data-gsi-rendered', '1');
+    host.innerHTML = '';
+    host.style.display = 'block';
+    try {
+        google.accounts.id.renderButton(host, {
+            type: 'standard',
+            theme: 'filled_black',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: googleButtonWidth(fallback),
+            click_listener: function() {
+                if (typeof window._captureSignupFormState === 'function') window._captureSignupFormState();
+            }
+        });
+    } catch (e) {
+        host.removeAttribute('data-gsi-rendered');
+        host.style.display = 'none';
+        window._gsiFailed = true;
+        if (fallback) fallback.style.display = 'flex';
+        return;
+    }
+    if (!host.childNodes.length) {
+        host.removeAttribute('data-gsi-rendered');
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'flex';
+        return;
+    }
+    if (fallback) fallback.style.display = 'none';
+}
+
+function mountGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var host = document.getElementById('gsiButtonHost');
+    if (!host || window._gsiFailed) return;
+    if (gisApiReady()) {
+        renderGoogleSignInButton();
+        return;
+    }
+    if (window._gsiMounting) return;
+    window._gsiMounting = true;
+    loadGoogleIdentityScript().then(function() {
+        window._gsiMounting = false;
+        renderGoogleSignInButton();
+    }).catch(function() {
+        window._gsiMounting = false;
+        window._gsiFailed = true;
+        host.style.display = 'none';
+        var fallback = document.getElementById('googleSignInFallback');
+        if (fallback) fallback.style.display = 'flex';
+    });
+}
+
+function installGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var modal = document.getElementById('usernameModal');
+    if (!modal || modal._gsiWatch) return;
+    modal._gsiWatch = true;
+    var obs = new MutationObserver(function() {
+        if (modal.classList.contains('open') && document.getElementById('gsiButtonHost')) mountGoogleSignInButton();
+    });
+    obs.observe(modal, { attributes: true, attributeFilter: ['class'] });
+    if (modal.classList.contains('open') && document.getElementById('gsiButtonHost')) mountGoogleSignInButton();
+}
 
 window.signInWithGoogle = async function() {
     window._captureSignupFormState();
-    var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-    // On desktop, try GIS One Tap (fast if available)
-    // On mobile, skip GIS entirely - go straight to Firebase popup (faster, more reliable)
-    if (!isMobile) {
-        // Lazy-load the GSI script if not already loaded
-        if (typeof window._loadGSI === 'function') window._loadGSI();
-        // Wait up to 3s for google.accounts to become available
-        if (typeof google === 'undefined' || !google.accounts) {
-            await new Promise(function(resolve) {
-                var waited = 0;
-                var t = setInterval(function() {
-                    waited += 100;
-                    if ((typeof google !== 'undefined' && google.accounts) || waited >= 3000) { clearInterval(t); resolve(); }
-                }, 100);
-            });
-        }
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            try {
-                await signInWithGIS();
-                return;
-            } catch(gisErr) {
-                if (surfaceMfaRequired(gisErr)) return;
-                console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
-                try { google.accounts.id.cancel(); } catch(e) {}
-                document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-            }
-        }
+    if (isInAppBrowser()) {
+        await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+        return;
     }
-    // Firebase popup/redirect
-    await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+    if (!window._gsiFailed) {
+        mountGoogleSignInButton();
+        return;
+    }
+    var btn = document.getElementById('googleSignInFallback');
+    if (btn) btn.style.opacity = '0.6';
+    try {
+        await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+    } catch (e) {
+        if (surfaceMfaRequired(e)) return;
+    }
 };
 
-async function signInWithGIS() {
-    var anonUid = (auth.currentUser && auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
-    return new Promise(function(resolve, reject) {
-
-        google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: async function(response) {
-                if (!response || !response.credential) {
-                    reject(new Error('No credential received'));
-                    return;
-                }
-                try {
-                    var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                    var guest = auth.currentUser;
-                    var resultUser = null;
-                    if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
-                        try {
-                            var linked = await guest.linkWithCredential(credential);
-                            try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
-                            resultUser = linked.user;
-                            anonUid = null;
-                        } catch (linkErr) {
-                            if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
-                                var signed = await auth.signInWithCredential(linkErr.credential);
-                                resultUser = signed.user;
-                            } else {
-                                throw linkErr;
-                            }
-                        }
-                    }
-                    if (!resultUser) {
-                        var result = await auth.signInWithCredential(credential);
-                        resultUser = result.user;
-                    }
-                    // Clean up ALL GIS UI elements
-                    try { google.accounts.id.cancel(); } catch(e) {}
-                    var _gsiBtn = document.getElementById('gsi-temp-btn');
-                    if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
-                    document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-                    await _handleSignInResultGlobal(resultUser, anonUid, null);
-                    resolve(resultUser);
-                } catch(e) {
-                    if (e && e.code === 'auth/multi-factor-auth-required' && response && response.credential) {
-                        try {
-                            var part = String(response.credential).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-                            var payload = JSON.parse(atob(part));
-                            if (payload && payload.email) window._mfaRecoveryEmail = String(payload.email).trim();
-                        } catch (ignore) {}
-                    }
-                    reject(e);
-                }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true,
-            context: 'signin',
-            ux_mode: 'popup'
-        });
-
-        // Try One Tap first
-        google.accounts.id.prompt(function(notification) {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // One Tap not available - fall back to Firebase popup immediately (no second button)
-                console.log('[Auth] One Tap not shown, falling back to Firebase popup');
-                reject(new Error('One Tap unavailable'));
-            }
-        });
-    });
-}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installGoogleSignInButton);
+else installGoogleSignInButton();
 
 // Twitter/X Sign-In - no client SDK, must use Firebase popup/redirect
 window.signInWithTwitter = async function() {

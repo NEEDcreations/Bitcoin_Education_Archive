@@ -34,6 +34,7 @@ const ANNOUNCE_HOUR_MS = 60 * 60 * 1000;
 const ANNOUNCE_PER_HOUR = 12;
 const REPORTS_PER_DAY = 20;
 const NACHO_UID = 'nacho-bot';
+const CROSS_POST_NOTE = 'Your message was posted in this topic. It was not cross-posted to Pleb Talk.';
 const UNSURE = "I'm not sure — I don't want to guess. The notes in this topic are the best source, and I'm not a financial advisor.";
 
 const SHORTENER_RE = /\b(?:https?:\/\/)?(?:www\.)?(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|ow\.ly|is\.gd|cutt\.ly|rb\.gy|tiny\.cc|buff\.ly|rebrand\.ly|shorturl\.at|v\.gd|clck\.ru)\b/i;
@@ -310,6 +311,7 @@ function createTopicDiscussion(deps) {
     const grounding = d.grounding || TOPIC_GROUNDING;
     const nowFn = d.now || function() { return Date.now(); };
     const askNacho = d.askNacho || defaultAskNacho;
+    const summaryTimeoutMs = typeof d.summaryTimeoutMs === 'number' ? d.summaryTimeoutMs : forumMirror.SUMMARY_PATCH_MS;
     const mirror = d.mirror || function(args) {
         return mirrorShoutoutOnce({ db: db, docId: args.docId, collection: 'global_chat', text: args.text });
     };
@@ -377,7 +379,7 @@ function createTopicDiscussion(deps) {
         const question = isTop && looksLikeQuestion(prepared.text);
         const title = displayTitle(meta, channelId);
         const forumPostId = isTop ? forumMirror.forumPostIdFor(channelId, postRef.id) : '';
-        const summary = isTop ? await forumMirror.summarizeOpener(askNacho, prepared.text, title) : '';
+        const placeholder = isTop ? forumMirror.placeholderSummary(title, prepared.text) : '';
 
         const planned = await db.runTransaction(async function(tx) {
             const userSnap = await tx.get(userRef);
@@ -515,7 +517,7 @@ function createTopicDiscussion(deps) {
                     postId: postRef.id,
                     forumPostId: forumPostId,
                     title: title,
-                    summary: summary,
+                    summary: placeholder,
                     text: prepared.text,
                     uid: who.uid,
                     name: name,
@@ -526,7 +528,7 @@ function createTopicDiscussion(deps) {
                 });
                 if (!forumDoc) fail('internal', 'Could not open the forum thread.');
                 tx.set(db.collection('forum_posts').doc(forumDoc.id), forumDoc.data);
-                post.summary = summary;
+                post.summary = placeholder;
             }
             tx.set(postRef, post);
             if (parentRef) {
@@ -543,11 +545,30 @@ function createTopicDiscussion(deps) {
                 parent: parent,
                 parentId: parentId || '',
                 forumPostId: (openForum ? forumPostId : '') || (parent && parent.forumPostId) || '',
+                openedForum: openForum === true,
+                isTop: isTop,
                 post: post,
                 xp: xp.awarded,
                 toast: xp.toast,
             };
         });
+
+        if (planned.openedForum) {
+            try {
+                await forumMirror.patchForumSummary({
+                    db: db,
+                    askNacho: askNacho,
+                    timeoutMs: summaryTimeoutMs,
+                    forumPostId: planned.forumPostId,
+                    channelId: channelId,
+                    postId: planned.postId,
+                    title: title,
+                    text: planned.text,
+                });
+            } catch (err) {
+                console.warn('[topicDiscussion] summary patch failed');
+            }
+        }
 
         if (planned.announce) {
             const chatId = ('td_' + channelId + '_' + planned.postId).slice(0, 700);
@@ -614,12 +635,15 @@ function createTopicDiscussion(deps) {
             });
         }
 
+        const skippedCrossPost = planned.isTop === true && planned.openedForum !== true;
         return {
             postId: planned.postId,
             announced: !!(planned.announce),
             nacho: nachoPosted === true,
             xp: planned.xp || 0,
             toast: planned.toast || '',
+            crossPosted: planned.openedForum === true,
+            crossPostNote: skippedCrossPost ? CROSS_POST_NOTE : '',
         };
     }
 
@@ -887,4 +911,5 @@ module.exports = {
     groundingFor: groundingFor,
     channelMeta: channelMeta,
     createTopicDiscussion: createTopicDiscussion,
+    CROSS_POST_NOTE: CROSS_POST_NOTE,
 };

@@ -7509,6 +7509,15 @@ window.forumCancelReplyTo = function() {
 };
 
 // ---- Submit Reply ----
+function forumPostIsTopicMirror(post) {
+    if (!post) return false;
+    if (post.origin === 'topic' || post.origin === 'forum') return true;
+    if (post.noAward === true) return true;
+    if (post.mirrorOf) return true;
+    if (post.topicChannel || post.topicPost) return true;
+    return false;
+}
+
 window.forumSubmitReply = async function(postId) {
     // [AUDIT FIX] Double-submit protection
     if (window._forumReplySubmitting) return;
@@ -7559,11 +7568,14 @@ window.forumSubmitReply = async function(postId) {
             replyCount: firebase.firestore.FieldValue.increment(1)
         });
 
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
-        // Combo tracking
-        if (typeof window._trackCombo === 'function') window._trackCombo('forum');
-try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
-        try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+        var skipForumReplyAward = forumPostIsTopicMirror(forumCurrentPost);
+        if (!skipForumReplyAward && typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        // Combo tracking. A mirrored topic reply already earns conversation XP.
+        if (!skipForumReplyAward && typeof window._trackCombo === 'function') window._trackCombo('forum');
+        if (!skipForumReplyAward) {
+            try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+            try { var _frc2 = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc2.toString()); } catch(e2) {}
+        }
         // Notify post author (for top-level replies) or parent reply author (for nested)
         var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
         if (replyingTo && replyingTo.replyId) {
@@ -7583,11 +7595,13 @@ try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') 
         }
         // Notify @mentioned users
         forumNotifyMentions(body, 'forum_post', postId, forumCurrentPost ? forumCurrentPost.title : '');
-        // Track for badge
-        db.collection('users').doc(auth.currentUser.uid).update({
-            forumReplies: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(e) { console.error('[forum] Error:', e); });
-        if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
+        // Track for badge. Skip when this reply is on a mirrored topic thread.
+        if (!skipForumReplyAward) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                forumReplies: firebase.firestore.FieldValue.increment(1)
+            }).catch(function(e) { console.error('[forum] Error:', e); });
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
+        }
         input.value = '';
         // Clear reply-to state
         window.forumCancelReplyTo();
@@ -22951,6 +22965,24 @@ window.toggleAITools = function() {
             .catch(function() { toast('Could not load earlier comments.'); });
     }
 
+    function showCrossPostNote(text) {
+        var body = document.getElementById('topic-discussion-body');
+        if (!body) return;
+        var note = document.getElementById('td-crosspost-note');
+        if (!text) {
+            if (note && note.parentNode) note.parentNode.removeChild(note);
+            return;
+        }
+        if (!note) {
+            note = el('p', 'td-forum-notice');
+            note.id = 'td-crosspost-note';
+            var composer = document.getElementById('topic-discussion-composer');
+            if (composer && composer.parentNode === body) body.insertBefore(note, composer);
+            else body.appendChild(note);
+        }
+        note.textContent = text;
+    }
+
     function forumCrossPostNotice() {
         var notice = el('p', 'td-forum-notice');
         notice.textContent = 'Your message will also be posted publicly to the Pleb Talk forum.';
@@ -23021,10 +23053,13 @@ window.toggleAITools = function() {
         callFn('postTopicComment', payload).then(function(res) {
             var data = res && res.data ? res.data : (res || {});
             if (data && data.toast) toast(data.toast);
+            var crossNote = data && data.crossPostNote ? String(data.crossPostNote) : '';
             area.value = '';
             state.parentId = '';
             state.replyName = '';
             renderComposer();
+            showCrossPostNote(crossNote);
+            if (crossNote) toast(crossNote);
             setOpen(true);
         }).catch(function(err) {
             toast(errorText(err, 'Could not post that comment.'));

@@ -812,17 +812,6 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
         const post = snap.data();
         const postId = context.params.postId;
         if (!activityCounters.forumActivityAwardable(post)) return null;
-        try {
-            const slot = await require('./src/topicForumMirror').noteClientForumPost({
-                db: db,
-                admin: admin,
-                postId: postId,
-                data: post,
-            });
-            if (slot && slot.deleted) return null;
-        } catch (e) {
-            console.warn('[onForumPost] forum slot', e && e.message ? e.message : '');
-        }
         const authorId = post.authorId || 'unknown';
         if (authorId !== 'unknown' && String(post.title || '').trim()) {
             await grantServerTickets(authorId, 'forum_post_ticket');
@@ -8962,9 +8951,10 @@ exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopi
 // onForumPostMirrorDelete, onTopicPostMirrorSync.
 // Rules diff: forum_posts and forum_replies reject client writes of origin,
 // mirrorOf, mirrorSync, topicChannel, topicPost, topicLink, noAward, and
-// mirrored; authorId cannot change; a new forum post waits 30s on
-// topic_discussion_limits.lastForumPostMs. users/{uid}/xp_ledger is
-// server-only (topic conversation XP, source topic_conversation).
+// mirrored. On a mirrored doc, hidden and deleted are frozen too. The author
+// may change only body, and only while that doc is not hidden or deleted.
+// Ordinary forum creates are not paced. users/{uid}/xp_ledger is server-only
+// (topic conversation XP, source topic_conversation).
 const topicForumMirror = require('./src/topicForumMirror');
 const TOPIC_MIRROR_OPTS = { maxInstances: 10 };
 
