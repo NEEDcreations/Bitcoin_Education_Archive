@@ -782,7 +782,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261023_v2322';
+        s.src = 'quests.js?v=20261023_v2323';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;
@@ -4125,25 +4125,14 @@ function _paintSayHiButton() {
     var label = document.getElementById('sayHiBtnLabel');
     var sub = document.getElementById('sayHiBtnSub');
     var claimed = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === _sayHiDay();
-    if (claimed) {
-        if (emoji) emoji.textContent = '\u2705';
-        if (label) label.textContent = 'Said hi';
-        if (sub) sub.textContent = 'today';
-        btn.style.color = 'var(--link)';
-        btn.style.background = 'var(--card-bg)';
-        btn.style.borderColor = 'var(--border)';
-        btn.style.opacity = '0.85';
-        btn.setAttribute('aria-label', 'Said hi today');
-    } else {
-        if (emoji) emoji.textContent = '\uD83D\uDC4B';
-        if (label) label.textContent = 'Say hi';
-        if (sub) sub.textContent = 'to the community';
-        btn.style.color = 'var(--text)';
-        btn.style.background = 'var(--card-bg)';
-        btn.style.borderColor = 'var(--border)';
-        btn.style.opacity = '1';
-        btn.setAttribute('aria-label', 'Say hi to the community');
-    }
+    if (emoji) emoji.textContent = '\uD83D\uDC4B';
+    if (label) label.textContent = 'Say hi!';
+    if (sub) sub.textContent = 'to the community';
+    btn.style.color = 'var(--text)';
+    btn.style.background = 'var(--card-bg)';
+    btn.style.borderColor = 'var(--border)';
+    btn.style.opacity = '1';
+    btn.setAttribute('aria-label', claimed ? 'Say hi! Done today' : 'Say hi!');
 }
 window._paintSayHiButton = _paintSayHiButton;
 

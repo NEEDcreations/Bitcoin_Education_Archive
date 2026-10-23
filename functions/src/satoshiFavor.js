@@ -465,6 +465,14 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
+    // Same transaction as the contributor doc. Owner-readable counter only.
+    const userSfRef = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid);
+    transaction.set(userSfRef, {
+      uid: uid,
+      points: admin.firestore.FieldValue.increment(pointsToAdd),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
     if (stateData.favorActive) {
       // Favor is active and not expired — add bonus minutes (capped)
       const rawBonus = (stateData.bonusMinutes || 0) + (BONUS_MINUTES_PER_POINT * pointsToAdd);
@@ -1260,86 +1268,6 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
 
   console.log(`[BACKFILL] Done. Totals:`, totals, `Stamped: ${stamped}`);
   return { success: true, totals, contributorDocs: snap.size, uniqueUsers: uids.length, stamped };
-});
-
-/**
- * syncUserFactionPoints (onCall)
- * Called when a user chooses (or first sets) their faction.
- * Sums all their existing contributor docs and adds those points to the new faction total.
- * Does NOT retroactively change old contributor docs (only future contributions get new faction).
- * Safe to call multiple times — uses a per-user sync record to prevent double-counting.
- */
-exports.syncUserFactionPoints = functionsV1.https.onCall(async (data, context) => {
-  if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
-  if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-    throw new HttpsError('permission-denied', 'Anonymous users cannot sync faction points.');
-  }
-
-  const uid = context.auth.uid;
-  const { newFaction, previousFaction } = data;
-
-  if (!['cyber_hornets', 'honey_badgers'].includes(newFaction)) {
-    throw new HttpsError('invalid-argument', 'Invalid faction.');
-  }
-
-  const contributorsRef = db.collection('satoshiFavor').doc('current').collection('contributors');
-  const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
-  const syncRef = db.collection('satoshiFavor').doc('factionSyncs').collection('users').doc(uid);
-
-  // Fetch all contributor docs for this user
-  const snap = await contributorsRef.where('uid', '==', uid).get();
-  if (snap.empty) return { success: true, pointsSynced: 0 };
-
-  // Sum points that are currently unaffiliated (no faction was stamped)
-  // or were already on this user's old unaffiliated pool
-  const syncDoc = await syncRef.get();
-  const prevSyncedFaction = syncDoc.exists ? syncDoc.data().faction : null;
-  const prevSyncedPoints = syncDoc.exists ? syncDoc.data().pointsSynced : 0;
-
-  let unaffiliatedPoints = 0;
-  const unstampedDocs = [];
-  snap.forEach(doc => {
-    const d = doc.data();
-    // Count docs that have no faction stamp (unaffiliated pool)
-    if (!d.faction) {
-      unaffiliatedPoints += d.pointsAdded || POINT_VALUES[d.source] || 1;
-      unstampedDocs.push(doc.ref);
-    }
-  });
-
-  if (unaffiliatedPoints === 0) return { success: true, pointsSynced: 0 };
-
-  // Atomically move points from unaffiliated → newFaction
-  await db.runTransaction(async (transaction) => {
-    const totalsDoc = await transaction.get(totalsRef);
-    const current = totalsDoc.exists ? totalsDoc.data() : {};
-    const unaffil = current.unaffiliated || 0;
-
-    // Don't subtract more than what's in unaffiliated (safety)
-    const toMove = Math.min(unaffiliatedPoints, unaffil);
-    if (toMove <= 0) return;
-
-    transaction.set(totalsRef, {
-      unaffiliated: Math.max(0, unaffil - toMove),
-      [newFaction]: admin.firestore.FieldValue.increment(toMove),
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-
-    // Stamp faction on all previously-unaffiliated contributor docs for this user
-    for (const ref of unstampedDocs) {
-      transaction.update(ref, { faction: newFaction });
-    }
-
-    // Record this sync so we don't double-count
-    transaction.set(syncRef, {
-      uid,
-      faction: newFaction,
-      pointsSynced: toMove,
-      syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  });
-
-  return { success: true, pointsSynced: unaffiliatedPoints };
 });
 
 /**

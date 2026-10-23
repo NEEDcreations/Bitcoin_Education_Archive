@@ -159,6 +159,7 @@ const referralDecisions = require('./src/referrals');
 const tipService = require('./src/tipService');
 // DNS check shared with confirmTipSent. String-only host checks are not enough.
 const { assertPublicHost } = require('./src/publicHost');
+const { resolveLnurlInvoice, normalizeLnAddress, RESOLVE_ERROR } = require('./src/lnurlResolve');
 const pvpFlow = require('./src/pvpFlow');
 
 // ===== VALID CHANNEL CATALOG (server-authoritative) =====
@@ -1469,6 +1470,9 @@ exports.claimSats = functionsV1.runWith({
     );
     if (!preBan.ok) return { success: false, error: preBan.error };
 
+    if (data && typeof data === 'object') {
+        data = Object.assign({}, data, { lightningAddress: normalizeLnAddress(data.lightningAddress) });
+    }
     const addrReq = faucetGuard.requireLightningAddress(data || {});
     if (!addrReq.ok) return { success: false, error: addrReq.error };
     const lnNorm = addrReq.address;
@@ -1514,45 +1518,21 @@ exports.claimSats = functionsV1.runWith({
 
     let invoice = '';
     try {
-        const nodeFetch = require('node-fetch');
-        const localPart = lnNorm.split('@')[0];
-        const domain = lnNorm.split('@')[1];
-        await assertPublicHost(domain);
-
-        const lnurlPayUrl = 'https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart);
-        const metaRes = await nodeFetch(lnurlPayUrl, { timeout: 8000, size: 65536 });
-        if (!metaRes.ok) throw new Error('LNURL-pay metadata fetch failed (' + metaRes.status + ')');
-        const meta = await metaRes.json();
-        if (!meta.callback) throw new Error('No callback in LNURL-pay metadata');
-
-        let cbUrl;
-        try {
-            cbUrl = new URL(meta.callback);
-        } catch (_) {
-            throw new Error('Invalid callback URL in LNURL-pay response');
-        }
-        if (cbUrl.protocol !== 'https:') throw new Error('Callback URL must use HTTPS');
-        if (cbUrl.hostname.toLowerCase() !== domain.split(':')[0].toLowerCase()) {
-            throw new Error('Callback URL domain mismatch (expected ' + domain + ')');
-        }
-
-        const msats = lnAddrAmount * 1000;
-        if (meta.minSendable && msats < meta.minSendable) {
-            throw new Error('Amount below wallet minimum (' + Math.ceil(meta.minSendable / 1000) + ' sats)');
-        }
-        if (meta.maxSendable && msats > meta.maxSendable) {
-            throw new Error('Amount above wallet maximum (' + Math.floor(meta.maxSendable / 1000) + ' sats)');
-        }
-        const cbSep = meta.callback.includes('?') ? '&' : '?';
-        const invoiceRes = await nodeFetch(meta.callback + cbSep + 'amount=' + msats, { timeout: 8000, size: 65536 });
-        if (!invoiceRes.ok) throw new Error('Invoice fetch failed (' + invoiceRes.status + ')');
-        const invoiceData = await invoiceRes.json();
-        if (!invoiceData.pr) throw new Error('No invoice returned by Lightning Address');
-        invoice = invoiceData.pr;
-        console.log('[FAUCET] Resolved Lightning Address for ' + lnAddrAmount + ' sats (callback domain: ' + cbUrl.hostname + ')');
+        await assertPublicHost(_lnDomain);
+        const resolved = await resolveLnurlInvoice({
+            address: lnNorm,
+            msats: lnAddrAmount * 1000,
+        });
+        invoice = resolved.pr;
+        console.log('[FAUCET] Resolved Lightning Address for ' + lnAddrAmount + ' sats domain=' + resolved.domain);
     } catch (e) {
-        console.error('[FAUCET] Lightning Address resolution failed:', e.message);
-        return { success: false, error: 'Could not resolve Lightning Address. Check the address and try again.' };
+        console.error('[FAUCET] Lightning Address resolution failed domain=' + (_lnDomain || ''));
+        const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
+        return {
+            success: false,
+            code: 'address_unresolved',
+            error: clear && e.message ? e.message : RESOLVE_ERROR,
+        };
     }
 
     if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
@@ -1567,6 +1547,9 @@ exports.claimSats = functionsV1.runWith({
         decoded = bolt11.decode(invoice);
     } catch (e) {
         return { success: false, error: 'Invalid Lightning invoice format.' };
+    }
+    if (!decoded.network || decoded.network.bech32 !== 'bc') {
+        return { success: false, code: 'address_unresolved', error: 'Invoice must be a mainnet Lightning invoice.' };
     }
     const amount = Math.floor((decoded.millisatoshis || 0) / 1000);
     if (!amount || amount !== lnAddrAmount) {
@@ -3090,13 +3073,17 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     const pollProofRef = trifectaAction
         ? userRef.collection('award_claims').doc(offsetToday + '_poll_vote_poll')
         : null;
+    const flexProofRef = matchedAction === 'flex_day_complete'
+        ? userRef.collection('daily_action_counts').doc(offsetToday + '_flex')
+        : null;
 
     let transactionResult = null;
     try {
         transactionResult = await db.runTransaction(async (t) => {
             const [
                 cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc,
-                tctvTicketDoc, trifectaTicketDoc, quizProofDoc, triviaProofDoc, pollProofDoc
+                tctvTicketDoc, trifectaTicketDoc, quizProofDoc, triviaProofDoc, pollProofDoc,
+                flexProofDoc
             ] = await Promise.all([
                 cooldownRef ? t.get(cooldownRef) : Promise.resolve(null),
                 badgeAwardRef ? t.get(badgeAwardRef) : Promise.resolve(null),
@@ -3109,6 +3096,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 quizProofRef ? t.get(quizProofRef) : Promise.resolve(null),
                 triviaProofRef ? t.get(triviaProofRef) : Promise.resolve(null),
                 pollProofRef ? t.get(pollProofRef) : Promise.resolve(null),
+                flexProofRef ? t.get(flexProofRef) : Promise.resolve(null),
             ]);
 
             if (cooldownDoc && cooldownDoc.exists) {
@@ -3178,6 +3166,17 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                         throw new Error('BADGE_CONDITION_NOT_MET:sats_21k');
                     }
                 }
+                const flexAllMet = awardActions.flexAllBadgeMet(badgeId, userData.flexFullDays || 0);
+                if (flexAllMet === false) {
+                    console.warn(`[awardPoints] flex day badge rejected: ${badgeId} flexFullDays=${userData.flexFullDays || 0} uid=${uid}`);
+                    throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
+                }
+            }
+            if (matchedAction === 'flex_day_complete') {
+                const flexHave = flexProofDoc && flexProofDoc.exists ? (flexProofDoc.data().count || 0) : 0;
+                if (!awardActions.flexDayStatus(flexHave).complete) {
+                    throw new Error('FLEX_DAY_NOT_MET');
+                }
             }
 
             const nextCount = usedCount + 1;
@@ -3202,6 +3201,14 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             const dropped = grant.dropped;
 
             const userUpdate = {};
+            let flexMeta = null;
+            if (matchedAction === 'flex_action' && awarded > 0) {
+                flexMeta = awardActions.nextFlexFullDays(userData, offsetToday, nextCount);
+                if (flexMeta.incremented) {
+                    userUpdate.flexFullDays = admin.firestore.FieldValue.increment(1);
+                    userUpdate.flexFullDay = offsetToday;
+                }
+            }
             let channelTracked = false;
             if (channelId && VALID_CHANNEL_IDS.has(channelId)) {
                 userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
@@ -3311,6 +3318,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 channelTracked: channelTracked,
                 doubled: xpBoost.doubled,
                 doubleXpUntil: xpBoost.until || 0,
+                flexCount: flexMeta ? flexMeta.count : null,
+                flexDayComplete: flexMeta ? flexMeta.complete : false,
+                flexFullDays: flexMeta ? flexMeta.flexFullDays : null,
             };
         });
     } catch (e) {
@@ -3328,6 +3338,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         }
         if (e.message && e.message.startsWith('BADGE_CONDITION_NOT_MET:')) {
             return { success: false, error: 'Badge condition not met', badgeConditionFailed: true, awarded: 0, tickets: 0 };
+        }
+        if (e.message === 'FLEX_DAY_NOT_MET') {
+            return { success: false, error: 'Finish 5 Flex actions today first', flexDayNotMet: true, awarded: 0, tickets: 0 };
         }
         if (e.message && e.message.startsWith('DAILY_ACTION_LIMIT:')) {
             const parts = e.message.split(':');
@@ -3354,6 +3367,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         channelTracked: transactionResult.channelTracked,
         doubled: !!transactionResult.doubled,
         doubleXpUntil: transactionResult.doubleXpUntil || 0,
+        flexCount: transactionResult.flexCount,
+        flexDayComplete: !!transactionResult.flexDayComplete,
+        flexFullDays: transactionResult.flexFullDays,
     };
 });
 
@@ -6020,14 +6036,13 @@ exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, syncUserFactionPoints, getFactionTotals } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
 exports.getFavorHashes = getFavorHashes;
 exports.syncCycleToTop10 = syncCycleToTop10;
 exports.backfillFactionTotals = backfillFactionTotals;
-exports.syncUserFactionPoints = syncUserFactionPoints;
 exports.getFactionTotals = getFactionTotals;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
@@ -6430,7 +6445,8 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
                 displayAddress = nodeAddress.slice(0,16) + '…';
             }
         } catch(e) {
-            console.error(`[v4vSplitRelay] Error for ${payType} ${ln||nodeAddress}:`, e.message);
+            const domainOnly = String(ln || '').split('@')[1] || '';
+            console.error('[v4vSplitRelay] Error for ' + payType + ' domain=' + domainOnly);
         }
 
         invoices.push({
@@ -6470,68 +6486,39 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
     return { invoices, totalSats: amountSats, trackTitle: track.title };
 });
 
-// Helper: fetch LNURL-pay invoice for a Lightning address
+// Helper: fetch LNURL-pay invoice for a Lightning address.
+// Same resolver as claimSats: cross-host callbacks are allowed, amounts are
+// not clamped, and failures log the domain only.
 async function fetchLnurlInvoice(lightningAddress, msats, comment) {
-    const nodeFetch   = require('node-fetch');
-    const [user, host] = lightningAddress.split('@');
-    if (!user || !host) throw new Error(`Invalid lightning address: ${lightningAddress}`);
-
-    // SECURITY: SSRF prevention — validate host before making any outbound request.
-    // Blocks loopback, RFC-1918, link-local (169.254.x — AWS/GCP metadata), ULA IPv6, bare IPs.
-    // Mirrors the identical check in claimSats.
-    const _lnHost = host.split(':')[0].toLowerCase(); // strip optional port
+    const normalized = normalizeLnAddress(lightningAddress);
+    const host = (normalized.split('@')[1] || '').split(':')[0].toLowerCase();
     const _isPrivateHost = (
-        _lnHost === 'localhost' ||
-        /^127\./.test(_lnHost) ||
-        /^10\./.test(_lnHost) ||
-        /^192\.168\./.test(_lnHost) ||
-        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(_lnHost) ||
-        /^169\.254\./.test(_lnHost) ||
-        /^::1$/.test(_lnHost) ||
-        /^fd[0-9a-f]{2}:/i.test(_lnHost) ||
-        /^\d+\.\d+\.\d+\.\d+$/.test(_lnHost)  // bare IPs rejected entirely
+        host === 'localhost' ||
+        /^127\./.test(host) ||
+        /^10\./.test(host) ||
+        /^192\.168\./.test(host) ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host) ||
+        /^169\.254\./.test(host) ||
+        /^::1$/.test(host) ||
+        /^fd[0-9a-f]{2}:/i.test(host) ||
+        /^\d+\.\d+\.\d+\.\d+$/.test(host)
     );
-    if (_isPrivateHost || !_lnHost || _lnHost.length < 3 || !_lnHost.includes('.')) {
-        console.error('[fetchLnurlInvoice] SSRF BLOCKED: host=' + host);
-        throw new Error(`Invalid Lightning Address domain: ${host}`);
+    if (_isPrivateHost || !host || host.length < 3 || host.indexOf('.') === -1) {
+        console.error('[fetchLnurlInvoice] SSRF BLOCKED domain=' + host);
+        throw new Error('Invalid Lightning Address domain.');
     }
-
-    // SECURITY: DNS pre-resolution SSRF check — string-matching alone is bypassed by
-    // a public domain that resolves to a private/link-local IP (e.g. 169.254.169.254).
-    await assertPublicHost(_lnHost);
-
-    const lnurlRes   = await nodeFetch(`https://${host}/.well-known/lnurlp/${encodeURIComponent(user)}`, { timeout: 10000, size: 65536 });
-    if (!lnurlRes.ok) throw new Error(`LNURL-pay lookup failed for ${lightningAddress}`);
-    const lnurlData  = await lnurlRes.json();
-    if (lnurlData.status === 'ERROR') throw new Error(lnurlData.reason);
-
-    // SECURITY: validate the callback URL returned by the LNURL server.
-    // A malicious server could return callback='http://169.254.169.254/...' to pivot to
-    // internal GCP metadata or other services, with the pr field reflecting the response.
-    if (!lnurlData.callback) throw new Error('No callback in LNURL-pay metadata');
-    let _cbParsed;
-    try { _cbParsed = new URL(lnurlData.callback); } catch (_) { throw new Error('Invalid callback URL in LNURL-pay response'); }
-    if (_cbParsed.protocol !== 'https:') throw new Error('Callback URL must use HTTPS');
-    if (_cbParsed.hostname.toLowerCase() !== _lnHost) {
-        console.error('[fetchLnurlInvoice] Callback domain mismatch: expected=' + _lnHost + ' got=' + _cbParsed.hostname);
-        throw new Error(`Callback domain mismatch (expected ${_lnHost}, got ${_cbParsed.hostname})`);
+    await assertPublicHost(host);
+    try {
+        const resolved = await resolveLnurlInvoice({
+            address: normalized,
+            msats: msats,
+            comment: comment,
+        });
+        return resolved.pr;
+    } catch (e) {
+        console.error('[fetchLnurlInvoice] failed domain=' + host);
+        throw e;
     }
-
-    // Clamp to provider min/max
-    const clampedMsats = Math.min(Math.max(msats, lnurlData.minSendable || 1000), lnurlData.maxSendable || 1000000000);
-
-    let cbUrl = `${lnurlData.callback}${lnurlData.callback.includes('?') ? '&' : '?'}amount=${clampedMsats}`;
-    if (comment && lnurlData.commentAllowed > 0) {
-        cbUrl += `&comment=${encodeURIComponent(comment.slice(0, lnurlData.commentAllowed))}`;
-    }
-
-    const invRes  = await nodeFetch(cbUrl, { timeout: 15000, size: 65536 });
-    if (!invRes.ok) throw new Error(`Invoice request failed for ${lightningAddress}`);
-    const invData = await invRes.json();
-    if (invData.status === 'ERROR') throw new Error(invData.reason);
-    if (!invData.pr) throw new Error(`No invoice returned for ${lightningAddress}`);
-
-    return invData.pr;
 }
 
 // ===== BACKFILL DONATION FACTION =====
@@ -8884,6 +8871,24 @@ exports.adminMarkCipherWinPaid = adminMarkCipherWinPaid;
 
 // Daily say-hi. App Check is required, same as claimSats. The handlers
 // grant XP and tickets only inside a transaction keyed by uid + server day.
+const { bindResetLightningAddress } = require('./src/resetLightningAddress');
+const resetLnFns = bindResetLightningAddress(functionsV1, {
+    admin: admin,
+    db: db,
+    verifyTurnstile: verifyTurnstile,
+    requireSecondFactor: function (data, context) {
+        return secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    },
+});
+exports.resetLightningAddressOnce = resetLnFns.resetLightningAddressOnce;
+
+// Faction choice. App Check is on the module bind so the index.js count stays
+// the claimSats plus four PvP callables. syncUserFactionPoints delegates to it.
+const { bindChooseFaction } = require('./src/chooseFaction');
+const factionFns = bindChooseFaction(functionsV1, { admin: admin, db: db });
+exports.chooseFaction = factionFns.chooseFaction;
+exports.syncUserFactionPoints = factionFns.syncUserFactionPoints;
+
 const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;

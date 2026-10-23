@@ -9,9 +9,14 @@ const TRIVIA_QUIZ_CAP = 500;
 
 const ALLOWED_ACTION_KEYS = {
     flex_action: true,
+    flex_day_complete: true,
     combo_bonus: true,
     lq_lesson: true,
 };
+
+// A Flex day is done at 5 completions. Fewer actions in the catalog means
+// the goal is the catalog size, so a short list can still be finished.
+const FLEX_DAY_GOAL = 5;
 
 const FLEX_IDS = [
     'steak', 'sunlight', 'dca', 'custody', 'lift', 'meetup', 'lightning', 'read',
@@ -92,6 +97,53 @@ function payChoice(clientPts, baseMap, doubleMap) {
     return null;
 }
 
+function flexDayGoal(total) {
+    const n = total == null ? FLEX_IDS.length : total;
+    const size = Math.max(0, parseInt(n, 10) || 0);
+    return Math.min(FLEX_DAY_GOAL, size);
+}
+
+function flexDayStatus(count, total) {
+    const goal = flexDayGoal(total);
+    const n = Math.max(0, parseInt(count, 10) || 0);
+    return { goal: goal, count: n, complete: goal > 0 && n >= goal };
+}
+
+// One full day per offset day. flexFullDays is the number of days that
+// reached the goal. The caller writes it only when incremented is true.
+function nextFlexFullDays(user, day, count, total) {
+    const status = flexDayStatus(count, total);
+    const prev = Math.max(0, parseInt(user && user.flexFullDays, 10) || 0);
+    const already = !!(user && user.flexFullDay === day);
+    if (status.complete && !already) {
+        return {
+            flexFullDays: prev + 1,
+            flexFullDay: day,
+            incremented: true,
+            complete: true,
+            count: status.count,
+            goal: status.goal,
+        };
+    }
+    return {
+        flexFullDays: prev,
+        flexFullDay: (user && user.flexFullDay) || '',
+        incremented: false,
+        complete: status.complete,
+        count: status.count,
+        goal: status.goal,
+    };
+}
+
+// null when the badge is not a flex-all day badge. Otherwise whether
+// flexFullDays already covers that many full days.
+function flexAllBadgeMet(badgeId, flexFullDays) {
+    const match = /^flex_all_(\d+)$/.exec(String(badgeId || ''));
+    if (!match) return null;
+    const need = parseInt(match[1], 10);
+    return (parseInt(flexFullDays, 10) || 0) >= need;
+}
+
 function resolveFlex(flexActionId, clientPts) {
     if (!flexActionId || !FLEX_ID_SET.has(flexActionId)) return unknown();
     const choice = payChoice(clientPts, { 5: 5 }, { 10: 10 });
@@ -104,6 +156,17 @@ function resolveFlex(flexActionId, clientPts) {
         dedupGroup: 'flex',
         target: flexActionId,
         flexId: flexActionId,
+    });
+}
+
+function resolveFlexDay(clientPts) {
+    if (clientPts !== 50) return unknown();
+    return done({
+        id: 'flex_day_complete',
+        xp: 50,
+        dailyLimit: 1,
+        dedupGroup: 'flex_day',
+        target: 'day',
     });
 }
 
@@ -378,6 +441,7 @@ function resolveAction(input) {
     if (actionKey && !ALLOWED_ACTION_KEYS[actionKey]) return unknown();
 
     if (actionKey === 'flex_action') return resolveFlex(flexActionId, clientPts);
+    if (actionKey === 'flex_day_complete') return resolveFlexDay(clientPts);
     if (actionKey === 'combo_bonus') return resolveCombo(comboTier, clientPts);
     if (actionKey === 'lq_lesson') return resolveLesson(action);
     return resolvePhrase(action, { badgeId: badgeId, channelId: channelId, clientPts: clientPts });
@@ -553,7 +617,12 @@ module.exports = {
     DAILY_CAP: DAILY_CAP,
     TRIVIA_QUIZ_CAP: TRIVIA_QUIZ_CAP,
     FLEX_IDS: FLEX_IDS,
+    FLEX_DAY_GOAL: FLEX_DAY_GOAL,
     LQ_TITLES: LQ_TITLES,
+    flexDayGoal: flexDayGoal,
+    flexDayStatus: flexDayStatus,
+    nextFlexFullDays: nextFlexFullDays,
+    flexAllBadgeMet: flexAllBadgeMet,
     resolveAction: resolveAction,
     planGrant: planGrant,
     claimId: claimId,

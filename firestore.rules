@@ -17,8 +17,9 @@ service cloud.firestore {
         && v.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
     }
 
-    // The first Lightning address saved on a profile stays. The client cannot
-    // change it or clear it. The server still writes the normalized lock.
+    // The first Lightning address saved on a profile stays. Once any address
+    // value exists, the client cannot write the address fields or the marker.
+    // The server still writes the normalized lock and the one-time reset doc.
     function lightningLockOk() {
       let oldL = 'lightning' in resource.data && resource.data.lightning is string ? resource.data.lightning : '';
       let oldA = 'lightningAddress' in resource.data && resource.data.lightningAddress is string ? resource.data.lightningAddress : '';
@@ -26,22 +27,16 @@ service cloud.firestore {
       let newL = 'lightning' in request.resource.data && request.resource.data.lightning is string ? request.resource.data.lightning : '';
       let newA = 'lightningAddress' in request.resource.data && request.resource.data.lightningAddress is string ? request.resource.data.lightningAddress : '';
       let newN = 'lnAddress' in request.resource.data && request.resource.data.lnAddress is string ? request.resource.data.lnAddress : '';
-      let locked = oldL.size() > 0 ? oldL : (oldA.size() > 0 ? oldA : oldN);
       let fresh = newL.size() > 0 ? newL : (newA.size() > 0 ? newA : newN);
-      let untouched = !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lightning', 'lightningAddress', 'lnAddress']);
-      let firstSet = oldL.size() == 0 && oldA.size() == 0 && oldN.size() == 0
+      let hasAny = oldL.size() > 0 || oldA.size() > 0 || oldN.size() > 0;
+      let touched = request.resource.data.diff(resource.data).affectedKeys().hasAny(['lightning', 'lightningAddress', 'lnAddress', 'ln_reset_used']);
+      let firstSet = !hasAny
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ln_reset_used'])
         && (fresh.size() == 0 || lnShape(fresh))
         && (newL.size() == 0 || newL == fresh)
         && (newA.size() == 0 || newA == fresh)
         && (newN.size() == 0 || newN == fresh);
-      let keepLocked = locked.size() > 0
-        && (newL.size() == 0 || newL == locked)
-        && (newA.size() == 0 || newA == locked)
-        && (newN.size() == 0 || newN == locked)
-        && (oldL.size() == 0 || newL == oldL)
-        && (oldA.size() == 0 || newA == oldA)
-        && (oldN.size() == 0 || newN == oldN);
-      return untouched || firstSet || keepLocked;
+      return (!touched) || (!hasAny && firstSet);
     }
 
     // notificationPrefs: owner booleans only, fixed keys. Missing keys use server defaults.
@@ -121,7 +116,7 @@ service cloud.firestore {
                     && request.resource.data.keys().hasOnly([
                         // Identity / profile
                         'email', 'profilePic',
-                        'displayName', 'faction', 'country', 'lightning', 'lightningAddress',
+                        'displayName', 'country', 'lightning', 'lightningAddress',
                         'nostr', 'lastLogin', 'lastVisit', 'lastActive', 'isOnline',
                         // Safe zero-value seeds written by ranking.js on signup
                         // (we accept them only at their zero/empty initial values)
@@ -209,6 +204,13 @@ service cloud.firestore {
                         'banned', 'ban_reason', 'flagged', 'flag_reason',
                         'withdrawals_disabled', 'satsDisabled',
                         'known_ips', 'fingerprint', 'fraudScore',
+                        // One-time Lightning address reset marker. Server only.
+                        'ln_reset_used',
+                        // Flex full-day counter (awardPoints only). Five Flex actions make a day.
+                        'flexFullDays', 'flexFullDay',
+                        // Faction is chosen by chooseFaction. Clients cannot plant it
+                        // or a sync marker on the profile.
+                        'faction', 'factionSynced', 'pointsSynced',
                         // Peer network (CF-only via managePeer)
                         'peers', 'peerCount',
                         // Peer partnership levels (CF-only via updatePeerLevelAfterGift)
@@ -1891,9 +1893,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false; // Cloud Functions only
 
-      // Contributors subcollection — server writes only
+      // Contributors — owner may read their own docs. No client writes.
+      // A list of someone else's docs fails because the query cannot match uid.
       match /contributors/{docId} {
-        allow read: if true;
+        allow read: if request.auth != null
+          && resource.data.uid == request.auth.uid;
         allow write: if false;
       }
 
@@ -1927,6 +1931,16 @@ service cloud.firestore {
     match /satoshiFavor/factionTotals {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Per-user all-time Satoshi's Favor contribution. Server writes only.
+    // The owner can read their own total. Other clients cannot.
+    match /satoshiFavor/userSfPoints {
+      allow read, write: if false;
+      match /users/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
     }
 
     // Faction sync records — server writes only
@@ -2121,6 +2135,11 @@ service cloud.firestore {
     // =============================================
     match /admin_audit_log/{logId} {
       allow read, write: if false; // Cloud Function (Admin SDK) only
+    }
+
+    // One-time withdrawal-address reset. Server only, including the marker.
+    match /ln_resets/{uid} {
+      allow read, write: if false;
     }
 
     // One Lightning address, owned by one uid. Clients may read their own lock.

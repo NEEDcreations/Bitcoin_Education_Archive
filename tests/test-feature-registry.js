@@ -477,7 +477,8 @@ test('show/open/enter navigation openers are in the registry', function () {
         'showPostSpinGiftModal', 'showQuestFinalResults', 'showReactPicker', 'showSignInOnly',
         'showSignInPrompt', 'showSkeletonLoader', 'showSpinReward', 'showToast', 'showTrendingTopics',
         'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername',
-        'openNow'
+        'openNow',
+        'openWithdrawalAddress', 'showWithdrawalAddressReadonly'
     ]);
     const regSrc = fs.readFileSync(path.join(root, 'features.registry.js'), 'utf8');
     const missing = [];

@@ -398,7 +398,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261022_v2322'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2323'));
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.ok(html.includes('gifting.js?v=20261022_v2254'));
@@ -414,7 +414,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2279'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2271'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.ok(html.includes('global-chat.js?v=20261022_v2322'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2323'));
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2272'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2267'), false);
@@ -432,9 +432,9 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(html.includes('features.registry.js?v=20261022_v2322'));
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2266'), false);
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2265'), false);
-    assert.ok(html.includes('satoshi-favor.js?v=20261023_v2322'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261023_v2323'));
     assert.strictEqual(html.includes('satoshi-favor.js?v=20261022_v2250'), false);
-    assert.strictEqual((html.match(/quests\.js\?v=20261023_v2322/g) || []).length, 4);
+    assert.strictEqual((html.match(/quests\.js\?v=20261023_v2323/g) || []).length, 4);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2279/g) || []).length, 0);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
     assert.ok(html.includes('lightning-tips.js?v=20261022_v2279'));
@@ -448,7 +448,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2322'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2323'"));
+    assert.strictEqual(sw.includes('btc-archive-v2322'), false);
     assert.strictEqual(sw.includes('btc-archive-v2301'), false);
     assert.strictEqual(sw.includes('btc-archive-v2295'), false);
     assert.strictEqual(sw.includes('btc-archive-v2293'), false);
