@@ -449,8 +449,8 @@
             hash: 'app/tickets', aliases: ['tickets', 'orange-tickets'], kind: 'settings', arg: 'account' }),
         R({ id: 'xp', title: 'XP and points', group: 'Rewards', term: 'overflow', priority: 50,
             kw: 'xp points experience overflow daily cap earn points',
-            desc: 'XP (points) is how you rank up. Daily XP is full through 500, half through 900, then a quarter until 1,000.',
-            how: 'Earn points by reading, quests, chat, and badges. The Today card shows today’s XP: full through 500, half through 900, then a quarter until 1,000.',
+            desc: 'XP (points) is how you rank up. Full XP through 500 a day, half through 900, then a quarter until the 1,000 daily cap. Each tier rounds down.',
+            how: 'Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, the 500 full-rate mark, the 900 half-rate mark, and the 1,000 cap.',
             follow: 'Want a Double XP charge from the Nook?',
             hash: 'app/xp', aliases: ['xp', 'points'], kind: 'settings', arg: 'sats' }),
         R({ id: 'badges', title: 'Badges', group: 'Rewards', term: 'badges', priority: 55,
@@ -1374,8 +1374,8 @@
     }
 
     var GROUND_LINKS = [
-        { re: /\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i, ids: ['charts', 'market_cap', 'ta_tips'] },
-        { re: /\b(fees?|mempool)\b/i, ids: ['transaction_fees', 'vbyte', 'blockchain-timechain'] },
+        { re: /\b(price|priced|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b|\b(?:what(?:'s| is)|how much)\b[^?]{0,40}\bworth\b/i, ids: ['charts', 'market_cap', 'ta_tips'] },
+        { re: /\b(fees?|mempool)\b/i, ids: ['transaction_fees', 'vbyte', 'blockchain-timechain'], skip: /\blightning\b/i },
         { re: /\b(height|timechain|current block)\b/i, ids: ['blockchain-timechain', 'block_time-block-size'] },
         { re: /\b(halving|scarce|21 million|subsidy)\b/i, ids: ['scarce', 'mining'] },
         { re: /\b(hashrate|hash rate|mining|difficulty)\b/i, ids: ['mining', 'difficulty-adjustment'] },
@@ -1387,8 +1387,8 @@
     ];
     var FOLLOW_BY_RE = [
         { re: /\b(seed phrase|seed words|private key|custody|wallet)\b/i, qs: ['Why is self-custody important?', 'What is a seed phrase?', 'What does not your keys, not your coins mean?'] },
-        { re: /\b(price|priced|worth|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b/i, qs: ['How much did Bitcoin change in 24 hours?', 'What is 1 Bitcoin in euros?', 'What are Bitcoin fees right now?'] },
-        { re: /\b(fees?|mempool)\b/i, qs: ['What is the current block height?', 'What is a transaction fee?', 'When is the next Bitcoin halving?'] },
+        { re: /\b(price|priced|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b|\b(?:what(?:'s| is)|how much)\b[^?]{0,40}\bworth\b/i, qs: ['How much did Bitcoin change in 24 hours?', 'What is 1 Bitcoin in euros?', 'What are Bitcoin fees right now?'] },
+        { re: /\b(fees?|mempool)\b/i, qs: ['What is the current block height?', 'What is a transaction fee?', 'When is the next Bitcoin halving?'], skip: /\blightning\b/i },
         { re: /\b(halving|subsidy|scarce)\b/i, qs: ['How many bitcoin have been mined?', 'What is the current block height?', 'What is proof of work?'] },
         { re: /\b(hashrate|hash rate|mining|difficulty)\b/i, qs: ['What is proof of work?', 'When is the next Bitcoin halving?', 'What is a Bitcoin node?'] },
         { re: /\b(height|timechain|block)\b/i, qs: ['When is the next Bitcoin halving?', 'What is the mempool?', 'What is a UTXO?'] },
@@ -1421,6 +1421,7 @@
         var text = String(q || '').toLowerCase();
         var ids = [];
         GROUND_LINKS.forEach(function (row) {
+            if (row.skip && row.skip.test(text)) return;
             if (row.re.test(text)) ids = ids.concat(row.ids);
         });
         if (!ids.length) ids = ['one-stop-shop', 'faq-glossary'];
@@ -1439,7 +1440,7 @@
         var current = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
         var picked = null;
         FOLLOW_BY_RE.forEach(function (row) {
-            if (!picked && row.re.test(text)) picked = row.qs;
+            if (!picked && !(row.skip && row.skip.test(text)) && row.re.test(text)) picked = row.qs;
         });
         var source = picked || GROUND_QUESTIONS;
         var out = [];
@@ -1463,7 +1464,7 @@
         var ms = typeof value === 'number' ? value : Date.parse(value);
         if (!isFinite(ms)) return '';
         var label = '';
-        try { label = new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); } catch (e) { label = ''; }
+        try { label = new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }); } catch (e) { label = ''; }
         return label ? ('As of ' + label) : '';
     }
 

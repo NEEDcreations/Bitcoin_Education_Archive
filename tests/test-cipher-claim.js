@@ -297,11 +297,13 @@ later('a Nacho shoutout is 0.5 percent and the freed share is tickets', function
     assert.strictEqual(counts.closet_item, 300);
 });
 
-later('key-send XP uses the shared 600/1000 taper', function() {
+later('key-send XP uses the shared 500/900/1000 taper', function() {
     assert.strictEqual(DAILY_POINTS_CAP, 1000);
     assert.deepStrictEqual(splitDailyXp(0, 25), { awarded: 25, overflowAdded: 0, capped: false });
-    assert.deepStrictEqual(splitDailyXp(490, 25), { awarded: 25, overflowAdded: 0, capped: false });
-    assert.deepStrictEqual(splitDailyXp(980, 25), { awarded: 12, overflowAdded: 0, capped: false });
+    // 10 at full rate, then floor(15 / 2) = 7 in the half tier.
+    assert.deepStrictEqual(splitDailyXp(490, 25), { awarded: 17, overflowAdded: 0, capped: false });
+    // Quarter tier: floor(25 / 4) = 6, which does not fill the last 20.
+    assert.deepStrictEqual(splitDailyXp(980, 25), { awarded: 6, overflowAdded: 0, capped: false });
     assert.deepStrictEqual(splitDailyXp(1000, 25), { awarded: 0, overflowAdded: 0, capped: true });
 });
 

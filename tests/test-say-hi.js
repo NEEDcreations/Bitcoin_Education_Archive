@@ -185,7 +185,7 @@ test('daily cap still grants the ticket when XP overflows', function () {
     assert.strictEqual(full.xp.tickets, 1);
     assert.strictEqual(full.ok, true);
     const partial = sayHi.planSayHiXp(980, 40, '2026-10-21', '2026-10-22');
-    assert.strictEqual(partial.awarded, 20);
+    assert.strictEqual(partial.awarded, 12);
     assert.strictEqual(partial.overflowAdded, 0);
     assert.strictEqual(partial.overflowRedeemed, 0);
     assert.strictEqual(partial.tickets, 1);
@@ -411,7 +411,12 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2279'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2341'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2342'"));
+    assert.ok(!sw.includes('btc-archive-v2341'));
+    assert.ok(!sw.includes('btc-archive-v2340'));
+    assert.ok(!sw.includes('btc-archive-v2339'));
+    assert.ok(!sw.includes('btc-archive-v2338'));
+    assert.ok(!sw.includes('btc-archive-v2334'));
     assert.ok(sw.includes('btc-archive-v2333') === false);
     assert.ok(sw.includes('btc-archive-v2332') === false);
     assert.ok(!sw.includes('btc-archive-v2331'));
@@ -434,7 +439,9 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
-    assert.ok(html.includes('ranking.js?v=20261023_v2341'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2342'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
     assert.ok(html.includes('ranking.js?v=20261023_v2333') === false);
     assert.ok(html.includes('id="sayHiBtnLabel">Say hi!</span>'));
     assert.ok(html.includes('Said hi') === false);

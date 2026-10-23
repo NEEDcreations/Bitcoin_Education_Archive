@@ -243,7 +243,7 @@
                 try { asIso = new Date(asMs).toISOString(); } catch (eAs) { asIso = String(post.asOf); }
                 asof.setAttribute('data-bq-asof', asIso);
                 var asLabel = '';
-                try { asLabel = new Date(asMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); } catch (eAs2) { asLabel = ''; }
+                try { asLabel = new Date(asMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }); } catch (eAs2) { asLabel = ''; }
                 if (asLabel) {
                     asof.textContent = 'As of ' + asLabel;
                     main.appendChild(asof);

@@ -13,7 +13,7 @@ const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const reward = require('./questReward');
 const rewardNotify = require('./rewardNotify');
-const { DAILY_CAP, TAPER_FULL_UNTIL } = require('./dailyXp');
+const { DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 const { grantFamily, familyFor } = require('./grantBadge');
 
 const db = admin.firestore();
@@ -47,6 +47,7 @@ function meterFrom(used, awarded) {
         dailyXp: dailyXp,
         dailyCap: DAILY_CAP,
         fullUntil: TAPER_FULL_UNTIL,
+        halfUntil: TAPER_HALF_UNTIL,
         pastCap: before >= DAILY_CAP,
         dailyQuizXp: dailyXp,
         dailyQuizCap: DAILY_CAP,

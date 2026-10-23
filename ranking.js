@@ -850,111 +850,244 @@ async function finishEmailSignIn(email, _signInUrl) {
     }
 }
 
-// Google Sign-In - uses Google Identity Services (GIS) for PWA compatibility
+// Google Sign-In. The rendered Google button returns an ID token in this page.
+// Firebase accepts it with signInWithCredential / linkWithCredential, so Google
+// never redirects to /__/auth/handler. Popup and redirect stay as the fallback
+// when the Google script cannot load. The ID token is not logged.
 var GOOGLE_CLIENT_ID = '1055248200518-jcn5efjp7vhk0vm8cbmj4mfsgc0edkga.apps.googleusercontent.com';
+
+function gisApiReady() {
+    return typeof google !== 'undefined' && google.accounts && google.accounts.id &&
+        typeof google.accounts.id.renderButton === 'function';
+}
+
+function loadGoogleIdentityScript() {
+    if (gisApiReady()) return Promise.resolve();
+    if (window._gsiLoadPromise) return window._gsiLoadPromise;
+    window._gsiLoadPromise = new Promise(function(resolve, reject) {
+        if (typeof window._loadGSI === 'function') window._loadGSI();
+        var script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+        if (!script) {
+            reject(new Error('gsi-unavailable'));
+            return;
+        }
+        var settled = false;
+        var giveUpAt = Date.now() + 8000;
+        var timer = setInterval(function() {
+            if (settled) return;
+            if (gisApiReady()) finish(true);
+            else if (Date.now() >= giveUpAt) finish(false);
+        }, 50);
+        function finish(ok) {
+            if (settled) return;
+            settled = true;
+            clearInterval(timer);
+            if (ok && gisApiReady()) resolve();
+            else reject(new Error('gsi-unavailable'));
+        }
+        script.addEventListener('load', function() { if (gisApiReady()) finish(true); });
+        script.addEventListener('error', function() { finish(false); });
+    });
+    return window._gsiLoadPromise;
+}
+
+function googleSignInErrorMessage(e) {
+    var code = (e && e.code) || '';
+    if (code === 'auth/unauthorized-domain') return '⚠️ This domain is not authorized for sign-in. Please contact support.';
+    if (code === 'auth/operation-not-allowed') return '⚠️ This sign-in method is not enabled. Try a different option.';
+    if (code === 'auth/account-exists-with-different-credential') return '⚠️ An account with this email exists using a different sign-in method. Try another option.';
+    if (code === 'auth/network-request-failed') return '⚠️ Network error. Check your connection and try again.';
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return '';
+    return 'Sign-in error (' + (code || 'unknown') + '). Please try again.';
+}
+
+function rememberGoogleMfaEmail(idToken) {
+    try {
+        var part = String(idToken).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (part.length % 4) part += '=';
+        var payload = JSON.parse(atob(part));
+        if (payload && payload.email) window._mfaRecoveryEmail = String(payload.email).trim();
+    } catch (ignore) {}
+}
+
+function clearGoogleOneTapChrome() {
+    try { if (gisApiReady()) google.accounts.id.cancel(); } catch (e) {}
+    document.querySelectorAll('[id*="credential_picker"]').forEach(function(el) { el.remove(); });
+}
+
+var _googleCredentialBusy = false;
+
+async function applyGoogleIdToken(idToken) {
+    if (!idToken || typeof idToken !== 'string') throw new Error('No credential received');
+    if (_googleCredentialBusy) return null;
+    _googleCredentialBusy = true;
+    try {
+        var credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+        var guest = auth.currentUser;
+        var anonUid = (guest && guest.isAnonymous) ? guest.uid : null;
+        var resultUser = null;
+        if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+            try {
+                var linked = await guest.linkWithCredential(credential);
+                try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                resultUser = linked.user;
+                anonUid = null;
+            } catch (linkErr) {
+                if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                    var signed = await auth.signInWithCredential(linkErr.credential);
+                    resultUser = signed.user;
+                } else {
+                    throw linkErr;
+                }
+            }
+        }
+        if (!resultUser) {
+            var result = await auth.signInWithCredential(credential);
+            resultUser = result.user;
+        }
+        clearGoogleOneTapChrome();
+        await _handleSignInResultGlobal(resultUser, anonUid, null);
+        return resultUser;
+    } finally {
+        _googleCredentialBusy = false;
+    }
+}
+
+function onGoogleIdentityCredential(response) {
+    var idToken = response && response.credential;
+    if (!idToken) return;
+    applyGoogleIdToken(idToken).catch(function(e) {
+        if (e && e.code === 'auth/multi-factor-auth-required') rememberGoogleMfaEmail(idToken);
+        if (surfaceMfaRequired(e)) return;
+        console.warn('[Auth] Google sign-in failed:', (e && e.code) || 'unknown');
+        var msg = googleSignInErrorMessage(e);
+        if (msg && typeof showToast === 'function') showToast(msg);
+    });
+}
+
+function ensureGoogleIdentityInit() {
+    if (window._gsiInitialized || !gisApiReady()) return;
+    google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: onGoogleIdentityCredential,
+        auto_select: false,
+        cancel_on_tap_outside: false,
+        context: 'signin',
+        ux_mode: 'popup',
+        itp_support: true
+    });
+    window._gsiInitialized = true;
+}
+
+function googleButtonWidth(fallback) {
+    var width = fallback && fallback.offsetWidth ? fallback.offsetWidth : 0;
+    if (width < 200) {
+        var box = document.querySelector('#usernameModal .username-box');
+        width = box && box.clientWidth ? box.clientWidth - 32 : 320;
+    }
+    if (width < 200) width = 280;
+    if (width > 400) width = 400;
+    return Math.floor(width);
+}
+
+function renderGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var host = document.getElementById('gsiButtonHost');
+    var fallback = document.getElementById('googleSignInFallback');
+    if (!host || !gisApiReady()) return;
+    ensureGoogleIdentityInit();
+    if (host.getAttribute('data-gsi-rendered') === '1' && host.childNodes.length) {
+        host.style.display = 'block';
+        if (fallback) fallback.style.display = 'none';
+        return;
+    }
+    host.setAttribute('data-gsi-rendered', '1');
+    host.innerHTML = '';
+    host.style.display = 'block';
+    try {
+        google.accounts.id.renderButton(host, {
+            type: 'standard',
+            theme: 'filled_black',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: googleButtonWidth(fallback),
+            click_listener: function() {
+                if (typeof window._captureSignupFormState === 'function') window._captureSignupFormState();
+            }
+        });
+    } catch (e) {
+        host.removeAttribute('data-gsi-rendered');
+        host.style.display = 'none';
+        window._gsiFailed = true;
+        if (fallback) fallback.style.display = 'flex';
+        return;
+    }
+    if (!host.childNodes.length) {
+        host.removeAttribute('data-gsi-rendered');
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'flex';
+        return;
+    }
+    if (fallback) fallback.style.display = 'none';
+}
+
+function mountGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var host = document.getElementById('gsiButtonHost');
+    if (!host || window._gsiFailed) return;
+    if (gisApiReady()) {
+        renderGoogleSignInButton();
+        return;
+    }
+    if (window._gsiMounting) return;
+    window._gsiMounting = true;
+    loadGoogleIdentityScript().then(function() {
+        window._gsiMounting = false;
+        renderGoogleSignInButton();
+    }).catch(function() {
+        window._gsiMounting = false;
+        window._gsiFailed = true;
+        host.style.display = 'none';
+        var fallback = document.getElementById('googleSignInFallback');
+        if (fallback) fallback.style.display = 'flex';
+    });
+}
+
+function installGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var modal = document.getElementById('usernameModal');
+    if (!modal || modal._gsiWatch) return;
+    modal._gsiWatch = true;
+    var obs = new MutationObserver(function() {
+        if (modal.classList.contains('open') && document.getElementById('gsiButtonHost')) mountGoogleSignInButton();
+    });
+    obs.observe(modal, { attributes: true, attributeFilter: ['class'] });
+    if (modal.classList.contains('open') && document.getElementById('gsiButtonHost')) mountGoogleSignInButton();
+}
 
 window.signInWithGoogle = async function() {
     window._captureSignupFormState();
-    var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-    // On desktop, try GIS One Tap (fast if available)
-    // On mobile, skip GIS entirely - go straight to Firebase popup (faster, more reliable)
-    if (!isMobile) {
-        // Lazy-load the GSI script if not already loaded
-        if (typeof window._loadGSI === 'function') window._loadGSI();
-        // Wait up to 3s for google.accounts to become available
-        if (typeof google === 'undefined' || !google.accounts) {
-            await new Promise(function(resolve) {
-                var waited = 0;
-                var t = setInterval(function() {
-                    waited += 100;
-                    if ((typeof google !== 'undefined' && google.accounts) || waited >= 3000) { clearInterval(t); resolve(); }
-                }, 100);
-            });
-        }
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            try {
-                await signInWithGIS();
-                return;
-            } catch(gisErr) {
-                if (surfaceMfaRequired(gisErr)) return;
-                console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
-                try { google.accounts.id.cancel(); } catch(e) {}
-                document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-            }
-        }
+    if (isInAppBrowser()) {
+        await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+        return;
     }
-    // Firebase popup/redirect
-    await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+    if (!window._gsiFailed) {
+        mountGoogleSignInButton();
+        return;
+    }
+    var btn = document.getElementById('googleSignInFallback');
+    if (btn) btn.style.opacity = '0.6';
+    try {
+        await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+    } catch (e) {
+        if (surfaceMfaRequired(e)) return;
+    }
 };
 
-async function signInWithGIS() {
-    var anonUid = (auth.currentUser && auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
-    return new Promise(function(resolve, reject) {
-
-        google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: async function(response) {
-                if (!response || !response.credential) {
-                    reject(new Error('No credential received'));
-                    return;
-                }
-                try {
-                    var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                    var guest = auth.currentUser;
-                    var resultUser = null;
-                    if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
-                        try {
-                            var linked = await guest.linkWithCredential(credential);
-                            try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
-                            resultUser = linked.user;
-                            anonUid = null;
-                        } catch (linkErr) {
-                            if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
-                                var signed = await auth.signInWithCredential(linkErr.credential);
-                                resultUser = signed.user;
-                            } else {
-                                throw linkErr;
-                            }
-                        }
-                    }
-                    if (!resultUser) {
-                        var result = await auth.signInWithCredential(credential);
-                        resultUser = result.user;
-                    }
-                    // Clean up ALL GIS UI elements
-                    try { google.accounts.id.cancel(); } catch(e) {}
-                    var _gsiBtn = document.getElementById('gsi-temp-btn');
-                    if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
-                    document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-                    await _handleSignInResultGlobal(resultUser, anonUid, null);
-                    resolve(resultUser);
-                } catch(e) {
-                    if (e && e.code === 'auth/multi-factor-auth-required' && response && response.credential) {
-                        try {
-                            var part = String(response.credential).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-                            var payload = JSON.parse(atob(part));
-                            if (payload && payload.email) window._mfaRecoveryEmail = String(payload.email).trim();
-                        } catch (ignore) {}
-                    }
-                    reject(e);
-                }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true,
-            context: 'signin',
-            ux_mode: 'popup'
-        });
-
-        // Try One Tap first
-        google.accounts.id.prompt(function(notification) {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // One Tap not available - fall back to Firebase popup immediately (no second button)
-                console.log('[Auth] One Tap not shown, falling back to Firebase popup');
-                reject(new Error('One Tap unavailable'));
-            }
-        });
-    });
-}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installGoogleSignInButton);
+else installGoogleSignInButton();
 
 // Twitter/X Sign-In - no client SDK, must use Firebase popup/redirect
 window.signInWithTwitter = async function() {
@@ -2785,10 +2918,16 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             // Track pts for ghost banner re-show
             if (typeof window._ghostTrackPts === 'function') window._ghostTrackPts(pts);
         }
-        // Local preview only. The server cap is full through 600, then half until 1,000.
+        // Local preview only. Same tiers as functions/src/dailyXp.js:
+        // full through 500, half through 900, quarter until 1,000.
+        // Floor per tier. A boundary split does not carry a fractional point.
         // Guest points are not banked, and a later sign-in does not redeem them as overflow.
         var DAILY_CAP = 1000;
-        var FULL_UNTIL = 600;
+        var TAPER_TIERS = [
+            { end: 500, divisor: 1 },
+            { end: 900, divisor: 2 },
+            { end: 1000, divisor: 4 }
+        ];
         var _today = new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
         var _capKey = 'btc_daily_pts_' + _today;
         var _dailyUsed = parseInt(localStorage.getItem(_capKey) || '0', 10);
@@ -2812,21 +2951,26 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
         }
 
-        var awarded = pts;
+        var awarded = 0;
         var cursor = _dailyUsed;
         var left = pts;
-        if (cursor >= DAILY_CAP) {
-            awarded = 0;
-        } else {
-            awarded = 0;
-            if (cursor < FULL_UNTIL) {
-                var fullRoom = Math.min(left, FULL_UNTIL - cursor);
-                awarded += fullRoom;
-                cursor += fullRoom;
-                left -= fullRoom;
-            }
-            if (left > 0 && cursor < DAILY_CAP) {
-                awarded += Math.min(Math.floor(left / 2), DAILY_CAP - cursor);
+        if (cursor < DAILY_CAP && left > 0) {
+            for (var ti = 0; ti < TAPER_TIERS.length; ti++) {
+                if (left <= 0 || cursor >= DAILY_CAP) break;
+                var tier = TAPER_TIERS[ti];
+                if (cursor >= tier.end) continue;
+                var room = tier.end - cursor;
+                var rawNeeded = room * tier.divisor;
+                if (left >= rawNeeded) {
+                    awarded += room;
+                    cursor += room;
+                    left -= rawNeeded;
+                } else {
+                    var credit = Math.floor(left / tier.divisor);
+                    awarded += credit;
+                    cursor += credit;
+                    left = 0;
+                }
             }
         }
 
@@ -2846,7 +2990,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
+                if (typeof showToast === 'function') showToast('Daily cap hit (1,000). Full through 500, half through 900, then a quarter. More XP today is not awarded.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -2919,7 +3063,8 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                     signedIn: true,
                     dailyXp: result.data.dailyXp,
                     dailyCap: result.data.dailyCap || 1000,
-                    fullUntil: result.data.fullUntil || 600,
+                    fullUntil: result.data.fullUntil || 500,
+                    halfUntil: result.data.halfUntil || 900,
                     pastCap: result.data.pastCap === true
                 };
                 window._paintDailyXpMeter(window._serverDailyXp);
@@ -2928,7 +3073,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('Daily cap hit (1,000). Full XP through 600, then half until 1,000. More XP today is not awarded.', 8000);
+                    showToast('Daily cap hit (1,000). Full through 500, half through 900, then a quarter. More XP today is not awarded.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -3303,7 +3448,7 @@ function _updateCapIndicator(atCap) {
     if (atCap || _dailyPts >= 1000) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = 'Daily XP cap reached (1,000). Full through 600, then half.';
+        el.title = 'Daily XP cap reached (1,000). Full through 500, half through 900, then a quarter.';
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -5860,7 +6005,7 @@ function showSettingsPage(tab) {
             html += '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">';
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-weight:700;font-size:0.85rem;color:#a5b4fc;">⏳ Queued Overflow XP</div><div style="font-size:0.6rem;font-weight:800;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 8px;border-radius:20px;">~' + _ofDL + ' day' + (_ofDL !== 1 ? 's' : '') + '</div></div>';
             html += '<div style="font-size:1.3rem;font-weight:900;font-family:monospace;color:#c7d2fe;margin-bottom:8px;">+' + _pendingOf.toLocaleString() + ' XP</div>';
-            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">This is leftover XP from before the shared daily cap. New XP is not added here. A day pays full XP through 600, then half until 1,000.</div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">This is leftover XP from before the shared daily cap. New XP is not added here. A day pays full XP through 500, half through 900, then a quarter until 1,000.</div>';
             html += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:10px;">';
             var _tileCap = Math.min(_ofDL, 10);
             for (var _td = 0; _td < _tileCap; _td++) {

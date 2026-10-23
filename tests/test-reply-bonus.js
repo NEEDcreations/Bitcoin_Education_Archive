@@ -506,12 +506,13 @@ test('daily XP cap uses the shared helper', async function () {
         'users/user1/daily_points/2026-10-22': { total: 980 },
     }));
     const res = await world.handlers.claimReplyBonus({ messageId: 'replyMsg001' }, auth('user1'));
-    assert.strictEqual(res.xp, 20);
+    // 50 raw in the quarter tier credits floor(50 / 4) = 12, short of the last 20.
+    assert.strictEqual(res.xp, 12);
     assert.strictEqual(res.first, true);
     assert.strictEqual(res.showToast, true);
-    assert.strictEqual(world.docs['users/user1'].points, 30);
+    assert.strictEqual(world.docs['users/user1'].points, 22);
     assert.strictEqual(world.docs['users/user1'].pendingOverflow, undefined);
-    assert.strictEqual(world.docs['users/user1/daily_points/2026-10-22'].total, 1000);
+    assert.strictEqual(world.docs['users/user1/daily_points/2026-10-22'].total, 992);
 });
 
 test('signed-out and anonymous callers are rejected', async function () {
@@ -615,15 +616,24 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261023_v2341'));
+    assert.ok(html.includes('global-chat.js?v=20261023_v2342'));
+    assert.ok(!html.includes('global-chat.js?v=20261023_v2341'));
+    assert.ok(!html.includes('global-chat.js?v=20261023_v2333'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261023_v2341'));
+    assert.ok(html.includes('ranking.js?v=20261023_v2342'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2341'"));
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2342'"));
+    assert.ok(!swText.includes('btc-archive-v2341'));
+    assert.ok(!swText.includes('btc-archive-v2340'));
+    assert.ok(!swText.includes('btc-archive-v2339'));
+    assert.ok(!swText.includes('btc-archive-v2338'));
+    assert.ok(!swText.includes('btc-archive-v2334'));
     assert.ok(!swText.includes('btc-archive-v2333'));
     assert.ok(!swText.includes('btc-archive-v2332'));
     assert.ok(!swText.includes('btc-archive-v2331'));

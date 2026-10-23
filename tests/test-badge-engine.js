@@ -802,30 +802,30 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     assert.strictEqual(client.streak_365.xp, 2000);
 }));
 
-queue.push(test('badge XP tapers at 600 and 1,000 and the backfill bypasses it', async function () {
+queue.push(test('badge XP tapers at 500, 900, and 1,000 and the backfill bypasses it', async function () {
     const { applyDailyXp, taperDailyXp } = require('../functions/src/applyDailyXp');
     const full = taperDailyXp(2000, 0);
     assert.strictEqual(full.awarded, 1000);
     assert.strictEqual(full.dailyXp, 1000);
     assert.strictEqual(full.dropped, 1000);
     const edge = taperDailyXp(150, 500);
-    assert.strictEqual(edge.awarded, 125);
-    assert.strictEqual(edge.dailyXp, 625);
-    const half = taperDailyXp(150, 900);
-    assert.strictEqual(half.awarded, 75);
-    assert.strictEqual(half.dailyXp, 975);
+    assert.strictEqual(edge.awarded, 75);
+    assert.strictEqual(edge.dailyXp, 575);
+    const quarter = taperDailyXp(150, 900);
+    assert.strictEqual(quarter.awarded, 37);
+    assert.strictEqual(quarter.dailyXp, 937);
     assert.strictEqual(taperDailyXp(10, 1000).awarded, 0);
     const partial = memoryDb({
         'users/u': { sayHiDays: 30, points: 0 },
         'users/u/daily_points/2026-10-22': { total: 900 },
     });
     const mid = await awardBadge(partial, admin, 'u', 'say_hi_30', { day: '2026-10-22', nowMs: 1700000000000 });
-    assert.strictEqual(mid.xp, 75);
+    assert.strictEqual(mid.xp, 37);
     assert.strictEqual(mid.overflowAdded, 0);
-    assert.strictEqual(mid.dropped, 75);
-    assert.strictEqual(partial.docs['users/u'].points, 75);
+    assert.strictEqual(mid.dropped, 113);
+    assert.strictEqual(partial.docs['users/u'].points, 37);
     assert.strictEqual(partial.docs['users/u'].pendingOverflow, undefined);
-    assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 975);
+    assert.strictEqual(partial.docs['users/u/daily_points/2026-10-22'].total, 937);
     const fresh = memoryDb({ 'users/u': { bestStreak: 365, points: 0 } });
     const legend = await awardBadge(fresh, admin, 'u', 'streak_365', { day: '2026-10-22', nowMs: 1700000000000 });
     assert.strictEqual(legend.xp, 1000);
