@@ -77,6 +77,39 @@ window._checkNWCSecurityAlert = function() {
     }, 1000);
 };
 
+// One combined unlock toast for badges the counter backfill already granted.
+// The flag is server-written. The client only asks the callable to clear it.
+window.presentBadgeBackfillToast = function(user) {
+    var toast = user && user.badgeBackfillToast;
+    if (!toast || toast.v !== 1 || !toast.message) return;
+    if (window._badgeBackfillToastShown) return;
+    window._badgeBackfillToastShown = true;
+    if (typeof showToast === 'function') showToast(toast.message, 6500);
+    try {
+        var ack = firebase.functions().httpsCallable('ackBadgeBackfillToast');
+        ack({}).catch(function() {});
+    } catch (e) {}
+};
+
+function presentBadgeCollection() {
+    var lb = document.getElementById('leaderboard');
+    var open = lb && lb.classList.contains('open') && !lb.classList.contains('minimized');
+    if (!open && typeof toggleLeaderboard === 'function') toggleLeaderboard();
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries += 1;
+        var headers = document.querySelectorAll('#leaderboard h4');
+        for (var i = 0; i < headers.length; i++) {
+            if (headers[i].textContent === 'Your Badges') {
+                headers[i].scrollIntoView({ block: 'start' });
+                clearInterval(timer);
+                return;
+            }
+        }
+        if (tries > 20) clearInterval(timer);
+    }, 300);
+}
+
 // Start listening for notifications
 window.initNotifications = function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
@@ -87,6 +120,9 @@ window.initNotifications = function() {
 
     // NWC security alert — fires once per device if NWC wallet is connected
     setTimeout(window._checkNWCSecurityAlert, 3000);
+    db.collection('users').doc(uid).get().then(function(snap) {
+        if (snap.exists) window.presentBadgeBackfillToast(snap.data());
+    }).catch(function() {});
     if (typeof window.syncPushRegistration === 'function') window.syncPushRegistration();
     if (typeof window.schedulePushPrompt === 'function') window.schedulePushPrompt();
     window._pushSnapReady = false;
@@ -236,7 +272,7 @@ function notifIcon(n) {
 var NOTIF_TARGET_TYPES = {
     forum_post: 1, article: 1, dm: 1, peer_request: 1,
     beats_track: 1, marketplace: 1, song: 1, chat: 1, pvp: 1, buddy: 1,
-    topic_post: 1
+    topic_post: 1, badges: 1
 };
 
 function notifSafeId(value, max) {
@@ -536,6 +572,10 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
     }
     else if (safe.type === 'peer_request') {
         if (typeof showSettingsPage === 'function') showSettingsPage('peers');
+        return;
+    }
+    else if (safe.type === 'badges') {
+        presentBadgeCollection();
         return;
     }
     else if (safe.type === 'topic_post' && safe.id) {
