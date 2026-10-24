@@ -236,7 +236,7 @@ function renderChannelPage(id, channel, origin) {
     const desc  = escapeHtml(channel.desc || 'Bitcoin education channel');
     const cat   = escapeHtml(channel.cat || '');
     const url   = origin + '/channels/' + id;
-    const ogImg = origin + '/og-image.png';
+    const ogImg = origin + '/og-image.png?v=20261024b';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -292,7 +292,7 @@ function renderAppPage(page, origin) {
     const title = escapeHtml(info.title);
     const desc  = escapeHtml(info.desc);
     const url   = origin + '/app/' + page;
-    const ogImg = info.image ? (origin + info.image) : (origin + '/og-image.png');
+    const ogImg = info.image ? (origin + info.image) : (origin + '/og-image.png?v=20261024b');
 
     return `<!DOCTYPE html>
 <html lang="en">
