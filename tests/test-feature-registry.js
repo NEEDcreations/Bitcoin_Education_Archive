@@ -430,13 +430,18 @@ test('search drops duplicate app rows and linked answers skip the generic tip', 
         answer: 'The halving cuts the block subsidy. See the Scarce channel.',
         channel: 'scarce'
     });
-    assert.ok(linked && !/Orange Tickets/i.test(linked.answer) && !/data-bq-chip/.test(linked.answer), linked && linked.answer);
+    assert.ok(linked && !/Orange Tickets/i.test(linked.answer), linked && linked.answer);
+    assert.ok(/data-bq-links/.test(linked.answer) && /data-bq-topic="scarce"/.test(linked.answer), linked && linked.answer);
+    assert.ok(/data-bq-chip/.test(linked.answer) && /data-bq-followups/.test(linked.answer), linked && linked.answer);
     const topical = answer('what is the halving', {
         type: 'kb',
         answer: 'The halving cuts the block subsidy every 210,000 blocks.'
     });
-    assert.ok(topical && /Scarce channel/.test(topical.answer), topical && topical.answer);
+    assert.ok(topical && /data-bq-topic="scarce"/.test(topical.answer), topical && topical.answer);
+    assert.ok(/data-bq-chip/.test(topical.answer));
     assert.ok(!/Orange Tickets/i.test(topical.answer));
+    const chips = (topical.answer.match(/data-bq-chip="1"/g) || []).length;
+    assert.ok(chips >= 2 && chips <= 3, 'follow-ups ' + chips);
     const plain = answer('what is a utxo', {
         type: 'kb',
         answer: 'A UTXO is an unspent transaction output.'

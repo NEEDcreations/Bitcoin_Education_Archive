@@ -3858,7 +3858,7 @@ function _renderNookShop() {
         var extraHtml = '';
         if (c.id === 'nacho_skin_nook') {
             extraHtml = '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 8px;background:rgba(247,147,26,0.08);border-radius:8px;">' +
-                '<img src="nacho-deer.svg" style="width:36px;height:36px;border-radius:50%;border:2px solid #f7931a;filter:drop-shadow(0 0 6px rgba(247,147,26,0.6));" onerror="this.style.display=\'none\'">' +
+                '<img src="/nacho-deer.svg" style="width:36px;height:36px;border-radius:50%;border:2px solid #f7931a;filter:drop-shadow(0 0 6px rgba(247,147,26,0.6));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))">' +
                 '<span style="font-size:0.72rem;color:var(--text-muted);">Your avatar gets a golden Nacho glow in chat and on your profile!</span>' +
             '</div>';
         }

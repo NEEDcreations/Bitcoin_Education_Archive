@@ -1369,6 +1369,7 @@
                 '.nm-nacho .nm-time { text-align:left; }' +
                 '.nm-user .nm-time { text-align:right; }' +
                 '@media(max-width:768px){.nm-hero-avatar{width:36px!important;height:36px!important;}.nm-hero-avatar img{width:36px!important;height:36px!important;}.nm-hero-title{font-size:0.9rem!important;letter-spacing:2px!important;}.nm-hero-bar{gap:4px!important;}}' +
+                '@media(max-width:900px){#nachoModeScreen{box-sizing:border-box;padding-bottom:calc(128px + env(safe-area-inset-bottom, 0px));}#nachoModeChat{scroll-padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));}}' +
             '</style>' +
             /* ===== COMPACT HEADER ===== */
             '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.06) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:8px 12px;position:relative;">' +
@@ -2005,6 +2006,8 @@
             window._bqLastFollowUp = '';
             return [];
         }
+        if (/data-bq-followups/.test(String(answer || ''))) return [];
+        if (window._bqLastFollowUps && window._bqLastFollowUps.length) return window._bqLastFollowUps.slice(0, 3);
         if (typeof nachoFollowUps === 'function') {
             return nachoFollowUps((question || '') + ' ' + (answer || ''));
         }
@@ -2671,6 +2674,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
+        if (typeof nachoContainsKeyMaterial !== 'function') {
+            if ((window._nachoSecretWait || 0) < 40) {
+                window._nachoSecretWait = (window._nachoSecretWait || 0) + 1;
+                setTimeout(window.nachoModeSend, 50);
+            }
+            return;
+        }
+        window._nachoSecretWait = 0;
+        if (nachoContainsKeyMaterial(q)) {
+            inp.value = '';
+            var hiddenQ = (typeof NACHO_SECRET_HIDDEN === 'string') ? NACHO_SECRET_HIDDEN : '[hidden: looked like a seed phrase or private key]';
+            var hiddenA = (typeof nachoLocalSecretAnswer === 'function') ? nachoLocalSecretAnswer() : escapeHtml(hiddenQ);
+            nachoChatAdd('user', hiddenQ);
+            nachoChatAppend('user', hiddenQ);
+            nachoChatAdd('nacho', '', hiddenA);
+            nachoChatAppend('nacho', '', hiddenA);
+            return;
+        }
         inp.value = '';
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';
@@ -2780,7 +2801,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var extra = '';
             if (result && result.siteAction) {
                 extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
-            } else if (result && result.channel) {
+            } else if (result && result.channel && String(result.answer || '').indexOf('data-bq-links') === -1) {
                 extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
             }
             reply((result && result.answer ? result.answer : 'Hmm, let me think about that... Try asking another way! 🦌') + extra, (result && result.type) || 'fallback');
