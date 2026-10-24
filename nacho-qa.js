@@ -3800,16 +3800,6 @@ function _levenshtein(a, b) {
     return matrix[b.length][a.length];
 }
 
-function nachoFeatureExact(raw, hit) {
-    var norm = String(raw || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
-    var title = String((hit && hit.title) || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!norm || !title) return false;
-    if (norm === title) return true;
-    var core = norm.replace(/^(?:what is|what are|whats|what's)\s+(?:the\s+|a\s+|an\s+)?/, '');
-    if (!core || core === norm) return false;
-    return core === title || title.indexOf(core + ' ') === 0;
-}
-
 function findAnswer(input) {
     var _rawQ = String(input || '');
     // Safety before the feature registry, so "where is the chat" cannot hide a crisis.
@@ -3818,11 +3808,11 @@ function findAnswer(input) {
     // Trailing "?" used to glue onto the last word and hide the real key.
     input = input.replace(/[?!.,;:()"]/g, ' ').replace(/['’]s\b/g, '').replace(/['’]/g, ' ').replace(/\s+/g, ' ').trim();
     if (input.length < 2) return null;
-    // Feature shortcuts only when the question names that feature. A longer Bitcoin
-    // question ("What is a double spend?") must not open Double XP.
+    // Feature registry wins before synonym expansion (which maps "keys" to "private key")
+    // and before the fuzzy KB matcher. A worker kbId still wins in nachoUnifiedAnswer.
     if (typeof window.resolveNachoFeature === 'function') {
         var _feat = window.resolveNachoFeature(_rawQ) || window.resolveNachoFeature(input);
-        if (_feat && _feat.answer && nachoFeatureExact(_rawQ, _feat)) return _feat;
+        if (_feat && _feat.answer) return _feat;
     }
     input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
 
