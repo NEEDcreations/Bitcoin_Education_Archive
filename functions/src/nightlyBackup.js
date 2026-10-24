@@ -232,29 +232,13 @@ async function recordFirestoreExportAttempt(input) {
     });
 }
 
+// nightlyAuthExport runs as bq-auth-backup, which has no Datastore access.
+// It does not write backup_status. The 05:00 health check records all four jobs.
 async function exportAuthUsers(input) {
-    const startedAt = new Date().toISOString();
-    const date = utcDate();
     try {
-        const userCount = await runAuthExport(input, date);
-        await recordJob({
-            job: 'auth',
-            date: date,
-            ok: true,
-            startedAt: startedAt,
-            finishedAt: new Date().toISOString(),
-            detail: 'auth export written, user count ' + userCount,
-        });
+        await runAuthExport(input, utcDate());
     } catch (e) {
         console.error('[auth-backup] failed', shortError(e));
-        await recordJob({
-            job: 'auth',
-            date: date,
-            ok: false,
-            startedAt: startedAt,
-            finishedAt: new Date().toISOString(),
-            detail: 'auth export failed',
-        });
         throw e;
     }
 }
@@ -299,6 +283,7 @@ async function runAuthExport(input, date) {
     const gz = zlib.gzipSync(Buffer.from(jsonl));
     const enc = crypto.encryptAesGcm(gz, key);
     const objectName = 'auth/' + date + '/users.jsonl.gz.enc';
+    // objectCreator cannot overwrite. A second run the same day gets 403 and fails closed.
     await uploadBytes(token, AUTH_BACKUP_BUCKET, objectName, enc, 'application/octet-stream');
     const manifest = {
         date,

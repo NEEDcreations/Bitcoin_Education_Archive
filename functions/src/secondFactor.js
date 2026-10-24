@@ -24,6 +24,9 @@ const FRESH_ACTIONS = {
     disableTotp: true,
     regenerateRecoveryCodes: true,
     deleteAccount: true,
+    changeEmail: true,
+    linkProvider: true,
+    unlinkProvider: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

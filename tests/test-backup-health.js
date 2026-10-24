@@ -343,15 +343,30 @@ test('infra setup prints the plan unless --apply is passed', function () {
     const script = path.join(__dirname, '..', 'scripts/backup_infra_setup.sh');
     const src = fs.readFileSync(script, 'utf8');
     assert.ok(src.indexOf('--apply') !== -1);
+    assert.ok(src.indexOf('--owner-apply') !== -1);
+    assert.ok(src.indexOf('--soft-delete-duration=0') !== -1);
+    assert.ok(src.indexOf('projectEditor:') !== -1);
+    assert.ok(src.indexOf('projectOwner:') !== -1);
+    assert.ok(src.indexOf('projectViewer:') !== -1);
+    assert.ok(src.indexOf('Cloud Shell') !== -1);
     assert.ok(src.indexOf('expireAt') !== -1);
     assert.ok(src.indexOf('backup_history') !== -1);
     assert.ok(src.indexOf('AUTH_BACKUP_KEY') !== -1);
     assert.ok(src.indexOf('cloudfunctions.googleapis.com') !== -1);
-    assert.ok(src.indexOf('roles/cloudfunctions.viewer') !== -1);
+    assert.ok(src.indexOf('storagetransfer.googleapis.com') !== -1);
     assert.ok(src.indexOf('firebaseauth.configs.getHashConfig') !== -1);
     assert.ok(src.indexOf('bq-auth-backup@') !== -1);
     assert.ok(src.indexOf('roles/storage.objectCreator') !== -1);
     assert.ok(src.indexOf('daysSinceNoncurrentTime": 1') !== -1);
+    assert.strictEqual(src.indexOf('roles/cloudfunctions.viewer'), -1);
+    assert.strictEqual(src.indexOf('roles/datastore.importExportAdmin'), -1);
+    assert.strictEqual(src.indexOf('roles/datastore.viewer'), -1);
+    assert.strictEqual(src.indexOf('roles/datastore.user'), -1);
+    assert.strictEqual(src.indexOf('roles/firebaserules.viewer'), -1);
+    assert.strictEqual(src.indexOf('roles/cloudscheduler.viewer'), -1);
+    assert.strictEqual(src.indexOf('roles/storagetransfer.user'), -1);
+    assert.strictEqual(src.indexOf('gcf-admin-robot'), -1);
+    assert.strictEqual(src.indexOf('functions:secrets:set'), -1);
     assert.strictEqual(src.indexOf('ALERT_SMTP'), -1);
     assert.strictEqual(src.indexOf('firebaseauth.admin'), -1);
     assert.strictEqual(src.indexOf('firebaseauth.viewer'), -1);
@@ -360,7 +375,9 @@ test('infra setup prints the plan unless --apply is passed', function () {
     const out = execFileSync('bash', [script], { encoding: 'utf8' });
     assert.ok(out.indexOf('WOULD') !== -1);
     assert.ok(out.indexOf('Dry run only') !== -1);
+    assert.ok(out.indexOf('Cloud Shell') !== -1);
     assert.strictEqual(out.indexOf('APPLY:'), -1);
+    assert.strictEqual(out.indexOf('OWNER:'), -1);
     assert.strictEqual(out.indexOf('ALERT_SMTP'), -1);
     let rejected = false;
     try {
@@ -369,6 +386,60 @@ test('infra setup prints the plan unless --apply is passed', function () {
         rejected = e.status === 2;
     }
     assert.strictEqual(rejected, true);
+});
+
+test('auth export skips its own status write and the key comment stays off the Firebase CLI', function () {
+    const nightly = fs.readFileSync(path.join(__dirname, '..', 'functions/src/nightlyBackup.js'), 'utf8');
+    const start = nightly.indexOf('async function exportAuthUsers');
+    const end = nightly.indexOf('async function runAuthExport');
+    assert.ok(start !== -1 && end > start);
+    const fn = nightly.slice(start, end);
+    assert.strictEqual(fn.indexOf('recordJob'), -1);
+    assert.strictEqual(fn.indexOf('writeBackupResult'), -1);
+    assert.ok(nightly.indexOf('writeBackupResults') !== -1);
+    const cryptoSrc = fs.readFileSync(path.join(__dirname, '..', 'functions/src/authBackupCrypto.js'), 'utf8');
+    assert.strictEqual(cryptoSrc.indexOf('functions:secrets:set'), -1);
+    assert.ok(cryptoSrc.indexOf('Cloud Shell') !== -1);
+    const restore = fs.readFileSync(path.join(__dirname, '..', 'scripts/restore_auth_export.js'), 'utf8');
+    assert.strictEqual(restore.indexOf('Create AUTH_BACKUP_KEY with scripts/backup_infra_setup.sh'), -1);
+    assert.ok(restore.indexOf('empty AUTH_BACKUP_KEY secret') !== -1);
+});
+
+test('auth bucket policy check rejects project editors and extra function roles', function () {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts/backup_infra_setup.sh'), 'utf8');
+    const marker = "<<'AUTH_POLICY_PY'";
+    const start = src.indexOf(marker);
+    const end = src.indexOf('\nAUTH_POLICY_PY\n', start);
+    assert.ok(start !== -1 && end > start);
+    const py = src.slice(start + marker.length + 1, end);
+    const sa = '123-compute@developer.gserviceaccount.com';
+    function run(policy) {
+        try {
+            execFileSync('python3', ['-c', py], {
+                encoding: 'utf8',
+                stdio: ['ignore', 'pipe', 'pipe'],
+                env: Object.assign({}, process.env, {
+                    POLICY_JSON: JSON.stringify(policy),
+                    ASSERT_PROJECT: 'bitcoin-education-archive',
+                    ASSERT_FUNCTIONS_SA: sa,
+                }),
+            });
+            return 0;
+        } catch (e) {
+            return e.status;
+        }
+    }
+    const member = 'serviceAccount:' + sa;
+    const read = [
+        { role: 'roles/storage.objectViewer', members: [member] },
+        { role: 'roles/storage.legacyBucketReader', members: [member] },
+    ];
+    assert.strictEqual(run({ bindings: read }), 0);
+    assert.strictEqual(run({ bindings: read.concat([{ role: 'roles/storage.legacyBucketOwner', members: ['projectEditor:bitcoin-education-archive'] }]) }), 1);
+    assert.strictEqual(run({ bindings: read.concat([{ role: 'roles/storage.legacyBucketOwner', members: ['projectOwner:bitcoin-education-archive'] }]) }), 1);
+    assert.strictEqual(run({ bindings: read.concat([{ role: 'roles/storage.legacyBucketReader', members: ['projectViewer:bitcoin-education-archive'] }]) }), 1);
+    assert.strictEqual(run({ bindings: read.concat([{ role: 'roles/storage.objectAdmin', members: [member] }]) }), 1);
+    assert.strictEqual(run({ bindings: [read[0]] }), 1);
 });
 
 function fakeDb() {

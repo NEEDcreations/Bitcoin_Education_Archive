@@ -3,12 +3,10 @@
 // AES-256-GCM for the nightly Auth export. The key is Secret Manager
 // AUTH_BACKUP_KEY (32 bytes, base64 or 64-char hex). Never commit a key.
 //
-// Create it (the value is piped, so it is not a shell argument):
+// Phil generates it in Cloud Shell, never on the deploy box, and keeps an
+// offline copy. The value is piped, so it is not a shell argument:
 //   openssl rand -base64 32 | gcloud secrets versions add AUTH_BACKUP_KEY \
 //     --project=bitcoin-education-archive --data-file=-
-//
-// Wire it to the function before deploy:
-//   firebase functions:secrets:set AUTH_BACKUP_KEY
 //
 // File layout: magic "BQAE" | version 1 | 12-byte IV | 16-byte tag | ciphertext.
 

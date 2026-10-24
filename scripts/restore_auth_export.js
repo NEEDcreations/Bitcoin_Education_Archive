@@ -13,7 +13,9 @@
 // header includes the project's SCRYPT parameters. MFA enrollments are counted
 // and not recreated. This script does not print emails, hashes, or the signer key.
 //
-// Create AUTH_BACKUP_KEY with scripts/backup_infra_setup.sh (do not commit it).
+// scripts/backup_infra_setup.sh creates an empty AUTH_BACKUP_KEY secret.
+// Phil adds the key version in Cloud Shell and keeps an offline copy.
+// Do not commit the key.
 
 const fs = require('fs');
 const path = require('path');
