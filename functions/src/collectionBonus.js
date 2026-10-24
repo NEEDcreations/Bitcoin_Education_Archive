@@ -554,7 +554,36 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
         return col.badgeIds.indexOf(badgeId) !== -1;
     });
     const out = [];
+    if (!hits.length) return out;
+    // Skip the grant transaction when a server read already shows the set is
+    // incomplete or already recorded. The transaction checks the same facts
+    // again before it pays.
+    let held = null;
+    try {
+        const userRef = db.collection('users').doc(uid);
+        const userSnap = await userRef.get();
+        const awardsSnap = await userRef.collection('badge_awards').get();
+        const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
+        held = serverHeldBadgeIds(user, awardIdsFromSnap(awardsSnap));
+    } catch (err) {
+        held = null;
+    }
     for (let i = 0; i < hits.length; i++) {
+        if (held) {
+            const plan = planGrant(hits[i], held);
+            if (!plan.eligible) {
+                out.push({
+                    granted: false,
+                    success: plan.reason === 'already',
+                    reason: plan.reason,
+                    awarded: 0,
+                    xp: 0,
+                    badgeId: hits[i].bonusId,
+                    collectionId: hits[i].id,
+                });
+                continue;
+            }
+        }
         out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
     }
     return out;
