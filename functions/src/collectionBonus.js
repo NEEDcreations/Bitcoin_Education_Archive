@@ -3,17 +3,18 @@
 // Eleven merged collections. Each old set keeps its badges and its bonus id.
 // The server stops paying those old bonuses. A finished collection pays
 // bonusPts minus the old bonuses the user already holds, and never below 0.
-// Payment is server-side only: xp_ledger, the shared daily cap, and ten
-// Satoshi's Favor points. The first record also posts one Nacho message in
-// Global Chat. A client claim cannot choose the amount or the post.
+// Payment is server-side only, once per user per collection. The full
+// remainder is credited outside the shared daily cap and is not written to
+// that day's daily_points total. The ledger source is collection_bonus.
+// Ten Satoshi's Favor points are added with the first record. That record
+// also posts one Nacho message in Global Chat. A failed post stays pending
+// and is retried. A client claim cannot choose the amount or the post.
 
 const fs = require('fs');
 const path = require('path');
 
-const { applyDailyXp } = require('./applyDailyXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoints } = require('./favorPool');
-const { planDailyXp } = require('./dailyXp');
 const { serverHeldBadgeIds } = require('./badgeProfile');
 const { offsetDateKey } = require('./offsetDay');
 
@@ -197,21 +198,6 @@ function requiredMembers(col) {
     const ids = (col && col.badgeIds || []).slice();
     const proof = proofMemberIds(col);
     return proof.length ? proof : ids;
-}
-
-// From a fresh day. Dropped XP is not banked. applyDailyXp uses the same taper.
-function dailyCapReport() {
-    return collections().map(function (col) {
-        const plan = planDailyXp(0, col.bonusPts);
-        return {
-            id: col.id,
-            name: col.name,
-            bonusPts: col.bonusPts,
-            awarded: plan.awarded,
-            dropped: plan.dropped,
-            exceeds: plan.dropped > 0,
-        };
-    });
 }
 
 function planGrant(col, heldIds) {
@@ -444,6 +430,85 @@ async function postCollectionCongrats(db, adminSdk, uid, col) {
     return outcome || { wrote: false, reason: 'empty' };
 }
 
+function collectionsTouching(badgeId) {
+    if (!badgeId || isRetiredSetBonus(badgeId)) return [];
+    return collections().filter(function (col) {
+        return col.bonusId === badgeId || (col.badgeIds || []).indexOf(badgeId) !== -1;
+    });
+}
+
+function awardRowsFromSnap(snap) {
+    const rows = {};
+    if (!snap || typeof snap.forEach !== 'function') return rows;
+    snap.forEach(function (doc) {
+        if (!doc || !doc.id) return;
+        rows[doc.id] = typeof doc.data === 'function' ? (doc.data() || {}) : {};
+    });
+    return rows;
+}
+
+async function awardAlreadySettled(db, uid, badgeId, awardData) {
+    const hits = collectionsTouching(badgeId);
+    if (!hits.length) return true;
+    if (awardData && awardData.congratsPending === true) {
+        for (let i = 0; i < hits.length; i++) {
+            if (hits[i].bonusId === badgeId) return false;
+        }
+    }
+    try {
+        const userRef = db.collection('users').doc(uid);
+        const userSnap = await userRef.get();
+        const awardsSnap = await userRef.collection('badge_awards').get();
+        const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
+        const rows = awardRowsFromSnap(awardsSnap);
+        const held = serverHeldBadgeIds(user, Object.keys(rows));
+        for (let i = 0; i < hits.length; i++) {
+            const col = hits[i];
+            const plan = planGrant(col, held);
+            if (plan.eligible) return false;
+            const row = rows[col.bonusId] || {};
+            if (row.congratsPending === true) return false;
+        }
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+
+async function congratsPendingFor(db, uid, bonusId) {
+    try {
+        const snap = await db.collection('users').doc(uid).collection('badge_awards').doc(bonusId).get();
+        if (!snap || !snap.exists) return false;
+        const data = typeof snap.data === 'function' ? (snap.data() || {}) : {};
+        return data.congratsPending === true;
+    } catch (err) {
+        return true;
+    }
+}
+
+async function clearCongratsPending(db, awardRef) {
+    await db.runTransaction(async function (t) {
+        const snap = await t.get(awardRef);
+        if (!snap || !snap.exists) return;
+        const data = typeof snap.data === 'function' ? (snap.data() || {}) : {};
+        if (data.congratsPending !== true) return;
+        t.set(awardRef, { congratsPending: false }, { merge: true });
+    });
+}
+
+async function finishCongrats(db, adminSdk, uid, col, awardRef, options) {
+    if (options && options.failChat) {
+        throw new Error('failChat');
+    }
+    const posted = await postCollectionCongrats(db, adminSdk, uid, col);
+    const settled = !!(posted && (posted.wrote || posted.reason === 'already_posted'));
+    if (settled) await clearCongratsPending(db, awardRef);
+    return {
+        chatPosted: !!(posted && posted.wrote),
+        congratsPending: !settled,
+    };
+}
+
 async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
     const options = opts || {};
     const col = collectionById(collectionId);
@@ -471,8 +536,17 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: col.bonusId };
         }
         const held = serverHeldBadgeIds(user, awardIdsFromSnap(awardsSnap));
+        const award = awardSnap && awardSnap.exists ? (awardSnap.data() || {}) : {};
         if (xpSnap.exists || awardSnap.exists || held.has(col.bonusId)) {
-            return { granted: false, success: true, reason: 'already', awarded: 0, xp: 0, badgeId: col.bonusId };
+            return {
+                granted: false,
+                success: true,
+                reason: 'already',
+                awarded: 0,
+                xp: 0,
+                badgeId: col.bonusId,
+                congratsPending: award.congratsPending === true,
+            };
         }
         const plan = planGrant(col, held);
         if (!plan.eligible) {
@@ -482,12 +556,12 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
         const stateSnap = await t.get(stateRef);
         const contributorSnap = await t.get(contributorRef);
         const totalsSnap = await t.get(totalsRef);
-        const xpGrant = await applyDailyXp(uid, plan.remainder, t, { day: day, userRef: userRef });
-        const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
+        // Full remainder. This is the only XP credit that skips the daily cap.
+        // It does not read or write users/{uid}/daily_points/{day}.
+        const xp = plan.remainder > 0 ? plan.remainder : 0;
         const update = {
             visibleBadges: adminSdk.firestore.FieldValue.arrayUnion(col.bonusId),
         };
-        if (col.bonusPts > 0) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
         if (xp > 0) {
             update.points = adminSdk.firestore.FieldValue.increment(xp);
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
@@ -498,7 +572,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             amount: xp,
             requested: plan.remainder,
             awarded: xp,
-            dropped: xpGrant.dropped,
+            dropped: 0,
             day: day,
             createdAtMs: nowMs,
             uid: uid,
@@ -511,17 +585,12 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             badge: col.bonusId,
             xp: xp,
             requestedXp: plan.remainder,
-            dropped: xpGrant.dropped,
+            dropped: 0,
             day: day,
             source: 'collection_bonus',
+            congratsPending: options.postChat === false ? false : true,
         });
         t.update(userRef, update);
-        if (xp > 0 && xpGrant.dailyRef) {
-            t.set(xpGrant.dailyRef, {
-                total: xpGrant.dailyXp,
-                lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
-        }
         const favor = stageBadgeFavor(t, db, adminSdk, {
             uid: uid,
             badgeId: col.bonusId,
@@ -542,35 +611,41 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             xp: xp,
             awarded: xp,
             requested: plan.remainder,
-            dropped: xpGrant.dropped,
-            capped: xpGrant.capped === true,
+            dropped: 0,
+            capped: false,
             favor: favor,
             badgeId: col.bonusId,
             collectionId: col.id,
+            congratsPending: options.postChat !== false,
         };
     });
-    if (result && result.granted === true && options.postChat !== false) {
+    const shouldPost = options.postChat !== false && result && (
+        result.granted === true || (result.reason === 'already' && result.congratsPending === true)
+    );
+    if (shouldPost) {
         try {
-            const posted = await postCollectionCongrats(db, adminSdk, uid, col);
-            result.chatPosted = !!(posted && posted.wrote);
+            const posted = await finishCongrats(db, adminSdk, uid, col, awardRef, options);
+            result.chatPosted = posted.chatPosted;
+            result.congratsPending = posted.congratsPending;
         } catch (err) {
             console.error('[collectionBonus] chat', err && err.message ? err.message : err);
             result.chatPosted = false;
+            result.congratsPending = true;
+            if (err && typeof err === 'object') err.collectionChat = true;
+            throw err;
         }
     }
     return result;
 }
 
 async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
-    if (!uid || !badgeId || isRetiredSetBonus(badgeId)) return [];
-    const hits = collections().filter(function (col) {
-        return col.badgeIds.indexOf(badgeId) !== -1;
-    });
+    if (!uid || !badgeId) return [];
+    const hits = collectionsTouching(badgeId);
     const out = [];
     if (!hits.length) return out;
     // Skip the grant transaction when a server read already shows the set is
-    // incomplete or already recorded. The transaction checks the same facts
-    // again before it pays.
+    // incomplete or already recorded and the congrats post is not waiting.
+    // The transaction checks the same facts again before it pays.
     let held = null;
     try {
         const userRef = db.collection('users').doc(uid);
@@ -581,13 +656,14 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
     } catch (err) {
         held = null;
     }
+    let chatErr = null;
     for (let i = 0; i < hits.length; i++) {
         if (held) {
             const plan = planGrant(hits[i], held);
-            if (!plan.eligible) {
+            if (!plan.eligible && plan.reason !== 'already') {
                 out.push({
                     granted: false,
-                    success: plan.reason === 'already',
+                    success: false,
                     reason: plan.reason,
                     awarded: 0,
                     xp: 0,
@@ -596,9 +672,41 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
                 });
                 continue;
             }
+            if (plan.reason === 'already') {
+                const pending = await congratsPendingFor(db, uid, hits[i].bonusId);
+                if (!pending) {
+                    out.push({
+                        granted: false,
+                        success: true,
+                        reason: 'already',
+                        awarded: 0,
+                        xp: 0,
+                        badgeId: hits[i].bonusId,
+                        collectionId: hits[i].id,
+                    });
+                    continue;
+                }
+            }
         }
-        out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
+        try {
+            out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
+        } catch (err) {
+            if (!err || !err.collectionChat) throw err;
+            chatErr = chatErr || err;
+            out.push({
+                granted: true,
+                success: true,
+                reason: 'chat',
+                chatPosted: false,
+                congratsPending: true,
+                awarded: 0,
+                xp: 0,
+                badgeId: hits[i].bonusId,
+                collectionId: hits[i].id,
+            });
+        }
     }
+    if (chatErr) throw chatErr;
     return out;
 }
 
@@ -615,7 +723,8 @@ module.exports = {
     isRetiredSetBonus: isRetiredSetBonus,
     proofMemberIds: proofMemberIds,
     requiredMembers: requiredMembers,
-    dailyCapReport: dailyCapReport,
+    collectionsTouching: collectionsTouching,
+    awardAlreadySettled: awardAlreadySettled,
     planGrant: planGrant,
     emptyCounts: emptyCounts,
     summarizeUser: summarizeUser,

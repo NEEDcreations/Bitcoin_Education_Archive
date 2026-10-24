@@ -252,8 +252,15 @@ const doc = {
 const jsonPath = path.join(__dirname, 'badges.catalog.json');
 fs.writeFileSync(jsonPath, JSON.stringify(doc));
 
+const catalogJsonPath = require.resolve('./badges.catalog.json');
+const rulesPath = require.resolve('./badgeRules');
+delete require.cache[catalogJsonPath];
+delete require.cache[rulesPath];
+const freshRules = require('./badgeRules');
+
 const clientBadges = {};
 Object.keys(badges).forEach(function (id) {
+    const rule = freshRules.ruleFor(id);
     clientBadges[id] = {
         name: badges[id].name,
         emoji: badges[id].emoji,
@@ -261,6 +268,7 @@ Object.keys(badges).forEach(function (id) {
         xp: badges[id].xp,
         category: badges[id].category || '',
         hidden: badges[id].hidden === true,
+        serverAward: !!(rule && !rule.cosmetic),
     };
 });
 const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\n';

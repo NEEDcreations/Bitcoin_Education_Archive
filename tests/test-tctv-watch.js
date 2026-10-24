@@ -776,7 +776,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Completing one of the 11 badge collections pays the server bonus you have not already received, adds 10 Satoshi\'s Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.';
+    const latest = 'Latest: Completing one of the 11 badge collections pays the full server bonus you have not already received, that bonus is not limited by the daily XP cap, it adds 10 Satoshi\'s Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.';
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
     assert.ok(!notes.includes('Latest: Topic conversation links'));
     const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';

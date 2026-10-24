@@ -61,9 +61,6 @@ function serverHeldBadgeIds(user, extraIds) {
         const id = cleanBadgeId(raw);
         if (id) held.add(id);
     });
-    collectIds(user, HIDDEN_LIST_FIELDS, []).forEach(function (id) {
-        if (held.has(id)) held.add(id);
-    });
     return held;
 }
 

@@ -1483,6 +1483,29 @@ BADGE_COLLECTIONS.forEach(function(col) {
     });
 });
 
+function _collectionBonusCopy(pts) {
+    return '+' + pts + ' XP bonus (not limited by the daily cap)';
+}
+
+// Required members are the ones the server can award. Cosmetic members are
+// optional extras. A collection with no server-award member (Fun and Fitness)
+// still requires every badge.
+function _collectionMemberLists(col) {
+    var ids = (col && col.badgeIds) ? col.badgeIds.slice() : [];
+    var required = [];
+    var optional = [];
+    var catalog = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : {};
+    var sawServerAward = false;
+    ids.forEach(function(id) {
+        if (catalog[id] && catalog[id].serverAward === true) {
+            sawServerAward = true;
+            required.push(id);
+        } else optional.push(id);
+    });
+    if (!sawServerAward) return { required: ids, optional: [] };
+    return { required: required, optional: optional };
+}
+
 window._badgeCollectionProgress = function(earned) {
     var held = earned;
     if (!held) {
@@ -1493,9 +1516,10 @@ window._badgeCollectionProgress = function(earned) {
         try { JSON.parse(localStorage.getItem('btc_badges') || '[]').forEach(function(id) { held.add(id); }); } catch (e2) {}
     }
     return (BADGE_COLLECTIONS || []).map(function(col) {
+        var lists = _collectionMemberLists(col);
         var count = 0;
-        (col.badgeIds || []).forEach(function(id) { if (held.has(id)) count += 1; });
-        var total = (col.badgeIds || []).length;
+        lists.required.forEach(function(id) { if (held.has(id)) count += 1; });
+        var total = lists.required.length;
         return {
             id: col.id,
             name: col.name,
@@ -1516,7 +1540,8 @@ function _renderBadgeSets(earnedBadges) {
     var cols = (BADGE_COLLECTIONS || []).filter(Boolean);
     if (!cols.length) return '';
     var completed = cols.filter(function(col) {
-        return col.badgeIds.length && col.badgeIds.every(function(id) { return earnedBadges.has(id); });
+        var lists = _collectionMemberLists(col);
+        return lists.required.length && lists.required.every(function(id) { return earnedBadges.has(id); });
     }).length;
     var colId = 'badgeSetsPanel_' + Math.random().toString(36).substr(2, 5);
     var html = '<style>' +
@@ -1535,6 +1560,7 @@ function _renderBadgeSets(earnedBadges) {
         '.bc-bar{background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;margin-bottom:6px;}' +
         '.bc-bar > div{height:100%;border-radius:6px;}' +
         '.bc-bonus{font-size:0.68rem;line-height:1.35;overflow-wrap:anywhere;}' +
+        '.bc-flag{font-size:0.48rem;line-height:1;color:var(--text-faint);letter-spacing:0.2px;text-transform:uppercase;}' +
         '.bc-dist{margin-bottom:14px;}' +
         '.bc-dist-title{font-size:0.68rem;font-weight:800;color:var(--heading);letter-spacing:0.4px;text-transform:uppercase;margin-bottom:8px;}' +
         '.bc-dist-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;min-width:0;}' +
@@ -1552,21 +1578,35 @@ function _renderBadgeSets(earnedBadges) {
     html += '</button>';
     html += '<div id="' + colId + '" class="bc-panel">';
     cols.forEach(function(col) {
-        var earned = col.badgeIds.filter(function(id) { return earnedBadges.has(id); });
-        var total = col.badgeIds.length;
-        var pct = total ? Math.round((earned.length / total) * 100) : 0;
-        var complete = total > 0 && earned.length >= total;
+        var lists = _collectionMemberLists(col);
+        var earnedReq = lists.required.filter(function(id) { return earnedBadges.has(id); });
+        var optionalHeld = lists.optional.filter(function(id) { return earnedBadges.has(id); }).length;
+        var total = lists.required.length;
+        var pct = total ? Math.round((earnedReq.length / total) * 100) : 0;
+        var complete = total > 0 && earnedReq.length >= total;
         var bonusEarned = earnedBadges.has(col.bonusId);
+        var bonusCopy = _collectionBonusCopy(col.bonusPts);
         html += '<div class="bc-card" style="border-color:' + (complete ? col.color + '55' : 'var(--border)') + ';' + (complete ? 'box-shadow:0 0 12px ' + col.color + '22;' : '') + '">';
         html += '<div class="bc-head">';
         html += '<span class="bc-emoji">' + col.emoji + '</span>';
         html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + '</div>';
-        html += '<div class="bc-sub">' + earned.length + '/' + total + ' · ' + escapeHtml((col.includes || []).join(' · ')) + '</div></div>';
+        html += '<div class="bc-sub">' + earnedReq.length + '/' + total;
+        if (lists.optional.length) html += ' · ' + optionalHeld + '/' + lists.optional.length + ' optional';
+        html += ' · ' + escapeHtml((col.includes || []).join(' · ')) + '</div></div>';
         if (complete && bonusEarned) html += '<div style="font-size:1.1rem;filter:drop-shadow(0 0 6px gold);flex-shrink:0;">' + col.bonusEmoji + '</div>';
         html += '</div>';
+        if (bonusEarned) {
+            html += '<div class="bc-bonus" style="color:#22c55e;font-weight:700;">' + col.bonusEmoji + ' ' + escapeHtml(col.bonusName) + ' — bonus earned · ' + bonusCopy + '</div>';
+        } else if (complete) {
+            html += '<div class="bc-bonus" style="color:' + col.color + ';font-weight:700;">Complete. The server awards ' + bonusCopy + '.</div>';
+        } else {
+            html += '<div class="bc-bonus" style="color:var(--text-faint);">Complete to unlock ' + col.bonusEmoji + ' ' + escapeHtml(col.bonusName) + ' · ' + bonusCopy + '</div>';
+        }
+        html += '<div class="bc-bar"><div style="width:' + pct + '%;background:' + col.color + ';"></div></div>';
         html += '<div class="bc-badges">';
         col.badgeIds.forEach(function(bid) {
             var bEarned = earnedBadges.has(bid);
+            var extra = lists.optional.indexOf(bid) !== -1;
             var bDef = BADGE_DEFS.find(function(b) { return b.id === bid; });
             if (!bDef && window.BADGE_CATALOG && window.BADGE_CATALOG[bid]) {
                 bDef = { emoji: window.BADGE_CATALOG[bid].emoji || '🏅', name: window.BADGE_CATALOG[bid].name || bid, desc: window.BADGE_CATALOG[bid].desc || '' };
@@ -1576,25 +1616,19 @@ function _renderBadgeSets(earnedBadges) {
             var desc = bDef ? bDef.desc : '';
             var tipHtml = (bEarned ? '<span style=\"color:#22c55e;font-weight:700;\">\u2705 Earned</span><br>' : '<span style=\"color:#aaa;\">\uD83D\uDD12 Locked</span><br>') +
                 '<strong>' + escapeHtml(name) + '</strong>' +
+                (extra ? '<br><span style=\"color:#aaa;font-size:0.63rem;\">Optional extra</span>' : '') +
                 (desc ? ('<br><span style=\"color:#aaa;font-size:0.63rem;\">' + escapeHtml(desc) + '</span>') : '');
-            html += '<div class="bc-chip badge-set-item" data-set-tip="' + tipHtml.replace(/\"/g, '&quot;') + '"';
+            html += '<div class="bc-chip badge-set-item' + (extra ? ' bc-extra' : '') + '" data-set-tip="' + tipHtml.replace(/\"/g, '&quot;') + '"';
             html += ' style="' + (bEarned ? '' : 'opacity:0.4;') + '"';
             html += ' onclick="window._showBadgeSetTip(event,this)"';
             html += ' onmouseenter="window._showBadgeSetTip(event,this)"';
             html += ' onmouseleave="window._hideBadgeSetTip()">';
             html += '<span style="font-size:1.25rem;' + (bEarned ? 'filter:drop-shadow(0 0 4px ' + col.color + '88);' : 'filter:grayscale(1);') + '">' + emoji + '</span>';
             html += '<span class="bc-name" style="color:' + (bEarned ? 'var(--text)' : 'var(--text-faint)') + ';">' + escapeHtml(name) + '</span>';
+            if (extra) html += '<span class="bc-flag">extra</span>';
             html += '</div>';
         });
         html += '</div>';
-        html += '<div class="bc-bar"><div style="width:' + pct + '%;background:' + col.color + ';"></div></div>';
-        if (complete && bonusEarned) {
-            html += '<div class="bc-bonus" style="color:#22c55e;font-weight:700;">' + col.bonusEmoji + ' ' + escapeHtml(col.bonusName) + ' — bonus earned</div>';
-        } else if (complete) {
-            html += '<div class="bc-bonus" style="color:' + col.color + ';font-weight:700;">Complete. The server awards this bonus.</div>';
-        } else {
-            html += '<div class="bc-bonus" style="color:var(--text-faint);">Complete to unlock ' + col.bonusEmoji + ' ' + escapeHtml(col.bonusName) + ' (+' + col.bonusPts + ' XP)</div>';
-        }
         html += '</div>';
     });
     html += '</div>';

@@ -1062,11 +1062,20 @@ exports.onArticleBadgeCount = onDocumentCreated({
 // Retries a collection bonus if awardBadge committed the last member and the
 // grant hook then failed. Existing award docs do not fire this, so a deploy
 // does not pay historical completions. The grant itself stays idempotent.
-exports.onBadgeAwardCreated = onDocumentCreated('users/{uid}/badge_awards/{badgeId}', async (event) => {
+// A badge that is not in any collection returns before any read. A collection
+// that is already recorded, with no congrats still pending, does too.
+exports.onBadgeAwardCreated = onDocumentCreated({
+    document: 'users/{uid}/badge_awards/{badgeId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
     const uid = event.params && event.params.uid;
     const badgeId = event.params && event.params.badgeId;
     if (!uid || !badgeId) return null;
-    await require('./src/collectionBonus').maybeGrantForBadge(db, admin, uid, badgeId);
+    const collectionBonus = require('./src/collectionBonus');
+    if (!collectionBonus.collectionsTouching(badgeId).length) return null;
+    const awardData = event.data && typeof event.data.data === 'function' ? (event.data.data() || {}) : {};
+    if (await collectionBonus.awardAlreadySettled(db, uid, badgeId, awardData)) return null;
+    await collectionBonus.maybeGrantForBadge(db, admin, uid, badgeId);
     return null;
 });
 

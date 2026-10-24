@@ -3,21 +3,20 @@
  * Count users who already qualify for a merged collection bonus.
  * Dry-run is the default and prints counts only. It does not print
  * user ids or emails. Banned users are skipped. Remainder XP is the
- * new bonus minus old set bonuses already held, floored at 0, and is
- * printed before the daily cap.
+ * new bonus minus old set bonuses already held, floored at 0. That amount
+ * is paid in full. It is not limited by the daily cap and it is not added
+ * to that day's capped total.
  *
  * --apply pays that remainder through grantCollectionBonus. That writes
- * xp_ledger, counts the XP under the shared daily cap via applyDailyXp
- * (full to 500, half from 500 to 900, a quarter from 900 to 1,000), and
- * adds ten Satoshi's Favor points. A remainder of 0 still records the
- * bonus so it cannot be paid later. Chat posts are off. There is no flag
- * that turns them on.
+ * xp_ledger with source collection_bonus, does not call applyDailyXp, does
+ * not write daily_points, and adds ten Satoshi's Favor points. A remainder
+ * of 0 still records the bonus so it cannot be paid later. Chat posts are
+ * off, and congratsPending stays false. There is no flag that turns them on.
  *
  * Held badges are badge_awards plus badges, visibleBadges, and donationBadges.
  * A hiddenBadges id counts only when that same id is already in one of those.
  * earnedHidden, displayBadge, and equippedBadge do not count. xp_ledger ids
- * are not treated as held. The daily-cap report is the fresh-day taper:
- * anything past 1,000 credited XP is dropped and is not banked.
+ * are not treated as held.
  *
  * Do not pass --apply as part of a deploy. This script has not been run.
  *
@@ -47,8 +46,7 @@ function helpText() {
         'Dry-run prints counts only: scanned, banned skips, and per collection',
         'complete, already, payUsers, remainderXp, zeroRemainder, and favorPoints.',
         'favorPoints is 10 for each bonus this run would record.',
-        'remainderXp is before the daily cap. --apply uses applyDailyXp.',
-        'The cap lines show how much of each full bonus a fresh day would drop.',
+        'remainderXp is paid in full and is not limited by the daily cap.',
         'Chat posts stay off. This script never posts Nacho messages.',
         'No user ids or emails are printed.',
     ].join('\n');
@@ -79,16 +77,7 @@ function printCounts(counts, apply) {
         );
     });
     console.log('[collection-bonus] favorPoints ' + favorPoints + ' at 10 per recorded bonus');
-    console.log('[collection-bonus] remainderXp is before the daily cap. --apply uses applyDailyXp.');
-    collectionBonus.dailyCapReport().forEach(function (row) {
-        console.log(
-            '[collection-bonus] cap ' + row.name +
-            ' bonus ' + row.bonusPts +
-            ' awarded ' + row.awarded +
-            ' dropped ' + row.dropped +
-            (row.exceeds ? ' EXCEEDS' : '')
-        );
-    });
+    console.log('[collection-bonus] remainderXp is paid in full and is not limited by the daily cap.');
     console.log('[collection-bonus] chat posts off');
     console.log('[collection-bonus] mode ' + (apply ? 'apply' : 'dry-run'));
     console.log(JSON.stringify({

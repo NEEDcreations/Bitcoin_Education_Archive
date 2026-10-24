@@ -307,23 +307,60 @@ queue.push(test('holding every old bonus pays nothing more and still records the
     assert.strictEqual(db.docs['users/u'].points, 0);
 }));
 
-queue.push(test('the daily cap tapers a remainder and a banned or incomplete user is not paid', async function () {
+queue.push(test('a full-cap day still pays the full collection bonus and a second grant is already', async function () {
     assert.strictEqual(planDailyXp(500, 100).awarded, 50);
+    assert.strictEqual(planDailyXp(1000, 4150).awarded, 0);
     const col = collectionBonus.collectionById('col_builder');
     const held = col.legacyBonuses.filter(function (row) { return row.pts === 500; })[0];
     const remainder = col.bonusPts - held.pts;
     assert.strictEqual(remainder, 150);
     const ids = collectionBonus.requiredMembers(col).concat([held.id]);
-    const seed = seedAwards(ids, { 'users/u/daily_points/2026-10-24': { total: 500 } });
+    const seed = seedAwards(ids, { 'users/u/daily_points/2026-10-24': { total: 1000 } });
     const db = memoryDb(seed);
-    const result = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000 });
+    const result = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, postChat: false });
+    assert.strictEqual(result.granted, true);
     assert.strictEqual(result.requested, 150);
-    assert.strictEqual(result.xp, planDailyXp(500, 150).awarded);
-    assert.strictEqual(result.xp, 75);
-    assert.strictEqual(db.docs['users/u/daily_points/2026-10-24'].total, 575);
+    assert.strictEqual(result.xp, 150);
+    assert.strictEqual(result.dropped, 0);
+    assert.strictEqual(result.capped, false);
+    assert.strictEqual(db.docs['users/u'].points, 150);
+    assert.strictEqual(db.docs['users/u/daily_points/2026-10-24'].total, 1000);
+    assert.strictEqual(db.docs['users/u'].payingBadgeCount, undefined);
+    const ledger = db.docs['users/u/xp_ledger/' + col.bonusId];
+    assert.strictEqual(ledger.source, 'collection_bonus');
+    assert.strictEqual(ledger.awarded, 150);
+    assert.strictEqual(ledger.dropped, 0);
+    assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId].congratsPending, false);
+    const again = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000 });
+    assert.strictEqual(again.reason, 'already');
+    assert.strictEqual(again.granted, false);
+    assert.strictEqual(db.docs['users/u'].points, 150);
+    assert.strictEqual(db.docs['users/u/daily_points/2026-10-24'].total, 1000);
+    assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
+
+    const habits = collectionBonus.collectionById('col_daily_habits');
+    const habitsDb = memoryDb(seedAwards(collectionBonus.requiredMembers(habits), {
+        'users/u/daily_points/2026-10-24': { total: 1000 },
+    }));
+    const paid = await collectionBonus.grantCollectionBonus(habitsDb, admin, 'u', habits.id, { day: '2026-10-24', nowMs: 1700000000000, postChat: false });
+    assert.strictEqual(paid.granted, true);
+    assert.strictEqual(paid.xp, 4150);
+    assert.strictEqual(habitsDb.docs['users/u'].points, 4150);
+    assert.strictEqual(habitsDb.docs['users/u/daily_points/2026-10-24'].total, 1000);
+    assert.strictEqual(habitsDb.docs['users/u/xp_ledger/' + habits.bonusId].source, 'collection_bonus');
+    const habitsAgain = await collectionBonus.grantCollectionBonus(habitsDb, admin, 'u', habits.id, { day: '2026-10-24', nowMs: 1700000000000 });
+    assert.strictEqual(habitsAgain.reason, 'already');
+    assert.strictEqual(habitsDb.docs['users/u'].points, 4150);
+
     const awardSrc = fs.readFileSync(path.join(root, 'functions/src/collectionBonus.js'), 'utf8');
-    assert.ok(awardSrc.includes('applyDailyXp(uid, plan.remainder, t, { day: day, userRef: userRef })'));
+    assert.ok(!awardSrc.includes('applyDailyXp('));
     assert.ok(!awardSrc.includes('bypass: true'));
+    assert.ok(!awardSrc.includes("collection('daily_points')"));
+    assert.ok(!awardSrc.includes('dailyRef'));
+    assert.ok(!awardSrc.includes('payingBadgeCount'));
+    assert.ok(awardSrc.includes("source: 'collection_bonus'"));
+    const indexSrc = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+    assert.ok(!indexSrc.includes('grantCollectionBonus'));
 
     const banned = memoryDb(seedAwards(collectionBonus.requiredMembers(col), {
         'users/u': { points: 4, ban_reason: 'ledger', visibleBadges: collectionBonus.requiredMembers(col).slice() },
@@ -377,7 +414,10 @@ queue.push(test('the dry-run backfill prints counts and does not apply unless as
     assert.ok(text.includes('banned skipped 1'));
     assert.ok(text.includes('remainderXp 1650'));
     assert.ok(text.includes('mode dry-run'));
-    assert.ok(text.includes('before the daily cap'));
+    assert.ok(text.includes('paid in full and is not limited by the daily cap'));
+    assert.ok(!text.includes('before the daily cap'));
+    assert.ok(!text.includes('EXCEEDS'));
+    assert.ok(!text.includes('[collection-bonus] cap '));
     assert.ok(text.includes('favorPoints 10'));
     assert.ok(text.includes('at 10 per recorded bonus'));
     assert.ok(text.includes('chat posts off'));
@@ -469,6 +509,7 @@ queue.push(test('Nacho tags a public username once and skips Anonymous', async f
     const recorded = await collectionBonus.grantCollectionBonus(quiet, admin, uid, col.id, { day: '2026-10-24', nowMs: now, postChat: false });
     assert.strictEqual(recorded.granted, true);
     assert.strictEqual(recorded.chatPosted, undefined);
+    assert.strictEqual(quiet.docs['users/' + uid + '/badge_awards/' + col.bonusId].congratsPending, false);
     assert.strictEqual(chatDocs(quiet).length, 0);
     assert.strictEqual(quiet.docs['notifications/' + docId], undefined);
     assert.strictEqual(quiet.docs['satoshiFavor/userSfPoints/users/' + uid].points, 10);
@@ -620,35 +661,97 @@ queue.push(test('Fun and Fitness pays no XP and still records Favor and the cong
     assert.strictEqual(db.docs['users/fit_user'].points, 0);
     assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/fit_user'].points, 10);
     assert.strictEqual(result.chatPosted, true);
+    assert.strictEqual(db.docs['users/fit_user/badge_awards/' + col.bonusId].congratsPending, false);
     const msg = db.docs['global_chat/' + collectionBonus.collectionChatDocId(col.bonusId, 'fit_user')];
     assert.strictEqual(msg.mentionUid, 'fit_user');
     assert.ok(msg.text.indexOf('@TrailFan') !== -1);
     assert.ok(msg.text.indexOf('Fun and Fitness') !== -1);
 }));
 
-queue.push(test('a fresh day drops XP past the 1000 cap and the award trigger retries', function () {
-    const report = {};
-    collectionBonus.dailyCapReport().forEach(function (row) { report[row.id] = row; });
-    assert.strictEqual(report.col_daily_habits.awarded, 1000);
-    assert.strictEqual(report.col_daily_habits.dropped, 3150);
-    assert.strictEqual(report.col_arena.awarded, 825);
-    assert.strictEqual(report.col_arena.dropped, 325);
-    assert.strictEqual(report.col_foresight.awarded, 750);
-    assert.strictEqual(report.col_foresight.dropped, 250);
-    assert.strictEqual(report.col_community.awarded, 650);
-    assert.strictEqual(report.col_community.dropped, 150);
-    assert.strictEqual(report.col_builder.awarded, 575);
-    assert.strictEqual(report.col_builder.dropped, 75);
-    ['col_learning', 'col_mining', 'col_lightning', 'col_entertainment', 'col_profile', 'col_fitness'].forEach(function (id) {
-        assert.strictEqual(report[id].dropped, 0, id);
-        assert.strictEqual(report[id].awarded, SERVER_BONUS[id], id);
-    });
+queue.push(test('a failed congrats stays pending and the next grant posts once', async function () {
+    const col = collectionBonus.collectionById('col_builder');
+    const db = memoryDb(seedAwards(collectionBonus.requiredMembers(col), {
+        'public_profiles/u': { username: 'BuilderFan' },
+    }));
+    let threw = false;
+    try {
+        await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, failChat: true });
+    } catch (err) {
+        threw = err && err.message === 'failChat' && err.collectionChat === true;
+    }
+    assert.strictEqual(threw, true);
+    assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId].congratsPending, true);
+    assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId].source, 'collection_bonus');
+    assert.strictEqual(chatDocs(db).length, 0);
+    assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
+    const second = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000 });
+    assert.strictEqual(second.reason, 'already');
+    assert.strictEqual(second.granted, false);
+    assert.strictEqual(second.chatPosted, true);
+    assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId].congratsPending, false);
+    assert.strictEqual(chatDocs(db).length, 1);
+    assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
+    const third = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000 });
+    assert.strictEqual(third.reason, 'already');
+    assert.strictEqual(third.chatPosted, undefined);
+    assert.strictEqual(chatDocs(db).length, 1);
+
+    const quiet = memoryDb(seedAwards(collectionBonus.requiredMembers(col)));
+    const recorded = await collectionBonus.grantCollectionBonus(quiet, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, postChat: false });
+    assert.strictEqual(recorded.granted, true);
+    assert.strictEqual(quiet.docs['users/u/badge_awards/' + col.bonusId].congratsPending, false);
+    assert.strictEqual(chatDocs(quiet).length, 0);
+    assert.strictEqual(quiet.docs['users/u'].payingBadgeCount, undefined);
+}));
+
+queue.push(test('the award trigger skips unrelated badges and retries a pending congrats', async function () {
+    assert.strictEqual(collectionBonus.collectionsTouching('not_a_member').length, 0);
+    assert.strictEqual(collectionBonus.collectionsTouching('set_tv').length, 0);
+    const overlap = collectionBonus.collectionsTouching('tctv_daily_1').map(function (col) { return col.id; }).sort();
+    assert.deepStrictEqual(overlap, ['col_daily_habits', 'col_entertainment']);
+    const sayHi = memoryDb(seedAwards(['say_hi_1']));
+    assert.strictEqual(await collectionBonus.awardAlreadySettled(sayHi, 'u', 'say_hi_1', {}), true);
+    const col = collectionBonus.collectionById('col_entertainment');
+    const pendingDocs = seedAwards(collectionBonus.requiredMembers(col));
+    pendingDocs['users/u'].visibleBadges.push(col.bonusId);
+    pendingDocs['users/u/badge_awards/' + col.bonusId] = { badge: col.bonusId, source: 'collection_bonus', congratsPending: true, xp: 150 };
+    pendingDocs['users/u/xp_ledger/' + col.bonusId] = { source: 'collection_bonus', awarded: 150 };
+    const pendingDb = memoryDb(pendingDocs);
+    assert.strictEqual(await collectionBonus.awardAlreadySettled(pendingDb, 'u', col.bonusId, { congratsPending: true }), false);
+    const posted = await collectionBonus.maybeGrantForBadge(pendingDb, admin, 'u', col.bonusId, { day: '2026-10-24', nowMs: 1700000000000 });
+    assert.strictEqual(posted.length, 1);
+    assert.strictEqual(posted[0].reason, 'already');
+    assert.strictEqual(posted[0].chatPosted, true);
+    assert.strictEqual(pendingDb.docs['users/u/badge_awards/' + col.bonusId].congratsPending, false);
+    assert.strictEqual(chatDocs(pendingDb).length, 1);
+    assert.strictEqual(pendingDb.docs['users/u'].points, 0);
+    assert.strictEqual(await collectionBonus.awardAlreadySettled(pendingDb, 'u', col.bonusId, {}), true);
+
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
-    assert.ok(index.includes('exports.onBadgeAwardCreated'));
-    assert.ok(index.includes("onDocumentCreated('users/{uid}/badge_awards/{badgeId}'"));
-    assert.ok(index.includes('maybeGrantForBadge(db, admin, uid, badgeId)'));
+    const block = index.slice(index.indexOf('exports.onBadgeAwardCreated'), index.indexOf('exports.onBadgeAwardCreated') + 1200);
+    assert.ok(block.includes('exports.onBadgeAwardCreated'));
+    assert.ok(block.includes("document: 'users/{uid}/badge_awards/{badgeId}'"));
+    assert.ok(block.includes('maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances'));
+    assert.ok(block.includes('collectionsTouching(badgeId)'));
+    assert.ok(block.includes('awardAlreadySettled(db, uid, badgeId, awardData)'));
+    assert.ok(block.includes('maybeGrantForBadge(db, admin, uid, badgeId)'));
     const awardSrc = fs.readFileSync(path.join(root, 'functions/src/awardBadge.js'), 'utf8');
     assert.ok(awardSrc.includes('[collectionBonus] retry'));
+    const badges = fs.readFileSync(path.join(root, 'badges.js'), 'utf8');
+    assert.ok(badges.includes('XP bonus (not limited by the daily cap)'));
+    assert.ok(badges.includes('_collectionMemberLists'));
+    assert.ok(badges.includes('optional'));
+    assert.ok(!badges.includes("(+ ' + col.bonusPts"));
+    const clientSrc = fs.readFileSync(path.join(root, 'badges.catalog.js'), 'utf8');
+    const clientStart = clientSrc.indexOf('window.BADGE_CATALOG=') + 'window.BADGE_CATALOG='.length;
+    const clientEnd = clientSrc.indexOf(';\nwindow.BADGE_CATALOG_VERSION');
+    const client = JSON.parse(clientSrc.slice(clientStart, clientEnd));
+    collectionBonus.collections().forEach(function (row) {
+        const flagged = row.badgeIds.filter(function (id) { return client[id] && client[id].serverAward === true; });
+        const proof = collectionBonus.proofMemberIds(row).slice().sort();
+        flagged.sort();
+        assert.deepStrictEqual(flagged, proof, row.id);
+    });
 }));
 
 Promise.all(queue).then(function () {
