@@ -9,6 +9,7 @@ const referrals = require('./referrals');
 const rewardNotify = require('./rewardNotify');
 const faucetGuard = require('./faucetGuard');
 const ipHmac = require('./ipHmac');
+const ipReputation = require('./ipReputation');
 
 function db() {
     return admin.firestore();
@@ -66,10 +67,10 @@ async function linkedAccount(uid, user, ip, nowMs) {
         const decision = faucetGuard.assessFingerprint(uids, uid);
         if (!decision.ok) reasons.push('linked-fingerprint');
     }
-    const net = faucetGuard.networkKeys(ip);
-    if (net) {
-        const ipDoc = await db().collection('faucet_ip_log').doc(net.exactId).get();
-        const subnetDoc = await db().collection('faucet_subnet_log').doc(net.rangeId).get();
+    const netIds = ipReputation.networkDocIds(ip);
+    if (netIds) {
+        const ipDoc = await db().collection('faucet_ip_log').doc(netIds.ipId).get();
+        const subnetDoc = await db().collection('faucet_subnet_log').doc(netIds.rangeId).get();
         const ipSlot = ipDoc.exists ? ipDoc.data() : {};
         const subnetSlot = subnetDoc.exists ? subnetDoc.data() : {};
         const ipDecision = faucetGuard.assessExactIpSlot({
@@ -239,6 +240,21 @@ async function registerReferral(data, context) {
         }
         return { success: false, reason: gate.reason, status: gate.status };
     }
+    const rewardHeaders = context && context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
+    let reward = { action: 'fallback', reason: 'lookup', message: '', ipVerdict: null, deviceHmac: '', deviceAction: 'fallback' };
+    try {
+        reward = await ipReputation.assessReward({
+            db: db(),
+            ip: rawIp,
+            uid: uid,
+            userAgent: rewardHeaders['user-agent'] || '',
+            language: rewardHeaders['accept-language'] || '',
+            requestId: data && data.ipqsRequestId,
+            purpose: 'referral',
+        });
+    } catch (e) {
+        console.error('[referral] reward gate fallback');
+    }
 
     await ensureReferralCode(uid);
     const referrerUid = await lookupReferrerUid(code, uid);
@@ -247,6 +263,13 @@ async function registerReferral(data, context) {
         const referrerSnap = await db().collection('users').doc(referrerUid).get();
         if (referrerSnap.exists) referrer = userView(referrerUid, referrerSnap.data());
     }
+    if (referrer) {
+        const referrerDevice = await db().collection('user_devices').doc(referrer.uid).get();
+        referrer.deviceHmac = referrerDevice.exists ? String((referrerDevice.data() || {}).deviceHmac || '') : '';
+    }
+    referred.deviceHmac = reward.deviceHmac || '';
+    referred.ipqsAction = reward.ipVerdict ? reward.ipVerdict.action : '';
+    referred.deviceAction = reward.deviceAction === 'deny' || reward.deviceAction === 'hold' ? reward.deviceAction : '';
     let signupIpHmac = '';
     try {
         signupIpHmac = ipHmac.hmacIp(rawIp);
@@ -274,12 +297,24 @@ async function registerReferral(data, context) {
         if (!fresh.exists) return;
         if (fresh.data().referredBy && fresh.data().referredBy !== code) return;
         t.set(refRef, referralPayload(uid, referrer ? referrer.uid : '', code, status));
+        const verdict = reward.ipVerdict || {};
         t.set(signalRef, {
             signupIpHmac: signupIpHmac,
             expireAt: admin.firestore.Timestamp.fromMillis(now + referrals.SIGNAL_TTL_MS),
             referrerUid: referrer ? referrer.uid : '',
             flags: flags,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            ipqsAction: verdict.action || 'fallback',
+            ipqsReason: String(verdict.reason || reward.reason || '').slice(0, 40),
+            ipqsFraudScore: verdict.fraudScore == null ? null : verdict.fraudScore,
+            ipqsProxy: !!verdict.proxy,
+            ipqsVpn: !!verdict.vpn,
+            ipqsTor: !!verdict.tor,
+            ipqsDatacenter: !!verdict.datacenter,
+            ipqsRecentAbuse: !!verdict.recentAbuse,
+            ipqsCountry: String(verdict.countryCode || '').slice(0, 2),
+            ipqsCheckedAtMs: Number(verdict.checkedAtMs) || 0,
+            deviceHmac: reward.deviceHmac || '',
         });
         const userUpdate = { referredBy: code, referralVerified: false };
         t.update(userRef, userUpdate);
@@ -301,6 +336,7 @@ async function registerReferral(data, context) {
         reason: created ? status : 'exists',
         status: status,
         paid: paid,
+        message: reward.message || '',
     };
 }
 
@@ -326,10 +362,13 @@ async function payIfQualified(referredUid) {
     const referredLedgerRef = db().collection('faucet_ledger').doc(uid);
     const referrerLedgerRef = db().collection('faucet_ledger').doc(referrerUid);
     const limitRef = db().collection('referral_pay_limits').doc(referrerUid);
+    const referredHoldRef = db().collection('device_holds').doc(uid);
+    const referredDeviceRef = db().collection('user_devices').doc(uid);
+    const referrerDeviceRef = db().collection('user_devices').doc(referrerUid);
 
     let outcome = { paid: false, reason: 'skip' };
     await db().runTransaction(async function(t) {
-        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger, limitDoc] = await Promise.all([
+        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger, limitDoc, referredHold, referredDevice, referrerDevice] = await Promise.all([
             t.get(refRef),
             t.get(referredRef),
             t.get(referrerRef),
@@ -337,6 +376,9 @@ async function payIfQualified(referredUid) {
             t.get(referredLedgerRef),
             t.get(referrerLedgerRef),
             t.get(limitRef),
+            t.get(referredHoldRef),
+            t.get(referredDeviceRef),
+            t.get(referrerDeviceRef),
         ]);
         if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists) {
             outcome = { paid: false, reason: 'missing-user' };
@@ -363,6 +405,19 @@ async function payIfQualified(referredUid) {
         const storedHmac = fresh ? String(signal.signupIpHmac || '') : '';
         referredView.known_ips = fresh ? hmacIps(referredView.known_ips) : [];
         referrerView.known_ips = fresh ? hmacIps(referrerView.known_ips) : [];
+        referredView.ipqsAction = String(signal.ipqsAction || '');
+        referredView.deviceHmac = String(signal.deviceHmac || '');
+        if (!referredView.deviceHmac && referredDevice.exists) {
+            referredView.deviceHmac = String((referredDevice.data() || {}).deviceHmac || '');
+        }
+        if (referrerDevice.exists) {
+            referrerView.deviceHmac = String((referrerDevice.data() || {}).deviceHmac || '');
+        }
+        const hold = referredHold.exists ? (referredHold.data() || {}) : null;
+        const holdExp = hold ? millisOf(hold.expireAt) : 0;
+        if (hold && hold.approved !== true && hold.held === true && (!holdExp || holdExp > Date.now())) {
+            referredView.deviceAction = hold.reason === 'device-fraud' ? 'deny' : 'hold';
+        }
         const recentPaidAt = limitDoc.exists ? (limitDoc.data().paidAtMs || []) : [];
         const decision = referrals.assessReferralPayout({
             hasSignal: true,

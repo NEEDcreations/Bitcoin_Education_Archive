@@ -2293,6 +2293,25 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // IP reputation cache, daily IPQS quota, and device links. Server only.
+    // TTL fields: ip_reputation.expireAt, ipqs_usage.expireAt,
+    // device_links.expireAt, device_holds.expireAt, user_devices.expireAt.
+    match /ip_reputation/{docId} {
+      allow read, write: if false;
+    }
+    match /ipqs_usage/{docId} {
+      allow read, write: if false;
+    }
+    match /device_links/{docId} {
+      allow read, write: if false;
+    }
+    match /device_holds/{docId} {
+      allow read, write: if false;
+    }
+    match /user_devices/{docId} {
+      allow read, write: if false;
+    }
+
     // Daily faucet abuse report and the flags that feed it. Admins read, server writes.
     match /faucet_admin_flags/{docId} {
       allow read: if isAdmin();

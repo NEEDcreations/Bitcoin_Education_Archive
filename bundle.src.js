@@ -2533,8 +2533,19 @@ async function attachReferral(uid) {
     try {
         if (typeof firebase === 'undefined' || !firebase.functions) return;
         var fn = firebase.functions().httpsCallable('registerReferral');
-        var result = await fn({ refCode: refCode });
+        var ipqsRequestId = '';
+        try {
+            if (typeof window.btcPrepareIpqsDevice === 'function') {
+                ipqsRequestId = await window.btcPrepareIpqsDevice('referral');
+            }
+        } catch (ipqsErr) {
+            ipqsRequestId = '';
+        }
+        var result = await fn({ refCode: refCode, ipqsRequestId: ipqsRequestId || '' });
         var data = result && result.data;
+        if (data && data.message && typeof window.btcShowReferralRewardNote === 'function') {
+            window.btcShowReferralRewardNote(data.message);
+        }
         if (data && (data.success || data.reason === 'self' || data.reason === 'late' || data.reason === 'account-age' || data.reason === 'points' || data.reason === 'exists')) {
             localStorage.removeItem('btc_referral_code');
             if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
@@ -2781,9 +2792,30 @@ function _inviteCountLine(stats) {
     return invitedLabel + ' · ' + maxiLabel;
 }
 
+function btcShowReferralRewardNote(message) {
+    var text = String(message || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+    try {
+        if (text) sessionStorage.setItem('btc_referral_reward_note', text);
+        else sessionStorage.removeItem('btc_referral_reward_note');
+    } catch (e) {}
+    var el = document.getElementById('inviteRewardNote');
+    if (!el) return;
+    if (!text) {
+        el.hidden = true;
+        el.textContent = '';
+        return;
+    }
+    el.hidden = false;
+    el.textContent = text;
+}
+window.btcShowReferralRewardNote = btcShowReferralRewardNote;
+
 function _fillInviteCard() {
     var linkEl = document.getElementById('inviteLink');
     if (linkEl) linkEl.textContent = getReferralLink();
+    var savedNote = '';
+    try { savedNote = sessionStorage.getItem('btc_referral_reward_note') || ''; } catch (e) {}
+    if (savedNote) btcShowReferralRewardNote(savedNote);
     var share = document.getElementById('inviteShare');
     if (share) share.hidden = !navigator.share;
     var copyBtn = document.getElementById('inviteCopy');
@@ -2856,6 +2888,7 @@ function openInviteFriends(force) {
         return;
     }
     if (force) _inviteWriteStored('open');
+    if (typeof window.btcPrepareIpqsDevice === 'function') window.btcPrepareIpqsDevice('referral');
     var modal = document.getElementById('usernameModal');
     if (modal) modal.classList.remove('open');
     if (typeof goHome === 'function') goHome();

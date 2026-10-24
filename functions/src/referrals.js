@@ -23,6 +23,10 @@ const BLOCKING_FLAGS = {
     'banned': 'rejected',
     'ledger-banned': 'rejected',
     'same-fingerprint': 'flagged',
+    'ipqs-deny': 'rejected',
+    'ipqs-hold': 'flagged',
+    'device-deny': 'rejected',
+    'device-hold': 'flagged',
     'same-ip': 'flagged',
     'same-email': 'flagged',
     'same-lightning': 'flagged',
@@ -91,9 +95,13 @@ function fraudFlags(referred, referrer, signupIp) {
     if (referred.satsDisabled === true || referrer.satsDisabled === true) flags.push('sats-disabled');
     if (referred.banned === true || referrer.banned === true) flags.push('banned');
     if (referred.ledgerBanned === true || referrer.ledgerBanned === true) flags.push('ledger-banned');
-    const fpA = String(referred.fingerprint || '').trim();
-    const fpB = String(referrer.fingerprint || '').trim();
-    if (fpA && fpB && fpA === fpB) flags.push('same-fingerprint');
+    const devA = String(referred.deviceHmac || '').trim().toLowerCase();
+    const devB = String(referrer.deviceHmac || '').trim().toLowerCase();
+    if (devA && devB && devA === devB) flags.push('same-fingerprint');
+    if (referred.ipqsAction === 'deny') flags.push('ipqs-deny');
+    if (referred.ipqsAction === 'hold') flags.push('ipqs-hold');
+    if (referred.deviceAction === 'deny') flags.push('device-deny');
+    if (referred.deviceAction === 'hold') flags.push('device-hold');
     const ipsA = ipList(referred.known_ips);
     const ipsB = ipList(referrer.known_ips);
     const extra = lower(signupIp);

@@ -15,6 +15,59 @@ const FIREBASE_CONFIG = {
 
 // Public reCAPTCHA v3 site key. The matching secret stays in the Firebase console.
 var APP_CHECK_RECAPTCHA_SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
+
+// Public IPQS device-tracker settings. Not a secret. The API key never ships to the browser.
+// Phil: paste the Device Tracker ID from the IPQS dashboard (Device Fingerprint).
+// Leave the ID blank to skip the tracker. The server then uses the existing checks.
+// If IPQS assigns a custom script domain, change IPQS_DEVICE_SCRIPT_HOST.
+// A separate device postback key, if the dashboard issues one, is the server env
+// IPQS_DEVICE_POSTBACK_KEY and is never placed here.
+var IPQS_DEVICE_TRACKER_ID = '';
+var IPQS_DEVICE_SCRIPT_HOST = 'https://www.ipqscdn.com';
+
+window.btcPrepareIpqsDevice = function(purpose) {
+    var allowed = { faucet: 1, referral: 1, favor: 1 };
+    if (!allowed[purpose]) return Promise.resolve('');
+    if (window._ipqsRequestId) return Promise.resolve(window._ipqsRequestId);
+    if (window._ipqsPromise) return window._ipqsPromise;
+    var trackerId = String(IPQS_DEVICE_TRACKER_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
+    if (!trackerId) return Promise.resolve('');
+    window._ipqsPromise = new Promise(function(resolve) {
+        var done = false;
+        function finish(id) {
+            if (done) return;
+            done = true;
+            var clean = String(id || '').trim();
+            if (!/^[A-Za-z0-9_-]{8,128}$/.test(clean)) clean = '';
+            window._ipqsRequestId = clean;
+            resolve(clean);
+        }
+        setTimeout(function() { finish(''); }, 4000);
+        window.IPQ = {
+            Callback: function() {
+                try {
+                    if (!window.Startup || !window.Startup.AfterResult || !window.Startup.Init) {
+                        finish('');
+                        return;
+                    }
+                    window.Startup.AfterResult(function(result) {
+                        finish(result && result.request_id ? result.request_id : '');
+                    });
+                    window.Startup.Init();
+                } catch (e) {
+                    finish('');
+                }
+            }
+        };
+        var script = document.createElement('script');
+        script.src = String(IPQS_DEVICE_SCRIPT_HOST || 'https://www.ipqscdn.com').replace(/\/$/, '') + '/api/' + encodeURIComponent(trackerId) + '/learn.js';
+        script.crossOrigin = 'anonymous';
+        script.async = true;
+        script.onerror = function() { finish(''); };
+        document.head.appendChild(script);
+    });
+    return window._ipqsPromise;
+};
 var LN_ADDRESS_LOCK_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 var LN_ADDRESS_LOCKED_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 
@@ -10142,6 +10195,7 @@ window.initSatsClaim = function() {
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    if (typeof window.btcPrepareIpqsDevice === 'function') window.btcPrepareIpqsDevice('faucet');
     // Re-render Turnstile widget now that the element is in the DOM
     if (window.turnstile) {
         window.turnstile.render('#satsClaimTurnstile', {
@@ -10252,7 +10306,15 @@ window.submitSatsClaim = async function() {
             if (window.turnstile) window.turnstile.reset('#satsClaimTurnstile');
             return;
         }
-        var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
+        var ipqsRequestId = '';
+        try {
+            if (typeof window.btcPrepareIpqsDevice === 'function') {
+                ipqsRequestId = await window.btcPrepareIpqsDevice('faucet');
+            }
+        } catch (ipqsErr) {
+            ipqsRequestId = '';
+        }
+        var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken, ipqsRequestId: ipqsRequestId || '' }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);

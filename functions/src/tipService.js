@@ -115,12 +115,16 @@ async function recipientLightning(recipientUid) {
 }
 
 async function linkedTip(callerUid, recipientUid) {
-    const [leftDoc, rightDoc] = await Promise.all([
+    const [leftDoc, rightDoc, leftDev, rightDev] = await Promise.all([
         db().collection('users').doc(callerUid).get(),
         db().collection('users').doc(recipientUid).get(),
+        db().collection('user_devices').doc(callerUid).get(),
+        db().collection('user_devices').doc(recipientUid).get(),
     ]);
     const left = Object.assign({ uid: callerUid }, leftDoc.exists ? leftDoc.data() : {});
     const right = Object.assign({ uid: recipientUid }, rightDoc.exists ? rightDoc.data() : {});
+    if (leftDev.exists) left.deviceHmac = String((leftDev.data() || {}).deviceHmac || '');
+    if (rightDev.exists) right.deviceHmac = String((rightDev.data() || {}).deviceHmac || '');
     const flags = referrals.fraudFlags(left, right, '');
     return flags.some(function(flag) {
         return flag === 'self' || flag === 'same-fingerprint' || flag === 'same-email' || flag === 'same-lightning';

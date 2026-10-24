@@ -2,6 +2,7 @@ const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
+const ipqsApiKey = defineSecret('IPQS_API_KEY');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -149,6 +150,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const ipReputation = require('./src/ipReputation');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
 const ticketGrants = require('./src/ticketGrants');
@@ -1343,8 +1345,64 @@ exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).ht
     };
 });
 
-exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).https.onCall(async (data, context) => {
+exports.registerReferral = functionsV1.runWith({
+    secrets: [referralIpSecret, ipqsApiKey],
+    enforceAppCheck: true,
+}).https.onCall(async (data, context) => {
     return referralService.registerReferral(data, context);
+});
+
+// Admin-only. Clears a device hold so a later account on a shared device
+// can receive rewards. The audit row stores uids and an HMAC prefix, never an IP.
+exports.approveHouseholdDevice = functionsV1.runWith({
+    secrets: [referralIpSecret],
+    enforceAppCheck: true,
+}).https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (!context.auth.token || context.auth.token.admin !== true) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const uid = String((data && data.uid) || '').trim();
+    if (!/^[A-Za-z0-9]{6,128}$/.test(uid)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'A user id is required');
+    }
+    const now = Date.now();
+    const holdRef = db.collection('device_holds').doc(uid);
+    const holdSnap = await holdRef.get();
+    const deviceHmac = holdSnap.exists ? String((holdSnap.data() || {}).deviceHmac || '') : '';
+    const expireAt = admin.firestore.Timestamp.fromMillis(now + ipReputation.DEVICE_TTL_MS);
+    await holdRef.set({
+        held: false,
+        approved: true,
+        approvedAtMs: now,
+        approvedBy: context.auth.uid,
+        expireAt: expireAt,
+    }, { merge: true });
+    if (ipReputation.isHmacId(deviceHmac)) {
+        const linkRef = db.collection('device_links').doc(deviceHmac);
+        await db.runTransaction(async function(t) {
+            const linkSnap = await t.get(linkRef);
+            const link = linkSnap.exists ? (linkSnap.data() || {}) : {};
+            const approved = Object.assign({}, link.approved && typeof link.approved === 'object' ? link.approved : {});
+            approved[uid] = now;
+            t.set(linkRef, {
+                approved: approved,
+                uids: link.uids && typeof link.uids === 'object' ? link.uids : {},
+                updatedAtMs: now,
+                expireAt: expireAt,
+            }, { merge: true });
+        });
+    }
+    await db.collection('admin_audit_log').add({
+        action: 'approveHouseholdDevice',
+        actorUid: context.auth.uid,
+        targetUid: uid,
+        deviceHmacPrefix: deviceHmac ? deviceHmac.slice(0, 12) : '',
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { success: true };
 });
 
 exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) => {
@@ -1607,6 +1665,7 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
 exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
+    secrets: [referralIpSecret, ipqsApiKey],
 }).https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
@@ -1667,6 +1726,32 @@ exports.claimSats = functionsV1.runWith({
     const configDoc = await db.collection('faucet_config').doc('settings').get();
     if (configDoc.exists && configDoc.data().paused) {
         return { success: false, error: 'Sats faucet is temporarily paused.' };
+    }
+
+    // Reputation and device checks sit after ban, age, and Turnstile, and
+    // before any Lightning lookup. A vendor miss falls through to the slots below.
+    const clientIP = faucetGuard.clientIpFromRequest(context.rawRequest) || 'unknown';
+    if (clientIP === 'unknown') {
+        console.error('[FAUCET] Could not determine client IP for uid=' + uid);
+        return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
+    }
+    const net = faucetGuard.networkKeys(clientIP);
+    if (!net) {
+        console.error('[FAUCET] Unparsed client IP for uid=' + uid);
+        return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
+    }
+    const rewardHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
+    const rewardGate = await ipReputation.assessReward({
+        db: db,
+        ip: clientIP,
+        uid: uid,
+        userAgent: rewardHeaders['user-agent'] || '',
+        language: rewardHeaders['accept-language'] || '',
+        requestId: data && data.ipqsRequestId,
+        purpose: 'faucet',
+    });
+    if (rewardGate.action === 'deny' || rewardGate.action === 'hold') {
+        return { success: false, error: rewardGate.message, code: rewardGate.reason };
     }
 
     const _lnDomainRaw = lnNorm.split('@')[1] || '';
@@ -1738,22 +1823,10 @@ exports.claimSats = functionsV1.runWith({
     const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
     const invoiceRef = db.collection('faucet_invoices').doc(invoiceHash);
 
-    const clientIP = faucetGuard.clientIpFromRequest(context.rawRequest) || 'unknown';
-    if (clientIP === 'unknown') {
-        console.error('[FAUCET] Could not determine client IP for uid=' + uid);
-        return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
-    }
-    const net = faucetGuard.networkKeys(clientIP);
-    if (!net) {
-        console.error('[FAUCET] Unparsed client IP for uid=' + uid);
-        return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
-    }
-
     const fingerprint = (data.fingerprint || '').trim();
     const fpId = faucetGuard.fingerprintDocId(fingerprint);
     if (!fpId) {
-        console.warn('[FAUCET] FINGERPRINT MISSING: uid=' + uid);
-        return { success: false, error: 'Device verification required.' };
+        console.warn('[FAUCET] FINGERPRINT MISSING weak signal uid=' + uid);
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -1762,9 +1835,11 @@ exports.claimSats = functionsV1.runWith({
     const globalRef = db.collection('faucet_stats').doc(today);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const lockRef = db.collection('lightning_addresses').doc(lnNorm);
-    const fpRef = db.collection('faucet_fingerprints').doc(fpId);
-    const ipRef = db.collection('faucet_ip_log').doc(net.exactId);
-    const subnetRef = db.collection('faucet_subnet_log').doc(net.rangeId);
+    const netIds = ipReputation.networkDocIds(clientIP);
+    if (!netIds) console.error('[FAUCET] ip-hmac-unavailable uid=' + uid);
+    const fpRef = fpId ? db.collection('faucet_fingerprints').doc(fpId) : null;
+    const ipRef = netIds ? db.collection('faucet_ip_log').doc(netIds.ipId) : null;
+    const subnetRef = netIds ? db.collection('faucet_subnet_log').doc(netIds.rangeId) : null;
     const lnRateRef = db.collection('faucet_ln_ratelimit').doc(faucetGuard.addressRateDocId(lnNorm));
     const signalRef = db.collection('faucet_uid_signals').doc(uid);
 
@@ -1786,9 +1861,9 @@ exports.claimSats = functionsV1.runWith({
             const dailyDoc = await t.get(dailyRef);
             const globalDoc = await t.get(globalRef);
             const lockDoc = await t.get(lockRef);
-            const fpDoc = await t.get(fpRef);
-            const ipDoc = await t.get(ipRef);
-            const subnetDoc = await t.get(subnetRef);
+            const fpDoc = fpRef ? await t.get(fpRef) : null;
+            const ipDoc = ipRef ? await t.get(ipRef) : null;
+            const subnetDoc = subnetRef ? await t.get(subnetRef) : null;
             const lnRateDoc = await t.get(lnRateRef);
 
             if (invoiceDoc.exists) deny('This payout was already used. Wait a moment and try again.');
@@ -1929,34 +2004,33 @@ exports.claimSats = functionsV1.runWith({
                 deny(addrDecision.error, flag);
             }
 
-            const fpUids = fpDoc.exists ? (fpDoc.data().uids || []) : [];
-            const fpDecision = faucetGuard.assessFingerprint(fpUids, uid);
+            const fpUids = fpDoc && fpDoc.exists ? (fpDoc.data().uids || []) : [];
+            const fpDecision = fpId ? faucetGuard.assessFingerprint(fpUids, uid) : { ok: true, others: [] };
             if (!fpDecision.ok) {
-                console.error('[FAUCET] FINGERPRINT ABUSE fp=' + fpId + ' uid=' + uid + ' others=' + fpDecision.others.join(','));
-                deny(fpDecision.error, {
-                    type: 'fingerprint_abuse',
-                    uid: uid,
-                    displayName: displayName,
-                    otherUid: fpDecision.others[0] || '',
-                    detail: fpId,
-                });
+                console.error('[FAUCET] FINGERPRINT ABUSE weak signal fp=' + fpId.substring(0, 12) + ' uid=' + uid + ' others=' + fpDecision.others.length);
             }
 
             const nowMs = Date.now();
-            const ipSlot = ipDoc.exists ? ipDoc.data() : {};
-            const subnetSlot = subnetDoc.exists ? subnetDoc.data() : {};
-            const ipDecision = faucetGuard.assessExactIpSlot({
-                seen: ipSlot.seen || null,
-                lastUid: ipSlot.lastUid || '',
-                lastClaimMs: _toMillis(ipSlot.lastClaim),
-            }, uid, nowMs);
-            if (!ipDecision.ok) deny(ipDecision.error);
-            const subnetDecision = faucetGuard.assessSubnetSlot({
-                seen: subnetSlot.seen || null,
-                lastUid: subnetSlot.lastUid || '',
-                lastClaimMs: _toMillis(subnetSlot.lastClaim),
-            }, uid, nowMs);
-            if (!subnetDecision.ok) deny(subnetDecision.error);
+            const ipSlot = ipDoc && ipDoc.exists ? ipDoc.data() : {};
+            const subnetSlot = subnetDoc && subnetDoc.exists ? subnetDoc.data() : {};
+            let ipDecision = { ok: true, seen: null };
+            let subnetDecision = { ok: true, seen: null };
+            if (ipRef) {
+                ipDecision = faucetGuard.assessExactIpSlot({
+                    seen: ipSlot.seen || null,
+                    lastUid: ipSlot.lastUid || '',
+                    lastClaimMs: _toMillis(ipSlot.lastClaim),
+                }, uid, nowMs);
+                if (!ipDecision.ok) deny(ipDecision.error);
+            }
+            if (subnetRef) {
+                subnetDecision = faucetGuard.assessSubnetSlot({
+                    seen: subnetSlot.seen || null,
+                    lastUid: subnetSlot.lastUid || '',
+                    lastClaimMs: _toMillis(subnetSlot.lastClaim),
+                }, uid, nowMs);
+                if (!subnetDecision.ok) deny(subnetDecision.error);
+            }
 
             const priorClaims = lnRateDoc.exists ? (lnRateDoc.data().claims || []) : [];
             const rate = faucetGuard.assessAddressRate(priorClaims, nowMs);
@@ -1993,27 +2067,32 @@ exports.claimSats = functionsV1.runWith({
                 paymentHash: paymentHash,
                 ts: admin.firestore.Timestamp.now(),
             });
-            t.set(fpRef, {
-                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
-                lastUid: uid,
-                uids: admin.firestore.FieldValue.arrayUnion(uid),
-                claimCount: admin.firestore.FieldValue.increment(1),
-            }, { merge: true });
-            t.set(ipRef, {
-                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
-                lastUid: uid,
-                seen: ipDecision.seen,
-                uids: admin.firestore.FieldValue.delete(),
-                claimCount: admin.firestore.FieldValue.increment(1),
-            }, { merge: true });
-            t.set(subnetRef, {
-                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
-                lastUid: uid,
-                label: net.rangeLabel,
-                seen: subnetDecision.seen,
-                uids: admin.firestore.FieldValue.delete(),
-                claimCount: admin.firestore.FieldValue.increment(1),
-            }, { merge: true });
+            if (fpRef) {
+                t.set(fpRef, {
+                    lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                    lastUid: uid,
+                    uids: admin.firestore.FieldValue.arrayUnion(uid),
+                    claimCount: admin.firestore.FieldValue.increment(1),
+                }, { merge: true });
+            }
+            if (ipRef && ipDecision.seen) {
+                t.set(ipRef, {
+                    lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                    lastUid: uid,
+                    seen: ipDecision.seen,
+                    uids: admin.firestore.FieldValue.delete(),
+                    claimCount: admin.firestore.FieldValue.increment(1),
+                }, { merge: true });
+            }
+            if (subnetRef && subnetDecision.seen) {
+                t.set(subnetRef, {
+                    lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                    lastUid: uid,
+                    seen: subnetDecision.seen,
+                    uids: admin.firestore.FieldValue.delete(),
+                    claimCount: admin.firestore.FieldValue.increment(1),
+                }, { merge: true });
+            }
             t.set(lnRateRef, {
                 lastClaim: admin.firestore.FieldValue.serverTimestamp(),
                 lastUid: uid,
@@ -2027,16 +2106,19 @@ exports.claimSats = functionsV1.runWith({
                     lockedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
             }
-            t.set(signalRef, {
+            const signalUpdate = {
                 uid: uid,
                 displayName: displayName,
                 fingerprint: fpId,
-                subnet: net.rangeId,
-                ipExact: net.exactId,
                 lightningAddress: lnNorm,
                 updatedAtMs: nowMs,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
+            };
+            if (netIds) {
+                signalUpdate.subnet = netIds.rangeId;
+                signalUpdate.ipExact = netIds.ipId;
+            }
+            t.set(signalRef, signalUpdate, { merge: true });
         });
     } catch (e) {
         const raw = e && e.message ? String(e.message) : '';
@@ -5670,14 +5752,16 @@ exports.auditWithdrawals = functionsV1.https.onRequest(async (req, res) => {
             });
         });
 
-        // 3. Check faucet_ip_log for multi-account IPs
+        // 3. Check faucet_ip_log for multi-account networks. Doc ids are HMACs.
         const ipSnap = await db.collection('faucet_ip_log').where('claimCount', '>=', 3).limit(50).get();
         ipSnap.forEach(ip => {
             const ipd = ip.data();
+            const seenIds = ipd.seen && typeof ipd.seen === 'object' ? Object.keys(ipd.seen) : [];
+            const accountIds = seenIds.length ? seenIds : (Array.isArray(ipd.uids) ? ipd.uids : []);
             out.ipClusters.push({
-                ip: ip.id.replace(/_/g, '.'),
-                uids: (ipd.uids || []).map(u => u.substring(0, 8)),
-                uidsFull: ipd.uids || [],
+                hmacPrefix: String(ip.id || '').substring(0, 12),
+                uids: accountIds.map(u => String(u).substring(0, 8)),
+                uidsFull: accountIds,
                 claimCount: ipd.claimCount || 0,
                 lastClaim: ipd.lastClaim && ipd.lastClaim.toDate ? ipd.lastClaim.toDate().toISOString() : null
             });

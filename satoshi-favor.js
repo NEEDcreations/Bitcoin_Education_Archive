@@ -591,6 +591,7 @@
     }
 
     function showMinerModal() {
+        if (typeof window.btcPrepareIpqsDevice === 'function') window.btcPrepareIpqsDevice('favor');
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
         // If this SF window's charge was already consumed (even if miner was closed+reopened), treat as no rig
         var _cycleNow = (favorState && favorState.currentCycleId) || 'unknown';
@@ -953,7 +954,11 @@
 
         try {
             const fn = firebase.functions().httpsCallable('hashForFavor');
-            const result = await fn({ rig: rig });
+            var ipqsRequestId = '';
+            try {
+                if (typeof window.btcPrepareIpqsDevice === 'function') ipqsRequestId = await window.btcPrepareIpqsDevice('favor');
+            } catch (ipqsErr) { ipqsRequestId = ''; }
+            const result = await fn({ rig: rig, ipqsRequestId: ipqsRequestId || '' });
             clearInterval(shake);
 
             const { value, isWinner, hashId } = result.data;
@@ -1093,7 +1098,11 @@
 
         try {
             const fn = firebase.functions().httpsCallable('hashForFavor');
-            const result = await fn({ rig: rig });
+            var ipqsRequestId = '';
+            try {
+                if (typeof window.btcPrepareIpqsDevice === 'function') ipqsRequestId = await window.btcPrepareIpqsDevice('favor');
+            } catch (ipqsErr) { ipqsRequestId = ''; }
+            const result = await fn({ rig: rig, ipqsRequestId: ipqsRequestId || '' });
             clearInterval(shake);
 
             const { value, isWinner, hashId } = result.data;
@@ -1711,7 +1720,11 @@
 
         try {
             var fn = firebase.functions().httpsCallable('hashForFavor');
-            var result = await fn({ rig: 1 });
+            var ipqsRequestId = '';
+            try {
+                if (typeof window.btcPrepareIpqsDevice === 'function') ipqsRequestId = await window.btcPrepareIpqsDevice('favor');
+            } catch (ipqsErr) { ipqsRequestId = ''; }
+            var result = await fn({ rig: 1, ipqsRequestId: ipqsRequestId || '' });
             var data = result.data;
             var value = data.value;
             var isWinner = data.isWinner;
