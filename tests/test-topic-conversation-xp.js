@@ -202,7 +202,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.'));
+    assert.ok(notes.includes('Latest: Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.'));
     assert.ok(notes.includes("On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row."));
     assert.ok(!notes.includes('Latest: On a phone'));
     assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));

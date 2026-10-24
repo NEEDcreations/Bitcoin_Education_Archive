@@ -107,6 +107,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2350'));
+    assert.ok(!html.includes('features.registry.js?v=20261023_v2344'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2343'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
@@ -200,7 +201,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.'));
+    assert.ok(notes.includes('Latest: Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.'));
+    assert.ok(notes.includes('Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.'));
+    assert.ok(!notes.includes('Latest: Nacho answers live'));
     assert.ok(notes.includes("On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row."));
     assert.ok(!notes.includes('Latest: On a phone'));
     assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));

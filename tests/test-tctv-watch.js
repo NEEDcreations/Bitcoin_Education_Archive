@@ -760,15 +760,18 @@ test('playback with no server clock asks the server to start it and does not inv
     assert.strictEqual(width, '8%');
 });
 
-test('patch notes keep the Nacho answer as the only Latest line and keep Google sign-in and the live timer', () => {
+test('patch notes keep the knowledge base as the only Latest line and keep Google sign-in and the live timer', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.';
+    const latest = 'Latest: Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.';
+    const live = 'Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.';
     const google = 'Google sign-in stays on this page and works on Android with the app installed.';
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(live));
+    assert.ok(!notes.includes('Latest: Nacho answers live'));
     assert.ok(notes.includes(guest));
     assert.ok(notes.includes(google));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
