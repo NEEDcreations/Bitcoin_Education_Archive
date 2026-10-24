@@ -8944,6 +8944,7 @@ const {
     openGift,
     sendKeys,
     decryptCipher,
+    ackCipherShare,
     claimCipherWin,
     listMyCipherWins,
     adminListCipherWins,
@@ -8953,6 +8954,7 @@ exports.awardDailyGifts = awardDailyGifts;
 exports.openGift = openGift;
 exports.sendKeys = sendKeys;
 exports.decryptCipher = decryptCipher;
+exports.ackCipherShare = ackCipherShare;
 exports.claimCipherWin = claimCipherWin;
 exports.listMyCipherWins = listMyCipherWins;
 exports.adminListCipherWins = adminListCipherWins;

@@ -235,6 +235,9 @@ service cloud.firestore {
                         'lastShoutoutAt',
                         'ciphersDecryptedToday', 'ciphersDecryptedDate',
                         'keysSentDate', 'keysSentTo',
+                        // Key provenance. sendKeys writes this on the key doc.
+                        // A client cannot plant it on the profile either.
+                        'sender',
                         'marketListings', 'marketMessages',
                         'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited',
                         'referredBy', 'referralVerified', 'scholarPoints', 'activeDayKeys',
@@ -2196,10 +2199,14 @@ service cloud.firestore {
     }
 
     // Keys — owner (and the person who sent it) may read. Writes are Cloud Functions only.
+    // Inventory keys and sent keys are the same collection. `sender` is set
+    // only by sendKeys. A key the user earns has no sender. Clients cannot
+    // create or update that field, because every write is denied.
     match /keys/{keyId} {
       allow read: if request.auth != null
                   && (resource.data.ownerId == request.auth.uid
-                      || resource.data.sentBy == request.auth.uid);
+                      || resource.data.sentBy == request.auth.uid
+                      || resource.data.sender == request.auth.uid);
       allow write: if false;
     }
 
@@ -2220,6 +2227,12 @@ service cloud.firestore {
     // Sats-win ledger. Server-only and append-only from the client's point of view.
     // Admins read it through adminListCipherWins; winners claim through claimCipherWin.
     match /cipher_wins/{winId} {
+      allow read, write: if false;
+    }
+
+    // One shared-prize marker per cipher open. Admin SDK only, so a client
+    // cannot mark a share paid or revealed, and cannot invent a sender.
+    match /cipher_shares/{shareId} {
       allow read, write: if false;
     }
 
