@@ -89,6 +89,12 @@ function planUserBadges(input) {
         })) return;
         const newXp = newXpFor(rule);
         if (newXp <= 0) return;
+        // The counter backfill's --pay-xp path records this. A later top-up
+        // must not pay the badge again, even if the ledger doc is gone.
+        if (award && award.xpSource === 'badge_backfill') {
+            topUps.push({ badgeId: id, newXp: newXp, alreadyPaid: newXp, topUp: 0, skip: 'marker', cappedZero: false });
+            return;
+        }
         const paid = alreadyPaid(award, id);
         const topUp = Math.max(0, newXp - paid);
         const zeroedByCap = cappedZero(award);

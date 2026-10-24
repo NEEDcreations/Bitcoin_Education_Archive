@@ -922,6 +922,8 @@ function initSecondFactor(deps) {
             lastAcceptedStep: step,
         });
         await db.collection('users').doc(uid).set({ totpEnabled: true }, { merge: true });
+        try { await require('./badgeCredit').grantIds(db, admin, uid, ['totp_enabled']); }
+        catch (e) { console.warn('[totpVerify] badge', e.message); }
         await db.collection('totp_pending').doc(uid).delete().catch(function () {});
         await clearTotpGuessWindow(uid, nowMs);
         await clearTotpGuessDay(uid);

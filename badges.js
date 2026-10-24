@@ -157,7 +157,7 @@ const BADGE_DEFS = [
     { id: 'predict_correct_5', name: 'Crystal Ball', emoji: '🏐', desc: '5 correct predictions', check: () => _predBadgeCounts().correct >= 5, pts: 75 },
 
     // ---- Milestone Badges ----
-    { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
+    { id: 'first_purchase', name: 'First Purchase', emoji: '🛒', desc: "Made your first purchase in Nacho's Nook", check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.shopPurchases || 0) >= 1, pts: 10 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
     { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
     { id: 'bio_author', name: 'Got Something to Say', emoji: '✍️', desc: 'Added a bio to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.bio && currentUser.bio.trim().length > 0), pts: 50 },
@@ -505,6 +505,53 @@ const BADGE_DEFS = [
     { id: 'lq_bitcoin_only',    name: '🛡️ Bitcoin Maximalist',        emoji: '🛡️', pts: 0, desc: 'Passed the Why Bitcoin, Not Crypto Learning Quest',     hint: 'Complete the Bitcoin-Only Learning Quest',            hidden: false, check: () => false },
     { id: 'lq_privacy',         name: '🕵️ Cypherpunk',                emoji: '🕵️', pts: 0, desc: 'Passed the Privacy & Sovereignty Learning Quest',       hint: 'Complete the Privacy Learning Quest',                 hidden: false, check: () => false },
     { id: 'lq_graduate',        name: '📖 Learning Quest Graduate',   emoji: '📖', pts: 0, desc: 'Completed ALL 8 Learning Quests — true Bitcoin scholar', hint: 'Pass all 8 Learning Quests to earn this rare badge',  hidden: false, check: () => false },
+
+    // Server-proven counters. The check only reads the profile the server wrote.
+    { id: 'gift_open_1', name: 'Unwrapped', emoji: '🎁', desc: 'Opened your first gift', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsOpened || 0) >= 1 },
+    { id: 'gift_open_25', name: 'Ribbon Cutter', emoji: '🎀', desc: 'Opened 25 gifts', pts: 50, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsOpened || 0) >= 25 },
+    { id: 'gift_open_100', name: 'Present Pro', emoji: '🎁', desc: 'Opened 100 gifts', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsOpened || 0) >= 100 },
+    { id: 'gift_open_500', name: 'Gift Hoarder', emoji: '📦', desc: 'Opened 500 gifts', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsOpened || 0) >= 500 },
+    { id: 'gift_open_1500', name: 'Endless Wrapping', emoji: '♾️', desc: 'Opened 1,500 gifts', pts: 2000, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsOpened || 0) >= 1500 },
+    { id: 'gift_lucky_shoutout', name: "Nacho's Pick", emoji: '📣', desc: "A gift's Nacho shoutout was posted", pts: 50, check: () => typeof currentUser !== 'undefined' && currentUser && !!currentUser.giftShoutoutWon },
+    { id: 'gift_sent_1', name: 'Gift Giver', emoji: '🎁', desc: 'A peer used a key you sent', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsSent || 0) >= 1 },
+    { id: 'gift_sent_10', name: 'Generous', emoji: '🎁', desc: 'Peers used 10 keys you sent', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsSent || 0) >= 10 },
+    { id: 'gift_sent_50', name: 'Santa Sats', emoji: '🎅', desc: 'Peers used 50 keys you sent', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsSent || 0) >= 50 },
+    { id: 'gift_sent_200', name: 'Key Philanthropist', emoji: '🗝️', desc: 'Peers used 200 keys you sent', pts: 2000, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.giftsSent || 0) >= 200 },
+    { id: 'key_peers_5', name: 'Keymaster', emoji: '🔑', desc: '5 different peers used a key you sent', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.keyPeersDistinct || 0) >= 5 },
+    { id: 'key_peers_21', name: 'Web of Trust', emoji: '🕸️', desc: '21 different peers used a key you sent', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.keyPeersDistinct || 0) >= 21 },
+    { id: 'cipher_peer_key_1', name: 'Borrowed Key', emoji: '🔐', desc: "Opened a cipher with a peer's key", pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerKeyCiphers || 0) >= 1 },
+    { id: 'cipher_peer_key_25', name: 'Trusted Circle', emoji: '🔐', desc: "Opened 25 ciphers with peers' keys", pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerKeyCiphers || 0) >= 25 },
+    { id: 'cipher_peer_key_100', name: 'Shared Secrets', emoji: '🔐', desc: "Opened 100 ciphers with peers' keys", pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerKeyCiphers || 0) >= 100 },
+    { id: 'cipher_full_ring', name: 'Full Keyring', emoji: '💍', desc: 'Opened 21 ciphers in one day', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && !!currentUser.cipherFullRing },
+    { id: 'cipher_sats_1', name: 'Cracked the Vault', emoji: '⚡', desc: 'Received your first paid cipher sats win', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.cipherSatsPaid || 0) >= 1 },
+    { id: 'cipher_sats_5', name: 'Vault Regular', emoji: '⚡', desc: 'Received 5 paid cipher sats wins', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.cipherSatsPaid || 0) >= 5 },
+    { id: 'cipher_sats_10k', name: 'Whale Cipher', emoji: '🐳', desc: 'A paid cipher win of 10,000 sats or more', pts: 2000, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.cipherBiggestWin || 0) >= 10000 },
+    { id: 'peer_level_2', name: 'Channel Opened', emoji: '🟨', desc: 'A peer pair reached Opening Channel', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerBestLevel || 0) >= 2 },
+    { id: 'peer_level_3', name: 'Routing Nodes', emoji: '🟧', desc: 'A peer pair reached Routing Nodes', pts: 50, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerBestLevel || 0) >= 3 },
+    { id: 'peer_level_4', name: 'Adjusted Fees', emoji: '🟦', desc: 'A peer pair reached Adjusted Fees', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerBestLevel || 0) >= 4 },
+    { id: 'peer_level_5', name: 'Balanced Liquidity', emoji: '🟪', desc: 'A peer pair reached Balanced Liquidity', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerBestLevel || 0) >= 5 },
+    { id: 'peer_level_6', name: 'Wumbo Channel', emoji: '⚡', desc: 'A peer pair reached Wumbo Channel', pts: 2000, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerBestLevel || 0) >= 6 },
+    { id: 'peer_hub_5', name: 'Lightning Hub', emoji: '🌐', desc: '5 peers at Routing Nodes or higher', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peersAtL3 || 0) >= 5 },
+    { id: 'topic_comment_1', name: 'Chimed In', emoji: '💬', desc: 'A counted comment on a topic', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.topicComments || 0) >= 1 },
+    { id: 'topic_comment_10', name: 'Discussion Regular', emoji: '💬', desc: '10 counted topic comments', pts: 50, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.topicComments || 0) >= 10 },
+    { id: 'topic_comment_50', name: 'Thread Weaver', emoji: '🧵', desc: '50 counted topic comments', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.topicComments || 0) >= 50 },
+    { id: 'topic_comment_250', name: 'Town Crier', emoji: '📢', desc: '250 counted topic comments', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.topicComments || 0) >= 250 },
+    { id: 'topic_channels_10', name: 'Well-Rounded', emoji: '📚', desc: 'Counted comments in 10 different topics', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.topicChannelsCommented) && currentUser.topicChannelsCommented.length >= 10 },
+    { id: 'shop_10', name: 'Regular Customer', emoji: '🛒', desc: "Made 10 purchases in Nacho's Nook", pts: 50, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.shopPurchases || 0) >= 10 },
+    { id: 'shop_50', name: 'Nook VIP', emoji: '🛒', desc: "Made 50 purchases in Nacho's Nook", pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.shopPurchases || 0) >= 50 },
+    { id: 'raffle_entered', name: 'Feeling Lucky', emoji: '🎟️', desc: 'Bought a raffle ticket with orange tickets', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raffleTicketsBought || 0) >= 1 },
+    { id: 'raffle_10', name: 'Ticket Stacker', emoji: '🎟️', desc: 'Bought 10 raffle tickets with orange tickets', pts: 50, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raffleTicketsBought || 0) >= 10 },
+    { id: 'raffle_50', name: 'Regular Drawer', emoji: '🎲', desc: 'Bought 50 raffle tickets with orange tickets', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raffleTicketsBought || 0) >= 50 },
+    { id: 'raffle_250', name: 'High Roller', emoji: '🎰', desc: 'Bought 250 raffle tickets with orange tickets', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raffleTicketsBought || 0) >= 250 },
+    { id: 'raffle_1000', name: 'House Favorite', emoji: '🏆', desc: 'Bought 1,000 raffle tickets with orange tickets', pts: 2000, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raffleTicketsBought || 0) >= 1000 },
+    { id: 'raffle_winner', name: 'Raffle Champion', emoji: '🏆', desc: 'Won the monthly orange-ticket raffle', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raffleWins || 0) >= 1 },
+    { id: 'predict_top_week', name: 'Weekly Oracle', emoji: '🔮', desc: 'Paid as a weekly Top Predictor', pts: 150, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predTopWeeks || 0) >= 1 },
+    { id: 'predict_top_week_5', name: 'Seasoned Oracle', emoji: '🔮', desc: 'Paid as a weekly Top Predictor 5 times', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predTopWeeks || 0) >= 5 },
+    { id: 'predict_top_month', name: 'Monthly Oracle', emoji: '🌕', desc: 'Paid as a monthly Top Predictor', pts: 500, check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predTopMonths || 0) >= 1 },
+    { id: 'totp_enabled', name: 'Fort Knox', emoji: '🔒', desc: 'Turned on an authenticator', pts: 50, check: () => typeof currentUser !== 'undefined' && currentUser && !!currentUser.totpEnabled },
+    { id: 'faction_chosen', name: 'Pledged', emoji: '🏴', desc: 'Chose a faction', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && typeof currentUser.faction === 'string' && currentUser.faction.trim().length > 0 },
+    { id: 'onboarding_complete', name: 'Welcome Aboard', emoji: '🧭', desc: 'Finished onboarding', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && !!currentUser.onboardingComplete },
+    { id: 'push_enabled', name: 'Ring the Bell', emoji: '🔔', desc: 'Turned on push notifications', pts: 10, check: () => typeof currentUser !== 'undefined' && currentUser && !!currentUser.pushEnabled },
 ];
 
 // =============================================
@@ -880,7 +927,19 @@ window._checkAndAwardTitles = function(earnedBadgeIds) {
 };
 
 // Major badges that deserve a share prompt
-const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100', 'cert_scholar', 'cert_tech', 'cert_double', 'all_certs'];
+const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100', 'cert_scholar', 'cert_tech', 'cert_double', 'all_certs', 'gift_open_1500', 'gift_sent_200', 'cipher_sats_10k', 'peer_level_6', 'raffle_1000'];
+
+// Displayed XP is the shared table (window.BADGE_CATALOG, generated from
+// functions/src/badge-xp.json). The badge object's own pts is only a fallback.
+function badgeShownXp(badge) {
+    if (!badge) return 0;
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG[badge.id] : null;
+    if (cat && typeof cat.xp === 'number') return cat.xp;
+    if (typeof badge.xp === 'number') return badge.xp;
+    if (typeof badge.displayPts === 'number') return badge.displayPts;
+    if (typeof badge.pts === 'number') return badge.pts;
+    return 0;
+}
 
 // Displayed XP is the shared table (window.BADGE_CATALOG, generated from
 // functions/src/badge-xp.json). The badge object's own pts is only a fallback.
@@ -1076,7 +1135,7 @@ function getBadgeHTML() {
     var _used = {};
     function _cat(list, filter) { var r = list.filter(function(b) { return !_used[b.id] && filter(b); }); r.forEach(function(b) { _used[b.id] = true; }); return r; }
     const categories = {
-        '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm' || b.id === 'first_purchase'),
+        '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm'),
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_') || b.id === 'experienced_pro'),
         '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
         '📖 Learning Quests': _cat(BADGE_DEFS, b => b.id.startsWith('lq_')),
@@ -1100,6 +1159,12 @@ function getBadgeHTML() {
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
         '💪 Daily Quest Hub': _cat(BADGE_DEFS, b => b.id.startsWith('flex_') || b.id.startsWith('trivia_') || b.id.startsWith('poll_') || b.id.startsWith('daily_triple')),
         '🛒 Marketplace': _cat(BADGE_DEFS, b => b.id.startsWith('market_') || b.id === 'bookmarks_1' || b.id === 'bookmarks_10' || b.id === 'favs_10' || b.id === 'favs_25'),
+        '🎁 Gifts': _cat(BADGE_DEFS, b => b.id.startsWith('gift_')),
+        '🔐 Ciphers': _cat(BADGE_DEFS, b => b.id.startsWith('cipher_')),
+        '🤝 Peers': _cat(BADGE_DEFS, b => b.id.startsWith('peer_level_') || b.id.startsWith('peer_hub_') || b.id.startsWith('key_peers_')),
+        '💬 Topics': _cat(BADGE_DEFS, b => b.id.startsWith('topic_')),
+        '🎟️ Raffle & Nook': _cat(BADGE_DEFS, b => b.id.startsWith('raffle_') || b.id.startsWith('shop_') || b.id === 'first_purchase'),
+        '🔒 Setup': _cat(BADGE_DEFS, b => b.id === 'totp_enabled' || b.id === 'faction_chosen' || b.id === 'onboarding_complete' || b.id === 'push_enabled'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
 
@@ -1332,16 +1397,19 @@ var BADGE_SETS = [
     { id:'set_spin', name:'The Wheel Set', emoji:'🎡', color:'#f97316', badgeIds:['spin_1','spin_7','spin_30','spin_100','spin_streak_7','spin_streak_14','spin_streak_30','spin_jackpot','spin_closet_1','spin_closet_5'], bonusId:'set_spin_complete', bonusPts:0, bonusEmoji:'🎰', bonusName:'Wheel Master', bonusDesc:'Completed The Wheel Set' },
     { id:'set_profile', name:'The Profile Set', emoji:'👤', color:'#6366f1', badgeIds:['profile_explorer_100','profile_explorer_25','global_citizen','bio_author','profile_curious','profile_explorer_5','profile_explorer_10','profile_explorer_50','lightning_address_set'], bonusId:'set_profile_complete', bonusPts:0, bonusEmoji:'🦌', bonusName:'Archive Legend', bonusDesc:'Completed The Profile Set' },
     { id:'set_daily_five', name:'Daily Five', emoji:'🖐️', color:'#f7931a', badgeIds:['daily_five_1','daily_five_7','tctv_daily_1','say_hi_1','daily_triple_7'], bonusId:'set_daily_five', bonusPts:500, bonusEmoji:'🖐️', bonusName:'Daily Five Set', bonusDesc:'Completed the Daily Five collection' },
-    { id:'set_voice', name:'Community Voice', emoji:'💬', color:'#8b5cf6', badgeIds:['say_hi_7','reply_bonus_25','chat_100','forum_reply_10'], bonusId:'set_voice', bonusPts:500, bonusEmoji:'💬', bonusName:'Community Voice Set', bonusDesc:'Completed the Community Voice collection' },
+    { id:'set_voice', name:'Community Voice', emoji:'💬', color:'#8b5cf6', badgeIds:['say_hi_7','reply_bonus_25','chat_100','forum_reply_10','topic_comment_1','topic_channels_10'], bonusId:'set_voice', bonusPts:150, bonusEmoji:'💬', bonusName:'Community Voice Set', bonusDesc:'Completed the Community Voice collection' },
     { id:'set_tv', name:'Prime Time', emoji:'📺', color:'#a855f7', badgeIds:['tctv_daily_1','tctv_daily_7','tctv_daily_30','tctv_satellite'], bonusId:'set_tv', bonusPts:500, bonusEmoji:'📺', bonusName:'Prime Time Set', bonusDesc:'Completed the Prime Time collection' },
-    { id:'set_trader', name:'Open for Business', emoji:'🏪', color:'#22c55e', badgeIds:['market_listed_1','market_listed_5','market_message','market_sold_1'], bonusId:'set_trader', bonusPts:500, bonusEmoji:'🏪', bonusName:'Open for Business Set', bonusDesc:'Completed the Open for Business collection' },
-    { id:'set_codebreaker', name:'Codebreaker', emoji:'🔐', color:'#38bdf8', badgeIds:['cipher_1','cipher_10','cipher_50'], bonusId:'set_codebreaker', bonusPts:750, bonusEmoji:'🔐', bonusName:'Codebreaker Set', bonusDesc:'Completed the Codebreaker collection' },
-    { id:'set_generous', name:'Open Hand', emoji:'🎁', color:'#f472b6', badgeIds:['gift_sent_1','gift_sent_10','tip_first','donor_1000'], bonusId:'set_generous', bonusPts:500, bonusEmoji:'🎁', bonusName:'Open Hand Set', bonusDesc:'Completed the Open Hand collection' },
-    { id:'set_network', name:'Peer Network', emoji:'🤝', color:'#06b6d4', badgeIds:['peer_1','peer_3','peer_10','referral_1','referral_5'], bonusId:'set_network', bonusPts:500, bonusEmoji:'🤝', bonusName:'Peer Network Set', bonusDesc:'Completed the Peer Network collection' },
+    { id:'set_trader', name:'Open for Business', emoji:'🏪', color:'#22c55e', badgeIds:['market_listed_1','market_listed_5','market_message','market_sold_1','first_purchase'], bonusId:'set_trader', bonusPts:150, bonusEmoji:'🏪', bonusName:'Open for Business Set', bonusDesc:'Completed the Open for Business collection' },
+    { id:'set_codebreaker', name:'Codebreaker', emoji:'🔐', color:'#38bdf8', badgeIds:['cipher_1','cipher_10','cipher_50','cipher_peer_key_1','cipher_full_ring','cipher_sats_1'], bonusId:'set_codebreaker', bonusPts:500, bonusEmoji:'🔐', bonusName:'Codebreaker Set', bonusDesc:'Completed the Codebreaker collection' },
+    { id:'set_generous', name:'Open Hand', emoji:'🎁', color:'#f472b6', badgeIds:['gift_sent_1','gift_sent_10','tip_first','donor_1000','gift_open_1','gift_sent_200','key_peers_5'], bonusId:'set_generous', bonusPts:150, bonusEmoji:'🎁', bonusName:'Open Hand Set', bonusDesc:'Completed the Open Hand collection' },
+    { id:'set_network', name:'Peer Network', emoji:'🤝', color:'#06b6d4', badgeIds:['peer_1','peer_3','peer_10','referral_1','referral_5','key_peers_5','key_peers_21','peer_level_2','peer_level_3','peer_level_5','peer_hub_5'], bonusId:'set_network', bonusPts:500, bonusEmoji:'🤝', bonusName:'Peer Network Set', bonusDesc:'Completed the Peer Network collection' },
     { id:'set_gladiator', name:'Gladiator', emoji:'⚔️', color:'#ec4899', badgeIds:['pvp_first','pvp_25','pvp_win_streak_5','pvp_played_50'], bonusId:'set_gladiator', bonusPts:750, bonusEmoji:'⚔️', bonusName:'Gladiator Set', bonusDesc:'Completed the Gladiator collection' },
-    { id:'set_scholar_daily', name:'Daily Scholar', emoji:'📚', color:'#3b82f6', badgeIds:['trivia_correct_50','quest_days_30','poll_days_30'], bonusId:'set_scholar_daily', bonusPts:750, bonusEmoji:'📚', bonusName:'Daily Scholar Set', bonusDesc:'Completed the Daily Scholar collection' },
+    { id:'set_scholar_daily', name:'Daily Scholar', emoji:'📚', color:'#3b82f6', badgeIds:['trivia_correct_30','quest_days_30','poll_days_30'], bonusId:'set_scholar_daily', bonusPts:150, bonusEmoji:'📚', bonusName:'Daily Scholar Set', bonusDesc:'Completed the Daily Scholar collection' },
     { id:'set_newcomer', name:'Welcome Aboard', emoji:'🧭', color:'#6366f1', badgeIds:['onboarding_complete','push_enabled','profile_complete','first_channel'], bonusId:'set_newcomer', bonusPts:250, bonusEmoji:'🧭', bonusName:'Welcome Aboard Set', bonusDesc:'Completed the Welcome Aboard collection' },
-    { id:'set_favor', name:'Favor of Satoshi', emoji:'🔱', color:'#f7931a', badgeIds:['sf_trifecta_10','sf_contributor_10','sf_block_solver'], bonusId:'set_favor', bonusPts:1000, bonusEmoji:'🔱', bonusName:'Favor of Satoshi Set', bonusDesc:'Completed the Favor of Satoshi collection' }
+    { id:'set_favor', name:'Favor of Satoshi', emoji:'🔱', color:'#f7931a', badgeIds:['sf_trifecta_10','sf_contributor_10','sf_block_solver','faction_chosen'], bonusId:'set_favor', bonusPts:500, bonusEmoji:'🔱', bonusName:'Favor of Satoshi Set', bonusDesc:'Completed the Favor of Satoshi collection' },
+    { id:'set_oracle', name:'Oracle', emoji:'🔮', color:'#a78bfa', badgeIds:['predict_top_week','predict_top_week_5','predict_top_month'], bonusId:'set_oracle', bonusPts:500, bonusEmoji:'🔮', bonusName:'Oracle Set', bonusDesc:'Completed the Oracle collection' },
+    { id:'set_sovereign', name:'Sovereign Setup', emoji:'🔒', color:'#22c55e', badgeIds:['totp_enabled','lightning_address_set','faction_chosen'], bonusId:'set_sovereign', bonusPts:150, bonusEmoji:'🔒', bonusName:'Sovereign Setup Set', bonusDesc:'Completed the Sovereign Setup collection' },
+    { id:'set_raffle', name:'Raffle Regular', emoji:'🎟️', color:'#f7931a', badgeIds:['raffle_entered','raffle_10','raffle_50','raffle_250','raffle_1000','raffle_winner'], bonusId:'set_raffle', bonusPts:500, bonusEmoji:'🎟️', bonusName:'Raffle Regular Set', bonusDesc:'Completed the Raffle Regular collection' }
 ];
 
 function _renderBadgeSets(earnedBadges) {
@@ -1380,6 +1448,9 @@ function _renderBadgeSets(earnedBadges) {
         set.badgeIds.forEach(function(bid) {
             var bEarned = earnedBadges.has(bid);
             var bDef = BADGE_DEFS.find(function(b) { return b.id === bid; });
+            if (!bDef && window.BADGE_CATALOG && window.BADGE_CATALOG[bid]) {
+                bDef = { emoji: window.BADGE_CATALOG[bid].emoji || '🏅', name: window.BADGE_CATALOG[bid].name || bid, desc: window.BADGE_CATALOG[bid].desc || '' };
+            }
             var emoji = bDef ? bDef.emoji : '🔘';
             var name = bDef ? bDef.name : bid;
             var desc = bDef ? bDef.desc : '';

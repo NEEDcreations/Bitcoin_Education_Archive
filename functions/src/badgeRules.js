@@ -100,16 +100,19 @@ const NAME_OVERRIDE = {
 
 const SETS = {
     set_daily_five: ['daily_five_1', 'daily_five_7', 'tctv_daily_1', 'say_hi_1', 'daily_triple_7'],
-    set_voice: ['say_hi_7', 'reply_bonus_25', 'chat_100', 'forum_reply_10'],
+    set_voice: ['say_hi_7', 'reply_bonus_25', 'chat_100', 'forum_reply_10', 'topic_comment_1', 'topic_channels_10'],
     set_tv: ['tctv_daily_1', 'tctv_daily_7', 'tctv_daily_30', 'tctv_satellite'],
-    set_trader: ['market_listed_1', 'market_listed_5', 'market_message', 'market_sold_1'],
-    set_codebreaker: ['cipher_1', 'cipher_10', 'cipher_50'],
-    set_generous: ['gift_sent_1', 'gift_sent_10', 'tip_first', 'donor_1000'],
-    set_network: ['peer_1', 'peer_3', 'peer_10', 'referral_1', 'referral_5'],
+    set_trader: ['market_listed_1', 'market_listed_5', 'market_message', 'market_sold_1', 'first_purchase'],
+    set_codebreaker: ['cipher_1', 'cipher_10', 'cipher_50', 'cipher_peer_key_1', 'cipher_full_ring', 'cipher_sats_1'],
+    set_generous: ['gift_sent_1', 'gift_sent_10', 'tip_first', 'donor_1000', 'gift_open_1', 'gift_sent_200', 'key_peers_5'],
+    set_network: ['peer_1', 'peer_3', 'peer_10', 'referral_1', 'referral_5', 'key_peers_5', 'key_peers_21', 'peer_level_2', 'peer_level_3', 'peer_level_5', 'peer_hub_5'],
     set_gladiator: ['pvp_first', 'pvp_25', 'pvp_win_streak_5', 'pvp_played_50'],
-    set_scholar_daily: ['trivia_correct_50', 'quest_days_30', 'poll_days_30'],
+    set_scholar_daily: ['trivia_correct_30', 'quest_days_30', 'poll_days_30'],
     set_newcomer: ['onboarding_complete', 'push_enabled', 'profile_complete', 'first_channel'],
-    set_favor: ['sf_trifecta_10', 'sf_contributor_10', 'sf_block_solver'],
+    set_favor: ['sf_trifecta_10', 'sf_contributor_10', 'sf_block_solver', 'faction_chosen'],
+    set_oracle: ['predict_top_week', 'predict_top_week_5', 'predict_top_month'],
+    set_sovereign: ['totp_enabled', 'lightning_address_set', 'faction_chosen'],
+    set_raffle: ['raffle_entered', 'raffle_10', 'raffle_50', 'raffle_250', 'raffle_1000', 'raffle_winner'],
     set_explorer_complete: ['first_channel', 'explorer_5', 'explorer_10', 'explorer_25', 'explorer_50', 'explorer_100', 'explorer_all'],
     set_streak_complete: ['streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_60', 'streak_100', 'streak_200', 'streak_365'],
     set_trifecta_complete: ['daily_triple_1', 'daily_triple_7', 'daily_triple_30', 'daily_triple_90', 'daily_triple_365'],
@@ -159,10 +162,8 @@ const COSMETIC_EXACT = new Set([
 
 // These stay in the catalog with real XP, but nothing in this deploy writes the
 // counter. Claims fail closed. Documented in BADGE_VERIFICATION.md.
+// plebtalk has no session writer. reply_bonus waits on its own credit path.
 const WAITING_COUNTERS = {
-    quest_days_7: counter('questDays', 7),
-    quest_days_30: counter('questDays', 30),
-    quest_days_100: counter('questDays', 100),
     reply_bonus_1: counter('replyBonusCount', 1),
     reply_bonus_25: counter('replyBonusCount', 25),
     reply_bonus_100: counter('replyBonusCount', 100),
@@ -170,15 +171,63 @@ const WAITING_COUNTERS = {
     plebtalk_1: counter('plebTalkSessions', 1),
     plebtalk_10: counter('plebTalkSessions', 10),
     plebtalk_50: counter('plebTalkSessions', 50),
+};
+
+// Registered before the generic peer_, cipher_, and predict_ prefixes.
+const NEW_SOURCES = {
+    gift_open_1: counter('giftsOpened', 1),
+    gift_open_25: counter('giftsOpened', 25),
+    gift_open_100: counter('giftsOpened', 100),
+    gift_open_500: counter('giftsOpened', 500),
+    gift_open_1500: counter('giftsOpened', 1500),
+    gift_lucky_shoutout: { type: 'truthy', field: 'giftShoutoutWon' },
+    gift_sent_1: counter('giftsSent', 1),
+    gift_sent_10: counter('giftsSent', 10),
+    gift_sent_50: counter('giftsSent', 50),
+    gift_sent_200: counter('giftsSent', 200),
+    key_peers_5: counter('keyPeersDistinct', 5),
+    key_peers_21: counter('keyPeersDistinct', 21),
+    cipher_peer_key_1: counter('peerKeyCiphers', 1),
+    cipher_peer_key_25: counter('peerKeyCiphers', 25),
+    cipher_peer_key_100: counter('peerKeyCiphers', 100),
+    cipher_full_ring: { type: 'truthy', field: 'cipherFullRing' },
+    cipher_sats_1: counter('cipherSatsPaid', 1),
+    cipher_sats_5: counter('cipherSatsPaid', 5),
+    cipher_sats_10k: counter('cipherBiggestWin', 10000),
+    peer_level_2: counter('peerBestLevel', 2),
+    peer_level_3: counter('peerBestLevel', 3),
+    peer_level_4: counter('peerBestLevel', 4),
+    peer_level_5: counter('peerBestLevel', 5),
+    peer_level_6: counter('peerBestLevel', 6),
+    peer_hub_5: counter('peersAtL3', 5),
+    topic_comment_1: counter('topicComments', 1),
+    topic_comment_10: counter('topicComments', 10),
+    topic_comment_50: counter('topicComments', 50),
+    topic_comment_250: counter('topicComments', 250),
+    topic_channels_10: { type: 'arrayLength', field: 'topicChannelsCommented', gte: 10 },
+    first_purchase: counter('shopPurchases', 1),
+    shop_10: counter('shopPurchases', 10),
+    shop_50: counter('shopPurchases', 50),
+    raffle_entered: counter('raffleTicketsBought', 1),
+    raffle_10: counter('raffleTicketsBought', 10),
+    raffle_50: counter('raffleTicketsBought', 50),
+    raffle_250: counter('raffleTicketsBought', 250),
+    raffle_1000: counter('raffleTicketsBought', 1000),
+    raffle_winner: counter('raffleWins', 1),
+    predict_top_week: counter('predTopWeeks', 1),
+    predict_top_week_5: counter('predTopWeeks', 5),
+    predict_top_month: counter('predTopMonths', 1),
+    totp_enabled: { type: 'truthy', field: 'totpEnabled' },
+    faction_chosen: { type: 'text', field: 'faction', min: 1 },
     onboarding_complete: { type: 'truthy', field: 'onboardingComplete' },
-    push_enabled: { type: 'truthy', field: 'pushToken' },
+    push_enabled: { type: 'truthy', field: 'pushEnabled' },
+    quest_days_7: counter('questDays', 7),
+    quest_days_30: counter('questDays', 30),
+    quest_days_100: counter('questDays', 100),
     tctv_daily_1: counter('tctvWatchDays', 1),
     tctv_daily_7: counter('tctvWatchDays', 7),
     tctv_daily_30: counter('tctvWatchDays', 30),
     tctv_daily_100: counter('tctvWatchDays', 100),
-    gift_sent_1: counter('giftsSent', 1),
-    gift_sent_10: counter('giftsSent', 10),
-    gift_sent_50: counter('giftsSent', 50),
 };
 
 function counter(field, gte) {
@@ -287,6 +336,7 @@ function lqSource(id) {
 }
 
 function sourceFor(id) {
+    if (NEW_SOURCES[id]) return NEW_SOURCES[id];
     if (WAITING_COUNTERS[id]) return WAITING_COUNTERS[id];
     if (MILESTONES[id]) return { type: 'awards', gte: MILESTONES[id] };
     if (id === 'jack_of_all') return { type: 'awards', gte: 25 };
@@ -467,6 +517,10 @@ function meets(rule, user, ctx) {
             value = Math.max(value, listed);
         }
         return value >= src.gte;
+    }
+    if (src.type === 'arrayLength') {
+        const list = Array.isArray(data[src.field]) ? data[src.field] : [];
+        return list.length >= src.gte;
     }
     if (src.type === 'flex' || src.type === 'flexSum' || src.type === 'flexAll') {
         const claims = bag.flexClaims || { byAction: {}, sum: 0 };

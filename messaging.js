@@ -1228,7 +1228,7 @@ window.showDMGifPicker = function(convoId, recipientUid, recipientName) {
 
     var picker = document.createElement('div');
     picker.id = 'dmGifPicker';
-    picker.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
 
     // Store convo info for the send function
     window._dmGifConvo = { convoId: convoId, recipientUid: recipientUid, recipientName: recipientName };
