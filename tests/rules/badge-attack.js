@@ -125,6 +125,15 @@ const parts = emu.split(':');
         await expect('ATTACK triviaStreak', function () { return updateDoc(ref, { triviaStreak: 30 }); }, false);
         await expect('ATTACK sayHiArmedDay', function () { return updateDoc(ref, { sayHiArmedDay: '2026-10-22' }); }, false);
         await expect('ATTACK replyBonusCount', function () { return updateDoc(ref, { replyBonusCount: 10 }); }, false);
+        await expect('ATTACK giftsOpened', function () { return updateDoc(ref, { giftsOpened: increment(1) }); }, false);
+        await expect('ATTACK shopPurchases', function () { return updateDoc(ref, { shopPurchases: increment(1) }); }, false);
+        await expect('ATTACK raffleTicketsBought', function () { return updateDoc(ref, { raffleTicketsBought: increment(1) }); }, false);
+        await expect('ATTACK topic_comment_pending', function () {
+            return setDoc(doc(user, 'topic_comment_pending', 'forged'), { open: true });
+        }, false);
+        await expect('ATTACK peer_xp_credits', function () {
+            return setDoc(doc(user, 'peer_xp_credits', 'a_b'), { leftXp: 10 });
+        }, false);
         const examFields = [
             'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
             'lastExamAttempt_prop', 'lastExamAttempt_tech',

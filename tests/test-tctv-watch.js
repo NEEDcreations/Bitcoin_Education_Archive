@@ -409,6 +409,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2350'"));
+    assert.ok(!sw.includes('btc-archive-v2348'));
+    assert.ok(!sw.includes('btc-archive-v2347'));
+    assert.ok(!sw.includes('btc-archive-v2346'));
+    assert.ok(!sw.includes('btc-archive-v2345'));
     assert.ok(!sw.includes('btc-archive-v2344'));
     assert.ok(!sw.includes('btc-archive-v2343'));
     assert.ok(!sw.includes('btc-archive-v2342'));
@@ -758,6 +762,8 @@ test('patch notes keep one Latest line and keep the live timer and daily taper',
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
+    assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
+    assert.ok(!notes.includes('Latest: New badges'));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
     assert.ok(!notes.includes('Latest: Topic conversations earn XP'));
     assert.ok(notes.includes('Google sign-in now works when you already have an account and were browsing as a guest.'));

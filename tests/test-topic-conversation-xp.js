@@ -203,6 +203,8 @@ test('rules, terms, and the client toast come from the server payload', () => {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
+    assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
+    assert.ok(!notes.includes('Latest: New badges'));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
     assert.ok(!notes.includes('Latest: Topic conversations earn XP'));
 });
