@@ -628,6 +628,12 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(html.includes('ranking.js?v=20261024_v2355'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2352'));
+    assert.ok(!html.includes('ranking.js?v=20261024_repickc'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2350'));
+    assert.ok(!html.includes('ranking.js?v=20261024_repickb'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2351'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2349'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
@@ -635,6 +641,10 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
     assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2355'"));
+    assert.ok(!swText.includes('btc-archive-v2353'));
+    assert.ok(!swText.includes('btc-archive-v2352'));
+    assert.ok(!swText.includes('btc-archive-v2351'));
+    assert.ok(!swText.includes('btc-archive-v2350'));
     assert.ok(!swText.includes('btc-archive-v2349'));
     assert.ok(!swText.includes('btc-archive-v2348'));
     assert.ok(!swText.includes('btc-archive-v2347'));
@@ -653,10 +663,10 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2331'));
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    // Pin only: the patch-notes page shows the whole card. 9500 keeps the
-    // same recent notes inside after the shared-cipher line, the badge line,
-    // the hashing-window line, and the demoted TCTV and daily-XP notes.
-    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 9500);
+    // Pin only: the patch-notes page shows the whole card. 11000 keeps the
+    // shoutout inside after the shared-cipher line, the Music station line,
+    // the demoted username line, the Flex XP note, and the Nacho notes.
+    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 11000);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
     assert.ok(notesHtml.includes('Marketplace fixed: you can post, edit, remove and save listings again.'));

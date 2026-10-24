@@ -1,8 +1,52 @@
 'use strict';
 
+const badgeRules = require('./badgeRules');
+const { profileHoldsBadge } = require('./badgeProfile');
+
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
     return shifted.toISOString().slice(0, 10);
+}
+
+function idsFromSnap(snap) {
+    const ids = [];
+    if (!snap) return ids;
+    if (typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) { if (doc && doc.id) ids.push(doc.id); });
+        return ids;
+    }
+    (snap.docs || []).forEach(function (doc) { if (doc && doc.id) ids.push(doc.id); });
+    return ids;
+}
+
+function denial(badgeId, reason, extra) {
+    const success = reason === 'cosmetic' || reason === 'banned' || reason === 'legacy';
+    return Object.assign({
+        granted: false,
+        success: success,
+        reason: reason,
+        awarded: 0,
+        xp: 0,
+        badgeId: badgeId,
+    }, extra || {});
+}
+
+function needsFlexClaims(rule) {
+    if (!rule || !rule.source) return false;
+    const type = rule.source.type;
+    return type === 'flex' || type === 'flexSum' || type === 'flexAll';
+}
+
+// Counter, flex, and set rules can be decided from the user doc plus the
+// award ids and the flex tally. Scholar exams need their own query, so those
+// still go through awardBadge.
+function canPrecheck(rule) {
+    if (!rule || !rule.source || !rule.source.type) return false;
+    const type = rule.source.type;
+    return type === 'counter' || type === 'arrayLength' || type === 'flex' || type === 'flexSum'
+        || type === 'flexAll' || type === 'truthy' || type === 'either' || type === 'text'
+        || type === 'includes' || type === 'awards' || type === 'set' || type === 'accuracy'
+        || type === 'ghostReader' || type === 'silentDonor' || type === 'profile' || type === 'signed-in';
 }
 
 async function grantBadgeIfEarned(db, adminSdk, uid, badgeId, opts) {
@@ -10,9 +54,82 @@ async function grantBadgeIfEarned(db, adminSdk, uid, badgeId, opts) {
 }
 
 async function grantFamily(db, adminSdk, uid, ids, opts) {
-    const out = [];
-    for (let i = 0; i < ids.length; i++) {
-        out.push(await grantBadgeIfEarned(db, adminSdk, uid, ids[i], opts));
+    const list = ids || [];
+    if (!list.length) return [];
+    const { cleanId } = require('./awardBadge');
+    // Caller-supplied flex tallies are ignored. The numbers come from this
+    // server read of daily_action_counts, then awardBadge checks them again.
+    const options = Object.assign({}, opts || {});
+    delete options.flexClaims;
+
+    const userRef = db.collection('users').doc(uid);
+    const awardSnap = await userRef.collection('badge_awards').get();
+    const earned = new Set(idsFromSnap(awardSnap));
+    const out = new Array(list.length);
+    const pending = [];
+    for (let i = 0; i < list.length; i++) {
+        const badgeId = cleanId(list[i]);
+        if (!badgeId) {
+            out[i] = denial('', 'unknown');
+            continue;
+        }
+        if (earned.has(badgeId)) {
+            out[i] = denial(badgeId, 'already', { favor: false });
+            continue;
+        }
+        pending.push({ index: i, badgeId: badgeId });
+    }
+    if (!pending.length) return out;
+
+    const userSnap = await userRef.get();
+    const userExists = !!(userSnap && userSnap.exists);
+    const user = userExists ? (userSnap.data() || {}) : {};
+
+    let needFlex = false;
+    for (let i = 0; i < pending.length; i++) {
+        const rule = badgeRules.ruleFor(pending[i].badgeId);
+        if (rule && !rule.cosmetic && needsFlexClaims(rule)) {
+            needFlex = true;
+            break;
+        }
+    }
+    if (userExists && needFlex) {
+        const countsSnap = await userRef.collection('daily_action_counts').get();
+        options.flexClaims = badgeRules.tallyFlexClaims(idsFromSnap(countsSnap));
+    }
+
+    for (let i = 0; i < pending.length; i++) {
+        const badgeId = pending[i].badgeId;
+        const rule = badgeRules.ruleFor(badgeId);
+        if (!rule) {
+            out[pending[i].index] = denial(badgeId, 'unknown');
+            continue;
+        }
+        if (rule.cosmetic && options.verified !== true) {
+            out[pending[i].index] = denial(badgeId, 'cosmetic', { cosmetic: true });
+            continue;
+        }
+        if (!userExists) {
+            out[pending[i].index] = denial(badgeId, 'no_user');
+            continue;
+        }
+        const held = profileHoldsBadge(user, badgeId);
+        const ctx = {
+            awardSet: earned,
+            payingCount: badgeRules.countPaying(earned),
+            signedIn: options.signedIn !== false,
+            flexClaims: options.flexClaims || null,
+        };
+        const met = options.verified === true || (canPrecheck(rule) && badgeRules.meets(rule, user, ctx));
+        if (canPrecheck(rule) && options.verified !== true && !met && !held) {
+            out[pending[i].index] = denial(badgeId, 'criteria');
+            continue;
+        }
+        const result = await grantBadgeIfEarned(db, adminSdk, uid, badgeId, options);
+        out[pending[i].index] = result;
+        if (result && (result.granted || result.reason === 'already' || result.reason === 'legacy')) {
+            earned.add(badgeId);
+        }
     }
     return out;
 }

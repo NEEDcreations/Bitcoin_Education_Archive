@@ -102,7 +102,8 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261023_v2349') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261024_v2351') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261023_v2349') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261023_v2330') === -1);
     const quests = read('quests.js');
     assert.ok(quests.indexOf("actionKey: 'flex_day_complete'") > 0);
@@ -111,7 +112,9 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(quests.indexOf('FLEX_ACTIONS.every') === -1);
     assert.ok(quests.indexOf('_flexDayGoal') > 0);
     assert.ok(quests.indexOf('5 * 3600000') > 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2350/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2350/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2342/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2341/g) || []).length, 0);
     assert.ok(!html.includes('quests.js?v=20261023_v2334'));
@@ -125,6 +128,8 @@ test('Say hi stays labeled Say hi, and an active Favor banner can pulse', functi
     assert.ok(html.indexOf('id="sayHiBtnLabel">Say hi!</span>') > 0);
     assert.ok(html.indexOf('Said hi') === -1);
     assert.ok(card.indexOf("sayHiLabel.textContent = 'Say hi!'") > 0);
+    const userExpr = "(typeof currentUser !== 'undefined' && currentUser) || window.currentUser";
+    assert.strictEqual((card.split(userExpr).length - 1), 2);
     assert.ok(chat.indexOf("label.textContent = 'Say hi!'") > 0);
     assert.ok(chat.indexOf('Said hi') === -1);
     assert.ok(html.indexOf('todayFavorPulse 2s') > 0);
