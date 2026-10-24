@@ -98,7 +98,7 @@ function syncFabHold() {
     function shown(el) {
         if (!el || !el.getClientRects || !el.getClientRects().length) return false;
         var overlay = el.closest && el.closest('#chatOverlay');
-        if (overlay && (overlay.style.transform || '').indexOf('translateY(0)') === -1) return false;
+        if (overlay && !document.body.classList.contains('chat-panel-open')) return false;
         return true;
     }
     var active = document.activeElement;
@@ -107,18 +107,14 @@ function syncFabHold() {
     var keyboard = !!(typing && vv && vv.height < window.innerHeight - 80);
     document.body.classList.toggle('kb-open', typing || keyboard);
 
-    var overlay = document.getElementById('chatOverlay');
-    var overlayOpen = !!(overlay && (overlay.style.transform || '').indexOf('translateY(0)') !== -1);
-    if (overlay && !overlay._fabWatch) {
-        overlay._fabWatch = true;
-        new MutationObserver(syncFabHold).observe(overlay, { attributes: true, attributeFilter: ['style'] });
-    }
+    var overlayOpen = document.body.classList.contains('chat-panel-open');
     var hub = document.getElementById('chatContent');
     var hubOpen = !!(hub && shown(hub) && !(hub.closest && hub.closest('#chatOverlay')));
     var dmOpen = shown(document.getElementById('dmInput'));
     var nachoMode = !!document.getElementById('nachoModeScreen');
     document.body.classList.toggle('fab-hold', overlayOpen || hubOpen || dmOpen || nachoMode || typing);
 }
+window.syncFabHold = syncFabHold;
 
 function initComposerKeyboard() {
     if (window._fabHoldBound) return;
@@ -662,7 +658,7 @@ function showPWAInstallBanner() {
     if (document.getElementById('pwaInstallBanner')) return;
     var banner = document.createElement('div');
     banner.id = 'pwaInstallBanner';
-    banner.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px);left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+    banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
     banner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;">' +
         '<div style="font-size:2rem;">🦌</div>' +
         '<div style="flex:1;">' +
@@ -717,7 +713,7 @@ window.dismissPWABanner = function() {
         if (document.getElementById('iosA2HSBanner')) return;
         var banner = document.createElement('div');
         banner.id = 'iosA2HSBanner';
-        banner.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px);left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+        banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
         banner.innerHTML =
             '<div style="display:flex;align-items:flex-start;gap:12px;">' +
                 '<div style="font-size:2rem;flex-shrink:0;">🦌</div>' +
@@ -759,7 +755,7 @@ window.toggleMobileLearnMenu = function() {
 
     var menu = document.createElement('div');
     menu.id = 'mobileLearnMenu';
-    menu.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 8px);left:8px;right:8px;z-index:250;' +
+    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;z-index:250;' +
         'max-width:400px;margin:0 auto;' +
         'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;' +
         'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +

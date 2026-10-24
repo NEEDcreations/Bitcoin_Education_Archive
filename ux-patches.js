@@ -576,7 +576,7 @@
         if (document.getElementById('miniPlayer')) return;
         var mp = document.createElement('div');
         mp.id = 'miniPlayer';
-        mp.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
+        mp.style.cssText = 'position:fixed;bottom:var(--above-fab, 60px);left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
         mp.innerHTML =
             '<button id="mpPlayPause" onclick="toggleMiniPlayer()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:4px;">▶</button>' +
             '<div style="flex:1;min-width:0;">' +

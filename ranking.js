@@ -3678,7 +3678,7 @@ function updateUserDisplay(lv) {
             // Add horizontal row for Dashboard + Notifications
             el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:row;align-items:center;gap:10px;padding:12px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.2);border-radius:12px;cursor:default;transition:0.3s;width:100%;';
         } else {
-            el.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 10px);left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
+            el.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 10px));left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
         }
 
         el.onclick = function(e) { if(!_isMob && e.target.closest('button')) return; showSettingsPage('account'); };

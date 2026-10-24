@@ -4292,23 +4292,33 @@ function createNacho() {
             #nacho-avatar { width: 56px; height: 56px; }
             #nachoDragHandle { bottom: 2px !important; }
             #nacho-avatar .nacho-name { top: auto; bottom: calc(100% + 4px); }
+            /* Speech bubble shares the FAB baseline: nav + safe area + gap,
+               then the button height, then the same gap again (--above-fab). */
             #nacho-bubble {
-                max-width: min(260px, calc(100vw - 80px));
+                position: fixed !important;
+                left: 12px !important;
+                right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+                bottom: var(--above-fab, calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + var(--fab-gap, 12px))) !important;
+                margin: 0 !important;
+                max-width: none !important;
+                width: auto !important;
+                min-width: 0 !important;
                 max-height: 40vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
-                min-width: 140px;
                 font-size: 0.85rem;
                 padding: 12px 14px;
                 border-radius: 14px;
+                z-index: 200050;
             }
+            #nacho-bubble::before,
+            #nacho-bubble::after { display: none !important; }
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
             #nacho-avatar { width: 48px; height: 48px; }
             #nacho-bubble {
-                max-width: min(230px, calc(100vw - 72px));
                 max-height: 38vh;
                 font-size: 0.82rem;
                 padding: 12px 14px;
@@ -5750,7 +5760,7 @@ if (document.readyState === 'loading') {
         var petBottom = window.innerHeight - (top + height);
         var fabSize = window.innerWidth <= 380 ? 44 : 48;
         if (petBottom < floor + fabSize + 8 && petBottom + height > floor - 8) {
-            var edge = window.innerWidth <= 380 ? 8 : 12;
+            var edge = 12;
             var space = window.innerWidth <= 380 ? 6 : 8;
             return Math.max(margin, edge + (fabSize + space) * 4 + 36);
         }
@@ -5777,6 +5787,14 @@ if (document.readyState === 'loading') {
         var bubble = document.getElementById('nacho-bubble');
         var avatar = getAvatar();
         if (!c || !bubble || !avatar) return;
+        if ((window.innerWidth || 0) <= 900) {
+            c.classList.remove('nacho-bubble-left');
+            c.classList.remove('nacho-bubble-below');
+            bubble.style.maxWidth = '';
+            bubble.style.marginLeft = '';
+            bubble.style.width = '';
+            return;
+        }
         var rect = avatar.getBoundingClientRect();
         var vw = window.innerWidth || 360;
         var gap = 16;
@@ -11952,7 +11970,7 @@ window.showDMGifPicker = function(convoId, recipientUid, recipientName) {
 
     var picker = document.createElement('div');
     picker.id = 'dmGifPicker';
-    picker.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
 
     // Store convo info for the send function
     window._dmGifConvo = { convoId: convoId, recipientUid: recipientUid, recipientName: recipientName };
@@ -13821,7 +13839,7 @@ function syncFabHold() {
     function shown(el) {
         if (!el || !el.getClientRects || !el.getClientRects().length) return false;
         var overlay = el.closest && el.closest('#chatOverlay');
-        if (overlay && (overlay.style.transform || '').indexOf('translateY(0)') === -1) return false;
+        if (overlay && !document.body.classList.contains('chat-panel-open')) return false;
         return true;
     }
     var active = document.activeElement;
@@ -13830,18 +13848,14 @@ function syncFabHold() {
     var keyboard = !!(typing && vv && vv.height < window.innerHeight - 80);
     document.body.classList.toggle('kb-open', typing || keyboard);
 
-    var overlay = document.getElementById('chatOverlay');
-    var overlayOpen = !!(overlay && (overlay.style.transform || '').indexOf('translateY(0)') !== -1);
-    if (overlay && !overlay._fabWatch) {
-        overlay._fabWatch = true;
-        new MutationObserver(syncFabHold).observe(overlay, { attributes: true, attributeFilter: ['style'] });
-    }
+    var overlayOpen = document.body.classList.contains('chat-panel-open');
     var hub = document.getElementById('chatContent');
     var hubOpen = !!(hub && shown(hub) && !(hub.closest && hub.closest('#chatOverlay')));
     var dmOpen = shown(document.getElementById('dmInput'));
     var nachoMode = !!document.getElementById('nachoModeScreen');
     document.body.classList.toggle('fab-hold', overlayOpen || hubOpen || dmOpen || nachoMode || typing);
 }
+window.syncFabHold = syncFabHold;
 
 function initComposerKeyboard() {
     if (window._fabHoldBound) return;
@@ -14385,7 +14399,7 @@ function showPWAInstallBanner() {
     if (document.getElementById('pwaInstallBanner')) return;
     var banner = document.createElement('div');
     banner.id = 'pwaInstallBanner';
-    banner.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px);left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+    banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
     banner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;">' +
         '<div style="font-size:2rem;">🦌</div>' +
         '<div style="flex:1;">' +
@@ -14440,7 +14454,7 @@ window.dismissPWABanner = function() {
         if (document.getElementById('iosA2HSBanner')) return;
         var banner = document.createElement('div');
         banner.id = 'iosA2HSBanner';
-        banner.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px);left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+        banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
         banner.innerHTML =
             '<div style="display:flex;align-items:flex-start;gap:12px;">' +
                 '<div style="font-size:2rem;flex-shrink:0;">🦌</div>' +
@@ -14482,7 +14496,7 @@ window.toggleMobileLearnMenu = function() {
 
     var menu = document.createElement('div');
     menu.id = 'mobileLearnMenu';
-    menu.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 8px);left:8px;right:8px;z-index:250;' +
+    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;z-index:250;' +
         'max-width:400px;margin:0 auto;' +
         'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;' +
         'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
@@ -21767,7 +21781,7 @@ if (locked) {
         var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more topics to unlock IRL Sync!';
         var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more topics or sign in to unlock Lightning Mart!';
 
-        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
+        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                 (function() {
@@ -24352,7 +24366,7 @@ window.toggleAITools = function() {
         if (document.getElementById('miniPlayer')) return;
         var mp = document.createElement('div');
         mp.id = 'miniPlayer';
-        mp.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
+        mp.style.cssText = 'position:fixed;bottom:var(--above-fab, 60px);left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
         mp.innerHTML =
             '<button id="mpPlayPause" onclick="toggleMiniPlayer()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:4px;">▶</button>' +
             '<div style="flex:1;min-width:0;">' +

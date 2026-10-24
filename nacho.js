@@ -911,23 +911,33 @@ function createNacho() {
             #nacho-avatar { width: 56px; height: 56px; }
             #nachoDragHandle { bottom: 2px !important; }
             #nacho-avatar .nacho-name { top: auto; bottom: calc(100% + 4px); }
+            /* Speech bubble shares the FAB baseline: nav + safe area + gap,
+               then the button height, then the same gap again (--above-fab). */
             #nacho-bubble {
-                max-width: min(260px, calc(100vw - 80px));
+                position: fixed !important;
+                left: 12px !important;
+                right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+                bottom: var(--above-fab, calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + var(--fab-gap, 12px))) !important;
+                margin: 0 !important;
+                max-width: none !important;
+                width: auto !important;
+                min-width: 0 !important;
                 max-height: 40vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
-                min-width: 140px;
                 font-size: 0.85rem;
                 padding: 12px 14px;
                 border-radius: 14px;
+                z-index: 200050;
             }
+            #nacho-bubble::before,
+            #nacho-bubble::after { display: none !important; }
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
             #nacho-avatar { width: 48px; height: 48px; }
             #nacho-bubble {
-                max-width: min(230px, calc(100vw - 72px));
                 max-height: 38vh;
                 font-size: 0.82rem;
                 padding: 12px 14px;
@@ -2369,7 +2379,7 @@ if (document.readyState === 'loading') {
         var petBottom = window.innerHeight - (top + height);
         var fabSize = window.innerWidth <= 380 ? 44 : 48;
         if (petBottom < floor + fabSize + 8 && petBottom + height > floor - 8) {
-            var edge = window.innerWidth <= 380 ? 8 : 12;
+            var edge = 12;
             var space = window.innerWidth <= 380 ? 6 : 8;
             return Math.max(margin, edge + (fabSize + space) * 4 + 36);
         }
@@ -2396,6 +2406,14 @@ if (document.readyState === 'loading') {
         var bubble = document.getElementById('nacho-bubble');
         var avatar = getAvatar();
         if (!c || !bubble || !avatar) return;
+        if ((window.innerWidth || 0) <= 900) {
+            c.classList.remove('nacho-bubble-left');
+            c.classList.remove('nacho-bubble-below');
+            bubble.style.maxWidth = '';
+            bubble.style.marginLeft = '';
+            bubble.style.width = '';
+            return;
+        }
         var rect = avatar.getBoundingClientRect();
         var vw = window.innerWidth || 360;
         var gap = 16;

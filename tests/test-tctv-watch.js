@@ -758,7 +758,7 @@ test('patch notes keep one Latest line and keep the live timer and daily taper',
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation, and the page still scrolls clear of them.'));
+    assert.ok(notes.includes("Latest: On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row."));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
     assert.ok(!notes.includes('Latest: Topic conversations'));
     assert.ok(notes.includes('Google sign-in now works when you already have an account and were browsing as a guest.'));

@@ -475,13 +475,14 @@
             :root {
                 --fab-size: 48px;
                 --fab-space: 8px;
-                --fab-edge: 12px;
+                --fab-edge: calc(12px + env(safe-area-inset-right, 0px));
                 --fab-gap: 12px;
                 --fab-min: 28px;
                 --bnav-h: 72px;
                 --fab-bottom: calc(var(--bnav-h) + env(safe-area-inset-bottom, 0px) + var(--fab-gap));
+                --above-fab: calc(var(--fab-bottom) + var(--fab-size) + var(--fab-gap));
             }
-            #leaderboard { right: 10px; left: 10px; bottom: calc(var(--fab-bottom) + var(--fab-size) + 16px); width: auto; }
+            #leaderboard { right: var(--fab-edge); left: 10px; bottom: calc(var(--above-fab) + 8px); width: auto; }
             .fab-btn {
                 bottom: var(--fab-bottom) !important;
                 width: var(--fab-size) !important;
@@ -864,8 +865,8 @@
             .share-bar { gap: 6px; }
             .share-btn { padding: 6px 10px; font-size: 0.75rem; }
             /* Scroll arrows sit just above the FAB row, side by side. */
-            .back-to-top { bottom: calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px) !important; right: 12px; width: 44px; height: 44px; font-size: 0.95rem; }
-            .scroll-to-bottom { bottom: calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px) !important; right: 64px; width: 44px; height: 44px; font-size: 0.95rem; }
+            .back-to-top { bottom: var(--above-fab) !important; right: var(--fab-edge); width: 44px; height: 44px; font-size: 0.95rem; }
+            .scroll-to-bottom { bottom: var(--above-fab) !important; right: calc(var(--fab-edge) + 52px); width: 44px; height: 44px; font-size: 0.95rem; }
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
@@ -892,7 +893,7 @@
             #guestPointsBanner { top: 60px !important; right: 8px !important; left: 8px !important; max-width: 100% !important; font-size: 0.8rem !important; padding: 8px 12px !important; border-radius: 10px !important; z-index: 99 !important; }
             #guestPointsBanner.banner-min { left: auto !important; right: 8px !important; width: 44px !important; min-width: 44px !important; max-width: 44px !important; padding: 6px !important; border-radius: 999px !important; }
             /* Badge toast mobile */
-            .badge-toast { bottom: calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px); left: 10px; right: 10px; }
+            .badge-toast { bottom: var(--above-fab); left: 12px; right: var(--fab-edge); }
             /* Lightbox mobile */
             .lightbox img { max-width: 95vw; max-height: 85vh; }
             /* YouTube embeds mobile */
@@ -906,7 +907,6 @@
             :root {
                 --fab-size: 44px;
                 --fab-space: 6px;
-                --fab-edge: 8px;
                 --fab-min: 26px;
             }
             .home-title { font-size: 1.5rem; }
@@ -1946,7 +1946,7 @@ if ('serviceWorker' in navigator) {
             var banner = document.createElement('div');
             banner.id = '_swUpdateBanner';
             var _isMobUpd = window.innerWidth <= 900;
-            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? 'calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px)' : '70px') + ';left:16px;right:16px;z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
+            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? 'var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px))' : '70px') + ';left:16px;right:' + (_isMobUpd ? 'calc(12px + env(safe-area-inset-right, 0px))' : '16px') + ';z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
             banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button id="_swRefreshBtn" style="padding:8px 18px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;white-space:nowrap;">↺ Refresh</button>';
             document.body.appendChild(banner);
             document.getElementById('_swRefreshBtn').addEventListener('click', function() {
