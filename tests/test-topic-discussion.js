@@ -152,8 +152,13 @@ function makeApi(opts) {
                 return { answer: '' };
             }
             calls.ask += 1;
-            if (opts && opts.answer) return { answer: opts.answer(input, calls.ask) };
-            return { answer: 'A block header includes a nonce that miners change while hashing.' };
+            const produced = opts && opts.answer ? opts.answer(input, calls.ask) : 'A block header includes a nonce that miners change while hashing.';
+            if (produced && typeof produced === 'object') return produced;
+            return {
+                answer: produced,
+                links: opts && opts.links,
+                followUps: opts && opts.followUps,
+            };
         },
         mirror: async function(args) { calls.mirror.push(args); },
     });
@@ -216,7 +221,9 @@ test('ATTACK rules deny client writes and keep limits private', () => {
     assert.ok(client.includes("classList.add('topic-post-highlight')"));
     assert.ok(client.includes("httpsCallable('postTopicComment')") || client.includes('callFn(\'postTopicComment\''));
     assert.ok(client.includes('textContent'));
-    assert.ok(client.includes('nacho-deer.svg'));
+    assert.ok(client.includes("'/nacho-deer.svg'"));
+    assert.ok(client.includes('🦌'));
+    assert.ok(!client.includes("src = 'nacho-deer.svg'"));
     assert.ok(client.includes('Math.max(containerTop, stickyCover)'));
     assert.ok(read('functions/index.js').includes('exports.postTopicComment'));
     assert.ok(read('functions/index.js').includes('exports.reportTopicComment'));
@@ -692,6 +699,23 @@ test('text policy masks profanity, rejects hate, links, and PII', () => {
     assert.strictEqual(linked.linksRemoved, true);
     assert.strictEqual(td.preparePostText('mail me learner@example.com now').code, 'pii');
     assert.strictEqual(td.preparePostText('call 415-555-1212 tonight').code, 'pii');
+    const seed = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+    const secret = td.preparePostText(seed);
+    assert.strictEqual(secret.ok, false);
+    assert.strictEqual(secret.code, 'secret');
+    assert.strictEqual(secret.text, undefined);
+    assert.strictEqual(td.preparePostText('How do I protect my seed phrase?').ok, true);
+    assert.strictEqual(td.preparePostText('Anyone who asks you to send your seed phrase is a scammer').ok, true);
+    assert.strictEqual(td.preparePostText('Risk-free profit offers are a red flag').ok, true);
+    assert.strictEqual(td.preparePostText('enter your seed phrase into the new wallet app').ok, true);
+    assert.strictEqual(td.preparePostText('How do people get scammed with guaranteed returns?').code, 'scam');
+    assert.strictEqual(td.preparePostText('What is a giveaway scam?').ok, true);
+    assert.strictEqual(td.preparePostText('How do I restore my wallet?').ok, true);
+    assert.strictEqual(td.preparePostText('Why would someone ask for my seed?').ok, true);
+    assert.strictEqual(td.preparePostText('guaranteed 10x').ok, false);
+    assert.strictEqual(td.preparePostText('send your seed to me').ok, false);
+    assert.strictEqual(td.preparePostText('Where should I store my private key?').ok, true);
+    assert.ok(!td.sanitizeNachoAnswer('Bitcoin is $100,000 right now. As of 19:03 UTC. Not financial advice.').includes('As of'));
     assert.strictEqual(td.sanitizeNachoAnswer('you should buy now'), td.UNSURE);
     assert.strictEqual(td.sanitizeNachoAnswer('<b>hi</b>'), td.UNSURE);
     assert.ok(td.sanitizeNachoAnswer('Miners hash the block header.').indexOf('<') === -1);
@@ -944,6 +968,190 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         await api.reportTopicComment({ channelId: 'mining', postId: hideMe.postId }, auth('other'));
         const reported = postsOf(db, 'mining').filter(function(post) { return post._id === hideMe.postId; })[0];
         assert.strictEqual(reported.reportCount, 1);
+    });
+
+    await testAsync('Nacho reply keeps real topic links and drops invented ones', async function() {
+        const local = makeApi({
+            links: [
+                { id: 'mining', title: 'FAKE TITLE' },
+                { id: 'not-a-real-topic', title: 'Invented channel' },
+                { id: 'scarce', title: 'Nope' },
+                { id: 'mining', title: 'dup' },
+            ],
+            followUps: [
+                'What is the halving?',
+                'what do you think about mining?',
+                'hi',
+                'What is proof of work?',
+                'Not a question',
+                'What is a Bitcoin node?',
+                'What is the Lightning Network?',
+            ],
+        });
+        seedUser(local.db, 'links2');
+        const asked = await local.api.postTopicComment({ channelId: 'mining', text: 'What is a block subsidy?' }, auth('links2'));
+        assert.strictEqual(asked.nacho, true);
+        const reply = postsOf(local.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.ok(reply);
+        assert.deepStrictEqual(reply.links.map(function(link) { return link.id; }), ['mining', 'scarce']);
+        assert.strictEqual(reply.links[0].title, 'Mining');
+        assert.ok(!reply.text.includes('FAKE') && !reply.text.includes('Invented'));
+        assert.deepStrictEqual(reply.followUps, [
+            'What is the halving?',
+            'What is proof of work?',
+            'What is a Bitcoin node?',
+        ]);
+    });
+
+    test('topic discussion renders Nacho links and follow-ups as buttons', function() {
+        const vm = require('vm');
+        function createEl(tag) {
+            return {
+                tag: tag,
+                className: '',
+                textContent: '',
+                type: '',
+                hidden: false,
+                children: [],
+                attrs: {},
+                listeners: [],
+                style: {},
+                get childNodes() { return this.children; },
+                setAttribute: function(key, value) { this.attrs[key] = String(value); },
+                getAttribute: function(key) { return this.attrs[key]; },
+                appendChild: function(child) { this.children.push(child); return child; },
+                addEventListener: function(type, fn) { this.listeners.push({ type: type, fn: fn }); },
+                classList: { add: function() {}, remove: function() {} },
+            };
+        }
+        const document = {
+            head: createEl('head'),
+            getElementById: function() { return null; },
+            createElement: createEl,
+            querySelector: function() { return null; },
+        };
+        const sandbox = {
+            document: document,
+            window: {},
+            console: console,
+            setTimeout: setTimeout,
+            Date: Date,
+        };
+        sandbox.window = sandbox;
+        vm.createContext(sandbox);
+        vm.runInContext(fs.readFileSync(path.join(root, 'topic-discussions.js'), 'utf8'), sandbox);
+        const asked = [];
+        const opened = [];
+        sandbox.bqAskFollowUp = function(q) { asked.push(q); };
+        sandbox.go = function(id) { opened.push(id); };
+        const post = {
+            id: 'n1',
+            isNacho: true,
+            name: '<img src=x>',
+            text: 'Bitcoin is $100,000 right now. <script>alert(1)</script>',
+            asOf: '2026-10-23T19:03:00.000Z',
+            createdAt: Date.now(),
+            links: [{ id: 'charts', title: 'Charts', kind: 'topic' }, { id: 'bad id!', title: 'Nope' }],
+            followUps: ['What are Bitcoin fees right now?', 'what do you think?'],
+        };
+        const row = sandbox._topicDiscussionRenderPost(post, {
+            viewer: { signedIn: true, uid: 'me', admin: false },
+            onReply: function() {},
+            onReport: function() {},
+            onDelete: function() {},
+            onModerate: function() {},
+            onToggleReplies: function() {},
+        });
+        const nodes = [];
+        (function walk(node) {
+            nodes.push(node);
+            (node.children || []).forEach(walk);
+        })(row);
+        const text = nodes.filter(function(node) { return node.className === 'td-text'; })[0];
+        assert.ok(text.textContent.includes('<script>alert(1)</script>'));
+        assert.ok(!nodes.some(function(node) { return node.tag === 'script'; }));
+        const topic = nodes.filter(function(node) { return node.attrs && node.attrs['data-bq-topic']; });
+        assert.deepStrictEqual(topic.map(function(node) { return node.attrs['data-bq-topic']; }), ['charts']);
+        topic[0].listeners[0].fn({ stopPropagation: function() {}, preventDefault: function() {} });
+        assert.deepStrictEqual(opened, ['charts']);
+        const chips = nodes.filter(function(node) { return node.attrs && node.attrs['data-bq-chip']; });
+        assert.strictEqual(chips.length, 1);
+        chips[0].listeners[0].fn({ stopPropagation: function() {}, preventDefault: function() {} });
+        assert.deepStrictEqual(asked, ['What are Bitcoin fees right now?']);
+        const name = nodes.filter(function(node) { return String(node.className).indexOf('td-name') !== -1; })[0];
+        assert.strictEqual(name.textContent, 'Nacho');
+        const avatar = nodes.filter(function(node) { return node.tag === 'img'; })[0];
+        assert.strictEqual(avatar.src, '/nacho-deer.svg');
+        assert.ok(avatar.listeners.some(function(listener) { return listener.type === 'error'; }));
+        const asof = nodes.filter(function(node) { return node.attrs && node.attrs['data-bq-asof']; })[0];
+        assert.ok(asof);
+        assert.strictEqual(asof.attrs['data-bq-asof'], '2026-10-23T19:03:00.000Z');
+        assert.ok(/^As of /.test(asof.textContent));
+        assert.ok(text.textContent.indexOf('As of') === -1);
+    });
+
+    await testAsync('seed posts are blocked and Nacho never posts a refusal', async function() {
+        const seed = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+        const blocked = makeApi();
+        seedUser(blocked.db, 'seed');
+        let err = null;
+        try {
+            await blocked.api.postTopicComment({ channelId: 'mining', text: seed }, auth('seed'));
+        } catch (e) { err = e; }
+        assert.ok(err);
+        assert.strictEqual(err.code, 'invalid-argument');
+        assert.ok(/not saved/i.test(err.message));
+        assert.strictEqual(err.message.indexOf('abandon'), -1);
+        assert.strictEqual(postsOf(blocked.db, 'mining').length, 0);
+
+        const gentle = makeApi({
+            answer: function() { return "Hmm, my antlers are telling me I shouldn't go there!"; },
+        });
+        seedUser(gentle.db, 'edu');
+        const taught = await gentle.api.postTopicComment({ channelId: 'mining', text: 'How do I protect my seed phrase?' }, auth('edu'));
+        assert.strictEqual(taught.nacho, true);
+        assert.strictEqual(gentle.calls.ask, 1);
+        const reply = postsOf(gentle.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.strictEqual(reply.text, td.SECRET_NOTE);
+        assert.ok(!/antlers are telling me|no hacking these antlers/i.test(reply.text));
+
+        const mine = makeApi();
+        seedUser(mine.db, 'key');
+        const asked = await mine.api.postTopicComment({ channelId: 'mining', text: 'what is my private key?' }, auth('key'));
+        assert.strictEqual(asked.nacho, true);
+        assert.strictEqual(mine.calls.ask, 1);
+        const note = postsOf(mine.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.strictEqual(note.text, 'A block header includes a nonce that miners change while hashing.');
+        assert.ok(!/antlers are telling me|no hacking these antlers/i.test(note.text));
+        const userPost = postsOf(mine.db, 'mining').filter(function(post) { return post._id === asked.postId; })[0];
+        assert.ok(userPost && userPost.text.indexOf('private key') !== -1);
+
+        const route = makeApi();
+        seedUser(route.db, 'route');
+        const routed = await route.api.postTopicComment({ channelId: 'mining', text: 'Can a lightning node act as a router?' }, auth('route'));
+        assert.strictEqual(routed.nacho, true);
+        assert.strictEqual(route.calls.ask, 1);
+        const routedReply = postsOf(route.db, 'mining').filter(function(post) { return post.isNacho; })[0];
+        assert.strictEqual(routedReply.text, 'A block header includes a nonce that miners change while hashing.');
+        assert.notStrictEqual(routedReply.text, td.UNSURE);
+
+        const timed = makeApi({
+            answer: function() {
+                return {
+                    answer: 'Bitcoin is $100,000 right now. As of 19:03 UTC. Not financial advice.',
+                    asOf: '2026-10-23T19:03:00.000Z',
+                    links: [{ id: 'charts', title: 'Charts' }],
+                    followUps: ['What are Bitcoin fees right now?', 'What is the current block height?'],
+                };
+            },
+        });
+        seedUser(timed.db, 'time');
+        const priced = await timed.api.postTopicComment({ channelId: 'mining', text: 'What is the Bitcoin price right now?' }, auth('time'));
+        const nacho = postsOf(timed.db, 'mining').filter(function(post) { return post.isNacho && post.parentId === priced.postId; })[0];
+        assert.ok(nacho);
+        assert.strictEqual(nacho.text.indexOf('As of'), -1);
+        assert.strictEqual(nacho.asOf, '2026-10-23T19:03:00.000Z');
+        assert.deepStrictEqual(nacho.links.map(function(link) { return link.id; }), ['charts']);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

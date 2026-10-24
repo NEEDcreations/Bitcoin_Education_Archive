@@ -306,7 +306,8 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     assert.ok(html.indexOf('location.replace(_href)') === -1);
     assert.ok(html.indexOf('id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);') !== -1);
     assert.ok(html.indexOf('#searchOverlay {') !== -1 && html.indexOf('background: var(--bg) !important;') !== -1);
-    assert.ok(html.indexOf('patches.js?v=20261022_v2263') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261023_v2349') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261022_v2263') === -1);
     const appSrc = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
     const fallbackAt = appSrc.indexOf('Post-load fallback routing to:');
     const fallback = appSrc.slice(Math.max(0, fallbackAt - 700), fallbackAt);
@@ -429,13 +430,18 @@ test('search drops duplicate app rows and linked answers skip the generic tip', 
         answer: 'The halving cuts the block subsidy. See the Scarce channel.',
         channel: 'scarce'
     });
-    assert.ok(linked && !/Orange Tickets/i.test(linked.answer) && !/data-bq-chip/.test(linked.answer), linked && linked.answer);
+    assert.ok(linked && !/Orange Tickets/i.test(linked.answer), linked && linked.answer);
+    assert.ok(/data-bq-links/.test(linked.answer) && /data-bq-topic="scarce"/.test(linked.answer), linked && linked.answer);
+    assert.ok(/data-bq-chip/.test(linked.answer) && /data-bq-followups/.test(linked.answer), linked && linked.answer);
     const topical = answer('what is the halving', {
         type: 'kb',
         answer: 'The halving cuts the block subsidy every 210,000 blocks.'
     });
-    assert.ok(topical && /Scarce channel/.test(topical.answer), topical && topical.answer);
+    assert.ok(topical && /data-bq-topic="scarce"/.test(topical.answer), topical && topical.answer);
+    assert.ok(/data-bq-chip/.test(topical.answer));
     assert.ok(!/Orange Tickets/i.test(topical.answer));
+    const chips = (topical.answer.match(/data-bq-chip="1"/g) || []).length;
+    assert.ok(chips >= 2 && chips <= 3, 'follow-ups ' + chips);
     const plain = answer('what is a utxo', {
         type: 'kb',
         answer: 'A UTXO is an unspent transaction output.'
@@ -474,11 +480,12 @@ test('show/open/enter navigation openers are in the registry', function () {
         'showEmojiPicker', 'showFloatingBtn', 'showFriendsInDistressWarning', 'showGifPicker',
         'showGuideBanner', 'showGuideReturnBtn', 'showImagePreview', 'showLevelUpCelebration',
         'showMinerModal', 'showOverlayBtn', 'showPWAAuthFallback', 'showPartnershipLevelUpPopup', 'showOptInCard', 'openNotificationSettings',
-        'showPostSpinGiftModal', 'showQuestFinalResults', 'showReactPicker', 'showSignInOnly',
+        'showCipherShareReveal', 'showPostSpinGiftModal', 'showQuestFinalResults', 'showReactPicker', 'showSignInOnly',
         'showSignInPrompt', 'showSkeletonLoader', 'showSpinReward', 'showToast', 'showTrendingTopics',
         'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername',
         'openNow',
-        'openWithdrawalAddress', 'showWithdrawalAddressReadonly'
+        'openWithdrawalAddress', 'showWithdrawalAddressReadonly',
+        'showUsernameRepickPrompt'
     ]);
     const regSrc = fs.readFileSync(path.join(root, 'features.registry.js'), 'utf8');
     const missing = [];

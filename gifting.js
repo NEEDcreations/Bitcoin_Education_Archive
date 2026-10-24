@@ -683,7 +683,7 @@ async function _showGiftFollowUp() {
         note.textContent = 'Send to a peer';
         var explain = document.createElement('div');
         explain.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;';
-        explain.textContent = 'You got ' + keyIds.length + ' spare key' + (keyIds.length > 1 ? 's' : '') + '. Send up to 3 to one peer today, or keep one to open a matching cipher.';
+        explain.textContent = 'You got ' + keyIds.length + ' spare key' + (keyIds.length > 1 ? 's' : '') + '. Send up to 3 to one peer today. If a peer opens a cipher with your key, you both win the same prize. Or keep one to open a matching cipher.';
         var send = _btn('Send keys to a peer');
         send.style.width = '100%';
         send.style.marginBottom = '8px';
@@ -820,7 +820,7 @@ function _lockedCipherNote(parent, label) {
     var text = document.createElement('div');
     text.style.cssText = 'font-size:0.8rem;color:var(--text);line-height:1.45;';
     var which = label ? ('a ' + label + ' key') : 'a key with the same label, such as 3A';
-    text.textContent = '🔒 Locked cipher: you need ' + which + ' to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key, or ask in Global Chat.';
+    text.textContent = '🔒 Locked cipher: you need ' + which + ' to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key. Ask in Chat whether anyone has the key.';
     var chat = document.createElement('button');
     chat.type = 'button';
     chat.textContent = 'Open Global Chat';
@@ -867,7 +867,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
     introRow.className = 'kc-intro';
     var intro = document.createElement('p');
     intro.style.cssText = 'font-size:0.78rem;color:var(--text-muted);line-height:1.4;';
-    intro.textContent = 'A key and a cipher with the same label, like F6, are a pair. Open the pair, or send a spare key to a peer.';
+    intro.textContent = 'A key and a cipher with the same label, like F6, are a pair. Open the pair, or send a spare key to a peer. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.';
     introRow.appendChild(intro);
     introRow.appendChild(_soundButton('nookSoundToggle'));
     el.appendChild(introRow);
@@ -906,13 +906,14 @@ window.renderKeysAndCiphersPanel = async function(container) {
         var countBit = group.length > 1 ? ' You have ' + group.length + '.' : '';
         if (match) {
             var fromWhom = peerKey ? (' This one came from ' + (peerKey.sentByName || 'a peer') + '.') : ' This one is yours.';
+            var shareBit = peerKey ? ' If a peer sent this key, you both win the same prize.' : '';
             _copy(card,
                 'You have the ' + label + ' key! Open ' + label + ' cipher',
-                'A matching key opens this cipher. Opening uses up the key and the cipher.' + fromWhom + countBit);
+                'A matching key opens this cipher. Opening uses up the key and the cipher.' + fromWhom + shareBit + countBit);
         } else {
             _copy(card,
                 '🔒 Locked cipher ' + label,
-                'You need a ' + label + ' key to open it. Keys come from daily wheel gifts. Ask a peer to send you that key, or ask in Global Chat.' + countBit);
+                'You need a ' + label + ' key to open it. Keys come from daily wheel gifts. Ask a peer to send you that key. Ask in Chat whether anyone has the key.' + countBit);
             var chat = document.createElement('button');
             chat.type = 'button';
             chat.className = 'cipher-open-btn';
@@ -956,7 +957,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         card.appendChild(lab);
         _copy(card,
             'Send to a peer',
-            'A spare ' + label + ' key opens a matching cipher, or you can give it to a friend. One send of up to 3 keys per peer each day. You have ' + group.length + '.');
+            'If a peer opens a cipher with your key, you both win the same prize. One send of up to 3 keys per peer each day. You have ' + group.length + '.');
         var send = _btn('Send keys');
         send.className = 'key-send-btn';
         var ids = group.slice(0, 3).map(function(k) { return k.id; });
@@ -1308,7 +1309,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
     h.textContent = 'Send ' + ids.length + ' key' + (ids.length > 1 ? 's' : '') + ' to…';
     var sub = document.createElement('div');
     sub.style.cssText = 'font-size:0.75rem;color:#cbd5e1;margin-bottom:12px;';
-    sub.textContent = 'Up to 3 keys per peer per day. One send, then it resets tomorrow.';
+    sub.textContent = 'Up to 3 keys per peer per day. If a peer opens a cipher with your key, you both win the same prize.';
     sheet.appendChild(h);
     sheet.appendChild(sub);
     if (!peers.length) {
@@ -1378,7 +1379,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     sheet.appendChild(h);
     var limit = document.createElement('div');
     limit.style.cssText = 'font-size:0.78rem;color:#cbd5e1;margin-bottom:10px;line-height:1.4;';
-    limit.textContent = 'Up to 3 keys per peer per day. A key only opens a cipher with the same label.';
+    limit.textContent = 'Up to 3 keys per peer per day. A key only opens a cipher with the same label. If a peer opens a cipher with your key, you both win the same prize.';
     sheet.appendChild(limit);
 
     var today = _utcDay();
@@ -1591,6 +1592,77 @@ window.renderCipherWinsAdmin = async function(container) {
         el.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;">Could not load wins. ' + _esc(e.message || '') + '</div>';
     }
 };
+
+var _shownCipherShares = {};
+var _cipherShareQueue = [];
+var _cipherSharePlaying = false;
+
+window.showCipherShareReveal = function(notice) {
+    notice = notice || {};
+    if (notice.revealed === true) return;
+    var shareId = String(notice.shareId || notice.cipherId || '');
+    if (!shareId || _shownCipherShares[shareId]) return;
+    _shownCipherShares[shareId] = true;
+    _cipherShareQueue.push(notice);
+    _drainCipherShareQueue();
+};
+
+function _drainCipherShareQueue() {
+    if (_cipherSharePlaying) return;
+    var notice = _cipherShareQueue.shift();
+    if (!notice) return;
+    _cipherSharePlaying = true;
+    var shareId = String(notice.shareId || notice.cipherId || '');
+    _injectGiftingCSS();
+    _playUnlockSound();
+    var old = document.getElementById('cipherShareOverlay');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'cipherShareOverlay';
+    overlay.className = 'gifting-overlay';
+    overlay.style.zIndex = '480000';
+    var modal = document.createElement('div');
+    modal.className = 'gifting-modal';
+    var who = notice.openerUsername || 'a Bitcoiner';
+    var label = notice.cipherLabel || notice.cipherType || '';
+    var message = notice.message || ('Your key opened @' + who + "'s cipher. You both won a cipher prize!");
+    modal.innerHTML =
+        '<div id="csLabel" style="font-family:monospace;font-size:2.2rem;font-weight:900;color:#a78bfa;letter-spacing:3px;">🔒 ' + _esc(label || 'cipher') + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.78rem;margin:6px 0 12px;">A key you sent is opening a cipher…</div>' +
+        '<div id="csHex" style="font-family:monospace;font-size:0.7rem;color:#f7931a;word-break:break-all;min-height:48px;margin-bottom:12px;padding:10px;background:rgba(247,147,26,0.05);border-radius:8px;"></div>' +
+        '<div id="csResult" style="display:none;"></div>';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    var hexEl = document.getElementById('csHex');
+    _playHex(hexEl, 1200).then(function() {
+        if (!overlay.parentNode) return;
+        if (hexEl) hexEl.style.display = 'none';
+        var labelEl = document.getElementById('csLabel');
+        if (labelEl) labelEl.innerHTML = '🔓 <span style="color:#f7931a;animation:decryptPulse 1.2s ease-in-out 2;">' + _esc(label || 'cipher') + '</span>';
+        var resultDiv = document.getElementById('csResult');
+        if (!resultDiv) return;
+        resultDiv.style.display = 'block';
+        resultDiv.style.animation = 'decryptReveal 0.4s ease-out';
+        var line = document.createElement('div');
+        line.id = 'csShareMessage';
+        line.style.cssText = 'color:#f7931a;font-weight:900;font-size:1.05rem;line-height:1.4;';
+        line.textContent = message;
+        resultDiv.appendChild(line);
+        var done = _btn('Nice!');
+        done.style.width = '100%';
+        done.style.marginTop = '14px';
+        done.onclick = function() {
+            overlay.remove();
+            _cipherSharePlaying = false;
+            _drainCipherShareQueue();
+        };
+        resultDiv.appendChild(done);
+        _confetti();
+    });
+    if (shareId) {
+        _callCF('ackCipherShare', { shareId: shareId }).catch(function() {});
+    }
+}
 
 function _boot() {
     var tries = 0;

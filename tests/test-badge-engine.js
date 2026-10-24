@@ -3,7 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const badgeRules = require('../functions/src/badgeRules');
-const { grantBadgeIfEarned } = require('../functions/src/grantBadge');
+const { grantBadgeIfEarned, grantFamily } = require('../functions/src/grantBadge');
 const { awardBadge } = require('../functions/src/awardBadge');
 const { favorSourceAllowed } = require('../functions/src/satoshiFavor');
 const dailyFive = require('../functions/src/dailyFive');
@@ -955,6 +955,206 @@ queue.push(test('badge XP backfill tops up fixtures without clawing back or payi
     });
     assert.strictEqual(capped.xp, 150);
     assert.strictEqual(capped.topUps[0].cappedZero, true);
+}));
+
+function watchBadgeReads(db) {
+    const stats = { inside: 0, outside: 0, awardTx: 0 };
+    const origRun = db.runTransaction.bind(db);
+    db.runTransaction = function (fn) {
+        return origRun(async function (t) {
+            let sawAward = false;
+            const origGet = t.get.bind(t);
+            t.get = function (ref) {
+                const docPath = ref && ref.path ? String(ref.path) : '';
+                if (/\/daily_action_counts$/.test(docPath)) stats.inside += 1;
+                if (docPath.indexOf('badge_awards/') !== -1 || docPath.indexOf('satoshiFavor') === 0) sawAward = true;
+                return origGet(ref);
+            };
+            const result = await fn(t);
+            if (sawAward) stats.awardTx += 1;
+            return result;
+        });
+    };
+    const origCollection = db.collection.bind(db);
+    db.collection = function (name) {
+        const col = origCollection(name);
+        const origDoc = col.doc.bind(col);
+        col.doc = function (id) {
+            const ref = origDoc(id);
+            const origSub = ref.collection.bind(ref);
+            ref.collection = function (sub) {
+                const subCol = origSub(sub);
+                if (sub === 'daily_action_counts') {
+                    const origGet = subCol.get.bind(subCol);
+                    subCol.get = function () {
+                        stats.outside += 1;
+                        return origGet();
+                    };
+                }
+                return subCol;
+            };
+            return ref;
+        };
+        return col;
+    };
+    return stats;
+}
+
+queue.push(test('awardBadge does not scan daily_action_counts when flexClaims is passed, and a second award pays nothing', async function () {
+    const day = { day: '2026-10-22', nowMs: 1700000000000 };
+    const docs = { 'users/u': { points: 0 } };
+    for (let i = 0; i < 40; i++) {
+        const stamp = '2026-06-' + String((i % 28) + 1).padStart(2, '0');
+        docs['users/u/daily_action_counts/' + stamp + '_flex_findq'] = { actionId: 'findq' };
+        docs['users/u/daily_action_counts/' + stamp + '_say_hi'] = { count: 1 };
+    }
+    docs['users/u/daily_action_counts/2026-07-04_flex_findq'] = { actionId: 'findq' };
+    const db = memoryDb(docs);
+    const stats = watchBadgeReads(db);
+    const flexClaims = badgeRules.tallyFlexClaims(['2026-07-04_flex_findq']);
+    const first = await awardBadge(db, admin, 'u', 'flex_findq_1', Object.assign({ flexClaims: flexClaims }, day));
+    assert.strictEqual(first.granted, true);
+    assert.strictEqual(first.xp, 10);
+    assert.strictEqual(first.favor, true);
+    assert.strictEqual(stats.inside, 0);
+    assert.strictEqual(db.docs['users/u'].points, 10);
+    assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
+    const second = await awardBadge(db, admin, 'u', 'flex_findq_1', Object.assign({
+        flexClaims: { byAction: { findq: 40 }, sum: 40 },
+    }, day, { nowMs: day.nowMs + 1000 }));
+    assert.strictEqual(second.granted, false);
+    assert.strictEqual(second.reason, 'already');
+    assert.strictEqual(second.favor, false);
+    assert.strictEqual(db.docs['users/u'].points, 10);
+    assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
+    assert.strictEqual(stats.inside, 0);
+    assert.strictEqual(db.docs['users/u/badge_awards/flex_findq_5'], undefined);
+
+    const scanned = memoryDb({
+        'users/u': { points: 0 },
+        'users/u/daily_action_counts/2026-07-04_flex_findq': { actionId: 'findq' },
+        'users/u/daily_action_counts/2026-07-05_say_hi': { count: 1 },
+    });
+    const scanStats = watchBadgeReads(scanned);
+    const fromServer = await awardBadge(scanned, admin, 'u', 'flex_findq_1', day);
+    assert.strictEqual(fromServer.granted, true);
+    assert.strictEqual(scanStats.inside, 1);
+    const repeat = await awardBadge(scanned, admin, 'u', 'flex_findq_1', Object.assign({}, day, { nowMs: day.nowMs + 1000 }));
+    assert.strictEqual(repeat.reason, 'already');
+    assert.strictEqual(scanned.docs['users/u'].points, 10);
+    assert.strictEqual(scanned.docs['satoshiFavor/current'].points, 1);
+    assert.strictEqual(scanStats.inside, 1);
+}));
+
+queue.push(test('grantFamily tallies flex claims once, skips earned ids, and does not trust a caller tally', async function () {
+    const day = { day: '2026-10-22', nowMs: 1700000000000 };
+    const ids = progressBadges.flexBadgeIds('findq');
+    const claims = badgeRules.tallyFlexClaims(['2026-07-04_flex_findq']);
+    const met = ids.filter(function (id) {
+        const rule = badgeRules.ruleFor(id);
+        return !!(rule && badgeRules.meets(rule, { points: 0 }, {
+            flexClaims: claims, awardSet: new Set(), payingCount: 0, signedIn: true,
+        }));
+    });
+    assert.deepStrictEqual(met, ['flex_findq_1']);
+
+    const docs = {
+        'users/u': { points: 0 },
+        'users/u/badge_awards/flex_rookie': { xp: 10, source: 'awardBadge' },
+        'users/u/daily_action_counts/2026-07-04_flex_findq': { actionId: 'findq' },
+    };
+    for (let i = 0; i < 30; i++) {
+        docs['users/u/daily_action_counts/2026-05-' + String((i % 28) + 1).padStart(2, '0') + '_flex_steak'] = { actionId: 'steak' };
+    }
+    const db = memoryDb(docs);
+    const stats = watchBadgeReads(db);
+    const first = await progressBadges.grantProgress(db, admin, 'u', {
+        kind: 'flex', flexId: 'findq', day: '2026-10-22',
+    });
+    assert.strictEqual(first, undefined);
+    assert.strictEqual(stats.outside, 1);
+    assert.strictEqual(stats.inside, 0);
+    assert.strictEqual(stats.awardTx, 1);
+    assert.strictEqual(db.docs['users/u'].points, 10);
+    assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
+    assert.ok(db.docs['users/u/badge_awards/flex_findq_1']);
+    assert.strictEqual(db.docs['users/u/badge_awards/flex_findq_5'], undefined);
+    assert.strictEqual(db.docs['users/u/badge_awards/flex_rookie'].xp, 10);
+
+    await progressBadges.grantProgress(db, admin, 'u', {
+        kind: 'flex', flexId: 'findq', day: '2026-10-22',
+    });
+    assert.strictEqual(stats.outside, 2);
+    assert.strictEqual(stats.inside, 0);
+    assert.strictEqual(stats.awardTx, 1);
+    assert.strictEqual(db.docs['users/u'].points, 10);
+    assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
+
+    const hostile = memoryDb({ 'users/u': { points: 4 } });
+    const lied = await grantFamily(hostile, admin, 'u', ['flex_findq_1', 'flex_findq_5'], Object.assign({
+        flexClaims: { byAction: { findq: 100 }, sum: 100 },
+    }, day));
+    assert.strictEqual(lied[0].granted, false);
+    assert.strictEqual(lied[0].reason, 'criteria');
+    assert.strictEqual(lied[1].reason, 'criteria');
+    assert.strictEqual(hostile.docs['users/u/badge_awards/flex_findq_1'], undefined);
+    assert.strictEqual(hostile.docs['users/u'].points, 4);
+    assert.strictEqual(hostile.docs['satoshiFavor/current'], undefined);
+
+    const server = memoryDb({
+        'users/u': { points: 0 },
+        'users/u/daily_action_counts/2026-07-04_flex_findq': { actionId: 'findq' },
+    });
+    const paid = await grantFamily(server, admin, 'u', ['flex_findq_1'], Object.assign({
+        flexClaims: { byAction: {}, sum: 0 },
+    }, day));
+    assert.strictEqual(paid[0].granted, true);
+    assert.strictEqual(paid[0].xp, 10);
+    const again = await grantFamily(server, admin, 'u', ['flex_findq_1'], Object.assign({
+        flexClaims: { byAction: { findq: 100 }, sum: 100 },
+    }, day, { nowMs: day.nowMs + 1000 }));
+    assert.strictEqual(again[0].reason, 'already');
+    assert.strictEqual(again[0].granted, false);
+    assert.strictEqual(server.docs['users/u'].points, 10);
+    assert.strictEqual(server.docs['satoshiFavor/current'].points, 1);
+
+    const legacy = memoryDb({ 'users/u': { points: 3, visibleBadges: ['flex_findq_1'] } });
+    const legacyStats = watchBadgeReads(legacy);
+    const kept = await grantFamily(legacy, admin, 'u', ['flex_findq_1'], day);
+    assert.strictEqual(kept[0].reason, 'legacy');
+    assert.strictEqual(kept[0].xp, 0);
+    assert.strictEqual(legacy.docs['users/u'].points, 3);
+    assert.strictEqual(legacy.docs['satoshiFavor/current'], undefined);
+    assert.strictEqual(legacy.docs['users/u/badge_awards/flex_findq_1'].source, 'legacy');
+    assert.strictEqual(legacyStats.awardTx, 1);
+
+    const banned = memoryDb({
+        'users/u': { points: 0, banned: true },
+        'users/u/daily_action_counts/2026-07-04_flex_findq': { actionId: 'findq' },
+    });
+    const blocked = await grantFamily(banned, admin, 'u', ['flex_findq_1'], day);
+    assert.strictEqual(blocked[0].reason, 'banned');
+    assert.strictEqual(blocked[0].granted, false);
+    assert.strictEqual(banned.docs['users/u/badge_awards/flex_findq_1'], undefined);
+    assert.strictEqual(banned.docs['satoshiFavor/current'], undefined);
+
+    const hi = memoryDb({ 'users/u': { sayHiDays: 1, points: 0 } });
+    const hiStats = watchBadgeReads(hi);
+    const hiGrant = await grantFamily(hi, admin, 'u', ['say_hi_1', 'say_hi_7', 'say_hi_30', 'say_hi_100'], day);
+    assert.strictEqual(hiGrant[0].granted, true);
+    assert.strictEqual(hiGrant[1].reason, 'criteria');
+    assert.strictEqual(hiGrant[2].reason, 'criteria');
+    assert.strictEqual(hiGrant[3].reason, 'criteria');
+    assert.strictEqual(hiStats.outside, 0);
+    assert.strictEqual(hiStats.inside, 0);
+    assert.strictEqual(hiStats.awardTx, 1);
+    const hiAgain = await grantFamily(hi, admin, 'u', ['say_hi_1', 'say_hi_7'], day);
+    assert.strictEqual(hiAgain[0].reason, 'already');
+    assert.strictEqual(hiAgain[1].reason, 'criteria');
+    assert.strictEqual(hi.docs['users/u'].points, 10);
+    assert.strictEqual(hi.docs['satoshiFavor/current'].points, 1);
+    assert.strictEqual(hiStats.awardTx, 1);
+    assert.strictEqual(hiStats.outside, 0);
 }));
 
 Promise.all(queue).then(function () {

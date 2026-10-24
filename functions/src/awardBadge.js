@@ -115,6 +115,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             return { granted: false, success: false, reason: 'retired', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
 
+        // flexClaims is the server tally of daily_action_counts, computed
+        // outside this transaction. The award doc and the user doc are read
+        // again here, and meets() still has to pass before any write. A
+        // passed tally skips the full subcollection scan. Nothing here is
+        // taken from the client.
         let flexClaims = options.flexClaims || null;
         if (!flexClaims && needsFlexClaims(rule)) {
             const countsSnap = await t.get(userRef.collection('daily_action_counts'));

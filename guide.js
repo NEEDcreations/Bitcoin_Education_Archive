@@ -385,7 +385,7 @@
                 '<button onclick="event.stopPropagation();collapseGuideReturn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:0.7rem;cursor:pointer;padding:2px 4px;margin-left:2px;">✕</button>' +
             '</div>' +
             '<div id="guideReturnCollapsed" style="display:none;width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#4f46e5);border-radius:50%;box-shadow:0 4px 16px rgba(99,102,241,0.4);cursor:pointer;align-items:center;justify-content:center;font-size:1.1rem;transition:all 0.3s ease;touch-action:manipulation;" onclick="returnToGuide()">📜</div>';
-        _guideReturnBtn.style.cssText = 'position:fixed;bottom:80px;left:16px;z-index:9980;animation:guideReturnIn 0.4s ease;';
+        _guideReturnBtn.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);left:16px;z-index:9980;animation:guideReturnIn 0.4s ease;';
         if (!document.getElementById('guideReturnStyle')) {
             var s = document.createElement('style');
             s.id = 'guideReturnStyle';
