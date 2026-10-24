@@ -656,6 +656,338 @@ function guestLinkIsMfaHold(message) {
     return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
 }
 
+// ACCOUNT_LINK_PLAN_START
+function listSignInMethodLabels(user, profile) {
+    var labels = [];
+    var seen = {};
+    function add(label) {
+        if (!label || seen[label]) return;
+        seen[label] = true;
+        labels.push(label);
+    }
+    var map = {
+        'password': 'Email',
+        'google.com': 'Google',
+        'twitter.com': 'Twitter/X',
+        'github.com': 'GitHub',
+        'facebook.com': 'Facebook',
+        'phone': 'Phone'
+    };
+    var providers = (user && user.providerData) || [];
+    var i;
+    for (i = 0; i < providers.length; i++) {
+        var pid = providers[i] && providers[i].providerId;
+        if (!pid || pid === 'anonymous' || pid === 'custom') continue;
+        add(map[pid] || pid);
+    }
+    var uid = String((user && user.uid) || '');
+    var authMethod = profile && profile.authMethod;
+    if (uid.indexOf('ln:') === 0 || authMethod === 'lightning') add('Lightning');
+    if (user && user.isAnonymous && labels.length === 0) add('Guest');
+    if (!labels.length) add('Guest');
+    return labels;
+}
+
+function hasLinkedProvider(user) {
+    var providers = (user && user.providerData) || [];
+    var i;
+    for (i = 0; i < providers.length; i++) {
+        var pid = providers[i] && providers[i].providerId;
+        if (pid && pid !== 'anonymous' && pid !== 'custom') return true;
+    }
+    return false;
+}
+
+function isLightningOnlyAccount(user, profile) {
+    if (!user || user.isAnonymous) return false;
+    var uid = String(user.uid || '');
+    var authMethod = profile && profile.authMethod;
+    if (uid.indexOf('ln:') !== 0 || authMethod !== 'lightning') return false;
+    return !hasLinkedProvider(user);
+}
+
+function accountCanLinkSignIn(user, profile) {
+    if (!user) return false;
+    if (user.isAnonymous) return !hasLinkedProvider(user);
+    return isLightningOnlyAccount(user, profile);
+}
+
+function signOutWarningForAccount(user, profile) {
+    if (!user) return null;
+    if (user.isAnonymous) {
+        if (hasLinkedProvider(user)) return null;
+        return { kind: 'guest', message: "You'll lose this account unless you link a sign-in first." };
+    }
+    if (isLightningOnlyAccount(user, profile)) {
+        return { kind: 'lightning', message: "To sign back in you'll need the same Lightning wallet. Link an email or Google first to make it easier." };
+    }
+    return null;
+}
+
+function accountLinkConflictMessage(code) {
+    if (code === 'auth/provider-already-linked') return 'That sign-in is already on this account.';
+    if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use' || code === 'auth/account-exists-with-different-credential') {
+        return 'That sign-in already belongs to another account. Sign in there instead. We did not combine the two accounts.';
+    }
+    return '';
+}
+
+function accountLinkEscape(value) {
+    var text = String(value == null ? '' : value);
+    if (typeof escapeHtml === 'function') return escapeHtml(text);
+    return text.replace(/[&<>"']/g, function(ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+}
+
+var ACCOUNT_LINK_MAX_AGE_MS = 60 * 60 * 1000;
+
+function accountLinkIntentFresh(intent, now) {
+    if (!intent || intent.kind !== 'email' || !intent.uid || !intent.email) return false;
+    var at = Number(intent.at);
+    var clock = Number(now);
+    if (!isFinite(at) || !isFinite(clock)) return false;
+    return clock >= at && (clock - at) <= ACCOUNT_LINK_MAX_AGE_MS;
+}
+
+function accountLinkTotpPending() {
+    try {
+        return !!(document.getElementById('totpSignInOverlay'));
+    } catch (e) {
+        return false;
+    }
+}
+
+function accountLinkTotpHoldMessage() {
+    return 'Finish the authenticator check before linking a sign-in.';
+}
+
+function renderSignInMethodsCard(user, profile) {
+    var methods = listSignInMethodLabels(user, profile);
+    var canLink = accountCanLinkSignIn(user, profile);
+    var totpHold = accountLinkTotpPending();
+    var html = '<div id="signInMethodsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">';
+    html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Sign-in methods</div>';
+    html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;line-height:1.45;">';
+    if (canLink && user && user.isAnonymous) {
+        html += 'This is a guest account on this browser. Link an email or Google so you can get back in.';
+    } else if (canLink) {
+        html += 'This account signs in with Lightning only. Link an email or Google so you can get back in without that wallet.';
+    } else {
+        html += 'Ways you can sign back in to this account.';
+    }
+    html += '</div>';
+    html += '<div id="signInMethodList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
+    methods.forEach(function(label) {
+        html += '<span style="padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--text);font-size:0.8rem;font-weight:700;">' + accountLinkEscape(label) + '</span>';
+    });
+    html += '</div>';
+    if (canLink && totpHold) {
+        html += '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.45;">' + accountLinkEscape(accountLinkTotpHoldMessage()) + '</div>';
+    } else if (canLink) {
+        if (methods.indexOf('Email') === -1) {
+            html += '<div style="margin-bottom:10px;">' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:6px;">Link email</div>' +
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+                '<input id="accountLinkEmail" type="email" autocomplete="email" placeholder="you@example.com" maxlength="100" style="flex:1;min-width:140px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin:0;text-align:left;">' +
+                '<button type="button" onclick="sendAccountLinkEmail()" style="width:auto;padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Link email</button>' +
+                '</div>' +
+                '<div id="accountLinkEmailStatus" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;"></div>' +
+                '</div>';
+        }
+        if (methods.indexOf('Google') === -1) {
+            html += '<div id="accountLinkGoogleWrap">' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:6px;">Link Google</div>' +
+                '<div id="accountGsiButtonHost" style="min-height:40px;"></div>' +
+                '<button type="button" id="accountGoogleLinkFallback" onclick="linkGoogleFromAccount()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Link Google</button>' +
+                '</div>';
+        }
+    }
+    html += '</div>';
+    return html;
+}
+// ACCOUNT_LINK_PLAN_END
+
+var ACCOUNT_LINK_STORAGE_KEY = 'btc_account_link';
+
+function readAccountLinkIntent() {
+    try {
+        var raw = localStorage.getItem(ACCOUNT_LINK_STORAGE_KEY);
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!accountLinkIntentFresh(parsed, Date.now())) {
+            clearAccountLinkIntent();
+            return null;
+        }
+        return parsed;
+    } catch (e) {
+        clearAccountLinkIntent();
+        return null;
+    }
+}
+
+function writeAccountLinkIntent(user, email) {
+    localStorage.setItem(ACCOUNT_LINK_STORAGE_KEY, JSON.stringify({
+        kind: 'email',
+        uid: user.uid,
+        email: String(email || '').trim().toLowerCase(),
+        at: Date.now()
+    }));
+}
+
+function clearAccountLinkIntent() {
+    try { localStorage.removeItem(ACCOUNT_LINK_STORAGE_KEY); } catch (e) {}
+}
+
+function refreshAccountSignInCard() {
+    if (typeof updateAuthButton === 'function') updateAuthButton();
+    if (typeof updateGuestPointsBanner === 'function') updateGuestPointsBanner();
+    var open = document.getElementById('signInMethodsCard') || (document.getElementById('usernameModal') && document.getElementById('usernameModal').classList.contains('open'));
+    if (open && typeof showSettingsPage === 'function') {
+        try { showSettingsPage('account'); } catch (e) {}
+    }
+    setTimeout(function() {
+        var card = document.getElementById('signInMethodsCard');
+        if (card && card.scrollIntoView) {
+            try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (err) { card.scrollIntoView(true); }
+        }
+    }, 120);
+}
+
+async function waitForAccountLinkUser(uid) {
+    if (auth && auth.currentUser && auth.currentUser.uid === uid) return auth.currentUser;
+    await new Promise(function(resolve) {
+        var done = false;
+        var unsub = function() {};
+        try {
+            unsub = auth.onAuthStateChanged(function(user) {
+                if (done) return;
+                if (user && user.uid === uid) {
+                    done = true;
+                    try { unsub(); } catch (e) {}
+                    resolve();
+                }
+            });
+        } catch (e) {}
+        setTimeout(function() {
+            if (done) return;
+            done = true;
+            try { unsub(); } catch (e2) {}
+            resolve();
+        }, 8000);
+    });
+    return (auth && auth.currentUser && auth.currentUser.uid === uid) ? auth.currentUser : null;
+}
+
+async function finishAccountEmailLink(email, signInUrl) {
+    var intent = readAccountLinkIntent();
+    if (!intent) return false;
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return true;
+    }
+    var wanted = String(email || '').trim().toLowerCase();
+    if (wanted !== String(intent.email || '').trim().toLowerCase()) {
+        clearAccountLinkIntent();
+        return false;
+    }
+    var user = await waitForAccountLinkUser(intent.uid);
+    if (!user) {
+        clearAccountLinkIntent();
+        return false;
+    }
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!accountCanLinkSignIn(user, profile)) {
+        clearAccountLinkIntent();
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        return true;
+    }
+    var linkedUid = user.uid;
+    var wasGuest = !!user.isAnonymous;
+    try {
+        var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, signInUrl);
+        await user.linkWithCredential(emailCred);
+    } catch (linkErr) {
+        var code = linkErr && linkErr.code;
+        if (code === 'auth/multi-factor-auth-required') {
+            surfaceMfaRequired(linkErr);
+            return true;
+        }
+        var conflict = accountLinkConflictMessage(code);
+        if (conflict) {
+            clearAccountLinkIntent();
+            if (typeof showToast === 'function') showToast(conflict);
+            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+            return true;
+        }
+        if (typeof showToast === 'function') {
+            if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code') {
+                showToast('That link expired. Send a new one from the Sign-in methods card.');
+            } else {
+                showToast('Could not link that email. You are still on this account.');
+            }
+        }
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        return true;
+    }
+    if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/credential-already-in-use'));
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        return true;
+    }
+    clearAccountLinkIntent();
+    try { localStorage.removeItem('btc_signin_email'); } catch (e1) {}
+    try { localStorage.removeItem('btc_guest_link'); } catch (e2) {}
+    window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+    if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
+        await _handleSignInResultGlobal(auth.currentUser, null, null);
+    }
+    if (typeof showToast === 'function') showToast('Email linked. You can use it to sign in next time.');
+    refreshAccountSignInCard();
+    return true;
+}
+
+async function linkGoogleOntoCurrentAccount(idToken) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user || !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return;
+    }
+    var credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+    var linkedUid = user.uid;
+    var wasGuest = !!user.isAnonymous;
+    try {
+        await user.linkWithCredential(credential);
+    } catch (linkErr) {
+        var code = linkErr && linkErr.code;
+        if (code === 'auth/multi-factor-auth-required') throw linkErr;
+        var conflict = accountLinkConflictMessage(code);
+        if (conflict) {
+            if (typeof showToast === 'function') showToast(conflict);
+            return;
+        }
+        if (typeof showToast === 'function') showToast('Could not link Google. You are still on this account.');
+        return;
+    }
+    if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/credential-already-in-use'));
+        return;
+    }
+    try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+    if (typeof clearGoogleOneTapChrome === 'function') clearGoogleOneTapChrome();
+    if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
+        await _handleSignInResultGlobal(auth.currentUser, null, null);
+    }
+    if (typeof showToast === 'function') showToast('Google linked. You can use it to sign in next time.');
+    refreshAccountSignInCard();
+}
+
 function surfaceMfaRequired(err) {
     if (!err || err.code !== 'auth/multi-factor-auth-required') return false;
     try {
@@ -676,6 +1008,7 @@ async function finishEmailSignIn(email, _signInUrl) {
         showToast('⚠️ Could not determine your email. Please sign in again from the app.');
         return;
     }
+    if (await finishAccountEmailLink(email, _signInUrl)) return;
 
     try {
         // Save anonymous user info BEFORE sign-in changes auth state
@@ -927,7 +1260,13 @@ async function applyGoogleIdToken(idToken) {
     if (!idToken || typeof idToken !== 'string') throw new Error('No credential received');
     if (_googleCredentialBusy) return null;
     _googleCredentialBusy = true;
+    var linkOnly = window._accountLinkGoogle === true;
+    window._accountLinkGoogle = false;
     try {
+        if (linkOnly) {
+            await linkGoogleOntoCurrentAccount(idToken);
+            return auth.currentUser;
+        }
         var credential = firebase.auth.GoogleAuthProvider.credential(idToken);
         var guest = auth.currentUser;
         var anonUid = (guest && guest.isAnonymous) ? guest.uid : null;
@@ -1028,6 +1367,7 @@ function renderGoogleSignInButton() {
             logo_alignment: 'left',
             width: googleButtonWidth(fallback),
             click_listener: function() {
+                window._accountLinkGoogle = false;
                 if (typeof window._captureSignupFormState === 'function') window._captureSignupFormState();
             }
         });
@@ -2778,11 +3118,18 @@ async function stashGuestLink() {
             if (parsed && parsed.anonUid === uid && parsed.nonce && parsed.at && (Date.now() - Number(parsed.at)) < 20 * 60 * 1000) return;
         }
     } catch (e) {}
-    var fn = firebase.functions().httpsCallable('prepareGuestLink');
-    var res = await fn({});
-    if (res && res.data && res.data.nonce) {
-        localStorage.setItem('btc_guest_link', JSON.stringify({ anonUid: uid, nonce: res.data.nonce, at: Date.now() }));
+    var attempt;
+    for (attempt = 0; attempt < 2; attempt++) {
+        try {
+            var fn = firebase.functions().httpsCallable('prepareGuestLink');
+            var res = await fn({});
+            if (res && res.data && res.data.nonce) {
+                localStorage.setItem('btc_guest_link', JSON.stringify({ anonUid: uid, nonce: res.data.nonce, at: Date.now() }));
+                return;
+            }
+        } catch (err) {}
     }
+    if (typeof showToast === 'function') showToast('Could not save this guest session. Try again before you sign in.');
 }
 window.stashGuestLink = stashGuestLink;
 
@@ -5803,6 +6150,8 @@ function showSettingsPage(tab) {
         // Advanced Account content (hidden, appears at bottom when toggled)
         html += '<div id="advAcctContent" style="display:none;">' + _advHtml + '</div>';
 
+        html += renderSignInMethodsCard(user, (typeof currentUser !== 'undefined') ? currentUser : null);
+
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
     } else if (settingsTab === '_artist_removed') {
@@ -6704,7 +7053,7 @@ function showSettingsPage(tab) {
             html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Your account is protected with phone verification</div></div></div>' +
                 '<button onclick="disable2FA()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable 2FA</button>';
         } else if (!hasEmail) {
-            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔒</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA available with email sign-in</div><div style="color:var(--text-muted);font-size:0.8rem;">Link an email to your account first (in Account tab), then you can enable 2FA.</div></div></div>';
+            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔒</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA available with email sign-in</div><div style="color:var(--text-muted);font-size:0.8rem;">Link an email from the Sign-in methods card on the Account tab, then you can enable 2FA.</div><button type="button" onclick="goToSignInMethods()" style="margin-top:8px;padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Sign-in methods</button></div></div>';
         } else if (!emailVerified) {
             html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:#f59e0b;font-size:1.2rem;">⚠️</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Verify your email first</div><div style="color:var(--text-muted);font-size:0.8rem;">You must verify your email address before you can enable 2FA.</div></div></div>';
         } else {
@@ -7177,6 +7526,7 @@ function showSettingsPage(tab) {
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
+    if (settingsTab === 'account') mountAccountGoogleLinkButton();
     var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';
     var profileLn = document.getElementById('profileLnReadonly');
     var satsLn = document.getElementById('satsLnReadonly');
@@ -8115,7 +8465,188 @@ window._acceptTos = async function() {
     }
 };
 
-async function signOutUser() {
+function renderAccountGoogleLinkButton() {
+    var host = document.getElementById('accountGsiButtonHost');
+    var fallback = document.getElementById('accountGoogleLinkFallback');
+    if (!host || !gisApiReady()) return;
+    ensureGoogleIdentityInit();
+    host.innerHTML = '';
+    host.style.display = 'block';
+    try {
+        google.accounts.id.renderButton(host, {
+            type: 'standard',
+            theme: 'filled_black',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: googleButtonWidth(host),
+            click_listener: function() { window._accountLinkGoogle = true; }
+        });
+    } catch (e) {
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
+        return;
+    }
+    if (!host.childNodes.length) {
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
+        return;
+    }
+    if (fallback) fallback.style.display = 'none';
+}
+
+function mountAccountGoogleLinkButton() {
+    var host = document.getElementById('accountGsiButtonHost');
+    var fallback = document.getElementById('accountGoogleLinkFallback');
+    if (!host) return;
+    if (typeof isInAppBrowser === 'function' && isInAppBrowser()) {
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
+        return;
+    }
+    if (!gisApiReady()) {
+        if (fallback) fallback.style.display = 'block';
+        loadGoogleIdentityScript().then(function() {
+            renderAccountGoogleLinkButton();
+        }).catch(function() {
+            host.style.display = 'none';
+            if (fallback) fallback.style.display = 'block';
+        });
+        return;
+    }
+    renderAccountGoogleLinkButton();
+}
+
+window.sendAccountLinkEmail = async function() {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var input = document.getElementById('accountLinkEmail');
+    var status = document.getElementById('accountLinkEmailStatus');
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user || !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return;
+    }
+    var email = input ? String(input.value || '').trim() : '';
+    if (!email || email.indexOf('@') < 1 || email.indexOf('.') < 0 || email.length > 100) {
+        if (status) status.textContent = 'Enter the email you want to link.';
+        if (typeof showToast === 'function') showToast('Enter the email you want to link.');
+        return;
+    }
+    if (input) input.disabled = true;
+    if (status) status.textContent = 'Sending a link…';
+    writeAccountLinkIntent(user, email);
+    var sent = false;
+    try { sent = await sendMagicLink(email); } catch (e) { sent = false; }
+    if (!sent) {
+        clearAccountLinkIntent();
+        if (input) input.disabled = false;
+        if (status) status.textContent = 'Could not send the link. Try again.';
+        if (typeof showToast === 'function') showToast('Could not send the link. Try again.');
+        return;
+    }
+    if (status) status.textContent = 'Check your email and tap the link on this browser. It links this account and does not open a different one.';
+    if (typeof showToast === 'function') showToast('Check your email and open the link in this browser.');
+};
+
+window.linkGoogleFromAccount = async function() {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user || !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return;
+    }
+    if (typeof isInAppBrowser === 'function' && isInAppBrowser()) {
+        if (typeof showToast === 'function') showToast('Open this page in your browser to link Google.');
+        return;
+    }
+    var host = document.getElementById('accountGsiButtonHost');
+    if (host && host.childNodes.length && host.style.display !== 'none') {
+        if (typeof showToast === 'function') showToast('Use the Google button above.');
+        return;
+    }
+    var linkedUid = user.uid;
+    var wasGuest = !!user.isAnonymous;
+    try {
+        var provider = new firebase.auth.GoogleAuthProvider();
+        await user.linkWithPopup(provider);
+    } catch (e) {
+        var code = e && e.code;
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/user-cancelled') return;
+        if (code === 'auth/multi-factor-auth-required') {
+            if (surfaceMfaRequired(e)) return;
+        }
+        var conflict = accountLinkConflictMessage(code);
+        if (conflict) {
+            if (typeof showToast === 'function') showToast(conflict);
+            return;
+        }
+        if (typeof showToast === 'function') showToast('Could not link Google. You are still on this account.');
+        return;
+    }
+    if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/credential-already-in-use'));
+        return;
+    }
+    try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+    if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
+        await _handleSignInResultGlobal(auth.currentUser, null, null);
+    }
+    if (typeof showToast === 'function') showToast('Google linked. You can use it to sign in next time.');
+    refreshAccountSignInCard();
+};
+
+function presentSignOutLinkWarning(warning) {
+    if (!warning || !warning.message) return;
+    var existing = document.getElementById('signOutLinkWarning');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'signOutLinkWarning';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:800000;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div role="dialog" aria-modal="true" aria-labelledby="signOutLinkWarningTitle" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,0.35);">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">⚠️</div>' +
+        '<div id="signOutLinkWarningTitle" style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:8px;">Sign out?</div>' +
+        '<div style="color:var(--text,#fff);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">' + accountLinkEscape(warning.message) + '</div>' +
+        '<button type="button" onclick="goToSignInMethods()" style="width:100%;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Link a sign-in</button>' +
+        '<button type="button" onclick="signOutUser(true)" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign out anyway</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+function goToSignInMethods() {
+    var warn = document.getElementById('signOutLinkWarning');
+    if (warn) warn.remove();
+    if (typeof showSettingsPage === 'function') showSettingsPage('account');
+    setTimeout(function() {
+        var card = document.getElementById('signInMethodsCard');
+        if (card && card.scrollIntoView) {
+            try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { card.scrollIntoView(true); }
+        }
+    }, 80);
+}
+window.goToSignInMethods = goToSignInMethods;
+
+async function signOutUser(force) {
+    if (force !== true) {
+        var warning = signOutWarningForAccount(
+            (typeof auth !== 'undefined' && auth) ? auth.currentUser : null,
+            (typeof currentUser !== 'undefined') ? currentUser : null
+        );
+        if (warning) {
+            presentSignOutLinkWarning(warning);
+            return;
+        }
+    }
+    var warnEl = document.getElementById('signOutLinkWarning');
+    if (warnEl) warnEl.remove();
     // Drop this device's push token before the session ends. Otherwise the
     // next person on a shared phone keeps receiving the previous account's
     // notifications, including DM previews.
@@ -8885,7 +9416,7 @@ window._showTotpSignInChallenge = function() {
             '<button onclick="window._submitRecoveryCode(\'totp\')" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;">Turn off 2FA with this code</button>' +
             '</div>' +
             '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted,#aaa);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:4px;">Lost your device?</button>' +
-            '<button onclick="signOutUser()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel (Sign out)</button>' +
+            '<button onclick="signOutUser(true)" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel (Sign out)</button>' +
         '</div>';
     document.body.appendChild(overlay);
     // Focus input and allow Enter key

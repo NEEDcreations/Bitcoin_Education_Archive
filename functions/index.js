@@ -593,7 +593,7 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
         try {
             await admin.auth().createUser({
                 uid: lnUid,
-                displayName: '⚡anon-' + key.substring(0, 12),
+                displayName: '⚡wallet-' + key.substring(0, 12),
             });
         } catch(createErr) {
             console.error('Create user error:', createErr);

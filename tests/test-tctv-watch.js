@@ -412,7 +412,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2354'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2356'"));
+    assert.ok(!sw.includes('btc-archive-v2357'));
+    assert.ok(!sw.includes('btc-archive-v2355'));
+    assert.ok(!sw.includes('btc-archive-v2354'));
     assert.ok(!sw.includes('btc-archive-v2353'));
     assert.ok(!sw.includes('btc-archive-v2352'));
     assert.ok(!sw.includes('btc-archive-v2351'));
@@ -767,7 +770,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for the Music station cleanup', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Badges you already earned appear once, and one toast shows them.';
+    const latest = 'Latest: Guests and Lightning-only accounts can link an email or Google from Sign-in methods, and sign-out warns them first.';
     const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
     const repick = 'If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.';
     const flex = 'Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';

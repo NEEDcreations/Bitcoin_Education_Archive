@@ -202,7 +202,9 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Badges you already earned appear once, and one toast shows them.'));
+    assert.ok(notes.includes('Latest: Guests and Lightning-only accounts can link an email or Google from Sign-in methods, and sign-out warns them first.'));
+    assert.ok(notes.includes('Badges you already earned appear once, and one toast shows them.'));
+    assert.ok(!notes.includes('Latest: Badges you already earned'));
     assert.ok(notes.includes('Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.'));
     assert.ok(!notes.includes('Latest: Timechain TV Music'));
     assert.ok(notes.includes('If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.'));
