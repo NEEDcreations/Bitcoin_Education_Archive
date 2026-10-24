@@ -1,8 +1,9 @@
 // Cache-buster pin. This ship branch is btc-archive-v2359.
 // timechain-tv.js stays 20261024_v2353.
 // bundle.min.js is 20261024_v2359. global-chat.js and nacho-qa.js stay 20261024_v2350.
-// ranking.js and features.registry.js are 20261024_v2359. gifting.js and notifications.js stay 20261024_v2357.
-// quests.js, satoshi-favor.js, and username-repick.js stay 20261024_v2352.
+// ranking.js and features.registry.js are 20261024_v2359.
+// gifting.js, quests.js, and onboarding.js are 20261024_v2358. notifications.js stays 20261024_v2357.
+// satoshi-favor.js and username-repick.js stay 20261024_v2352.
 // beats.js, guide.js, and patches.js stay 20261023_v2349. today-card.js is 20261024_v2351.
 // scholar.js stays 20261023_v2330. tctv-watch.js stays 20261023_v2340.
 // learning-quests.js and modules.js stay 20261023_v2324.
@@ -150,7 +151,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261022_v2322'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
-    assert.ok(html.includes('gifting.js?v=20261024_v2357'));
+    assert.ok(html.includes('gifting.js?v=20261024_v2358'));
+    assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2355'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2254'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
@@ -177,7 +179,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2350/g) || []).length, 0);
     assert.ok(!html.includes('quests.js?v=20261023_v2343'));
@@ -235,6 +238,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
+    assert.ok(notes.includes('Key and cipher help now says that when an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won.'));
+    assert.ok(!notes.includes('Latest: Key and cipher help'));
     assert.ok(notes.includes('When you send a key and a peer opens a matching cipher with it, you both win the same prize.'));
     assert.ok(!notes.includes('Latest: When you send a key'));
     assert.ok(notes.includes('Guests and Lightning-only accounts can link an email or Google from Sign-in methods, and sign-out warns them first.'));

@@ -392,6 +392,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2359'));
+    assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2350'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
@@ -415,6 +416,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2359'"));
+    assert.ok(!sw.includes('btc-archive-v2357'));
     assert.ok(!sw.includes('btc-archive-v2356'));
     assert.ok(!sw.includes('btc-archive-v2355'));
     assert.ok(!sw.includes('btc-archive-v2354'));
