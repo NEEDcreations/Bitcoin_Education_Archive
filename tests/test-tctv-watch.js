@@ -415,7 +415,12 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2361'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2363'"));
+    assert.ok(!sw.includes('btc-archive-v2362'));
+    assert.ok(!sw.includes('btc-archive-v2361'));
+    assert.ok(!sw.includes('btc-archive-v2360'));
+    assert.ok(!sw.includes('btc-archive-v2359'));
+    assert.ok(!sw.includes('btc-archive-v2358'));
     assert.ok(!sw.includes('btc-archive-v2357'));
     assert.ok(!sw.includes('btc-archive-v2356'));
     assert.ok(!sw.includes('btc-archive-v2355'));
@@ -775,6 +780,8 @@ test('playback with no server clock asks the server to start it and does not inv
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
     const latest = 'Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN, proxy, or Tor exit.';
+    const share = 'The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.';
+    const topic = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
     const repick = 'If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.';
     const flex = 'Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';
@@ -785,6 +792,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(share));
+    assert.ok(!notes.includes('Latest: The share card'));
     assert.ok(notes.includes('Key and cipher help now says that when an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won.'));
     assert.ok(!notes.includes('Latest: Key and cipher help'));
     assert.ok(notes.includes('When you send a key and a peer opens a matching cipher with it, you both win the same prize.'));

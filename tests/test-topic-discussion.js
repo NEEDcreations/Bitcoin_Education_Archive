@@ -585,6 +585,9 @@ test('conversation buttons open the discussion and posts show server date-time',
         assert.strictEqual(button.type, 'button');
         assert.strictEqual(button.textContent, '💬 Start a conversation');
         assert.strictEqual(button.getAttribute('aria-label'), 'Start a conversation about 🌋mining');
+        if (button.getAttribute('data-anchor-index') === '3') {
+            assert.strictEqual(button.getAttribute('data-anchor-hash'), plan.bqAnchorFingerprint(paras[3]));
+        }
         var following = button.nextSibling;
         if (following && following.nodeType === 3) assert.ok(!/^\n/.test(String(following.nodeValue || '')));
         button.focus();
@@ -619,7 +622,19 @@ test('conversation buttons open the discussion and posts show server date-time',
     var toggle = plan.document.getElementById('community-discussion-toggle');
     assert.strictEqual(body.hidden, true);
     assert.strictEqual(toggle.getAttribute('aria-expanded'), 'false');
+    assert.strictEqual(prompts[0].getAttribute('data-anchor-index'), '3');
+    assert.strictEqual(prompts[0].getAttribute('data-anchor-hash'), plan.bqAnchorFingerprint(paras[3]));
+    assert.strictEqual(plan.bqAnchorFingerprint('Hello   WORLD!!'), td.anchorFingerprint('hello world'));
+    var found = plan.bqFindTopicBlock(topic.msgs, { index: 3, hash: plan.bqAnchorFingerprint(paras[3]) }, false);
+    assert.strictEqual(found.how, 'hash');
+    assert.strictEqual(found.index, 3);
+    var fallback = plan.bqFindTopicBlock(topic.msgs, { index: 3, hash: 'abcd1234' }, true);
+    assert.strictEqual(fallback.how, 'index');
+    assert.strictEqual(fallback.index, 3);
+    assert.strictEqual(plan.bqFindTopicBlock(topic.msgs, { index: 3, hash: 'abcd1234' }, false), null);
     prompts[0].click();
+    assert.strictEqual(plan._topicAnchorIndex, 3);
+    assert.strictEqual(plan._topicAnchorHash, plan.bqAnchorFingerprint(paras[3]));
     assert.strictEqual(body.hidden, false);
     assert.strictEqual(toggle.getAttribute('aria-expanded'), 'true');
     var area = plan.document.getElementById('topic-discussion-input');
@@ -732,16 +747,322 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
     });
     assert.ok(text.length <= 300);
     assert.ok(text.includes('[the topic](#topic/mining/post123)'));
+    assert.ok(!text.includes('#topic/mining/post123/'));
     assert.ok(text.includes('[Pleb Talk](#forum/post/tdforum_mining_post123)'));
     const tg = bridge.toTelegramText(text);
     assert.ok(tg.includes('https://bitcoineducation.quest/#topic=mining&post=post123'));
+    assert.ok(!tg.includes('&i='));
+    const anchored = td.buildAnnouncement({
+        title: 'The problems of todays money and freedom',
+        text: 'What did the 2008 crisis change about money?',
+        channelId: 'mining',
+        postId: 'post123',
+        forumPostId: 'tdforum_mining_post123',
+        isQuestion: true,
+        anchor: { anchorIndex: 4, anchorHash: 'ab12cd34' },
+    });
+    assert.ok(anchored.length <= 300);
+    assert.ok(anchored.includes('[the topic](#topic/mining/post123/4/ab12cd34)'));
+    const tgAnchored = bridge.toTelegramText(anchored);
+    assert.ok(tgAnchored.includes('https://bitcoineducation.quest/#topic=mining&post=post123&i=4&h=ab12cd34'));
     assert.strictEqual(td.decideAnnounce({ lastAnnounceAtMs: 0 }, { hourKey: '1', count: 12 }, 3600000).allow, false);
+});
+
+test('desktop reply focus does not scroll, and a missed anchor does not drain the topic', function() {
+    var src = read('topic-discussions.js');
+    assert.strictEqual(src.split('focus({ preventScroll: true })').length - 1, 2);
+    assert.ok(src.includes('function whenMediaSettles'));
+    assert.ok(src.includes('accepted.index < loaded.length'));
+    assert.ok(!src.includes('guard < 80'));
+});
+
+test('a saved topic scroll does not override a deep link', function() {
+    var saved = 2545;
+    var queue = [];
+    var seq = 0;
+    var now = 0;
+    function setTimeout(fn, ms) {
+        var id = ++seq;
+        queue.push({ id: id, fn: fn, at: now + (ms || 0) });
+        return id;
+    }
+    function clearTimeout(id) {
+        queue = queue.filter(function(item) { return item.id !== id; });
+    }
+    function flush(ms) {
+        var end = now + ms;
+        while (true) {
+            var next = null;
+            queue.forEach(function(item) {
+                if (item.at <= end && (!next || item.at < next.at || (item.at === next.at && item.id < next.id))) next = item;
+            });
+            if (!next) break;
+            queue = queue.filter(function(item) { return item !== next; });
+            now = next.at;
+            next.fn();
+        }
+        now = end;
+    }
+    var scrollTos = [];
+    var main = {
+        scrollTop: saved,
+        scrollTo: function(opts) {
+            scrollTos.push(opts && opts.top);
+            if (opts && typeof opts.top === 'number') main.scrollTop = opts.top;
+        }
+    };
+    var document = {
+        getElementById: function(id) { return id === 'main' ? main : null; },
+        createElement: function() { return { style: {}, appendChild: function() {}, setAttribute: function() {} }; },
+        body: { appendChild: function() {}, insertBefore: function() {} },
+        head: { appendChild: function() {} },
+        addEventListener: function() {},
+        querySelector: function() { return null; },
+        querySelectorAll: function() { return []; }
+    };
+    var sandbox = {
+        console: console,
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        document: document,
+        CHANNELS: { mining: { title: 'mining' } },
+        currentChannelId: 'mining',
+        sessionStorage: { getItem: function() { return null; }, setItem: function() {} },
+        matchMedia: function() { return { matches: false }; },
+        firebase: { functions: function() { throw new Error('discussion tried to post'); } },
+        go: function(id) { sandbox.currentChannelId = id; }
+    };
+    sandbox.window = sandbox;
+    var patches = read('patches.js');
+    var start = patches.indexOf('function(){var e={},t=null;function n(){');
+    var tail = 'setTimeout(function(){t=window.currentChannelId||null},2e3)}()';
+    var end = patches.indexOf(tail, start);
+    assert.ok(start !== -1 && end > start);
+    vm.runInNewContext('(' + patches.slice(start, end + tail.length) + ')', sandbox, { filename: 'patches-scroll-restore.js' });
+    flush(3000);
+    assert.strictEqual(sandbox.go._v3Scroll, true);
+
+    main.scrollTop = saved;
+    sandbox.go('chat');
+    flush(300);
+    assert.deepStrictEqual(scrollTos, []);
+
+    main.scrollTop = 0;
+    sandbox.go('mining');
+    flush(300);
+    assert.deepStrictEqual(scrollTos, [saved]);
+
+    scrollTos.length = 0;
+    main.scrollTop = saved;
+    sandbox.go('chat');
+    flush(300);
+    main.scrollTop = 0;
+    vm.runInNewContext(read('topic-discussions.js'), sandbox, { filename: 'topic-discussions.js' });
+    assert.strictEqual(sandbox.bqOpenTopicPost('mining', 'post9'), true);
+    flush(300);
+    flush(6000);
+    assert.deepStrictEqual(scrollTos, []);
+    assert.strictEqual(sandbox.currentChannelId, 'mining');
+    assert.ok(!sandbox._bqSkipTopicScrollRestore || !sandbox._bqSkipTopicScrollRestore.mining);
+    assert.ok(!sandbox._bqTopicScrollRestoreTimers || !sandbox._bqTopicScrollRestoreTimers.mining);
+
+    main.scrollTop = 1800;
+    sandbox.go('chat');
+    flush(300);
+    main.scrollTop = 0;
+    sandbox.go('mining');
+    flush(300);
+    assert.deepStrictEqual(scrollTos, [1800]);
+});
+
+test('scroll, history, then scroll again does not restore over a deep link', function() {
+    var saved = 2500;
+    var queue = [];
+    var seq = 0;
+    var now = 0;
+    function setTimeout(fn, ms) {
+        var id = ++seq;
+        queue.push({ id: id, fn: fn, at: now + (ms || 0) });
+        return id;
+    }
+    function clearTimeout(id) {
+        queue = queue.filter(function(item) { return item.id !== id; });
+    }
+    function flush(ms) {
+        var end = now + ms;
+        while (true) {
+            var next = null;
+            queue.forEach(function(item) {
+                if (item.at <= end && (!next || item.at < next.at || (item.at === next.at && item.id < next.id))) next = item;
+            });
+            if (!next) break;
+            queue = queue.filter(function(item) { return item !== next; });
+            now = next.at;
+            next.fn();
+        }
+        now = end;
+    }
+    function run(item) {
+        queue = queue.filter(function(queued) { return queued !== item; });
+        now = item.at;
+        item.fn();
+    }
+    var scrollTos = [];
+    var main = {
+        scrollTop: saved,
+        scrollTo: function(opts) {
+            scrollTos.push(opts && opts.top);
+            if (opts && typeof opts.top === 'number') main.scrollTop = opts.top;
+        }
+    };
+    var document = {
+        getElementById: function(id) { return id === 'main' ? main : null; },
+        createElement: function() { return { style: {}, appendChild: function() {}, setAttribute: function() {} }; },
+        body: { appendChild: function() {}, insertBefore: function() {} },
+        head: { appendChild: function() {} },
+        addEventListener: function() {},
+        querySelector: function() { return null; },
+        querySelectorAll: function() { return []; }
+    };
+    var sandbox = {
+        console: console,
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        document: document,
+        location: { hash: '' },
+        history: { pushState: function() {} },
+        addEventListener: function() {},
+        CHANNELS: { mining: { title: 'mining' } },
+        currentChannelId: 'mining',
+        sessionStorage: { getItem: function() { return null; }, setItem: function() {} },
+        matchMedia: function() { return { matches: false }; },
+        firebase: { functions: function() { throw new Error('discussion tried to post'); } },
+        go: function(id) { sandbox.currentChannelId = id; }
+    };
+    sandbox.window = sandbox;
+    var patches = read('patches.js');
+    var scrollStart = patches.indexOf('function(){var e={},t=null;function n(){');
+    var scrollTail = 'setTimeout(function(){t=window.currentChannelId||null},2e3)}()';
+    var scrollEnd = patches.indexOf(scrollTail, scrollStart);
+    var histStart = patches.indexOf('function(){var e=!0;function t(){var e=window.go;');
+    var histTail = 'setTimeout(t,3e3),setTimeout(t,6e3)}()';
+    var histEnd = patches.indexOf(histTail, histStart);
+    assert.ok(scrollStart !== -1 && scrollEnd > scrollStart);
+    assert.ok(histStart !== -1 && histEnd > histStart);
+    var beforeScroll = queue.length;
+    vm.runInNewContext('(' + patches.slice(scrollStart, scrollEnd + scrollTail.length) + ')', sandbox, { filename: 'patches-scroll-restore.js' });
+    var scrollTimers = queue.slice(beforeScroll);
+    var beforeHist = queue.length;
+    vm.runInNewContext('(' + patches.slice(histStart, histEnd + histTail.length) + ')', sandbox, { filename: 'patches-history.js' });
+    var histTimers = queue.slice(beforeHist);
+    run(scrollTimers.filter(function(item) { return item.at === 2000; })[0]);
+    run(scrollTimers.filter(function(item) { return item.at === 3000; })[0]);
+    assert.strictEqual(sandbox._bqTopicScrollRestoreInstalled, true);
+    run(histTimers.filter(function(item) { return item.at === 3000; })[0]);
+    var afterHistory = sandbox.go;
+    assert.strictEqual(afterHistory._v3HistorySkip, true);
+    run(scrollTimers.filter(function(item) { return item.at === 6000; })[0]);
+    assert.strictEqual(sandbox.go, afterHistory);
+
+    main.scrollTop = saved;
+    sandbox.go('chat');
+    flush(300);
+    assert.ok(scrollTos.indexOf(saved) === -1);
+    scrollTos.length = 0;
+    main.scrollTop = 0;
+    vm.runInNewContext(read('topic-discussions.js'), sandbox, { filename: 'topic-discussions.js' });
+    assert.strictEqual(sandbox.bqOpenTopicPost('mining', 'post9'), true);
+    flush(400);
+    assert.deepStrictEqual(scrollTos, []);
+    assert.ok(!sandbox._bqTopicScrollRestoreTimers || !sandbox._bqTopicScrollRestoreTimers.mining);
+
+    scrollTos.length = 0;
+    main.scrollTop = saved;
+    sandbox.go('chat');
+    flush(300);
+    main.scrollTop = 0;
+    sandbox._bqSkipTopicScrollRestore = { mining: Date.now() - 2500 };
+    sandbox.go('mining');
+    flush(300);
+    assert.deepStrictEqual(scrollTos, [saved]);
+});
+
+test('anchor shape is a bounded index plus a short hash, otherwise dropped', () => {
+    const hash = td.anchorFingerprint('The 2008 crisis showed the cracks in credit money.');
+    assert.ok(/^[a-z0-9]{8}$/.test(hash));
+    assert.strictEqual(td.anchorFingerprint('The   2008 CRISIS showed the cracks in credit money!!!'), hash);
+    assert.strictEqual(td.normalizeAnchorSample(('word ').repeat(40)).length, 80);
+    assert.deepStrictEqual(td.acceptTopicAnchor(4, hash), { anchorIndex: 4, anchorHash: hash });
+    assert.deepStrictEqual(td.acceptTopicAnchor('0', 'ab12cd34'), { anchorIndex: 0, anchorHash: 'ab12cd34' });
+    assert.deepStrictEqual(td.acceptTopicAnchor(td.ANCHOR_INDEX_MAX, 'ab12cd34'), { anchorIndex: td.ANCHOR_INDEX_MAX, anchorHash: 'ab12cd34' });
+    [null, '', -1, 1.5, td.ANCHOR_INDEX_MAX + 1, true, {}, '01', '4 ', ' 4'].forEach(function(bad) {
+        assert.strictEqual(td.acceptTopicAnchor(bad, 'ab12cd34'), null, String(bad));
+    });
+    ['', 'AB12CD34', 'short', 'ab12cd3', 'ab12cd345', 'ab12cd3!', '<script>', 'abcd_234'].forEach(function(bad) {
+        assert.strictEqual(td.acceptTopicAnchor(4, bad), null, String(bad));
+    });
+    assert.strictEqual(td.acceptTopicAnchor(4, ''), null);
+    assert.strictEqual(td.acceptTopicAnchor('', 'ab12cd34'), null);
 });
 
 (async function main() {
     const harness = makeApi();
     const db = harness.db;
     const api = harness.api;
+
+    await testAsync('anchor is stored on the opening post and forum mirror, and bad anchors are dropped', async function() {
+        const local = makeApi();
+        seedUser(local.db, 'ada');
+        const hash = td.anchorFingerprint('The 2008 crisis showed the cracks in credit money.');
+        const posted = await local.api.postTopicComment({
+            channelId: 'mining',
+            text: 'What did the 2008 crisis change about money?',
+            anchorIndex: 4,
+            anchorHash: hash,
+            anchorId: '<script>',
+            xp: 999,
+        }, auth('ada'));
+        const saved = postsOf(local.db, 'mining').filter(function(post) { return post._id === posted.postId; })[0];
+        assert.strictEqual(saved.anchorIndex, 4);
+        assert.strictEqual(saved.anchorHash, hash);
+        assert.strictEqual(saved.anchorId, '');
+        assert.strictEqual(saved.xp, undefined);
+        const forum = local.db.read('forum_posts/tdforum_mining_' + posted.postId);
+        assert.strictEqual(forum.anchorIndex, 4);
+        assert.strictEqual(forum.anchorHash, hash);
+        assert.strictEqual(forum.topicLink, '#topic/mining/' + posted.postId + '/4/' + hash);
+        const chats = local.db.dump().filter(function(p) { return p.indexOf('global_chat/') === 0; });
+        assert.strictEqual(chats.length, 1);
+        assert.ok(local.db.read(chats[0]).text.includes('#topic/mining/' + posted.postId + '/4/' + hash));
+        local.advance(31000);
+        const reply = await local.api.postTopicComment({
+            channelId: 'mining',
+            text: 'I remember that year too.',
+            parentId: posted.postId,
+            anchorIndex: 4,
+            anchorHash: hash,
+        }, auth('ada'));
+        const replyDoc = postsOf(local.db, 'mining').filter(function(post) { return post._id === reply.postId; })[0];
+        assert.strictEqual(replyDoc.anchorIndex, null);
+        assert.strictEqual(replyDoc.anchorHash, '');
+        assert.strictEqual(saved.anchorHash, hash);
+        local.advance(31000);
+        const dropped = await local.api.postTopicComment({
+            channelId: 'mining',
+            text: 'A note from the bottom of the topic.',
+            anchorIndex: -1,
+            anchorHash: 'NOPE',
+            anchorId: 'note-1',
+        }, auth('ada'));
+        const plain = postsOf(local.db, 'mining').filter(function(post) { return post._id === dropped.postId; })[0];
+        assert.strictEqual(plain.anchorIndex, null);
+        assert.strictEqual(plain.anchorHash, '');
+        assert.strictEqual(plain.anchorId, '');
+        const plainForum = local.db.read('forum_posts/tdforum_mining_' + dropped.postId);
+        assert.strictEqual(plainForum.topicLink, '#topic/mining/' + dropped.postId);
+        assert.strictEqual(plainForum.anchorIndex, null);
+        assert.strictEqual(plainForum.anchorHash, '');
+    });
 
     await testAsync('ATTACK signed-out, guest, banned, and muted users are refused', async function() {
         await expectFail(function() { return api.postTopicComment({ channelId: 'mining', text: 'hello there' }, {}); }, 'unauthenticated');
@@ -970,6 +1291,82 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         assert.strictEqual(reported.reportCount, 1);
     });
 
+    await testAsync('a reply notification loads the parent when that conversation is not on the first page', async function() {
+        var plan = bootTopicClient({ signedIn: true, reduceMotion: true });
+        var docs = {
+            root9: { parentId: '', uid: 'ada', name: 'Ada', text: 'What is a nonce?', createdAtMs: 10, deleted: false, hidden: false, anchorIndex: null, anchorHash: '' },
+            reply9: { parentId: 'root9', uid: 'nacho-bot', name: 'Nacho', text: 'Miners vary the nonce.', createdAtMs: 20, isNacho: true, deleted: false, hidden: false }
+        };
+        function postsApi() {
+            var parentFilter = null;
+            var api = {
+                where: function(field, op, value) {
+                    if (field === 'parentId') parentFilter = value;
+                    return api;
+                },
+                orderBy: function() { return api; },
+                limit: function() { return api; },
+                startAfter: function() { return api; },
+                doc: function(id) {
+                    return {
+                        get: function() {
+                            var data = docs[id];
+                            if (!data) return Promise.resolve({ exists: false, id: id, data: function() { return undefined; } });
+                            return Promise.resolve({ exists: true, id: id, data: function() { return Object.assign({}, data); } });
+                        }
+                    };
+                },
+                onSnapshot: function(ok) {
+                    var rows = [];
+                    if (parentFilter) {
+                        Object.keys(docs).forEach(function(id) {
+                            if (docs[id].parentId === parentFilter) {
+                                rows.push({ id: id, data: function() { return Object.assign({}, docs[id]); } });
+                            }
+                        });
+                    }
+                    ok({ docs: rows, forEach: function(fn) { rows.forEach(fn); } });
+                    return function() {};
+                },
+                get: function() { return Promise.resolve({ forEach: function() {} }); }
+            };
+            return api;
+        }
+        plan.db = {
+            collection: function() {
+                return { doc: function() { return { collection: function() { return postsApi(); } }; } };
+            }
+        };
+        hostTopic(plan, ['Alpha paragraph explains what miners change inside a block header.']);
+        plan.mountTopicDiscussion('mining');
+        var area = plan.document.getElementById('topic-discussion-input');
+        area.value = 'keep this reply';
+        plan._topicDeepLink = { channelId: 'mining', postId: 'reply9', done: false, working: false };
+        plan._topicDiscussionFocus();
+        await new Promise(function(resolve) { setTimeout(resolve, 0); });
+        var live = plan.document.getElementById('topic-discussion-live');
+        assert.ok(live);
+        assert.ok(live.textContent.indexOf('What is a nonce?') !== -1);
+        assert.ok(live.textContent.indexOf('Miners vary the nonce.') !== -1);
+        var rootNode = plan.document.getElementById('td-post-root9');
+        var replyNode = plan.document.getElementById('td-post-reply9');
+        assert.ok(rootNode);
+        assert.ok(replyNode);
+        function inLive(node) {
+            while (node) {
+                if (node.id === 'topic-discussion-live') return true;
+                node = node.parentNode;
+            }
+            return false;
+        }
+        assert.strictEqual(inLive(rootNode), true);
+        assert.strictEqual(inLive(replyNode), true);
+        var kept = plan.document.getElementById('topic-discussion-input');
+        assert.strictEqual(kept.value, 'keep this reply');
+        assert.ok(plan.document.body.textContent.indexOf('Replying to Ada') !== -1);
+        assert.strictEqual(plan._topicDeepLink.done, true);
+    });
+
     await testAsync('Nacho reply keeps real topic links and drops invented ones', async function() {
         const local = makeApi({
             links: [
@@ -1152,6 +1549,130 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
         assert.strictEqual(nacho.text.indexOf('As of'), -1);
         assert.strictEqual(nacho.asOf, '2026-10-23T19:03:00.000Z');
         assert.deepStrictEqual(nacho.links.map(function(link) { return link.id; }), ['charts']);
+    });
+
+    await testAsync('inline posts use their own ids and an inline reply leaves the bottom target', async function() {
+        var plan = bootTopicClient({ signedIn: true, reduceMotion: true });
+        var para = 'Finding a monetary good that nobody can print is a guessing game the whole world can check.';
+        var hash = plan.bqAnchorFingerprint(para);
+        var docs = {
+            rootA: { parentId: '', uid: 'bea', name: 'Bea', text: 'A note from the bottom list.', createdAtMs: 10, deleted: false, hidden: false, anchorIndex: null, anchorHash: '' },
+            rootB: { parentId: '', uid: 'cara', name: 'Cara', text: 'This one started on a paragraph.', createdAtMs: 20, deleted: false, hidden: false, anchorIndex: 0, anchorHash: hash },
+            replyB: { parentId: 'rootB', uid: 'nacho-bot', name: 'Nacho', text: 'Money that can be printed stops measuring work.', createdAtMs: 30, isNacho: true, deleted: false, hidden: false }
+        };
+        function postsApi() {
+            var parentFilter = null;
+            var api = {
+                where: function(field, op, value) {
+                    if (field === 'parentId') parentFilter = value;
+                    return api;
+                },
+                orderBy: function() { return api; },
+                limit: function() { return api; },
+                startAfter: function() { return api; },
+                doc: function(id) {
+                    return { get: function() {
+                        var data = docs[id];
+                        if (!data) return Promise.resolve({ exists: false, id: id, data: function() { return undefined; } });
+                        return Promise.resolve({ exists: true, id: id, data: function() { return Object.assign({}, data); } });
+                    } };
+                },
+                onSnapshot: function(ok) {
+                    var rows = [];
+                    Object.keys(docs).forEach(function(id) {
+                        if ((docs[id].parentId || '') === (parentFilter == null ? '\0' : parentFilter)) {
+                            rows.push({ id: id, data: function() { return Object.assign({}, docs[id]); } });
+                        }
+                    });
+                    ok({ docs: rows, forEach: function(fn) { rows.forEach(fn); } });
+                    return function() {};
+                },
+                get: function() { return Promise.resolve({ forEach: function() {} }); }
+            };
+            return api;
+        }
+        plan.db = {
+            collection: function() {
+                return { doc: function() { return { collection: function() { return postsApi(); } }; } };
+            }
+        };
+        var posted = null;
+        plan.firebase = {
+            functions: function() {
+                return { httpsCallable: function(name) {
+                    return function(payload) {
+                        posted = { name: name, payload: payload };
+                        return Promise.resolve({ data: {} });
+                    };
+                } };
+            }
+        };
+        var topic = hostTopic(plan, [para]);
+        plan.mountTopicDiscussion('mining');
+        function walk(node, fn) {
+            if (!node) return;
+            fn(node);
+            (node.childNodes || []).forEach(function(child) { walk(child, fn); });
+        }
+        function inId(node, id) {
+            while (node) {
+                if (node.id === id) return true;
+                node = node.parentNode;
+            }
+            return false;
+        }
+        var bottomReply = null;
+        walk(plan.document.getElementById('td-post-rootA'), function(node) {
+            if (!bottomReply && node.tagName === 'BUTTON' && node.textContent === 'Reply') bottomReply = node;
+        });
+        assert.ok(bottomReply);
+        bottomReply.click();
+        var bottom = plan.document.getElementById('topic-discussion-input');
+        assert.ok(bottom);
+        bottom.value = 'bottom draft';
+        assert.ok(plan.document.body.textContent.indexOf('Replying to Bea') !== -1);
+        plan._topicDeepLink = { channelId: 'mining', postId: 'rootB', done: false, working: false };
+        plan._topicDiscussionFocus();
+        await new Promise(function(resolve) { setTimeout(resolve, 0); });
+        var livePost = plan.document.getElementById('td-post-rootB');
+        var inlinePost = plan.document.getElementById('td-inline-post-rootB');
+        var liveReply = plan.document.getElementById('td-post-replyB');
+        var inlineReply = plan.document.getElementById('td-inline-post-replyB');
+        assert.ok(livePost);
+        assert.ok(inlinePost);
+        assert.notStrictEqual(livePost, inlinePost);
+        assert.strictEqual(inId(livePost, 'topic-discussion-live'), true);
+        assert.strictEqual(inId(inlinePost, 'td-inline-thread'), true);
+        assert.strictEqual(inId(liveReply, 'topic-discussion-live'), true);
+        assert.strictEqual(inId(inlineReply, 'td-inline-thread'), true);
+        var seen = {};
+        walk(plan.document.body, function(node) {
+            if (!node.id) return;
+            assert.ok(!seen[node.id], 'duplicate id ' + node.id);
+            seen[node.id] = true;
+        });
+        assert.ok(topic.main._scrolled);
+        assert.strictEqual(typeof topic.main._scrolled.top, 'number');
+        assert.ok(plan.document.body.textContent.indexOf('Replying to Bea') !== -1);
+        var inlineArea = plan.document.getElementById('td-inline-input');
+        assert.ok(inlineArea);
+        inlineArea.value = 'from the paragraph';
+        var inlineSend = null;
+        walk(plan.document.getElementById('td-inline-composer'), function(node) {
+            if (!inlineSend && node.classList && node.classList.contains('td-send')) inlineSend = node;
+        });
+        assert.ok(inlineSend);
+        inlineSend.click();
+        await new Promise(function(resolve) { setTimeout(resolve, 0); });
+        assert.ok(posted);
+        assert.strictEqual(posted.name, 'postTopicComment');
+        assert.strictEqual(posted.payload.parentId, 'rootB');
+        assert.strictEqual(posted.payload.text, 'from the paragraph');
+        var kept = plan.document.getElementById('topic-discussion-input');
+        assert.strictEqual(kept.value, 'bottom draft');
+        assert.ok(plan.document.body.textContent.indexOf('Replying to Bea') !== -1);
+        assert.strictEqual(plan.document.getElementById('td-inline-input').value, '');
+        assert.strictEqual(plan._topicDeepLink.done, true);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

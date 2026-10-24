@@ -819,7 +819,7 @@ function formatChatText(text, mentionUid) {
     var _inAppLinks = [];
     var _safeMentions = [];
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(match, label, route) {
-        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+)$/.test(route)) return label;
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?)$/.test(route)) return label;
         var _deepId = '';
         var _action;
         if (route.indexOf('forum/post/') === 0) {
@@ -832,7 +832,10 @@ function formatChatText(text, mentionUid) {
             var _tp = route.split('/');
             var _ch = _tp[1] || '';
             var _pid = _tp[2] || '';
-            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenTopicPost==='function')window.bqOpenTopicPost('" + _ch + "','" + _pid + "');";
+            var _ai = _tp[3] || '';
+            var _ah = _tp[4] || '';
+            var _anchorArgs = (/^\d+$/.test(_ai) && /^[a-z0-9]{8}$/.test(_ah)) ? (",'" + _ai + "','" + _ah + "'") : '';
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenTopicPost==='function')window.bqOpenTopicPost('" + _ch + "','" + _pid + "'" + _anchorArgs + ");";
         } else if (route === 'pvp') {
             _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof enterPVPMode==='function')enterPVPMode();";
         } else if (route === 'nacho') {

@@ -7265,23 +7265,43 @@ function forumRenderPosts(posts, container) {
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
 window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
+function forumContinueLabel(name) {
+    var title = String(name || 'this topic').replace(/\s+/g, ' ').trim() || 'this topic';
+    if (title.length > 80) title = title.slice(0, 77).trim() + '…';
+    // Quote the title so "the" + "The problems…" does not read "the The".
+    return 'Continue in “' + title + '” →';
+}
+
+function forumTopicAnchorSuffix(p) {
+    if (!p) return '';
+    var index = p.anchorIndex;
+    var hash = String(p.anchorHash || '');
+    if (typeof index === 'string' && !/^(0|[1-9]\d*)$/.test(index)) return '';
+    var n = typeof index === 'number' ? index : (index == null || index === '' ? NaN : Number(index));
+    if (!isFinite(n) || Math.floor(n) !== n || n < 0 || n > 8000) return '';
+    if (!/^[a-z0-9]{8}$/.test(hash)) return '';
+    return '/' + String(n) + '/' + hash;
+}
+
 function forumTopicContinueLink(p) {
     if (!p || p.origin !== 'topic') return '';
     var channel = String(p.topicChannel || '').replace(/[^A-Za-z0-9_-]/g, '');
     var post = String(p.topicPost || '').replace(/[^A-Za-z0-9_-]/g, '');
-    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : '';
-    if (!href && /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(String(p.topicLink || ''))) href = String(p.topicLink);
+    var stored = String(p.topicLink || '');
+    var storedOk = /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?$/.test(stored) ? stored : '';
+    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : storedOk;
     if (!href) return '';
+    var suffix = forumTopicAnchorSuffix(p);
+    if (channel && post && suffix) href = '#topic/' + channel + '/' + post + suffix;
     var name = '';
     var title = String(p.title || '').replace(/[\u0000-\u001F]/g, '').trim();
     if (title.indexOf('Discussion: ') === 0) name = title.slice('Discussion: '.length).trim();
     if (!name) {
         var slug = channel || href.split('/')[1] || '';
-        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this';
+        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this topic';
     }
     name = name.replace(/\s+/g, ' ').trim();
-    if (name.length > 80) name = name.slice(0, 80).trim();
-    return '<a href="' + fEsc(href) + '" style="display:inline-block;margin:0 0 12px;color:var(--accent);font-size:0.9rem;font-weight:800;text-decoration:none;white-space:nowrap;">Continue in the ' + fEsc(name) + ' topic</a>';
+    return '<a href="' + fEsc(href) + '" style="display:block;margin:0 0 12px;max-width:100%;color:var(--accent);font-size:0.9rem;font-weight:800;line-height:1.35;text-decoration:none;white-space:normal;overflow-wrap:anywhere;">' + fEsc(forumContinueLabel(name)) + '</a>';
 }
 
 // ---- View Post ----
@@ -22366,7 +22386,9 @@ if (locked) {
                 return;
             }
 
-            var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)$/)
+            var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)&i=(\d+)&h=([a-z0-9]{8})$/)
+                || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/(\d+)\/([a-z0-9]{8})$/)
+                || hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)$/)
                 || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)$/);
             if (_topicDeep) {
                 if (typeof CHANNELS === 'undefined' || typeof go !== 'function') {
@@ -22375,10 +22397,24 @@ if (locked) {
                     return;
                 }
                 if (!CHANNELS[_topicDeep[1]]) return;
-                window._topicDeepLink = { channelId: _topicDeep[1], postId: _topicDeep[2], done: false };
+                if (typeof window.bqOpenTopicPost === 'function') {
+                    window.bqOpenTopicPost(_topicDeep[1], _topicDeep[2], _topicDeep[3], _topicDeep[4]);
+                    return;
+                }
+                window._topicDeepLink = { channelId: _topicDeep[1], postId: _topicDeep[2], anchorIndex: _topicDeep[3] || '', anchorHash: _topicDeep[4] || '', done: false };
                 if (window.currentChannelId === _topicDeep[1] && document.getElementById('topic-discussion-live')) {
                     if (typeof window._topicDiscussionFocus === 'function') window._topicDiscussionFocus();
                     return;
+                }
+                if (typeof window.bqSkipTopicScrollRestore === 'function') window.bqSkipTopicScrollRestore(_topicDeep[1]);
+                else {
+                    if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
+                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = Date.now();
+                    var _restoreTimers = window._bqTopicScrollRestoreTimers;
+                    if (_restoreTimers && _restoreTimers[_topicDeep[1]]) {
+                        clearTimeout(_restoreTimers[_topicDeep[1]]);
+                        delete _restoreTimers[_topicDeep[1]];
+                    }
                 }
                 go(_topicDeep[1]);
                 return;
@@ -22920,6 +22956,10 @@ window.toggleAITools = function() {
             '.td-forum-notice{margin:0;padding:8px 10px;border-radius:10px;border:1px solid rgba(249,115,22,0.45);background:rgba(249,115,22,0.1);color:var(--text,#e2e8f0);font-size:0.82rem;font-weight:700;line-height:1.35;}',
             '.td-fallback{padding:10px 12px;border-radius:10px;background:rgba(249,115,22,0.08);color:var(--text-muted,#94a3b8);font-size:0.85rem;margin-bottom:10px;}',
             '.td-replies{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
+            '.td-inline{margin:8px 0 16px;padding:10px 10px 12px;border:1px solid rgba(249,115,22,0.55);border-radius:14px;background:rgba(2,6,23,0.72);}',
+            '.td-inline-title{font-weight:800;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent,#f97316);margin:0 0 8px;}',
+            '.td-anchor-note{margin:0;}',
+            '.topic-anchor-flash{border-radius:6px;box-decoration-break:clone;-webkit-box-decoration-break:clone;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
             '@media (max-width:900px){.td-section{margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}.td-follow,.td-topic{scroll-margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}}',
@@ -23013,7 +23053,10 @@ window.toggleAITools = function() {
         injectStyle();
         var who = ctx.viewer || viewer();
         var row = el('article', 'td-post' + (post.parentId ? ' td-reply' : ''));
-        row.id = 'td-post-' + post.id;
+        // The bottom list keeps td-post-<id>. The inline card uses another prefix
+        // so the two copies are not the same DOM id. Deep-link scroll looks up
+        // td-post-<id>, which is the bottom copy.
+        row.id = ((ctx && ctx.idPrefix) || 'td-post-') + post.id;
         row.setAttribute('data-post-id', post.id);
         row.appendChild(avatarFor(post));
         var main = el('div', 'td-main');
@@ -23029,11 +23072,6 @@ window.toggleAITools = function() {
         time.setAttribute('title', when.text);
         if (when.pending) time.setAttribute('data-pending', '1');
         meta.appendChild(time);
-        if (post.anchorIndex != null && post.anchorIndex !== '') {
-            var anchor = el('span', 'td-anchor');
-            anchor.textContent = 'On note #' + post.anchorIndex;
-            meta.appendChild(anchor);
-        }
         if (post.hidden) {
             var hidden = el('span', 'td-anchor');
             hidden.textContent = 'Hidden';
@@ -23107,7 +23145,7 @@ window.toggleAITools = function() {
         return bar.getBoundingClientRect().height || 0;
     }
 
-    function scrollPostIntoView(node) {
+    function scrollPostIntoView(node, highlight) {
         if (!node || !node.getBoundingClientRect) return;
         var rect = node.getBoundingClientRect();
         var cover = stickyCoverPx();
@@ -23115,12 +23153,64 @@ window.toggleAITools = function() {
         if (main && typeof main.scrollTo === 'function') {
             var delta = topicStickyScrollDelta(rect.top, main.getBoundingClientRect().top, cover);
             main.scrollTo({ top: Math.max(0, main.scrollTop + delta), behavior: 'smooth' });
+        } else if (typeof node.scrollIntoView === 'function') {
+            node.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
             var deltaWin = topicStickyScrollDelta(rect.top, 0, cover);
             window.scrollTo({ top: Math.max(0, window.scrollY + deltaWin), behavior: 'smooth' });
         }
+        if (highlight === false) return;
         node.classList.add('topic-post-highlight');
         setTimeout(function() { node.classList.remove('topic-post-highlight'); }, 2800);
+    }
+
+    // Images and fonts after the first paint move the thread. Scroll once,
+    // then again when that layout has settled.
+    function whenMediaSettles(done) {
+        var pending = 0;
+        var settled = false;
+        function finish() {
+            if (settled) return;
+            settled = true;
+            done();
+        }
+        function arm(img) {
+            if (!img || img.complete !== false || typeof img.addEventListener !== 'function') return;
+            pending += 1;
+            var one = function() {
+                if (typeof img.removeEventListener === 'function') {
+                    img.removeEventListener('load', one);
+                    img.removeEventListener('error', one);
+                }
+                pending -= 1;
+                if (pending <= 0) finish();
+            };
+            img.addEventListener('load', one);
+            img.addEventListener('error', one);
+        }
+        function walk(node) {
+            if (!node) return;
+            if (node.tagName === 'IMG') arm(node);
+            var child = node.firstChild;
+            while (child) {
+                walk(child);
+                child = child.nextSibling;
+            }
+        }
+        walk(document.getElementById('msgs') || document.body);
+        var fonts = document.fonts;
+        if (fonts && fonts.ready && typeof fonts.ready.then === 'function') {
+            pending += 1;
+            fonts.ready.then(function() {
+                pending -= 1;
+                if (pending <= 0) finish();
+            }, function() {
+                pending -= 1;
+                if (pending <= 0) finish();
+            });
+        }
+        if (pending <= 0) setTimeout(finish, 60);
+        else setTimeout(finish, 1600);
     }
 
     function visiblePost(post, who) {
@@ -23141,8 +23231,64 @@ window.toggleAITools = function() {
         replyName: '',
         pendingTimer: null,
         pendingTries: 0,
-        sawPending: false
+        sawPending: false,
+        pendingAnchor: null
     };
+
+    var ANCHOR_INDEX_MAX = 8000;
+
+    function normalizeAnchorSample(text) {
+        return String(text || '')
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/&[#a-z0-9]+;/gi, ' ')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 80);
+    }
+
+    function anchorFingerprint(text) {
+        var sample = normalizeAnchorSample(text);
+        if (!sample) return '';
+        var h = 2166136261;
+        var i;
+        for (i = 0; i < sample.length; i++) {
+            h ^= sample.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        h >>>= 0;
+        var out = h.toString(36);
+        while (out.length < 8) out = '0' + out;
+        return out.slice(-8);
+    }
+
+    function acceptClientAnchor(index, hash) {
+        if (index == null || index === '' || hash == null || hash === '') return null;
+        if (typeof index === 'boolean' || typeof index === 'object') return null;
+        if (typeof index === 'string' && !/^(0|[1-9]\d*)$/.test(index)) return null;
+        var n = typeof index === 'number' ? index : Number(index);
+        if (!isFinite(n) || Math.floor(n) !== n || n < 0 || n > ANCHOR_INDEX_MAX) return null;
+        if (typeof hash !== 'string' || !/^[a-z0-9]{8}$/.test(hash)) return null;
+        return { index: n, hash: hash };
+    }
+
+    function clearPendingAnchor() {
+        state.pendingAnchor = null;
+        window._topicAnchorIndex = null;
+        window._topicAnchorHash = '';
+    }
+
+    function rememberAnchor(index, text) {
+        var accepted = acceptClientAnchor(index, anchorFingerprint(text));
+        state.pendingAnchor = accepted;
+        window._topicAnchorIndex = accepted ? accepted.index : null;
+        window._topicAnchorHash = accepted ? accepted.hash : '';
+        return accepted;
+    }
+
+    window.bqAnchorFingerprint = anchorFingerprint;
+    window.bqAcceptTopicAnchor = acceptClientAnchor;
 
     function setOpen(open) {
         var body = document.getElementById('topic-discussion-body');
@@ -23234,6 +23380,7 @@ window.toggleAITools = function() {
         if (more) more.hidden = state.pages >= MAX_PAGES || !state.cursor;
         if (state.sawPending) schedulePendingRefresh();
         else state.pendingTries = 0;
+        paintInline();
     }
 
     function upsert(list, post) {
@@ -23293,6 +23440,7 @@ window.toggleAITools = function() {
     }
 
     function watchReplies(parentId) {
+        if (typeof db === 'undefined' || !db) return;
         if (state.replyUnsubs[parentId]) return;
         var keys = Object.keys(state.replyUnsubs);
         if (keys.length >= 3) {
@@ -23307,10 +23455,13 @@ window.toggleAITools = function() {
                 var replies = [];
                 snap.forEach(function(doc) { replies.push(fromDoc(doc)); });
                 state.posts.forEach(function(post) {
-                    if (post.id === parentId) {
-                        post._open = true;
-                        post._replies = replies;
-                    }
+                    if (post.id !== parentId) return;
+                    (post._replies || []).forEach(function(reply) {
+                        if (!replies.some(function(item) { return item.id === reply.id; })) replies.push(reply);
+                    });
+                    replies.sort(function(a, b) { return (a.createdAtMs || 0) - (b.createdAtMs || 0); });
+                    post._open = true;
+                    post._replies = replies;
                 });
                 paint();
                 focusPending();
@@ -23386,6 +23537,18 @@ window.toggleAITools = function() {
             }));
             return;
         }
+        if (state.pendingAnchor && who.signedIn && !state.parentId) {
+            var where = el('p', 'td-note td-anchor-note');
+            where.textContent = 'This conversation is tied to the paragraph you picked.';
+            var clearAnchor = btn('Bottom instead', 'td-btn', function() {
+                clearPendingAnchor();
+                renderComposer();
+            });
+            var anchorRow = el('div', 'td-compose-row');
+            anchorRow.appendChild(where);
+            anchorRow.appendChild(clearAnchor);
+            host.appendChild(anchorRow);
+        }
         if (state.parentId) {
             var banner = el('div', 'td-note');
             banner.textContent = 'Replying to ' + (state.replyName || 'this comment');
@@ -23419,7 +23582,7 @@ window.toggleAITools = function() {
         host.appendChild(controls);
     }
 
-    function submit(area, send) {
+    function submit(area, send, opts) {
         var text = area.value.trim();
         if (!text) { toast('Write a comment first.'); return; }
         var who = viewer();
@@ -23427,17 +23590,27 @@ window.toggleAITools = function() {
         if (!who.name || who.name.length < 2) { toast('Set a username first.'); return; }
         send.disabled = true;
         var payload = { channelId: state.channelId, text: text };
-        if (state.parentId) payload.parentId = state.parentId;
-        var anchor = window._topicAnchorIndex;
-        if (anchor != null && anchor !== '' && !payload.parentId) payload.anchorIndex = anchor;
+        var parentForPost = opts && opts.parentId ? opts.parentId : state.parentId;
+        if (parentForPost) payload.parentId = parentForPost;
+        if (!payload.parentId && state.pendingAnchor) {
+            payload.anchorIndex = state.pendingAnchor.index;
+            payload.anchorHash = state.pendingAnchor.hash;
+        }
         callFn('postTopicComment', payload).then(function(res) {
             var data = res && res.data ? res.data : (res || {});
             if (data && data.toast) toast(data.toast);
             var crossNote = data && data.crossPostNote ? String(data.crossPostNote) : '';
             area.value = '';
-            state.parentId = '';
-            state.replyName = '';
-            renderComposer();
+            // The inline card and the bottom composer reply to different targets.
+            // Sending from one must not clear the other.
+            if (opts && opts.inline) {
+                renderInlineComposer();
+            } else {
+                state.parentId = '';
+                state.replyName = '';
+                if (!payload.parentId) clearPendingAnchor();
+                renderComposer();
+            }
             showCrossPostNote(crossNote);
             if (crossNote) toast(crossNote);
             setOpen(true);
@@ -23446,26 +23619,64 @@ window.toggleAITools = function() {
         }).then(function() { send.disabled = false; });
     }
 
-    function ensurePost(postId) {
-        var who = viewer();
-        var found = null;
+    function rememberReply(reply) {
+        if (!reply || !reply.parentId) return;
         state.posts.forEach(function(post) {
-            if (post.id === postId) found = post;
-            (post._replies || []).forEach(function(reply) { if (reply.id === postId) found = reply; });
+            if (post.id !== reply.parentId) return;
+            var replies = (post._replies || []).filter(function(item) { return item.id !== reply.id; });
+            replies.push(reply);
+            replies.sort(function(a, b) { return (a.createdAtMs || 0) - (b.createdAtMs || 0); });
+            post._replies = replies;
+            post._open = true;
         });
-        if (found) {
-            if (!visiblePost(found, who) && found.deleted) return Promise.resolve('removed');
-            if (found.parentId) watchReplies(found.parentId);
+    }
+
+    function ensureParent(parentId, who) {
+        if (!parentId) return Promise.resolve('removed');
+        var parent = postById(parentId);
+        if (parent) {
+            if (parent.parentId) return Promise.resolve('removed');
+            if (!visiblePost(parent, who)) return Promise.resolve('removed');
+            parent._open = true;
+            parent._paged = true;
             return Promise.resolve('ok');
         }
+        if (typeof db === 'undefined' || !db) return Promise.resolve('removed');
+        return postsCol(state.channelId).doc(parentId).get().then(function(snap) {
+            if (!snap.exists) return 'removed';
+            parent = fromDoc(snap);
+            if (parent.parentId || parent.deleted || (parent.hidden && !(who && who.admin))) return 'removed';
+            parent._paged = true;
+            parent._open = true;
+            state.posts = upsert(state.posts, parent);
+            return 'ok';
+        }).catch(function() { return 'removed'; });
+    }
+
+    function openReply(reply, who) {
+        return ensureParent(reply.parentId, who).then(function(status) {
+            if (status !== 'ok') return status;
+            rememberReply(reply);
+            watchReplies(reply.parentId);
+            paint();
+            return 'ok';
+        });
+    }
+
+    function ensurePost(postId) {
+        var who = viewer();
+        var found = postById(postId);
+        if (found) {
+            if (!visiblePost(found, who) && found.deleted) return Promise.resolve('removed');
+            if (found.parentId) return openReply(found, who);
+            return Promise.resolve('ok');
+        }
+        if (typeof db === 'undefined' || !db) return Promise.resolve('removed');
         return postsCol(state.channelId).doc(postId).get().then(function(snap) {
             if (!snap.exists) return 'removed';
             var post = fromDoc(snap);
             if (post.deleted || (post.hidden && !who.admin)) return 'removed';
-            if (post.parentId) {
-                watchReplies(post.parentId);
-                return 'ok';
-            }
+            if (post.parentId) return openReply(post, who);
             post._paged = true;
             state.posts = upsert(state.posts, post);
             paint();
@@ -23473,24 +23684,267 @@ window.toggleAITools = function() {
         }).catch(function() { return 'removed'; });
     }
 
+    function topicLocationHash(channelId, postId, anchor) {
+        var hash = '#topic=' + channelId + '&post=' + postId;
+        if (anchor && acceptClientAnchor(anchor.index, anchor.hash)) {
+            hash += '&i=' + anchor.index + '&h=' + anchor.hash;
+        }
+        return hash;
+    }
+
+    function replaceTopicHash(channelId, postId, anchor) {
+        try {
+            history.replaceState({ channel: channelId, topicPost: postId }, '', topicLocationHash(channelId, postId, anchor));
+        } catch (e) {}
+    }
+
+    function postById(postId) {
+        var found = null;
+        state.posts.forEach(function(post) {
+            if (post.id === postId) found = post;
+            (post._replies || []).forEach(function(reply) {
+                if (reply.id === postId) found = reply;
+            });
+        });
+        return found;
+    }
+
+    function shouldFocusReply() {
+        try {
+            if (typeof navigator !== 'undefined' && navigator.userAgent && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return false;
+            if (window.matchMedia && window.matchMedia('(max-width: 800px)').matches) return false;
+        } catch (e) {}
+        return true;
+    }
+
+    function inlineHandlers(rootPost) {
+        return {
+            viewer: viewer(),
+            onReply: function() {
+                var area = document.getElementById('td-inline-input');
+                if (area && shouldFocusReply()) area.focus({ preventScroll: true });
+            },
+            onReport: function(post) {
+                if (!confirm('Report this comment to the moderators?')) return;
+                callFn('reportTopicComment', { channelId: state.channelId, postId: post.id }).then(function() {
+                    toast('Reported. Thank you.');
+                }).catch(function(err) { toast(errorText(err, 'Could not report that comment.')); });
+            },
+            onDelete: function(post) {
+                if (!confirm('Delete your comment?')) return;
+                callFn('deleteTopicComment', { channelId: state.channelId, postId: post.id }).then(function() {
+                    toast('Comment deleted.');
+                }).catch(function(err) { toast(errorText(err, 'Could not delete that comment.')); });
+            },
+            onModerate: function(post, action) {
+                var label = action === 'delete' ? 'Remove this comment?' : (action === 'hide' ? 'Hide this comment?' : 'Unhide this comment?');
+                if (!confirm(label)) return;
+                callFn('moderateTopicPost', { channelId: state.channelId, postId: post.id, action: action }).then(function() {
+                    toast('Updated.');
+                }).catch(function(err) { toast(errorText(err, 'Could not update that comment.')); });
+            },
+            onToggleReplies: function(post) {
+                post._open = !post._open;
+                if (!post._open) {
+                    if (state.replyUnsubs[post.id]) { state.replyUnsubs[post.id](); delete state.replyUnsubs[post.id]; }
+                    post._replies = [];
+                    paintInline();
+                    return;
+                }
+                watchReplies(post.id);
+            },
+            rootId: rootPost && rootPost.id,
+            idPrefix: 'td-inline-post-'
+        };
+    }
+
+    function paintInline() {
+        var card = document.getElementById('td-inline-thread');
+        if (!card) return;
+        var post = postById(card.getAttribute('data-post-id'));
+        var live = document.getElementById('td-inline-live');
+        if (!live || !post || post.parentId) return;
+        while (live.firstChild) live.removeChild(live.firstChild);
+        post._open = true;
+        live.appendChild(renderPost(post, inlineHandlers(post)));
+    }
+
+    function renderInlineComposer() {
+        var host = document.getElementById('td-inline-composer');
+        var card = document.getElementById('td-inline-thread');
+        if (!host || !card) return;
+        var rootId = card.getAttribute('data-post-id');
+        var who = viewer();
+        while (host.firstChild) host.removeChild(host.firstChild);
+        if (!who.signedIn) {
+            var note = el('p', 'td-note');
+            note.textContent = who.guest
+                ? 'You are browsing as a guest. Create an account to reply. You can still read the conversation.'
+                : 'Sign in to reply in this conversation.';
+            host.appendChild(note);
+            host.appendChild(btn('Sign in', 'td-send', function() {
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            }));
+            return;
+        }
+        var area = el('textarea');
+        area.id = 'td-inline-input';
+        area.maxLength = 500;
+        area.placeholder = 'Write a reply...';
+        area.setAttribute('aria-label', 'Reply in this conversation');
+        var count = el('span', 'td-note');
+        count.textContent = '0/500';
+        area.addEventListener('input', function() { count.textContent = String(area.value.length) + '/500'; });
+        host.appendChild(area);
+        var controls = el('div', 'td-compose-row');
+        var hint = el('span', 'td-note');
+        hint.textContent = 'Replies stay in this conversation.';
+        var send = btn('Reply', 'td-send', function() { submit(area, send, { parentId: rootId, inline: true }); });
+        controls.appendChild(hint);
+        controls.appendChild(count);
+        controls.appendChild(send);
+        host.appendChild(controls);
+    }
+
+    function elementForBlock(block) {
+        var end = block && block.end;
+        var node = end && (end.after || end.node);
+        if (!node) return null;
+        if (node.nodeType === 1) return node;
+        return node.parentNode || null;
+    }
+
+    function placeInlineCard(block, card) {
+        var endNode = block && block.end && (block.end.after || block.end.node);
+        if (!endNode || !endNode.parentNode) return false;
+        var next = endNode.nextSibling;
+        while (next && next.nodeType === 3 && !/\S/.test(next.nodeValue || '')) next = next.nextSibling;
+        if (next && next.classList && next.classList.contains('td-convo-btn')) {
+            if (next.nextSibling) next.parentNode.insertBefore(card, next.nextSibling);
+            else next.parentNode.appendChild(card);
+            return true;
+        }
+        insertPromptAt(block.end, card);
+        return !!card.parentNode;
+    }
+
+    function showInlineThread(block, post) {
+        var old = document.getElementById('td-inline-thread');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        if (!post || post.deleted || post.parentId) return false;
+        post._open = true;
+        var card = el('section', 'td-inline');
+        card.id = 'td-inline-thread';
+        card.setAttribute('data-post-id', post.id);
+        var title = el('div', 'td-inline-title');
+        title.textContent = 'Conversation';
+        card.appendChild(title);
+        var live = el('div', 'td-live');
+        live.id = 'td-inline-live';
+        card.appendChild(live);
+        var composer = el('div', 'td-compose');
+        composer.id = 'td-inline-composer';
+        card.appendChild(composer);
+        clearParagraphFlash();
+        if (!placeInlineCard(block, card)) return false;
+        paintInline();
+        renderInlineComposer();
+        watchReplies(post.id);
+        scrollPostIntoView(highlightParagraph(block) || card);
+        if (shouldFocusReply()) {
+            setTimeout(function() {
+                var area = document.getElementById('td-inline-input');
+                if (area && typeof area.focus === 'function') area.focus({ preventScroll: true });
+            }, 60);
+        }
+        return true;
+    }
+
+    function discussionNode(link) {
+        // Bottom-list ids only. The inline copies use td-inline-post- and must
+        // not steal this scroll target.
+        var node = link && link.postId ? document.getElementById('td-post-' + link.postId) : null;
+        if (!node && link && link.rootId) node = document.getElementById('td-post-' + link.rootId);
+        return node;
+    }
+
+    function keepBottomReply(root) {
+        if (!root || root.parentId) return;
+        var area = document.getElementById('topic-discussion-input');
+        var draft = area ? String(area.value || '') : '';
+        state.parentId = root.id;
+        state.replyName = root.name || 'this comment';
+        renderComposer();
+        var next = document.getElementById('topic-discussion-input');
+        if (next && draft) next.value = draft;
+    }
+
+    function finishAtBottom(link, anchor) {
+        setOpen(true);
+        if (link && link.postId && link.rootId && link.postId !== link.rootId) keepBottomReply(postById(link.rootId));
+        var tries = 0;
+        function attempt() {
+            var node = discussionNode(link);
+            if (!node) {
+                if (tries < 25) {
+                    tries += 1;
+                    setTimeout(attempt, 80);
+                }
+                return;
+            }
+            link.done = true;
+            scrollPostIntoView(node);
+            replaceTopicHash(link.channelId, link.rootId || link.postId, anchor || null);
+            whenMediaSettles(function() {
+                var again = discussionNode(link);
+                if (again) scrollPostIntoView(again, false);
+            });
+        }
+        attempt();
+        return !!discussionNode(link);
+    }
+
     function focusPending() {
         var link = window._topicDeepLink;
         if (!link || link.done || link.channelId !== state.channelId) return;
-        setOpen(true);
+        if (link.working) return;
+        link.working = true;
         ensurePost(link.postId).then(function(result) {
             if (!window._topicDeepLink || window._topicDeepLink.postId !== link.postId) return;
             if (result === 'removed') {
                 window._topicDeepLink.done = true;
+                setOpen(true);
                 showFallback('That comment was removed.');
                 return;
             }
-            var node = document.getElementById('td-post-' + link.postId);
-            if (!node) return;
-            window._topicDeepLink.done = true;
-            scrollPostIntoView(node);
-            try {
-                history.replaceState({ channel: link.channelId, topicPost: link.postId }, '', '#topic=' + link.channelId + '&post=' + link.postId);
-            } catch (e) {}
+            var target = postById(link.postId);
+            var rootId = target && target.parentId ? target.parentId : link.postId;
+            link.rootId = rootId;
+            if (rootId !== link.postId) return ensurePost(rootId);
+            return 'ok';
+        }).then(function() {
+            if (!window._topicDeepLink || window._topicDeepLink.done || window._topicDeepLink.postId !== link.postId) return;
+            var root = postById(link.rootId || link.postId);
+            var anchor = root ? acceptClientAnchor(root.anchorIndex, root.anchorHash) : null;
+            if (!anchor) {
+                finishAtBottom(link, null);
+                return;
+            }
+            whenTopicRendered(function() {
+                if (!window._topicDeepLink || window._topicDeepLink.done || window._topicDeepLink.postId !== link.postId) return;
+                var found = revealAnchorBlock(anchor);
+                var current = postById(link.rootId || link.postId);
+                if (!found || !current || !showInlineThread(found.block, current)) {
+                    finishAtBottom(link, null);
+                    return;
+                }
+                link.done = true;
+                replaceTopicHash(link.channelId, current.id, anchor);
+            });
+        }).then(function() {
+            if (link) link.working = false;
+        }, function() {
+            if (link) link.working = false;
         });
     }
 
@@ -23636,6 +24090,7 @@ window.toggleAITools = function() {
     }
     function atomicKind(node) {
         if (!node || node.nodeType !== 1) return '';
+        if (node.classList && node.classList.contains('td-inline')) return 'chrome';
         if (node.classList && (node.classList.contains('yt-embed') || node.classList.contains('tw-preview') || node.classList.contains('td-convo-btn'))) {
             return node.classList.contains('td-convo-btn') ? 'button' : 'embed';
         }
@@ -23682,13 +24137,82 @@ window.toggleAITools = function() {
         }
         walk(root);
         found.forEach(function(node) {
+            // tightenPromptGap strips the blank line after a button. Put it back
+            // before the next parse so the following paragraph stays its own block.
+            var next = node.nextSibling;
+            if (next && next.nodeType === 3 && !/^(?:\r\n|\n)[ \t]*(?:\r\n|\n)/.test(String(next.nodeValue || ''))) {
+                next.nodeValue = '\n\n' + String(next.nodeValue || '');
+            }
             if (node.parentNode) node.parentNode.removeChild(node);
         });
+    }
+    function clearParagraphFlash(root) {
+        var found = [];
+        function walk(node) {
+            if (!node) return;
+            if (node.nodeType === 1 && node.classList && node.classList.contains('topic-anchor-flash')) found.push(node);
+            var child = node.firstChild;
+            while (child) {
+                var next = child.nextSibling;
+                walk(child);
+                child = next;
+            }
+        }
+        walk(root || document.getElementById('msgs') || document.body);
+        found.forEach(function(span) {
+            var parent = span.parentNode;
+            if (!parent) return;
+            while (span.firstChild) parent.insertBefore(span.firstChild, span);
+            parent.removeChild(span);
+        });
+    }
+    function highlightParagraph(block) {
+        if (!block) return null;
+        var start = block.start;
+        var end = block.end;
+        if (start && start.after && end && end.after && start.after.classList) {
+            var marked = start.after;
+            var step = marked;
+            var guard = 0;
+            while (step && guard < 40) {
+                if (step.classList) step.classList.add('topic-post-highlight');
+                if (step === end.after) break;
+                step = step.nextSibling;
+                guard += 1;
+            }
+            return marked;
+        }
+        var endNode = end && end.node;
+        var startNode = start && start.node;
+        if (!startNode || !endNode || startNode.nodeType !== 3 || !startNode.parentNode) return elementForBlock(block);
+        if (endNode.nodeType === 3 && end.offset < String(endNode.nodeValue || '').length && typeof endNode.splitText === 'function') {
+            endNode.splitText(end.offset);
+        }
+        if (start.offset > 0 && typeof startNode.splitText === 'function') {
+            var right = startNode.splitText(start.offset);
+            if (endNode === startNode) endNode = right;
+            startNode = right;
+        }
+        if (!startNode || !startNode.parentNode) return elementForBlock(block);
+        var span = document.createElement('span');
+        span.className = 'topic-anchor-flash topic-post-highlight';
+        startNode.parentNode.insertBefore(span, startNode);
+        var node = startNode;
+        var moved = 0;
+        while (node && moved < 40) {
+            var next = node.nextSibling;
+            if (node === span) break;
+            span.appendChild(node);
+            moved += 1;
+            if (node === endNode) break;
+            node = next;
+        }
+        return span;
     }
     function paragraphsInElement(el) {
         var pieces = [];
         function walk(node) {
-            if (!node || atomicKind(node) === 'button') return;
+            if (!node) return;
             if (node.nodeType === 1) {
                 var kind = atomicKind(node);
                 if (kind) {
@@ -23705,18 +24229,20 @@ window.toggleAITools = function() {
         var blocks = [];
         var buf = '';
         var endAt = null;
+        var startAt = null;
         var inCode = false;
         function flush(kind) {
-            if (!/\S/.test(buf)) { buf = ''; endAt = null; return; }
-            blocks.push({ kind: kind || classifyBlock(buf), text: buf.trim(), end: endAt });
+            if (!/\S/.test(buf)) { buf = ''; endAt = null; startAt = null; return; }
+            blocks.push({ kind: kind || classifyBlock(buf), text: buf.trim(), end: endAt, start: startAt });
             buf = '';
             endAt = null;
+            startAt = null;
         }
         pieces.forEach(function(piece) {
             if (piece.type === 'atomic') {
                 flush();
-                if (piece.kind === 'button') return;
-                blocks.push({ kind: piece.kind, text: elementText(piece.node).trim(), end: { after: piece.node } });
+                if (piece.kind === 'button' || piece.kind === 'chrome') return;
+                blocks.push({ kind: piece.kind, text: elementText(piece.node).trim(), end: { after: piece.node }, start: { after: piece.node } });
                 return;
             }
             var value = piece.value;
@@ -23726,6 +24252,7 @@ window.toggleAITools = function() {
                     flush();
                     inCode = true;
                     buf = '```';
+                    startAt = { node: piece.node, offset: i };
                     endAt = { node: piece.node, offset: i + 3 };
                     i += 3;
                     continue;
@@ -23746,6 +24273,7 @@ window.toggleAITools = function() {
                         continue;
                     }
                 }
+                if (!startAt) startAt = { node: piece.node, offset: i };
                 buf += value.charAt(i);
                 endAt = { node: piece.node, offset: i + 1 };
                 i += 1;
@@ -23847,15 +24375,22 @@ window.toggleAITools = function() {
         focusComposer();
     }
     window.bqOpenTopicConversation = openTopicConversation;
-    function conversationButton() {
+    function conversationButton(index, text) {
         var button = document.createElement('button');
         button.type = 'button';
         button.className = 'td-convo-btn';
         button.textContent = '💬 Start a conversation';
         button.setAttribute('aria-label', 'Start a conversation about ' + topicTitle());
+        var accepted = acceptClientAnchor(index, anchorFingerprint(text));
+        if (accepted) {
+            button.setAttribute('data-anchor-index', String(accepted.index));
+            button.setAttribute('data-anchor-hash', accepted.hash);
+        }
         button.addEventListener('click', function(event) {
             if (event && event.preventDefault) event.preventDefault();
             if (event && event.stopPropagation) event.stopPropagation();
+            rememberAnchor(index, text);
+            if (document.getElementById('topic-discussion-composer')) renderComposer();
             openTopicConversation();
         });
         return button;
@@ -23889,12 +24424,9 @@ window.toggleAITools = function() {
         else node.parentNode.appendChild(button);
         tightenPromptGap(button);
     }
-    function injectTopicPrompts() {
-        var root = document.getElementById('msgs');
-        if (!root || root.classList && root.classList.contains('gallery-grid')) return;
-        injectStyle();
-        removePrompts(root);
+    function collectContentBlocks(root) {
         var rendered = [];
+        if (!root) return rendered;
         messageNodes(root).forEach(function(msg) {
             var textEl = messageTextEl(msg);
             if (!textEl) return;
@@ -23902,15 +24434,75 @@ window.toggleAITools = function() {
                 if (isContentKind(block.kind)) rendered.push(block);
             });
         });
+        return rendered;
+    }
+    function findTopicBlock(root, anchor, allowIndex) {
+        var accepted = acceptClientAnchor(anchor && anchor.index, anchor && anchor.hash);
+        if (!accepted || !root) return null;
+        var blocks = collectContentBlocks(root);
+        var i;
+        for (i = 0; i < blocks.length; i++) {
+            if (anchorFingerprint(blocks[i].text) === accepted.hash) return { block: blocks[i], index: i, how: 'hash' };
+        }
+        if (allowIndex && accepted.index < blocks.length) return { block: blocks[accepted.index], index: accepted.index, how: 'index' };
+        return null;
+    }
+    function revealAnchorBlock(anchor) {
+        var root = document.getElementById('msgs');
+        if (!root) return null;
+        injectTopicPrompts();
+        var found = findTopicBlock(root, anchor, false);
+        if (found) return found;
+        var accepted = acceptClientAnchor(anchor && anchor.index, anchor && anchor.hash);
+        var guard = 0;
+        var lastOffset = null;
+        while (guard < 8 && document.getElementById('loadMoreBtn') && typeof window.loadMoreMsgs === 'function') {
+            var loaded = collectContentBlocks(root);
+            if (accepted && accepted.index < loaded.length) break;
+            if (window._currentOffset === lastOffset) break;
+            var before = loaded.length;
+            lastOffset = window._currentOffset;
+            try { window.loadMoreMsgs(); } catch (err) { break; }
+            guard += 1;
+            if (collectContentBlocks(root).length <= before) break;
+            found = findTopicBlock(root, anchor, false);
+            if (found) return found;
+        }
+        return findTopicBlock(root, anchor, true);
+    }
+    function whenTopicRendered(done) {
+        var tries = 0;
+        function step() {
+            var root = document.getElementById('msgs');
+            var blocks = collectContentBlocks(root);
+            var waiting = window._currentMsgs && window._currentMsgs.length && !blocks.length;
+            if (!waiting || tries > 25) { done(root); return; }
+            tries += 1;
+            setTimeout(step, 80);
+        }
+        step();
+    }
+    window.bqFindTopicBlock = function(root, anchor, allowIndex) {
+        return findTopicBlock(root, anchor, allowIndex !== false);
+    };
+    function injectTopicPrompts() {
+        var root = document.getElementById('msgs');
+        if (!root || root.classList && root.classList.contains('gallery-grid')) return;
+        injectStyle();
+        clearParagraphFlash(root);
+        removePrompts(root);
+        var rendered = collectContentBlocks(root);
         var pending = pendingContentCount(root);
         var total = rendered.length + pending;
         if (!total) return;
         var slots = planTopicConversationButtons(total, promptsUseful(rendered));
         var points = [];
         slots.forEach(function(index) {
-            if (index >= 0 && index < rendered.length) points.push(bubbleEnd(rendered[index].end));
+            if (index >= 0 && index < rendered.length) {
+                points.push({ end: bubbleEnd(rendered[index].end), index: index, text: rendered[index].text });
+            }
         });
-        for (var s = points.length - 1; s >= 0; s--) insertPromptAt(points[s], conversationButton());
+        for (var s = points.length - 1; s >= 0; s--) insertPromptAt(points[s].end, conversationButton(points[s].index, points[s].text));
     }
     window.bqInjectTopicPrompts = injectTopicPrompts;
 
@@ -23928,7 +24520,12 @@ window.toggleAITools = function() {
             section.setAttribute('data-channel-id', channelId);
             var toggle = btn('🦌 Community discussion', 'td-toggle', function() {
                 var body = document.getElementById('topic-discussion-body');
-                setOpen(body && body.hidden);
+                var opening = !!(body && body.hidden);
+                if (opening) {
+                    clearPendingAnchor();
+                    renderComposer();
+                }
+                setOpen(opening);
             });
             toggle.id = 'community-discussion-toggle';
             toggle.setAttribute('aria-expanded', 'false');
@@ -23972,6 +24569,7 @@ window.toggleAITools = function() {
         state.pages = 1;
         state.parentId = '';
         state.pendingTries = 0;
+        clearPendingAnchor();
         if (state.pendingTimer) { clearTimeout(state.pendingTimer); state.pendingTimer = null; }
         Object.keys(state.replyUnsubs).forEach(function(id) { state.replyUnsubs[id](); });
         state.replyUnsubs = {};
@@ -23987,18 +24585,41 @@ window.toggleAITools = function() {
         watchTop();
         if (typeof auth !== 'undefined' && auth && auth.onAuthStateChanged && !window._tdAuthHook) {
             window._tdAuthHook = true;
-            auth.onAuthStateChanged(function() { renderComposer(); paint(); });
+            auth.onAuthStateChanged(function() { renderComposer(); renderInlineComposer(); paint(); });
         }
         injectTopicPrompts();
     };
 
-    window.bqOpenTopicPost = function(channelId, postId) {
+    // One open only. patches.js restores the last scroll for this channel 300 ms
+    // after go(), which would run after the deep-link scroll. The value is a
+    // timestamp so a deep link that arrives before that wrapper exists does
+    // not skip a normal restore a few seconds later. Any timer already queued
+    // for this channel is cleared.
+    window.bqSkipTopicScrollRestore = function(channelId) {
+        if (!channelId) return;
+        if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
+        window._bqSkipTopicScrollRestore[channelId] = Date.now();
+        var timers = window._bqTopicScrollRestoreTimers;
+        if (timers && timers[channelId]) {
+            clearTimeout(timers[channelId]);
+            delete timers[channelId];
+        }
+    };
+
+    window.bqOpenTopicPost = function(channelId, postId, anchorIndex, anchorHash) {
         if (!/^[A-Za-z0-9_-]+$/.test(channelId || '') || !/^[A-Za-z0-9_-]+$/.test(postId || '')) return false;
-        window._topicDeepLink = { channelId: channelId, postId: postId, done: false };
+        var link = { channelId: channelId, postId: postId, done: false, working: false };
+        var hint = acceptClientAnchor(anchorIndex, anchorHash);
+        if (hint) {
+            link.anchorIndex = hint.index;
+            link.anchorHash = hint.hash;
+        }
+        window._topicDeepLink = link;
         if (window.currentChannelId === channelId && document.getElementById('topic-discussion-live')) {
             focusPending();
             return true;
         }
+        window.bqSkipTopicScrollRestore(channelId);
         if (typeof window.go === 'function') window.go(channelId);
         return true;
     };

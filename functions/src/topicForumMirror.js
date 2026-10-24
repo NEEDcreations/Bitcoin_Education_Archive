@@ -24,7 +24,7 @@ const PUBLIC_ORIGIN = 'https://bitcoineducation.quest/';
 const ADVICE_RE = /\b(you should (buy|sell|invest)|i recommend (buying|selling)|buy now|sell now|price target|guaranteed return|go all in)\b/i;
 const INJECTION_RE = /ignore\s+(all|previous|your)\s+instructions|system\s+prompt|jailbreak|pretend\s+to\s+be|act\s+as\s+/i;
 
-const SERVER_FIELDS = ['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'noAward', 'mirrored'];
+const SERVER_FIELDS = ['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'anchorIndex', 'anchorHash', 'noAward', 'mirrored'];
 
 function topicApi() {
     return require('./topicDiscussion');
@@ -57,12 +57,38 @@ function topicPostIdForForumReply(replyId) {
     return ('tdfrom_' + id).slice(0, 400);
 }
 
-function topicHashLink(channelId, postId) {
-    return '#topic/' + channelId + '/' + postId;
+function acceptedAnchor(anchor) {
+    const src = anchor || null;
+    if (!src) return null;
+    const index = src.anchorIndex != null ? src.anchorIndex : src.index;
+    const hash = src.anchorHash || src.hash || '';
+    return topicApi().acceptTopicAnchor(index, hash);
 }
 
-function topicPublicLink(channelId, postId) {
-    return PUBLIC_ORIGIN + topicHashLink(channelId, postId);
+function topicHashLink(channelId, postId, anchor) {
+    const base = '#topic/' + channelId + '/' + postId;
+    const accepted = acceptedAnchor(anchor);
+    if (!accepted) return base;
+    return base + '/' + accepted.anchorIndex + '/' + accepted.anchorHash;
+}
+
+function topicQueryLink(channelId, postId, anchor) {
+    const base = '#topic=' + channelId + '&post=' + postId;
+    const accepted = acceptedAnchor(anchor);
+    if (!accepted) return base;
+    return base + '&i=' + accepted.anchorIndex + '&h=' + accepted.anchorHash;
+}
+
+function topicPublicLink(channelId, postId, anchor) {
+    return PUBLIC_ORIGIN + topicHashLink(channelId, postId, anchor);
+}
+
+// Quote the title. "Continue in the " + "The problems…" used to read "the The".
+function continueInTopicLabel(title) {
+    let name = String(title || 'this topic').replace(/[\u0000-\u001F<>]/g, '').replace(/\s+/g, ' ').trim();
+    if (!name) name = 'this topic';
+    if (name.length > 80) name = name.slice(0, 77).trim() + '…';
+    return 'Continue in “' + name + '” →';
 }
 
 function forumHashLink(forumPostId) {
@@ -269,8 +295,8 @@ function stamp(admin, nowMs) {
     return nowMs;
 }
 
-function announcementLinks(channelId, postId, forumPostId) {
-    const topic = '[the topic](' + topicHashLink(channelId, postId) + ')';
+function announcementLinks(channelId, postId, forumPostId, anchor) {
+    const topic = '[the topic](' + topicHashLink(channelId, postId, anchor) + ')';
     const forum = forumPostId ? '[Pleb Talk](' + forumHashLink(forumPostId) + ')' : '';
     return forum ? (topic + ' · ' + forum) : topic;
 }
@@ -283,7 +309,8 @@ function buildForumPostDoc(input) {
     if (!channelId || !postId || !forumPostId) return null;
     const summary = acceptSummary(src.summary, excerptSummary(src.text));
     const body = forumBodyFor(summary, channelId, postId);
-    const link = topicPublicLink(channelId, postId).slice(0, 200);
+    const anchor = acceptedAnchor(src.anchor);
+    const link = topicPublicLink(channelId, postId, anchor).slice(0, 240);
     return {
         id: forumPostId,
         data: {
@@ -304,7 +331,9 @@ function buildForumPostDoc(input) {
             mirrorSync: mirrorSyncOf(body, false, false),
             topicChannel: channelId,
             topicPost: postId,
-            topicLink: topicHashLink(channelId, postId),
+            topicLink: topicHashLink(channelId, postId, anchor),
+            anchorIndex: anchor ? anchor.anchorIndex : null,
+            anchorHash: anchor ? anchor.anchorHash : '',
             noAward: true,
             summary: summary,
         },
@@ -366,6 +395,7 @@ async function mirrorTopicPost(opts) {
             points: o.points,
             admin: o.admin,
             nowMs: post.createdAtMs || o.nowMs,
+            anchor: (post.anchorIndex != null && post.anchorHash) ? { anchorIndex: post.anchorIndex, anchorHash: post.anchorHash } : null,
         });
         if (!built) return { mirrored: false, reason: 'bad_id' };
         const ref = db.collection('forum_posts').doc(built.id);
@@ -524,6 +554,7 @@ async function mirrorForumReplyToTopic(opts) {
             text: prepared.text,
             parentId: rootId,
             anchorIndex: null,
+            anchorHash: '',
             anchorId: '',
             createdAt: stamp(o.admin, nowMs),
             createdAtMs: nowMs,
@@ -763,7 +794,9 @@ module.exports = {
     forumReplyIdFor: forumReplyIdFor,
     topicPostIdForForumReply: topicPostIdForForumReply,
     topicHashLink: topicHashLink,
+    topicQueryLink: topicQueryLink,
     topicPublicLink: topicPublicLink,
+    continueInTopicLabel: continueInTopicLabel,
     forumHashLink: forumHashLink,
     mirrorSyncOf: mirrorSyncOf,
     isMirrorCopy: isMirrorCopy,
