@@ -22779,7 +22779,7 @@ window.toggleAITools = function() {
         return bar.getBoundingClientRect().height || 0;
     }
 
-    function scrollPostIntoView(node) {
+    function scrollPostIntoView(node, highlight) {
         if (!node || !node.getBoundingClientRect) return;
         var rect = node.getBoundingClientRect();
         var cover = stickyCoverPx();
@@ -22787,12 +22787,64 @@ window.toggleAITools = function() {
         if (main && typeof main.scrollTo === 'function') {
             var delta = topicStickyScrollDelta(rect.top, main.getBoundingClientRect().top, cover);
             main.scrollTo({ top: Math.max(0, main.scrollTop + delta), behavior: 'smooth' });
+        } else if (typeof node.scrollIntoView === 'function') {
+            node.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
             var deltaWin = topicStickyScrollDelta(rect.top, 0, cover);
             window.scrollTo({ top: Math.max(0, window.scrollY + deltaWin), behavior: 'smooth' });
         }
+        if (highlight === false) return;
         node.classList.add('topic-post-highlight');
         setTimeout(function() { node.classList.remove('topic-post-highlight'); }, 2800);
+    }
+
+    // Images and fonts after the first paint move the thread. Scroll once,
+    // then again when that layout has settled.
+    function whenMediaSettles(done) {
+        var pending = 0;
+        var settled = false;
+        function finish() {
+            if (settled) return;
+            settled = true;
+            done();
+        }
+        function arm(img) {
+            if (!img || img.complete !== false || typeof img.addEventListener !== 'function') return;
+            pending += 1;
+            var one = function() {
+                if (typeof img.removeEventListener === 'function') {
+                    img.removeEventListener('load', one);
+                    img.removeEventListener('error', one);
+                }
+                pending -= 1;
+                if (pending <= 0) finish();
+            };
+            img.addEventListener('load', one);
+            img.addEventListener('error', one);
+        }
+        function walk(node) {
+            if (!node) return;
+            if (node.tagName === 'IMG') arm(node);
+            var child = node.firstChild;
+            while (child) {
+                walk(child);
+                child = child.nextSibling;
+            }
+        }
+        walk(document.getElementById('msgs') || document.body);
+        var fonts = document.fonts;
+        if (fonts && fonts.ready && typeof fonts.ready.then === 'function') {
+            pending += 1;
+            fonts.ready.then(function() {
+                pending -= 1;
+                if (pending <= 0) finish();
+            }, function() {
+                pending -= 1;
+                if (pending <= 0) finish();
+            });
+        }
+        if (pending <= 0) setTimeout(finish, 60);
+        else setTimeout(finish, 1600);
     }
 
     function visiblePost(post, who) {
@@ -23037,10 +23089,13 @@ window.toggleAITools = function() {
                 var replies = [];
                 snap.forEach(function(doc) { replies.push(fromDoc(doc)); });
                 state.posts.forEach(function(post) {
-                    if (post.id === parentId) {
-                        post._open = true;
-                        post._replies = replies;
-                    }
+                    if (post.id !== parentId) return;
+                    (post._replies || []).forEach(function(reply) {
+                        if (!replies.some(function(item) { return item.id === reply.id; })) replies.push(reply);
+                    });
+                    replies.sort(function(a, b) { return (a.createdAtMs || 0) - (b.createdAtMs || 0); });
+                    post._open = true;
+                    post._replies = replies;
                 });
                 paint();
                 focusPending();
@@ -23193,26 +23248,64 @@ window.toggleAITools = function() {
         }).then(function() { send.disabled = false; });
     }
 
-    function ensurePost(postId) {
-        var who = viewer();
-        var found = null;
+    function rememberReply(reply) {
+        if (!reply || !reply.parentId) return;
         state.posts.forEach(function(post) {
-            if (post.id === postId) found = post;
-            (post._replies || []).forEach(function(reply) { if (reply.id === postId) found = reply; });
+            if (post.id !== reply.parentId) return;
+            var replies = (post._replies || []).filter(function(item) { return item.id !== reply.id; });
+            replies.push(reply);
+            replies.sort(function(a, b) { return (a.createdAtMs || 0) - (b.createdAtMs || 0); });
+            post._replies = replies;
+            post._open = true;
         });
-        if (found) {
-            if (!visiblePost(found, who) && found.deleted) return Promise.resolve('removed');
-            if (found.parentId) watchReplies(found.parentId);
+    }
+
+    function ensureParent(parentId, who) {
+        if (!parentId) return Promise.resolve('removed');
+        var parent = postById(parentId);
+        if (parent) {
+            if (parent.parentId) return Promise.resolve('removed');
+            if (!visiblePost(parent, who)) return Promise.resolve('removed');
+            parent._open = true;
+            parent._paged = true;
             return Promise.resolve('ok');
         }
+        if (typeof db === 'undefined' || !db) return Promise.resolve('removed');
+        return postsCol(state.channelId).doc(parentId).get().then(function(snap) {
+            if (!snap.exists) return 'removed';
+            parent = fromDoc(snap);
+            if (parent.parentId || parent.deleted || (parent.hidden && !(who && who.admin))) return 'removed';
+            parent._paged = true;
+            parent._open = true;
+            state.posts = upsert(state.posts, parent);
+            return 'ok';
+        }).catch(function() { return 'removed'; });
+    }
+
+    function openReply(reply, who) {
+        return ensureParent(reply.parentId, who).then(function(status) {
+            if (status !== 'ok') return status;
+            rememberReply(reply);
+            watchReplies(reply.parentId);
+            paint();
+            return 'ok';
+        });
+    }
+
+    function ensurePost(postId) {
+        var who = viewer();
+        var found = postById(postId);
+        if (found) {
+            if (!visiblePost(found, who) && found.deleted) return Promise.resolve('removed');
+            if (found.parentId) return openReply(found, who);
+            return Promise.resolve('ok');
+        }
+        if (typeof db === 'undefined' || !db) return Promise.resolve('removed');
         return postsCol(state.channelId).doc(postId).get().then(function(snap) {
             if (!snap.exists) return 'removed';
             var post = fromDoc(snap);
             if (post.deleted || (post.hidden && !who.admin)) return 'removed';
-            if (post.parentId) {
-                watchReplies(post.parentId);
-                return 'ok';
-            }
+            if (post.parentId) return openReply(post, who);
             post._paged = true;
             state.posts = upsert(state.posts, post);
             paint();
@@ -23258,7 +23351,7 @@ window.toggleAITools = function() {
             viewer: viewer(),
             onReply: function() {
                 var area = document.getElementById('td-inline-input');
-                if (area && shouldFocusReply()) area.focus();
+                if (area && shouldFocusReply()) area.focus({ preventScroll: true });
             },
             onReport: function(post) {
                 if (!confirm('Report this comment to the moderators?')) return;
@@ -23389,21 +23482,52 @@ window.toggleAITools = function() {
         if (shouldFocusReply()) {
             setTimeout(function() {
                 var area = document.getElementById('td-inline-input');
-                if (area && typeof area.focus === 'function') area.focus();
+                if (area && typeof area.focus === 'function') area.focus({ preventScroll: true });
             }, 60);
         }
         return true;
     }
 
+    function discussionNode(link) {
+        var node = link && link.postId ? document.getElementById('td-post-' + link.postId) : null;
+        if (!node && link && link.rootId) node = document.getElementById('td-post-' + link.rootId);
+        return node;
+    }
+
+    function keepBottomReply(root) {
+        if (!root || root.parentId) return;
+        var area = document.getElementById('topic-discussion-input');
+        var draft = area ? String(area.value || '') : '';
+        state.parentId = root.id;
+        state.replyName = root.name || 'this comment';
+        renderComposer();
+        var next = document.getElementById('topic-discussion-input');
+        if (next && draft) next.value = draft;
+    }
+
     function finishAtBottom(link, anchor) {
         setOpen(true);
-        var node = document.getElementById('td-post-' + link.postId);
-        if (!node && link.rootId) node = document.getElementById('td-post-' + link.rootId);
-        if (!node) return false;
-        link.done = true;
-        scrollPostIntoView(node);
-        replaceTopicHash(link.channelId, link.rootId || link.postId, anchor || null);
-        return true;
+        if (link && link.postId && link.rootId && link.postId !== link.rootId) keepBottomReply(postById(link.rootId));
+        var tries = 0;
+        function attempt() {
+            var node = discussionNode(link);
+            if (!node) {
+                if (tries < 25) {
+                    tries += 1;
+                    setTimeout(attempt, 80);
+                }
+                return;
+            }
+            link.done = true;
+            scrollPostIntoView(node);
+            replaceTopicHash(link.channelId, link.rootId || link.postId, anchor || null);
+            whenMediaSettles(function() {
+                var again = discussionNode(link);
+                if (again) scrollPostIntoView(again, false);
+            });
+        }
+        attempt();
+        return !!discussionNode(link);
     }
 
     function focusPending() {
@@ -23955,13 +24079,18 @@ window.toggleAITools = function() {
         injectTopicPrompts();
         var found = findTopicBlock(root, anchor, false);
         if (found) return found;
+        var accepted = acceptClientAnchor(anchor && anchor.index, anchor && anchor.hash);
         var guard = 0;
         var lastOffset = null;
-        while (guard < 80 && document.getElementById('loadMoreBtn') && typeof window.loadMoreMsgs === 'function') {
+        while (guard < 8 && document.getElementById('loadMoreBtn') && typeof window.loadMoreMsgs === 'function') {
+            var loaded = collectContentBlocks(root);
+            if (accepted && accepted.index < loaded.length) break;
             if (window._currentOffset === lastOffset) break;
+            var before = loaded.length;
             lastOffset = window._currentOffset;
             try { window.loadMoreMsgs(); } catch (err) { break; }
             guard += 1;
+            if (collectContentBlocks(root).length <= before) break;
             found = findTopicBlock(root, anchor, false);
             if (found) return found;
         }

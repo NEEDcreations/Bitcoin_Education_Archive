@@ -744,6 +744,14 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
     assert.strictEqual(td.decideAnnounce({ lastAnnounceAtMs: 0 }, { hourKey: '1', count: 12 }, 3600000).allow, false);
 });
 
+test('desktop reply focus does not scroll, and a missed anchor does not drain the topic', function() {
+    var src = read('topic-discussions.js');
+    assert.strictEqual(src.split('focus({ preventScroll: true })').length - 1, 2);
+    assert.ok(src.includes('function whenMediaSettles'));
+    assert.ok(src.includes('accepted.index < loaded.length'));
+    assert.ok(!src.includes('guard < 80'));
+});
+
 test('anchor shape is a bounded index plus a short hash, otherwise dropped', () => {
     const hash = td.anchorFingerprint('The 2008 crisis showed the cracks in credit money.');
     assert.ok(/^[a-z0-9]{8}$/.test(hash));
@@ -1046,6 +1054,71 @@ test('anchor shape is a bounded index plus a short hash, otherwise dropped', () 
         await api.reportTopicComment({ channelId: 'mining', postId: hideMe.postId }, auth('other'));
         const reported = postsOf(db, 'mining').filter(function(post) { return post._id === hideMe.postId; })[0];
         assert.strictEqual(reported.reportCount, 1);
+    });
+
+    await testAsync('a reply notification loads the parent when that conversation is not on the first page', async function() {
+        var plan = bootTopicClient({ signedIn: true, reduceMotion: true });
+        var docs = {
+            root9: { parentId: '', uid: 'ada', name: 'Ada', text: 'What is a nonce?', createdAtMs: 10, deleted: false, hidden: false, anchorIndex: null, anchorHash: '' },
+            reply9: { parentId: 'root9', uid: 'nacho-bot', name: 'Nacho', text: 'Miners vary the nonce.', createdAtMs: 20, isNacho: true, deleted: false, hidden: false }
+        };
+        function postsApi() {
+            var parentFilter = null;
+            var api = {
+                where: function(field, op, value) {
+                    if (field === 'parentId') parentFilter = value;
+                    return api;
+                },
+                orderBy: function() { return api; },
+                limit: function() { return api; },
+                startAfter: function() { return api; },
+                doc: function(id) {
+                    return {
+                        get: function() {
+                            var data = docs[id];
+                            if (!data) return Promise.resolve({ exists: false, id: id, data: function() { return undefined; } });
+                            return Promise.resolve({ exists: true, id: id, data: function() { return Object.assign({}, data); } });
+                        }
+                    };
+                },
+                onSnapshot: function(ok) {
+                    var rows = [];
+                    if (parentFilter) {
+                        Object.keys(docs).forEach(function(id) {
+                            if (docs[id].parentId === parentFilter) {
+                                rows.push({ id: id, data: function() { return Object.assign({}, docs[id]); } });
+                            }
+                        });
+                    }
+                    ok({ docs: rows, forEach: function(fn) { rows.forEach(fn); } });
+                    return function() {};
+                },
+                get: function() { return Promise.resolve({ forEach: function() {} }); }
+            };
+            return api;
+        }
+        plan.db = {
+            collection: function() {
+                return { doc: function() { return { collection: function() { return postsApi(); } }; } };
+            }
+        };
+        hostTopic(plan, ['Alpha paragraph explains what miners change inside a block header.']);
+        plan.mountTopicDiscussion('mining');
+        var area = plan.document.getElementById('topic-discussion-input');
+        area.value = 'keep this reply';
+        plan._topicDeepLink = { channelId: 'mining', postId: 'reply9', done: false, working: false };
+        plan._topicDiscussionFocus();
+        await new Promise(function(resolve) { setTimeout(resolve, 0); });
+        var live = plan.document.getElementById('topic-discussion-live');
+        assert.ok(live);
+        assert.ok(live.textContent.indexOf('What is a nonce?') !== -1);
+        assert.ok(live.textContent.indexOf('Miners vary the nonce.') !== -1);
+        assert.ok(plan.document.getElementById('td-post-root9'));
+        assert.ok(plan.document.getElementById('td-post-reply9'));
+        var kept = plan.document.getElementById('topic-discussion-input');
+        assert.strictEqual(kept.value, 'keep this reply');
+        assert.ok(plan.document.body.textContent.indexOf('Replying to Ada') !== -1);
+        assert.strictEqual(plan._topicDeepLink.done, true);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
