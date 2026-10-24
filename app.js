@@ -5329,7 +5329,9 @@ if (locked) {
                 return;
             }
 
-            var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)$/)
+            var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)&i=(\d+)&h=([a-z0-9]{8})$/)
+                || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/(\d+)\/([a-z0-9]{8})$/)
+                || hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)$/)
                 || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)$/);
             if (_topicDeep) {
                 if (typeof CHANNELS === 'undefined' || typeof go !== 'function') {
@@ -5338,10 +5340,24 @@ if (locked) {
                     return;
                 }
                 if (!CHANNELS[_topicDeep[1]]) return;
-                window._topicDeepLink = { channelId: _topicDeep[1], postId: _topicDeep[2], done: false };
+                if (typeof window.bqOpenTopicPost === 'function') {
+                    window.bqOpenTopicPost(_topicDeep[1], _topicDeep[2], _topicDeep[3], _topicDeep[4]);
+                    return;
+                }
+                window._topicDeepLink = { channelId: _topicDeep[1], postId: _topicDeep[2], anchorIndex: _topicDeep[3] || '', anchorHash: _topicDeep[4] || '', done: false };
                 if (window.currentChannelId === _topicDeep[1] && document.getElementById('topic-discussion-live')) {
                     if (typeof window._topicDiscussionFocus === 'function') window._topicDiscussionFocus();
                     return;
+                }
+                if (typeof window.bqSkipTopicScrollRestore === 'function') window.bqSkipTopicScrollRestore(_topicDeep[1]);
+                else {
+                    if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
+                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = Date.now();
+                    var _restoreTimers = window._bqTopicScrollRestoreTimers;
+                    if (_restoreTimers && _restoreTimers[_topicDeep[1]]) {
+                        clearTimeout(_restoreTimers[_topicDeep[1]]);
+                        delete _restoreTimers[_topicDeep[1]];
+                    }
                 }
                 go(_topicDeep[1]);
                 return;
