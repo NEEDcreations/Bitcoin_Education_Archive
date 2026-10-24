@@ -120,6 +120,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
     assert.ok(html.includes('guide.js?v=20261023_v2339'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
+    assert.ok(html.includes('patches.js?v=20261023_v2350'));
+    assert.ok(!html.includes('patches.js?v=20261023_v2349'));
+    assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(swVersion && swVersion[1] === 'v2350');
 });
 

@@ -1676,6 +1676,20 @@
         injectTopicPrompts();
     };
 
+    // One open only. patches.js restores the last scroll for this channel 300 ms
+    // after go(), which would run after the deep-link scroll. The flag is
+    // consumed by that wrapper, and any timer already queued is cleared.
+    window.bqSkipTopicScrollRestore = function(channelId) {
+        if (!channelId) return;
+        if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
+        window._bqSkipTopicScrollRestore[channelId] = true;
+        var timers = window._bqTopicScrollRestoreTimers;
+        if (timers && timers[channelId]) {
+            clearTimeout(timers[channelId]);
+            delete timers[channelId];
+        }
+    };
+
     window.bqOpenTopicPost = function(channelId, postId, anchorIndex, anchorHash) {
         if (!/^[A-Za-z0-9_-]+$/.test(channelId || '') || !/^[A-Za-z0-9_-]+$/.test(postId || '')) return false;
         var link = { channelId: channelId, postId: postId, done: false, working: false };
@@ -1689,6 +1703,7 @@
             focusPending();
             return true;
         }
+        window.bqSkipTopicScrollRestore(channelId);
         if (typeof window.go === 'function') window.go(channelId);
         return true;
     };

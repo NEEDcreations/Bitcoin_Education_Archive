@@ -5349,6 +5349,16 @@ if (locked) {
                     if (typeof window._topicDiscussionFocus === 'function') window._topicDiscussionFocus();
                     return;
                 }
+                if (typeof window.bqSkipTopicScrollRestore === 'function') window.bqSkipTopicScrollRestore(_topicDeep[1]);
+                else {
+                    if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
+                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = true;
+                    var _restoreTimers = window._bqTopicScrollRestoreTimers;
+                    if (_restoreTimers && _restoreTimers[_topicDeep[1]]) {
+                        clearTimeout(_restoreTimers[_topicDeep[1]]);
+                        delete _restoreTimers[_topicDeep[1]];
+                    }
+                }
                 go(_topicDeep[1]);
                 return;
             }
