@@ -4356,27 +4356,40 @@ function createNacho() {
             #nacho-container { left: 290px; }
             #nacho-avatar { width: 95px; height: 95px; }
         }
-        /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
+        /* Mobile — sidebar hidden, Nacho goes bottom-left, above the nav.
+           Same clearance as the FAB row: measured nav height plus the safe-area inset. */
         @media (max-width: 900px) {
-            #nacho-container { bottom: 76px; left: 32px; }
+            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
             #nacho-avatar { width: 56px; height: 56px; }
+            #nachoDragHandle { bottom: 2px !important; }
+            #nacho-avatar .nacho-name { top: auto; bottom: calc(100% + 4px); }
+            /* Speech bubble shares the FAB baseline: nav + safe area + gap,
+               then the button height, then the same gap again (--above-fab). */
             #nacho-bubble {
-                max-width: min(260px, calc(100vw - 80px));
+                position: fixed !important;
+                left: 12px !important;
+                right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+                bottom: var(--above-fab, calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + var(--fab-gap, 12px))) !important;
+                margin: 0 !important;
+                max-width: none !important;
+                width: auto !important;
+                min-width: 0 !important;
                 max-height: 40vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
-                min-width: 140px;
                 font-size: 0.85rem;
                 padding: 12px 14px;
                 border-radius: 14px;
+                z-index: 200050;
             }
+            #nacho-bubble::before,
+            #nacho-bubble::after { display: none !important; }
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: 76px; left: 32px; }
-            #nacho-avatar { width: 52px; height: 52px; }
+            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
+            #nacho-avatar { width: 48px; height: 48px; }
             #nacho-bubble {
-                max-width: min(230px, calc(100vw - 72px));
                 max-height: 38vh;
                 font-size: 0.82rem;
                 padding: 12px 14px;
@@ -5797,15 +5810,44 @@ if (document.readyState === 'loading') {
         // Phones: keep the minimize control out of the back-swipe edge.
         return window.innerWidth <= 900 ? 32 : 8;
     }
+    // Distance from the viewport bottom that stays clear of the bottom nav.
+    // The nav's box already includes its safe-area padding.
+    function bottomClearance() {
+        if (window.innerWidth > 900) return 8;
+        var nav = document.getElementById('bottomNav');
+        var navH = 0;
+        if (nav) {
+            var cs = window.getComputedStyle(nav);
+            if (cs.display !== 'none' && cs.visibility !== 'hidden') navH = nav.getBoundingClientRect().height || 0;
+        }
+        if (navH < 40) navH = 72;
+        return navH + 12;
+    }
+    // While the pet shares the FAB band, keep it left of that row.
+    function rightClearance(top, height) {
+        var margin = sideMargin();
+        if (window.innerWidth > 900) return margin;
+        var floor = bottomClearance();
+        var petBottom = window.innerHeight - (top + height);
+        var fabSize = window.innerWidth <= 380 ? 44 : 48;
+        if (petBottom < floor + fabSize + 8 && petBottom + height > floor - 8) {
+            var edge = 12;
+            var space = window.innerWidth <= 380 ? 6 : 8;
+            return Math.max(margin, edge + (fabSize + space) * 4 + 36);
+        }
+        return margin;
+    }
     function clampBox(left, top, width, height) {
         var w = width || 52;
         var h = height || 52;
-        var margin = sideMargin();
-        var maxL = Math.max(margin, window.innerWidth - w - margin);
-        var maxT = Math.max(topInset(), window.innerHeight - h - margin);
+        var leftMin = sideMargin();
+        var rightMin = rightClearance(top, h);
+        var floor = bottomClearance();
+        var maxL = Math.max(leftMin, window.innerWidth - w - rightMin);
+        var maxT = Math.max(topInset(), window.innerHeight - h - floor);
         var minT = Math.min(topInset(), maxT);
         return {
-            left: clamp(left, margin, maxL),
+            left: clamp(left, leftMin, maxL),
             top: clamp(top, minT, maxT)
         };
     }
@@ -5816,6 +5858,14 @@ if (document.readyState === 'loading') {
         var bubble = document.getElementById('nacho-bubble');
         var avatar = getAvatar();
         if (!c || !bubble || !avatar) return;
+        if ((window.innerWidth || 0) <= 900) {
+            c.classList.remove('nacho-bubble-left');
+            c.classList.remove('nacho-bubble-below');
+            bubble.style.maxWidth = '';
+            bubble.style.marginLeft = '';
+            bubble.style.width = '';
+            return;
+        }
         var rect = avatar.getBoundingClientRect();
         var vw = window.innerWidth || 360;
         var gap = 16;
@@ -12011,7 +12061,7 @@ window.showDMGifPicker = function(convoId, recipientUid, recipientName) {
 
     var picker = document.createElement('div');
     picker.id = 'dmGifPicker';
-    picker.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
 
     // Store convo info for the send function
     window._dmGifConvo = { convoId: convoId, recipientUid: recipientUid, recipientName: recipientName };
@@ -13820,9 +13870,96 @@ function initBottomNav() {
         '.bnav-btn:active .bnav-icon{transform:scale(1.2);}' +
         '.bnav-btn.active{color:var(--accent);}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
-        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
+        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}' +
+        '#main{padding-bottom:calc(var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px)) + 44px + var(--fab-gap, 12px))!important;}}';
     document.head.appendChild(style);
     document.body.appendChild(nav);
+    watchBottomNavHeight();
+}
+
+// --bnav-h is the nav's height above the safe-area inset. CSS adds
+// env(safe-area-inset-bottom) so the FAB gap tracks both pieces.
+function readSafeAreaBottom() {
+    var probe = document.getElementById('bqSafeAreaProbe');
+    if (!probe) {
+        probe = document.createElement('div');
+        probe.id = 'bqSafeAreaProbe';
+        probe.setAttribute('aria-hidden', 'true');
+        probe.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;';
+        document.body.appendChild(probe);
+    }
+    return probe.getBoundingClientRect().height || 0;
+}
+
+function syncBottomNavHeight() {
+    var root = document.documentElement;
+    if (window.innerWidth > 900) {
+        root.style.setProperty('--bnav-h', '0px');
+        return;
+    }
+    var nav = document.getElementById('bottomNav');
+    if (!nav) return;
+    var full = nav.getBoundingClientRect().height;
+    if (!(full > 0)) return;
+    var above = Math.max(0, Math.round((full - readSafeAreaBottom()) * 100) / 100);
+    root.style.setProperty('--bnav-h', above + 'px');
+}
+
+function watchBottomNavHeight() {
+    syncBottomNavHeight();
+    var nav = document.getElementById('bottomNav');
+    if (nav && window.ResizeObserver && !nav._bnavWatch) {
+        nav._bnavWatch = true;
+        new ResizeObserver(function() { syncBottomNavHeight(); }).observe(nav);
+    }
+    if (!window._bnavResizeBound) {
+        window._bnavResizeBound = true;
+        window.addEventListener('resize', syncBottomNavHeight);
+        window.addEventListener('orientationchange', syncBottomNavHeight);
+    }
+}
+
+// Hide the floating row while a chat or DM composer is in use, and while
+// Nacho Mode or an open composer would sit under the buttons.
+function syncFabHold() {
+    if (window.innerWidth > 900) {
+        document.body.classList.remove('kb-open');
+        document.body.classList.remove('fab-hold');
+        return;
+    }
+    function shown(el) {
+        if (!el || !el.getClientRects || !el.getClientRects().length) return false;
+        var overlay = el.closest && el.closest('#chatOverlay');
+        if (overlay && !document.body.classList.contains('chat-panel-open')) return false;
+        return true;
+    }
+    var active = document.activeElement;
+    var typing = !!(active && active.matches && active.matches('#globalChatInput, #dmInput') && shown(active));
+    var vv = window.visualViewport;
+    var keyboard = !!(typing && vv && vv.height < window.innerHeight - 80);
+    document.body.classList.toggle('kb-open', typing || keyboard);
+
+    var overlayOpen = document.body.classList.contains('chat-panel-open');
+    var hub = document.getElementById('chatContent');
+    var hubOpen = !!(hub && shown(hub) && !(hub.closest && hub.closest('#chatOverlay')));
+    var dmOpen = shown(document.getElementById('dmInput'));
+    var nachoMode = !!document.getElementById('nachoModeScreen');
+    document.body.classList.toggle('fab-hold', overlayOpen || hubOpen || dmOpen || nachoMode || typing);
+}
+window.syncFabHold = syncFabHold;
+
+function initComposerKeyboard() {
+    if (window._fabHoldBound) return;
+    window._fabHoldBound = true;
+    document.addEventListener('focusin', syncFabHold);
+    document.addEventListener('focusout', function() { setTimeout(syncFabHold, 60); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', syncFabHold);
+    var fabHoldTimer = null;
+    new MutationObserver(function() {
+        clearTimeout(fabHoldTimer);
+        fabHoldTimer = setTimeout(syncFabHold, 40);
+    }).observe(document.body, { childList: true, subtree: true });
+    syncFabHold();
 }
 
 // ---- #4: Dynamic Bottom Nav (hide on scroll down, show on scroll up) ----
@@ -14353,7 +14490,7 @@ function showPWAInstallBanner() {
     if (document.getElementById('pwaInstallBanner')) return;
     var banner = document.createElement('div');
     banner.id = 'pwaInstallBanner';
-    banner.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+    banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
     banner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;">' +
         '<div style="font-size:2rem;">🦌</div>' +
         '<div style="flex:1;">' +
@@ -14408,7 +14545,7 @@ window.dismissPWABanner = function() {
         if (document.getElementById('iosA2HSBanner')) return;
         var banner = document.createElement('div');
         banner.id = 'iosA2HSBanner';
-        banner.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+        banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
         banner.innerHTML =
             '<div style="display:flex;align-items:flex-start;gap:12px;">' +
                 '<div style="font-size:2rem;flex-shrink:0;">🦌</div>' +
@@ -14450,7 +14587,7 @@ window.toggleMobileLearnMenu = function() {
 
     var menu = document.createElement('div');
     menu.id = 'mobileLearnMenu';
-    menu.style.cssText = 'position:fixed;bottom:70px;left:8px;right:8px;z-index:250;' +
+    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;z-index:250;' +
         'max-width:400px;margin:0 auto;' +
         'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;' +
         'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
@@ -14526,6 +14663,7 @@ function initMobileUX() {
     console.log('[MobileUX] Initializing...');
     initBottomNav();
     initScrollNav();
+    initComposerKeyboard();
 
     // Wait for user data to load
     setTimeout(function() {
@@ -21734,7 +21872,7 @@ if (locked) {
         var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more topics to unlock IRL Sync!';
         var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more topics or sign in to unlock Lightning Mart!';
 
-        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
+        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                 (function() {
@@ -22213,6 +22351,16 @@ if (locked) {
                 if (window.currentChannelId === _topicDeep[1] && document.getElementById('topic-discussion-live')) {
                     if (typeof window._topicDiscussionFocus === 'function') window._topicDiscussionFocus();
                     return;
+                }
+                if (typeof window.bqSkipTopicScrollRestore === 'function') window.bqSkipTopicScrollRestore(_topicDeep[1]);
+                else {
+                    if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
+                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = true;
+                    var _restoreTimers = window._bqTopicScrollRestoreTimers;
+                    if (_restoreTimers && _restoreTimers[_topicDeep[1]]) {
+                        clearTimeout(_restoreTimers[_topicDeep[1]]);
+                        delete _restoreTimers[_topicDeep[1]];
+                    }
                 }
                 go(_topicDeep[1]);
                 return;
@@ -24287,6 +24435,20 @@ window.toggleAITools = function() {
         injectTopicPrompts();
     };
 
+    // One open only. patches.js restores the last scroll for this channel 300 ms
+    // after go(), which would run after the deep-link scroll. The flag is
+    // consumed by that wrapper, and any timer already queued is cleared.
+    window.bqSkipTopicScrollRestore = function(channelId) {
+        if (!channelId) return;
+        if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
+        window._bqSkipTopicScrollRestore[channelId] = true;
+        var timers = window._bqTopicScrollRestoreTimers;
+        if (timers && timers[channelId]) {
+            clearTimeout(timers[channelId]);
+            delete timers[channelId];
+        }
+    };
+
     window.bqOpenTopicPost = function(channelId, postId, anchorIndex, anchorHash) {
         if (!/^[A-Za-z0-9_-]+$/.test(channelId || '') || !/^[A-Za-z0-9_-]+$/.test(postId || '')) return false;
         var link = { channelId: channelId, postId: postId, done: false, working: false };
@@ -24300,6 +24462,7 @@ window.toggleAITools = function() {
             focusPending();
             return true;
         }
+        window.bqSkipTopicScrollRestore(channelId);
         if (typeof window.go === 'function') window.go(channelId);
         return true;
     };
@@ -24882,7 +25045,7 @@ window.toggleAITools = function() {
         if (document.getElementById('miniPlayer')) return;
         var mp = document.createElement('div');
         mp.id = 'miniPlayer';
-        mp.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
+        mp.style.cssText = 'position:fixed;bottom:var(--above-fab, 60px);left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
         mp.innerHTML =
             '<button id="mpPlayPause" onclick="toggleMiniPlayer()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:4px;">▶</button>' +
             '<div style="flex:1;min-width:0;">' +

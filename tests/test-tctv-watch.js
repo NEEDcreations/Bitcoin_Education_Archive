@@ -409,6 +409,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2350'"));
+    assert.ok(!sw.includes('btc-archive-v2349'));
     assert.ok(!sw.includes('btc-archive-v2348'));
     assert.ok(!sw.includes('btc-archive-v2347'));
     assert.ok(!sw.includes('btc-archive-v2346'));
@@ -762,6 +763,8 @@ test('patch notes keep one Latest line and keep the live timer and daily taper',
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
+    assert.ok(notes.includes("On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row."));
+    assert.ok(!notes.includes('Latest: On a phone'));
     assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
     assert.ok(!notes.includes('Latest: New badges'));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
