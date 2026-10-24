@@ -129,6 +129,11 @@
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
             '.td-btn{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#1e293b);background:none;color:var(--text-muted,#94a3b8);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;}',
+            '.td-asof{margin-top:6px;font-size:0.72rem;color:var(--text-faint,#64748b);}',
+            '.td-links,.td-followups{margin-top:8px;}',
+            '.td-extra-label{font-size:0.68rem;color:var(--text-faint,#64748b);margin-bottom:4px;}',
+            '.td-topic{display:block;width:100%;margin-top:4px;padding:8px;background:var(--accent,#f97316);border:none;border-radius:8px;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:inherit;text-align:left;}',
+            '.td-follow{display:block;width:100%;margin-top:4px;padding:6px 8px;background:none;border:1px solid var(--border,#1e293b);border-radius:8px;color:var(--text-muted,#94a3b8);font-size:0.78rem;cursor:pointer;font-family:inherit;text-align:left;}',
             '.td-compose{display:flex;flex-direction:column;gap:8px;margin-top:12px;}',
             '.td-compose textarea{width:100%;box-sizing:border-box;min-height:72px;max-height:180px;padding:12px;border-radius:12px;border:1px solid var(--border,#1e293b);background:var(--input-bg,#020617);color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;resize:vertical;}',
             '.td-compose-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}',
@@ -144,7 +149,8 @@
             '.topic-anchor-flash{border-radius:6px;box-decoration-break:clone;-webkit-box-decoration-break:clone;}',
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
-            '@media (max-width:420px){.td-section{margin:20px 10px 28px;}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 14px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
+            '@media (max-width:900px){.td-section{margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}.td-follow,.td-topic{scroll-margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}}',
+            '@media (max-width:420px){.td-section{margin:20px 10px calc(180px + env(safe-area-inset-bottom, 0px));}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 14px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -152,10 +158,15 @@
     function avatarFor(post) {
         if (post && post.isNacho) {
             var img = el('img', 'td-avatar');
-            img.src = 'nacho-deer.svg';
-            img.alt = '';
+            img.src = '/nacho-deer.svg';
+            img.alt = 'Nacho';
             img.width = 32;
             img.height = 32;
+            img.addEventListener('error', function () {
+                var fallback = el('div', 'td-avatar-fallback');
+                fallback.textContent = '🦌';
+                if (img.parentNode && img.parentNode.replaceChild) img.parentNode.replaceChild(fallback, img);
+            });
             return img;
         }
         var fallback = el('div', 'td-avatar-fallback');
@@ -164,10 +175,75 @@
         return fallback;
     }
 
+    function appendNachoExtras(main, post) {
+        if (!post || !post.isNacho) return;
+        var links = Array.isArray(post.links) ? post.links.slice(0, 3) : [];
+        if (links.length) {
+            var box = el('div', 'td-links');
+            box.setAttribute('data-bq-links', '1');
+            var label = el('div', 'td-extra-label');
+            label.textContent = 'Learn more';
+            box.appendChild(label);
+            links.forEach(function(item) {
+                if (!item) return;
+                var raw = String(item.id || '');
+                var id = raw.replace(/[^a-z0-9_-]/gi, '');
+                if (!id || id !== raw) return;
+                var kind = item.kind === 'app' ? 'app' : 'topic';
+                var button = el('button', 'td-topic');
+                button.type = 'button';
+                button.setAttribute('data-bq-topic', id);
+                button.setAttribute('data-bq-kind', kind);
+                button.textContent = String(item.title || id);
+                button.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    if (kind === 'app' && typeof window.bqOpenFeature === 'function') window.bqOpenFeature(id);
+                    else if (typeof window.go === 'function') window.go(id);
+                });
+                box.appendChild(button);
+            });
+            main.appendChild(box);
+        }
+        var followUps = Array.isArray(post.followUps) ? post.followUps.slice(0, 3) : [];
+        var shown = [];
+        followUps.forEach(function(q) {
+            var text = String(q || '').replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
+            if (text.length < 8 || text.length > 90 || text.charAt(text.length - 1) !== '?') return;
+            if (/\b(what do you think|do you think|how do you feel|your opinion)\b/i.test(text)) return;
+            shown.push(text);
+        });
+        if (shown.length) {
+            var fbox = el('div', 'td-followups');
+            fbox.setAttribute('data-bq-followups', '1');
+            var flabel = el('div', 'td-extra-label');
+            flabel.textContent = 'You might also ask:';
+            fbox.appendChild(flabel);
+            shown.forEach(function(text) {
+                var button = el('button', 'td-follow');
+                button.type = 'button';
+                button.setAttribute('data-bq-chip', '1');
+                button.setAttribute('data-q', text);
+                button.textContent = text;
+                button.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    if (typeof window.bqAskFollowUp === 'function') window.bqAskFollowUp(text);
+                });
+                fbox.appendChild(button);
+            });
+            main.appendChild(fbox);
+        }
+    }
+
     function renderPost(post, ctx) {
+        injectStyle();
         var who = ctx.viewer || viewer();
         var row = el('article', 'td-post' + (post.parentId ? ' td-reply' : ''));
-        row.id = 'td-post-' + post.id;
+        // The bottom list keeps td-post-<id>. The inline card uses another prefix
+        // so the two copies are not the same DOM id. Deep-link scroll looks up
+        // td-post-<id>, which is the bottom copy.
+        row.id = ((ctx && ctx.idPrefix) || 'td-post-') + post.id;
         row.setAttribute('data-post-id', post.id);
         row.appendChild(avatarFor(post));
         var main = el('div', 'td-main');
@@ -195,10 +271,27 @@
         }
         main.appendChild(meta);
         var text = el('div', 'td-text');
+        var showBody = !post.deleted && !(post.hidden && !who.admin);
         if (post.deleted) text.textContent = 'Comment removed';
-        else if (post.hidden && !who.admin) text.textContent = '';
+        else if (!showBody) text.textContent = '';
         else text.textContent = post.text || '';
         main.appendChild(text);
+        if (showBody && post.isNacho && post.asOf != null && post.asOf !== '') {
+            var asMs = typeof post.asOf === 'number' ? post.asOf : Date.parse(post.asOf);
+            if (isFinite(asMs)) {
+                var asof = el('div', 'td-asof');
+                var asIso = '';
+                try { asIso = new Date(asMs).toISOString(); } catch (eAs) { asIso = String(post.asOf); }
+                asof.setAttribute('data-bq-asof', asIso);
+                var asLabel = '';
+                try { asLabel = new Date(asMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }); } catch (eAs2) { asLabel = ''; }
+                if (asLabel) {
+                    asof.textContent = 'As of ' + asLabel;
+                    main.appendChild(asof);
+                }
+            }
+        }
+        if (showBody) appendNachoExtras(main, post);
         var actions = el('div', 'td-actions');
         if (!post.deleted && !post.parentId && who.signedIn) {
             actions.appendChild(btn('Reply', 'td-btn', function() { ctx.onReply(post); }));
@@ -695,11 +788,16 @@
             if (data && data.toast) toast(data.toast);
             var crossNote = data && data.crossPostNote ? String(data.crossPostNote) : '';
             area.value = '';
-            state.parentId = '';
-            state.replyName = '';
-            if (!payload.parentId) clearPendingAnchor();
-            renderComposer();
-            renderInlineComposer();
+            // The inline card and the bottom composer reply to different targets.
+            // Sending from one must not clear the other.
+            if (opts && opts.inline) {
+                renderInlineComposer();
+            } else {
+                state.parentId = '';
+                state.replyName = '';
+                if (!payload.parentId) clearPendingAnchor();
+                renderComposer();
+            }
             showCrossPostNote(crossNote);
             if (crossNote) toast(crossNote);
             setOpen(true);
@@ -842,7 +940,8 @@
                 }
                 watchReplies(post.id);
             },
-            rootId: rootPost && rootPost.id
+            rootId: rootPost && rootPost.id,
+            idPrefix: 'td-inline-post-'
         };
     }
 
@@ -949,6 +1048,8 @@
     }
 
     function discussionNode(link) {
+        // Bottom-list ids only. The inline copies use td-inline-post- and must
+        // not steal this scroll target.
         var node = link && link.postId ? document.getElementById('td-post-' + link.postId) : null;
         if (!node && link && link.rootId) node = document.getElementById('td-post-' + link.rootId);
         return node;
@@ -1604,7 +1705,7 @@
             section = el('section', 'td-section');
             section.id = 'community-discussion';
             section.setAttribute('data-channel-id', channelId);
-            var toggle = btn('Community discussion', 'td-toggle', function() {
+            var toggle = btn('🦌 Community discussion', 'td-toggle', function() {
                 var body = document.getElementById('topic-discussion-body');
                 var opening = !!(body && body.hidden);
                 if (opening) {

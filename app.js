@@ -1369,6 +1369,7 @@
                 '.nm-nacho .nm-time { text-align:left; }' +
                 '.nm-user .nm-time { text-align:right; }' +
                 '@media(max-width:768px){.nm-hero-avatar{width:36px!important;height:36px!important;}.nm-hero-avatar img{width:36px!important;height:36px!important;}.nm-hero-title{font-size:0.9rem!important;letter-spacing:2px!important;}.nm-hero-bar{gap:4px!important;}}' +
+                '@media(max-width:900px){#nachoModeScreen{box-sizing:border-box;padding-bottom:calc(128px + env(safe-area-inset-bottom, 0px));}#nachoModeChat{scroll-padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));}}' +
             '</style>' +
             /* ===== COMPACT HEADER ===== */
             '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.06) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:8px 12px;position:relative;">' +
@@ -2005,6 +2006,8 @@
             window._bqLastFollowUp = '';
             return [];
         }
+        if (/data-bq-followups/.test(String(answer || ''))) return [];
+        if (window._bqLastFollowUps && window._bqLastFollowUps.length) return window._bqLastFollowUps.slice(0, 3);
         if (typeof nachoFollowUps === 'function') {
             return nachoFollowUps((question || '') + ' ' + (answer || ''));
         }
@@ -2671,6 +2674,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
+        if (typeof nachoContainsKeyMaterial !== 'function') {
+            if ((window._nachoSecretWait || 0) < 40) {
+                window._nachoSecretWait = (window._nachoSecretWait || 0) + 1;
+                setTimeout(window.nachoModeSend, 50);
+            }
+            return;
+        }
+        window._nachoSecretWait = 0;
+        if (nachoContainsKeyMaterial(q)) {
+            inp.value = '';
+            var hiddenQ = (typeof NACHO_SECRET_HIDDEN === 'string') ? NACHO_SECRET_HIDDEN : '[hidden: looked like a seed phrase or private key]';
+            var hiddenA = (typeof nachoLocalSecretAnswer === 'function') ? nachoLocalSecretAnswer() : escapeHtml(hiddenQ);
+            nachoChatAdd('user', hiddenQ);
+            nachoChatAppend('user', hiddenQ);
+            nachoChatAdd('nacho', '', hiddenA);
+            nachoChatAppend('nacho', '', hiddenA);
+            return;
+        }
         inp.value = '';
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';
@@ -2780,7 +2801,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var extra = '';
             if (result && result.siteAction) {
                 extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
-            } else if (result && result.channel) {
+            } else if (result && result.channel && String(result.answer || '').indexOf('data-bq-links') === -1) {
                 extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
             }
             reply((result && result.answer ? result.answer : 'Hmm, let me think about that... Try asking another way! 🦌') + extra, (result && result.type) || 'fallback');
@@ -4315,8 +4336,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_monthlylb', title: '📆 Monthly Leaderboard', desc: 'Monthly XP rankings — top players this month', keywords: 'monthly leaderboard rank compete xp monthly top players month mXP', action: 'toggleLeaderboard();setTimeout(function(){var btns=document.querySelectorAll(\'.lb-period-btn\');if(btns[1])btns[1].click();},300)' },
         { id: '_community', title: '🌍 Community Challenge', desc: 'Weekly community-wide challenge — complete goals together to unlock SF speed boost for everyone', keywords: 'community challenge weekly goal progress collective team together quiz completions unlock boost satoshi favor speed', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'community\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},100)' },
         { id: '_gifts', title: '🎁 Gifts', desc: 'Spin the daily wheel for gifts, then open them for keys, locked ciphers, tickets, or XP', keywords: 'gift gifts send receive earn inventory spin wheel peer partnership reward open gifting daily award gift bag give present surprise box orange tickets cipher ciphers key keys decrypt decryption label puzzle unlock', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
-        { id: '_ciphers', title: '🔒 Locked ciphers', desc: 'Open a locked cipher with a key that has the same label. Keys and ciphers live in Nook/Inventory', keywords: 'cipher ciphers decrypt decryption key label unlock B2 3A 7F puzzle peer send receive daily locked open inventory animation signature hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
-        { id: '_keys', title: '🔑 Keys', desc: 'Send labeled keys to peers, up to 3 per peer each day. A matching key opens a locked cipher', keywords: 'key keys send peer label cipher unlock daily bundle inventory spin wheel gift B2 3A 7F matching label hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
+        { id: '_ciphers', title: '🔒 Locked ciphers', desc: 'Open a locked cipher with a key that has the same label. If an accepted peer sent the key, you both get the same prize and they see a reveal of what you won.', keywords: 'cipher ciphers decrypt decryption key label unlock B2 3A 7F puzzle peer send receive daily locked open inventory animation signature hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
+        { id: '_keys', title: '🔑 Keys', desc: 'Send up to 3 labeled keys a day to each accepted peer. If a peer opens a cipher with your key, you both win the same prize and you see a reveal of what you won.', keywords: 'key keys send peer label cipher unlock daily bundle inventory spin wheel gift B2 3A 7F matching label hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
         { id: '_peers', title: '🧡 Peers', desc: 'Connect with other Bitcoiners, send them keys, and grow a partnership', keywords: 'peers peer connect partner partnership add friend request accept decline remove network community relationship channel open wumbo liquidity routing gifting exchange', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
         { id: '_partnership', title: '⚡ Partnership Levels', desc: 'Partnerships grow when you open a cipher with a key a peer sent you, from Opening Channel to Wumbo Channel', keywords: 'partnership level channel opening routing wumbo balanced liquidity adjusted fees peer xp reward unlock progress tier gifts exchanged level up earn', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
         { id: '_giftbag', title: '🎒 Gift Bag', desc: 'A shop keepsake in Nacho\'s Nook. Gifts are opened right away, and keys and ciphers live in Inventory', keywords: 'gift bag upgrade inventory cap slots nook shop orange tickets buy capacity expand more gifts storage', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},100)' },

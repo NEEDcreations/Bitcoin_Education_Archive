@@ -15,11 +15,14 @@
 
 const { classifyChatText, maskChatProfanity } = require('./chatProfanity');
 const { mirrorShoutoutOnce } = require('./telegramBridge');
+const secretScan = require('./secretScan');
 const forumMirror = require('./topicForumMirror');
 const topicXp = require('./topicConversationXp');
 
 const TOPIC_CHANNELS = require('./topicChannels.json');
 const TOPIC_GROUNDING = require('./topicGrounding.json');
+let NACHO_TOPIC_INDEX = {};
+try { NACHO_TOPIC_INDEX = require('./nachoTopicIndex.json'); } catch (err) { NACHO_TOPIC_INDEX = {}; }
 
 const NACHO_AI_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/ai';
 const RESET_HOUR_UTC = 5;
@@ -37,13 +40,15 @@ const ANCHOR_INDEX_MAX = 8000;
 const NACHO_UID = 'nacho-bot';
 const CROSS_POST_NOTE = 'Your message was posted in this topic. It was not cross-posted to Pleb Talk.';
 const UNSURE = "I'm not sure — I don't want to guess. The notes in this topic are the best source, and I'm not a financial advisor.";
+const SECRET_NOTE = "I can explain how a seed phrase and a private key work. I won't look at a specific secret, and you should never post one.";
+const PUBLIC_REFUSAL_RE = /antlers are telling me|no hacking these antlers|shouldn.?t go there/i;
 
 const SHORTENER_RE = /\b(?:https?:\/\/)?(?:www\.)?(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|ow\.ly|is\.gd|cutt\.ly|rb\.gy|tiny\.cc|buff\.ly|rebrand\.ly|shorturl\.at|v\.gd|clck\.ru)\b/i;
 const INVITE_RE = /discord\.gg\/|discord(?:app)?\.com\/invite|chat\.whatsapp\.com|t\.me\/joinchat|t\.me\/\+|telegram\.me\/joinchat/i;
 const URL_RE = /\b(?:https?:\/\/|www\.)\S+|\b[a-z0-9][a-z0-9.-]*\.(?:com|org|net|io|gg|ly|me|co|xyz|info|dev|app|link)(?:\/\S*)?/gi;
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
 const PHONE_RE = /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/;
-const INJECTION_RE = /ignore\s+(all|previous|your)\s+instructions|system\s+prompt|jailbreak|pretend\s+to\s+be|act\s+as\s+/i;
+const INJECTION_RE = /ignore\s+(all|previous|your)\s+instructions|system\s+prompt|jailbreak|pretend\s+to\s+be/i;
 const ADVICE_RE = /\b(you should (buy|sell|invest)|i recommend (buying|selling)|buy now|sell now|price target|guaranteed return|go all in)\b/i;
 
 const TOPIC_LIMITS = {
@@ -169,7 +174,9 @@ function inspectLinks(text) {
 }
 
 function preparePostText(raw) {
-    let text = String(raw == null ? '' : raw).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/\u00A0/g, ' ').trim();
+    const rawText = String(raw == null ? '' : raw);
+    if (secretScan.containsSecret(rawText)) return { ok: false, code: 'secret' };
+    let text = rawText.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/\u00A0/g, ' ').trim();
     text = text.replace(/\n{4,}/g, '\n\n\n');
     if (!text) return { ok: false, code: 'empty' };
     if (text.length > MAX_CHARS) return { ok: false, code: 'length' };
@@ -270,8 +277,16 @@ function topicStickyScrollDelta(elTop, containerTop, stickyCover) {
     return (Number(elTop) || 0) - visibleTop - 8;
 }
 
+function cleanAsOf(value) {
+    if (value == null || value === '') return null;
+    const ms = typeof value === 'number' ? value : Date.parse(value);
+    if (!Number.isFinite(ms)) return null;
+    return new Date(ms).toISOString();
+}
+
 function sanitizeNachoAnswer(text) {
     let answer = String(text || '').replace(/<[^>]*>/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+    answer = answer.replace(/\s*\bAs of\s+\d{1,2}:\d{2}(?:\s*(?:UTC|AM|PM))?\b\.?/gi, ' ').replace(/\s{2,}/g, ' ').trim();
     answer = answer.replace(/\n?Follow-up:\s*.+$/i, '').trim();
     if (!answer || answer.length < 8) return UNSURE;
     const lower = answer.toLowerCase();
@@ -333,7 +348,47 @@ async function defaultAskNacho(input) {
     });
     if (!res || !res.ok) throw new Error('ai');
     const json = await res.json();
-    return { answer: json && json.answer ? String(json.answer) : '' };
+    const links = Array.isArray(json && json.links) ? json.links : [];
+    const followUps = Array.isArray(json && json.followUps) ? json.followUps : [];
+    return {
+        answer: json && json.answer ? String(json.answer) : '',
+        links: links,
+        followUps: followUps,
+        asOf: json && json.asOf != null ? json.asOf : null,
+    };
+}
+
+function cleanNachoLinks(list) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(list) ? list : []).forEach(function(item) {
+        const id = String(item && item.id || '').replace(/[^a-z0-9_-]/gi, '');
+        const row = id && NACHO_TOPIC_INDEX[id];
+        if (!row || seen.has(id)) return;
+        seen.add(id);
+        out.push({
+            id: id,
+            title: String(row.title || id).slice(0, 60),
+            hash: String(row.hash || id).slice(0, 80),
+            kind: row.kind === 'app' ? 'app' : 'topic',
+        });
+    });
+    return out.slice(0, 3);
+}
+
+function cleanNachoFollowUps(list) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(list) ? list : []).forEach(function(item) {
+        const q = String(item || '').replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
+        const key = q.toLowerCase();
+        if (q.length < 8 || q.length > 90 || !q.endsWith('?')) return;
+        if (/\b(what do you think|do you think|how do you feel|your opinion)\b/i.test(q)) return;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(q);
+    });
+    return out.slice(0, 3);
 }
 
 function stamp(admin, nowMs) {
@@ -387,6 +442,7 @@ function createTopicDiscussion(deps) {
                 profanity: 'That comment is not allowed.',
                 shortener: 'Shortened links are not allowed.',
                 invite: 'Invite links are not allowed.',
+                secret: "Don't post a seed phrase or a private key. That comment was not saved.",
             };
             fail('invalid-argument', messages[prepared.code] || 'That comment is not allowed.');
         }
@@ -898,9 +954,16 @@ async function writeReplyNotice(db, admin, nowMs, info) {
 
 async function writeNachoReply(opts) {
     const o = opts || {};
+    const question = String(o.question || '');
+    if (secretScan.containsSecret(question)) return false;
     let answer = UNSURE;
+    let nachoLinks = [];
+    let nachoFollowUps = [];
+    let nachoAsOf = null;
     try {
-        if (INJECTION_RE.test(o.question || '')) {
+        if (secretScan.solicitsSecrets(question)) {
+            answer = SECRET_NOTE;
+        } else if (INJECTION_RE.test(question)) {
             answer = UNSURE;
         } else {
             const result = await o.askNacho({
@@ -909,6 +972,12 @@ async function writeNachoReply(opts) {
                 channelTitle: o.title,
             });
             answer = sanitizeNachoAnswer(result && result.answer);
+            if (PUBLIC_REFUSAL_RE.test(answer)) answer = SECRET_NOTE;
+            if (answer !== SECRET_NOTE && answer !== UNSURE) {
+                nachoLinks = cleanNachoLinks(result && result.links);
+                nachoFollowUps = cleanNachoFollowUps(result && result.followUps);
+                nachoAsOf = cleanAsOf(result && result.asOf);
+            }
         }
     } catch (err) {
         answer = UNSURE;
@@ -937,6 +1006,9 @@ async function writeNachoReply(opts) {
                 deleted: false,
                 isNacho: true,
                 linksRemoved: false,
+                links: nachoLinks,
+                followUps: nachoFollowUps,
+                asOf: nachoAsOf,
                 replyCount: 0,
             });
             tx.set(parentRef, { replyCount: (Number(parent.replyCount) || 0) + 1 }, { merge: true });
@@ -982,6 +1054,7 @@ async function writeNachoReply(opts) {
 module.exports = {
     TOPIC_LIMITS: TOPIC_LIMITS,
     UNSURE: UNSURE,
+    SECRET_NOTE: SECRET_NOTE,
     offsetDateKey: offsetDateKey,
     preparePostText: preparePostText,
     looksLikeQuestion: looksLikeQuestion,

@@ -346,6 +346,47 @@ test('an email that uses another sign-in method gets a plain message', function 
     });
 });
 
+test('account card links Google onto the current account and does not take another one', function () {
+    const src = read('ranking.js');
+    const apply = src.slice(src.indexOf('async function applyGoogleIdToken'), src.indexOf('function onGoogleIdentityCredential'));
+    assert.ok(apply.includes('linkGoogleOntoCurrentAccount'));
+    assert.ok(apply.includes('window._accountLinkGoogle'));
+    assert.ok(apply.indexOf('linkOnly') < apply.indexOf('signInWithCredential'));
+    const link = src.slice(src.indexOf('async function linkGoogleOntoCurrentAccount'), src.indexOf('function surfaceMfaRequired'));
+    assert.ok(link.includes('GoogleAuthProvider.credential'));
+    assert.ok(link.includes('linkWithCredential'));
+    assert.ok(link.includes('accountLinkConflictMessage'));
+    assert.ok(link.includes('accountLinkTotpPending'));
+    assert.ok(link.indexOf('accountLinkTotpPending') < link.indexOf('linkWithCredential'));
+    assert.ok(link.includes('auth.currentUser.uid !== linkedUid'));
+    assert.ok(link.includes('var wasGuest = !!user.isAnonymous'));
+    assert.ok(link.indexOf('var wasGuest = !!user.isAnonymous') < link.indexOf('linkWithCredential'));
+    assert.ok(link.includes('_handleSignInResultGlobal(auth.currentUser, null, null)'));
+    assert.ok(!link.includes('signInWithCredential'));
+    assert.ok(!link.includes('signInWithPopup'));
+    assert.ok(!link.includes("collection('users')"));
+    assert.ok(src.includes('id="accountGsiButtonHost"'));
+    assert.ok(src.includes('window._accountLinkGoogle = true'));
+    const popup = src.slice(src.indexOf('window.linkGoogleFromAccount'), src.indexOf('function presentSignOutLinkWarning'));
+    assert.ok(popup.includes('linkWithPopup'));
+    assert.ok(popup.includes('accountLinkConflictMessage'));
+    assert.ok(popup.includes('accountLinkTotpPending'));
+    assert.ok(popup.indexOf('accountLinkTotpPending') < popup.indexOf('linkWithPopup'));
+    assert.ok(popup.includes('auth.currentUser.uid !== linkedUid'));
+    assert.ok(popup.includes('var wasGuest = !!user.isAnonymous'));
+    assert.ok(popup.indexOf('var wasGuest = !!user.isAnonymous') < popup.indexOf('linkWithPopup'));
+    assert.ok(popup.includes('_handleSignInResultGlobal(auth.currentUser, null, null)'));
+    assert.ok(!popup.includes('signInWithCredential'));
+    assert.ok(!popup.includes('signInWithPopup'));
+    assert.ok(!popup.includes("collection('users')"));
+    const card = src.slice(src.indexOf('function renderSignInMethodsCard'), src.indexOf('// ACCOUNT_LINK_PLAN_END'));
+    assert.ok(card.includes('accountCanLinkSignIn'));
+    assert.ok(card.includes('Link Google'));
+    const guest = { uid: 'guest-card', isAnonymous: true, providerData: [] };
+    assert.ok(card.indexOf('if (canLink)') < card.indexOf('accountGsiButtonHost'));
+    assert.strictEqual(guest.isAnonymous, true);
+});
+
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

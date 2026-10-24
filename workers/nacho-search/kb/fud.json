@@ -1,0 +1,859 @@
+[
+  {
+    "id": "fud-energy",
+    "category": "fud",
+    "question": "Does Bitcoin waste energy?",
+    "alts": [
+      "Explain whether does Bitcoin waste energy?",
+      "Clarify whether does Bitcoin waste energy?",
+      "Is this the case: does Bitcoin waste energy?"
+    ],
+    "answer": "The energy buys a history that is expensive to fake, and extra hash power does not mint extra coins. Whether a given power source is appropriate is a local argument the chain does not record. A single electricity total goes stale and is not quoted here.",
+    "topics": [
+      "misconceptions-fud",
+      "environment___energy",
+      "pow-vs-pos"
+    ],
+    "followUps": [
+      "fud-crime",
+      "fud-backed",
+      "fud-slow"
+    ],
+    "sources": "Proof-of-work cost. No frozen energy total."
+  },
+  {
+    "id": "fud-crime",
+    "category": "fud",
+    "question": "Is Bitcoin mainly used by criminals?",
+    "alts": [
+      "Explain whether is Bitcoin mainly used by criminals?",
+      "Clarify whether is Bitcoin mainly used by criminals?",
+      "Is this the case: is Bitcoin mainly used by criminals?"
+    ],
+    "answer": "Criminals have used bitcoin, as they have used cash and banks. The ledger is public, which has helped investigators trace large thefts. This archive will not invent a percentage of criminal use.",
+    "topics": [
+      "misconceptions-fud",
+      "privacy-nonkyc",
+      "regulation"
+    ],
+    "followUps": [
+      "fud-backed",
+      "fud-slow",
+      "fud-quantum"
+    ],
+    "sources": "Crime exists. No invented percentage."
+  },
+  {
+    "id": "fud-backed",
+    "category": "fud",
+    "question": "Is bitcoin backed by nothing?",
+    "alts": [
+      "Explain whether is bitcoin backed by nothing?",
+      "Clarify whether is bitcoin backed by nothing?",
+      "Is this the case: is bitcoin backed by nothing?"
+    ],
+    "answer": "It is not a claim on a company's profits or a redemption for a fixed weight of metal. It is a bearer asset with a capped supply and a cost to rewrite history. Call that unbacked only if you mean there is no issuer promise.",
+    "topics": [
+      "misconceptions-fud",
+      "money",
+      "energy"
+    ],
+    "followUps": [
+      "fud-slow",
+      "fud-quantum",
+      "fud-china"
+    ],
+    "sources": "No issuer promise."
+  },
+  {
+    "id": "fud-slow",
+    "category": "fud",
+    "question": "Is Bitcoin too slow for payments?",
+    "alts": [
+      "Explain whether is Bitcoin too slow for payments?",
+      "Clarify whether is Bitcoin too slow for payments?",
+      "Is this the case: is Bitcoin too slow for payments?"
+    ],
+    "answer": "The base layer targets a block about every ten minutes and is built so many people can verify it. Lightning and other layers are how smaller payments are attempted. Slow confirmation is part of keeping validation cheap.",
+    "topics": [
+      "misconceptions-fud",
+      "scalability",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "fud-quantum",
+      "fud-china",
+      "fud-tether"
+    ],
+    "sources": "Layered speed."
+  },
+  {
+    "id": "fud-quantum",
+    "category": "fud",
+    "question": "Will quantum computers empty every wallet?",
+    "alts": [
+      "Explain this: will quantum computers empty every wallet?",
+      "Clarify this: will quantum computers empty every wallet?",
+      "Unpack this: will quantum computers empty every wallet?"
+    ],
+    "answer": "A sufficiently large quantum computer could threaten current signatures, and nobody has a trustworthy date for that machine. Hashes that hide keys until spend are a partial buffer. A new signature algorithm can be added by soft fork if users adopt it.",
+    "topics": [
+      "misconceptions-fud",
+      "cryptography",
+      "the_future"
+    ],
+    "followUps": [
+      "fud-china",
+      "fud-tether",
+      "fud-pools"
+    ],
+    "sources": "Quantum risk without a date."
+  },
+  {
+    "id": "fud-china",
+    "category": "fud",
+    "question": "Did a China ban end Bitcoin?",
+    "alts": [
+      "Explain this: did a China ban end Bitcoin?",
+      "Clarify this: did a China ban end Bitcoin?",
+      "Unpack this: did a China ban end Bitcoin?"
+    ],
+    "answer": "China restricted exchanges and mining in 2021. Hash rate fell and later recovered elsewhere, and blocks kept coming. A national rule is not a global off switch.",
+    "topics": [
+      "misconceptions-fud",
+      "history",
+      "geopolitics___macroeconomics"
+    ],
+    "followUps": [
+      "fud-tether",
+      "fud-pools",
+      "fud-volatile"
+    ],
+    "sources": "2021 restrictions."
+  },
+  {
+    "id": "fud-tether",
+    "category": "fud",
+    "question": "Does a stablecoin secretly set the bitcoin price?",
+    "alts": [
+      "Explain whether does a stablecoin secretly set the bitcoin price?",
+      "Clarify whether does a stablecoin secretly set the bitcoin price?",
+      "Is this the case: does a stablecoin secretly set the bitcoin price?"
+    ],
+    "answer": "Stablecoins are used on exchanges, and how much they move the bitcoin price is debated. It is not a fact encoded in a block. This archive does not forecast that effect.",
+    "topics": [
+      "misconceptions-fud",
+      "stablecoins",
+      "market_cap"
+    ],
+    "followUps": [
+      "fud-pools",
+      "fud-volatile",
+      "fud-newer"
+    ],
+    "sources": "Debate, not a protocol fact."
+  },
+  {
+    "id": "fud-pools",
+    "category": "fud",
+    "question": "Does mining-pool size mean Bitcoin is centralized?",
+    "alts": [
+      "Explain whether does mining-pool size mean Bitcoin is centralized?",
+      "Clarify whether does mining-pool size mean Bitcoin is centralized?",
+      "Is this the case: does mining-pool size mean Bitcoin is centralized?"
+    ],
+    "answer": "Large pools are a real concern because they build templates. Miners can switch pools, and a pool does not own every machine. A live percentage would go stale, so it is not frozen into this lesson.",
+    "topics": [
+      "misconceptions-fud",
+      "mining",
+      "governance"
+    ],
+    "followUps": [
+      "fud-volatile",
+      "fud-newer",
+      "fud-government"
+    ],
+    "sources": "Pools. No frozen percent."
+  },
+  {
+    "id": "fud-volatile",
+    "category": "fud",
+    "question": "Is bitcoin too volatile to be money?",
+    "alts": [
+      "Explain whether is bitcoin too volatile to be money?",
+      "Clarify whether is bitcoin too volatile to be money?",
+      "Is this the case: is bitcoin too volatile to be money?"
+    ],
+    "answer": "The exchange price has moved sharply, which makes it a difficult unit of account for many prices today. People still use it to save and to pay when both sides accept the swings. This is not a prediction that the swings will stop.",
+    "topics": [
+      "misconceptions-fud",
+      "money",
+      "market_cap"
+    ],
+    "followUps": [
+      "fud-newer",
+      "fud-government",
+      "fud-fees-die"
+    ],
+    "sources": "Volatility is real. No forecast."
+  },
+  {
+    "id": "fud-newer",
+    "category": "fud",
+    "question": "Are newer coins better because they are newer?",
+    "alts": [
+      "Explain whether are newer coins better because they are newer?",
+      "Clarify whether are newer coins better because they are newer?",
+      "Is this the case: are newer coins better because they are newer?"
+    ],
+    "answer": "Newer often means a smaller validator set, a company, or a supply that insiders received first. Age is not virtue by itself, and a premine is not erased by a new feature. Bitcoin's trade is wide verification and a fixed supply.",
+    "topics": [
+      "misconceptions-fud",
+      "evidence-against-alts",
+      "lindy_effect"
+    ],
+    "followUps": [
+      "fud-government",
+      "fud-fees-die",
+      "fud-ponzi"
+    ],
+    "sources": "Newer is not automatically better."
+  },
+  {
+    "id": "fud-government",
+    "category": "fud",
+    "question": "Can governments shut Bitcoin down?",
+    "alts": [
+      "Explain whether can governments shut Bitcoin down?",
+      "Clarify whether can governments shut Bitcoin down?",
+      "Is this the case: can governments shut Bitcoin down?"
+    ],
+    "answer": "They can pressure exchanges, miners, and developers inside their reach. Nodes outside that reach can keep validating. Shutting down every copy is a different and much harder task.",
+    "topics": [
+      "misconceptions-fud",
+      "regulation",
+      "decentralized"
+    ],
+    "followUps": [
+      "fud-fees-die",
+      "fud-ponzi",
+      "fud-whales"
+    ],
+    "sources": "Pressure versus erasure."
+  },
+  {
+    "id": "fud-fees-die",
+    "category": "fud",
+    "question": "Will Bitcoin die when the subsidy ends?",
+    "alts": [
+      "Explain this: will Bitcoin die when the subsidy ends?",
+      "Clarify this: will Bitcoin die when the subsidy ends?",
+      "Unpack this: will Bitcoin die when the subsidy ends?"
+    ],
+    "answer": "The subsidy shrinks for a long time before it is tiny, and fees are the designed replacement. Whether fees will be enough is an open question, honestly. It is not solved by promising a new tail of inflation.",
+    "topics": [
+      "misconceptions-fud",
+      "tail_emission",
+      "transaction_fees"
+    ],
+    "followUps": [
+      "fud-ponzi",
+      "fud-whales",
+      "fud-intrinsic"
+    ],
+    "sources": "Open question on the fee market."
+  },
+  {
+    "id": "fud-ponzi",
+    "category": "fud",
+    "question": "Is Bitcoin a ponzi?",
+    "alts": [
+      "Explain whether is Bitcoin a ponzi?",
+      "Clarify whether is Bitcoin a ponzi?",
+      "Is this the case: is Bitcoin a ponzi?"
+    ],
+    "answer": "A ponzi promises returns paid by later deposits. Bitcoin's protocol promises no return at all. People can still lose money buying it, which is a market loss, not that structure.",
+    "topics": [
+      "misconceptions-fud",
+      "risks__threats__attack_vectors__weaknes",
+      "money"
+    ],
+    "followUps": [
+      "fud-whales",
+      "fud-intrinsic",
+      "fud-deflation"
+    ],
+    "sources": "No promised payout."
+  },
+  {
+    "id": "fud-whales",
+    "category": "fud",
+    "question": "Do whales control Bitcoin?",
+    "alts": [
+      "Explain whether do whales control Bitcoin?",
+      "Clarify whether do whales control Bitcoin?",
+      "Is this the case: do whales control Bitcoin?"
+    ],
+    "answer": "Some outputs hold many coins, and those holders can move markets by selling. They cannot change the supply rule unless nodes accept new software. Coins are not votes over consensus.",
+    "topics": [
+      "misconceptions-fud",
+      "governance",
+      "market_cap"
+    ],
+    "followUps": [
+      "fud-intrinsic",
+      "fud-deflation",
+      "fud-esg"
+    ],
+    "sources": "Large holders versus rules."
+  },
+  {
+    "id": "fud-intrinsic",
+    "category": "fud",
+    "question": "Does bitcoin have intrinsic value?",
+    "alts": [
+      "Explain whether does bitcoin have intrinsic value?",
+      "Clarify whether does bitcoin have intrinsic value?",
+      "Is this the case: does bitcoin have intrinsic value?"
+    ],
+    "answer": "If intrinsic means a non-monetary use like an industrial metal, bitcoin has little of that. If value means people will give something up to hold a verifiable scarce money, that is the monetary use. The word intrinsic often hides that split.",
+    "topics": [
+      "misconceptions-fud",
+      "philosophy",
+      "money"
+    ],
+    "followUps": [
+      "fud-deflation",
+      "fud-esg",
+      "fud-hacked"
+    ],
+    "sources": "Intrinsic is a loaded word."
+  },
+  {
+    "id": "fud-deflation",
+    "category": "fud",
+    "question": "Will a fixed supply freeze spending?",
+    "alts": [
+      "Explain this: will a fixed supply freeze spending?",
+      "Clarify this: will a fixed supply freeze spending?",
+      "Unpack this: will a fixed supply freeze spending?"
+    ],
+    "answer": "People spend when they want the thing more than the money, even if the money is scarce. Credit can still exist around bitcoin. A spiral that stops all trade is a claim, not a result the software enforces.",
+    "topics": [
+      "misconceptions-fud",
+      "money",
+      "austrian_school_of_economics"
+    ],
+    "followUps": [
+      "fud-esg",
+      "fud-hacked",
+      "fud-51-easy"
+    ],
+    "sources": "Deflation-spiral claim."
+  },
+  {
+    "id": "fud-esg",
+    "category": "fud",
+    "question": "Does an ESG rating decide if Bitcoin should exist?",
+    "alts": [
+      "Explain whether does an ESG rating decide if Bitcoin should exist?",
+      "Clarify whether does an ESG rating decide if Bitcoin should exist?",
+      "Is this the case: does an ESG rating decide if Bitcoin should exist?"
+    ],
+    "answer": "ESG ratings are private or regulatory scorecards with their own methods. They can change, and they are not a consensus rule. The energy argument still reduces to what power is used and what the work buys.",
+    "topics": [
+      "environment___energy",
+      "politics",
+      "energy"
+    ],
+    "followUps": [
+      "fud-hacked",
+      "fud-51-easy",
+      "fud-alt-fees"
+    ],
+    "sources": "ESG scores are outside the protocol."
+  },
+  {
+    "id": "fud-hacked",
+    "category": "fud",
+    "question": "Has Bitcoin been hacked?",
+    "alts": [
+      "Explain this: has Bitcoin been hacked?",
+      "Clarify this: has Bitcoin been hacked?",
+      "Unpack this: has Bitcoin been hacked?"
+    ],
+    "answer": "Exchanges and users have been robbed by taking keys or by lying about reserves. The usual story is not an edit of old valid blocks. Confusing a custodian failure with a broken hash function spreads a false lesson.",
+    "topics": [
+      "misconceptions-fud",
+      "secure",
+      "self-custody"
+    ],
+    "followUps": [
+      "fud-51-easy",
+      "fud-alt-fees",
+      "fud-developer-capture"
+    ],
+    "sources": "Custodian losses versus chain breaks."
+  },
+  {
+    "id": "fud-51-easy",
+    "category": "fud",
+    "question": "Is a 51 percent attack easy?",
+    "alts": [
+      "Explain whether is a 51 percent attack easy?",
+      "Clarify whether is a 51 percent attack easy?",
+      "Is this the case: is a 51 percent attack easy?"
+    ],
+    "answer": "It requires a huge amount of hardware and energy, and it buys reorder and censorship power, not the ability to print coins nodes reject. It is the threat model, not a weekend project. Defense is the cost and the fact that invalid blocks still fail.",
+    "topics": [
+      "misconceptions-fud",
+      "mining",
+      "secure"
+    ],
+    "followUps": [
+      "fud-alt-fees",
+      "fud-developer-capture",
+      "fud-patent"
+    ],
+    "sources": "51 percent limits."
+  },
+  {
+    "id": "fud-alt-fees",
+    "category": "fud",
+    "question": "Do other chains prove fees can be zero forever?",
+    "alts": [
+      "Explain whether do other chains prove fees can be zero forever?",
+      "Clarify whether do other chains prove fees can be zero forever?",
+      "Is this the case: do other chains prove fees can be zero forever?"
+    ],
+    "answer": "A chain can subsidize cheap transactions with inflation or with a smaller set of validators who are easier to run past. The cost shows up in issuance or in trust. Bitcoin puts the cost in fees and in energy instead.",
+    "topics": [
+      "misconceptions-fud",
+      "transaction_fees",
+      "evidence-against-alts"
+    ],
+    "followUps": [
+      "fud-developer-capture",
+      "fud-patent",
+      "fud-environmental-single"
+    ],
+    "sources": "Cheap transactions have a payer."
+  },
+  {
+    "id": "fud-developer-capture",
+    "category": "fud",
+    "question": "Can a few developers change Bitcoin quietly?",
+    "alts": [
+      "Explain whether can a few developers change Bitcoin quietly?",
+      "Clarify whether can a few developers change Bitcoin quietly?",
+      "Is this the case: can a few developers change Bitcoin quietly?"
+    ],
+    "answer": "They can publish code. Nodes that do not upgrade do not follow it. Capture would require users, businesses, and miners to run the change. That is hard on purpose.",
+    "topics": [
+      "misconceptions-fud",
+      "governance",
+      "developers"
+    ],
+    "followUps": [
+      "fud-patent",
+      "fud-environmental-single",
+      "fud-banned-payments"
+    ],
+    "sources": "Upgrade consent."
+  },
+  {
+    "id": "fud-patent",
+    "category": "fud",
+    "question": "Can someone patent Bitcoin and shut it down?",
+    "alts": [
+      "Explain whether can someone patent Bitcoin and shut it down?",
+      "Clarify whether can someone patent Bitcoin and shut it down?",
+      "Is this the case: can someone patent Bitcoin and shut it down?"
+    ],
+    "answer": "The design was published in 2008 and the software is open. Later patents can exist around specific inventions, and they do not erase the published protocol. Courts are local, and the code is worldwide.",
+    "topics": [
+      "misconceptions-fud",
+      "open_source",
+      "regulation"
+    ],
+    "followUps": [
+      "fud-environmental-single",
+      "fud-banned-payments",
+      "fud-rich-early"
+    ],
+    "sources": "Publication and patents."
+  },
+  {
+    "id": "fud-environmental-single",
+    "category": "fud",
+    "question": "Why refuse a single energy number?",
+    "alts": [
+      "Explain why refuse a single energy number?",
+      "For what reason refuse a single energy number?",
+      "What is the reason refuse a single energy number?"
+    ],
+    "answer": "Hash rate, machine efficiency, and the grid mix move. A number from one study year becomes a slogan and then a falsehood. The durable point is that energy is the security cost and that it is not fixed by the software.",
+    "topics": [
+      "environment___energy",
+      "energy",
+      "mining"
+    ],
+    "followUps": [
+      "fud-banned-payments",
+      "fud-rich-early",
+      "fud-complexity"
+    ],
+    "sources": "Stale statistics."
+  },
+  {
+    "id": "fud-banned-payments",
+    "category": "fud",
+    "question": "If shops do not take bitcoin, did it fail?",
+    "alts": [
+      "Explain this: if shops do not take bitcoin, did it fail?",
+      "Clarify this: if shops do not take bitcoin, did it fail?",
+      "Unpack this: if shops do not take bitcoin, did it fail?"
+    ],
+    "answer": "Money can be held as savings before it is the tag on every shelf. Merchant tools exist and are uneven. Failure and not-yet are different claims.",
+    "topics": [
+      "misconceptions-fud",
+      "use-cases",
+      "news-adoption"
+    ],
+    "followUps": [
+      "fud-rich-early",
+      "fud-complexity",
+      "fud-forks-mean-broken"
+    ],
+    "sources": "Savings versus point of sale."
+  },
+  {
+    "id": "fud-rich-early",
+    "category": "fud",
+    "question": "Is Bitcoin unfair because early miners have coins?",
+    "alts": [
+      "Explain whether is Bitcoin unfair because early miners have coins?",
+      "Clarify whether is Bitcoin unfair because early miners have coins?",
+      "Is this the case: is Bitcoin unfair because early miners have coins?"
+    ],
+    "answer": "Early subsidies were large because almost nobody was mining, and those miners took a risk on worthless coins. That history is unequal. It is not a premine, and it does not let them change the rules alone.",
+    "topics": [
+      "misconceptions-fud",
+      "history",
+      "mining"
+    ],
+    "followUps": [
+      "fud-complexity",
+      "fud-forks-mean-broken",
+      "fud-satoshi-keys"
+    ],
+    "sources": "Early distribution."
+  },
+  {
+    "id": "fud-complexity",
+    "category": "fud",
+    "question": "Is Bitcoin too complicated to be money?",
+    "alts": [
+      "Explain whether is Bitcoin too complicated to be money?",
+      "Clarify whether is Bitcoin too complicated to be money?",
+      "Is this the case: is Bitcoin too complicated to be money?"
+    ],
+    "answer": "The user experience can be hard, and the core idea is a public ledger plus keys. Gold and banks are also complicated behind the counter. Difficulty of the idea is not the same as a broken design.",
+    "topics": [
+      "misconceptions-fud",
+      "curriculum",
+      "money"
+    ],
+    "followUps": [
+      "fud-forks-mean-broken",
+      "fud-satoshi-keys",
+      "fud-climate-only"
+    ],
+    "sources": "Complexity."
+  },
+  {
+    "id": "fud-forks-mean-broken",
+    "category": "fud",
+    "question": "Do past forks mean Bitcoin failed?",
+    "alts": [
+      "Explain whether do past forks mean Bitcoin failed?",
+      "Clarify whether do past forks mean Bitcoin failed?",
+      "Is this the case: do past forks mean Bitcoin failed?"
+    ],
+    "answer": "Disagreement produced other coins, and the chain this archive follows kept its rules and its node set. Forks are how a system without a chief executive resolves a fight. They are costly and they are not a secret bug.",
+    "topics": [
+      "misconceptions-fud",
+      "soft_vs_hard_forks",
+      "history"
+    ],
+    "followUps": [
+      "fud-satoshi-keys",
+      "fud-climate-only",
+      "fud-cbdc-better"
+    ],
+    "sources": "Forks as conflict."
+  },
+  {
+    "id": "fud-satoshi-keys",
+    "category": "fud",
+    "question": "What if Satoshi's coins move?",
+    "alts": [
+      "Explain this: what if Satoshi's coins move?",
+      "Clarify this: what if Satoshi's coins move?",
+      "Unpack this: what if Satoshi's coins move?"
+    ],
+    "answer": "Coins that have been still since early mining could move, and markets would react. The protocol would treat the spend like any other valid signature. Identity would still not be proven by the movement alone.",
+    "topics": [
+      "misconceptions-fud",
+      "satoshi-nakamoto",
+      "history"
+    ],
+    "followUps": [
+      "fud-climate-only",
+      "fud-cbdc-better",
+      "fud-get-rich"
+    ],
+    "sources": "Dormant coins."
+  },
+  {
+    "id": "fud-climate-only",
+    "category": "fud",
+    "question": "Is the only bitcoin question environmental?",
+    "alts": [
+      "Explain whether is the only bitcoin question environmental?",
+      "Clarify whether is the only bitcoin question environmental?",
+      "Is this the case: is the only bitcoin question environmental?"
+    ],
+    "answer": "Energy is a fair question and it is not the only one. Supply, custody, and censorship resistance are why people study it. A single-issue dismissal skips those.",
+    "topics": [
+      "environment___energy",
+      "philosophy",
+      "money"
+    ],
+    "followUps": [
+      "fud-cbdc-better",
+      "fud-get-rich",
+      "fud-energy-per-tx"
+    ],
+    "sources": "Many questions, including energy."
+  },
+  {
+    "id": "fud-cbdc-better",
+    "category": "fud",
+    "question": "Would a government coin be safer?",
+    "alts": [
+      "Explain this: would a government coin be safer?",
+      "Clarify this: would a government coin be safer?",
+      "Unpack this: would a government coin be safer?"
+    ],
+    "answer": "A government coin can be reversed and frozen by design, which some people call safety and others call control. Bitcoin's safety is a key you hold and rules nodes check. They solve different problems.",
+    "topics": [
+      "misconceptions-fud",
+      "politics",
+      "decentralized"
+    ],
+    "followUps": [
+      "fud-get-rich",
+      "fud-energy-per-tx",
+      "fud-loops"
+    ],
+    "sources": "CBDC versus bitcoin."
+  },
+  {
+    "id": "fud-get-rich",
+    "category": "fud",
+    "question": "Is a fast fortune part of Bitcoin?",
+    "alts": [
+      "Explain whether is a fast fortune part of Bitcoin?",
+      "Clarify whether is a fast fortune part of Bitcoin?",
+      "Is this the case: is a fast fortune part of Bitcoin?"
+    ],
+    "answer": "Bitcoin is not a get rich quick scheme. It is a money with a fixed supply, and the exchange price can fall. Anyone promising a fast fortune is adding a story the protocol does not tell.",
+    "topics": [
+      "misconceptions-fud",
+      "risks__threats__attack_vectors__weaknes",
+      "money"
+    ],
+    "followUps": [
+      "fud-energy-per-tx",
+      "fud-loops",
+      "fud-ten-min"
+    ],
+    "sources": "Not a get-rich-quick scheme."
+  },
+  {
+    "id": "fud-energy-per-tx",
+    "category": "fud",
+    "question": "Why is energy per transaction a weak comparison?",
+    "alts": [
+      "Explain why is energy per transaction a weak comparison?",
+      "For what reason is energy per transaction a weak comparison?",
+      "What is the reason is energy per transaction a weak comparison?"
+    ],
+    "answer": "Mining secures the stock of coins and the history, not only the payments in the latest block. Dividing a year's energy by one day's transfers ignores layers and batches. The ratio is a slogan unless the method is stated.",
+    "topics": [
+      "environment___energy",
+      "energy",
+      "misconceptions-fud"
+    ],
+    "followUps": [
+      "fud-loops",
+      "fud-ten-min",
+      "fud-etf-rules"
+    ],
+    "sources": "Stock of security versus one block."
+  },
+  {
+    "id": "fud-loops",
+    "category": "fud",
+    "question": "Is missing general computation a flaw?",
+    "alts": [
+      "Explain whether is missing general computation a flaw?",
+      "Clarify whether is missing general computation a flaw?",
+      "Is this the case: is missing general computation a flaw?"
+    ],
+    "answer": "Bitcoin Script refuses loops so every node can finish validation. Other systems sell unbounded programs and then have to limit them anyway with fees and committees. The limit is a choice about who can check the chain.",
+    "topics": [
+      "op-codes",
+      "misconceptions-fud",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "fud-ten-min",
+      "fud-etf-rules",
+      "fud-old"
+    ],
+    "sources": "Validation bound."
+  },
+  {
+    "id": "fud-ten-min",
+    "category": "fud",
+    "question": "Is a ten minute block a failure?",
+    "alts": [
+      "Explain whether is a ten minute block a failure?",
+      "Clarify whether is a ten minute block a failure?",
+      "Is this the case: is a ten minute block a failure?"
+    ],
+    "answer": "Ten minutes is the average target so blocks can propagate before the next one and so difficulty has a stable sample. It is slow for coffee and fine for final settlement. Lightning and other layers exist for faster payments.",
+    "topics": [
+      "block_time-block-size",
+      "layer-2-lightning",
+      "misconceptions-fud"
+    ],
+    "followUps": [
+      "fud-etf-rules",
+      "fud-old",
+      "fud-one-country"
+    ],
+    "sources": "Design interval."
+  },
+  {
+    "id": "fud-etf-rules",
+    "category": "fud",
+    "question": "Do ETF sponsors write the consensus rules?",
+    "alts": [
+      "Explain whether do ETF sponsors write the consensus rules?",
+      "Clarify whether do ETF sponsors write the consensus rules?",
+      "Is this the case: do ETF sponsors write the consensus rules?"
+    ],
+    "answer": "An ETF sponsor can buy and sell bitcoin through custodians and can shape a fund's paperwork. Sponsors do not get a vote that nodes must honor. A block is still valid or invalid under the software users run.",
+    "topics": [
+      "regulation",
+      "governance",
+      "misconceptions-fud"
+    ],
+    "followUps": [
+      "fud-old",
+      "fud-one-country",
+      "fud-slogan"
+    ],
+    "sources": "Funds are not miners of rules."
+  },
+  {
+    "id": "fud-old",
+    "category": "fud",
+    "question": "Is an old protocol automatically obsolete?",
+    "alts": [
+      "Explain whether is an old protocol automatically obsolete?",
+      "Clarify whether is an old protocol automatically obsolete?",
+      "Is this the case: is an old protocol automatically obsolete?"
+    ],
+    "answer": "Age means the rules have been attacked in public for a long time, which is the Lindy argument. New features still arrive by soft fork when users run them. Old is not the same as finished or as broken.",
+    "topics": [
+      "lindy_effect",
+      "misconceptions-fud"
+    ],
+    "followUps": [
+      "fud-one-country",
+      "fud-slogan",
+      "fud-layer-trust"
+    ],
+    "sources": "Lindy versus stagnation."
+  },
+  {
+    "id": "fud-one-country",
+    "category": "fud",
+    "question": "Can one country delete the ledger?",
+    "alts": [
+      "Explain whether can one country delete the ledger?",
+      "Clarify whether can one country delete the ledger?",
+      "Is this the case: can one country delete the ledger?"
+    ],
+    "answer": "A country can pressure people and businesses inside its borders. Copies of the chain outside that reach keep the history. Deleting every copy is a different task from regulating an exchange.",
+    "topics": [
+      "decentralized",
+      "regulation",
+      "misconceptions-fud"
+    ],
+    "followUps": [
+      "fud-slogan",
+      "fud-layer-trust",
+      "fud-energy"
+    ],
+    "sources": "Local pressure, global copies."
+  },
+  {
+    "id": "fud-slogan",
+    "category": "fud",
+    "question": "Is a bitcoin slogan a price forecast?",
+    "alts": [
+      "Explain whether is a bitcoin slogan a price forecast?",
+      "Clarify whether is a bitcoin slogan a price forecast?",
+      "Is this the case: is a bitcoin slogan a price forecast?"
+    ],
+    "answer": "Slogans such as number-go-up are jokes or hopes. The protocol does not promise a future exchange rate. A meme is not an analysis.",
+    "topics": [
+      "memes-funny",
+      "misconceptions-fud",
+      "market_cap"
+    ],
+    "followUps": [
+      "fud-layer-trust",
+      "fud-energy",
+      "fud-crime"
+    ],
+    "sources": "Memes are not forecasts."
+  },
+  {
+    "id": "fud-layer-trust",
+    "category": "fud",
+    "question": "Does using a layer abandon self-custody?",
+    "alts": [
+      "Explain whether does using a layer abandon self-custody?",
+      "Clarify whether does using a layer abandon self-custody?",
+      "Is this the case: does using a layer abandon self-custody?"
+    ],
+    "answer": "It depends on the layer. A Lightning channel you can close to the chain is closer to self-custody than a federated mint you must trust to redeem. Read the exit path before calling the balance yours.",
+    "topics": [
+      "layer-2-lightning",
+      "self-custody",
+      "misconceptions-fud"
+    ],
+    "followUps": [
+      "fud-energy",
+      "fud-crime",
+      "fud-backed"
+    ],
+    "sources": "Exit path decides."
+  }
+]

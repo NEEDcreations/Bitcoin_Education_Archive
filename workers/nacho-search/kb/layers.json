@@ -1,0 +1,1134 @@
+[
+  {
+    "id": "layers-lightning",
+    "category": "layers",
+    "question": "What is the Lightning Network?",
+    "alts": [
+      "Define the Lightning Network?",
+      "Explain the Lightning Network?",
+      "Describe the Lightning Network?"
+    ],
+    "answer": "Lightning is a way to update a bitcoin payment channel many times and settle on the main chain only when needed. The idea was described in a 2016 paper by Joseph Poon and Thaddeus Dryja. It is a layer on bitcoin, not a separate currency.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "scalability"
+    ],
+    "followUps": [
+      "layers-channel",
+      "layers-invoice",
+      "layers-routing"
+    ],
+    "sources": "Lightning Network paper, 2016."
+  },
+  {
+    "id": "layers-channel",
+    "category": "layers",
+    "question": "What is a Lightning channel?",
+    "alts": [
+      "Define a Lightning channel?",
+      "Explain a Lightning channel?",
+      "Describe a Lightning channel?"
+    ],
+    "answer": "A channel starts with a bitcoin transaction that locks coins between two parties. They exchange new signed states that change the balance. Either side can publish the latest state on chain if they need to exit.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "utxos"
+    ],
+    "followUps": [
+      "layers-invoice",
+      "layers-routing",
+      "layers-liquidity"
+    ],
+    "sources": "Payment channels."
+  },
+  {
+    "id": "layers-invoice",
+    "category": "layers",
+    "question": "What is a Lightning invoice?",
+    "alts": [
+      "Define a Lightning invoice?",
+      "Explain a Lightning invoice?",
+      "Describe a Lightning invoice?"
+    ],
+    "answer": "A BOLT11 invoice is a one-time Lightning payment request, often shown as a QR code. It names an amount, an expiry, and a payment hash. It is not a reusable offer, and it is not an on-chain address.",
+    "topics": [
+      "layer-2-lightning",
+      "apps-tools",
+      "use-cases"
+    ],
+    "followUps": [
+      "layers-routing",
+      "layers-liquidity",
+      "layers-watchtower"
+    ],
+    "sources": "BOLT11, one-time payment request."
+  },
+  {
+    "id": "layers-routing",
+    "category": "layers",
+    "question": "How does a Lightning payment hop?",
+    "alts": [
+      "Explain how a Lightning payment hop?",
+      "Describe how a Lightning payment hop?",
+      "How can a Lightning payment hop?"
+    ],
+    "answer": "If you are not directly channeled to the recipient, the payment can hop through other nodes that have channels. Each hop learns only its neighbor, using onion routing. The recipient still learns they were paid.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "layers-liquidity",
+      "layers-watchtower",
+      "layers-penalty"
+    ],
+    "sources": "Onion routed Lightning."
+  },
+  {
+    "id": "layers-liquidity",
+    "category": "layers",
+    "question": "What is inbound liquidity?",
+    "alts": [
+      "Define inbound liquidity?",
+      "Explain inbound liquidity?",
+      "Describe inbound liquidity?"
+    ],
+    "answer": "To receive on Lightning, the other side of a channel must have room to push coins toward you. That room is inbound liquidity. Opening a channel only gives you the ability to send, until the balance moves or you buy inbound room.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "use-cases"
+    ],
+    "followUps": [
+      "layers-watchtower",
+      "layers-penalty",
+      "layers-ln-backup"
+    ],
+    "sources": "Inbound versus outbound liquidity."
+  },
+  {
+    "id": "layers-watchtower",
+    "category": "layers",
+    "question": "What is a Lightning watchtower?",
+    "alts": [
+      "Define a Lightning watchtower?",
+      "Explain a Lightning watchtower?",
+      "Describe a Lightning watchtower?"
+    ],
+    "answer": "A watchtower watches the chain for an old channel state while your node is offline. If a cheat is published, it can respond during the penalty window. You are trusting it with that job, not giving it your spending keys in a well-built design.",
+    "topics": [
+      "layer-2-lightning",
+      "secure",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-penalty",
+      "layers-ln-backup",
+      "layers-submarine"
+    ],
+    "sources": "Watchtowers."
+  },
+  {
+    "id": "layers-penalty",
+    "category": "layers",
+    "question": "What happens if a Lightning peer cheats?",
+    "alts": [
+      "Explain this: what happens if a Lightning peer cheats?",
+      "Clarify this: what happens if a Lightning peer cheats?",
+      "Unpack this: what happens if a Lightning peer cheats?"
+    ],
+    "answer": "Publishing an old state lets the honest party claim funds during a window defined by the channel. After that window, the cheat could succeed if nobody responds. This is why backups and watchtowers matter.",
+    "topics": [
+      "layer-2-lightning",
+      "secure",
+      "game_theory"
+    ],
+    "followUps": [
+      "layers-ln-backup",
+      "layers-submarine",
+      "layers-loop"
+    ],
+    "sources": "Justice transactions."
+  },
+  {
+    "id": "layers-ln-backup",
+    "category": "layers",
+    "question": "Why is a Lightning backup different from a seed?",
+    "alts": [
+      "Explain why is a Lightning backup different from a seed?",
+      "For what reason is a Lightning backup different from a seed?",
+      "What is the reason is a Lightning backup different from a seed?"
+    ],
+    "answer": "A seed restores on-chain keys. A Lightning node also has channel states that must stay consistent, and restoring an old state can look like cheating. Follow the wallet's backup rules for channels, not only the word list.",
+    "topics": [
+      "layer-2-lightning",
+      "self-custody",
+      "secure"
+    ],
+    "followUps": [
+      "layers-submarine",
+      "layers-loop",
+      "layers-lsp"
+    ],
+    "sources": "Channel state backups."
+  },
+  {
+    "id": "layers-submarine",
+    "category": "layers",
+    "question": "What is a submarine swap?",
+    "alts": [
+      "Define a submarine swap?",
+      "Explain a submarine swap?",
+      "Describe a submarine swap?"
+    ],
+    "answer": "A submarine swap trades a Lightning payment for an on-chain bitcoin payment, or the reverse. It is how some wallets move coins into or out of channels. The swap provider is a counterparty for that trade.",
+    "topics": [
+      "submarine_swap",
+      "swaps",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "layers-loop",
+      "layers-lsp",
+      "layers-bolt12"
+    ],
+    "sources": "Submarine swaps."
+  },
+  {
+    "id": "layers-loop",
+    "category": "layers",
+    "question": "Why would you loop coins in or out?",
+    "alts": [
+      "Explain why would you loop coins in or out?",
+      "For what reason would you loop coins in or out?",
+      "What is the reason would you loop coins in or out?"
+    ],
+    "answer": "Looping out turns a Lightning balance into on-chain bitcoin. Looping in does the opposite and can add inbound room. You pay a fee for the service and you should know who the counterparty is.",
+    "topics": [
+      "swaps",
+      "layer-2-lightning",
+      "submarine_swap"
+    ],
+    "followUps": [
+      "layers-lsp",
+      "layers-bolt12",
+      "layers-liquid"
+    ],
+    "sources": "Loop in and loop out."
+  },
+  {
+    "id": "layers-lsp",
+    "category": "layers",
+    "question": "What is a Lightning service provider?",
+    "alts": [
+      "Define a Lightning service provider?",
+      "Explain a Lightning service provider?",
+      "Describe a Lightning service provider?"
+    ],
+    "answer": "An LSP helps a wallet open channels and find liquidity so a phone app can receive. Some LSPs are custodial and some are not. Read whether you hold the keys.",
+    "topics": [
+      "layer-2-lightning",
+      "apps-tools",
+      "self-custody"
+    ],
+    "followUps": [
+      "layers-bolt12",
+      "layers-liquid",
+      "layers-fedimint"
+    ],
+    "sources": "LSPs."
+  },
+  {
+    "id": "layers-bolt12",
+    "category": "layers",
+    "question": "What is a Lightning offer?",
+    "alts": [
+      "Define a Lightning offer?",
+      "Explain a Lightning offer?",
+      "Describe a Lightning offer?"
+    ],
+    "answer": "BOLT12 offers were merged into the BOLT specification in 2024 and are supported by some Lightning implementations. A BOLT12 offer is reusable, unlike a one-time BOLT11 invoice. It is not an activated Bitcoin consensus change.",
+    "topics": [
+      "layer-2-lightning",
+      "apps-tools",
+      "the_future"
+    ],
+    "followUps": [
+      "layers-liquid",
+      "layers-fedimint",
+      "layers-cashu"
+    ],
+    "sources": "BOLT12 offers, merged into the spec in 2024."
+  },
+  {
+    "id": "layers-liquid",
+    "category": "layers",
+    "question": "What is Liquid?",
+    "alts": [
+      "Define Liquid?",
+      "Explain Liquid?",
+      "Describe Liquid?"
+    ],
+    "answer": "Liquid is a federated sidechain built by Blockstream, launched in 2018. Bitcoin is pegged in by a group of functionaries, and a token on Liquid represents that lock. It is not the same security as a UTXO you hold on the main chain.",
+    "topics": [
+      "sidechains",
+      "layer-3-sidechains",
+      "self-custody"
+    ],
+    "followUps": [
+      "layers-fedimint",
+      "layers-cashu",
+      "layers-ecash-history"
+    ],
+    "sources": "Liquid, federated sidechain, 2018."
+  },
+  {
+    "id": "layers-fedimint",
+    "category": "layers",
+    "question": "What is a Fedimint?",
+    "alts": [
+      "Define a Fedimint?",
+      "Explain a Fedimint?",
+      "Describe a Fedimint?"
+    ],
+    "answer": "A Fedimint is a community federation that holds bitcoin and issues Chaumian ecash notes to members. Blind signatures hide who paid whom from the guardians, and you still trust the guardians for the bitcoin backing. It is a custody tradeoff for small, private payments.",
+    "topics": [
+      "fedimints",
+      "chaumian-mints",
+      "chaumian_e-cash_and_blind_signatures"
+    ],
+    "followUps": [
+      "layers-cashu",
+      "layers-ecash-history",
+      "layers-ark"
+    ],
+    "sources": "Fedimint."
+  },
+  {
+    "id": "layers-cashu",
+    "category": "layers",
+    "question": "What is Cashu?",
+    "alts": [
+      "Define Cashu?",
+      "Explain Cashu?",
+      "Describe Cashu?"
+    ],
+    "answer": "Cashu is Chaumian ecash with a mint that holds bitcoin and issues blinded notes. Users can pass notes so the mint does not see every hop, and they rely on the mint to redeem them. A mint can fail or refuse, which is the trust.",
+    "topics": [
+      "chaumian-mints",
+      "chaumian_e-cash_and_blind_signatures",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "layers-ecash-history",
+      "layers-ark",
+      "layers-statechain"
+    ],
+    "sources": "Cashu."
+  },
+  {
+    "id": "layers-ecash-history",
+    "category": "layers",
+    "question": "What is Chaumian ecash?",
+    "alts": [
+      "Define Chaumian ecash?",
+      "Explain Chaumian ecash?",
+      "Describe Chaumian ecash?"
+    ],
+    "answer": "David Chaum described ecash in the 1980s: a bank signs notes blindly so it cannot link a withdrawal to a later deposit. Bitcoin versions of that idea use a mint that holds bitcoin. The privacy trick is old, and the custodian risk remains.",
+    "topics": [
+      "chaumian_e-cash_and_blind_signatures",
+      "history",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "layers-ark",
+      "layers-statechain",
+      "layers-sidechain"
+    ],
+    "sources": "David Chaum's ecash."
+  },
+  {
+    "id": "layers-ark",
+    "category": "layers",
+    "question": "What is Ark?",
+    "alts": [
+      "Define Ark?",
+      "Explain Ark?",
+      "Describe Ark?"
+    ],
+    "answer": "Ark is a design where a service provider batches many users into shared bitcoin transactions, and users hold virtual balances they can exit on chain. It aims at receiving bitcoin without a always-on Lightning channel. It was still a young protocol as of 2026, not a replacement for understanding ordinary UTXOs.",
+    "topics": [
+      "fedi-ark",
+      "layer-2-lightning",
+      "the_future"
+    ],
+    "followUps": [
+      "layers-statechain",
+      "layers-sidechain",
+      "layers-drivechain"
+    ],
+    "sources": "Ark protocol. Early as of 2026."
+  },
+  {
+    "id": "layers-statechain",
+    "category": "layers",
+    "question": "What is a statechain?",
+    "alts": [
+      "Define a statechain?",
+      "Explain a statechain?",
+      "Describe a statechain?"
+    ],
+    "answer": "A statechain lets people transfer a bitcoin UTXO by updating who holds the key, with a server that is supposed to honor only the latest owner. An old owner who colludes with the server can try to take the coins. It is a trust model, not magic bearer cash.",
+    "topics": [
+      "sidechains",
+      "self-custody",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "layers-sidechain",
+      "layers-drivechain",
+      "layers-rollup"
+    ],
+    "sources": "Statechains."
+  },
+  {
+    "id": "layers-sidechain",
+    "category": "layers",
+    "question": "What is a sidechain?",
+    "alts": [
+      "Define a sidechain?",
+      "Explain a sidechain?",
+      "Describe a sidechain?"
+    ],
+    "answer": "A sidechain is another chain that represents bitcoin locked somewhere else. The peg's rules decide whether you can come back. Read who can stop a withdrawal before you call it self-custody.",
+    "topics": [
+      "sidechains",
+      "layer-3-sidechains",
+      "self-custody"
+    ],
+    "followUps": [
+      "layers-drivechain",
+      "layers-rollup",
+      "layers-ln-not-blockchain"
+    ],
+    "sources": "Sidechains."
+  },
+  {
+    "id": "layers-drivechain",
+    "category": "layers",
+    "question": "What is a drivechain?",
+    "alts": [
+      "Define a drivechain?",
+      "Explain a drivechain?",
+      "Describe a drivechain?"
+    ],
+    "answer": "Drivechain is a proposal for sidechains where bitcoin miners help release pegged coins. It is not an active part of today's Bitcoin consensus. Treat it as a design in debate, not as a feature you already have.",
+    "topics": [
+      "sidechains",
+      "mining",
+      "governance"
+    ],
+    "followUps": [
+      "layers-rollup",
+      "layers-ln-not-blockchain",
+      "layers-channel-factory"
+    ],
+    "sources": "Drivechain as a proposal."
+  },
+  {
+    "id": "layers-rollup",
+    "category": "layers",
+    "question": "What is a bitcoin rollup?",
+    "alts": [
+      "Define a bitcoin rollup?",
+      "Explain a bitcoin rollup?",
+      "Describe a bitcoin rollup?"
+    ],
+    "answer": "A rollup in this conversation means posting a summary of many off-chain steps onto Bitcoin so others can challenge or rebuild them. Designs differ and many are research. A marketing rollup is not automatically the same security as an on-chain UTXO.",
+    "topics": [
+      "rollups",
+      "scalability",
+      "the_future"
+    ],
+    "followUps": [
+      "layers-ln-not-blockchain",
+      "layers-channel-factory",
+      "layers-splicing"
+    ],
+    "sources": "Rollup designs vary."
+  },
+  {
+    "id": "layers-ln-not-blockchain",
+    "category": "layers",
+    "question": "Is Lightning a separate blockchain?",
+    "alts": [
+      "Explain whether is Lightning a separate blockchain?",
+      "Clarify whether is Lightning a separate blockchain?",
+      "Is this the case: is Lightning a separate blockchain?"
+    ],
+    "answer": "Lightning does not make a new global chain of blocks for every payment. Channel states are agreements between peers, and the base chain is the court if they disagree. There is no second bitcoin issued by Lightning.",
+    "topics": [
+      "layer-2-lightning",
+      "blockchain-timechain",
+      "money"
+    ],
+    "followUps": [
+      "layers-channel-factory",
+      "layers-splicing",
+      "layers-dual-funded"
+    ],
+    "sources": "Lightning is not a new asset."
+  },
+  {
+    "id": "layers-channel-factory",
+    "category": "layers",
+    "question": "What is a channel factory?",
+    "alts": [
+      "Define a channel factory?",
+      "Explain a channel factory?",
+      "Describe a channel factory?"
+    ],
+    "answer": "A channel factory lets several people share one on-chain transaction and then open Lightning channels among themselves with less chain use. It is an efficiency design. Support depends on the software.",
+    "topics": [
+      "layer-2-lightning",
+      "scalability",
+      "utxos"
+    ],
+    "followUps": [
+      "layers-splicing",
+      "layers-dual-funded",
+      "layers-lnurl"
+    ],
+    "sources": "Channel factories."
+  },
+  {
+    "id": "layers-splicing",
+    "category": "layers",
+    "question": "What is channel splicing?",
+    "alts": [
+      "Define channel splicing?",
+      "Explain channel splicing?",
+      "Describe channel splicing?"
+    ],
+    "answer": "Splicing changes the amount of bitcoin in a Lightning channel without closing it first. It makes channels less rigid. Wallets adopted it gradually, so not every app has it.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "the_future"
+    ],
+    "followUps": [
+      "layers-dual-funded",
+      "layers-lnurl",
+      "layers-lightning-address"
+    ],
+    "sources": "Splicing."
+  },
+  {
+    "id": "layers-dual-funded",
+    "category": "layers",
+    "question": "What is a dual-funded channel?",
+    "alts": [
+      "Define a dual-funded channel?",
+      "Explain a dual-funded channel?",
+      "Describe a dual-funded channel?"
+    ],
+    "answer": "Both peers can add bitcoin when a channel opens, so each starts with some ability to send. A one-sided open only funds the opener. Dual funding is a liquidity improvement.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "use-cases"
+    ],
+    "followUps": [
+      "layers-lnurl",
+      "layers-lightning-address",
+      "layers-wumbo"
+    ],
+    "sources": "Dual funding."
+  },
+  {
+    "id": "layers-lnurl",
+    "category": "layers",
+    "question": "What is LNURL?",
+    "alts": [
+      "Define LNURL?",
+      "Explain LNURL?",
+      "Describe LNURL?"
+    ],
+    "answer": "LNURL is a set of helpers so a link or a QR can ask a server for a Lightning invoice, or for a withdrawal. It is convenient and the server sees the request. It is not itself the payment channel.",
+    "topics": [
+      "layer-2-lightning",
+      "apps-tools",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "layers-lightning-address",
+      "layers-wumbo",
+      "layers-routing-fee"
+    ],
+    "sources": "LNURL."
+  },
+  {
+    "id": "layers-lightning-address",
+    "category": "layers",
+    "question": "What is a Lightning address?",
+    "alts": [
+      "Define a Lightning address?",
+      "Explain a Lightning address?",
+      "Describe a Lightning address?"
+    ],
+    "answer": "A Lightning address looks like an email and resolves to a way to request invoices, often through LNURL. It is reusable and easier to share than a one-time invoice. The server behind the address is a privacy and uptime dependency.",
+    "topics": [
+      "layer-2-lightning",
+      "apps-tools",
+      "use-cases"
+    ],
+    "followUps": [
+      "layers-wumbo",
+      "layers-routing-fee",
+      "layers-failure"
+    ],
+    "sources": "Lightning addresses."
+  },
+  {
+    "id": "layers-wumbo",
+    "category": "layers",
+    "question": "What did wumbo mean on Lightning?",
+    "alts": [
+      "Explain this: what did wumbo mean on Lightning?",
+      "Clarify this: what did wumbo mean on Lightning?",
+      "Unpack this: what did wumbo mean on Lightning?"
+    ],
+    "answer": "Early Lightning limited channel sizes, and wumbo was the nickname for allowing larger channels once software was ready. The name stuck in some apps, including playful uses. It is a capacity setting, not a different coin.",
+    "topics": [
+      "layer-2-lightning",
+      "fun-facts",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-routing-fee",
+      "layers-failure",
+      "layers-force-close"
+    ],
+    "sources": "Large channels."
+  },
+  {
+    "id": "layers-routing-fee",
+    "category": "layers",
+    "question": "How do Lightning routing fees work?",
+    "alts": [
+      "Explain how Lightning routing fees work?",
+      "Describe how Lightning routing fees work?",
+      "In what way do Lightning routing fees work?"
+    ],
+    "answer": "Each hop charges a small fee set by that node, often a base plus a fraction of the amount. The sender's wallet searches for a route it can afford. Those fees are different from on-chain sat-per-vbyte fees.",
+    "topics": [
+      "layer-2-lightning",
+      "transaction_fees",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-failure",
+      "layers-force-close",
+      "layers-taproot-assets"
+    ],
+    "sources": "Routing fees."
+  },
+  {
+    "id": "layers-failure",
+    "category": "layers",
+    "question": "Why do Lightning payments fail?",
+    "alts": [
+      "Explain why do Lightning payments fail?",
+      "For what reason do Lightning payments fail?",
+      "What is the reason do Lightning payments fail?"
+    ],
+    "answer": "A route can lack liquidity, a node can be offline, or an invoice can expire. The sender usually keeps the funds if the payment does not complete. Failure is common enough that wallets retry routes.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "use-cases"
+    ],
+    "followUps": [
+      "layers-force-close",
+      "layers-taproot-assets",
+      "layers-rgb"
+    ],
+    "sources": "Failed routes."
+  },
+  {
+    "id": "layers-force-close",
+    "category": "layers",
+    "question": "What is a force close?",
+    "alts": [
+      "Define a force close?",
+      "Explain a force close?",
+      "Describe a force close?"
+    ],
+    "answer": "A force close publishes the channel state on chain when cooperation fails. It costs on-chain fees and can take time if a timelock is involved. A mutual close is cheaper when both peers are online and honest.",
+    "topics": [
+      "layer-2-lightning",
+      "transaction_fees",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-taproot-assets",
+      "layers-rgb",
+      "layers-fed-ark"
+    ],
+    "sources": "Force close versus mutual close."
+  },
+  {
+    "id": "layers-taproot-assets",
+    "category": "layers",
+    "question": "What are Taproot assets?",
+    "alts": [
+      "Explain Taproot assets?",
+      "Describe Taproot assets?",
+      "Define Taproot assets?"
+    ],
+    "answer": "Taproot Assets is a protocol for representing extra assets in Bitcoin and Lightning transactions, using Taproot commitments. The extra asset is not the same as bitcoin. You should not confuse a token balance with the native coin.",
+    "topics": [
+      "taro",
+      "taproot",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "layers-rgb",
+      "layers-fed-ark",
+      "layers-exit"
+    ],
+    "sources": "Taproot Assets. Not native bitcoin."
+  },
+  {
+    "id": "layers-rgb",
+    "category": "layers",
+    "question": "What is RGB?",
+    "alts": [
+      "Define RGB?",
+      "Explain RGB?",
+      "Describe RGB?"
+    ],
+    "answer": "RGB is a design for client-side contracts that anchor to Bitcoin without putting all the asset data on the chain. It is a separate asset layer. It does not change bitcoin's supply.",
+    "topics": [
+      "smart-contracts",
+      "sidechains",
+      "the_future"
+    ],
+    "followUps": [
+      "layers-fed-ark",
+      "layers-exit",
+      "layers-final-vs-fast"
+    ],
+    "sources": "RGB. Extra assets."
+  },
+  {
+    "id": "layers-fed-ark",
+    "category": "layers",
+    "question": "How do Ark and Fedimint differ?",
+    "alts": [
+      "Explain how Ark and Fedimint differ?",
+      "Describe how Ark and Fedimint differ?",
+      "In what way do Ark and Fedimint differ?"
+    ],
+    "answer": "A Fedimint issues ecash notes from a community of guardians. Ark is built around shared bitcoin transaction trees and virtual balances with an exit to the chain. Both add trust or new software, and neither replaces learning ordinary self-custody.",
+    "topics": [
+      "fedi-ark",
+      "fedimints",
+      "self-custody"
+    ],
+    "followUps": [
+      "layers-exit",
+      "layers-final-vs-fast",
+      "layers-channel-reserve"
+    ],
+    "sources": "Different layer designs."
+  },
+  {
+    "id": "layers-exit",
+    "category": "layers",
+    "question": "What does an exit hatch mean?",
+    "alts": [
+      "Explain what an exit hatch mean?",
+      "Clarify what an exit hatch mean?",
+      "Describe what an exit hatch mean?"
+    ],
+    "answer": "An exit hatch is the ability to take coins back to the base chain if a service disappears or misbehaves. The hatch is only real if the software and the timelocks actually give you that path. Marketing that says trustless still needs a read of the exit.",
+    "topics": [
+      "self-custody",
+      "layer-2-lightning",
+      "sidechains"
+    ],
+    "followUps": [
+      "layers-final-vs-fast",
+      "layers-channel-reserve",
+      "layers-private-channel"
+    ],
+    "sources": "Exits."
+  },
+  {
+    "id": "layers-final-vs-fast",
+    "category": "layers",
+    "question": "Why not put every coffee on the base chain?",
+    "alts": [
+      "Explain why not put every coffee on the base chain?",
+      "For what reason not put every coffee on the base chain?",
+      "What is the reason not put every coffee on the base chain?"
+    ],
+    "answer": "Block space is limited so that many people can run nodes. A coffee can use Lightning or another layer, and the base chain can settle larger or older balances. The split is a capacity choice.",
+    "topics": [
+      "scalability",
+      "layer-2-lightning",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "layers-channel-reserve",
+      "layers-private-channel",
+      "layers-gossip"
+    ],
+    "sources": "Layered payments."
+  },
+  {
+    "id": "layers-channel-reserve",
+    "category": "layers",
+    "question": "What is a channel reserve?",
+    "alts": [
+      "Define a channel reserve?",
+      "Explain a channel reserve?",
+      "Describe a channel reserve?"
+    ],
+    "answer": "A reserve keeps a small balance on each side so a peer has something to lose if they cheat. You cannot spend a channel down to the last sat in many implementations. It is a safety margin.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node",
+      "secure"
+    ],
+    "followUps": [
+      "layers-private-channel",
+      "layers-gossip",
+      "layers-not-custodial-by-default"
+    ],
+    "sources": "Reserves."
+  },
+  {
+    "id": "layers-private-channel",
+    "category": "layers",
+    "question": "What is an unannounced channel?",
+    "alts": [
+      "Define an unannounced channel?",
+      "Explain an unannounced channel?",
+      "Describe an unannounced channel?"
+    ],
+    "answer": "Some channels are not gossiped to the whole network, so only the peers use them for routing or just for themselves. They still exist as bitcoin outputs. Private here means less directory listing, not magic anonymity.",
+    "topics": [
+      "layer-2-lightning",
+      "privacy-nonkyc",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-gossip",
+      "layers-not-custodial-by-default",
+      "layers-bolt"
+    ],
+    "sources": "Unannounced channels."
+  },
+  {
+    "id": "layers-gossip",
+    "category": "layers",
+    "question": "What is Lightning gossip?",
+    "alts": [
+      "Define Lightning gossip?",
+      "Explain Lightning gossip?",
+      "Describe Lightning gossip?"
+    ],
+    "answer": "Nodes announce channels and fee policies so others can find routes. That directory is public for announced channels. It is how the mesh discovers paths.",
+    "topics": [
+      "lightning_node",
+      "layer-2-lightning",
+      "network_effects"
+    ],
+    "followUps": [
+      "layers-not-custodial-by-default",
+      "layers-bolt",
+      "layers-bolt11"
+    ],
+    "sources": "Gossip protocol."
+  },
+  {
+    "id": "layers-not-custodial-by-default",
+    "category": "layers",
+    "question": "Does using Lightning mean giving coins to a company?",
+    "alts": [
+      "Explain whether does using Lightning mean giving coins to a company?",
+      "Clarify whether does using Lightning mean giving coins to a company?",
+      "Is this the case: does using Lightning mean giving coins to a company?"
+    ],
+    "answer": "Not by default. A self-custodial Lightning wallet holds its keys and channel states. A custodial app is a different product that happens to speak Lightning.",
+    "topics": [
+      "self-custody",
+      "layer-2-lightning",
+      "apps-tools"
+    ],
+    "followUps": [
+      "layers-bolt",
+      "layers-bolt11",
+      "layers-expire"
+    ],
+    "sources": "Custody depends on the wallet."
+  },
+  {
+    "id": "layers-bolt",
+    "category": "layers",
+    "question": "What is a BOLT?",
+    "alts": [
+      "Define a BOLT?",
+      "Explain a BOLT?",
+      "Describe a BOLT?"
+    ],
+    "answer": "BOLT means Basis of Lightning Technology, the set of documents that describe how Lightning implementations talk. They are specifications for the layer, not Bitcoin consensus. Implementations can lag or differ.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-bolt11",
+      "layers-expire",
+      "layers-size"
+    ],
+    "sources": "Lightning specification set."
+  },
+  {
+    "id": "layers-bolt11",
+    "category": "layers",
+    "question": "What is a BOLT11 invoice?",
+    "alts": [
+      "Define a BOLT11 invoice?",
+      "Explain a BOLT11 invoice?",
+      "Describe a BOLT11 invoice?"
+    ],
+    "answer": "A BOLT11 invoice is a one-time Lightning payment request with an amount, an expiry, and a payment hash. Payment succeeds when the preimage matches that hash. It is not a reusable offer. It is not an on-chain address, and it is not a private key.",
+    "topics": [
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "layers-expire",
+      "layers-size",
+      "layers-route-def"
+    ],
+    "sources": "BOLT11 is one-time, not a reusable offer."
+  },
+  {
+    "id": "layers-expire",
+    "category": "layers",
+    "question": "Why do Lightning invoices expire?",
+    "alts": [
+      "Explain why do Lightning invoices expire?",
+      "For what reason do Lightning invoices expire?",
+      "What is the reason do Lightning invoices expire?"
+    ],
+    "answer": "An invoice commits to a payment hash and a route that may not stay liquid. Expiry stops a stale request from being paid into a channel that changed. Create a new invoice if the old one lapses.",
+    "topics": [
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "layers-size",
+      "layers-route-def",
+      "layers-cheat-penalty"
+    ],
+    "sources": "Invoice expiry."
+  },
+  {
+    "id": "layers-size",
+    "category": "layers",
+    "question": "What limits the size of a Lightning payment?",
+    "alts": [
+      "Explain this: what limits the size of a Lightning payment?",
+      "Clarify this: what limits the size of a Lightning payment?",
+      "Unpack this: what limits the size of a Lightning payment?"
+    ],
+    "answer": "A payment cannot exceed the liquidity along a route, including channel reserves. Very large payments may need a bigger channel or an on-chain transaction. The limit is the path, not the 21 million cap.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-route-def",
+      "layers-cheat-penalty",
+      "layers-fed-trust"
+    ],
+    "sources": "Route liquidity."
+  },
+  {
+    "id": "layers-route-def",
+    "category": "layers",
+    "question": "What is Lightning routing?",
+    "alts": [
+      "Can a lightning node act as a router?",
+      "Does a lightning node route payments?",
+      "Can my node forward Lightning payments?",
+      "Define Lightning routing?",
+      "Explain Lightning routing?",
+      "Describe Lightning routing?"
+    ],
+    "answer": "Routing is how a payment hops across channels from payer to receiver without every pair having a direct channel. Each hop learns only its neighbors, not the whole path, in the usual onion design. The hops charge a small fee set by their operators.",
+    "topics": [
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "layers-cheat-penalty",
+      "layers-fed-trust",
+      "layers-cashu-trust"
+    ],
+    "sources": "Onion routing over channels."
+  },
+  {
+    "id": "layers-cheat-penalty",
+    "category": "layers",
+    "question": "Why can a Lightning cheater lose funds?",
+    "alts": [
+      "Explain why can a Lightning cheater lose funds?",
+      "For what reason can a Lightning cheater lose funds?",
+      "What is the reason can a Lightning cheater lose funds?"
+    ],
+    "answer": "If a peer publishes an old channel state, the honest side can spend the cheater's output during a delay. That penalty is what makes publishing a stale state expensive. A watchtower or an online wallet has to notice in time.",
+    "topics": [
+      "layer-2-lightning",
+      "lightning_node"
+    ],
+    "followUps": [
+      "layers-fed-trust",
+      "layers-cashu-trust",
+      "layers-liquid-trust"
+    ],
+    "sources": "Justice transaction."
+  },
+  {
+    "id": "layers-fed-trust",
+    "category": "layers",
+    "question": "What do you trust in a Fedimint?",
+    "alts": [
+      "Explain this: what do you trust in a Fedimint?",
+      "Clarify this: what do you trust in a Fedimint?",
+      "Unpack this: what do you trust in a Fedimint?"
+    ],
+    "answer": "A Fedimint is a community mint whose guardians hold bitcoin and issue blinded ecash. You trust that a threshold of guardians stays honest and available. It is not the same as a key only you hold.",
+    "topics": [
+      "fedimints",
+      "fedi-ark"
+    ],
+    "followUps": [
+      "layers-cashu-trust",
+      "layers-liquid-trust",
+      "layers-ark-problem"
+    ],
+    "sources": "Federated custody."
+  },
+  {
+    "id": "layers-cashu-trust",
+    "category": "layers",
+    "question": "What do you trust with Cashu?",
+    "alts": [
+      "Explain this: what do you trust with Cashu?",
+      "Clarify this: what do you trust with Cashu?",
+      "Unpack this: what do you trust with Cashu?"
+    ],
+    "answer": "Cashu ecash is a note blinded so the mint should not see who paid whom, while the mint still holds the bitcoin. You trust that mint to redeem the note. Blind signatures do not remove the custodian.",
+    "topics": [
+      "chaumian-mints",
+      "chaumian_e-cash_and_blind_signatures"
+    ],
+    "followUps": [
+      "layers-liquid-trust",
+      "layers-ark-problem",
+      "layers-state-trust"
+    ],
+    "sources": "Mint custody plus blinding."
+  },
+  {
+    "id": "layers-liquid-trust",
+    "category": "layers",
+    "question": "What do you trust on Liquid?",
+    "alts": [
+      "Explain this: what do you trust on Liquid?",
+      "Clarify this: what do you trust on Liquid?",
+      "Unpack this: what do you trust on Liquid?"
+    ],
+    "answer": "Liquid is a federated sidechain: a set of functionaries controls the pegged bitcoin. You trust that federation to honor peg-outs. It can be useful and it is not base-layer self-custody.",
+    "topics": [
+      "sidechains",
+      "layer-3-sidechains"
+    ],
+    "followUps": [
+      "layers-ark-problem",
+      "layers-state-trust",
+      "layers-not-l1"
+    ],
+    "sources": "Federated peg."
+  },
+  {
+    "id": "layers-ark-problem",
+    "category": "layers",
+    "question": "What problem is Ark trying to solve?",
+    "alts": [
+      "Explain this: what problem is Ark trying to solve?",
+      "Clarify this: what problem is Ark trying to solve?",
+      "Unpack this: what problem is Ark trying to solve?"
+    ],
+    "answer": "Ark aims at sharing a pool of bitcoin so many people can receive payments without each opening a Lightning channel. It was still a young protocol as of 2026, with different trust details by design. It is not a second bitcoin.",
+    "topics": [
+      "fedi-ark",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "layers-state-trust",
+      "layers-not-l1",
+      "layers-lightning"
+    ],
+    "sources": "Ark, young as of 2026."
+  },
+  {
+    "id": "layers-state-trust",
+    "category": "layers",
+    "question": "What do you trust in a statechain?",
+    "alts": [
+      "Explain this: what do you trust in a statechain?",
+      "Clarify this: what do you trust in a statechain?",
+      "Unpack this: what do you trust in a statechain?"
+    ],
+    "answer": "A statechain transfers the right to spend a UTXO by passing key material through a coordinator, often with a timeout back to the previous owner. You trust the coordinator not to collude against the current owner. It is a different trust model from a private key you never share.",
+    "topics": [
+      "sidechains",
+      "self-custody"
+    ],
+    "followUps": [
+      "layers-not-l1",
+      "layers-lightning",
+      "layers-channel"
+    ],
+    "sources": "Coordinator trust."
+  },
+  {
+    "id": "layers-not-l1",
+    "category": "layers",
+    "question": "Why is a layer not the base chain?",
+    "alts": [
+      "Explain why is a layer not the base chain?",
+      "For what reason is a layer not the base chain?",
+      "What is the reason is a layer not the base chain?"
+    ],
+    "answer": "A layer can add speed or privacy by keeping some state off the global ledger. The bitcoin that backs it is only as safe as the exit back to a transaction nodes will accept. Calling a layer bitcoin does not give it the base chain's validation.",
+    "topics": [
+      "scalability",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "layers-lightning",
+      "layers-channel",
+      "layers-invoice"
+    ],
+    "sources": "Exit to L1."
+  }
+]

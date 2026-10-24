@@ -593,7 +593,7 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
         try {
             await admin.auth().createUser({
                 uid: lnUid,
-                displayName: '⚡anon-' + key.substring(0, 12),
+                displayName: '⚡wallet-' + key.substring(0, 12),
             });
         } catch(createErr) {
             console.error('Create user error:', createErr);
@@ -6914,6 +6914,19 @@ async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
             winners.push({ uid: doc.id, username: d.username || 'Anon', xp: d[periodField] || 0 });
         }
     });
+    for (let wi = 0; wi < winners.length; wi++) {
+        const stored = winners[wi].username ? String(winners[wi].username).trim() : '';
+        if (stored && stored !== 'Anon' && stored !== 'Anonymous') continue;
+        try {
+            const pub = await db.collection('public_profiles').doc(winners[wi].uid).get();
+            const pubName = pub.exists ? String((pub.data() || {}).username || '').trim() : '';
+            if (pubName && pubName !== 'Anon' && pubName !== 'Anonymous') {
+                winners[wi].username = pubName.slice(0, 40);
+            }
+        } catch (e) {
+            console.warn('[leaderboard] public name lookup failed');
+        }
+    }
 
     // Award tickets to winners
     const awardPromises = winners.map((w, i) =>
@@ -8931,6 +8944,7 @@ const {
     openGift,
     sendKeys,
     decryptCipher,
+    ackCipherShare,
     claimCipherWin,
     listMyCipherWins,
     adminListCipherWins,
@@ -8940,6 +8954,7 @@ exports.awardDailyGifts = awardDailyGifts;
 exports.openGift = openGift;
 exports.sendKeys = sendKeys;
 exports.decryptCipher = decryptCipher;
+exports.ackCipherShare = ackCipherShare;
 exports.claimCipherWin = claimCipherWin;
 exports.listMyCipherWins = listMyCipherWins;
 exports.adminListCipherWins = adminListCipherWins;
@@ -8988,6 +9003,10 @@ exports.deleteAccount = deleteAccountFns.deleteAccount;
 // tctvAggregatePresence; this callable only credits watch time.
 const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
 exports.tctvWatchHeartbeat = tctvWatchHeartbeat;
+
+// Clears the one-time backfill badge toast. The script writes the flag.
+const { ackBadgeBackfillToast } = require('./ack-badge-backfill');
+exports.ackBadgeBackfillToast = ackBadgeBackfillToast;
 
 // Topic discussions. Clients read topic_discussions; these callables are the
 // only writers. postTopicComment awaits Nacho's reply before returning.
