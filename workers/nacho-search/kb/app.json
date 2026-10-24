@@ -262,7 +262,7 @@
       "Explain a locked cipher in the app?",
       "Describe a locked cipher in the app?"
     ],
-    "answer": "A locked cipher opens when you use a key that has the same label. Open Quest Hub, then Nook or Inventory, pick the cipher, and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A locked cipher opens when you use a key that has the same label. If an accepted peer sent the key and you open the cipher, you both get the same prize and they see a reveal of what you won. That counts as one of their 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Ask in Chat whether anyone has the key. Open Quest Hub, then Nook or Inventory, pick the cipher, and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "ciphers",
       "keys"
@@ -283,7 +283,7 @@
       "Describe how cipher keys work here?",
       "In what way do cipher keys work here?"
     ],
-    "answer": "Cipher keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. Keys live in Inventory. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Cipher keys open locked ciphers when the label matches. You can send up to 3 keys to each accepted peer per day. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Keys live in Inventory. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "keys",
       "peers"
@@ -1898,7 +1898,7 @@
       "Describe locked ciphers?",
       "Define locked ciphers?"
     ],
-    "answer": "A locked cipher opens when you use a key that has the same label. Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A locked cipher opens when you use a key that has the same label. If an accepted peer sent the key and you open the cipher, you both get the same prize and they see a reveal of what you won. That counts as one of their 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Ask in Chat whether anyone has the key. Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "ciphers",
       "one-stop-shop"
@@ -1919,7 +1919,7 @@
       "Show me how to open a locked cipher?",
       "What is the way to open a locked cipher?"
     ],
-    "answer": "A locked cipher opens when you use a key that has the same label. Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A locked cipher opens when you use a key that has the same label. If an accepted peer sent the key and you open the cipher, you both get the same prize and they see a reveal of what you won. That counts as one of their 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Ask in Chat whether anyone has the key. Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "ciphers",
       "one-stop-shop"
@@ -1940,7 +1940,7 @@
       "Describe cipher keys?",
       "Define cipher keys?"
     ],
-    "answer": "Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "keys",
       "one-stop-shop"
@@ -1961,7 +1961,7 @@
       "Show me how to use a cipher key?",
       "What is the way to use a cipher key?"
     ],
-    "answer": "Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "keys",
       "one-stop-shop"

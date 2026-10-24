@@ -683,7 +683,7 @@ async function _showGiftFollowUp() {
         note.textContent = 'Send to a peer';
         var explain = document.createElement('div');
         explain.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;';
-        explain.textContent = 'You got ' + keyIds.length + ' spare key' + (keyIds.length > 1 ? 's' : '') + '. Send up to 3 to one peer today. If they open a matching cipher with a key you send, you both get the prize. Or keep one to open a matching cipher.';
+        explain.textContent = 'You got ' + keyIds.length + ' spare key' + (keyIds.length > 1 ? 's' : '') + '. Send up to 3 to one peer today. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Or keep one to open a matching cipher.';
         var send = _btn('Send keys to a peer');
         send.style.width = '100%';
         send.style.marginBottom = '8px';
@@ -820,7 +820,7 @@ function _lockedCipherNote(parent, label) {
     var text = document.createElement('div');
     text.style.cssText = 'font-size:0.8rem;color:var(--text);line-height:1.45;';
     var which = label ? ('a ' + label + ' key') : 'a key with the same label, such as 3A';
-    text.textContent = '🔒 Locked cipher: you need ' + which + ' to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key. If they send one and you open the cipher, you both get the prize. Ask in Chat whether anyone has the key.';
+    text.textContent = '🔒 Locked cipher: you need ' + which + ' to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key. If an accepted peer sent the key and you open the cipher, you both get the same prize and they see a reveal of what you won. That counts as one of their 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Ask in Chat whether anyone has the key.';
     var chat = document.createElement('button');
     chat.type = 'button';
     chat.textContent = 'Open Global Chat';
@@ -867,7 +867,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
     introRow.className = 'kc-intro';
     var intro = document.createElement('p');
     intro.style.cssText = 'font-size:0.78rem;color:var(--text-muted);line-height:1.4;';
-    intro.textContent = 'A key and a cipher with the same label, like F6, are a pair. Open the pair, or send a spare key to a peer.';
+    intro.textContent = 'A key and a cipher with the same label, like F6, are a pair. Open the pair, or send a spare key to a peer. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.';
     introRow.appendChild(intro);
     introRow.appendChild(_soundButton('nookSoundToggle'));
     el.appendChild(introRow);
@@ -906,13 +906,14 @@ window.renderKeysAndCiphersPanel = async function(container) {
         var countBit = group.length > 1 ? ' You have ' + group.length + '.' : '';
         if (match) {
             var fromWhom = peerKey ? (' This one came from ' + (peerKey.sentByName || 'a peer') + '.') : ' This one is yours.';
+            var shareBit = peerKey ? (' ' + "If an accepted peer sent the key and you open the cipher, you both get the same prize and they see a reveal of what you won. That counts as one of their 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.") : '';
             _copy(card,
                 'You have the ' + label + ' key! Open ' + label + ' cipher',
-                'A matching key opens this cipher. Opening uses up the key and the cipher.' + fromWhom + countBit);
+                'A matching key opens this cipher. Opening uses up the key and the cipher.' + fromWhom + shareBit + countBit);
         } else {
             _copy(card,
                 '🔒 Locked cipher ' + label,
-                'You need a ' + label + ' key to open it. Keys come from daily wheel gifts. Ask a peer to send you that key. If they send one and you open it, you both get the prize. Ask in Chat whether anyone has the key.' + countBit);
+                'You need a ' + label + ' key to open it. Keys come from daily wheel gifts. Ask a peer to send you that key. If an accepted peer sent the key and you open the cipher, you both get the same prize and they see a reveal of what you won. That counts as one of their 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Ask in Chat whether anyone has the key.' + countBit);
             var chat = document.createElement('button');
             chat.type = 'button';
             chat.className = 'cipher-open-btn';
@@ -956,7 +957,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         card.appendChild(lab);
         _copy(card,
             'Send to a peer',
-            'If a peer opens a matching cipher with this key, you both get the prize. One send of up to 3 keys per peer each day. You have ' + group.length + '.');
+            'If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. One send of up to 3 keys per peer each day. You have ' + group.length + '.');
         var send = _btn('Send keys');
         send.className = 'key-send-btn';
         var ids = group.slice(0, 3).map(function(k) { return k.id; });
@@ -1308,7 +1309,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
     h.textContent = 'Send ' + ids.length + ' key' + (ids.length > 1 ? 's' : '') + ' to…';
     var sub = document.createElement('div');
     sub.style.cssText = 'font-size:0.75rem;color:#cbd5e1;margin-bottom:12px;';
-    sub.textContent = 'Up to 3 keys per peer per day. If they open a matching cipher with your key, you both get the prize.';
+    sub.textContent = 'Up to 3 keys per peer per day. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.';
     sheet.appendChild(h);
     sheet.appendChild(sub);
     if (!peers.length) {
@@ -1378,7 +1379,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     sheet.appendChild(h);
     var limit = document.createElement('div');
     limit.style.cssText = 'font-size:0.78rem;color:#cbd5e1;margin-bottom:10px;line-height:1.4;';
-    limit.textContent = 'Up to 3 keys per peer per day. A key only opens a cipher with the same label. If they open a matching cipher with a key you send, you both get the prize.';
+    limit.textContent = 'Up to 3 keys per peer per day. A key only opens a cipher with the same label. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.';
     sheet.appendChild(limit);
 
     var today = _utcDay();
