@@ -750,7 +750,17 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     const sheetOnly = tableIds.filter(function (id) { return catalogIds.indexOf(id) === -1; });
     const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1; });
     assert.deepStrictEqual(sheetOnly, ['anon', 'flex_']);
-    assert.deepStrictEqual(catalogOnly, []);
+    // Merged collection bonuses stay out of badge-xp.json so the sheet cannot
+    // replace the remainder amount. The server pays from collection-sets.json.
+    assert.deepStrictEqual(catalogOnly, [
+        'col_arena_bonus', 'col_builder_bonus', 'col_community_bonus', 'col_daily_habits_bonus',
+        'col_entertainment_bonus', 'col_fitness_bonus', 'col_foresight_bonus', 'col_learning_bonus',
+        'col_lightning_bonus', 'col_mining_bonus', 'col_profile_bonus',
+    ]);
+    catalogOnly.forEach(function (id) {
+        assert.strictEqual(catalog.badges[id].hidden, true, id);
+        assert.ok(catalog.badges[id].xp > 0, id);
+    });
     assert.strictEqual(table.badges.flex_.xp, 0);
     assert.strictEqual(table.badges.anon.xp, 0);
     tableIds.forEach(function (id) {

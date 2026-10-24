@@ -82,7 +82,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
     const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
     const needsAwards = !verified && rule.source && (rule.source.type === 'awards' || rule.source.type === 'set');
 
-    return db.runTransaction(async function (t) {
+    const result = await db.runTransaction(async function (t) {
         const userSnap = await t.get(userRef);
         const awardSnap = await t.get(awardRef);
         const ledgerSnap = await t.get(ledgerRef);
@@ -108,6 +108,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
                 favor: false,
                 badgeId: badgeId,
             };
+        }
+        // Old set bonuses stay on profiles that already have them. New grants
+        // are the merged collection bonus, which pays the remainder itself.
+        if (require('./collectionBonus').isRetiredSetBonus(badgeId)) {
+            return { granted: false, success: false, reason: 'retired', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
 
         let flexClaims = options.flexClaims || null;
@@ -240,6 +245,17 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             cosmetic: false,
         };
     });
+    if (result && result.granted && options.skipCollections !== true) {
+        try {
+            await require('./collectionBonus').maybeGrantForBadge(db, adminSdk, uid, result.badgeId || badgeId, {
+                day: day,
+                nowMs: nowMs,
+            });
+        } catch (err) {
+            console.error('[collectionBonus]', err && err.message ? err.message : err);
+        }
+    }
+    return result;
 }
 
 module.exports = {

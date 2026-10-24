@@ -183,6 +183,19 @@ const extra = {
     set_raffle: { name: 'Raffle Regular Set', emoji: '🎟️', desc: 'Completed the Raffle Regular collection', xp: 500, category: 'Collections' },
 };
 
+const collectionBonus = require('./collectionBonus');
+collectionBonus.writeSetsFile();
+collectionBonus.collections().forEach(function (col) {
+    extra[col.bonusId] = {
+        name: col.bonusName,
+        emoji: col.bonusEmoji,
+        desc: col.bonusDesc,
+        xp: col.bonusPts,
+        category: 'Collections',
+        hidden: true,
+    };
+});
+
 const badges = {};
 Object.keys(serverXp).forEach(function (id) {
     const meta = client[id] || {};
@@ -218,7 +231,7 @@ Object.keys(extra).forEach(function (id) {
         emoji: extra[id].emoji,
         desc: extra[id].desc,
         xp: extra[id].xp,
-        hidden: false,
+        hidden: extra[id].hidden === true,
         category: extra[id].category,
     };
 });

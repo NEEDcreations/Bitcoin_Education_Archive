@@ -1,5 +1,5 @@
-// Cache-buster pin. This ship branch is btc-archive-v2348.
-// bundle.min.js is 20261023_v2348.
+// Cache-buster pin. This ship branch is btc-archive-v2352.
+// bundle.min.js is 20261024_v2352.
 // ranking.js stays 20261023_v2342 (guest Google sign-in). features.registry.js, nacho-qa.js, and guide.js stay 20261023_v2339.
 // global-chat.js is 20261023_v2345.
 // today-card.js and scholar.js stay 20261023_v2330.
@@ -24,12 +24,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2348', () => {
+test('service worker cache is v2352', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2348'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2352'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -37,7 +37,8 @@ test('service worker cache is v2348', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261023_v2348/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261024_v2352/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261023_v2348'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2347'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2346'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2345'));
@@ -118,7 +119,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
     assert.ok(html.includes('guide.js?v=20261023_v2339'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(swVersion && swVersion[1] === 'v2348');
+    assert.ok(swVersion && swVersion[1] === 'v2352');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -155,7 +156,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
+    assert.ok(notes.includes('Latest: The 32 badge collections are now 11, and completing one pays its new bonus minus any older set bonuses you already hold.'));
+    assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
+    assert.ok(!notes.includes('Latest: New badges cover'));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
     assert.ok(!notes.includes('Latest: Topic conversations'));
     assert.ok(notes.includes('Topic pages include a Start a conversation button between the paragraphs, and each discussion post shows its date and time.'));

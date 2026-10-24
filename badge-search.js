@@ -94,12 +94,37 @@
     function render(container, result) {
         var doc = container.ownerDocument || document;
         while (container.firstChild) container.removeChild(container.firstChild);
-        if (!result.total) {
+        var collections = result.collections || [];
+        collections.forEach(function (col) {
+            var row = doc.createElement('div');
+            row.setAttribute('data-collection-progress', col.id || col.name || '');
+            row.style.cssText = 'padding:10px 14px;border-top:1px solid var(--border);';
+            var name = doc.createElement('div');
+            name.style.cssText = 'font-size:0.82rem;font-weight:800;';
+            name.textContent = (col.emoji ? col.emoji + ' ' : '') + (col.name || '');
+            var prog = doc.createElement('div');
+            prog.style.cssText = 'font-size:0.7rem;color:var(--text-muted);margin-top:2px;';
+            prog.textContent = (Number(col.earned) || 0) + '/' + (Number(col.total) || 0) + ' · ' + (Number(col.pct) || 0) + '%';
+            var track = doc.createElement('div');
+            track.style.cssText = 'height:6px;border-radius:6px;background:var(--bg-side);overflow:hidden;margin-top:6px;';
+            var fill = doc.createElement('div');
+            fill.style.cssText = 'height:100%;border-radius:6px;background:' + (col.color || '#f7931a') + ';width:' + Math.max(0, Math.min(100, Number(col.pct) || 0)) + '%;';
+            track.appendChild(fill);
+            row.appendChild(name);
+            row.appendChild(prog);
+            row.appendChild(track);
+            container.appendChild(row);
+        });
+        if (!result.total && !collections.length) {
             var empty = doc.createElement('div');
             empty.style.padding = '12px 14px';
             empty.style.color = 'var(--text-muted)';
             empty.textContent = 'No badges found for "' + String(result.query || '') + '"';
             container.appendChild(empty);
+            container.style.display = 'block';
+            return;
+        }
+        if (!result.total) {
             container.style.display = 'block';
             return;
         }
@@ -155,6 +180,13 @@
         if (!box || !root.BadgeSearch || typeof root._badgeSearchRecords !== 'function') return;
         var index = buildIndex(root._badgeSearchRecords());
         var result = search(index, query, { showAll: showAll });
+        var qn = normalize(query);
+        result.collections = [];
+        if (qn && typeof root._badgeCollectionProgress === 'function') {
+            result.collections = root._badgeCollectionProgress().filter(function (col) {
+                return normalize(col.name).indexOf(qn) !== -1;
+            });
+        }
         render(box, result);
         active = -1;
         if (!query) {
