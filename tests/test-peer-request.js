@@ -399,7 +399,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261024_v2357'));
+    assert.ok(html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2354'));
@@ -426,7 +426,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
-    assert.ok(html.includes('bundle.min.js?v=20261024_v2350'));
+    assert.ok(html.includes('bundle.min.js?v=20261024_v2359'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2345'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2344'));
     assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2348'), false);
@@ -468,7 +468,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2263'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2261'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2252'), false);
-    assert.ok(html.includes('features.registry.js?v=20261024_v2357'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2359'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
@@ -500,7 +500,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2357'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2359'"));
     assert.ok(!sw.includes('btc-archive-v2356'));
     assert.ok(!sw.includes('btc-archive-v2355'));
     assert.ok(!sw.includes('btc-archive-v2354'));

@@ -358,7 +358,6 @@ function initRanking() {
             var guestHold = false;
             if (!existingDoc.exists) {
                 var _redirExtra = {};
-                if (user.email) _redirExtra.email = user.email;
                 await db.collection('users').doc(user.uid).set(clientCreatePayload(_redirExtra));
                 var _redirName = localStorage.getItem('btc_pending_username') || '';
                 if (_redirName) {
@@ -712,6 +711,17 @@ function accountCanLinkSignIn(user, profile) {
     return isLightningOnlyAccount(user, profile);
 }
 
+function linkedProviderIds(user) {
+    var ids = [];
+    var providers = (user && user.providerData) || [];
+    var i;
+    for (i = 0; i < providers.length; i++) {
+        var pid = providers[i] && providers[i].providerId;
+        if (pid && pid !== 'anonymous' && pid !== 'custom' && pid !== 'phone') ids.push(pid);
+    }
+    return ids;
+}
+
 function signOutWarningForAccount(user, profile) {
     if (!user) return null;
     if (user.isAnonymous) {
@@ -727,7 +737,7 @@ function signOutWarningForAccount(user, profile) {
 function accountLinkConflictMessage(code) {
     if (code === 'auth/provider-already-linked') return 'That sign-in is already on this account.';
     if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use' || code === 'auth/account-exists-with-different-credential') {
-        return 'That sign-in already belongs to another account. Sign in there instead. We did not combine the two accounts.';
+        return 'That sign-in already belongs to another account. Sign in there instead. We did not combine the two accounts. That sign-in belongs to another account; delete that account first if it\'s yours.';
     }
     return '';
 }
@@ -802,11 +812,333 @@ function renderSignInMethodsCard(user, profile) {
                 '<button type="button" id="accountGoogleLinkFallback" onclick="linkGoogleFromAccount()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Link Google</button>' +
                 '</div>';
         }
+    } else if (user && !user.isAnonymous) {
+        if (totpHold) {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.45;">' + accountLinkEscape(accountLinkTotpHoldMessage()) + '</div>';
+        } else {
+            var linkedIds = linkedProviderIds(user);
+            var addable = [
+                { id: 'password', label: 'Email' },
+                { id: 'google.com', label: 'Google' },
+                { id: 'twitter.com', label: 'X' },
+                { id: 'github.com', label: 'GitHub' }
+            ];
+            html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+            addable.forEach(function(item) {
+                if (linkedIds.indexOf(item.id) !== -1) return;
+                html += '<button type="button" onclick="linkFullAccountProvider(\'' + item.id + '\')" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Add ' + accountLinkEscape(item.label) + '</button>';
+            });
+            if (linkedIds.length > 1) {
+                linkedIds.forEach(function(pid) {
+                    if (pid === 'phone') return;
+                    var label = ({ 'password': 'Email', 'google.com': 'Google', 'twitter.com': 'X', 'github.com': 'GitHub', 'facebook.com': 'Facebook' })[pid] || pid;
+                    html += '<button type="button" onclick="unlinkFullAccountProvider(\'' + pid + '\')" style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove ' + accountLinkEscape(label) + '</button>';
+                });
+            }
+            html += '</div>';
+        }
     }
     html += '</div>';
     return html;
 }
 // ACCOUNT_LINK_PLAN_END
+
+function maskEmailAddress(email) {
+    var value = String(email || '').trim();
+    var at = value.indexOf('@');
+    if (at < 1) return '';
+    var local = value.slice(0, at);
+    var domain = value.slice(at);
+    var head = local.charAt(0);
+    return head + '***' + domain;
+}
+
+function oauthOwnsEmail(user) {
+    var ids = linkedProviderIds(user);
+    var oauth = ids.indexOf('google.com') !== -1 || ids.indexOf('twitter.com') !== -1 || ids.indexOf('github.com') !== -1 || ids.indexOf('facebook.com') !== -1;
+    return oauth && ids.indexOf('password') === -1;
+}
+
+function accountEmailAction(user) {
+    if (!user || user.isAnonymous) return 'none';
+    if (oauthOwnsEmail(user)) return 'provider';
+    if (!user.email) return 'add';
+    return 'change';
+}
+
+async function syncAccountEmailFromAuth() {
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous || typeof firebase === 'undefined' || !firebase.functions) return null;
+    var res = await firebase.functions().httpsCallable('syncEmailChange')({});
+    var data = res && res.data ? res.data : {};
+    if (data.notice && typeof showToast === 'function') showToast(data.notice, 8000);
+    return data;
+}
+
+window.reauthForSensitiveAction = async function(purpose) {
+    var user = auth && auth.currentUser;
+    if (!user) {
+        if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+        return false;
+    }
+    try {
+        var token = await user.getIdTokenResult();
+        var authTime = token && token.claims ? Number(token.claims.auth_time) : NaN;
+        var age = Math.floor(Date.now() / 1000) - authTime;
+        if (isFinite(age) && age >= 0 && age <= 300) return true;
+    } catch (e) {}
+    return window.showReauthStep(user, purpose);
+};
+
+window.showReauthStep = function(user, purpose) {
+    return new Promise(function(resolve) {
+        var existing = document.getElementById('reauthOverlay');
+        if (existing) existing.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'reauthOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+        var ids = linkedProviderIds(user);
+        var uid = String((user && user.uid) || '');
+        var buttons = '';
+        if (ids.indexOf('google.com') !== -1) buttons += '<button type="button" id="reauthGoogle" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with Google</button>';
+        if (ids.indexOf('twitter.com') !== -1) buttons += '<button type="button" id="reauthX" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with X</button>';
+        if (ids.indexOf('github.com') !== -1) buttons += '<button type="button" id="reauthGitHub" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with GitHub</button>';
+        if (ids.indexOf('facebook.com') !== -1) buttons += '<button type="button" id="reauthFacebook" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with Facebook</button>';
+        if (ids.indexOf('password') !== -1) {
+            buttons += '<label for="reauthPassword" style="display:block;font-size:0.75rem;color:var(--text-faint);margin:8px 0 6px;">Password</label>';
+            buttons += '<input id="reauthPassword" type="password" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:8px;box-sizing:border-box;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;">';
+            buttons += '<button type="button" id="reauthPasswordBtn" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Confirm password</button>';
+        }
+        if (!ids.length && user && user.email) {
+            buttons += '<button type="button" id="reauthEmailLink" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Email me a sign-in link</button>';
+        }
+        if (uid.indexOf('nostr:') === 0) buttons += '<button type="button" id="reauthNostr" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Sign in with Nostr again</button>';
+        if (uid.indexOf('ln:') === 0) buttons += '<button type="button" id="reauthLn" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Sign in with Lightning again</button>';
+        overlay.innerHTML = '<div id="reauthCard" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
+            '<h2 style="margin:0 0 8px;color:var(--heading);font-size:1.1rem;">Confirm it is you</h2>' +
+            '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 16px;">Sign in again before ' + accountLinkEscape(purpose || 'this change') + '.</p>' +
+            buttons +
+            '<button type="button" id="reauthCancel" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        function finish(ok) {
+            var node = document.getElementById('reauthOverlay');
+            if (node) node.remove();
+            resolve(!!ok);
+        }
+        document.getElementById('reauthCancel').onclick = function() { finish(false); };
+        overlay.onclick = function(e) { if (e.target === overlay) finish(false); };
+        async function popup(provider) {
+            try {
+                await user.reauthenticateWithPopup(provider);
+                finish(true);
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+                finish(false);
+            }
+        }
+        var googleBtn = document.getElementById('reauthGoogle');
+        if (googleBtn) googleBtn.onclick = function() { popup(new firebase.auth.GoogleAuthProvider()); };
+        var xBtn = document.getElementById('reauthX');
+        if (xBtn) xBtn.onclick = function() { popup(new firebase.auth.TwitterAuthProvider()); };
+        var ghBtn = document.getElementById('reauthGitHub');
+        if (ghBtn) ghBtn.onclick = function() { popup(new firebase.auth.GithubAuthProvider()); };
+        var fbBtn = document.getElementById('reauthFacebook');
+        if (fbBtn) fbBtn.onclick = function() { popup(new firebase.auth.FacebookAuthProvider()); };
+        var pwBtn = document.getElementById('reauthPasswordBtn');
+        if (pwBtn) pwBtn.onclick = async function() {
+            var password = (document.getElementById('reauthPassword').value || '');
+            try {
+                var cred = firebase.auth.EmailAuthProvider.credential(user.email, password);
+                await user.reauthenticateWithCredential(cred);
+                finish(true);
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+            }
+        };
+        var linkBtn = document.getElementById('reauthEmailLink');
+        if (linkBtn) linkBtn.onclick = async function() {
+            try {
+                sessionStorage.setItem('btc_reauth_email', user.email || '');
+                await auth.sendSignInLinkToEmail(user.email, {
+                    url: window.location.origin + window.location.pathname + '?reauth=1',
+                    handleCodeInApp: true
+                });
+                if (typeof showToast === 'function') showToast('Check your email, then come back to finish.');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+            }
+        };
+        var nostrBtn = document.getElementById('reauthNostr');
+        if (nostrBtn) nostrBtn.onclick = async function() {
+            try {
+                if (typeof nostrSignInWithExtension === 'function') await nostrSignInWithExtension();
+                finish(true);
+            } catch (err) { finish(false); }
+        };
+        var lnBtn = document.getElementById('reauthLn');
+        if (lnBtn) lnBtn.onclick = async function() {
+            try {
+                var startLightning = window['signInWithLightning'];
+                if (typeof startLightning === 'function') await startLightning();
+                finish(true);
+            } catch (err) { finish(false); }
+        };
+    });
+};
+
+async function freshProviderStep(action) {
+    var payload = { action: action };
+    if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+        var proof = await window._showFreshStepUp(action);
+        if (!proof) return null;
+        payload.freshProofId = proof;
+    }
+    await firebase.functions().httpsCallable('confirmAccountLink')(payload);
+    return true;
+}
+
+function providerForId(pid) {
+    if (pid === 'google.com') return new firebase.auth.GoogleAuthProvider();
+    if (pid === 'twitter.com') return new firebase.auth.TwitterAuthProvider();
+    if (pid === 'github.com') return new firebase.auth.GithubAuthProvider();
+    if (pid === 'facebook.com') return new firebase.auth.FacebookAuthProvider();
+    return null;
+}
+
+window.linkFullAccountProvider = async function(pid) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous) return;
+    if (pid === 'password') {
+        var email = window.prompt('Email to link');
+        if (!email) return;
+        var ready = await window.reauthForSensitiveAction('linking email');
+        if (!ready) return;
+        var proof = await freshProviderStep('linkProvider');
+        if (!proof) return;
+        try {
+            writeAccountLinkIntent(user, email);
+            await auth.sendSignInLinkToEmail(String(email).trim(), {
+                url: window.location.origin + window.location.pathname,
+                handleCodeInApp: true
+            });
+            if (typeof showToast === 'function') showToast('Check that email for a link to add it to this account.');
+        } catch (err) {
+            var conflict = accountLinkConflictMessage(err && err.code);
+            if (typeof showToast === 'function') showToast(conflict || 'Could not link that email.');
+        }
+        return;
+    }
+    var provider = providerForId(pid);
+    if (!provider) return;
+    var readyPop = await window.reauthForSensitiveAction('linking a sign-in');
+    if (!readyPop) return;
+    var proofPop = await freshProviderStep('linkProvider');
+    if (!proofPop) return;
+    try {
+        await user.linkWithPopup(provider);
+        try { await syncAccountEmailFromAuth(); } catch (e) {}
+        if (typeof showToast === 'function') showToast('Sign-in linked.');
+        if (typeof refreshAccountSignInCard === 'function') refreshAccountSignInCard();
+    } catch (err) {
+        var msg = accountLinkConflictMessage(err && err.code);
+        if (typeof showToast === 'function') showToast(msg || 'Could not link that sign-in.');
+    }
+};
+
+window.unlinkFullAccountProvider = async function(pid) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    if (!user) return;
+    var ids = linkedProviderIds(user);
+    if (ids.length < 2) {
+        if (typeof showToast === 'function') showToast('Keep at least one sign-in on this account.');
+        return;
+    }
+    var ready = await window.reauthForSensitiveAction('removing a sign-in');
+    if (!ready) return;
+    var proof = await freshProviderStep('unlinkProvider');
+    if (!proof) return;
+    try {
+        await user.unlink(pid);
+        try { await syncAccountEmailFromAuth(); } catch (e) {}
+        if (typeof showToast === 'function') showToast('Sign-in removed.');
+        if (typeof refreshAccountSignInCard === 'function') refreshAccountSignInCard();
+    } catch (err) {
+        if (typeof showToast === 'function') showToast('Could not remove that sign-in.');
+    }
+};
+
+window.showChangeEmailModal = function() {
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous) return;
+    var mode = accountEmailAction(user);
+    if (mode === 'provider') {
+        if (typeof showToast === 'function') showToast('That email belongs to your linked sign-in. Use Sign-in methods.');
+        return;
+    }
+    var existing = document.getElementById('changeEmailModal');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'changeEmailModal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    var title = mode === 'add' ? 'Add email' : 'Change email';
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
+        '<h2 style="margin:0 0 8px;color:var(--heading);font-size:1.1rem;">' + title + '</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 12px;">We email the new address to confirm it, and the previous address gets a link to revert the change.</p>' +
+        '<input id="changeEmailInput" type="email" autocomplete="email" placeholder="name@example.com" style="width:100%;padding:12px;box-sizing:border-box;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;margin-bottom:12px;">' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button type="button" onclick="document.getElementById(\'changeEmailModal\').remove()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '<button type="button" id="changeEmailSubmit" onclick="submitEmailChange()" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Send link</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+};
+
+window.submitEmailChange = async function() {
+    var input = document.getElementById('changeEmailInput');
+    var email = input ? String(input.value || '').trim() : '';
+    if (!email) return;
+    var btn = document.getElementById('changeEmailSubmit');
+    if (btn) btn.disabled = true;
+    try {
+        var ready = await window.reauthForSensitiveAction('changing your email');
+        if (!ready) { if (btn) btn.disabled = false; return; }
+        var payload = { email: email };
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode()) {
+            var proof = await window._showFreshStepUp('changeEmail');
+            if (!proof) { if (btn) btn.disabled = false; return; }
+            payload.freshProofId = proof;
+        }
+        await firebase.functions().httpsCallable('prepareEmailChange')(payload);
+        await auth.currentUser.verifyBeforeUpdateEmail(email, {
+            url: window.location.origin + window.location.pathname + '?emailChange=1',
+            handleCodeInApp: true
+        });
+        var modal = document.getElementById('changeEmailModal');
+        if (modal) modal.remove();
+        if (typeof showToast === 'function') showToast('Check both email addresses. The new one gets a confirm link, and the old one gets a revert link.');
+    } catch (err) {
+        var code = err && err.code;
+        var friendly = "That email can't be used.";
+        if (code === 'auth/email-already-in-use' || code === 'functions/already-exists') {
+            if (typeof showToast === 'function') showToast(friendly);
+        } else if (code === 'functions/resource-exhausted' || code === 'resource-exhausted') {
+            if (typeof showToast === 'function') showToast('Too many attempts. Try again later.');
+        } else if (code === 'functions/invalid-argument' || code === 'invalid-argument') {
+            if (typeof showToast === 'function') showToast(friendly);
+        } else if (typeof showToast === 'function') {
+            showToast((err && err.message) || friendly);
+        }
+        if (btn) btn.disabled = false;
+    }
+};
 
 var ACCOUNT_LINK_STORAGE_KEY = 'btc_account_link';
 
@@ -1932,7 +2264,6 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
     var existingDoc = await db.collection('users').doc(user.uid).get();
     if (!existingDoc.exists) {
         var _provExtra = {};
-        if (user.email) _provExtra.email = user.email;
         var _provLn = normalizeClientLn(_pendingLn);
         if (clientLnValid(_provLn)) { _provExtra.lightning = _provLn; _provExtra.lightningAddress = _provLn; }
         if (_pendingCountry) _provExtra.country = _pendingCountry;
@@ -1966,9 +2297,6 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         }
         if (_pendingFaction && !existingDoc.data().faction) {
             try { await flushSignupFaction(_pendingFaction); } catch (e) {}
-        }
-        if (!existingDoc.data().email && user.email) {
-            try { await existingDoc.ref.update({ email: user.email }); } catch(e) {}
         }
     }
     var guestHold = false;
@@ -2348,6 +2676,14 @@ async function loadUser(uid, prefetchedDoc) {
             if (!gateOpen) {
                 _showTotpSignInChallenge();
                 return;
+            }
+            if (window._emailSyncUid !== uid) {
+                window._emailSyncUid = uid;
+                try {
+                    await syncAccountEmailFromAuth();
+                } catch (syncErr) {
+                    window._emailSyncUid = null;
+                }
             }
         }
         window._myPeers = new Set(currentUser.peers || []);
@@ -2772,7 +3108,7 @@ async function loadUser(uid, prefetchedDoc) {
         // User exists in auth but not in Firestore - recreate their doc
         const user = auth.currentUser;
         if (user && !user.isAnonymous) {
-            const newData = clientCreatePayload({ email: user.email || '' });
+            const newData = clientCreatePayload({});
             await db.collection('users').doc(uid).set(newData);
             if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400);
             currentUser = { uid, ...newData };
@@ -2910,7 +3246,7 @@ function clientCreatePayload(extra) {
         lastVisit: new Date().toISOString().split('T')[0],
         created: firebase.firestore.FieldValue.serverTimestamp()
     };
-    var allow = { email: 1, profilePic: 1, displayName: 1, country: 1, lightning: 1, lightningAddress: 1, nostr: 1, lastLogin: 1, signupSource: 1, tosVersion: 1, tosAcceptedAt: 1 };
+    var allow = { profilePic: 1, displayName: 1, country: 1, lightning: 1, lightningAddress: 1, nostr: 1, lastLogin: 1, signupSource: 1, tosVersion: 1, tosAcceptedAt: 1 };
     var src = extra || {};
     Object.keys(src).forEach(function (k) {
         if (allow[k] && src[k] !== undefined && src[k] !== '') data[k] = src[k];
@@ -4625,27 +4961,37 @@ window._changeExperienceMode = function(mode) {
 window.showDeleteAccountConfirm = function() {
     var overlay = document.createElement('div');
     overlay.id = 'deleteAccountOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:450000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
-    var username = (currentUser && currentUser.username) ? currentUser.username : 'your account';
+    var username = (currentUser && currentUser.username) ? currentUser.username : '';
+    var shownName = username || 'your account';
+    var confirmWord = username || 'DELETE';
     var pts = currentUser ? (currentUser.points || 0) : 0;
     var streak = currentUser ? (currentUser.streak || 0) : 0;
+    var directSats = currentUser ? Number(currentUser.sats) : 0;
+    var availablePts = currentUser ? ((Number(currentUser.points) || 0) - (Number(currentUser.pointsClaimed) || 0) - (Number(currentUser.pointsDonated) || 0) - (Number(currentUser.pointsExchanged) || 0)) : 0;
+    var satsN = directSats > 0 ? directSats : Math.floor(Math.max(0, availablePts) / 10);
+    var forfeitHtml = '';
+    if (satsN > 0) {
+        forfeitHtml = '<div id="deleteForfeitWarning" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-radius:12px;padding:12px;margin-bottom:12px;color:#ef4444;font-size:0.85rem;line-height:1.5;font-weight:700;">Your ' + satsN.toLocaleString() + ' sats balance and any pending sats/withdrawals are forfeited.</div>' +
+            '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;color:var(--text);font-size:0.85rem;line-height:1.4;"><input id="deleteForfeitCheck" type="checkbox" onclick="window._deleteConfirmReady()" style="margin-top:3px;"> I understand this balance is forfeited.</label>';
+    }
 
     overlay.innerHTML =
-        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:20px;padding:28px;max-width:420px;width:100%;animation:fadeSlideIn 0.3s;">' +
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:20px;padding:28px;max-width:420px;width:100%;">' +
             '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:3rem;">⚠️</span></div>' +
             '<h2 style="color:#ef4444;text-align:center;margin:0 0 12px;font-size:1.2rem;">Delete Your Account?</h2>' +
             '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:16px;text-align:center;">' +
-                'This will <strong style="color:#ef4444;">permanently delete</strong> everything associated with <strong>' + escapeHtml(username) + '</strong>:' +
+                'This will <strong style="color:#ef4444;">permanently delete</strong> everything associated with <strong>' + escapeHtml(shownName) + '</strong>:' +
             '</div>' +
             '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">' +
                 '<div style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;color:var(--text-muted);">' +
                     '<div>❌ <strong>' + pts.toLocaleString() + ' XP</strong> and all badges</div>' +
                     (streak > 0 ? '<div>❌ <strong>' + streak + '-day streak</strong></div>' : '') +
-                    '<div>❌ All forum posts and replies</div>' +
+                    '<div>❌ Posts nobody replied to. Posts other people replied to stay up as [deleted]</div>' +
                     '<div>❌ Marketplace listings</div>' +
-                    '<div>❌ DM conversations</div>' +
+                    '<div>❌ DM conversations (deleted for both people)</div>' +
                     '<div>❌ Global Chat messages (shown as [deleted])</div>' +
                     '<div>❌ Uploaded music, images, and avatar</div>' +
                     '<div>❌ Notifications and push tokens</div>' +
@@ -4655,10 +5001,11 @@ window.showDeleteAccountConfirm = function() {
                     '<div>❌ Referral signup record</div>' +
                 '</div>' +
             '</div>' +
+            forfeitHtml +
             '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;text-align:center;margin-bottom:16px;">⚠️ This action is IRREVERSIBLE. There is no undo.</div>' +
             '<div style="margin-bottom:16px;">' +
-                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Type <strong style="color:#ef4444;">DELETE</strong> to confirm:</label>' +
-                '<input type="text" id="deleteConfirmInput" placeholder="Type DELETE here" autocomplete="off" style="width:100%;padding:12px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;text-align:center;outline:none;box-sizing:border-box;" oninput="var btn=document.getElementById(\'deleteConfirmBtn\');if(btn){if(this.value===\'DELETE\'){btn.disabled=false;btn.style.opacity=1;}else{btn.disabled=true;btn.style.opacity=0.4;}}">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Type <strong style="color:#ef4444;">' + escapeHtml(confirmWord) + '</strong> to confirm:</label>' +
+                '<input type="text" id="deleteConfirmInput" data-confirm="' + escapeHtml(confirmWord) + '" placeholder="Type ' + escapeHtml(confirmWord) + '" autocomplete="off" style="width:100%;padding:12px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;text-align:center;outline:none;box-sizing:border-box;" oninput="window._deleteConfirmReady()">' +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
                 '<button onclick="document.getElementById(\'deleteAccountOverlay\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>' +
@@ -4669,9 +5016,27 @@ window.showDeleteAccountConfirm = function() {
     document.body.appendChild(overlay);
 };
 
+window._deleteConfirmReady = function() {
+    var input = document.getElementById('deleteConfirmInput');
+    var btn = document.getElementById('deleteConfirmBtn');
+    var expected = input ? String(input.getAttribute('data-confirm') || '') : '';
+    var typed = input ? String(input.value || '').trim() : '';
+    var nameOk = expected ? typed.toLowerCase() === expected.toLowerCase() : false;
+    var box = document.getElementById('deleteForfeitCheck');
+    var forfeitOk = !box || box.checked;
+    if (btn) {
+        btn.disabled = !(nameOk && forfeitOk);
+        btn.style.opacity = btn.disabled ? '0.4' : '1';
+    }
+};
+
 window.confirmDeleteAccount = async function() {
     var input = document.getElementById('deleteConfirmInput');
-    if (!input || input.value !== 'DELETE') return;
+    var expected = input ? String(input.getAttribute('data-confirm') || '') : '';
+    var typed = input ? String(input.value || '').trim() : '';
+    if (!input || !expected || typed.toLowerCase() !== expected.toLowerCase()) return;
+    var forfeitBox = document.getElementById('deleteForfeitCheck');
+    if (forfeitBox && !forfeitBox.checked) return;
 
     var btn = document.getElementById('deleteConfirmBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
@@ -4683,9 +5048,16 @@ window.confirmDeleteAccount = async function() {
             throw new Error('Account deletion is unavailable. Reload and try again.');
         }
 
+        var reauthed = await window.reauthForSensitiveAction('deleting your account');
+        if (!reauthed) {
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            return;
+        }
+
         // Server wipe. The owner must have signed in recently. A remembered
         // device is not enough: deletion needs a fresh authenticator proof.
-        var deletePayload = {};
+        var deletePayload = { confirmUsername: typed };
+        if (forfeitBox && forfeitBox.checked) deletePayload.acknowledgeForfeit = true;
         if (mfaNeedsFreshCode()) {
             var deleteProof = await window._showFreshStepUp('deleteAccount');
             if (!deleteProof) {
@@ -4706,10 +5078,9 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // Delete the server-only referral signup record, then finish any
-        // Auth session still cached in the browser. The server wipe already
-        // deletes the Firebase user, so user-not-found means that step is done.
-        try { await firebase.functions().httpsCallable('deleteMyReferralSignal')({}); } catch (e) { console.warn('Referral signal delete failed:', e); }
+        // The server deletes the referral signup record with the account, then
+        // finishes any Auth session still cached in the browser. The server wipe
+        // already deletes the Firebase user, so user-not-found means that step is done.
         try {
             await user.delete();
         } catch (authErr) {
@@ -6150,7 +6521,47 @@ function showSettingsPage(tab) {
         // Advanced Account content (hidden, appears at bottom when toggled)
         html += '<div id="advAcctContent" style="display:none;">' + _advHtml + '</div>';
 
+function accountEmailCardHtml(user) {
+    if (!user || user.isAnonymous) return '';
+    var action = accountEmailAction(user);
+    var masked = maskEmailAddress(user.email || '');
+    var verified = user.emailVerified ? 'Verified' : 'Not verified';
+    var provider = oauthOwnsEmail(user) ? 'Linked sign-in' : (user.email ? 'Email sign-in' : 'No email yet');
+    var html = '<div id="accountEmailCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">';
+    html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Email</div>';
+    html += '<div style="color:var(--heading);font-weight:700;font-size:0.95rem;">' + (masked ? accountLinkEscape(masked) : 'No email on this account') + '</div>';
+    html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + accountLinkEscape(provider) + (user.email ? ' · ' + verified : '') + '</div>';
+    if (action === 'provider') {
+        html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;line-height:1.45;">That email belongs to your linked sign-in. Manage it under Sign-in methods.</div>';
+    } else if (action === 'add') {
+        html += '<button type="button" onclick="showChangeEmailModal()" style="margin-top:10px;padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Add email</button>';
+    } else if (action === 'change') {
+        html += '<button type="button" onclick="showChangeEmailModal()" style="margin-top:10px;padding:10px 14px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Change email</button>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function accountDeleteRowHtml(user) {
+    var html = '<div id="deleteAccountRow" style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.35);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">';
+    if (!user || user.isAnonymous) {
+        html += '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">Guest data</div>';
+        html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Clear this guest session and the progress stored on it.</div>';
+        html += '<button type="button" onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Clear guest data</button>';
+    } else {
+        html += '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">Delete account</div>';
+        html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Delete this account after you confirm your username. Sats still on the account are forfeited. There is no waiting period.</div>';
+        html += '<button type="button" id="accountDeleteButton" onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Delete account</button>';
+    }
+    html += '</div>';
+    return html;
+}
+
+        html += accountEmailCardHtml(user);
+
         html += renderSignInMethodsCard(user, (typeof currentUser !== 'undefined') ? currentUser : null);
+
+        html += accountDeleteRowHtml(user);
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
@@ -7174,8 +7585,8 @@ function showSettingsPage(tab) {
         if (!user.isAnonymous) {
             html += '<div style="background:rgba(239,68,68,0.05);border:2px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;margin-top:24px;">' +
                 '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">⚠️ Danger Zone</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Permanently delete your account, all your data, XP, badges, and progress. This action cannot be undone.</div>' +
-                '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete My Account</button>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Account deletion is on the Account tab. You confirm your username there. Sats still on the account are forfeited.</div>' +
+                '<button onclick="showSettingsPage(\'account\')" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">Delete account</button>' +
                 '</div>';
         }
         html += '</div>'; // close advSecPanel
@@ -7519,7 +7930,7 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Data</div>' +
             '<button onclick="exportUserData()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">📥 Export My Data</button>' +
-            '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
+            '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
             '</div>';
         html += '</div>'; // close advStatsPanel
     }

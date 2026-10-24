@@ -461,7 +461,12 @@ async function main() {
             code: codeAt(enrolled.secret, now),
             action: 'deleteAccount',
         }, enrolled.context);
-        const deleted = await fns.deleteAccount.run({ freshProofId: stepped.freshProofId }, enrolled.context);
+        if (!process.env.DELETION_HMAC_SECRET) process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
+        const deleted = await fns.deleteAccount.run({
+            freshProofId: stepped.freshProofId,
+            confirmUsername: 'DELETE',
+            acknowledgeForfeit: true,
+        }, enrolled.context);
         assert.strictEqual(deleted.ok, true);
         let gone = false;
         try { await admin.auth().getUser(uid); } catch (e) { gone = true; }

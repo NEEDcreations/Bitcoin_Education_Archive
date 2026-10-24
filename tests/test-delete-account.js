@@ -21,7 +21,23 @@ del.createDeleteAccountHandlers = function(opts) {
             authenticator: { generateSecret: function() { return 'x'; }, keyuri: function() { return 'otpauth'; }, checkDelta: function() { return null; }, options: {} },
             QRCode: { toDataURL: async function() { return ''; } },
         });
-        return inner(data, context);
+        if (!process.env.DELETION_HMAC_SECRET) process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
+        const body = Object.assign({}, data || {});
+        if (!body.confirmUsername && opts.db && context && context.auth && context.auth.uid) {
+            try {
+                const snap = await opts.db.collection('users').doc(context.auth.uid).get();
+                const user = snap && snap.exists ? (snap.data() || {}) : {};
+                body.confirmUsername = user.username ? user.username : 'DELETE';
+                const direct = Number(user.sats);
+                const points = Number(user.points) || 0;
+                const claimed = Number(user.pointsClaimed) || 0;
+                const donated = Number(user.pointsDonated) || 0;
+                const exchanged = Number(user.pointsExchanged) || 0;
+                const balance = direct > 0 ? direct : Math.floor((points - claimed - donated - exchanged) / 10);
+                if (balance > 0) body.acknowledgeForfeit = true;
+            } catch (e) {}
+        }
+        return inner(body, context);
     };
     return handlers;
 };
@@ -127,6 +143,12 @@ function createFakeDb(initial) {
                 }
                 return Array.from(names).map(function(name) { return collection(prefix + name); });
             },
+            set: async function(data, options) {
+                const prev = docs.has(docPath) ? docs.get(docPath) : {};
+                if (options && options.merge) docs.set(docPath, Object.assign({}, prev, data));
+                else docs.set(docPath, Object.assign({}, data));
+            },
+            delete: async function() { docs.delete(docPath); },
         };
         return ref;
     }
@@ -872,6 +894,12 @@ function auth(uid, extras) {
 
     test('the client calls the server wipe and does not delete Firestore itself', function() {
         const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+        assert.ok(ranking.includes('z-index:450000'));
+        assert.ok(ranking.includes('z-index:490000'));
+        assert.ok(ranking.includes('html += accountEmailCardHtml(user)'));
+        assert.ok(ranking.includes('html += accountDeleteRowHtml(user)'));
+        assert.ok(ranking.includes('id="accountEmailCard"'));
+        assert.ok(ranking.includes('id="accountDeleteButton"'));
         assert.ok(ranking.includes("httpsCallable('deleteAccount', { timeout: 540000 })"));
         assert.ok(ranking.includes('_isMfaBlock'));
         assert.ok(ranking.includes('_showTotpSignInChallenge'));
@@ -1531,6 +1559,142 @@ function auth(uid, extras) {
             if (prev == null) delete process.env.DELETE_RATE_IP_SECRET;
             else process.env.DELETE_RATE_IP_SECRET = prev;
         }
+    });
+
+    await testAsync('username confirm and sats forfeit are server checks', async function() {
+        const db = createFakeDb(world());
+        initSecondFactor({
+            db: db,
+            admin: { auth: function() { return okAuth(db); } },
+            HttpsError: HttpsError,
+            authenticator: { generateSecret: function() { return 'x'; }, keyuri: function() { return 'otpauth'; }, checkDelta: function() { return null; }, options: {} },
+            QRCode: { toDataURL: async function() { return ''; } },
+        });
+        const handlers = _createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret',
+        });
+        const context = { auth: auth('u1'), rawRequest: { headers: {} } };
+        await assert.rejects(
+            function() { return handlers.deleteAccount({ confirmUsername: 'nope', acknowledgeForfeit: true }, context); },
+            function(err) { return err.code === 'failed-precondition' && /username/i.test(err.message); }
+        );
+        assert.ok(db.docs.has('users/u1'));
+        await assert.rejects(
+            function() { return handlers.deleteAccount({ confirmUsername: 'Alice' }, context); },
+            function(err) { return err.code === 'failed-precondition' && /forfeit/i.test(err.message); }
+        );
+        assert.ok(db.docs.has('users/u1'));
+    });
+
+    await testAsync('tombstone records the email hash and blocks a fourth deletion in 30 days', async function() {
+        process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
+        const tomb = require(path.join(root, 'functions', 'src', 'accountTombstone'));
+        const db = createFakeDb(world());
+        db.docs.set('users/u1', Object.assign({}, db.docs.get('users/u1'), { email: 'Alice@Example.com', banned: true }));
+        initSecondFactor({
+            db: db,
+            admin: { auth: function() { return okAuth(db); } },
+            HttpsError: HttpsError,
+            authenticator: { generateSecret: function() { return 'x'; }, keyuri: function() { return 'otpauth'; }, checkDelta: function() { return null; }, options: {} },
+            QRCode: { toDataURL: async function() { return ''; } },
+        });
+        const handlers = _createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return Date.now(); },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-tomb',
+        });
+        await handlers.deleteAccount({ confirmUsername: 'Alice', acknowledgeForfeit: true }, {
+            auth: auth('u1', { token: { auth_time: 1000, email: 'alice@example.com' } }),
+            rawRequest: { headers: {} },
+        });
+        const id = tomb.emailHmac('alice@example.com');
+        assert.ok(id && db.docs.has('deleted_accounts/' + id));
+        const row = db.docs.get('deleted_accounts/' + id);
+        assert.strictEqual(row.banned, true);
+        assert.ok(JSON.stringify(row).toLowerCase().indexOf('alice@') === -1);
+        assert.ok(!row.expireAt, 'banned tombstone is kept');
+        row.deletionHits = [Date.now(), Date.now() - 1000, Date.now() - 2000];
+        db.docs.set('users/u1', { username: 'Alice', email: 'alice@example.com', points: 10 });
+        await assert.rejects(
+            function() {
+                return handlers.deleteAccount({ confirmUsername: 'Alice', acknowledgeForfeit: true }, {
+                    auth: auth('u1', { token: { auth_time: 1000, email: 'alice@example.com' } }),
+                    rawRequest: { headers: {} },
+                });
+            },
+            function(err) { return err.code === 'resource-exhausted'; }
+        );
+        const prev = process.env.DELETION_HMAC_SECRET;
+        delete process.env.DELETION_HMAC_SECRET;
+        db.docs.set('users/u9', { username: 'Ned', email: 'ned@example.com', points: 0 });
+        await assert.rejects(
+            function() {
+                return handlers.deleteAccount({ confirmUsername: 'Ned' }, {
+                    auth: auth('u9', { token: { auth_time: 1000, email: 'ned@example.com' } }),
+                    rawRequest: { headers: {} },
+                });
+            },
+            function(err) { return err.code === 'failed-precondition'; }
+        );
+        process.env.DELETION_HMAC_SECRET = prev;
+    });
+
+    await testAsync('posts other people replied to are anonymized and the rest are deleted', async function() {
+        const db = createFakeDb(world());
+        db.docs.set('forum_replies/fromBob', { authorId: 'u2', postId: 'p1', body: 'still here', parentReplyId: '' });
+        db.docs.set('forum_posts/lonely', { authorId: 'u1', title: 'alone', body: 'secret' });
+        db.docs.set('articles/a1', { authorId: 'u1', title: 'essay', body: 'text', coverUrl: 'https://cdn.example/c.png' });
+        db.docs.set('article_replies/ar1', { authorId: 'u2', articleId: 'a1', body: 'kept' });
+        db.docs.set('topic_discussions/general/posts/tp1', { uid: 'u1', name: 'Alice', text: 'topic secret', parentId: '', createdAt: 10 });
+        db.docs.set('topic_discussions/general/posts/tp2', { uid: 'u2', name: 'Bob', text: 'answer', parentId: 'tp1', createdAt: 11 });
+        db.docs.set('cipher_shares/s1', { senderUid: 'u1', shareId: 's1', revealed: false });
+        db.docs.set('cipher_shares/s2', { senderUid: 'u1', shareId: 's2', revealed: true });
+        db.docs.set('notifications/cshare_s1', { recipientId: 'u9', message: 'pending reveal' });
+        db.docs.set('notifications/cshare_s2', { recipientId: 'u9', message: 'already open' });
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-posts',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.strictEqual(db.docs.has('forum_posts/lonely'), false);
+        const kept = db.docs.get('forum_posts/p1');
+        assert.ok(kept);
+        assert.strictEqual(kept.authorId, 'deleted');
+        assert.strictEqual(kept.body, '[deleted]');
+        assert.strictEqual(kept.title, '[deleted]');
+        assert.strictEqual(kept.authorName, '[deleted]');
+        assert.ok(db.docs.has('forum_replies/fromBob'));
+        const article = db.docs.get('articles/a1');
+        assert.strictEqual(article.authorId, 'deleted');
+        assert.strictEqual(article.coverUrl, '');
+        assert.ok(db.docs.has('article_replies/ar1'));
+        const topic = db.docs.get('topic_discussions/general/posts/tp1');
+        assert.strictEqual(topic.uid, 'deleted');
+        assert.strictEqual(topic.name, '[deleted]');
+        assert.strictEqual(topic.text, '[deleted]');
+        assert.ok(db.docs.has('topic_discussions/general/posts/tp2'));
+        assert.strictEqual(db.docs.has('notifications/cshare_s1'), false);
+        assert.ok(db.docs.has('notifications/cshare_s2'));
+        assert.strictEqual(db.docs.has('cipher_shares/s1'), false);
+        assert.strictEqual(db.docs.has('dm_conversations/u1_u2'), false);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

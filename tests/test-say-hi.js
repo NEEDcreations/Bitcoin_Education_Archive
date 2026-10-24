@@ -411,7 +411,7 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2279'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2357'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2359'"));
     assert.ok(!sw.includes('btc-archive-v2356'));
     assert.ok(!sw.includes('btc-archive-v2355'));
     assert.ok(!sw.includes('btc-archive-v2354'));
@@ -454,7 +454,7 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
-    assert.ok(html.includes('ranking.js?v=20261024_v2357'));
+    assert.ok(html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2354'));

@@ -476,7 +476,7 @@ test('show/open/enter navigation openers are in the registry', function () {
         'openGiftModal', 'openImg', 'showACResults', 'showAccountInfo', 'showArtistProfileModal',
         'showBeginnerGuide', 'showBubble', 'showCelebration', 'showChatRules', 'showCipherClaim',
         'showContinueReading', 'showConvoQuizQuestion', 'showDJBar', 'showDJControlPanel',
-        'showDMGifPicker', 'showDMImagePreview', 'showDMWindow', 'showDeleteAccountConfirm',
+        'showDMGifPicker', 'showDMImagePreview', 'showDMWindow', 'showDeleteAccountConfirm', 'showReauthStep', 'showChangeEmailModal',
         'showEmojiPicker', 'showFloatingBtn', 'showFriendsInDistressWarning', 'showGifPicker',
         'showGuideBanner', 'showGuideReturnBtn', 'showImagePreview', 'showLevelUpCelebration',
         'showMinerModal', 'showOverlayBtn', 'showPWAAuthFallback', 'showPartnershipLevelUpPopup', 'showOptInCard', 'openNotificationSettings',

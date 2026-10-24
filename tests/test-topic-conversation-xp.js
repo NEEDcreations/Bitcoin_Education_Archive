@@ -202,7 +202,9 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: When you send a key and a peer opens a matching cipher with it, you both win the same prize.'));
+    assert.ok(notes.includes('Latest: You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
+    assert.ok(notes.includes('When you send a key and a peer opens a matching cipher with it, you both win the same prize.'));
+    assert.ok(!notes.includes('Latest: When you send a key'));
     assert.ok(notes.includes('Guests and Lightning-only accounts can link an email or Google from Sign-in methods, and sign-out warns them first.'));
     assert.ok(!notes.includes('Latest: Guests and Lightning-only'));
     assert.ok(notes.includes('Badges you already earned appear once, and one toast shows them.'));
