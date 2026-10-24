@@ -306,7 +306,8 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     assert.ok(html.indexOf('location.replace(_href)') === -1);
     assert.ok(html.indexOf('id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);') !== -1);
     assert.ok(html.indexOf('#searchOverlay {') !== -1 && html.indexOf('background: var(--bg) !important;') !== -1);
-    assert.ok(html.indexOf('patches.js?v=20261022_v2263') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261023_v2349') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261022_v2263') === -1);
     const appSrc = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
     const fallbackAt = appSrc.indexOf('Post-load fallback routing to:');
     const fallback = appSrc.slice(Math.max(0, fallbackAt - 700), fallbackAt);
