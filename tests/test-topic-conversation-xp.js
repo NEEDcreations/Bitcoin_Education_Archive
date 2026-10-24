@@ -202,7 +202,9 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.'));
+    assert.ok(notes.includes('Latest: Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.'));
+    assert.ok(notes.includes('Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.'));
+    assert.ok(!notes.includes('Latest: Flex XP'));
     assert.ok(notes.includes('Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.'));
     assert.ok(notes.includes("On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row."));
     assert.ok(!notes.includes('Latest: On a phone'));

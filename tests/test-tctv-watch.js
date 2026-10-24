@@ -389,7 +389,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(watchTag.includes('color:var(--text-faint)'));
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
-    assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
+    assert.ok(html.includes('timechain-tv.js?v=20261024_v2356'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2350'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
@@ -411,7 +412,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2351'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2356'"));
+    assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(!sw.includes('btc-archive-v2350'));
     assert.ok(!sw.includes('btc-archive-v2349'));
     assert.ok(!sw.includes('btc-archive-v2348'));
@@ -761,9 +763,9 @@ test('playback with no server clock asks the server to start it and does not inv
     assert.strictEqual(width, '8%');
 });
 
-test('patch notes keep the knowledge base as the only Latest line and keep Google sign-in and the live timer', () => {
+test('patch notes keep one Latest line for the Music station cleanup', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';
+    const latest = 'Latest: Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
     const live = 'Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.';
     const google = 'Google sign-in stays on this page and works on Android with the app installed.';
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
@@ -771,6 +773,8 @@ test('patch notes keep the knowledge base as the only Latest line and keep Googl
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.'));
+    assert.ok(!notes.includes('Latest: Flex XP'));
     assert.ok(notes.includes('Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.'));
     assert.ok(notes.includes(live));
     assert.ok(!notes.includes('Latest: Nacho answers live'));
