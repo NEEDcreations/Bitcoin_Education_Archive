@@ -8753,6 +8753,7 @@ exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
 // Exports all collections to gs://bitcoin-education-archive-backups/
 // Runs daily at 2 AM UTC. Bucket lifecycle deletes exports older than 90 days.
 // Bucket must be in 'us' multi-region (us-central1 causes INVALID_ARGUMENT).
+const nightlyBackup = require('./src/nightlyBackup');
 exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
     const projectId = 'bitcoin-education-archive';
     const bucket = `gs://${projectId}-backups`;
@@ -8774,9 +8775,75 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
     const result = await res.json();
     if (result.error) {
         console.error('[BACKUP] Export failed:', JSON.stringify(result.error));
+        try {
+            await nightlyBackup.recordFirestoreExportAttempt({
+                token: token.access_token,
+                date: timestamp,
+                outputUriPrefix: exportPath,
+                error: result.error.message,
+            });
+        } catch (markerErr) {
+            console.error('[BACKUP] Could not record export failure:', markerErr.message);
+        }
         throw new Error(result.error.message);
     }
     console.log(`[BACKUP] Export started → ${exportPath}`, result.name);
+    try {
+        await nightlyBackup.recordFirestoreExportAttempt({
+            token: token.access_token,
+            date: timestamp,
+            outputUriPrefix: exportPath,
+            operation: result.name,
+        });
+    } catch (markerErr) {
+        console.error('[BACKUP] Could not record export operation:', markerErr.message);
+    }
+});
+
+// Nightly backups. Scheduled only — do not add onRequest/onCall wrappers.
+// Auth ciphertext uses AUTH_BACKUP_KEY. Health-check mail uses nodemailer,
+// the same library as the forum notifier. firebase-functions v7 removed
+// functions.config(), so the mailbox and app password come from Secret
+// Manager: ALERT_SMTP_USER and ALERT_SMTP_PASS. Alerts go to
+// info.603btc@gmail.com only. Never Telegram or Discord.
+const authBackupKey = defineSecret('AUTH_BACKUP_KEY');
+const alertSmtpUser = defineSecret('ALERT_SMTP_USER');
+const alertSmtpPass = defineSecret('ALERT_SMTP_PASS');
+
+function backupSchedule(cron, extra) {
+    return Object.assign({
+        schedule: cron,
+        timeZone: 'UTC',
+        region: 'us-central1',
+        timeoutSeconds: 540,
+        memory: '512MiB',
+        maxInstances: 1,
+        invoker: 'private',
+    }, extra || {});
+}
+
+exports.nightlyAuthExport = onSchedule(backupSchedule('30 2 * * *', {
+    memory: '1GiB',
+    secrets: [authBackupKey],
+}), async () => {
+    await nightlyBackup.exportAuthUsers({ key: authBackupKey.value() });
+});
+
+exports.nightlyUploadsCopy = onSchedule(backupSchedule('0 3 * * *'), async () => {
+    await nightlyBackup.copyUploads();
+});
+
+exports.nightlyConfigSnapshot = onSchedule(backupSchedule('30 3 * * *'), async () => {
+    await nightlyBackup.snapshotConfig();
+});
+
+exports.backupHealthCheck = onSchedule(backupSchedule('0 5 * * *', {
+    secrets: [alertSmtpUser, alertSmtpPass],
+}), async () => {
+    await nightlyBackup.checkBackupHealth({
+        smtpUser: alertSmtpUser.value(),
+        smtpPass: alertSmtpPass.value(),
+    });
 });
 
 // ================================================================
