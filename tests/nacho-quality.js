@@ -793,16 +793,22 @@ const CASES = [
     wording('layers-bolt11', /one-time Lightning payment request[\s\S]*not a reusable offer/, null);
     wording('fees-rbf-signal', /Bitcoin Core 28/, null);
     wording('nodes-bip119', /anyone-can-spend-style NOP/, null);
-    wording('nodes-upgrade', /anyone-can-spend NOP/, null);
+    wording('nodes-upgrade', /anyone-can-spend NOP/, /You should leave/);
     wording('econ-cpi', /debated/, null);
     wording('econ-quality', /debate/, null);
     wording('adopt-etf-date', /January 10, 2024/, null);
     wording('reg-income-vs-capital', /not tax advice/i, null);
-    wording('crypto-steer-solana', /proof-of-work security budget/, /block production stopped|leadership fights|hide proceeds|do not match/);
-    wording('crypto-steer-ltc', /fixed supplies/, /premine|do not match|no fixed supply/);
-    wording('crypto-steer-bch', /contentious fork/, /premine|do not match|no fixed supply/);
+    wording('crypto-steer-solana', /proof-of-work security budget/, /block production stopped|leadership fights|hide proceeds|do not match|Litecoin|Bitcoin Cash/);
+    wording('crypto-steer-ltc', /Charlie Lee/, /premine|do not match|no fixed supply|Litecoin and Bitcoin Cash/);
+    wording('crypto-steer-bch', /hard fork/, /premine|do not match|no fixed supply|Litecoin and Bitcoin Cash/);
     wording('crypto-steer-monero', /visible on the chain/, /hide proceeds/);
     wording('crypto-steer-bsv', /own chain/, /leadership fights/);
+    logic.kbEntries().forEach(function (entry) {
+        if (entry.category !== 'crypto-steer') return;
+        const tail = entry.answer.split(/(?<=[.!?])\s+/).slice(-2).join(' ');
+        if ((tail.match(/[.!?]/g) || []).length !== 2) kbFail.push('steer tail ' + entry.id);
+        if (/\bLitecoin\b|\bBitcoin Cash\b/.test(tail)) kbFail.push('steer names alt ' + entry.id);
+    });
     const rippleFx = logic.retrieve('What is ripple effect in economics?');
     if (rippleFx.direct) kbFail.push('ripple effect ' + rippleFx.direct.id);
     if (rippleFx.altcoin || logic.isAltcoinQuestion('What is ripple effect in economics?')) kbFail.push('ripple effect flag');

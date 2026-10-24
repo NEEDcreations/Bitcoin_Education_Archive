@@ -1,6 +1,6 @@
 import { pack } from "./pack.mjs";
 
-const WHY = "Bitcoin is distinguished by its proof-of-work security budget, its wide set of independent nodes, its network effect, and its development since 2009, while Litecoin and Bitcoin Cash are copies with their own fixed supplies and Bitcoin Cash began as a contentious fork.";
+const WHY = "Bitcoin is distinguished by its proof-of-work security budget, its wide set of independent nodes, its network effect, and its development since 2009.";
 const CLOSE = "The useful next step is a Bitcoin idea, and this is not a suggestion to buy or sell anything.";
 const STEER_TOPICS = ["evidence-against-alts", "decentralized", "scarce"];
 const STEER_SRC = "Educational comparison only. Not an offer to buy or sell.";
