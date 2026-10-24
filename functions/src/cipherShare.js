@@ -6,6 +6,7 @@
 
 const { planDailyXp } = require('./dailyXp');
 const { createdMs, samePerson } = require('./badgeProgress');
+const { assessCipherClaim } = require('./cipherClaim');
 
 const CIPHER_OPENS_PER_DAY = 21;
 const SHARE_MIN_AGE_MS = 3 * 24 * 60 * 60 * 1000;
@@ -174,6 +175,12 @@ function planCipherShare(input) {
         base.reason = 'cap';
         return base;
     }
+    // A sats share is another way to pay the opener's roll. The opener must
+    // already pass the same claim gates, or the sender is paid nothing.
+    if (prize.rewardType === 'sats' && !assessCipherClaim(src.openerClaim || {}).ok) {
+        base.reason = 'opener-claim';
+        return base;
+    }
 
     const credit = emptyCredit();
     credit.opensToday = usedOpens + 1;
@@ -200,7 +207,6 @@ function planCipherShare(input) {
         status: 'completed',
         message: message,
         openerUsername: name,
-        openerUid: openerUid,
         cipherId: cipherId,
         cipherLabel: String(src.cipherLabel || '').slice(0, 16),
         cipherType: String(src.cipherLabel || '').slice(0, 16),
@@ -261,7 +267,7 @@ function applyCipherShare(books, input) {
     next.shares[cipherId] = {
         paid: true,
         senderUid: uid,
-        openerUid: String(input.openerUid || ''),
+        openerName: plan.notice.openerUsername,
         prize: plan.prize,
         xp: plan.credit.xp,
         tickets: plan.credit.tickets,

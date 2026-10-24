@@ -661,6 +661,22 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     }
     // One roll. The opener's daily XP taper must not change the prize the sender is offered.
     const sharedPrize = clonePrize(reward);
+    // Sats shares use the same claim gates as claimCipherWin. Age comes from
+    // Auth, outside the transaction, the same way a claim does.
+    let openerAgeKnown = false;
+    let openerAgeDays = 0;
+    if (reward.rewardType === 'sats') {
+        try {
+            const userRecord = await admin.auth().getUser(uid);
+            const created = new Date(userRecord.metadata.creationTime).getTime();
+            if (Number.isFinite(created)) {
+                openerAgeDays = Math.floor((Date.now() - created) / 86400000);
+                openerAgeKnown = true;
+            }
+        } catch (e) {
+            console.error('[decryptCipher] Could not verify opener account age:', e.message);
+        }
+    }
 
     let applied = null;
     let cipherPointsBefore = 0;
@@ -766,6 +782,14 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 senderLedger: senderLedgerSnap.exists ? senderLedgerSnap.data() : null,
                 key: key,
                 reward: sharedPrize,
+                openerClaim: reward.rewardType === 'sats' ? {
+                    email: (context.auth.token && context.auth.token.email) || '',
+                    emailVerified: !!(context.auth.token && context.auth.token.email_verified === true),
+                    ageKnown: openerAgeKnown,
+                    ageDays: openerAgeDays,
+                    satsDisabled: user.satsDisabled === true,
+                    ledgerBanned: !!(ledger && ledger.banned === true),
+                } : null,
                 marker: shareSnap.exists ? (shareSnap.data() || null) : null,
                 nowMs: Date.now(),
                 today: today,
@@ -833,7 +857,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                     keySentBy: shareSender,
                     keySentByName: null,
                     keyOrigin: 'share',
-                    openerUid: uid,
+                    openerName: safeName(user.username),
                     shareId: cipherId,
                     roll: reward.roll,
                     status: credit.satsStatus,
@@ -846,7 +870,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             t.set(shareRef, {
                 paid: true,
                 senderUid: shareSender,
-                openerUid: uid,
+                openerName: safeName(user.username),
                 cipherId: cipherId,
                 cipherLabel: cipher.label || '',
                 prizeRewardType: sharePlan.prize.rewardType,
@@ -1357,28 +1381,38 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
 
 // The sender marks a cipher-share reveal as seen. The flag is server-written,
 // so the popup shows at most once per share. This does not pay anything.
-const ackCipherShare = functionsV1.https.onCall(async (data, context) => {
-    const uid = requireUser(context);
-    const shareId = (data.shareId || '').toString().trim();
-    if (!shareId || shareId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(shareId)) {
-        throw httpsError('invalid-argument', 'Invalid share');
-    }
-    const shareRef = db.collection('cipher_shares').doc(shareId);
-    const noteRef = db.collection('notifications').doc('cshare_' + shareId);
-    await db.runTransaction(async (t) => {
-        const shareSnap = await t.get(shareRef);
-        const noteSnap = await t.get(noteRef);
-        if (!shareSnap.exists) throw httpsError('not-found', 'Share not found');
-        const row = shareSnap.data() || {};
-        if (row.senderUid !== uid) throw httpsError('permission-denied', 'Not your share');
-        if (row.revealed === true) return;
-        const stamp = admin.firestore.FieldValue.serverTimestamp();
-        t.set(shareRef, { revealed: true, revealedAt: stamp }, { merge: true });
-        if (noteSnap.exists && (noteSnap.data() || {}).recipientId === uid) {
-            t.set(noteRef, { revealed: true }, { merge: true });
+// Every failure looks the same, so a caller cannot tell a bad id from
+// someone else's share. App Check rejects a call with no valid token.
+const ACK_SHARE_ERROR = 'Could not update that.';
+const ackCipherShare = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    try {
+        const uid = requireUser(context);
+        const shareId = (data && data.shareId || '').toString().trim();
+        if (!shareId || shareId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(shareId)) {
+            throw httpsError('failed-precondition', ACK_SHARE_ERROR);
         }
-    });
-    return { ok: true };
+        const shareRef = db.collection('cipher_shares').doc(shareId);
+        const noteRef = db.collection('notifications').doc('cshare_' + shareId);
+        await db.runTransaction(async (t) => {
+            const shareSnap = await t.get(shareRef);
+            const noteSnap = await t.get(noteRef);
+            if (!shareSnap.exists) throw httpsError('failed-precondition', ACK_SHARE_ERROR);
+            const row = shareSnap.data() || {};
+            if (row.senderUid !== uid) throw httpsError('failed-precondition', ACK_SHARE_ERROR);
+            if (row.revealed === true) return;
+            const stamp = admin.firestore.FieldValue.serverTimestamp();
+            t.set(shareRef, { revealed: true, revealedAt: stamp }, { merge: true });
+            if (noteSnap.exists && (noteSnap.data() || {}).recipientId === uid) {
+                t.set(noteRef, { revealed: true }, { merge: true });
+            }
+        });
+        return { ok: true };
+    } catch (err) {
+        if (!err || err.message !== ACK_SHARE_ERROR) {
+            console.warn('[ackCipherShare]', err && err.message);
+        }
+        throw httpsError('failed-precondition', ACK_SHARE_ERROR);
+    }
 });
 
 module.exports = {

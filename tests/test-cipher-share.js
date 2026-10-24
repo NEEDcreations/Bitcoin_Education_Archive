@@ -92,6 +92,7 @@ test('a sent key pays the sender the same prize once, and a retry does not pay a
     const sats = share.applyCipherShare(books(), input({
         cipherId: 'cipherSats',
         reward: prizeSats(500),
+        openerClaim: claimOk(),
     }));
     assert.strictEqual(sats.plan.pay, true);
     assert.strictEqual(sats.plan.credit.sats, 500);
@@ -104,12 +105,13 @@ test('a sent key pays the sender the same prize once, and a retry does not pay a
     const satsAgain = share.applyCipherShare(sats.books, input({
         cipherId: 'cipherSats',
         reward: prizeSats(500),
+        openerClaim: claimOk(),
     }));
     assert.strictEqual(satsAgain.plan.reason, 'already');
     assert.strictEqual(satsAgain.books.wins.length, 1);
     assert.strictEqual(satsAgain.books.users.sender.points, 10);
 
-    const big = share.planCipherShare(input({ reward: prizeSats(1000) }));
+    const big = share.planCipherShare(input({ reward: prizeSats(1000), openerClaim: claimOk() }));
     assert.strictEqual(big.credit.sats, 1000);
     assert.strictEqual(big.credit.satsStatus, 'pending');
 });
@@ -249,12 +251,83 @@ test('the client cannot forge the sender', function () {
     assert.ok(decrypt.includes('planCipherShare'));
     assert.ok(decrypt.includes('const sharedPrize = clonePrize(reward)'));
     assert.ok(decrypt.includes('reward: sharedPrize'));
+    assert.ok(decrypt.includes('openerClaim'));
+    assert.ok(decrypt.includes('admin.auth().getUser(uid)'));
     assert.ok(decrypt.includes("collection('cipher_shares')"));
+    const shareWrite = decrypt.slice(decrypt.indexOf('t.set(shareRef'), decrypt.indexOf("collection('notifications')"));
+    assert.strictEqual(shareWrite.indexOf('openerUid'), -1);
+    assert.ok(shareWrite.includes('openerName'));
+    const shareWin = decrypt.slice(decrypt.indexOf("keyOrigin: 'share'"), decrypt.indexOf('t.set(shareRef'));
+    assert.strictEqual(shareWin.indexOf('openerUid'), -1);
     assert.ok(decrypt.includes('senderFromKey'));
     assert.ok(decrypt.indexOf('data.sender') === -1);
     assert.ok(decrypt.indexOf('sendUserPush') === -1);
     assert.ok(src.includes('const ackCipherShare'));
     assert.ok(src.includes('revealed: true'));
+    const ack = src.slice(src.indexOf('const ACK_SHARE_ERROR'), src.indexOf('module.exports'));
+    assert.ok(ack.includes('enforceAppCheck: true'));
+    assert.ok(ack.includes("const ACK_SHARE_ERROR = 'Could not update that.'"));
+    assert.strictEqual(ack.includes('Not your share'), false);
+    assert.strictEqual(ack.includes('Share not found'), false);
+    assert.strictEqual(ack.includes('Invalid share'), false);
+    assert.strictEqual((ack.match(/Could not update that\./g) || []).length >= 1, true);
+});
+
+function claimOk(extra) {
+    return Object.assign({
+        email: 'bea@example.com',
+        emailVerified: true,
+        ageKnown: true,
+        ageDays: 10,
+        satsDisabled: false,
+        ledgerBanned: false,
+    }, extra || {});
+}
+
+test('a sats share is paid only when the opener passes the claim gates', function () {
+    function denied(claim) {
+        const plan = share.planCipherShare(input({ reward: prizeSats(500), openerClaim: claim }));
+        assert.strictEqual(plan.pay, false);
+        assert.strictEqual(plan.reason, 'opener-claim');
+        assert.strictEqual(plan.credit.sats, 0);
+        const applied = share.applyCipherShare(books(), input({ reward: prizeSats(500), openerClaim: claim }));
+        assert.strictEqual(applied.books.wins.length, 0);
+        assert.strictEqual(applied.books.notices.length, 0);
+        assert.strictEqual(applied.books.users.sender.points, 10);
+    }
+    denied(claimOk({ emailVerified: false }));
+    denied(claimOk({ email: '' }));
+    denied(claimOk({ ageKnown: false, ageDays: 0 }));
+    denied(claimOk({ ageDays: 6 }));
+    denied(null);
+    const paid = share.applyCipherShare(books(), input({
+        cipherId: 'cipherClaim',
+        reward: prizeSats(500),
+        openerClaim: claimOk(),
+    }));
+    assert.strictEqual(paid.plan.pay, true);
+    assert.strictEqual(paid.plan.credit.sats, 500);
+    assert.strictEqual(paid.books.wins.length, 1);
+    assert.strictEqual(paid.books.wins[0].amount, 500);
+    const xp = share.planCipherShare(input({
+        reward: prizeXp(),
+        openerClaim: claimOk({ emailVerified: false, ageDays: 1 }),
+    }));
+    assert.strictEqual(xp.pay, true);
+    assert.strictEqual(xp.credit.xp, 180);
+});
+
+test('the sender notice and share record keep the opener name and not the account id', function () {
+    const paid = share.applyCipherShare(books(), input());
+    const notice = paid.books.notices[0];
+    const row = paid.books.shares.cipher1;
+    assert.strictEqual(notice.openerUsername, 'bea');
+    assert.strictEqual(notice.openerUid, undefined);
+    assert.strictEqual(row.openerName, 'bea');
+    assert.strictEqual(row.openerUid, undefined);
+    assert.strictEqual(JSON.stringify(notice).indexOf('"opener"'), -1);
+    assert.strictEqual(JSON.stringify(row).indexOf('"opener"'), -1);
+    assert.ok(notice.message.indexOf('@bea') !== -1);
 });
 
 test('sender XP uses the shared roll and the same daily taper', function () {
