@@ -13780,7 +13780,7 @@ function initBottomNav() {
         '.bnav-btn.active{color:var(--accent);}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
         '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}' +
-        '#main{padding-bottom:calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-size, 48px) + var(--fab-gap, 12px) + 20px)!important;}}';
+        '#main{padding-bottom:calc(var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px)) + 44px + var(--fab-gap, 12px))!important;}}';
     document.head.appendChild(style);
     document.body.appendChild(nav);
     watchBottomNavHeight();
