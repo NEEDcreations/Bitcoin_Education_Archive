@@ -1669,7 +1669,7 @@ exports.claimSats = functionsV1.runWith({
     try {
         userRecord = await admin.auth().getUser(uid);
         const emailChange = require('./src/emailChange');
-        const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {});
+        const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {}, true);
         if (!payoutGate.ok) return { success: false, error: payoutGate.error };
         const creationDate = new Date(userRecord.metadata.creationTime);
         const authAgeDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);

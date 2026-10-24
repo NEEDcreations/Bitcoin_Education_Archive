@@ -23,6 +23,9 @@ const TRY_LATER = 'Try again later.';
 const CHANGED_NOTICE = 'Your sign-in email was changed. Not you? Use the revert link sent to your old address or contact support.';
 const PAUSED_CLAIMS = 'Sats claims are paused. Try again later.';
 const HOLD_ERROR = 'Sats withdrawals are paused on this account. Try again later.';
+// Stored after a real last-provider removal. An empty providersHash would look
+// like a first sight, so a provider linked later would skip the 72-hour hold.
+const NO_PROVIDERS = '__none__';
 
 const DISPOSABLE_DOMAINS = {
     'mailinator.com': 1,
@@ -178,14 +181,18 @@ async function appendHashes(db, collectionName, uid, hashes, nowMs) {
 
 // Server-side email and provider sync. Uses the verified Auth email only.
 // A legacy users.email that does not match that address is a change, not a seed.
-async function reconcileEmail(db, authApi, uid, authUser, nowMs, token) {
+// providersKnown is true only when authUser is the record getUser returned.
+// A missing or token-built user has no provider list, and an empty list then
+// is not a removal.
+async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, providersKnown) {
     const clock = Number(nowMs) || Date.now();
     if (!uid || !accountTombstone.secretReady()) return { ok: true, skipped: true, changed: false, hold: false, tomb: null };
+    const knowProviders = providersKnown === true && !!(authUser && Array.isArray(authUser.providerData));
     const identity = accountTombstone.identityFrom({ uid: uid, authUser: authUser || null });
     const verified = identity.emailVerified === true ? identity.email : '';
     const nextHash = verified ? accountTombstone.emailHmac(verified) : '';
-    const nextProvidersHash = accountTombstone.providersHashOf(identity);
-    const nextProviderIds = accountTombstone.providerHashIds(identity);
+    const nextProvidersHash = knowProviders ? accountTombstone.providersHashOf(identity) : '';
+    const nextProviderIds = knowProviders ? accountTombstone.providerHashIds(identity) : [];
     const userRef = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
     const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
@@ -194,9 +201,15 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token) {
     const legacyEmail = accountTombstone.normalizeEmail(user.email || '');
     const emailChanged = !!(nextHash && prevHash && prevHash !== nextHash);
     const seedMismatch = !prevHash && !!nextHash && !!legacyEmail && legacyEmail !== verified;
-    // An empty provider set is a change when a previous set was stored. That is
-    // the last linked sign-in being removed. The first set is still only a seed.
-    const providerChanged = !!(prevProvidersHash && prevProvidersHash !== nextProvidersHash);
+    const storedNone = prevProvidersHash === NO_PROVIDERS;
+    // An empty provider set is a change only when getUser actually returned it.
+    // The first set is still only a seed. A stored __none__ marker means the
+    // last provider was already removed, so the next set is a change too.
+    let providerChanged = false;
+    if (knowProviders) {
+        if (storedNone) providerChanged = !!nextProvidersHash;
+        else if (prevProvidersHash) providerChanged = prevProvidersHash !== nextProvidersHash;
+    }
 
     const lookupIdentity = accountTombstone.identityFrom({
         uid: uid,
@@ -214,7 +227,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token) {
             seed.email = verified;
             seed.emailHash = nextHash;
         }
-        if (!prevProvidersHash && nextProvidersHash) {
+        if (knowProviders && !prevProvidersHash && nextProvidersHash && !storedNone) {
             seed.providersHash = nextProvidersHash;
             seed.providerHashes = nextProviderIds;
         }
@@ -233,12 +246,12 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token) {
         patch.email = verified;
         patch.emailHash = nextHash;
     }
-    if (nextProvidersHash) {
+    if (knowProviders && nextProvidersHash) {
         patch.providersHash = nextProvidersHash;
         patch.providerHashes = nextProviderIds;
     } else if (providerChanged) {
-        patch.providersHash = '';
-        patch.providerHashes = [];
+        patch.providersHash = NO_PROVIDERS;
+        patch.providerHashes = [NO_PROVIDERS];
     }
     await userRef.set(patch, { merge: true });
 
@@ -248,7 +261,10 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token) {
     if (prevHash && prevHash !== nextHash) historyIds.push(prevHash);
     await appendHashes(db, 'email_history', uid, historyIds, clock);
     if (providerChanged) {
-        await appendHashes(db, 'identity_history', uid, user.providerHashes || [], clock);
+        const priorIds = (user.providerHashes || []).filter(function (id) {
+            return id && id !== NO_PROVIDERS;
+        });
+        await appendHashes(db, 'identity_history', uid, priorIds, clock);
     }
 
     let prepared = false;
@@ -296,12 +312,12 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token) {
     };
 }
 
-async function beginPayout(db, authApi, uid, authUser, nowMs, token) {
+async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKnown) {
     if (!accountTombstone.secretReady()) {
         return { ok: false, paused: true, error: PAUSED_CLAIMS, tomb: null };
     }
     const clock = Number(nowMs) || Date.now();
-    const reconciled = await reconcileEmail(db, authApi, uid, authUser, clock, token);
+    const reconciled = await reconcileEmail(db, authApi, uid, authUser, clock, token, providersKnown);
     const tomb = reconciled && reconciled.tomb;
     let holdUntil = Number(reconciled && reconciled.holdUntil) || 0;
     try {
@@ -414,23 +430,31 @@ function createEmailChangeHandlers(options) {
             }
             if (!accountTombstone.secretReady()) return { ok: true, skipped: true };
             let authUser = null;
+            let providersKnown = false;
             if (authApi && typeof authApi.getUser === 'function') {
-                try { authUser = await authApi.getUser(uid); } catch (err) { authUser = null; }
+                try {
+                    authUser = await authApi.getUser(uid);
+                    providersKnown = !!(authUser && Array.isArray(authUser.providerData));
+                } catch (err) {
+                    authUser = null;
+                    providersKnown = false;
+                }
             }
             const token = (auth && auth.token) || {};
             const authVerified = !!(authUser && authUser.email && authUser.emailVerified === true);
             if (!authVerified && token.email_verified === true && token.email) {
+                // The token proves the email only. It has no provider list.
+                providersKnown = false;
                 authUser = {
                     uid: uid,
                     email: token.email,
                     emailVerified: true,
-                    providerData: (authUser && authUser.providerData) || [],
                 };
             }
             if (!authUser || authUser.emailVerified !== true || !accountTombstone.normalizeEmail(authUser.email)) {
                 return { ok: true, skipped: true };
             }
-            return reconcileEmail(db, authApi, uid, authUser, clock);
+            return reconcileEmail(db, authApi, uid, authUser, clock, token, providersKnown);
         },
 
         async confirmAccountLink(data, context) {
@@ -491,6 +515,7 @@ module.exports = {
     CHANGED_NOTICE: CHANGED_NOTICE,
     PAUSED_CLAIMS: PAUSED_CLAIMS,
     HOLD_ERROR: HOLD_ERROR,
+    NO_PROVIDERS: NO_PROVIDERS,
     assessEmail: assessEmail,
     reconcileEmail: reconcileEmail,
     beginPayout: beginPayout,

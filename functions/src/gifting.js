@@ -1070,8 +1070,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         }
     } catch (e) {
         console.error('[claimCipherWin] Could not verify account age:', e.message);
+        throw httpsError('failed-precondition', 'Try again later.');
     }
-    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {});
+    if (!authUser || !Array.isArray(authUser.providerData)) {
+        throw httpsError('failed-precondition', 'Try again later.');
+    }
+    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {

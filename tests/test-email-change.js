@@ -279,7 +279,7 @@ function auth(email) {
         const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
         const claimStart = index.indexOf('exports.claimSats');
         const claim = index.slice(claimStart, index.indexOf('function _unknownPayError', claimStart));
-        assert.ok(claim.includes('beginPayout'));
+        assert.ok(claim.includes('beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {}, true)'));
         assert.ok(claim.includes('secretReady'));
         assert.strictEqual(claim.includes('lookupByMaterials'), false);
         assert.ok(claim.includes('tombSummary.lastClaimAt') || claim.includes('summary.lastClaimAt') || claim.includes('millisOf(tombSummary && tombSummary.lastClaimAt)'));
@@ -291,6 +291,12 @@ function auth(email) {
         assert.ok(gifting.includes('tombLedgerBanned'));
         const cipher = gifting.slice(gifting.indexOf('const claimCipherWin'), gifting.indexOf('const listMyCipherWins'));
         assert.strictEqual(cipher.includes('lookupByMaterials'), false);
+        const ageLog = cipher.indexOf('[claimCipherWin] Could not verify account age');
+        const retry = cipher.indexOf("throw httpsError('failed-precondition', 'Try again later.')");
+        const payoutAt = cipher.indexOf('beginPayout');
+        assert.ok(ageLog !== -1 && retry > ageLog && retry < payoutAt);
+        assert.ok(cipher.includes('beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true)'));
+        assert.ok(cipher.includes('if (!authUser || !Array.isArray(authUser.providerData))'));
         const referral = fs.readFileSync(path.join(root, 'functions', 'src', 'referralService.js'), 'utf8');
         assert.ok(referral.includes('beforeSnap.exists !== true'));
         assert.ok(referral.includes('applyIdentityFlags'));
@@ -314,7 +320,7 @@ function auth(email) {
             email: 'same@example.com',
             emailVerified: true,
             providerData: [{ providerId: 'google.com', uid: 'google-new' }],
-        }, 1_700_000_000_000);
+        }, 1_700_000_000_000, null, true);
         assert.strictEqual(result.hold, true);
         assert.ok(db.docs.get('identity_history/u1').hashes.indexOf(oldIds[0]) !== -1);
         assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
@@ -340,13 +346,147 @@ function auth(email) {
             email: 'same@example.com',
             emailVerified: true,
             providerData: [],
-        }, 1_700_000_000_000);
+        }, 1_700_000_000_000, null, true);
         assert.strictEqual(result.hold, true);
         assert.strictEqual(revoked, 1);
-        assert.strictEqual(db.docs.get('users/u1').providersHash, '');
-        assert.deepStrictEqual(db.docs.get('users/u1').providerHashes, []);
+        assert.strictEqual(db.docs.get('users/u1').providersHash, emailChange.NO_PROVIDERS);
+        assert.deepStrictEqual(db.docs.get('users/u1').providerHashes, [emailChange.NO_PROVIDERS]);
         assert.ok(db.docs.get('identity_history/u1').hashes.indexOf(oldIds[0]) !== -1);
+        assert.strictEqual(db.docs.get('identity_history/u1').hashes.indexOf(emailChange.NO_PROVIDERS), -1);
         assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
+    });
+
+    function googleUser(providerUid) {
+        const providers = [{ providerId: 'google.com', uid: providerUid }];
+        const identity = tomb.identityFrom({ providers: providers });
+        return {
+            providers: providers,
+            providersHash: tomb.providersHashOf(identity),
+            providerHashes: tomb.providerHashIds(identity),
+        };
+    }
+
+    await test('an unread provider list does not clear a stored Google sign-in', async function () {
+        const google = googleUser('google-real');
+        const db = createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                providersHash: google.providersHash,
+                providerHashes: google.providerHashes,
+            },
+        });
+        let revoked = 0;
+        const authApi = { revokeRefreshTokens: async function () { revoked++; } };
+        const missing = await emailChange.reconcileEmail(db, authApi, 'u1', null, 1_700_000_000_000, {
+            email: 'same@example.com',
+            email_verified: true,
+        }, true);
+        assert.strictEqual(missing.hold, false);
+        assert.strictEqual(revoked, 0);
+        assert.strictEqual(db.docs.get('users/u1').providersHash, google.providersHash);
+        assert.deepStrictEqual(db.docs.get('users/u1').providerHashes, google.providerHashes);
+        assert.strictEqual(db.docs.has('identity_history/u1'), false);
+
+        const empty = await emailChange.beginPayout(db, authApi, 'u1', {
+            uid: 'u1',
+            email: 'same@example.com',
+            emailVerified: true,
+            providerData: [],
+        }, 1_700_000_000_000, null, false);
+        assert.strictEqual(empty.ok, true);
+        assert.strictEqual(revoked, 0);
+        assert.strictEqual(db.docs.get('users/u1').providersHash, google.providersHash);
+        assert.ok(!db.docs.get('users/u1').satsHold);
+    });
+
+    await test('sync skips providers when getUser fails and the token email is verified', async function () {
+        const google = googleUser('google-real');
+        const db = createDb({
+            'users/u1': {
+                email: 'old@example.com',
+                emailHash: tomb.emailHmac('old@example.com'),
+                providersHash: google.providersHash,
+                providerHashes: google.providerHashes,
+            },
+        });
+        let revoked = 0;
+        const api = handlers(db, {
+            revokeRefreshTokens: async function () { revoked++; },
+            getUser: async function () { throw new Error('auth unavailable'); },
+        });
+        const result = await api.syncEmailChange({}, auth('new@example.com'));
+        assert.strictEqual(result.hold, true);
+        assert.strictEqual(revoked, 1);
+        assert.strictEqual(db.docs.get('users/u1').email, 'new@example.com');
+        assert.strictEqual(db.docs.get('users/u1').providersHash, google.providersHash);
+        assert.deepStrictEqual(db.docs.get('users/u1').providerHashes, google.providerHashes);
+        assert.strictEqual(db.docs.has('identity_history/u1'), false);
+        assert.ok(db.docs.get('email_history/u1').hashes.indexOf(tomb.emailHmac('old@example.com')) !== -1);
+
+        const unverified = createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                providersHash: google.providersHash,
+                providerHashes: google.providerHashes,
+            },
+        });
+        let unverifiedRevoked = 0;
+        const fallback = handlers(unverified, {
+            revokeRefreshTokens: async function () { unverifiedRevoked++; },
+            getUser: async function () {
+                return {
+                    uid: 'u1',
+                    email: 'stale@example.com',
+                    emailVerified: false,
+                    providerData: [],
+                };
+            },
+        });
+        const kept = await fallback.syncEmailChange({}, auth('same@example.com'));
+        assert.strictEqual(kept.hold, false);
+        assert.strictEqual(unverifiedRevoked, 0);
+        assert.strictEqual(unverified.docs.get('users/u1').providersHash, google.providersHash);
+        assert.deepStrictEqual(unverified.docs.get('users/u1').providerHashes, google.providerHashes);
+        assert.strictEqual(unverified.docs.has('identity_history/u1'), false);
+    });
+
+    await test('a provider linked after the last one was removed holds sats', async function () {
+        const original = googleUser('google-owner');
+        const db = createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                providersHash: original.providersHash,
+                providerHashes: original.providerHashes,
+            },
+        });
+        let revoked = 0;
+        const authApi = { revokeRefreshTokens: async function () { revoked++; } };
+        const removed = await emailChange.reconcileEmail(db, authApi, 'u1', {
+            uid: 'u1',
+            email: 'same@example.com',
+            emailVerified: true,
+            providerData: [],
+        }, 1_700_000_000_000, null, true);
+        assert.strictEqual(removed.hold, true);
+        assert.strictEqual(db.docs.get('users/u1').providersHash, emailChange.NO_PROVIDERS);
+        const linked = await emailChange.reconcileEmail(db, authApi, 'u1', {
+            uid: 'u1',
+            email: 'same@example.com',
+            emailVerified: true,
+            providerData: [{ providerId: 'google.com', uid: 'google-attacker' }],
+        }, 1_700_000_000_000 + emailChange.SATS_HOLD_MS, null, true);
+        assert.strictEqual(linked.hold, true);
+        assert.strictEqual(linked.first, undefined);
+        assert.strictEqual(revoked, 2);
+        const attacker = googleUser('google-attacker');
+        assert.strictEqual(db.docs.get('users/u1').providersHash, attacker.providersHash);
+        assert.deepStrictEqual(db.docs.get('users/u1').providerHashes, attacker.providerHashes);
+        assert.ok(db.docs.get('identity_history/u1').hashes.indexOf(original.providerHashes[0]) !== -1);
+        assert.strictEqual(db.docs.get('identity_history/u1').hashes.indexOf(emailChange.NO_PROVIDERS), -1);
+        assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS + emailChange.SATS_HOLD_MS);
     });
 
     await test('claims fail closed when the deletion secret is missing', async function () {
