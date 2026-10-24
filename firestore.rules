@@ -272,8 +272,9 @@ service cloud.firestore {
                         'weekKey', 'weekCorrect', 'weekTotal', 'weekAccuracy', 'weekReachedAt', 'weekReachedSort',
                         'monthKey', 'monthCorrect', 'monthTotal', 'monthAccuracy', 'monthReachedAt', 'monthReachedSort',
                         'qualifiesAllTime', 'qualifiesWeek', 'qualifiesMonth',
-                        // Identity is reserved by setUsername. Clients cannot claim a name.
-                        'username', 'username_lower',
+                        // Identity is reserved by setUsername. Clients cannot claim a name
+                        // or set or clear the repick flag.
+                        'username', 'username_lower', 'usernameNeedsRepick',
                         // Onboarding completion and rewards are Cloud Function fields.
                         'onboardingQuest', 'nachoQuestDone', 'nachoQuestActive', 'nachoQuestStep',
                         'introSeen', 'introSeenAt',
@@ -405,7 +406,8 @@ service cloud.firestore {
     // =============================================
     match /public_profiles/{uid} {
       // Any authenticated user (incl. anonymous) can read any public profile.
-      // Writes are admin-SDK only (syncPublicProfile trigger).
+      // Writes are admin-SDK only (syncPublicProfile trigger). usernameNeedsRepick
+      // cannot be set or cleared here either, because no client write is allowed.
       allow read: if request.auth != null;
       allow write: if false;
     }

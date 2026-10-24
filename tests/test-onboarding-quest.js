@@ -204,7 +204,7 @@ test('reserved names catch leetspeak, separators, and lookalikes', function () {
     assert.strictEqual(assessUsername('bob', { renameTooSoon: true }).error, 'rename_limit');
 });
 
-test('backfill keeps the oldest holder and marks the rest to pick again', function () {
+test('backfill age is only the last tiebreaker', function () {
     const grouped = groupUsernames([
         { uid: 'u1', lower: 'alice', created: 200, col: 'users' },
         { uid: 'u2', lower: 'alice', created: 100, col: 'users' },
@@ -215,6 +215,12 @@ test('backfill keeps the oldest holder and marks the rest to pick again', functi
     assert.strictEqual(grouped.repicks.length, 1);
     assert.strictEqual(grouped.repicks[0].uid, 'u1');
     assert.strictEqual(grouped.collisions.length, 1);
+    const linked = groupUsernames([
+        { uid: 'guest', lower: 'alice', created: 100, isAnonymous: true, col: 'users' },
+        { uid: 'mail', lower: 'alice', created: 900, email: 'kept-out-of-logs@example.com', col: 'users' },
+    ]);
+    assert.strictEqual(linked.unique.get('alice'), 'mail');
+    assert.strictEqual(linked.repicks[0].uid, 'guest');
     const tied = groupUsernames([
         { uid: 'b', lower: 'sam', created: 5 },
         { uid: 'a', lower: 'sam', created: 5 },
@@ -224,6 +230,7 @@ test('backfill keeps the oldest holder and marks the rest to pick again', functi
     assert.ok(script.includes('before the front end ships'));
     assert.ok(script.includes('applied: true'));
     assert.ok(!script.includes('unresolved === 0'));
+    assert.ok(!script.includes('collision uids='));
 });
 
 test('rules block client writes to reward and onboarding fields', function () {
@@ -231,7 +238,7 @@ test('rules block client writes to reward and onboarding fields', function () {
     const create = rules.split('allow create:')[1].split('allow update:')[0];
     const update = rules.split('allow update:')[1].split('allow delete:')[0];
     assert.ok(!create.includes("'username'"), 'create still allows username');
-    ['username', 'username_lower', 'onboardingQuest', 'nachoQuestDone', 'introSeen', 'guestLinkNonce', 'guestLinkNonceAt', 'usernameChangedAt', 'mergedInto', 'orangeTickets', 'points'].forEach(function (field) {
+    ['username', 'username_lower', 'usernameNeedsRepick', 'onboardingQuest', 'nachoQuestDone', 'introSeen', 'guestLinkNonce', 'guestLinkNonceAt', 'usernameChangedAt', 'mergedInto', 'orangeTickets', 'points'].forEach(function (field) {
         assert.ok(update.includes("'" + field + "'"), 'update denylist missing ' + field);
     });
     assert.ok(rules.includes('match /users/{userId}/onboarding_evidence/{docId}'));
