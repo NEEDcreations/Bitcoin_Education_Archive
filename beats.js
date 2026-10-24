@@ -381,7 +381,7 @@ window.beatsEnsureGlobalPlayer = function() {
     if (!document.getElementById('beatsMiniPlayerCSS')) {
         var mcss = document.createElement('style');
         mcss.id = 'beatsMiniPlayerCSS';
-        mcss.textContent = '@media(min-width:901px){#beatsMiniPlayer{bottom:70px!important;right:12px!important;}}@media(max-width:900px){#beatsMiniPlayer{bottom:calc(140px + env(safe-area-inset-bottom,0px))!important;right:12px!important;}}#beatsMiniPlayer:hover{transform:scale(1.05);}';
+        mcss.textContent = '@media(min-width:901px){#beatsMiniPlayer{bottom:70px!important;right:12px!important;}}@media(max-width:900px){#beatsMiniPlayer{bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px)!important;right:12px!important;}}#beatsMiniPlayer:hover{transform:scale(1.05);}';
         document.head.appendChild(mcss);
     }
     document.body.appendChild(mini);

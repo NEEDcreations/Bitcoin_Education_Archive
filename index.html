@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261023_v2345" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261023_v2349" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -467,13 +467,62 @@
         #fabExpandBtn { position:fixed; right:16px; bottom:10px; z-index:200003; width:34px; height:34px; border-radius:50%; border:1px solid rgba(247,147,26,0.22); background:rgba(247,147,26,0.09); color:rgba(255,255,255,0.38); font-size:0.75rem; cursor:pointer; display:none; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); transition:opacity 0.15s, background 0.15s; }
         #fabExpandBtn:hover { background:rgba(247,147,26,0.2); color:rgba(255,255,255,0.6); }
 
+        /* Phones and tablets: the row clears the real bottom nav.
+           --bnav-h is the nav height above the safe-area inset (measured).
+           env() adds the inset back, so a taller nav or a home indicator
+           still leaves the same gap. Desktop keeps the 10px row above. */
         @media (max-width: 900px) {
-            #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
-            .fab-btn { bottom:70px !important; }
-            #lbFloatBtn.chat-shifted { bottom:120px !important; }
-            #fabMinimizeBtn { bottom:70px !important; }
-            #fabExpandBtn { bottom:70px !important; }
-            #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
+            :root {
+                --fab-size: 48px;
+                --fab-space: 8px;
+                --fab-edge: 12px;
+                --fab-gap: 12px;
+                --fab-min: 28px;
+                --bnav-h: 72px;
+                --fab-bottom: calc(var(--bnav-h) + env(safe-area-inset-bottom, 0px) + var(--fab-gap));
+            }
+            #leaderboard { right: 10px; left: 10px; bottom: calc(var(--fab-bottom) + var(--fab-size) + 16px); width: auto; }
+            .fab-btn {
+                bottom: var(--fab-bottom) !important;
+                width: var(--fab-size) !important;
+                height: var(--fab-size) !important;
+                min-width: 44px;
+                min-height: 44px;
+            }
+            #lbFloatBtn { right: var(--fab-edge) !important; }
+            #dashboardFloatBtn { right: calc(var(--fab-edge) + var(--fab-size) + var(--fab-space)) !important; }
+            #aiToolsBtn { right: calc(var(--fab-edge) + (var(--fab-size) + var(--fab-space)) * 2) !important; }
+            #chatOverlayBtn { right: calc(var(--fab-edge) + (var(--fab-size) + var(--fab-space)) * 3) !important; }
+            #lbFloatBtn.chat-shifted { bottom: calc(var(--fab-bottom) + 50px) !important; }
+            #fabMinimizeBtn {
+                width: var(--fab-min);
+                height: var(--fab-min);
+                right: calc(var(--fab-edge) + (var(--fab-size) + var(--fab-space)) * 4) !important;
+                bottom: calc(var(--fab-bottom) + (var(--fab-size) - var(--fab-min)) / 2) !important;
+            }
+            #fabExpandBtn {
+                width: 44px;
+                height: 44px;
+                right: var(--fab-edge) !important;
+                bottom: var(--fab-bottom) !important;
+            }
+            #floatingRandomBtn { bottom: var(--fab-bottom) !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
+            #mobileSearchBtn { bottom: var(--fab-bottom) !important; }
+            body.kb-open .fab-btn,
+            body.kb-open #fabMinimizeBtn,
+            body.kb-open #fabExpandBtn,
+            body.kb-open #nacho-container,
+            body.kb-open #nacho-toggle,
+            body.kb-open .back-to-top,
+            body.fab-hold .fab-btn,
+            body.fab-hold #fabMinimizeBtn,
+            body.fab-hold #fabExpandBtn,
+            body.fab-hold #nacho-container,
+            body.fab-hold #nacho-toggle,
+            body.fab-hold .back-to-top {
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
             /* RESTORE MOBILE VISIBILITY — but not when explicitly hidden (anon mobile or dismissed) */
             #userDisplay:not(.user-hidden):not([data-mob-hidden]) { display: flex !important; }
             /* When user minimizes the Sign Up banner, let inline display:none actually hide it */
@@ -771,7 +820,7 @@
         [data-theme="light"] .today-ring circle { stroke: #94a3b8; }
         [data-theme="light"] .today-ring circle.today-ring-val { stroke: #f7931a; }
         @media (max-width: 900px) {
-            #todayMorePanel { padding-bottom: 160px; }
+            #todayMorePanel { padding-bottom: 12px; }
         }
         #todayInviteGuest { display: none; margin: 0 auto 16px; border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.75rem; line-height: 1.3; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; max-width: 100%; }
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #todayInviteGuest { display: inline-flex; align-self: center; }
@@ -789,13 +838,13 @@
         @media (max-width: 900px) {
             #mobileSearchBtn { display: flex !important; }
             aside { display: none; position: fixed; inset: 0; z-index: 100; width: 100% !important; max-width: 100%; min-width: 0 !important; }
-            aside.open { display: flex; padding-bottom: 140px; }
+            aside.open { display: flex; padding-bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-size, 48px) + var(--fab-gap, 12px) + 20px); }
             aside.open > * { opacity: 1 !important; pointer-events: auto !important; }
             aside.sidebar-collapsed { width: 100% !important; min-width: 0 !important; border-right: none; }
             .sidebar-expand-btn { display: none !important; }
             .sidebar-collapse-btn { display: none !important; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(54px + env(safe-area-inset-top, 0px)); touch-action: pan-y; contain: content; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(54px + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-size, 48px) + var(--fab-gap, 12px) + 20px); touch-action: pan-y; contain: content; }
             .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 100; overflow: hidden; gap: 6px; }
             .mobile-bar h2 { color: var(--accent); font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
@@ -807,16 +856,16 @@
             .hero { padding: 20px 16px 14px; }
             .hero h1 { font-size: 1.4rem; line-height: 1.3; }
             .hero .desc { font-size: 0.9rem; }
-            .messages { padding: 0 16px 140px; }
+            .messages { padding: 0 16px 24px; }
             .msg { padding: 16px 0; }
             .msg-text { font-size: 0.95rem; line-height: 1.7; }
             .msg-img { max-width: 100%; height: auto; border-radius: 8px; }
             .msg-link { font-size: 0.85rem; }
             .share-bar { gap: 6px; }
             .share-btn { padding: 6px 10px; font-size: 0.75rem; }
-            /* Scroll arrows: must clear bottom nav (~60px) + FAB row (70px base + 48px height) = ~180px min. Side-by-side to save vertical space. */
-            .back-to-top { bottom: calc(190px + env(safe-area-inset-bottom, 0px)) !important; right: 12px; width: 34px; height: 34px; font-size: 0.95rem; }
-            .scroll-to-bottom { bottom: calc(190px + env(safe-area-inset-bottom, 0px)) !important; right: 52px; width: 34px; height: 34px; font-size: 0.95rem; }
+            /* Scroll arrows sit just above the FAB row, side by side. */
+            .back-to-top { bottom: calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px) !important; right: 12px; width: 44px; height: 44px; font-size: 0.95rem; }
+            .scroll-to-bottom { bottom: calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px) !important; right: 64px; width: 44px; height: 44px; font-size: 0.95rem; }
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
@@ -843,7 +892,7 @@
             #guestPointsBanner { top: 60px !important; right: 8px !important; left: 8px !important; max-width: 100% !important; font-size: 0.8rem !important; padding: 8px 12px !important; border-radius: 10px !important; z-index: 99 !important; }
             #guestPointsBanner.banner-min { left: auto !important; right: 8px !important; width: 44px !important; min-width: 44px !important; max-width: 44px !important; padding: 6px !important; border-radius: 999px !important; }
             /* Badge toast mobile */
-            .badge-toast { bottom: 80px; left: 10px; right: 10px; }
+            .badge-toast { bottom: calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px); left: 10px; right: 10px; }
             /* Lightbox mobile */
             .lightbox img { max-width: 95vw; max-height: 85vh; }
             /* YouTube embeds mobile */
@@ -854,6 +903,12 @@
 
         /* Small phones */
         @media (max-width: 380px) {
+            :root {
+                --fab-size: 44px;
+                --fab-space: 6px;
+                --fab-edge: 8px;
+                --fab-min: 26px;
+            }
             .home-title { font-size: 1.5rem; }
             .home-subtitle { font-size: 0.9rem; }
             .invite-card { width: min(188px, calc(100vw - 16px)); }
@@ -1748,10 +1803,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="ranking.js?v=20261023_v2342" defer></script>
+    <script src="ranking.js?v=20261023_v2349" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261023_v2345" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261023_v2349" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261023_v2339" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261023_v2330" defer></script>
@@ -1775,7 +1830,7 @@
             'quests.js?v=20261023_v2334',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261023_v2339',
-            'scholar.js?v=20261023_v2330','beats.js?v=20261022_v2322',
+            'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261022_v2322','gifting.js?v=20261022_v2254','guide.js?v=20261023_v2339','modules.js?v=20261023_v2324',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
@@ -1835,8 +1890,8 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2345'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2345'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261023_v2345'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261023_v2345'],
             'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2345'],
             'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261023_v2345'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
@@ -1891,7 +1946,7 @@ if ('serviceWorker' in navigator) {
             var banner = document.createElement('div');
             banner.id = '_swUpdateBanner';
             var _isMobUpd = window.innerWidth <= 900;
-            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? '130px' : '70px') + ';left:16px;right:16px;z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
+            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? 'calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + 12px)' : '70px') + ';left:16px;right:16px;z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
             banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button id="_swRefreshBtn" style="padding:8px 18px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;white-space:nowrap;">↺ Refresh</button>';
             document.body.appendChild(banner);
             document.getElementById('_swRefreshBtn').addEventListener('click', function() {

@@ -39,11 +39,9 @@ function cleanupFloatingButtons() {
 
         var btt = document.getElementById('backToTop');
         if (btt) {
-            btt.style.width = '32px';
-            btt.style.height = '32px';
+            btt.style.width = '44px';
+            btt.style.height = '44px';
             btt.style.fontSize = '0.9rem';
-            btt.style.bottom = '70px';
-            btt.style.right = '10px';
         }
     }
 
@@ -55,14 +53,6 @@ function cleanupFloatingButtons() {
                 el.style.display = 'none';
             }
         });
-
-        var lbBtn = document.getElementById('lbFloatBtn');
-        if (lbBtn) {
-            lbBtn.style.bottom = '70px';
-            lbBtn.style.right = '10px';
-            lbBtn.style.padding = '8px 12px';
-            lbBtn.style.fontSize = '0.8rem';
-        }
     }
 }
 

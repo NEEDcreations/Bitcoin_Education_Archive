@@ -202,7 +202,9 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Topic conversations earn XP'));
+    assert.ok(notes.includes('Latest: On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation, and the page still scrolls clear of them.'));
+    assert.ok(notes.includes('Topic conversations earn XP'));
+    assert.ok(!notes.includes('Latest: Topic conversations'));
 });
 
 (async function main() {
