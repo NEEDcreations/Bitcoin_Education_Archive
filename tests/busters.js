@@ -1,5 +1,5 @@
 // Cache-buster pin. This ship branch is btc-archive-v2347.
-// bundle.min.js and global-chat.js stay 20261023_v2346. nacho-qa.js is 20261023_v2348.
+// bundle.min.js and global-chat.js stay 20261023_v2346. nacho-qa.js is 20261023_v2349.
 // features.registry.js stays 20261023_v2344.
 // ranking.js and quests.js stay 20261023_v2343.
 // guide.js stays 20261023_v2339. tctv-watch.js is 20261023_v2340.
@@ -97,7 +97,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
-    assert.ok(html.includes('nacho-qa.js?v=20261023_v2348'));
+    assert.ok(html.includes('nacho-qa.js?v=20261023_v2349'));
+    assert.ok(!html.includes('nacho-qa.js?v=20261023_v2348'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2346'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2343'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2342'));
