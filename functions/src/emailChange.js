@@ -178,9 +178,9 @@ async function appendHashes(db, collectionName, uid, hashes, nowMs) {
 
 // Server-side email and provider sync. Uses the verified Auth email only.
 // A legacy users.email that does not match that address is a change, not a seed.
-async function reconcileEmail(db, authApi, uid, authUser, nowMs) {
+async function reconcileEmail(db, authApi, uid, authUser, nowMs, token) {
     const clock = Number(nowMs) || Date.now();
-    if (!uid || !accountTombstone.secretReady()) return { ok: true, skipped: true, changed: false, hold: false };
+    if (!uid || !accountTombstone.secretReady()) return { ok: true, skipped: true, changed: false, hold: false, tomb: null };
     const identity = accountTombstone.identityFrom({ uid: uid, authUser: authUser || null });
     const verified = identity.emailVerified === true ? identity.email : '';
     const nextHash = verified ? accountTombstone.emailHmac(verified) : '';
@@ -194,9 +194,16 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs) {
     const legacyEmail = accountTombstone.normalizeEmail(user.email || '');
     const emailChanged = !!(nextHash && prevHash && prevHash !== nextHash);
     const seedMismatch = !prevHash && !!nextHash && !!legacyEmail && legacyEmail !== verified;
-    const providerChanged = !!(nextProvidersHash && prevProvidersHash && prevProvidersHash !== nextProvidersHash);
+    // An empty provider set is a change when a previous set was stored. That is
+    // the last linked sign-in being removed. The first set is still only a seed.
+    const providerChanged = !!(prevProvidersHash && prevProvidersHash !== nextProvidersHash);
 
-    const looked = await accountTombstone.lookupByMaterials(db, identity);
+    const lookupIdentity = accountTombstone.identityFrom({
+        uid: uid,
+        authUser: authUser || null,
+        token: token || null,
+    });
+    const looked = await accountTombstone.lookupByMaterials(db, lookupIdentity);
     if (looked.configured && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
     }
@@ -217,6 +224,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs) {
             changed: false,
             first: !prevHash && !!nextHash && !seedMismatch,
             hold: false,
+            tomb: looked,
         };
     }
 
@@ -228,15 +236,16 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs) {
     if (nextProvidersHash) {
         patch.providersHash = nextProvidersHash;
         patch.providerHashes = nextProviderIds;
+    } else if (providerChanged) {
+        patch.providersHash = '';
+        patch.providerHashes = [];
     }
     await userRef.set(patch, { merge: true });
 
+    // Only a previously verified hash is history. A legacy users.email was
+    // never verified, so its hash is not stored and cannot become a tombstone.
     const historyIds = [];
     if (prevHash && prevHash !== nextHash) historyIds.push(prevHash);
-    if (seedMismatch) {
-        const legacyHmac = accountTombstone.emailHmac(legacyEmail);
-        if (legacyHmac) historyIds.push(legacyHmac);
-    }
     await appendHashes(db, 'email_history', uid, historyIds, clock);
     if (providerChanged) {
         await appendHashes(db, 'identity_history', uid, user.providerHashes || [], clock);
@@ -283,15 +292,17 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs) {
         notice: CHANGED_NOTICE,
         holdUntil: patch.satsHold,
         prepared: prepared,
+        tomb: looked,
     };
 }
 
-async function beginPayout(db, authApi, uid, authUser, nowMs) {
+async function beginPayout(db, authApi, uid, authUser, nowMs, token) {
     if (!accountTombstone.secretReady()) {
-        return { ok: false, paused: true, error: PAUSED_CLAIMS };
+        return { ok: false, paused: true, error: PAUSED_CLAIMS, tomb: null };
     }
     const clock = Number(nowMs) || Date.now();
-    const reconciled = await reconcileEmail(db, authApi, uid, authUser, clock);
+    const reconciled = await reconcileEmail(db, authApi, uid, authUser, clock, token);
+    const tomb = reconciled && reconciled.tomb;
     let holdUntil = Number(reconciled && reconciled.holdUntil) || 0;
     try {
         const snap = await db.collection('users').doc(uid).get();
@@ -299,9 +310,9 @@ async function beginPayout(db, authApi, uid, authUser, nowMs) {
         holdUntil = Math.max(holdUntil, Number(user.satsHold) || 0);
     } catch (e) { /* the hold written above still applies */ }
     if ((reconciled && reconciled.hold) || holdUntil > clock) {
-        return { ok: false, hold: true, error: HOLD_ERROR, holdUntil: holdUntil };
+        return { ok: false, hold: true, error: HOLD_ERROR, holdUntil: holdUntil, tomb: tomb };
     }
-    return { ok: true, reconciled: reconciled, holdUntil: holdUntil };
+    return { ok: true, reconciled: reconciled, holdUntil: holdUntil, tomb: tomb };
 }
 
 function createEmailChangeHandlers(options) {

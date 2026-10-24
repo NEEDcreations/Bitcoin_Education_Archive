@@ -1071,13 +1071,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     } catch (e) {
         console.error('[claimCipherWin] Could not verify account age:', e.message);
     }
-    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now());
+    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {});
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
-    const looked = await accountTombstone.lookupByMaterials(db, accountTombstone.identityFrom({
-        uid: uid,
-        authUser: authUser,
-        token: (context.auth && context.auth.token) || {},
-    }));
+    const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
     }

@@ -906,6 +906,16 @@ function auth(uid, extras) {
         assert.ok(ranking.includes('html += accountDeleteRowHtml(user)'));
         assert.ok(ranking.includes('id="accountEmailCard"'));
         assert.ok(ranking.includes('id="accountDeleteButton"'));
+        assert.strictEqual(ranking.includes('userData.email'), false);
+        const createPayload = ranking.slice(ranking.indexOf('function clientCreatePayload'), ranking.indexOf('async function applyServerUsername'));
+        assert.ok(!createPayload.includes('email'));
+        const createUser = ranking.slice(ranking.indexOf('async function createUser'), ranking.indexOf('async function awardVisitPoints'));
+        assert.ok(!createUser.includes('.email'));
+        assert.ok(!createUser.includes('email:'));
+        const finishEmail = ranking.slice(ranking.indexOf('async function finishEmailSignIn'), ranking.indexOf('function gisApiReady'));
+        assert.ok(finishEmail.includes("collection('users')"));
+        assert.ok(!finishEmail.includes('email:'));
+        assert.ok(!finishEmail.includes('.email ='));
         assert.ok(ranking.includes("httpsCallable('deleteAccount', { timeout: 540000 })"));
         assert.ok(ranking.includes('_isMfaBlock'));
         assert.ok(ranking.includes('_showTotpSignInChallenge'));

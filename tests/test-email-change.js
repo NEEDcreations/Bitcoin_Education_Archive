@@ -248,18 +248,24 @@ function auth(email) {
         assert.strictEqual(db.docs.get('users/u1').email, 'client@example.com');
     });
 
-    await test('a legacy email that differs from the verified Auth email is held', async function () {
+    await test('a legacy email that differs from the verified Auth email is held without hashing it', async function () {
         const db = createDb({ 'users/u1': { email: 'legacy@example.com' } });
-        const result = await emailChange.reconcileEmail(db, { revokeRefreshTokens: async function () {} }, 'u1', {
+        let revoked = 0;
+        const result = await emailChange.reconcileEmail(db, { revokeRefreshTokens: async function () { revoked++; } }, 'u1', {
             uid: 'u1',
             email: 'auth@example.com',
             emailVerified: true,
             providerData: [],
         }, 1_700_000_000_000);
         assert.strictEqual(result.hold, true);
-        assert.ok(db.docs.get('email_history/u1').hashes.indexOf(tomb.emailHmac('legacy@example.com')) !== -1);
+        assert.strictEqual(revoked, 1);
+        assert.strictEqual(db.docs.has('email_history/u1'), false);
         assert.strictEqual(db.docs.get('users/u1').email, 'auth@example.com');
+        assert.strictEqual(db.docs.get('users/u1').emailHash, tomb.emailHmac('auth@example.com'));
+        assert.notStrictEqual(db.docs.get('users/u1').emailHash, tomb.emailHmac('legacy@example.com'));
         assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
+        const legacyId = tomb.emailHmac('legacy@example.com');
+        assert.strictEqual(db.docs.has('deleted_accounts/' + legacyId), false);
     });
 
     await test('a direct email change with no sync denies claimSats and claimCipherWin', async function () {
@@ -275,6 +281,7 @@ function auth(email) {
         const claim = index.slice(claimStart, index.indexOf('function _unknownPayError', claimStart));
         assert.ok(claim.includes('beginPayout'));
         assert.ok(claim.includes('secretReady'));
+        assert.strictEqual(claim.includes('lookupByMaterials'), false);
         assert.ok(claim.includes('tombSummary.lastClaimAt') || claim.includes('summary.lastClaimAt') || claim.includes('millisOf(tombSummary && tombSummary.lastClaimAt)'));
         const gifting = fs.readFileSync(path.join(root, 'functions', 'src', 'gifting.js'), 'utf8');
         assert.ok(gifting.includes('secrets: [deletionHmacSecret]'));
@@ -282,6 +289,8 @@ function auth(email) {
         assert.ok(gifting.includes("Number(userRow.satsHold) > Date.now()"));
         assert.ok(gifting.includes('tombSatsDisabled'));
         assert.ok(gifting.includes('tombLedgerBanned'));
+        const cipher = gifting.slice(gifting.indexOf('const claimCipherWin'), gifting.indexOf('const listMyCipherWins'));
+        assert.strictEqual(cipher.includes('lookupByMaterials'), false);
         const referral = fs.readFileSync(path.join(root, 'functions', 'src', 'referralService.js'), 'utf8');
         assert.ok(referral.includes('beforeSnap.exists !== true'));
         assert.ok(referral.includes('applyIdentityFlags'));
@@ -307,6 +316,35 @@ function auth(email) {
             providerData: [{ providerId: 'google.com', uid: 'google-new' }],
         }, 1_700_000_000_000);
         assert.strictEqual(result.hold, true);
+        assert.ok(db.docs.get('identity_history/u1').hashes.indexOf(oldIds[0]) !== -1);
+        assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
+    });
+
+    await test('removing the last sign-in provider holds sats', async function () {
+        const oldProviders = [{ providerId: 'google.com', uid: 'google-last' }];
+        const oldIdentity = tomb.identityFrom({ providers: oldProviders });
+        const oldIds = tomb.providerHashIds(oldIdentity);
+        const db = createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                providersHash: tomb.providersHashOf(oldIdentity),
+                providerHashes: oldIds,
+            },
+        });
+        let revoked = 0;
+        const result = await emailChange.reconcileEmail(db, {
+            revokeRefreshTokens: async function () { revoked++; },
+        }, 'u1', {
+            uid: 'u1',
+            email: 'same@example.com',
+            emailVerified: true,
+            providerData: [],
+        }, 1_700_000_000_000);
+        assert.strictEqual(result.hold, true);
+        assert.strictEqual(revoked, 1);
+        assert.strictEqual(db.docs.get('users/u1').providersHash, '');
+        assert.deepStrictEqual(db.docs.get('users/u1').providerHashes, []);
         assert.ok(db.docs.get('identity_history/u1').hashes.indexOf(oldIds[0]) !== -1);
         assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
     });

@@ -1445,7 +1445,6 @@ async function finishEmailSignIn(email, _signInUrl) {
         const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
         if (!existingDoc.exists) {
             var extra = {
-                email: email,
                 tosVersion: TOS_CURRENT_VERSION,
                 tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -3559,9 +3558,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         showToast('⚠️ That username is already taken. Please choose another.');
         return;
     }
-    if (email) email = sanitizeInput(email);
     const userData = clientCreatePayload({});
-    if (email) userData.email = email;
     if (country) userData.country = country;
     // Lightning address from signup field
     var _signupLn = giveawayLnAddress || '';
