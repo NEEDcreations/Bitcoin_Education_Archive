@@ -810,7 +810,7 @@ test('a saved topic scroll does not override a deep link', function() {
     };
     sandbox.window = sandbox;
     var patches = read('patches.js');
-    var start = patches.indexOf('function(){var e={},t=null;function n(){var n=window.go;');
+    var start = patches.indexOf('function(){var e={},t=null;function n(){');
     var tail = 'setTimeout(function(){t=window.currentChannelId||null},2e3)}()';
     var end = patches.indexOf(tail, start);
     assert.ok(start !== -1 && end > start);
@@ -849,6 +849,118 @@ test('a saved topic scroll does not override a deep link', function() {
     sandbox.go('mining');
     flush(300);
     assert.deepStrictEqual(scrollTos, [1800]);
+});
+
+test('scroll, history, then scroll again does not restore over a deep link', function() {
+    var saved = 2500;
+    var queue = [];
+    var seq = 0;
+    var now = 0;
+    function setTimeout(fn, ms) {
+        var id = ++seq;
+        queue.push({ id: id, fn: fn, at: now + (ms || 0) });
+        return id;
+    }
+    function clearTimeout(id) {
+        queue = queue.filter(function(item) { return item.id !== id; });
+    }
+    function flush(ms) {
+        var end = now + ms;
+        while (true) {
+            var next = null;
+            queue.forEach(function(item) {
+                if (item.at <= end && (!next || item.at < next.at || (item.at === next.at && item.id < next.id))) next = item;
+            });
+            if (!next) break;
+            queue = queue.filter(function(item) { return item !== next; });
+            now = next.at;
+            next.fn();
+        }
+        now = end;
+    }
+    function run(item) {
+        queue = queue.filter(function(queued) { return queued !== item; });
+        now = item.at;
+        item.fn();
+    }
+    var scrollTos = [];
+    var main = {
+        scrollTop: saved,
+        scrollTo: function(opts) {
+            scrollTos.push(opts && opts.top);
+            if (opts && typeof opts.top === 'number') main.scrollTop = opts.top;
+        }
+    };
+    var document = {
+        getElementById: function(id) { return id === 'main' ? main : null; },
+        createElement: function() { return { style: {}, appendChild: function() {}, setAttribute: function() {} }; },
+        body: { appendChild: function() {}, insertBefore: function() {} },
+        head: { appendChild: function() {} },
+        addEventListener: function() {},
+        querySelector: function() { return null; },
+        querySelectorAll: function() { return []; }
+    };
+    var sandbox = {
+        console: console,
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        document: document,
+        location: { hash: '' },
+        history: { pushState: function() {} },
+        addEventListener: function() {},
+        CHANNELS: { mining: { title: 'mining' } },
+        currentChannelId: 'mining',
+        sessionStorage: { getItem: function() { return null; }, setItem: function() {} },
+        matchMedia: function() { return { matches: false }; },
+        firebase: { functions: function() { throw new Error('discussion tried to post'); } },
+        go: function(id) { sandbox.currentChannelId = id; }
+    };
+    sandbox.window = sandbox;
+    var patches = read('patches.js');
+    var scrollStart = patches.indexOf('function(){var e={},t=null;function n(){');
+    var scrollTail = 'setTimeout(function(){t=window.currentChannelId||null},2e3)}()';
+    var scrollEnd = patches.indexOf(scrollTail, scrollStart);
+    var histStart = patches.indexOf('function(){var e=!0;function t(){var e=window.go;');
+    var histTail = 'setTimeout(t,3e3),setTimeout(t,6e3)}()';
+    var histEnd = patches.indexOf(histTail, histStart);
+    assert.ok(scrollStart !== -1 && scrollEnd > scrollStart);
+    assert.ok(histStart !== -1 && histEnd > histStart);
+    var beforeScroll = queue.length;
+    vm.runInNewContext('(' + patches.slice(scrollStart, scrollEnd + scrollTail.length) + ')', sandbox, { filename: 'patches-scroll-restore.js' });
+    var scrollTimers = queue.slice(beforeScroll);
+    var beforeHist = queue.length;
+    vm.runInNewContext('(' + patches.slice(histStart, histEnd + histTail.length) + ')', sandbox, { filename: 'patches-history.js' });
+    var histTimers = queue.slice(beforeHist);
+    run(scrollTimers.filter(function(item) { return item.at === 2000; })[0]);
+    run(scrollTimers.filter(function(item) { return item.at === 3000; })[0]);
+    assert.strictEqual(sandbox._bqTopicScrollRestoreInstalled, true);
+    run(histTimers.filter(function(item) { return item.at === 3000; })[0]);
+    var afterHistory = sandbox.go;
+    assert.strictEqual(afterHistory._v3HistorySkip, true);
+    run(scrollTimers.filter(function(item) { return item.at === 6000; })[0]);
+    assert.strictEqual(sandbox.go, afterHistory);
+
+    main.scrollTop = saved;
+    sandbox.go('chat');
+    flush(300);
+    assert.ok(scrollTos.indexOf(saved) === -1);
+    scrollTos.length = 0;
+    main.scrollTop = 0;
+    vm.runInNewContext(read('topic-discussions.js'), sandbox, { filename: 'topic-discussions.js' });
+    assert.strictEqual(sandbox.bqOpenTopicPost('mining', 'post9'), true);
+    flush(400);
+    assert.deepStrictEqual(scrollTos, []);
+    assert.ok(!sandbox._bqTopicScrollRestoreTimers || !sandbox._bqTopicScrollRestoreTimers.mining);
+
+    scrollTos.length = 0;
+    main.scrollTop = saved;
+    sandbox.go('chat');
+    flush(300);
+    main.scrollTop = 0;
+    sandbox._bqSkipTopicScrollRestore = { mining: Date.now() - 2500 };
+    sandbox.go('mining');
+    flush(300);
+    assert.deepStrictEqual(scrollTos, [saved]);
 });
 
 test('anchor shape is a bounded index plus a short hash, otherwise dropped', () => {

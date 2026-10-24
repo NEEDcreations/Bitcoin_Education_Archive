@@ -22355,7 +22355,7 @@ if (locked) {
                 if (typeof window.bqSkipTopicScrollRestore === 'function') window.bqSkipTopicScrollRestore(_topicDeep[1]);
                 else {
                     if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
-                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = true;
+                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = Date.now();
                     var _restoreTimers = window._bqTopicScrollRestoreTimers;
                     if (_restoreTimers && _restoreTimers[_topicDeep[1]]) {
                         clearTimeout(_restoreTimers[_topicDeep[1]]);
@@ -24436,12 +24436,14 @@ window.toggleAITools = function() {
     };
 
     // One open only. patches.js restores the last scroll for this channel 300 ms
-    // after go(), which would run after the deep-link scroll. The flag is
-    // consumed by that wrapper, and any timer already queued is cleared.
+    // after go(), which would run after the deep-link scroll. The value is a
+    // timestamp so a deep link that arrives before that wrapper exists does
+    // not skip a normal restore a few seconds later. Any timer already queued
+    // for this channel is cleared.
     window.bqSkipTopicScrollRestore = function(channelId) {
         if (!channelId) return;
         if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
-        window._bqSkipTopicScrollRestore[channelId] = true;
+        window._bqSkipTopicScrollRestore[channelId] = Date.now();
         var timers = window._bqTopicScrollRestoreTimers;
         if (timers && timers[channelId]) {
             clearTimeout(timers[channelId]);

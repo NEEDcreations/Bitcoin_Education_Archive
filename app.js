@@ -5352,7 +5352,7 @@ if (locked) {
                 if (typeof window.bqSkipTopicScrollRestore === 'function') window.bqSkipTopicScrollRestore(_topicDeep[1]);
                 else {
                     if (!window._bqSkipTopicScrollRestore) window._bqSkipTopicScrollRestore = {};
-                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = true;
+                    window._bqSkipTopicScrollRestore[_topicDeep[1]] = Date.now();
                     var _restoreTimers = window._bqTopicScrollRestoreTimers;
                     if (_restoreTimers && _restoreTimers[_topicDeep[1]]) {
                         clearTimeout(_restoreTimers[_topicDeep[1]]);
