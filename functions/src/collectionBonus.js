@@ -179,11 +179,24 @@ function serverPaidXp(bonusId) {
     return Math.max(0, Math.floor(Number(rule.xp) || 0));
 }
 
-// Every member, including cosmetic badges. A cosmetic badge counts only when
-// a server list or badge_awards already has it. Entertainment does not
-// complete on its three non-cosmetic badges.
+// A badge has server proof when the server can award it (not cosmetic).
+// Completion requires every one of those. The bonus is the sum of the
+// server-paid old sets, so Entertainment's three provable badges pay 150,
+// not the old displayed 1,500. A collection with no such badge (Fun and
+// Fitness) still requires every member, pays 0 XP, and can record Favor
+// and the congrats once those members are server-held.
+function proofMemberIds(col) {
+    const rules = require('./badgeRules');
+    return (col && col.badgeIds || []).filter(function (id) {
+        const rule = rules.ruleFor(id);
+        return !!(rule && !rule.cosmetic);
+    });
+}
+
 function requiredMembers(col) {
-    return (col.badgeIds || []).slice();
+    const ids = (col && col.badgeIds || []).slice();
+    const proof = proofMemberIds(col);
+    return proof.length ? proof : ids;
 }
 
 // From a fresh day. Dropped XP is not banked. applyDailyXp uses the same taper.
@@ -600,6 +613,7 @@ module.exports = {
     collections: collections,
     collectionById: collectionById,
     isRetiredSetBonus: isRetiredSetBonus,
+    proofMemberIds: proofMemberIds,
     requiredMembers: requiredMembers,
     dailyCapReport: dailyCapReport,
     planGrant: planGrant,

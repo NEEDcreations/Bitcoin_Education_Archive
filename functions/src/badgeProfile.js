@@ -46,15 +46,23 @@ function profileBadgeIds(user) {
     return collectIds(user, LIST_FIELDS, SINGLE_FIELDS);
 }
 
-// Collection completion. These lists are server-only in firestore.rules.
-// earnedHidden, displayBadge, and equippedBadge are client-writable and do not count.
-const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'hiddenBadges', 'donationBadges'];
+// Collection completion. badge_awards is passed in as extraIds.
+// badges, visibleBadges, and donationBadges are server-written.
+// hiddenBadges counts only when that same id is already in one of those
+// sources. An id that appears only in hiddenBadges is not held.
+// earnedHidden, displayBadge, and equippedBadge are client-writable and never count.
+const TRUSTED_LIST_FIELDS = ['badges', 'visibleBadges', 'donationBadges'];
+const HIDDEN_LIST_FIELDS = ['hiddenBadges'];
+const SERVER_LIST_FIELDS = TRUSTED_LIST_FIELDS.concat(HIDDEN_LIST_FIELDS);
 
 function serverHeldBadgeIds(user, extraIds) {
-    const held = collectIds(user, SERVER_LIST_FIELDS, []);
+    const held = collectIds(user, TRUSTED_LIST_FIELDS, []);
     (extraIds || []).forEach(function (raw) {
         const id = cleanBadgeId(raw);
         if (id) held.add(id);
+    });
+    collectIds(user, HIDDEN_LIST_FIELDS, []).forEach(function (id) {
+        if (held.has(id)) held.add(id);
     });
     return held;
 }
@@ -70,6 +78,8 @@ module.exports = {
     SINGLE_FIELDS: SINGLE_FIELDS,
     cleanBadgeId: cleanBadgeId,
     collectIds: collectIds,
+    TRUSTED_LIST_FIELDS: TRUSTED_LIST_FIELDS,
+    HIDDEN_LIST_FIELDS: HIDDEN_LIST_FIELDS,
     SERVER_LIST_FIELDS: SERVER_LIST_FIELDS,
     profileBadgeIds: profileBadgeIds,
     profileHoldsBadge: profileHoldsBadge,

@@ -13,8 +13,10 @@
  * bonus so it cannot be paid later. Chat posts are off. There is no flag
  * that turns them on.
  *
- * Held badges are badge_awards plus the server-only profile lists. xp_ledger
- * ids are not treated as held. The daily-cap report is the fresh-day taper:
+ * Held badges are badge_awards plus badges, visibleBadges, and donationBadges.
+ * A hiddenBadges id counts only when that same id is already in one of those.
+ * earnedHidden, displayBadge, and equippedBadge do not count. xp_ledger ids
+ * are not treated as held. The daily-cap report is the fresh-day taper:
  * anything past 1,000 credited XP is dropped and is not banked.
  *
  * Do not pass --apply as part of a deploy. This script has not been run.

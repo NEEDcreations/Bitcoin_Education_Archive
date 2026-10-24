@@ -227,7 +227,11 @@ queue.push(test('the 32 sets map onto the 11 approved collections once each', fu
     collectionBonus.collections().forEach(function (col) {
         assert.strictEqual(col.bonusPts, col.legacyBonuses.reduce(function (sum, row) { return sum + row.pts; }, 0), col.id);
         assert.strictEqual(col.bonusPts, SERVER_BONUS[col.id], col.id);
-        assert.strictEqual(collectionBonus.requiredMembers(col).length, col.badgeIds.length, col.id);
+        const proof = collectionBonus.proofMemberIds(col);
+        const required = collectionBonus.requiredMembers(col);
+        assert.deepStrictEqual(required, proof.length ? proof : col.badgeIds.slice(), col.id);
+        assert.ok(required.length <= col.badgeIds.length, col.id);
+        required.forEach(function (id) { assert.ok(col.badgeIds.indexOf(id) !== -1, id); });
         bonusSum += col.bonusPts;
         const groupLine = groups.slice(groups.indexOf(col.id), groups.indexOf(col.id) + 700);
         assert.ok(groupLine.includes('serverBonusPts: ' + col.bonusPts), col.id);
@@ -527,26 +531,40 @@ queue.push(test('earnedHidden plus one cheap award does not complete a collectio
     assert.strictEqual(db.docs['users/u/xp_ledger/' + col.bonusId], undefined);
     assert.strictEqual(db.docs['users/u'].points, 0);
 
-    const proven = serverHeldBadgeIds({ hiddenBadges: col.badgeIds.slice() }, []);
-    assert.strictEqual(collectionBonus.planGrant(col, proven).eligible, true);
-    const listed = memoryDb({
-        'users/u': { points: 0, hiddenBadges: col.badgeIds.slice(), visibleBadges: [] },
+    const hiddenOnly = serverHeldBadgeIds({ hiddenBadges: col.badgeIds.slice() }, []);
+    assert.strictEqual(collectionBonus.planGrant(col, hiddenOnly).reason, 'incomplete');
+    const hiddenDb = memoryDb({
+        'users/u': { points: 0, hiddenBadges: col.badgeIds.slice(), visibleBadges: [], badges: [], donationBadges: [] },
     });
-    const paid = await collectionBonus.grantCollectionBonus(listed, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, postChat: false });
-    assert.strictEqual(paid.granted, true);
-    assert.strictEqual(paid.requested, 150);
+    const hiddenPaid = await collectionBonus.grantCollectionBonus(hiddenDb, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, postChat: false });
+    assert.strictEqual(hiddenPaid.granted, false);
+    assert.strictEqual(hiddenPaid.reason, 'incomplete');
+    assert.strictEqual(hiddenDb.docs['users/u/xp_ledger/' + col.bonusId], undefined);
+
+    const corroborated = serverHeldBadgeIds({
+        hiddenBadges: collectionBonus.requiredMembers(col).slice(),
+        visibleBadges: collectionBonus.requiredMembers(col).slice(),
+    }, []);
+    assert.strictEqual(collectionBonus.planGrant(col, corroborated).eligible, true);
 }));
 
-queue.push(test('Entertainment does not complete on its three non-cosmetic badges', async function () {
+queue.push(test('Entertainment pays 150 when its three server-proof badges are held', async function () {
     const col = collectionBonus.collectionById('col_entertainment');
-    assert.ok(col.badgeIds.length > 3);
+    assert.strictEqual(col.badgeIds.length, 28);
+    assert.strictEqual(collectionBonus.requiredMembers(col).length, 3);
+    assert.strictEqual(col.bonusPts, 150);
     const three = ['tctv_daily_1', 'tctv_daily_7', 'tctv_daily_30'];
-    three.forEach(function (id) { assert.ok(col.badgeIds.indexOf(id) !== -1, id); });
+    assert.deepStrictEqual(collectionBonus.requiredMembers(col), three);
+    const partial = memoryDb(seedAwards(three.slice(0, 2)));
+    const missing = await collectionBonus.grantCollectionBonus(partial, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, postChat: false });
+    assert.strictEqual(missing.reason, 'incomplete');
+    assert.strictEqual(missing.granted, false);
     const db = memoryDb(seedAwards(three));
-    const result = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000 });
-    assert.strictEqual(result.reason, 'incomplete');
-    assert.strictEqual(result.granted, false);
-    assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId], undefined);
+    const result = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, postChat: false });
+    assert.strictEqual(result.granted, true);
+    assert.strictEqual(result.requested, 150);
+    assert.strictEqual(result.xp, 150);
+    assert.notStrictEqual(result.requested, 1500);
 }));
 
 queue.push(test('Daily Habits deducts the 2000 the server paid for Trifecta and Streak', async function () {
