@@ -83,7 +83,7 @@
         <tr><td>Peer connections (peer_requests subcollection)</td><td>Mutual-follow social graph — sent/received peer requests and confirmed connections</td></tr>
         <tr><td>Price prediction history (predictions subcollection)</td><td>Daily up/down predictions, resolution status, accuracy streak</td></tr>
         <tr><td>Say hi progress</td><td>Whether you armed and claimed the daily greeting, and which chat message was used</td></tr>
-        <tr><td>Gifts, keys, and locked ciphers</td><td>Virtual items on your account, including keys you send to peers</td></tr>
+        <tr><td>Gifts, keys, and locked ciphers</td><td>Virtual items on your account, including keys you send to peers. A sent key stores the sender on the server. A cipher-share record names both accounts and the prize so the same open is not paid twice</td></tr>
         <tr><td>Notification preferences</td><td>Which push categories you have turned on or off, including a master off switch</td></tr>
         <tr><td>Web push tokens</td><td>A token per device you opt in, so we can deliver push notifications. Older accounts may also have a single token on the profile</td></tr>
     </table>
@@ -546,7 +546,7 @@
         <li>Notifications in your inbox and notifications you sent. You can mark a notice read. The app does not delete a single notice. Read and unread status is removed with the account</li>
         <li>Push tokens for the account, including <code>push_tokens/{uid}</code> and its <code>devices</code></li>
         <li>Authenticator-app secrets, authenticator sessions, and remembered devices (the token hash, browser and system label, and timestamps), presence, Timechain TV presence, view-day rows, and channel ratings, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
-        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted. Pending gift-pair records that name your account are deleted after the sign-in is gone</li>
+        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. Cipher-share records that name your account are deleted. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted. Pending gift-pair records that name your account are deleted after the sign-in is gone</li>
         <li>Nacho posts in Global Chat that tagged you have the tag removed and your name in that post replaced with <code>[deleted]</code>. Other people's names in the same post stay. Your account id is removed from reactions on the newest Global Chat messages and announcements (about the latest 2,000 of each). An older message can still list it</li>
         <li>Your username on raid participation rows, raid winner rows, and Satoshi's Favor contributor rows. The contribution count and the sats awarded stay. The same replacement is applied to raffle snapshots and leaderboard winner history. The payout record stays</li>
         <li>Nacho feedback, missed questions, and bad-match notes that include the question you typed, plus rows that record an AI tool you opened and channel feedback you sent</li>
@@ -560,7 +560,7 @@
     <ul>
         <li><strong>Faucet ledger, invoice records, and the IP, device, and related faucet logs.</strong> The withdrawal list on the profile is deleted. These server records stay so a new account cannot reset the lifetime sats cap or hide a claim</li>
         <li><strong>Lightning address locks,</strong> so one address stays tied to the account that used it. A one-time reset marker records that a fresh withdrawal address was saved. The address on the account is permanent; changing it later is a support request to <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a></li>
-        <li><strong>Cipher win records,</strong> for sats that were already won</li>
+        <li><strong>Cipher win records,</strong> for sats that were already won. The share marker that paid the same prize to the key sender is deleted with the account. The win record stays</li>
         <li><strong>Charity donation records,</strong> including a public name already shown on a donation. They are part of the community pledge total</li>
         <li><strong>Referral records,</strong> so the referral bonus cannot be claimed again by deleting the account</li>
         <li><strong>Admin audit logs and reports</strong> filed for moderation, including suspicious-activity notes, watchlist snapshots, and Beats reports. Those can hold an email address or the id of the person who filed the report</li>

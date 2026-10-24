@@ -13,6 +13,7 @@ const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
+const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { planDailyXp } = require('./dailyXp');
 const { applyDailyXp } = require('./applyDailyXp');
@@ -378,6 +379,7 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
                 if (CIPHER_LABELS.indexOf(label) === -1) return;
                 const keyRef = db.collection('keys').doc();
                 keyIds.push(keyRef.id);
+                // A key the user earns has no sender. sendKeys writes that field.
                 t.set(keyRef, {
                     ownerId: uid,
                     label: label,
@@ -571,6 +573,9 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 sentAt: now,
                 ownerId: recipientUid,
                 sendPairId: canonicalRef.id,
+                // Server-only provenance. Clients cannot write keys, and this
+                // call ignores any sender the client put on the request.
+                sender: uid,
             });
         }
 
@@ -654,6 +659,8 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     if (reward.rewardType === 'sats' && [100, 500, 1000, 5000, 10000, 50000, 100000].indexOf(reward.satsAmount) === -1) {
         throw httpsError('internal', 'Bad reward roll');
     }
+    // One roll. The opener's daily XP taper must not change the prize the sender is offered.
+    const sharedPrize = clonePrize(reward);
 
     let applied = null;
     let cipherPointsBefore = 0;
@@ -704,12 +711,73 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const now = admin.firestore.FieldValue.serverTimestamp();
         let winId = null;
         let satsStatus = null;
+        let openerDailyTotal = null;
+        const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
 
+        // Decide the opener's prize before any write so the sender reads
+        // still happen first. The roll above is the only roll.
         if (reward.rewardType === 'sats') {
             satsStatus = reward.satsAmount >= 1000 ? 'pending' : 'claimable'; // under 1,000 auto-pay; 1,000+ manual
-            const winRef = db.collection('cipher_wins').doc();
-            winId = winRef.id;
-            t.set(winRef, {
+            winId = db.collection('cipher_wins').doc().id;
+        } else {
+            let xp = reward.xpAmount || 50;
+            if (rewardBlocked(user, ledger)) xp = 0;
+            else {
+                const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
+                const tapered = planDailyXp(used, xp);
+                xp = tapered.awarded;
+                if (xp > 0) openerDailyTotal = tapered.dailyXp;
+            }
+            reward.xpAmount = xp;
+            if (xp > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(xp);
+                userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
+                userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
+            }
+            if ((reward.ticketCount || 0) > 0 && !rewardBlocked(user, ledger)) {
+                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount);
+            }
+        }
+
+        // Sender reads stay before every write in this transaction.
+        let sharePlan = null;
+        let senderRef = null;
+        let senderDailyRef = null;
+        let shareSenderName = 'a Bitcoiner';
+        const shareSender = senderFromKey(key);
+        const shareRef = db.collection('cipher_shares').doc(cipherId);
+        if (shareSender) {
+            senderRef = db.collection('users').doc(shareSender);
+            const senderLedgerRef = db.collection('faucet_ledger').doc(shareSender);
+            senderDailyRef = senderRef.collection('daily_points').doc(cipherDay);
+            const shareSnap = await t.get(shareRef);
+            const senderSnap = await t.get(senderRef);
+            shareSenderName = safeName(senderSnap.exists ? (senderSnap.data() || {}).username : '');
+            const senderLedgerSnap = await t.get(senderLedgerRef);
+            const senderDailySnap = await t.get(senderDailyRef);
+            sharePlan = planCipherShare({
+                cipherId: cipherId,
+                cipherLabel: cipher.label,
+                openerUid: uid,
+                openerUsername: safeName(user.username),
+                opener: Object.assign({ uid: uid }, user),
+                openerLedger: ledger,
+                sender: senderSnap.exists ? senderSnap.data() : null,
+                senderLedger: senderLedgerSnap.exists ? senderLedgerSnap.data() : null,
+                key: key,
+                reward: sharedPrize,
+                marker: shareSnap.exists ? (shareSnap.data() || null) : null,
+                nowMs: Date.now(),
+                today: today,
+                senderDailyXpUsed: senderDailySnap.exists ? (Number((senderDailySnap.data() || {}).total) || 0) : 0,
+            });
+            if (!sharePlan.pay) {
+                console.warn('[decryptCipher] cipher share skipped ' + sharePlan.reason + ' cipher=' + cipherId);
+            }
+        }
+
+        if (reward.rewardType === 'sats') {
+            t.set(db.collection('cipher_wins').doc(winId), {
                 uid: uid,
                 username: safeName(user.username),
                 amount: reward.satsAmount,
@@ -726,28 +794,76 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 paidAt: null,
                 paidBy: null,
             });
-        } else {
-            const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
-            let xp = reward.xpAmount || 50;
-            if (rewardBlocked(user, ledger)) xp = 0;
-            else {
-                const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
-                xp = planDailyXp(used, xp).awarded;
-                if (xp > 0) {
-                    t.set(dailyRef, {
-                        total: used + xp,
-                        lastUpdated: now,
-                    }, { merge: true });
-                }
+        } else if (openerDailyTotal != null) {
+            t.set(dailyRef, {
+                total: openerDailyTotal,
+                lastUpdated: now,
+            }, { merge: true });
+        }
+
+        if (sharePlan && sharePlan.pay && senderRef) {
+            const credit = sharePlan.credit;
+            const senderUpdate = {
+                ciphersDecryptedToday: credit.opensToday,
+                ciphersDecryptedDate: today,
+            };
+            if (credit.fullRing) senderUpdate.cipherFullRing = true;
+            if (credit.xp > 0) {
+                senderUpdate.points = admin.firestore.FieldValue.increment(credit.xp);
+                senderUpdate.weeklyXP = admin.firestore.FieldValue.increment(credit.xp);
+                senderUpdate.monthlyXP = admin.firestore.FieldValue.increment(credit.xp);
+                t.set(senderDailyRef, {
+                    total: credit.dailyXp,
+                    lastUpdated: now,
+                }, { merge: true });
             }
-            reward.xpAmount = xp;
-            if (xp > 0) {
-                userUpdate.points = admin.firestore.FieldValue.increment(xp);
-                userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
-                userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
+            if (credit.tickets > 0) {
+                senderUpdate.orangeTickets = admin.firestore.FieldValue.increment(credit.tickets);
             }
-            if ((reward.ticketCount || 0) > 0 && !rewardBlocked(user, ledger)) {
-                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount);
+            t.update(senderRef, senderUpdate);
+            if (credit.sats > 0) {
+                const shareWinRef = db.collection('cipher_wins').doc();
+                t.set(shareWinRef, {
+                    uid: shareSender,
+                    username: shareSenderName,
+                    amount: credit.sats,
+                    cipherId: cipherId,
+                    cipherLabel: cipher.label,
+                    keyId: keyId,
+                    keySentBy: shareSender,
+                    keySentByName: null,
+                    keyOrigin: 'share',
+                    openerUid: uid,
+                    shareId: cipherId,
+                    roll: reward.roll,
+                    status: credit.satsStatus,
+                    announced: false,
+                    createdAt: now,
+                    paidAt: null,
+                    paidBy: null,
+                });
+            }
+            t.set(shareRef, {
+                paid: true,
+                senderUid: shareSender,
+                openerUid: uid,
+                cipherId: cipherId,
+                cipherLabel: cipher.label || '',
+                prizeRewardType: sharePlan.prize.rewardType,
+                prizeXp: sharePlan.prize.xpAmount,
+                prizeTickets: sharePlan.prize.ticketCount,
+                prizeSats: sharePlan.prize.satsAmount,
+                xp: credit.xp,
+                tickets: credit.tickets,
+                sats: credit.sats,
+                roll: reward.roll,
+                revealed: false,
+                createdAt: now,
+            });
+            if (sharePlan.notice && sharePlan.noticeId) {
+                t.set(db.collection('notifications').doc(sharePlan.noticeId), Object.assign({}, sharePlan.notice, {
+                    createdAt: now,
+                }));
             }
         }
 
@@ -763,6 +879,10 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             opensToday: decToday + 1,
             fullRing: decToday + 1 >= CIPHER_OPENS_PER_DAY,
             username: safeName(user.username),
+            share: sharePlan && sharePlan.pay ? {
+                senderUid: shareSender,
+                fullRing: sharePlan.credit.fullRing,
+            } : null,
         };
     });
 
@@ -816,6 +936,9 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const { grantFamily, familyFor } = require('./grantBadge');
         await grantFamily(db, admin, uid, familyFor('ciphersSolved'));
         if (applied && applied.fullRing) await grantFamily(db, admin, uid, ['cipher_full_ring']);
+        if (applied && applied.share && applied.share.fullRing && applied.share.senderUid) {
+            await grantFamily(db, admin, applied.share.senderUid, ['cipher_full_ring']);
+        }
     } catch (cipherBadgeErr) {
         console.warn('[decryptCipher] badges', cipherBadgeErr && cipherBadgeErr.message);
     }
@@ -1232,11 +1355,38 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     return { success: true, announced: true };
 });
 
+// The sender marks a cipher-share reveal as seen. The flag is server-written,
+// so the popup shows at most once per share. This does not pay anything.
+const ackCipherShare = functionsV1.https.onCall(async (data, context) => {
+    const uid = requireUser(context);
+    const shareId = (data.shareId || '').toString().trim();
+    if (!shareId || shareId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(shareId)) {
+        throw httpsError('invalid-argument', 'Invalid share');
+    }
+    const shareRef = db.collection('cipher_shares').doc(shareId);
+    const noteRef = db.collection('notifications').doc('cshare_' + shareId);
+    await db.runTransaction(async (t) => {
+        const shareSnap = await t.get(shareRef);
+        const noteSnap = await t.get(noteRef);
+        if (!shareSnap.exists) throw httpsError('not-found', 'Share not found');
+        const row = shareSnap.data() || {};
+        if (row.senderUid !== uid) throw httpsError('permission-denied', 'Not your share');
+        if (row.revealed === true) return;
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        t.set(shareRef, { revealed: true, revealedAt: stamp }, { merge: true });
+        if (noteSnap.exists && (noteSnap.data() || {}).recipientId === uid) {
+            t.set(noteRef, { revealed: true }, { merge: true });
+        }
+    });
+    return { ok: true };
+});
+
 module.exports = {
     awardDailyGifts: awardDailyGifts,
     openGift: openGift,
     sendKeys: sendKeys,
     decryptCipher: decryptCipher,
+    ackCipherShare: ackCipherShare,
     claimCipherWin: claimCipherWin,
     listMyCipherWins: listMyCipherWins,
     adminListCipherWins: adminListCipherWins,

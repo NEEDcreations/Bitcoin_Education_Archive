@@ -113,6 +113,23 @@ window.initNotifications = function() {
                 if (nd.type === 'peer_level_up') {
                     showPartnershipLevelUpPopup(nd);
                 }
+                // A shared cipher prize. No push. The reveal runs once, then
+                // ackCipherShare sets the server flag so the next visit skips it.
+                if (nd.type === 'cipher_share' && nd.revealed !== true) {
+                    var sharePayload = {};
+                    var shareKey;
+                    for (shareKey in nd) if (Object.prototype.hasOwnProperty.call(nd, shareKey)) sharePayload[shareKey] = nd[shareKey];
+                    sharePayload.id = change.doc.id;
+                    (function(payload) {
+                        var tries = 0;
+                        var timer = setInterval(function() {
+                            if (typeof window.showCipherShareReveal === 'function') {
+                                clearInterval(timer);
+                                window.showCipherShareReveal(payload);
+                            } else if (++tries > 40) clearInterval(timer);
+                        }, 250);
+                    })(sharePayload);
+                }
                 // Skip the initial unread backlog. Later arrivals are high-value moments.
                 if (window._pushSnapReady && typeof window.notePushMoment === 'function') {
                     var pt = nd.type;
@@ -229,6 +246,7 @@ function notifIcon(n) {
     if (n && n.type === 'peer_accepted') icon = '🧡';
     if (n && n.type === 'gift_received') icon = '🎁';
     if (n && n.type === 'keys_received') icon = '🔑';
+    if (n && n.type === 'cipher_share') icon = '🔓';
     if (n && n.type === 'peer_level_up') icon = '⚡';
     return icon;
 }
@@ -277,20 +295,24 @@ function notifCardHtml(docId, n, variant) {
             ? formatNotifTime(ts)
             : (typeof timeAgo === 'function' ? timeAgo(ts) : ts.toLocaleDateString());
     }
+    var completed = n.status === 'completed';
     var extra = '';
-    if (fromUid && safeDoc) {
+    if (!completed && fromUid && safeDoc) {
         extra = '<div style="display:flex;gap:6px;margin-top:6px;">' +
             '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
             '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
             '</div>';
     }
-    if (n.type === 'keys_received') {
+    if (!completed && n.type === 'keys_received') {
         extra = '<div style="margin-top:6px;"><button type="button" class="notif-keys-btn" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
     }
-    if (giftId && safeDoc) {
+    if (!completed && giftId && safeDoc) {
         extra = '<div style="margin-top:6px;">' +
             '<button type="button" class="notif-open-gift" data-gift-id="' + notifEscape(giftId) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
             '</div>';
+    }
+    if (completed) {
+        extra = '<div class="notif-status" style="margin-top:6px;font-size:0.72rem;font-weight:800;color:var(--text-muted);">Completed</div>';
     }
     var message = n.message || '';
     if ((target.type === 'beats_track' || n.targetType === 'beats_track') && typeof beatsCensor === 'function') {

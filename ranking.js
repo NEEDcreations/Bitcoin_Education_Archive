@@ -5568,17 +5568,17 @@ function showSettingsPage(tab) {
             + '[data-theme="light"] #peersSectionContent .peer-hold{color:#6d28d9;}'
             + '[data-theme="light"] #peersSectionContent .peer-remove{color:#b91c1c;}</style>';
         html += '<div style="padding:12px 14px;margin-bottom:10px;background:var(--bg-side);border:1px solid rgba(247,147,26,0.45);border-radius:12px;text-align:left;">';
-        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">Peers are people you can send keys to. A key opens a locked cipher with the same label. You can send up to 3 keys to each peer, once a day.</div>';
+        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">Peers are people you can send keys to. A key opens a locked cipher with the same label. You can send up to 3 keys to each peer, once a day. If they open a matching cipher with a key you send, you both get the prize.</div>';
         html += '</div>';
         html += '<div style="padding:12px 14px;margin-bottom:12px;background:var(--bg-side);border:1px solid rgba(124,58,237,0.45);border-radius:12px;text-align:left;">';
-        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">🔒 Locked cipher: you need a key with the same label, such as 3A, to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key, or ask in Global Chat.</div>';
+        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">🔒 Locked cipher: you need a key with the same label, such as 3A, to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key. If someone sends you a key and you open a matching cipher with it, you both get the prize. Ask in Chat whether anyone has the key.</div>';
         html += '<button type="button" onclick="if(typeof window.openGlobalChatForCipher===\'function\')window.openGlobalChatForCipher()" style="margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link);border-radius:8px;color:var(--link);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Global Chat</button>';
         html += '</div>';
         html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:left;padding:4px 0 8px;">Loading...</div>';
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎡 Daily wheel and gifts</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Spin the daily wheel once a day. You earn 2 to 5 gifts. Open each gift right away — gifts are not stored. A gift can hold keys, locked ciphers, orange tickets, XP, a streak shield, a closet item, or a rare Nacho shoutout.</div>';
-        html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Keys and locked ciphers carry labels such as 3A. A key opens the cipher with the same label. If you get a matching pair, open it right away. Otherwise send keys to peers: up to 3 keys per peer each day, and as many peers as you want.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Keys and locked ciphers carry labels such as 3A. A key opens the cipher with the same label. If you get a matching pair, open it right away. If you send a key and a peer opens a matching cipher with it, you both get the prize. You can send up to 3 keys per peer each day, and as many peers as you want.</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:10px;">You can open up to 21 ciphers per day. Most opens pay 50 to 250 XP and 0 to 10 orange tickets. Rare opens pay sats. Wins under 1,000 sats can be claimed with a Lightning invoice or address. Wins of 1,000 sats or more are paid by Phil.</div>';
         html += '<div id="giftsTabContent"></div>';
         html += '<button type="button" onclick="if(typeof window.openKeysAndCiphers===\'function\')window.openKeysAndCiphers()" style="margin-top:8px;width:100%;padding:10px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Open keys and ciphers</button>';
@@ -7015,7 +7015,7 @@ function showSettingsPage(tab) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261022_v2322';
+            s.src = 'notifications.js?v=20261024_v2355';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -7313,8 +7313,8 @@ function showSettingsPage(tab) {
                             ? 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text);'
                             : 'background:linear-gradient(135deg,#f7931a,#ea580c);border:none;color:#fff;';
                         var _limitLine = _keysSentToday
-                            ? 'Sent today. The limit is 3 keys per peer, once a day. You can send again tomorrow.'
-                            : 'Up to 3 keys per peer per day.';
+                            ? 'Sent today. The limit is 3 keys per peer, once a day. You can send again tomorrow. If they open a matching cipher with a key you sent, you both get the prize.'
+                            : 'Up to 3 keys per peer per day. If they open a matching cipher with a key you send, you both get the prize.';
                         peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:var(--bg-side);">' +
                             '<div style="font-size:1rem;font-weight:800;color:var(--heading);word-break:break-word;line-height:1.3;">🧡 ' + _safeName + '</div>' +
                             '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + summaryText + '</div>' +
@@ -8551,7 +8551,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261022_v2322';
+    s.src = 'notifications.js?v=20261024_v2355';
     s.onload = run;
     document.body.appendChild(s);
 };

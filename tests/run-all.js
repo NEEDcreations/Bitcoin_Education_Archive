@@ -28,6 +28,7 @@ const TESTS = [
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
+    { name: 'Cipher share rewards', file: 'test-cipher-share.js' },
     { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
     { name: 'Activity Shoutouts', file: 'test-activity-shoutout.js' },
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
