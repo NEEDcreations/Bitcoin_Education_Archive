@@ -34,6 +34,7 @@ const TESTS = [
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
+    { name: 'Community result totals', file: 'test-community-results.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Leave', file: 'test-tctv-leave.js' },

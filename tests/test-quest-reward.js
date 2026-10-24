@@ -437,9 +437,9 @@ test('trivia stats record the bank index, not the shuffled display slot', functi
     assert.ok(finish.includes("statsUpdate['option_' + _bankIdx]"));
     assert.ok(finish.includes("dayStatsUpdate['option_' + _bankIdx]"));
     assert.strictEqual(finish.includes("option_' + chosenIdx"), false);
-    assert.ok(src.includes("_triviaOptimisticStats['option_' + _triviaStatIndex(t, optimisticVote.chosenIdx)]"));
-    assert.ok(src.includes("_ots['option_' + _triviaStatIndex(t, oi)]"));
-    assert.ok(src.includes("stats['option_' + _triviaStatIndex(t, j)]"));
+    assert.strictEqual(src.includes('_triviaOptimisticStats'), false);
+    assert.ok(src.includes("var statKey = 'option_' + _triviaStatIndex(trivia, oi)"));
+    assert.ok(src.includes('_captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx)'));
 });
 
 function cloneQuests(mutate) {
