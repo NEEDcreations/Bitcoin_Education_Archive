@@ -359,23 +359,43 @@ function forumRenderPosts(posts, container) {
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
 window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
+function forumContinueLabel(name) {
+    var title = String(name || 'this topic').replace(/\s+/g, ' ').trim() || 'this topic';
+    if (title.length > 80) title = title.slice(0, 77).trim() + '…';
+    // Quote the title so "the" + "The problems…" does not read "the The".
+    return 'Continue in “' + title + '” →';
+}
+
+function forumTopicAnchorSuffix(p) {
+    if (!p) return '';
+    var index = p.anchorIndex;
+    var hash = String(p.anchorHash || '');
+    if (typeof index === 'string' && !/^(0|[1-9]\d*)$/.test(index)) return '';
+    var n = typeof index === 'number' ? index : (index == null || index === '' ? NaN : Number(index));
+    if (!isFinite(n) || Math.floor(n) !== n || n < 0 || n > 8000) return '';
+    if (!/^[a-z0-9]{8}$/.test(hash)) return '';
+    return '/' + String(n) + '/' + hash;
+}
+
 function forumTopicContinueLink(p) {
     if (!p || p.origin !== 'topic') return '';
     var channel = String(p.topicChannel || '').replace(/[^A-Za-z0-9_-]/g, '');
     var post = String(p.topicPost || '').replace(/[^A-Za-z0-9_-]/g, '');
-    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : '';
-    if (!href && /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(String(p.topicLink || ''))) href = String(p.topicLink);
+    var stored = String(p.topicLink || '');
+    var storedOk = /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?$/.test(stored) ? stored : '';
+    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : storedOk;
     if (!href) return '';
+    var suffix = forumTopicAnchorSuffix(p);
+    if (channel && post && suffix) href = '#topic/' + channel + '/' + post + suffix;
     var name = '';
     var title = String(p.title || '').replace(/[\u0000-\u001F]/g, '').trim();
     if (title.indexOf('Discussion: ') === 0) name = title.slice('Discussion: '.length).trim();
     if (!name) {
         var slug = channel || href.split('/')[1] || '';
-        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this';
+        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this topic';
     }
     name = name.replace(/\s+/g, ' ').trim();
-    if (name.length > 80) name = name.slice(0, 80).trim();
-    return '<a href="' + fEsc(href) + '" style="display:inline-block;margin:0 0 12px;color:var(--accent);font-size:0.9rem;font-weight:800;text-decoration:none;white-space:nowrap;">Continue in the ' + fEsc(name) + ' topic</a>';
+    return '<a href="' + fEsc(href) + '" style="display:block;margin:0 0 12px;max-width:100%;color:var(--accent);font-size:0.9rem;font-weight:800;line-height:1.35;text-decoration:none;white-space:normal;overflow-wrap:anywhere;">' + fEsc(forumContinueLabel(name)) + '</a>';
 }
 
 // ---- View Post ----
