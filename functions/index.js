@@ -8950,8 +8950,9 @@ exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopi
 // onForumReplyToTopic, onForumReplyMirrorSync, onForumReplyMirrorDelete,
 // onForumPostMirrorDelete, onTopicPostMirrorSync.
 // Rules diff: forum_posts and forum_replies reject client writes of origin,
-// mirrorOf, mirrorSync, topicChannel, topicPost, topicLink, noAward, and
-// mirrored. On a mirrored doc, hidden and deleted are frozen too. The author
+// mirrorOf, mirrorSync, topicChannel, topicPost, topicLink, anchorIndex,
+// anchorHash, noAward, and mirrored. On a mirrored doc, hidden and deleted
+// are frozen too. Topic discussion posts stay server-written. The author
 // may change only body, and only while that doc is not hidden or deleted.
 // Ordinary forum creates are not paced. users/{uid}/xp_ledger is server-only
 // (topic conversation XP, source topic_conversation).

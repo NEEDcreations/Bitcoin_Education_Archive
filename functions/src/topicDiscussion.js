@@ -33,6 +33,7 @@ const ANNOUNCE_WINDOW_MS = 10 * 60 * 1000;
 const ANNOUNCE_HOUR_MS = 60 * 60 * 1000;
 const ANNOUNCE_PER_HOUR = 12;
 const REPORTS_PER_DAY = 20;
+const ANCHOR_INDEX_MAX = 8000;
 const NACHO_UID = 'nacho-bot';
 const CROSS_POST_NOTE = 'Your message was posted in this topic. It was not cross-posted to Pleb Talk.';
 const UNSURE = "I'm not sure — I don't want to guess. The notes in this topic are the best source, and I'm not a financial advisor.";
@@ -85,6 +86,46 @@ function cleanId(value, max) {
     if (!/^[A-Za-z0-9_-]+$/.test(value)) return '';
     if (value.length < 1 || value.length > (max || 128)) return '';
     return value;
+}
+
+// First 80 normalized characters of a paragraph. The client hashes this so a
+// small edit nearby still finds the same block. The server never treats the
+// result as content authority — only as a scroll hint.
+function normalizeAnchorSample(text) {
+    return String(text || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&[#a-z0-9]+;/gi, ' ')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
+}
+
+function anchorFingerprint(text) {
+    const sample = normalizeAnchorSample(text);
+    if (!sample) return '';
+    let h = 2166136261;
+    for (let i = 0; i < sample.length; i++) {
+        h ^= sample.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    h >>>= 0;
+    let out = h.toString(36);
+    while (out.length < 8) out = '0' + out;
+    return out.slice(-8);
+}
+
+// A usable anchor is a bounded paragraph index plus an 8-char [a-z0-9] hash.
+// Anything else is dropped. Callers must also refuse it on replies.
+function acceptTopicAnchor(index, hash) {
+    if (index == null || index === '' || hash == null || hash === '') return null;
+    if (typeof index === 'boolean' || typeof index === 'object') return null;
+    if (typeof index === 'string' && !/^(0|[1-9]\d*)$/.test(index)) return null;
+    const n = typeof index === 'number' ? index : Number(index);
+    if (!Number.isInteger(n) || n < 0 || n > ANCHOR_INDEX_MAX) return null;
+    if (typeof hash !== 'string' || !/^[a-z0-9]{8}$/.test(hash)) return null;
+    return { anchorIndex: n, anchorHash: hash };
 }
 
 function channelMeta(channelId, channels) {
@@ -168,7 +209,7 @@ function buildAnnouncement(input) {
     const channelId = cleanId(src.channelId, 80);
     const postId = cleanId(src.postId, 128);
     const label = src.isQuestion ? 'New question' : 'New comment';
-    const link = forumMirror.announcementLinks(channelId, postId, src.forumPostId || '');
+    const link = forumMirror.announcementLinks(channelId, postId, src.forumPostId || '', src.anchor || null);
     let snip = snippetOf(src.text);
     let text = '🦌 ' + label + ' in ' + title + ': "' + snip + '" → ' + link;
     while (text.length > 300 && snip.length > 16) {
@@ -351,17 +392,10 @@ function createTopicDiscussion(deps) {
         }
         const parentId = body.parentId ? cleanId(body.parentId, 128) : '';
         if (body.parentId && !parentId) fail('invalid-argument', 'That reply could not be posted.');
-        let anchorIndex = null;
-        if (body.anchorIndex != null && body.anchorIndex !== '') {
-            const n = Number(body.anchorIndex);
-            if (!Number.isInteger(n) || n < 0 || n > 20000) fail('invalid-argument', 'That note could not be attached.');
-            anchorIndex = n;
-        }
-        let anchorId = '';
-        if (body.anchorId) {
-            anchorId = cleanId(String(body.anchorId), 80);
-            if (!anchorId) fail('invalid-argument', 'That note could not be attached.');
-        }
+        // Anchors are a scroll hint on the opening post only. A bad shape is
+        // dropped, never trusted for XP, mirroring, or moderation.
+        const isTopEarly = !parentId;
+        const anchor = isTopEarly ? acceptTopicAnchor(body.anchorIndex, body.anchorHash) : null;
 
         const nowMs = nowFn();
         const userRef = db.collection('users').doc(who.uid);
@@ -447,6 +481,7 @@ function createTopicDiscussion(deps) {
                             postId: postRef.id,
                             forumPostId: openForum ? forumPostId : '',
                             isQuestion: question,
+                            anchor: anchor,
                         }),
                         lastAnnounceAtMs: decision.lastAnnounceAtMs,
                         hourKey: decision.hourKey,
@@ -499,8 +534,9 @@ function createTopicDiscussion(deps) {
                 name: name,
                 text: prepared.text,
                 parentId: parentId || '',
-                anchorIndex: anchorIndex,
-                anchorId: anchorId || '',
+                anchorIndex: anchor ? anchor.anchorIndex : null,
+                anchorHash: anchor ? anchor.anchorHash : '',
+                anchorId: '',
                 createdAt: stamp(admin, nowMs),
                 createdAtMs: nowMs,
                 hidden: false,
@@ -525,6 +561,7 @@ function createTopicDiscussion(deps) {
                     points: user.points || 0,
                     admin: admin,
                     nowMs: nowMs,
+                    anchor: anchor,
                 });
                 if (!forumDoc) fail('internal', 'Could not open the forum thread.');
                 tx.set(db.collection('forum_posts').doc(forumDoc.id), forumDoc.data);
@@ -845,6 +882,7 @@ async function writeNachoReply(opts) {
                 text: answer,
                 parentId: o.parentId,
                 anchorIndex: null,
+                anchorHash: '',
                 anchorId: '',
                 createdAt: stamp(o.admin, nowMs),
                 createdAtMs: nowMs,
@@ -910,6 +948,10 @@ module.exports = {
     sanitizeNachoAnswer: sanitizeNachoAnswer,
     groundingFor: groundingFor,
     channelMeta: channelMeta,
+    ANCHOR_INDEX_MAX: ANCHOR_INDEX_MAX,
+    normalizeAnchorSample: normalizeAnchorSample,
+    anchorFingerprint: anchorFingerprint,
+    acceptTopicAnchor: acceptTopicAnchor,
     createTopicDiscussion: createTopicDiscussion,
     CROSS_POST_NOTE: CROSS_POST_NOTE,
 };

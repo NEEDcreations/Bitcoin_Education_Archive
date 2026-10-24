@@ -578,6 +578,9 @@ test('conversation buttons open the discussion and posts show server date-time',
         assert.strictEqual(button.type, 'button');
         assert.strictEqual(button.textContent, '💬 Start a conversation');
         assert.strictEqual(button.getAttribute('aria-label'), 'Start a conversation about 🌋mining');
+        if (button.getAttribute('data-anchor-index') === '3') {
+            assert.strictEqual(button.getAttribute('data-anchor-hash'), plan.bqAnchorFingerprint(paras[3]));
+        }
         var following = button.nextSibling;
         if (following && following.nodeType === 3) assert.ok(!/^\n/.test(String(following.nodeValue || '')));
         button.focus();
@@ -612,7 +615,19 @@ test('conversation buttons open the discussion and posts show server date-time',
     var toggle = plan.document.getElementById('community-discussion-toggle');
     assert.strictEqual(body.hidden, true);
     assert.strictEqual(toggle.getAttribute('aria-expanded'), 'false');
+    assert.strictEqual(prompts[0].getAttribute('data-anchor-index'), '3');
+    assert.strictEqual(prompts[0].getAttribute('data-anchor-hash'), plan.bqAnchorFingerprint(paras[3]));
+    assert.strictEqual(plan.bqAnchorFingerprint('Hello   WORLD!!'), td.anchorFingerprint('hello world'));
+    var found = plan.bqFindTopicBlock(topic.msgs, { index: 3, hash: plan.bqAnchorFingerprint(paras[3]) }, false);
+    assert.strictEqual(found.how, 'hash');
+    assert.strictEqual(found.index, 3);
+    var fallback = plan.bqFindTopicBlock(topic.msgs, { index: 3, hash: 'abcd1234' }, true);
+    assert.strictEqual(fallback.how, 'index');
+    assert.strictEqual(fallback.index, 3);
+    assert.strictEqual(plan.bqFindTopicBlock(topic.msgs, { index: 3, hash: 'abcd1234' }, false), null);
     prompts[0].click();
+    assert.strictEqual(plan._topicAnchorIndex, 3);
+    assert.strictEqual(plan._topicAnchorHash, plan.bqAnchorFingerprint(paras[3]));
     assert.strictEqual(body.hidden, false);
     assert.strictEqual(toggle.getAttribute('aria-expanded'), 'true');
     var area = plan.document.getElementById('topic-discussion-input');
@@ -708,16 +723,103 @@ test('announcement fits chat and becomes a public topic link on Telegram', () =>
     });
     assert.ok(text.length <= 300);
     assert.ok(text.includes('[the topic](#topic/mining/post123)'));
+    assert.ok(!text.includes('#topic/mining/post123/'));
     assert.ok(text.includes('[Pleb Talk](#forum/post/tdforum_mining_post123)'));
     const tg = bridge.toTelegramText(text);
     assert.ok(tg.includes('https://bitcoineducation.quest/#topic=mining&post=post123'));
+    assert.ok(!tg.includes('&i='));
+    const anchored = td.buildAnnouncement({
+        title: 'The problems of todays money and freedom',
+        text: 'What did the 2008 crisis change about money?',
+        channelId: 'mining',
+        postId: 'post123',
+        forumPostId: 'tdforum_mining_post123',
+        isQuestion: true,
+        anchor: { anchorIndex: 4, anchorHash: 'ab12cd34' },
+    });
+    assert.ok(anchored.length <= 300);
+    assert.ok(anchored.includes('[the topic](#topic/mining/post123/4/ab12cd34)'));
+    const tgAnchored = bridge.toTelegramText(anchored);
+    assert.ok(tgAnchored.includes('https://bitcoineducation.quest/#topic=mining&post=post123&i=4&h=ab12cd34'));
     assert.strictEqual(td.decideAnnounce({ lastAnnounceAtMs: 0 }, { hourKey: '1', count: 12 }, 3600000).allow, false);
+});
+
+test('anchor shape is a bounded index plus a short hash, otherwise dropped', () => {
+    const hash = td.anchorFingerprint('The 2008 crisis showed the cracks in credit money.');
+    assert.ok(/^[a-z0-9]{8}$/.test(hash));
+    assert.strictEqual(td.anchorFingerprint('The   2008 CRISIS showed the cracks in credit money!!!'), hash);
+    assert.strictEqual(td.normalizeAnchorSample(('word ').repeat(40)).length, 80);
+    assert.deepStrictEqual(td.acceptTopicAnchor(4, hash), { anchorIndex: 4, anchorHash: hash });
+    assert.deepStrictEqual(td.acceptTopicAnchor('0', 'ab12cd34'), { anchorIndex: 0, anchorHash: 'ab12cd34' });
+    assert.deepStrictEqual(td.acceptTopicAnchor(td.ANCHOR_INDEX_MAX, 'ab12cd34'), { anchorIndex: td.ANCHOR_INDEX_MAX, anchorHash: 'ab12cd34' });
+    [null, '', -1, 1.5, td.ANCHOR_INDEX_MAX + 1, true, {}, '01', '4 ', ' 4'].forEach(function(bad) {
+        assert.strictEqual(td.acceptTopicAnchor(bad, 'ab12cd34'), null, String(bad));
+    });
+    ['', 'AB12CD34', 'short', 'ab12cd3', 'ab12cd345', 'ab12cd3!', '<script>', 'abcd_234'].forEach(function(bad) {
+        assert.strictEqual(td.acceptTopicAnchor(4, bad), null, String(bad));
+    });
+    assert.strictEqual(td.acceptTopicAnchor(4, ''), null);
+    assert.strictEqual(td.acceptTopicAnchor('', 'ab12cd34'), null);
 });
 
 (async function main() {
     const harness = makeApi();
     const db = harness.db;
     const api = harness.api;
+
+    await testAsync('anchor is stored on the opening post and forum mirror, and bad anchors are dropped', async function() {
+        const local = makeApi();
+        seedUser(local.db, 'ada');
+        const hash = td.anchorFingerprint('The 2008 crisis showed the cracks in credit money.');
+        const posted = await local.api.postTopicComment({
+            channelId: 'mining',
+            text: 'What did the 2008 crisis change about money?',
+            anchorIndex: 4,
+            anchorHash: hash,
+            anchorId: '<script>',
+            xp: 999,
+        }, auth('ada'));
+        const saved = postsOf(local.db, 'mining').filter(function(post) { return post._id === posted.postId; })[0];
+        assert.strictEqual(saved.anchorIndex, 4);
+        assert.strictEqual(saved.anchorHash, hash);
+        assert.strictEqual(saved.anchorId, '');
+        assert.strictEqual(saved.xp, undefined);
+        const forum = local.db.read('forum_posts/tdforum_mining_' + posted.postId);
+        assert.strictEqual(forum.anchorIndex, 4);
+        assert.strictEqual(forum.anchorHash, hash);
+        assert.strictEqual(forum.topicLink, '#topic/mining/' + posted.postId + '/4/' + hash);
+        const chats = local.db.dump().filter(function(p) { return p.indexOf('global_chat/') === 0; });
+        assert.strictEqual(chats.length, 1);
+        assert.ok(local.db.read(chats[0]).text.includes('#topic/mining/' + posted.postId + '/4/' + hash));
+        local.advance(31000);
+        const reply = await local.api.postTopicComment({
+            channelId: 'mining',
+            text: 'I remember that year too.',
+            parentId: posted.postId,
+            anchorIndex: 4,
+            anchorHash: hash,
+        }, auth('ada'));
+        const replyDoc = postsOf(local.db, 'mining').filter(function(post) { return post._id === reply.postId; })[0];
+        assert.strictEqual(replyDoc.anchorIndex, null);
+        assert.strictEqual(replyDoc.anchorHash, '');
+        assert.strictEqual(saved.anchorHash, hash);
+        local.advance(31000);
+        const dropped = await local.api.postTopicComment({
+            channelId: 'mining',
+            text: 'A note from the bottom of the topic.',
+            anchorIndex: -1,
+            anchorHash: 'NOPE',
+            anchorId: 'note-1',
+        }, auth('ada'));
+        const plain = postsOf(local.db, 'mining').filter(function(post) { return post._id === dropped.postId; })[0];
+        assert.strictEqual(plain.anchorIndex, null);
+        assert.strictEqual(plain.anchorHash, '');
+        assert.strictEqual(plain.anchorId, '');
+        const plainForum = local.db.read('forum_posts/tdforum_mining_' + dropped.postId);
+        assert.strictEqual(plainForum.topicLink, '#topic/mining/' + dropped.postId);
+        assert.strictEqual(plainForum.anchorIndex, null);
+        assert.strictEqual(plainForum.anchorHash, '');
+    });
 
     await testAsync('ATTACK signed-out, guest, banned, and muted users are refused', async function() {
         await expectFail(function() { return api.postTopicComment({ channelId: 'mining', text: 'hello there' }, {}); }, 'unauthenticated');
