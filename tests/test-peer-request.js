@@ -416,7 +416,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('ranking.js?v=20261023_v2333'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
-    assert.ok(html.includes('gifting.js?v=20261024_v2358'));
+    assert.ok(html.includes('gifting.js?v=20261024_v2365'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2254'));
     assert.ok(html.includes('notifications.js?v=20261024_v2357'));
@@ -507,7 +507,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2360'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2365'"));
     assert.ok(!sw.includes('btc-archive-v2359'));
     assert.ok(!sw.includes('btc-archive-v2358'));
     assert.ok(!sw.includes('btc-archive-v2357'));

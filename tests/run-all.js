@@ -26,6 +26,7 @@ const TESTS = [
     { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
+    { name: 'Gift open popup', file: 'test-gift-open.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
     { name: 'Cipher share rewards', file: 'test-cipher-share.js' },
