@@ -1,6 +1,6 @@
 // Cache-buster pin. This ship branch is btc-archive-v2351.
 // bundle.min.js stays 20261023_v2348.
-// ranking.js is 20261024_v2351 (username repick). features.registry.js, nacho-qa.js, and guide.js stay 20261023_v2339.
+// ranking.js is 20261024_repickb (username repick sign-out). features.registry.js, nacho-qa.js, and guide.js stay 20261023_v2339.
 // global-chat.js is 20261023_v2345.
 // today-card.js and scholar.js stay 20261023_v2330.
 // quests.js is 20261024_v2351. learning-quests.js and modules.js stay 20261023_v2324.
@@ -59,8 +59,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('notifications.js?v=20261022_v2322'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2351') < html.indexOf('ranking.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261024_v2351'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2351') < html.indexOf('ranking.js?v=20261024_repickb'));
+    assert.ok(html.includes('ranking.js?v=20261024_repickb'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2351'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2339'));

@@ -3,7 +3,9 @@
 // Same planner as backfill_usernames.js. A shared name stays with the
 // account that has a non-anonymous provider (email, Google, or any other
 // linked provider), then more points, then the most recent activity.
-// Account age is only the last tiebreaker. Dry-run unless --apply.
+// Account age is only the last tiebreaker.
+// Dry-run only. This deploy has no apply path. Do not re-apply this over
+// the Oct 23 username restore without approval.
 // Prints counts only. Never prints names, emails, or other profile fields.
 
 const backfill = require('./backfill_usernames');

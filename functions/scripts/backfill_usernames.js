@@ -1,20 +1,17 @@
 'use strict';
 
 // Reserve usernames/{lower} for profiles that already have a username.
-// Dry-run by default. Pass --apply to write.
+// Dry-run only. This deploy has no apply path.
 //
-// DEPLOY: run this with --apply before the front end ships. setUsername
-// refuses every new name until usernames_meta/backfill.applied is true.
+// Do not re-apply this over the Oct 23 username restore without approval.
+// usernames_meta/backfill { applied: true } was written before the front end ships.
+// setUsername still requires that marker. This script must not write it again.
 //
 //   node functions/scripts/backfill_usernames.js
-//   node functions/scripts/backfill_usernames.js --apply
 //
 // Duplicate names stay with the account that has a non-anonymous provider
 // (email, Google, or any other linked provider), then more points, then
 // the most recent activity. Account age is only the last tiebreaker.
-// The others are marked usernameNeedsRepick and their username fields are
-// cleared so they pick again. --apply always writes the marker after those
-// writes, even when duplicates were resolved.
 //
 // Prints counts only. Never prints names, emails, or other profile fields.
 //
@@ -235,7 +232,12 @@ async function attachAuthProviders(rows) {
 }
 
 async function main() {
-    const apply = process.argv.indexOf('--apply') !== -1;
+    // Dry-run only. --apply is refused so a deploy cannot write. Do not
+    // re-apply this over the Oct 23 username restore without approval.
+    if (process.argv.indexOf('--apply') !== -1) {
+        console.error('apply is disabled. Do not re-apply this over the Oct 23 restore without approval.');
+        process.exit(2);
+    }
     if (!admin.apps.length) admin.initializeApp();
     const db = admin.firestore();
     const users = await pageCollection(db, 'users');
@@ -243,56 +245,8 @@ async function main() {
     const rows = users.concat(profiles);
     await attachAuthProviders(rows);
     const grouped = groupUsernames(rows);
-    console.log(JSON.stringify(summaryCounts(apply ? 'apply' : 'dry-run', rows.length, grouped)));
-    if (!apply) {
-        console.log('dry-run only. Re-run with --apply before the front end ships.');
-        return;
-    }
-    const pairs = Array.from(grouped.unique.entries());
-    let written = 0;
-    let batch = db.batch();
-    let pending = 0;
-    async function flush() {
-        if (!pending) return;
-        await batch.commit();
-        batch = db.batch();
-        pending = 0;
-    }
-    for (let i = 0; i < pairs.length; i++) {
-        const pair = pairs[i];
-        batch.set(db.collection('usernames').doc(pair[0]), {
-            uid: pair[1],
-            at: admin.firestore.FieldValue.serverTimestamp(),
-            atMs: Date.now(),
-            anon: false,
-            backfill: true,
-        });
-        pending++;
-        written++;
-        if (pending >= 400) await flush();
-    }
-    for (let r = 0; r < grouped.repicks.length; r++) {
-        const repick = grouped.repicks[r];
-        const cols = Object.keys(repick.cols || {});
-        const targets = cols.length ? cols : ['users'];
-        for (let c = 0; c < targets.length; c++) {
-            batch.set(db.collection(targets[c]).doc(repick.uid), {
-                usernameNeedsRepick: true,
-                username: admin.firestore.FieldValue.delete(),
-                username_lower: admin.firestore.FieldValue.delete(),
-            }, { merge: true });
-            pending++;
-            if (pending >= 400) await flush();
-        }
-    }
-    await flush();
-    await db.collection('usernames_meta').doc('backfill').set({
-        applied: true,
-        at: admin.firestore.FieldValue.serverTimestamp(),
-        unique: grouped.unique.size,
-        repicks: grouped.repicks.length,
-    });
-    console.log(JSON.stringify({ wrote: written, repicks: grouped.repicks.length, marker: true }));
+    console.log(JSON.stringify(summaryCounts('dry-run', rows.length, grouped)));
+    console.log('dry-run only. Do not re-apply this over the Oct 23 restore without approval.');
 }
 
 module.exports = {

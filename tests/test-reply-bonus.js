@@ -621,7 +621,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261024_v2351'));
+    assert.ok(html.includes('ranking.js?v=20261024_repickb'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2351'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2334'));

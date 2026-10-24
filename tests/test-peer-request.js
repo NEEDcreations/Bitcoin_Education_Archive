@@ -398,7 +398,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261024_v2351'));
+    assert.ok(html.includes('ranking.js?v=20261024_repickb'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2351'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
