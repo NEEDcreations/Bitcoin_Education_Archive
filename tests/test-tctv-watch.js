@@ -411,7 +411,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2351'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2357'"));
     assert.ok(!sw.includes('btc-archive-v2350'));
     assert.ok(!sw.includes('btc-archive-v2349'));
     assert.ok(!sw.includes('btc-archive-v2348'));
@@ -763,7 +763,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep the knowledge base as the only Latest line and keep Google sign-in and the live timer', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';
+    const latest = 'Latest: Guests and Lightning-only accounts can link an email or Google from Sign-in methods, and sign-out warns them first.';
     const live = 'Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.';
     const google = 'Google sign-in stays on this page and works on Android with the app installed.';
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
