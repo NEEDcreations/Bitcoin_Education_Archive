@@ -593,7 +593,7 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
         try {
             await admin.auth().createUser({
                 uid: lnUid,
-                displayName: '⚡anon-' + key.substring(0, 12),
+                displayName: '⚡wallet-' + key.substring(0, 12),
             });
         } catch(createErr) {
             console.error('Create user error:', createErr);
@@ -9003,6 +9003,10 @@ exports.deleteAccount = deleteAccountFns.deleteAccount;
 // tctvAggregatePresence; this callable only credits watch time.
 const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
 exports.tctvWatchHeartbeat = tctvWatchHeartbeat;
+
+// Clears the one-time backfill badge toast. The script writes the flag.
+const { ackBadgeBackfillToast } = require('./ack-badge-backfill');
+exports.ackBadgeBackfillToast = ackBadgeBackfillToast;
 
 // Topic discussions. Clients read topic_discussions; these callables are the
 // only writers. postTopicComment awaits Nacho's reply before returning.

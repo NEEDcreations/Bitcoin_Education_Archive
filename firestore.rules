@@ -125,6 +125,7 @@ service cloud.firestore {
         'predTopWeeks', 'predTopMonths', 'pushEnabled',
         'peerXpDay', 'peerXpCount', 'keyGiftXpDay', 'keyGiftXpCount',
         'topicCountDay', 'topicCountToday', 'topicXpDay', 'topicXpCount',
+        'badgeBackfillToast',
         'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score'

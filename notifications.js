@@ -77,6 +77,43 @@ window._checkNWCSecurityAlert = function() {
     }, 1000);
 };
 
+// One combined unlock toast for badges the counter backfill already granted.
+// The flag is server-written. The client only asks the callable to clear it.
+window.presentBadgeBackfillToast = function(user) {
+    var toast = user && user.badgeBackfillToast;
+    if (!toast || toast.v !== 1 || !toast.message) return;
+    if (window._badgeBackfillToastShown) return;
+    // A deep link hides toasts. Leave the server flag so the next
+    // ordinary home load can show this once.
+    if (window._directLinkMode) return;
+    if (typeof showToast !== 'function') return;
+    window._badgeBackfillToastShown = true;
+    showToast(toast.message, 6500);
+    try {
+        var ack = firebase.functions().httpsCallable('ackBadgeBackfillToast');
+        ack({}).catch(function() {});
+    } catch (e) {}
+};
+
+function presentBadgeCollection() {
+    var lb = document.getElementById('leaderboard');
+    var open = lb && lb.classList.contains('open') && !lb.classList.contains('minimized');
+    if (!open && typeof toggleLeaderboard === 'function') toggleLeaderboard();
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries += 1;
+        var headers = document.querySelectorAll('#leaderboard h4');
+        for (var i = 0; i < headers.length; i++) {
+            if (headers[i].textContent === 'Your Badges') {
+                headers[i].scrollIntoView({ block: 'start' });
+                clearInterval(timer);
+                return;
+            }
+        }
+        if (tries > 20) clearInterval(timer);
+    }, 300);
+}
+
 // Start listening for notifications
 window.initNotifications = function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
@@ -87,6 +124,9 @@ window.initNotifications = function() {
 
     // NWC security alert — fires once per device if NWC wallet is connected
     setTimeout(window._checkNWCSecurityAlert, 3000);
+    db.collection('users').doc(uid).get().then(function(snap) {
+        if (snap.exists) window.presentBadgeBackfillToast(snap.data());
+    }).catch(function() {});
     if (typeof window.syncPushRegistration === 'function') window.syncPushRegistration();
     if (typeof window.schedulePushPrompt === 'function') window.schedulePushPrompt();
     window._pushSnapReady = false;
@@ -254,7 +294,7 @@ function notifIcon(n) {
 var NOTIF_TARGET_TYPES = {
     forum_post: 1, article: 1, dm: 1, peer_request: 1,
     beats_track: 1, marketplace: 1, song: 1, chat: 1, pvp: 1, buddy: 1,
-    topic_post: 1
+    topic_post: 1, badges: 1
 };
 
 function notifSafeId(value, max) {
@@ -318,13 +358,18 @@ function notifCardHtml(docId, n, variant) {
     if ((target.type === 'beats_track' || n.targetType === 'beats_track') && typeof beatsCensor === 'function') {
         message = beatsCensor(message);
     }
+    var icon = notifIcon(n);
+    var iconHtml = '';
+    if (!icon || message.indexOf(icon) !== 0) {
+        iconHtml = '<span style="font-size:' + (sheet ? '1.2rem' : '1.1rem') + ';flex-shrink:0;">' + notifEscape(icon) + '</span>';
+    }
     var statusAttr = (n.status === 'completed') ? ' data-status="completed"' : '';
     return '<div class="notif-card"' + statusAttr + ' data-notif-id="' + notifEscape(safeDoc) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '" style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;">' +
         '<div style="display:flex;gap:' + (sheet ? '10px' : '8px') + ';align-items:flex-start;">' +
-            '<span style="font-size:' + (sheet ? '1.2rem' : '1.1rem') + ';flex-shrink:0;">' + notifEscape(notifIcon(n)) + '</span>' +
+            iconHtml +
             '<div style="flex:1;min-width:0;">' +
                 '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(message) + '</div>' +
-                notifAmountChips(n) +
+                notifAmountChips(n, message) +
                 '<div style="font-size:' + (sheet ? '0.65rem' : '0.7rem') + ';color:var(--text-faint);margin-top:' + (sheet ? '3px' : '2px') + ';">' + notifEscape(timeStr) + '</div>' +
             '</div>' +
             (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
@@ -377,7 +422,7 @@ function bindNotifCards(root, closeAfter) {
     });
 }
 
-function notifAmountChips(n) {
+function notifAmountChips(n, message) {
     if (!n) return '';
     var chips = [];
     function chip(v, label, bg) {
@@ -386,7 +431,8 @@ function notifAmountChips(n) {
         var sign = num > 0 ? '+' : '';
         chips.push('<span style="display:inline-block;margin:4px 6px 0 0;padding:2px 8px;border-radius:999px;background:' + bg + ';color:var(--text);font-size:0.68rem;font-weight:800;line-height:1.4;">' + sign + num.toLocaleString() + ' ' + label + '</span>');
     }
-    chip(n.xp, 'XP', 'rgba(247,147,26,0.18)');
+    var xpNum = Number(n.xp) || 0;
+    if (!message || String(message).indexOf('(+' + xpNum + ' XP)') === -1) chip(n.xp, 'XP', 'rgba(247,147,26,0.18)');
     chip(n.tickets, '🎟️', 'rgba(249,115,22,0.18)');
     chip(n.sats, 'sats', 'rgba(234,179,8,0.2)');
     chip(n.freezes, '🧊', 'rgba(56,189,248,0.18)');
@@ -558,6 +604,10 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
     }
     else if (safe.type === 'peer_request') {
         if (typeof showSettingsPage === 'function') showSettingsPage('peers');
+        return;
+    }
+    else if (safe.type === 'badges') {
+        presentBadgeCollection();
         return;
     }
     else if (safe.type === 'topic_post' && safe.id) {
