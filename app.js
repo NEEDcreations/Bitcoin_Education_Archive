@@ -4890,7 +4890,7 @@ if (locked) {
         var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more topics to unlock IRL Sync!';
         var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more topics or sign in to unlock Lightning Mart!';
 
-        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
+        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                 (function() {

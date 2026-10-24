@@ -156,6 +156,7 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
 
     return {
       giftsExchanged,
+      storedLevel,
       newLevel,
       didLevelUp,
       xpAwarded: senderXp,

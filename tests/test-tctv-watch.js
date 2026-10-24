@@ -390,7 +390,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261023_v2344'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2350'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
@@ -411,7 +411,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2347'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2350'"));
+    assert.ok(!sw.includes('btc-archive-v2349'));
+    assert.ok(!sw.includes('btc-archive-v2348'));
+    assert.ok(!sw.includes('btc-archive-v2347'));
     assert.ok(!sw.includes('btc-archive-v2346'));
     assert.ok(!sw.includes('btc-archive-v2345'));
     assert.ok(!sw.includes('btc-archive-v2344'));
@@ -775,6 +778,10 @@ test('patch notes keep the knowledge base as the only Latest line and keep Googl
     assert.ok(!notes.includes('Latest: Topic conversations'));
     assert.ok(notes.includes('Topic pages include a Start a conversation button between the paragraphs, and each discussion post shows its date and time.'));
     assert.ok(!notes.includes('Latest: Topic pages include'));
+    assert.ok(notes.includes("On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row."));
+    assert.ok(!notes.includes('Latest: On a phone'));
+    assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
+    assert.ok(!notes.includes('Latest: New badges'));
     assert.ok(!notes.includes('Latest: Google sign-in'));
     assert.ok(notes.includes(timer));
     assert.ok(!notes.includes('Latest: The TCTV'));

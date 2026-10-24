@@ -22,6 +22,7 @@ const TESTS = [
     { name: 'Marketplace Client', file: 'test-marketplace.js' },
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
     { name: 'Badge engine', file: 'test-badge-engine.js' },
+    { name: 'New badge sources', file: 'test-new-badges.js' },
     { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },

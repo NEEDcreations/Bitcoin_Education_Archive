@@ -587,6 +587,18 @@ function createTopicDiscussion(deps) {
                 post.summary = placeholder;
             }
             tx.set(postRef, post);
+            // Badge progress counts this original only. A forum copy, or a
+            // reply mirrored back from Pleb Talk, is not queued again.
+            if (String(prepared.text || '').trim().length >= 20 && !require('./badgeProgress').isMirrorCopy(post)) {
+                tx.set(db.collection('topic_comment_pending').doc(channelId + '_' + postRef.id), {
+                    open: true,
+                    uid: who.uid,
+                    channelId: channelId,
+                    postId: postRef.id,
+                    createdAtMs: nowMs,
+                    dayKey: offsetDateKey(nowMs),
+                });
+            }
             if (parentRef) {
                 const replyCount = Number(parent.replyCount) || 0;
                 tx.set(parentRef, { replyCount: replyCount + 1 }, { merge: true });
@@ -750,6 +762,7 @@ function createTopicDiscussion(deps) {
         if (!channelMeta(channelId, channels) || !postId || !action) fail('invalid-argument', 'That moderation action is not valid.');
         const postRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(postId);
         const privateRef = db.collection('topic_discussion_private').doc(channelId + '~' + postId);
+        let counted = null;
         const changed = await db.runTransaction(async function(tx) {
             const postSnap = await tx.get(postRef);
             const privateSnap = await tx.get(privateRef);
@@ -757,6 +770,8 @@ function createTopicDiscussion(deps) {
             const post = postSnap.data() || {};
             const nowMs = nowFn();
             const claw = action === 'unhide' ? null : await topicXp.clawbackReads(tx, db, post, nowMs, postId, channelId);
+            const revoke = (action === 'hide' || action === 'delete') && post.badgeCounted === true && post.badgeRevoked !== true;
+            if (revoke) counted = { badgeCounted: true, channelId: post.channelId || channelId, uid: post.uid || '' };
             let after;
             if (action === 'hide') {
                 if (post.text) {
@@ -768,21 +783,39 @@ function createTopicDiscussion(deps) {
                         hiddenAtMs: nowFn(),
                     });
                 }
-                after = Object.assign({}, post, { hidden: true, text: '', deleted: false, xpClawed: claw ? true : post.xpClawed === true });
-                tx.set(postRef, { hidden: true, text: '', deleted: false, xpClawed: claw ? true : post.xpClawed === true }, { merge: true });
+                const patch = {
+                    hidden: true,
+                    text: '',
+                    deleted: false,
+                    xpClawed: claw ? true : post.xpClawed === true,
+                    badgeRevoked: revoke ? true : post.badgeRevoked === true,
+                };
+                after = Object.assign({}, post, patch);
+                tx.set(postRef, patch, { merge: true });
             } else if (action === 'unhide') {
                 const saved = privateSnap.exists ? (privateSnap.data() || {}) : {};
                 after = Object.assign({}, post, { hidden: false, text: saved.text || post.text || '', deleted: false });
                 tx.set(postRef, { hidden: false, text: saved.text || post.text || '' }, { merge: true });
                 tx.delete(privateRef);
             } else {
-                after = Object.assign({}, post, { deleted: true, hidden: false, text: '', xpClawed: claw ? true : post.xpClawed === true });
-                tx.set(postRef, { deleted: true, hidden: false, text: '', xpClawed: claw ? true : post.xpClawed === true }, { merge: true });
+                const patch = {
+                    deleted: true,
+                    hidden: false,
+                    text: '',
+                    xpClawed: claw ? true : post.xpClawed === true,
+                    badgeRevoked: revoke ? true : post.badgeRevoked === true,
+                };
+                after = Object.assign({}, post, patch);
+                tx.set(postRef, patch, { merge: true });
                 tx.delete(privateRef);
             }
             if (claw) topicXp.clawbackWrites(tx, claw);
             return { before: post, after: after };
         });
+        if (counted) {
+            try { await require('./badgeCredit').revokeTopicCredit(db, admin, counted); }
+            catch (e) { console.warn('[topicDiscussion] revoke', e.message); }
+        }
         try {
             await forumMirror.syncTopicToForum({
                 db: db,
@@ -806,6 +839,7 @@ function createTopicDiscussion(deps) {
         if (!channelMeta(channelId, channels) || !postId) fail('invalid-argument', 'That comment could not be deleted.');
         const postRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(postId);
         const privateRef = db.collection('topic_discussion_private').doc(channelId + '~' + postId);
+        let counted = null;
         const changed = await db.runTransaction(async function(tx) {
             const postSnap = await tx.get(postRef);
             if (!postSnap.exists) fail('not-found', 'That comment is no longer there.');
@@ -813,11 +847,24 @@ function createTopicDiscussion(deps) {
             if (post.uid !== who.uid || post.isNacho === true) fail('permission-denied', 'You can only delete your own comment.');
             const nowMs = nowFn();
             const claw = await topicXp.clawbackReads(tx, db, post, nowMs, postId, channelId);
-            tx.set(postRef, { deleted: true, text: '', hidden: false, xpClawed: claw ? true : post.xpClawed === true }, { merge: true });
+            const revoke = post.badgeCounted === true && post.badgeRevoked !== true;
+            if (revoke) counted = { badgeCounted: true, channelId: post.channelId || channelId, uid: post.uid || '' };
+            const patch = {
+                deleted: true,
+                text: '',
+                hidden: false,
+                xpClawed: claw ? true : post.xpClawed === true,
+                badgeRevoked: revoke ? true : post.badgeRevoked === true,
+            };
+            tx.set(postRef, patch, { merge: true });
             tx.delete(privateRef);
             if (claw) topicXp.clawbackWrites(tx, claw);
-            return { before: post, after: Object.assign({}, post, { deleted: true, text: '', hidden: false, xpClawed: claw ? true : post.xpClawed === true }) };
+            return { before: post, after: Object.assign({}, post, patch) };
         });
+        if (counted) {
+            try { await require('./badgeCredit').revokeTopicCredit(db, admin, counted); }
+            catch (e) { console.warn('[topicDiscussion] revoke', e.message); }
+        }
         try {
             await forumMirror.syncTopicToForum({
                 db: db,

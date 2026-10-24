@@ -128,6 +128,7 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             const userUpdate = {};
             if (ticketsOut > 0) {
                 userUpdate.orangeTickets = admin.firestore.FieldValue.increment(ticketsOut);
+                userUpdate.tctvWatchDays = admin.firestore.FieldValue.increment(1);
             }
             if (xpPlan.awarded > 0) {
                 userUpdate.points = admin.firestore.FieldValue.increment(xpPlan.awarded);
@@ -167,8 +168,15 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             toast: showToast ? ((notice && notice.data && notice.data.message) || watch.TOAST_TEXT) : '',
             xp: view.awarded ? xpAwarded : 0,
             tickets: view.awarded ? ticketsOut : 0,
+            watchDay: ticketsOut > 0,
         };
     });
+    if (watchResult && watchResult.watchDay) {
+        try {
+            const grant = require('./src/grantBadge');
+            await grant.grantFamily(db, admin, uid, grant.familyFor('tctvWatchDays'));
+        } catch (e) { console.warn('[tctvWatch] badges', e.message); }
+    }
     if (watchResult && watchResult.tickets > 0) {
         try {
             await require('./src/comboActivity').noteComboZone(db, admin, uid, 'tctv', today);

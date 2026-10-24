@@ -38,9 +38,96 @@ function initBottomNav() {
         '.bnav-btn:active .bnav-icon{transform:scale(1.2);}' +
         '.bnav-btn.active{color:var(--accent);}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
-        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:calc(180px + env(safe-area-inset-bottom, 0px))!important;}.home-page{padding-bottom:calc(140px + env(safe-area-inset-bottom, 0px))!important;}}';
+        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}' +
+        '#main{padding-bottom:calc(var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px)) + 44px + var(--fab-gap, 12px))!important;}}';
     document.head.appendChild(style);
     document.body.appendChild(nav);
+    watchBottomNavHeight();
+}
+
+// --bnav-h is the nav's height above the safe-area inset. CSS adds
+// env(safe-area-inset-bottom) so the FAB gap tracks both pieces.
+function readSafeAreaBottom() {
+    var probe = document.getElementById('bqSafeAreaProbe');
+    if (!probe) {
+        probe = document.createElement('div');
+        probe.id = 'bqSafeAreaProbe';
+        probe.setAttribute('aria-hidden', 'true');
+        probe.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;';
+        document.body.appendChild(probe);
+    }
+    return probe.getBoundingClientRect().height || 0;
+}
+
+function syncBottomNavHeight() {
+    var root = document.documentElement;
+    if (window.innerWidth > 900) {
+        root.style.setProperty('--bnav-h', '0px');
+        return;
+    }
+    var nav = document.getElementById('bottomNav');
+    if (!nav) return;
+    var full = nav.getBoundingClientRect().height;
+    if (!(full > 0)) return;
+    var above = Math.max(0, Math.round((full - readSafeAreaBottom()) * 100) / 100);
+    root.style.setProperty('--bnav-h', above + 'px');
+}
+
+function watchBottomNavHeight() {
+    syncBottomNavHeight();
+    var nav = document.getElementById('bottomNav');
+    if (nav && window.ResizeObserver && !nav._bnavWatch) {
+        nav._bnavWatch = true;
+        new ResizeObserver(function() { syncBottomNavHeight(); }).observe(nav);
+    }
+    if (!window._bnavResizeBound) {
+        window._bnavResizeBound = true;
+        window.addEventListener('resize', syncBottomNavHeight);
+        window.addEventListener('orientationchange', syncBottomNavHeight);
+    }
+}
+
+// Hide the floating row while a chat or DM composer is in use, and while
+// Nacho Mode or an open composer would sit under the buttons.
+function syncFabHold() {
+    if (window.innerWidth > 900) {
+        document.body.classList.remove('kb-open');
+        document.body.classList.remove('fab-hold');
+        return;
+    }
+    function shown(el) {
+        if (!el || !el.getClientRects || !el.getClientRects().length) return false;
+        var overlay = el.closest && el.closest('#chatOverlay');
+        if (overlay && !document.body.classList.contains('chat-panel-open')) return false;
+        return true;
+    }
+    var active = document.activeElement;
+    var typing = !!(active && active.matches && active.matches('#globalChatInput, #dmInput') && shown(active));
+    var vv = window.visualViewport;
+    var keyboard = !!(typing && vv && vv.height < window.innerHeight - 80);
+    document.body.classList.toggle('kb-open', typing || keyboard);
+
+    var overlayOpen = document.body.classList.contains('chat-panel-open');
+    var hub = document.getElementById('chatContent');
+    var hubOpen = !!(hub && shown(hub) && !(hub.closest && hub.closest('#chatOverlay')));
+    var dmOpen = shown(document.getElementById('dmInput'));
+    var nachoMode = !!document.getElementById('nachoModeScreen');
+    document.body.classList.toggle('fab-hold', overlayOpen || hubOpen || dmOpen || nachoMode || typing);
+}
+window.syncFabHold = syncFabHold;
+
+function initComposerKeyboard() {
+    if (window._fabHoldBound) return;
+    window._fabHoldBound = true;
+    document.addEventListener('focusin', syncFabHold);
+    document.addEventListener('focusout', function() { setTimeout(syncFabHold, 60); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', syncFabHold);
+    var fabHoldTimer = null;
+    new MutationObserver(function() {
+        clearTimeout(fabHoldTimer);
+        fabHoldTimer = setTimeout(syncFabHold, 40);
+    }).observe(document.body, { childList: true, subtree: true });
+    syncFabHold();
 }
 
 // ---- #4: Dynamic Bottom Nav (hide on scroll down, show on scroll up) ----
@@ -571,7 +658,7 @@ function showPWAInstallBanner() {
     if (document.getElementById('pwaInstallBanner')) return;
     var banner = document.createElement('div');
     banner.id = 'pwaInstallBanner';
-    banner.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+    banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
     banner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;">' +
         '<div style="font-size:2rem;">🦌</div>' +
         '<div style="flex:1;">' +
@@ -626,7 +713,7 @@ window.dismissPWABanner = function() {
         if (document.getElementById('iosA2HSBanner')) return;
         var banner = document.createElement('div');
         banner.id = 'iosA2HSBanner';
-        banner.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+        banner.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px));left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
         banner.innerHTML =
             '<div style="display:flex;align-items:flex-start;gap:12px;">' +
                 '<div style="font-size:2rem;flex-shrink:0;">🦌</div>' +
@@ -668,7 +755,7 @@ window.toggleMobileLearnMenu = function() {
 
     var menu = document.createElement('div');
     menu.id = 'mobileLearnMenu';
-    menu.style.cssText = 'position:fixed;bottom:70px;left:8px;right:8px;z-index:250;' +
+    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;z-index:250;' +
         'max-width:400px;margin:0 auto;' +
         'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;' +
         'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
@@ -744,6 +831,7 @@ function initMobileUX() {
     console.log('[MobileUX] Initializing...');
     initBottomNav();
     initScrollNav();
+    initComposerKeyboard();
 
     // Wait for user data to load
     setTimeout(function() {

@@ -15,6 +15,9 @@
  * Otherwise a missing xp field uses the old XP table.
  *
  * Idempotent via users/{uid}/xp_ledger/{badgeId} tagged badge_xp_backfill.
+ * The counter backfill uses that same doc id with source badge_backfill
+ * and sets the award's xpSource to badge_backfill. Either one blocks a
+ * second payment of that badge.
  * Writes lifetime points only. Weekly and monthly leaderboards are left
  * alone. The daily cap is bypassed on purpose:
  * applyDailyXp(uid, amount, null, { bypass: true }).

@@ -15,6 +15,7 @@ const reward = require('./questReward');
 const rewardNotify = require('./rewardNotify');
 const { DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 const { grantFamily, familyFor } = require('./grantBadge');
+const { planQuestDay } = require('./badgeProgress');
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
@@ -257,6 +258,15 @@ const gradeQuest = onCall(async (data, context) => {
         }
         const userUpdate = {};
         let questsPassed = false;
+        let questDay = false;
+        if ((settled.score || 0) >= 3 && !banned) {
+            const plannedDay = planQuestDay({ day: dayKey, lastQuestDate: user.lastQuestDate || '' });
+            if (plannedDay.increment) {
+                questDay = true;
+                userUpdate.questDays = FieldValue.increment(1);
+                userUpdate.lastQuestDate = dayKey;
+            }
+        }
         if (settled.countQuest) {
             const yesterday = reward.previousDateKey(dayKey);
             userUpdate.lastQuizDate = dayKey;
@@ -321,11 +331,16 @@ const gradeQuest = onCall(async (data, context) => {
             questsToday: questsToday + (settled.countQuest ? 1 : 0),
             dailyQuestLimit: reward.DAILY_QUEST_LIMIT,
             questsPassed: questsPassed,
+            questDay: questDay,
         }, meterFrom(dailyUsed, settled.awarded || 0));
     });
     if (result && result.questsPassed) {
         try { await grantFamily(db, admin, uid, familyFor('questsPassed')); }
         catch (questBadgeErr) { console.warn('[gradeQuest] badges', questBadgeErr && questBadgeErr.message); }
+    }
+    if (result && result.questDay) {
+        try { await grantFamily(db, admin, uid, familyFor('questDays')); }
+        catch (questDayErr) { console.warn('[gradeQuest] quest days', questDayErr && questDayErr.message); }
     }
     return result;
 });
