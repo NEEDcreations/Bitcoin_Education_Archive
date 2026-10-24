@@ -211,5 +211,92 @@ test('sign-in methods card shows for guests and Lightning-only accounts, and sig
     assert.ok(createAt > 0 && nameAt > callback.indexOf('getUser(lnUid)'));
 });
 
+test('a pending authenticator check blocks linking and cancel signs straight out', function () {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const block = src.slice(src.indexOf('// ACCOUNT_LINK_PLAN_START'), src.indexOf('// ACCOUNT_LINK_PLAN_END'));
+    const sandbox = {
+        document: {
+            getElementById: function (id) { return id === 'totpSignInOverlay' ? { id: id } : null; }
+        }
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(block, sandbox);
+    assert.strictEqual(sandbox.accountLinkTotpPending(), true);
+    const guest = { uid: 'guest-1', isAnonymous: true, providerData: [] };
+    const held = sandbox.renderSignInMethodsCard(guest, {});
+    assert.ok(held.includes('Finish the authenticator check before linking a sign-in.'));
+    assert.ok(!held.includes('id="accountLinkEmail"'));
+    assert.ok(!held.includes('id="accountGsiButtonHost"'));
+    assert.ok(!held.includes('onclick="sendAccountLinkEmail()"'));
+    assert.ok(!held.includes('onclick="linkGoogleFromAccount()"'));
+
+    const totp = src.slice(src.indexOf('window._showTotpSignInChallenge = function'), src.indexOf('window._submitTotpSignIn = async function'));
+    assert.ok(totp.includes('Cancel (Sign out)'));
+    assert.ok(totp.includes('onclick="signOutUser(true)"'));
+    assert.ok(!totp.includes('onclick="signOutUser()"'));
+    const go = src.slice(src.indexOf('function goToSignInMethods'), src.indexOf('window.goToSignInMethods'));
+    assert.ok(!go.includes('totpSignInOverlay'));
+    assert.ok(!go.includes("getElementById('totpSignInOverlay')"));
+    const tos = html.slice(html.indexOf('class="tos-signout"'), html.indexOf('class="tos-signout"') + 180);
+    assert.ok(tos.includes('Sign out instead'));
+    assert.ok(tos.includes('signOutUser(true)'));
+    assert.ok(!tos.includes('signOutUser()"'));
+
+    const handlerEnd = {
+        'window.sendAccountLinkEmail': 'window.linkGoogleFromAccount',
+        'window.linkGoogleFromAccount': 'function presentSignOutLinkWarning',
+        'async function linkGoogleOntoCurrentAccount': 'function surfaceMfaRequired',
+        'async function finishAccountEmailLink': 'async function linkGoogleOntoCurrentAccount'
+    };
+    Object.keys(handlerEnd).forEach(function (name) {
+        const at = src.indexOf(name);
+        const end = src.indexOf(handlerEnd[name], at + name.length);
+        assert.ok(at > 0 && end > at, name);
+        const slice = src.slice(at, end);
+        assert.ok(slice.includes('accountLinkTotpPending'), name + ' checks the authenticator overlay');
+        if (slice.includes('linkWith')) {
+            assert.ok(slice.indexOf('accountLinkTotpPending') < slice.indexOf('linkWith'), name);
+        }
+    });
+    const send = src.slice(src.indexOf('window.sendAccountLinkEmail'), src.indexOf('window.linkGoogleFromAccount'));
+    assert.ok(send.indexOf('accountLinkTotpPending') < send.indexOf('writeAccountLinkIntent'));
+});
+
+test('a guest link creates the profile and a stale intent falls through', function () {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
+    const block = src.slice(src.indexOf('// ACCOUNT_LINK_PLAN_START'), src.indexOf('// ACCOUNT_LINK_PLAN_END'));
+    const sandbox = {};
+    vm.createContext(sandbox);
+    vm.runInContext(block, sandbox);
+    const now = 1700000000000;
+    const hour = sandbox.ACCOUNT_LINK_MAX_AGE_MS;
+    assert.strictEqual(hour, 60 * 60 * 1000);
+    assert.strictEqual(sandbox.accountLinkIntentFresh({ kind: 'email', uid: 'guest-1', email: 'guest@example.com', at: now }, now), true);
+    assert.strictEqual(sandbox.accountLinkIntentFresh({ kind: 'email', uid: 'guest-1', email: 'guest@example.com', at: now - hour }, now), true);
+    assert.strictEqual(sandbox.accountLinkIntentFresh({ kind: 'email', uid: 'guest-1', email: 'guest@example.com', at: now - hour - 1 }, now), false);
+    assert.strictEqual(sandbox.accountLinkIntentFresh({ kind: 'email', uid: '', email: 'guest@example.com', at: now }, now), false);
+    assert.strictEqual(sandbox.accountLinkIntentFresh({ kind: 'email', uid: 'guest-1', email: 'guest@example.com' }, now), false);
+
+    const read = src.slice(src.indexOf('function readAccountLinkIntent'), src.indexOf('function writeAccountLinkIntent'));
+    assert.ok(read.includes('accountLinkIntentFresh'));
+    assert.ok(read.includes('clearAccountLinkIntent()'));
+
+    const emailLinkFn = src.slice(src.indexOf('async function finishAccountEmailLink'), src.indexOf('async function linkGoogleOntoCurrentAccount'));
+    const mismatch = emailLinkFn.slice(emailLinkFn.indexOf('wanted !=='), emailLinkFn.indexOf('waitForAccountLinkUser'));
+    assert.ok(mismatch.includes('clearAccountLinkIntent()'));
+    assert.ok(mismatch.includes('return false'));
+    assert.ok(!mismatch.includes('return true'));
+    const missingUser = emailLinkFn.slice(emailLinkFn.indexOf('if (!user)'), emailLinkFn.indexOf('var profile'));
+    assert.ok(missingUser.includes('clearAccountLinkIntent()'));
+    assert.ok(missingUser.includes('return false'));
+    assert.ok(emailLinkFn.includes('var wasGuest = !!user.isAnonymous'));
+    assert.ok(emailLinkFn.indexOf('var wasGuest = !!user.isAnonymous') < emailLinkFn.indexOf('linkWithCredential'));
+    assert.ok(emailLinkFn.includes('if (wasGuest && typeof _handleSignInResultGlobal === \'function\')'));
+    assert.ok(emailLinkFn.includes('_handleSignInResultGlobal(auth.currentUser, null, null)'));
+    assert.ok(!emailLinkFn.includes('signInWithCredential'));
+    assert.ok(!emailLinkFn.includes("collection('users')"));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

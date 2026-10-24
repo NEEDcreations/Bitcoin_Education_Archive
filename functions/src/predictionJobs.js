@@ -58,15 +58,32 @@ function createPredictionJobs(db, admin, hooks) {
         const ledgerById = {};
         users.forEach(function(u) { byId[u.id] = u.exists ? (u.data() || {}) : {}; });
         ledgers.forEach(function(u) { ledgerById[u.id] = u.exists ? (u.data() || {}) : {}; });
+        const missingName = snap.docs.filter(function(d) {
+            const user = byId[d.id] || {};
+            const name = user.username ? String(user.username).trim() : '';
+            return !name || name === 'Anon' || name === 'Anonymous';
+        });
+        const pubs = {};
+        if (missingName.length) {
+            const pubRefs = missingName.map(function(d) { return db.collection('public_profiles').doc(d.id); });
+            const pubSnaps = await readChunked(pubRefs);
+            pubSnaps.forEach(function(p) { pubs[p.id] = p.exists ? (p.data() || {}) : {}; });
+        }
         return snap.docs.map(function(d) {
             const view = ps.viewOf(d.data(), period);
             const user = byId[d.id] || {};
             const ledger = ledgerById[d.id] || {};
+            const pub = pubs[d.id] || {};
             let pic = typeof user.profilePic === 'string' ? user.profilePic : '';
             if (pic.length > 8000) pic = '';
+            const userName = user.username ? String(user.username).trim() : '';
+            const pubName = pub.username ? String(pub.username).trim() : '';
+            const username = (userName && userName !== 'Anon' && userName !== 'Anonymous')
+                ? userName
+                : ((pubName && pubName !== 'Anon' && pubName !== 'Anonymous') ? pubName : 'Anon');
             return {
                 uid: d.id,
-                username: user.username || 'Anon',
+                username: username,
                 profilePic: pic,
                 correct: view.correct,
                 total: view.total,

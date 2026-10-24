@@ -203,7 +203,16 @@ test('rules, terms, and the client toast come from the server payload', () => {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Guests and Lightning-only accounts can link an email or Google from Sign-in methods, and sign-out warns them first.'));
+    assert.ok(notes.includes('Badges you already earned appear once, and one toast shows them.'));
+    assert.ok(!notes.includes('Latest: Badges you already earned'));
+    assert.ok(notes.includes('Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.'));
+    assert.ok(!notes.includes('Latest: Timechain TV Music'));
+    assert.ok(notes.includes('If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.'));
+    assert.ok(!notes.includes('Latest: If your username'));
+    assert.ok(notes.includes('Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.'));
+    assert.ok(!notes.includes('Latest: Flex XP'));
     assert.ok(notes.includes('Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.'));
+    assert.ok(!notes.includes('Latest: Nacho answers from'));
     assert.ok(notes.includes("On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row."));
     assert.ok(!notes.includes('Latest: On a phone'));
     assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
