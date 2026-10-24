@@ -355,14 +355,17 @@ function createPredictionJobs(db, admin, hooks) {
                 total: winner.total,
                 awardedAt: Date.now()
             });
-            tx.update(userRef, {
+            const badgeField = period === 'monthly' ? 'predTopMonths' : 'predTopWeeks';
+            const ticketUpdate = {
                 orangeTickets: admin.firestore.FieldValue.increment(winner.tickets),
                 pendingLeaderboardReward: admin.firestore.FieldValue.arrayUnion({
                     tickets: winner.tickets,
                     reason: label,
                     awardedAt: Date.now()
                 })
-            });
+            };
+            ticketUpdate[badgeField] = admin.firestore.FieldValue.increment(1);
+            tx.update(userRef, ticketUpdate);
             tx.set(notifRef, {
                 recipientId: winner.uid,
                 senderId: 'system',
@@ -376,6 +379,14 @@ function createPredictionJobs(db, admin, hooks) {
             });
             return true;
         });
+        if (awardedNow) {
+            try {
+                const field = period === 'monthly' ? 'predTopMonths' : 'predTopWeeks';
+                await require('./badgeCredit').grantIds(db, admin, winner.uid, require('./grantBadge').familyFor(field));
+            } catch (badgeErr) {
+                console.warn('[predict] badge', badgeErr.message);
+            }
+        }
         if (awardedNow && pushHooks.sendPush) {
             try {
                 await pushHooks.sendPush(winner.uid, 'predictions', {

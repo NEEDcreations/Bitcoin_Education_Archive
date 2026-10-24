@@ -118,6 +118,13 @@ service cloud.firestore {
         'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',
         'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived',
         'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed',
+        'giftsOpened', 'giftShoutoutWon', 'keyPeersDistinct', 'peerKeyCiphers',
+        'cipherFullRing', 'cipherSatsPaid', 'cipherBiggestWin', 'peerBestLevel', 'peersAtL3',
+        'topicComments', 'topicChannelsCommented', 'topicChannelCounts',
+        'shopPurchases', 'raffleTicketsBought', 'raffleEntered', 'raffleWins',
+        'predTopWeeks', 'predTopMonths', 'pushEnabled',
+        'peerXpDay', 'peerXpCount', 'keyGiftXpDay', 'keyGiftXpCount',
+        'topicCountDay', 'topicCountToday', 'topicXpDay', 'topicXpCount',
         'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score'
@@ -2358,6 +2365,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /topic_discussion_private/{docId} {
+      allow read, write: if false;
+    }
+    match /key_gift_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /peer_key_days/{docId} {
+      allow read, write: if false;
+    }
+    match /key_use_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /peer_xp_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /topic_comment_pending/{docId} {
       allow read, write: if false;
     }
 
