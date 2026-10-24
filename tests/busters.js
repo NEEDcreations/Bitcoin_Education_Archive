@@ -1,6 +1,6 @@
 // Cache-buster pin. This ship branch is btc-archive-v2351.
 // bundle.min.js is 20261023_v2348.
-// ranking.js is 20261024_v2351 (backfill badge notice). features.registry.js, nacho-qa.js, and guide.js stay 20261023_v2339.
+// ranking.js and notifications.js are 20261024_v2351b (backfill notice). features.registry.js, nacho-qa.js, and guide.js stay 20261023_v2339. The service worker stays btc-archive-v2351 until ship.
 // global-chat.js is 20261023_v2345.
 // today-card.js and scholar.js stay 20261023_v2330.
 // quests.js is 20261023_v2334. learning-quests.js and modules.js stay 20261023_v2324.
@@ -56,10 +56,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2268'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2265'));
-    assert.ok(html.includes('notifications.js?v=20261024_v2351'));
+    assert.ok(html.includes('notifications.js?v=20261024_v2351b'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2322'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
-    assert.ok(html.includes('ranking.js?v=20261024_v2351'));
+    assert.ok(html.includes('ranking.js?v=20261024_v2351b'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2339'));
@@ -157,7 +157,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Backfilled badges show once, plus one unlock toast.'));
+    assert.ok(notes.includes('Latest: Badges you already earned appear once, and one toast shows them.'));
     assert.ok(!notes.includes('Latest: New badges'));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));
     assert.ok(!notes.includes('Latest: Topic conversations'));

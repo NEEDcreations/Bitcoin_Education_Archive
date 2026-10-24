@@ -453,6 +453,9 @@ test('counter backfill raises peersAtL3 and onboarding without paying XP', funct
     assert.ok(script.indexOf('legacySkippedIds') === -1);
     assert.ok(script.indexOf('commitWrites(payWrites)') !== -1);
     assert.ok(script.indexOf('badgeBackfillToast') !== -1);
+    assert.ok(script.indexOf('existingNotice.exists') !== -1);
+    assert.ok(script.indexOf("doc('factionTotals')") < script.indexOf('commitWrites(payWrites)'));
+    assert.strictEqual((script.match(/doc\('factionTotals'\)/g) || []).length, 1);
     const paidAlready = counters.planBadgePay({ points: 0 }, ['onboarding_complete'], ['onboarding_complete'], []);
     assert.strictEqual(paidAlready.xp, 0);
     const { planUserBadges } = require('../functions/src/badgeXpBackfill');
@@ -495,6 +498,56 @@ test('rules deny the new counters and the cert fields', function () {
     assert.ok(client.indexOf('shopPurchases') !== -1);
     assert.ok(client.indexOf("name:'Raffle Regular'") !== -1 || client.indexOf("name: 'Raffle Regular'") !== -1 || client.indexOf("name:'Raffle Regular'") !== -1);
     assert.ok(client.indexOf('set_raffle') !== -1);
+});
+
+test('the backfill notice shows the medal and XP once, and a deep link does not clear it', function () {
+    const vm = require('vm');
+    const window = { location: { hash: '', hostname: 'example.com', search: '' } };
+    const document = {
+        readyState: 'complete',
+        addEventListener: function () {},
+        getElementById: function () { return null; },
+        createElement: function () { return { style: {}, appendChild: function () {}, addEventListener: function () {} }; },
+        body: { appendChild: function () {} },
+        head: { appendChild: function () {} },
+        querySelectorAll: function () { return []; },
+    };
+    window.document = document;
+    window.window = window;
+    let acked = 0;
+    let shown = [];
+    const ctx = vm.createContext({
+        window: window,
+        document: document,
+        localStorage: { getItem: function () { return null; }, setItem: function () {} },
+        setTimeout: function () {},
+        setInterval: function () {},
+        clearInterval: function () {},
+        console: console,
+        auth: { onAuthStateChanged: function () {} },
+        location: window.location,
+        navigator: { userAgent: 'test', platform: 'Linux', maxTouchPoints: 0 },
+        showToast: function (msg) { shown.push(msg); },
+        firebase: { functions: function () { return { httpsCallable: function () { return function () { acked += 1; return { catch: function () {} }; }; } }; } },
+    });
+    vm.runInContext(fs.readFileSync(path.join(root, 'notifications.js'), 'utf8'), ctx);
+    const notice = counters.badgeNoticeData('abc', ['Fort Knox', 'Zap Me', 'Pledged'], 70);
+    ctx.notice = notice;
+    const card = vm.runInContext('notifCardHtml("badge_backfill_v1_abc", notice, "panel")', ctx);
+    assert.strictEqual((card.match(/🏅/g) || []).length, 1);
+    assert.strictEqual((card.match(/\+70 XP/g) || []).length, 1);
+    const other = vm.runInContext('notifCardHtml("tip1", { type: "tip", message: "sent you a tip", xp: 10, read: false }, "panel")', ctx);
+    assert.ok(other.indexOf('⚡') !== -1 || other.indexOf('🔔') !== -1);
+    assert.ok(other.indexOf('+10 XP') !== -1);
+    window._directLinkMode = true;
+    window.presentBadgeBackfillToast({ badgeBackfillToast: { v: 1, message: notice.message } });
+    assert.strictEqual(shown.length, 0);
+    assert.strictEqual(acked, 0);
+    assert.ok(!window._badgeBackfillToastShown);
+    window._directLinkMode = false;
+    window.presentBadgeBackfillToast({ badgeBackfillToast: { v: 1, message: notice.message } });
+    assert.deepStrictEqual(shown, [notice.message]);
+    assert.strictEqual(acked, 1);
 });
 
 const { creditMatureTopicComments } = require('../functions/src/badgeCredit');

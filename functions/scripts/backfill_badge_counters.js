@@ -26,14 +26,16 @@
  * pays 0. The live Favor pool is not changed. backfill_badge_xp.js treats
  * that ledger id, xpSource, and a legacy xp-0 row as already settled.
  *
- * Each user's points increment and xp_ledger markers commit in one batch.
- * The batch is committed before the next user starts. Topic marks are
- * written only after that payment batch. A crash cannot pay the same
- * badge twice on the next run.
+ * Each user's points increment, xp_ledger markers, and faction-total
+ * increment commit in one batch. The batch is committed before the next
+ * user starts. Topic marks are written only after that payment batch.
+ * A crash cannot pay the same badge twice on the next run.
  *
  * --apply writes one notifications doc per user who receives new badges,
  * id badge_backfill_v1_{uid}, and sets badgeBackfillToast for one combined
- * unlock toast. Output is counts only. No user ids or emails.
+ * unlock toast. A later --apply skips that notice and toast when the doc
+ * already exists, so it is not marked unread or shown again. Output is
+ * counts only. No user ids or emails.
  *
  *   node functions/scripts/backfill_badge_counters.js
  *   node functions/scripts/backfill_badge_counters.js --apply
@@ -757,11 +759,14 @@ async function main() {
             const unpaidIds = plan.badges.concat(legacy.write);
             const owed = owedXp(unpaidIds, legacy.write);
             counts.legacySkipped += legacy.skipped.length;
+            let sendNotice = false;
             if (unpaidIds.length) {
+                const existingNotice = await db.collection('notifications').doc(badgeNoticeId(userDoc.id)).get();
+                sendNotice = !existingNotice.exists;
                 counts.unpaid.users += 1;
                 counts.unpaid.badges += unpaidIds.length;
                 counts.unpaid.xp += owed;
-                counts.notifications += 1;
+                if (sendNotice) counts.notifications += 1;
             }
             let favorWouldWrite = 0;
             pay.paying.forEach(function (item) {
@@ -805,7 +810,7 @@ async function main() {
             }
             if (payXp && pay.xp > 0) update.points = admin.firestore.FieldValue.increment(pay.xp);
             const noticeXp = payXp ? pay.xp : 0;
-            if (unpaidIds.length) {
+            if (sendNotice) {
                 update.badgeBackfillToast = {
                     v: 1,
                     message: badgeNoticeText(badgeNames(unpaidIds), noticeXp),
@@ -847,7 +852,7 @@ async function main() {
                     data: awardFor(id, 'counter_backfill_legacy'),
                 });
             });
-            if (unpaidIds.length) {
+            if (sendNotice) {
                 const notice = rewardNotify.prepareNoticeWrite(
                     badgeNoticeData(userDoc.id, badgeNames(unpaidIds), noticeXp),
                     null,
@@ -951,6 +956,14 @@ async function main() {
                             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         },
                     });
+                    const factionTotals = { lastUpdated: admin.firestore.FieldValue.serverTimestamp() };
+                    factionTotals[bucket] = admin.firestore.FieldValue.increment(favorWritten);
+                    payWrites.push({
+                        op: 'set',
+                        merge: true,
+                        ref: db.collection('satoshiFavor').doc('factionTotals'),
+                        data: factionTotals,
+                    });
                 }
             }
             await commitWrites(payWrites);
@@ -972,17 +985,6 @@ async function main() {
         }
         cursor = snap.docs[snap.docs.length - 1];
         if (snap.size < PAGE) break;
-    }
-    if (payXp) {
-        const totals = { lastUpdated: admin.firestore.FieldValue.serverTimestamp() };
-        let any = false;
-        ['cyber_hornets', 'honey_badgers', 'unaffiliated'].forEach(function (bucket) {
-            if (counts.favorByFaction[bucket] > 0) {
-                totals[bucket] = admin.firestore.FieldValue.increment(counts.favorByFaction[bucket]);
-                any = true;
-            }
-        });
-        if (any) await db.collection('satoshiFavor').doc('factionTotals').set(totals, { merge: true });
     }
 
     console.log('[backfill-counters] users ' + counts.users);
