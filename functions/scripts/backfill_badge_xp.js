@@ -10,7 +10,8 @@
  * flexTotals. Pays max(0, newXP - alreadyPaid) and never claws back.
  * alreadyPaid is the award row's xp field when that field is present.
  * A legacy row with xp 0 already paid the old table amount, so only the
- * difference is added. A non-legacy xp 0 was earned while the daily cap
+ * difference is added. A counter_backfill_legacy row is the same kind of
+ * row. A non-legacy xp 0 was earned while the daily cap
  * recorded nothing; that badge is paid in full and listed on its own.
  * Otherwise a missing xp field uses the old XP table.
  *
