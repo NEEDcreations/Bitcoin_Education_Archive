@@ -203,6 +203,8 @@ test('rules, terms, and the client toast come from the server payload', () => {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
+    assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
+    assert.ok(!notes.includes('Latest: Topic conversation'));
     assert.ok(notes.includes('The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.'));
     assert.ok(!notes.includes('Latest: The share card'));
     assert.ok(notes.includes('Key and cipher help now says that when an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won.'));

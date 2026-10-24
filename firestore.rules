@@ -733,11 +733,13 @@ service cloud.firestore {
     // [AUDIT FIX S5] Upvote tracking with voter deduplication
     // =============================================
     // Topic cross-posts are Admin SDK writes. Clients cannot set the mirror
-    // fields, authorId, hidden, or deleted on a mirrored doc. The author of a
-    // mirrored doc may change only body, and only while it is still visible.
-    // Ordinary Pleb Talk posts are not paced by topic_discussion_limits.
+    // fields, the paragraph anchor, authorId, hidden, or deleted on a mirrored
+    // doc. The author of a mirrored doc may change only body, and only while
+    // it is still visible. Ordinary Pleb Talk posts are not paced by
+    // topic_discussion_limits. anchorIndex and anchorHash are server-written
+    // scroll hints; clients cannot create or change them.
     function forumMirrorFieldsAbsent() {
-      return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'noAward', 'mirrored']);
+      return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'anchorIndex', 'anchorHash', 'noAward', 'mirrored']);
     }
     function forumMirrorFieldsFrozen() {
       return request.resource.data.get('origin', null) == resource.data.get('origin', null)
@@ -746,6 +748,8 @@ service cloud.firestore {
         && request.resource.data.get('topicChannel', null) == resource.data.get('topicChannel', null)
         && request.resource.data.get('topicPost', null) == resource.data.get('topicPost', null)
         && request.resource.data.get('topicLink', null) == resource.data.get('topicLink', null)
+        && request.resource.data.get('anchorIndex', null) == resource.data.get('anchorIndex', null)
+        && request.resource.data.get('anchorHash', null) == resource.data.get('anchorHash', null)
         && request.resource.data.get('noAward', null) == resource.data.get('noAward', null)
         && request.resource.data.get('mirrored', null) == resource.data.get('mirrored', null)
         && request.resource.data.authorId == resource.data.authorId;
