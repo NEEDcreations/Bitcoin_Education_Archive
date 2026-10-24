@@ -1804,7 +1804,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="ranking.js?v=20261024_v2350" defer></script>
+    <script src="username-repick.js?v=20261024_v2352" defer></script>
+    <script src="ranking.js?v=20261024_v2352" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261024_v2350" defer fetchpriority="high"></script>
@@ -1825,10 +1826,10 @@
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
             'global-chat.js?v=20261024_v2350',
-            'satoshi-favor.js?v=20261023_v2323'
+            'satoshi-favor.js?v=20261024_v2352'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261024_v2350',
+            'quests.js?v=20261024_v2352',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
@@ -1838,7 +1839,7 @@
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261024_v2356',
+            'timechain-tv.js?v=20261024_v2353',
             'learning-quests.js?v=20261023_v2324',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
@@ -1902,11 +1903,11 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261023_v2324'],
             'learning-quests': ['learning-quests.js?v=20261023_v2324'],
-            'quests':        ['quests.js?v=20261024_v2350'],
-            'questhub':      ['quests.js?v=20261024_v2350'],
-            'app':           ['quests.js?v=20261024_v2350'],
-            'timechain-tv':  ['timechain-tv.js?v=20261024_v2356'],
-            'tv':            ['timechain-tv.js?v=20261024_v2356']
+            'quests':        ['quests.js?v=20261024_v2352'],
+            'questhub':      ['quests.js?v=20261024_v2352'],
+            'app':           ['quests.js?v=20261024_v2352'],
+            'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
+            'tv':            ['timechain-tv.js?v=20261024_v2353']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {

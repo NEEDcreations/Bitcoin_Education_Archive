@@ -516,6 +516,8 @@ function registerOnboarding(deps) {
             const userSnap = await tx.get(userRef);
             const nameSnap = await tx.get(nameRef);
             const ledgerSnap = await tx.get(db.collection('faucet_ledger').doc(uid));
+            const profileRef = db.collection('public_profiles').doc(uid);
+            const profileSnap = await tx.get(profileRef);
             const current = userSnap.exists ? (userSnap.data() || {}) : {};
             const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
             const prevLower = String(current.username_lower || '');
@@ -552,7 +554,11 @@ function registerOnboarding(deps) {
                     anon: false,
                 }, { merge: true });
             }
-            const patch = { username: decision.username, username_lower: decision.username_lower };
+            const patch = {
+                username: decision.username,
+                username_lower: decision.username_lower,
+                usernameNeedsRepick: admin.firestore.FieldValue.delete(),
+            };
             if (!selfHasSame && prevLower) patch.usernameChangedAt = admin.firestore.FieldValue.serverTimestamp();
             if (!userSnap.exists) {
                 tx.set(userRef, Object.assign({
@@ -564,6 +570,13 @@ function registerOnboarding(deps) {
                 }, patch));
             } else {
                 tx.update(userRef, patch);
+            }
+            if (profileSnap.exists) {
+                tx.update(profileRef, {
+                    username: decision.username,
+                    username_lower: decision.username_lower,
+                    usernameNeedsRepick: admin.firestore.FieldValue.delete(),
+                });
             }
             return { ok: true, username: decision.username, already: selfHasSame };
         });
