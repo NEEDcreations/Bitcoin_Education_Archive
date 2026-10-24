@@ -222,8 +222,28 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
     assert.ok(client.includes('function showCrossPostNote'));
     const forumSrc = read('forum.js');
     assert.ok(forumSrc.includes('function forumTopicContinueLink'));
-    assert.ok(forumSrc.includes('Continue in the '));
-    assert.ok(forumSrc.includes('white-space:nowrap'));
+    assert.ok(forumSrc.includes('function forumContinueLabel'));
+    assert.ok(forumSrc.includes('Continue in “'));
+    assert.ok(!forumSrc.includes('Continue in the '));
+    assert.ok(forumSrc.includes('overflow-wrap:anywhere'));
+    assert.ok(forumSrc.includes('white-space:normal'));
+    assert.strictEqual(mirror.continueInTopicLabel('The problems of todays money and freedom'), 'Continue in “The problems of todays money and freedom” →');
+    assert.ok(!mirror.continueInTopicLabel('The problems of todays money and freedom').toLowerCase().includes('the the'));
+    assert.strictEqual(mirror.topicHashLink('mining', 'root1'), '#topic/mining/root1');
+    assert.strictEqual(mirror.topicQueryLink('mining', 'root1'), '#topic=mining&post=root1');
+    assert.strictEqual(mirror.topicHashLink('mining', 'root1', { anchorIndex: 4, anchorHash: 'ab12cd34' }), '#topic/mining/root1/4/ab12cd34');
+    assert.strictEqual(mirror.topicQueryLink('mining', 'root1', { anchorIndex: 4, anchorHash: 'ab12cd34' }), '#topic=mining&post=root1&i=4&h=ab12cd34');
+    assert.strictEqual(mirror.topicHashLink('mining', 'root1', { anchorIndex: -1, anchorHash: 'ab12cd34' }), '#topic/mining/root1');
+    assert.strictEqual(mirror.topicHashLink('mining', 'root1', { anchorIndex: 4, anchorHash: 'AB12CD34' }), '#topic/mining/root1');
+    const anchored = mirror.buildForumPostDoc({
+        channelId: 'mining', postId: 'root1', title: 'The problems of todays money and freedom',
+        summary: 'A short note on the 2008 crisis.', text: 'What changed in 2008?',
+        uid: 'ada', name: 'Ada', nowMs: 1, anchor: { anchorIndex: 4, anchorHash: 'ab12cd34' },
+    });
+    assert.strictEqual(anchored.data.anchorIndex, 4);
+    assert.strictEqual(anchored.data.anchorHash, 'ab12cd34');
+    assert.strictEqual(anchored.data.topicLink, '#topic/mining/root1/4/ab12cd34');
+    assert.ok(anchored.data.link.includes('#topic/mining/root1/4/ab12cd34'));
     assert.ok(forumSrc.includes('r.deleted !== true && r.hidden !== true'));
     const replyTrigger = index.split('exports.onForumReplyToTopic')[1].split('exports.onForumReplyMirrorSync')[0];
     assert.ok(replyTrigger.indexOf(".collection('forum_replies')") < replyTrigger.indexOf('mirrorForumReplyToTopic'));

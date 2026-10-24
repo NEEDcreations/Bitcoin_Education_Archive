@@ -56,7 +56,11 @@ function toTelegramText(text) {
     out = out.replace(/@\[([^\]]+)\]\([^)]*\)/g, '@$1');
     // Activity shoutouts deep-link in chat. Telegram needs a tappable URL.
     out = out.replace(/\[([^\]]+)\]\(#((?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]+)\)/g, 'https://bitcoineducation.quest/#$2');
-    out = out.replace(/\[([^\]]+)\]\(#topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\)/g, 'https://bitcoineducation.quest/#topic=$2&post=$3');
+    out = out.replace(/\[([^\]]+)\]\(#topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)(?:\/(\d+)\/([a-z0-9]{8}))?\)/g, function(_match, _label, channel, post, index, hash) {
+        let url = 'https://bitcoineducation.quest/#topic=' + channel + '&post=' + post;
+        if (index && hash) url += '&i=' + index + '&h=' + hash;
+        return url;
+    });
     out = out.replace(/\[([^\]]+)\]\(#[^)]*\)/g, '$1');
     out = out.replace(/%%[A-Za-z0-9_]+%%/g, '');
     out = out.replace(/[ \t]{2,}/g, ' ');
