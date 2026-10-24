@@ -1,4 +1,5 @@
 // Cache-buster pin. This ship branch is btc-archive-v2354.
+// timechain-tv.js stays 20261024_v2353.
 // bundle.min.js, global-chat.js, features.registry.js, and nacho-qa.js stay 20261024_v2350.
 // ranking.js and notifications.js are 20261024_v2354 (backfill notice).
 // quests.js, satoshi-favor.js, and username-repick.js stay 20261024_v2352.
@@ -177,6 +178,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('patches.js?v=20261023_v2349'));
     assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
+    assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(swVersion && swVersion[1] === 'v2354');
 });
 
@@ -215,6 +218,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Badges you already earned appear once, and one toast shows them.'));
+    assert.ok(notes.includes('Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.'));
+    assert.ok(!notes.includes('Latest: Timechain TV Music'));
     assert.ok(notes.includes('If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.'));
     assert.ok(!notes.includes('Latest: If your username'));
     assert.ok(notes.includes('Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.'));
