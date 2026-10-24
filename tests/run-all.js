@@ -56,6 +56,8 @@ const TESTS = [
     { name: 'XP bank payout dry run', file: 'test-xp-bank-payout.js' },
     { name: 'Server ticket grants', file: 'test-ticket-grants.js' },
     { name: 'Account deletion', file: 'test-delete-account.js' },
+    { name: 'Email change', file: 'test-email-change.js' },
+    { name: 'Account rules', file: 'test-account-rules.js' },
     { name: 'PvP Flow', file: 'test-pvp-flow.js' },
     { name: 'PvP Rules', file: 'test-pvp-rules.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
