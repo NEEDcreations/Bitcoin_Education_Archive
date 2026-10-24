@@ -3678,7 +3678,7 @@ function updateUserDisplay(lv) {
             // Add horizontal row for Dashboard + Notifications
             el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:row;align-items:center;gap:10px;padding:12px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.2);border-radius:12px;cursor:default;transition:0.3s;width:100%;';
         } else {
-            el.style.cssText = 'position:fixed;bottom:70px;left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
+            el.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 10px));left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
         }
 
         el.onclick = function(e) { if(!_isMob && e.target.closest('button')) return; showSettingsPage('account'); };
@@ -7015,7 +7015,7 @@ function showSettingsPage(tab) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261024_v2351b';
+            s.src = 'notifications.js?v=20261024_v2352';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -7852,7 +7852,7 @@ window.minimizeSignUpBanner = function() {
             pill.id = 'mobileSignUpPill';
             document.body.appendChild(pill);
         }
-        pill.style.cssText = 'position:fixed;bottom:70px;left:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 12px 8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
+        pill.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + 64px);left:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 12px 8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
         pill.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>' +
             '<span style="color:var(--text-faint,#888);font-size:0.7rem;margin-left:4px;" title="Expand banner">▲</span>';
         pill.onclick = function() { window.expandSignUpBanner(); };
@@ -8551,7 +8551,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261024_v2351b';
+    s.src = 'notifications.js?v=20261024_v2352';
     s.onload = run;
     document.body.appendChild(s);
 };
