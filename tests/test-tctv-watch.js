@@ -411,7 +411,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2350'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2351'"));
+    assert.ok(!sw.includes('btc-archive-v2350'));
     assert.ok(!sw.includes('btc-archive-v2349'));
     assert.ok(!sw.includes('btc-archive-v2348'));
     assert.ok(!sw.includes('btc-archive-v2347'));
@@ -769,7 +770,9 @@ test('patch notes keep the knowledge base as the only Latest line and keep Googl
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('Latest: If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.'));
+    assert.ok(notes.includes('Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.'));
+    assert.ok(!notes.includes('Latest: Nacho answers from'));
     assert.ok(notes.includes(live));
     assert.ok(!notes.includes('Latest: Nacho answers live'));
     assert.ok(notes.includes(guest));

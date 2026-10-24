@@ -29,6 +29,17 @@ function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
 }
 
+function cleanSolverName(value) {
+  const name = String(value == null ? '' : value).trim();
+  if (!name || name === 'Anonymous' || name === 'Anon') return '';
+  return name.slice(0, 40);
+}
+
+// The callable payload is not a name. Prefer the users doc, then the public profile.
+function resolveSolverName(userName, profileName) {
+  return cleanSolverName(userName) || cleanSolverName(profileName) || 'Anonymous';
+}
+
 // Difficulty history (ordered oldest first):
 // Each entry: { target, since: ISO-date string (UTC midnight) }
 const DIFFICULTY_HISTORY = [
@@ -351,6 +362,8 @@ async function creditDailyAllThree(uid, day) {
 
 exports.creditDailyAllThree = creditDailyAllThree;
 exports.favorSourceAllowed = favorSourceAllowed;
+exports.resolveSolverName = resolveSolverName;
+exports.cleanSolverName = cleanSolverName;
 
 // Valid level names per source tier (server-side whitelist)
 const LEVEL_TIERS = {
@@ -678,16 +691,21 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     throw new HttpsError('failed-precondition', 'Satoshi\'s Favor has expired.');
   }
 
-  // Get username (outside transaction — read-only, not security-critical)
+  // Get username (outside transaction — read-only, not security-critical).
+  // data.username from the client is ignored. A blank users.username is filled
+  // from public_profiles, which the profile trigger keeps in sync.
   let username = 'Anonymous';
   try {
     const userDoc = await db.collection('users').doc(uid).get();
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-      username = userData.username || userData.displayName || 'Anonymous';
+    const userData = userDoc.exists ? (userDoc.data() || {}) : {};
+    let profileName = '';
+    if (!cleanSolverName(userData.username)) {
+      const pub = await db.collection('public_profiles').doc(uid).get();
+      profileName = pub.exists ? (pub.data() || {}).username : '';
     }
+    username = resolveSolverName(userData.username, profileName);
   } catch (e) {
-    console.warn(`Could not fetch username for ${uid}:`, e.message);
+    console.warn('Could not fetch username for ' + uid);
   }
 
   // Feature 5: Dual rig support — each rig has its own cooldown bucket so they don't share the limit
