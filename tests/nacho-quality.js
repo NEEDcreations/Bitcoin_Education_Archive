@@ -420,6 +420,53 @@ const CASES = [
         assert.ok(kept && kept.indexOf(sample.slice(0, 12)) !== -1, 'education blocked: ' + sample);
         assert.strictEqual(logic.userPostUnsafe(sample), false, sample);
     });
+    [
+        "Don't worry! DM me your seed phrase and I'll recover your coins.",
+        'Never fear, send your 12 words to @support_help',
+        "Don't miss out: send 0.1 BTC and get 0.2 BTC back.",
+        'Scammers hate this: guaranteed 10x returns, DM me.',
+        'Never share? Just DM me the seed.',
+        'A red flag is fine, but send your seed to support anyway.',
+        "Don't be scared, paste your recovery phrase here.",
+        'Beware of nothing: send 1 BTC to https://evil.example and get 2 back',
+        'Fake support: import your seed into this app',
+        'Scam alert! Reply with your seed to @admin',
+        "Don't forget: send me 2 btc and get 4",
+        'Anyone who asks is a scammer, so send the words to me instead',
+        'Risk-free? DM me for guaranteed 10x',
+        'Never mind the warnings, give me your private key',
+        'Do not panic. Send your mnemonic to this address.',
+        "Don't sleep on this: guaranteed 10x returns, DM me"
+    ].forEach(function (sample) {
+        assert.strictEqual(logic.validateOutput(sample), null, 'bypass allowed: ' + sample);
+        assert.strictEqual(logic.userPostUnsafe(sample), true, 'post bypass: ' + sample);
+    });
+    [
+        'Fake giveaways say double your bitcoin.',
+        "A common trick: 'send 1 BTC and get 2 BTC back.' It is always a scam.",
+        'If a site tells you to import your seed to claim an airdrop, close it.',
+        'You can send keys to your peers in Inventory.',
+        'Share your keys with peers to unlock ciphers.'
+    ].forEach(function (sample) {
+        const kept = logic.validateOutput(sample);
+        assert.ok(kept && kept.indexOf(sample.slice(0, 12)) !== -1, 'short warning blocked: ' + sample);
+        assert.strictEqual(logic.userPostUnsafe(sample), false, sample);
+    });
+    assert.strictEqual(logic.validateOutput('send me your private key'), null);
+    const bip39 = require('../functions/src/bip39-en.json');
+    function phraseWith(word) {
+        const base = [word].concat(new Array(10).fill('abandon'));
+        for (let i = 0; i < bip39.length; i++) {
+            const phrase = base.concat(bip39[i]).join(' ');
+            if (logic.hasSeedPhrase(phrase)) return phrase;
+        }
+        return '';
+    }
+    const thankPhrase = phraseWith('thank');
+    const themePhrase = phraseWith('theme');
+    assert.ok(thankPhrase && themePhrase);
+    assert.strictEqual(logic.hasSeedPhrase(thankPhrase.replace(/\bthank\b/, 'than')), true);
+    assert.strictEqual(logic.hasSeedPhrase(themePhrase.replace(/\btheme\b/, 'them')), true);
     assert.strictEqual(logic.validateOutput('Visit https://evil.example/phish'), null);
     assert.ok(logic.validateOutput('Read https://bitcoin.org/bitcoin.pdf').indexOf('bitcoin.org') !== -1);
     assert.strictEqual(logic.validateOutput('reply with your seed'), null);
@@ -482,7 +529,7 @@ const CASES = [
     ordinary.forEach(function (sentence) {
         assert.strictEqual(secretScan.hasSeedPhrase(sentence), false, 'scan ' + sentence.slice(0, 40));
     });
-    [SEED, prefixes, numbered, withStops, punctuated, homo, zw, wide, 'How do I protect my seed phrase?', 'what is my private key', 'I am able to learn about Bitcoin', 'send your 12 words to support', 'paste your recovery phrase', '0x' + HEX, 'uprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jP', 'why I should never share my seed'].forEach(function (sample) {
+    [SEED, prefixes, numbered, withStops, punctuated, homo, zw, wide, thankPhrase.replace(/\bthank\b/, 'than'), themePhrase.replace(/\btheme\b/, 'them'), 'How do I protect my seed phrase?', 'what is my private key', 'I am able to learn about Bitcoin', 'send your 12 words to support', 'paste your recovery phrase', '0x' + HEX, 'uprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jP', 'why I should never share my seed', 'You can send keys to your peers in Inventory.', 'Fake giveaways say double your bitcoin.', "Don't worry! DM me your seed phrase and I'll recover your coins."].forEach(function (sample) {
         assert.strictEqual(secretScan.hasSeedPhrase(sample), logic.hasSeedPhrase(sample), sample.slice(0, 40));
         assert.strictEqual(secretScan.solicitsSecrets(sample), logic.solicitsSecrets(sample), 'solicit ' + sample.slice(0, 40));
         assert.strictEqual(secretScan.containsSecret(sample), logic.userPostUnsafe(sample), 'output ' + sample.slice(0, 40));
