@@ -785,6 +785,10 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.'));
+    assert.ok(!notes.includes('Latest: The share card'));
+    assert.ok(notes.includes('Key and cipher help now says that when an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won.'));
+    assert.ok(!notes.includes('Latest: Key and cipher help'));
     assert.ok(notes.includes('When you send a key and a peer opens a matching cipher with it, you both win the same prize.'));
     assert.ok(!notes.includes('Latest: When you send a key'));
     assert.ok(notes.includes(music));
