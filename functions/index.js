@@ -8814,14 +8814,9 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
 });
 
 // Nightly backups. Scheduled only — do not add onRequest/onCall wrappers.
-// Auth ciphertext uses AUTH_BACKUP_KEY. Health-check mail uses nodemailer,
-// the same library as the forum notifier. firebase-functions v7 removed
-// functions.config(), so the mailbox and app password come from Secret
-// Manager: ALERT_SMTP_USER and ALERT_SMTP_PASS. Alerts go to
-// info.603btc@gmail.com only. Never Telegram or Discord.
+// Auth ciphertext uses AUTH_BACKUP_KEY. Results are written to
+// backup_status/latest and backup_history. No email, Telegram, or Discord.
 const authBackupKey = defineSecret('AUTH_BACKUP_KEY');
-const alertSmtpUser = defineSecret('ALERT_SMTP_USER');
-const alertSmtpPass = defineSecret('ALERT_SMTP_PASS');
 
 function backupSchedule(cron, extra) {
     return Object.assign({
@@ -8850,13 +8845,8 @@ exports.nightlyConfigSnapshot = onSchedule(backupSchedule('30 3 * * *'), async (
     await nightlyBackup.snapshotConfig();
 });
 
-exports.backupHealthCheck = onSchedule(backupSchedule('0 5 * * *', {
-    secrets: [alertSmtpUser, alertSmtpPass],
-}), async () => {
-    await nightlyBackup.checkBackupHealth({
-        smtpUser: alertSmtpUser.value(),
-        smtpPass: alertSmtpPass.value(),
-    });
+exports.backupHealthCheck = onSchedule(backupSchedule('0 5 * * *'), async () => {
+    await nightlyBackup.checkBackupHealth();
 });
 
 // ================================================================

@@ -84,6 +84,7 @@ const TESTS = [
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
     { name: 'Username repick rules', file: 'rules/username-repick-rules.js' },
     { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },
+    { name: 'Backup status rules', file: 'rules/backup-status-rules.js' },
     { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
 ];
 

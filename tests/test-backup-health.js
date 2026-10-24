@@ -5,7 +5,9 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const { execFileSync } = require('child_process');
 const health = require('../functions/src/backupHealth');
+const status = require('../functions/src/backupStatus');
 const crypto = require('../functions/src/authBackupCrypto');
 const format = require('../functions/src/authBackupFormat');
 
@@ -102,53 +104,37 @@ test('config snapshot requires every file', function () {
     assert.strictEqual(health.assessConfig(['firestore-rules.json']).present, false);
 });
 
-test('dedupe sends one alert and blocks the rest of the day', function () {
-    const failures = [{ check: 'firestore', detail: 'missing' }];
-    const now = 1_000_000;
-    let state = null;
-    let first = health.reduceDedupe(state, { type: 'reserve', failures }, now);
-    state = first.state;
-    assert.strictEqual(first.decision.send, true);
-    assert.strictEqual(first.decision.reason, 'reserved');
-    const held = health.reduceDedupe(state, { type: 'reserve', failures }, now + 1000);
-    assert.strictEqual(held.decision.send, false);
-    assert.strictEqual(held.decision.reason, 'lease-held');
-    state = health.reduceDedupe(state, { type: 'sent' }, now + 2000).state;
-    const again = health.reduceDedupe(state, { type: 'reserve', failures }, now + health.ALERT_LEASE_MS + 10);
-    assert.strictEqual(again.decision.send, false);
-    assert.strictEqual(again.decision.reason, 'already-sent');
-    assert.strictEqual(health.decideAlert([], state, now).reason, 'healthy');
+test('status details strip emails, IPs, tokens, and long ids', function () {
+    const detail = health.sanitizeAlertDetail(
+        'failed for user@example.com from 203.0.113.10 and 2001:db8:85a3::8a2e:370:7334 Bearer abc.def-ghi uid abcdefghij1234567890'
+    );
+    assert.strictEqual(detail.indexOf('user@example.com'), -1);
+    assert.strictEqual(detail.indexOf('203.0.113.10'), -1);
+    assert.strictEqual(detail.indexOf('2001:db8'), -1);
+    assert.strictEqual(detail.indexOf('abc.def-ghi'), -1);
+    assert.strictEqual(detail.indexOf('abcdefghij1234567890'), -1);
+    assert.ok(detail.indexOf('[redacted-email]') !== -1);
+    assert.ok(detail.indexOf('[redacted-ip]') !== -1);
+    assert.ok(detail.indexOf('[redacted-id]') !== -1);
+    assert.ok(detail.length <= 160);
 });
 
-test('a failed send releases the lease so the same day can retry', function () {
-    const failures = [{ check: 'auth', detail: 'missing' }];
-    const now = 5_000;
-    let state = health.reduceDedupe(null, { type: 'reserve', failures }, now).state;
-    state = health.reduceDedupe(state, { type: 'release' }, now + 50).state;
-    const retry = health.reduceDedupe(state, { type: 'reserve', failures }, now + 60);
-    assert.strictEqual(retry.decision.send, true);
-    assert.strictEqual(state.sent, false);
-});
-
-test('alert text names the check and strips emails, IPs, and tokens', function () {
-    const body = health.buildAlertBody({
-        date: '2026-10-24',
-        checkedAt: '2026-10-24T05:00:00.000Z',
-        failures: [{
-            check: 'auth',
-            detail: 'failed for user@example.com from 203.0.113.10 and 2001:db8:85a3::8a2e:370:7334 Bearer abc.def-ghi',
-        }],
+test('function snapshots keep env keys and secret names, not values', function () {
+    const clean = health.sanitizeCloudFunction({
+        name: 'projects/p/locations/us-central1/functions/nightlyAuthExport',
+        state: 'ACTIVE',
+        buildConfig: { runtime: 'nodejs22', entryPoint: 'nightlyAuthExport' },
+        serviceConfig: {
+            availableMemory: '1Gi',
+            environmentVariables: { AUTH_BACKUP_KEY: 'super-secret-value', PLAIN: 'nope' },
+            secretEnvironmentVariables: [{ key: 'AUTH_BACKUP_KEY', secret: 'AUTH_BACKUP_KEY', version: '1' }],
+        },
     });
-    assert.ok(body.indexOf('Backup date: 2026-10-24') !== -1);
-    assert.ok(body.indexOf('Checked at: 2026-10-24T05:00:00.000Z') !== -1);
-    assert.ok(body.indexOf('- auth:') !== -1);
-    assert.strictEqual(body.indexOf('user@example.com'), -1);
-    assert.strictEqual(body.indexOf('203.0.113.10'), -1);
-    assert.strictEqual(body.indexOf('2001:db8'), -1);
-    assert.strictEqual(body.indexOf('abc.def-ghi'), -1);
-    assert.ok(body.indexOf('[redacted-email]') !== -1);
-    assert.ok(body.indexOf('[redacted-ip]') !== -1);
-    assert.strictEqual(body.indexOf(health.ALERT_EMAIL), -1);
+    assert.deepStrictEqual(clean.envKeys, ['AUTH_BACKUP_KEY', 'PLAIN']);
+    assert.deepStrictEqual(clean.secretNames, ['AUTH_BACKUP_KEY']);
+    const blob = JSON.stringify(clean);
+    assert.strictEqual(blob.indexOf('super-secret-value'), -1);
+    assert.strictEqual(blob.indexOf('nope'), -1);
 });
 
 test('scheduler snapshots drop header secrets and query strings', function () {
@@ -220,20 +206,26 @@ test('auth export round-trips and keeps hashes only when present', function () {
     assert.throws(() => crypto.decryptAesGcm(tampered, key));
 });
 
-test('backup modules do not call chat bridges', function () {
+test('backup modules do not call chat bridges or send mail', function () {
     const files = [
         'functions/src/nightlyBackup.js',
         'functions/src/backupHealth.js',
+        'functions/src/backupStatus.js',
         'functions/src/authBackupCrypto.js',
         'functions/src/authBackupFormat.js',
         'scripts/restore_auth_export.js',
         'scripts/decrypt_auth_export.js',
+        'scripts/backup_infra_setup.sh',
     ];
     files.forEach((rel) => {
         const src = fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
         assert.ok(!/api\.telegram\.org/i.test(src), rel);
         assert.ok(!/discord(?:app)?\.com/i.test(src), rel);
         assert.ok(!/telegramBridge/.test(src), rel);
+        assert.ok(!/nodemailer/.test(src), rel);
+        assert.ok(!/ALERT_SMTP/.test(src), rel);
+        assert.ok(!/smtp\.gmail/.test(src), rel);
+        assert.ok(!/backup_alerts/.test(src), rel);
     });
     const index = fs.readFileSync(path.join(__dirname, '..', 'functions/index.js'), 'utf8');
     assert.ok(index.indexOf("onSchedule('0 2 * * *'") !== -1);
@@ -247,11 +239,27 @@ test('backup modules do not call chat bridges', function () {
     assert.ok(index.indexOf('exports.nightlyConfigSnapshot') !== -1);
     assert.ok(index.indexOf('exports.backupHealthCheck') !== -1);
     assert.ok(index.indexOf("invoker: 'private'") !== -1);
-    assert.strictEqual(health.ALERT_EMAIL, 'info.603btc@gmail.com');
+    assert.ok(index.indexOf("secrets: [authBackupKey]") !== -1);
+    assert.strictEqual(index.indexOf('ALERT_SMTP'), -1);
+    assert.strictEqual(index.indexOf('alertSmtp'), -1);
+    assert.strictEqual(index.indexOf('info.603btc@gmail.com'), -1);
+    const healthAt = index.indexOf('exports.backupHealthCheck');
+    const healthBlock = index.slice(healthAt, index.indexOf('exports.nachoRadioTick'));
+    assert.ok(healthBlock.indexOf('checkBackupHealth()') !== -1);
+    assert.strictEqual(healthBlock.indexOf('secrets'), -1);
     const marker = index.indexOf('recordFirestoreExportAttempt');
     const thrown = index.indexOf('throw new Error(result.error.message);', marker);
     assert.ok(marker !== -1 && thrown > marker);
     assert.ok(index.indexOf('Could not record export failure') !== -1);
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.strictEqual((rules.match(/match \/\{document=\*\*\}/g) || []).length, 1);
+    assert.ok(rules.indexOf('match /backup_status/{docId}') !== -1);
+    assert.ok(rules.indexOf('match /backup_history/{docId}') !== -1);
+    assert.strictEqual(rules.indexOf('backup_alerts'), -1);
+    const statusRule = rules.slice(rules.indexOf('match /backup_status/{docId}'), rules.indexOf('match /backup_history/{docId}'));
+    const historyRule = rules.slice(rules.indexOf('match /backup_history/{docId}'), rules.indexOf('match /{document=**}'));
+    assert.ok(/allow read, write: if false;/.test(statusRule));
+    assert.ok(/allow read, write: if false;/.test(historyRule));
 });
 
 test('restore stays a dry run unless --apply is an explicit flag', function () {
@@ -262,5 +270,183 @@ test('restore stays a dry run unless --apply is an explicit flag', function () {
     assert.ok(!/process\.argv.*AUTH_BACKUP_KEY/.test(src));
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+test('infra setup prints the plan unless --apply is passed', function () {
+    const script = path.join(__dirname, '..', 'scripts/backup_infra_setup.sh');
+    const src = fs.readFileSync(script, 'utf8');
+    assert.ok(src.indexOf('--apply') !== -1);
+    assert.ok(src.indexOf('expireAt') !== -1);
+    assert.ok(src.indexOf('backup_history') !== -1);
+    assert.ok(src.indexOf('AUTH_BACKUP_KEY') !== -1);
+    assert.ok(src.indexOf('cloudfunctions.googleapis.com') !== -1);
+    assert.ok(src.indexOf('roles/cloudfunctions.viewer') !== -1);
+    assert.strictEqual(src.indexOf('ALERT_SMTP'), -1);
+    const out = execFileSync('bash', [script], { encoding: 'utf8' });
+    assert.ok(out.indexOf('WOULD') !== -1);
+    assert.ok(out.indexOf('Dry run only') !== -1);
+    assert.strictEqual(out.indexOf('APPLY:'), -1);
+    assert.strictEqual(out.indexOf('ALERT_SMTP'), -1);
+    let rejected = false;
+    try {
+        execFileSync('bash', [script, '--apply-not-really'], { encoding: 'utf8', stdio: 'pipe' });
+    } catch (e) {
+        rejected = e.status === 2;
+    }
+    assert.strictEqual(rejected, true);
+});
+
+function fakeDb() {
+    const docs = {};
+    function ref(docPath) {
+        return { path: docPath };
+    }
+    return {
+        docs: docs,
+        db: {
+            collection: function (name) {
+                return {
+                    doc: function (id) { return ref(name + '/' + id); },
+                };
+            },
+            runTransaction: async function (fn) {
+                const tx = {
+                    get: async function (target) {
+                        const data = docs[target.path];
+                        return {
+                            exists: !!data,
+                            data: function () { return data ? JSON.parse(JSON.stringify(data)) : undefined; },
+                        };
+                    },
+                    set: function (target, value) {
+                        docs[target.path] = JSON.parse(JSON.stringify(value));
+                    },
+                };
+                await fn(tx);
+            },
+        },
+    };
+}
+
+const adminStub = {
+    firestore: {
+        Timestamp: {
+            fromDate: function (d) {
+                return { seconds: Math.floor(d.getTime() / 1000), toDate: function () { return d; } };
+            },
+        },
+    },
+};
+
+function historyRows(docs) {
+    return Object.keys(docs).filter((key) => key.indexOf('backup_history/') === 0).map((key) => docs[key]);
+}
+
+async function testAsync(name, fn) {
+    try {
+        await fn();
+        console.log('✅ ' + name);
+        passed++;
+    } catch (e) {
+        console.log('❌ ' + name + ': ' + (e && e.stack ? e.stack : e));
+        failed++;
+    }
+}
+
+(async function () {
+    await testAsync('a successful run writes latest ok and four history rows', async function () {
+        const finishedAt = '2026-10-24T05:00:00.000Z';
+        const store = fakeDb();
+        const events = status.JOB_NAMES.map((job) => ({
+            job: job,
+            date: '2026-10-24',
+            ok: true,
+            startedAt: '2026-10-24T02:00:00.000Z',
+            finishedAt: finishedAt,
+            detail: job + ' ok',
+        }));
+        const ids = await status.writeBackupResults(store.db, adminStub, events);
+        assert.strictEqual(ids.length, 4);
+        const latest = store.docs['backup_status/latest'];
+        assert.deepStrictEqual(Object.keys(latest).sort(), ['date', 'detail', 'jobs', 'ok', 'updatedAt']);
+        assert.strictEqual(latest.ok, true);
+        assert.strictEqual(latest.date, '2026-10-24');
+        assert.strictEqual(latest.updatedAt, finishedAt);
+        assert.strictEqual(latest.detail, 'all checks passed');
+        status.JOB_NAMES.forEach((job) => {
+            assert.deepStrictEqual(Object.keys(latest.jobs[job]).sort(), ['detail', 'finishedAt', 'ok', 'startedAt']);
+            assert.strictEqual(latest.jobs[job].ok, true);
+            assert.strictEqual(latest.jobs[job].startedAt, '2026-10-24T02:00:00.000Z');
+            assert.strictEqual(latest.jobs[job].finishedAt, finishedAt);
+            assert.strictEqual(latest.jobs[job].detail, job + ' ok');
+        });
+        const rows = historyRows(store.docs);
+        assert.strictEqual(rows.length, 4);
+        const expectExpire = Math.floor(Date.parse(finishedAt) / 1000) + (90 * 24 * 60 * 60);
+        rows.forEach((row) => {
+            assert.deepStrictEqual(Object.keys(row).sort(), ['date', 'detail', 'expireAt', 'finishedAt', 'job', 'ok', 'runId', 'startedAt']);
+            assert.strictEqual(row.ok, true);
+            assert.strictEqual(row.date, '2026-10-24');
+            assert.strictEqual(row.expireAt.seconds, expectExpire);
+        });
+    });
+
+    await testAsync('a failed run still writes history and redacts the detail', async function () {
+        const store = fakeDb();
+        const dirty = 'failed for phil@example.com from 203.0.113.9 uid abcdefghij1234567890 and 2001:db8::1 Bearer abc.def';
+        const runId = await status.writeBackupResult(store.db, adminStub, {
+            job: 'auth',
+            date: '2026-10-24',
+            ok: false,
+            startedAt: '2026-10-24T02:30:00.000Z',
+            finishedAt: '2026-10-24T02:31:00.000Z',
+            detail: dirty,
+        });
+        assert.ok(runId.indexOf('auth-') === 0);
+        const latest = store.docs['backup_status/latest'];
+        assert.strictEqual(latest.ok, false);
+        assert.strictEqual(latest.detail, 'failed: firestore, auth, uploads, config');
+        assert.strictEqual(latest.jobs.auth.ok, false);
+        assert.strictEqual(latest.jobs.auth.detail.indexOf('phil@example.com'), -1);
+        assert.strictEqual(latest.jobs.auth.detail.indexOf('203.0.113.9'), -1);
+        assert.strictEqual(latest.jobs.auth.detail.indexOf('2001:db8'), -1);
+        assert.strictEqual(latest.jobs.auth.detail.indexOf('abcdefghij1234567890'), -1);
+        assert.ok(latest.jobs.auth.detail.indexOf('[redacted-email]') !== -1);
+        const rows = historyRows(store.docs);
+        assert.strictEqual(rows.length, 1);
+        assert.strictEqual(rows[0].ok, false);
+        assert.strictEqual(rows[0].runId, runId);
+        assert.strictEqual(rows[0].detail.indexOf('phil@example.com'), -1);
+        assert.ok(rows[0].expireAt.seconds > Math.floor(Date.parse('2026-10-24T02:31:00.000Z') / 1000));
+        const blob = JSON.stringify(store.docs);
+        assert.strictEqual(blob.indexOf('phil@example.com'), -1);
+        assert.strictEqual(blob.indexOf('203.0.113.9'), -1);
+        assert.strictEqual(blob.indexOf('abcdefghij1234567890'), -1);
+    });
+
+    await testAsync('a new UTC date drops the previous day jobs', async function () {
+        const store = fakeDb();
+        await status.writeBackupResults(store.db, adminStub, status.JOB_NAMES.map((job) => ({
+            job: job,
+            date: '2026-10-24',
+            ok: true,
+            startedAt: '2026-10-24T02:00:00.000Z',
+            finishedAt: '2026-10-24T05:00:00.000Z',
+            detail: 'ok',
+        })));
+        await status.writeBackupResult(store.db, adminStub, {
+            job: 'firestore',
+            date: '2026-10-25',
+            ok: false,
+            startedAt: '2026-10-25T02:00:00.000Z',
+            finishedAt: '2026-10-25T02:00:05.000Z',
+            detail: 'Firestore export started',
+        });
+        const latest = store.docs['backup_status/latest'];
+        assert.strictEqual(latest.date, '2026-10-25');
+        assert.strictEqual(latest.ok, false);
+        assert.deepStrictEqual(Object.keys(latest.jobs), ['firestore']);
+        assert.strictEqual(historyRows(store.docs).length, 5);
+    });
+
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+})();

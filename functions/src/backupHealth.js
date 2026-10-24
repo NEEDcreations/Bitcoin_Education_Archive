@@ -1,11 +1,10 @@
 'use strict';
 
-// Pure backup health-check and alert dedupe. No Firebase, no network, no mail.
-// Alerts are email only. Do not add a chat, webhook, or bot sender here.
+// Pure backup health checks. No Firebase, no network, no mail, no chat alerts.
+// Status documents are written by backupStatus.js. An external checker reads
+// them with admin credentials. Do not send these results by email or chat.
 
-const ALERT_EMAIL = 'info.603btc@gmail.com';
 const USER_COUNT_TOLERANCE = 0.10;
-const ALERT_LEASE_MS = 15 * 60 * 1000;
 
 const CONFIG_OBJECT_NAMES = [
     'firestore-rules.json',
@@ -13,6 +12,7 @@ const CONFIG_OBJECT_NAMES = [
     'firestore-indexes.json',
     'firestore-ttl.json',
     'scheduler-jobs.json',
+    'cloud-functions.json',
 ];
 
 function utcDateString(date) {
@@ -27,12 +27,15 @@ function addUtcDays(dateStr, days) {
 }
 
 function sanitizeAlertDetail(detail) {
-    let s = String(detail == null ? '' : detail).replace(/[\r\n]+/g, ' ').slice(0, 500);
+    let s = String(detail == null ? '' : detail).replace(/[\r\n]+/g, ' ');
     s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted-email]');
     s = s.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '[redacted-ip]');
     s = s.replace(/\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f:]{0,40}\b/gi, '[redacted-ip]');
     s = s.replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [redacted]');
     s = s.replace(/-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, '[redacted-key]');
+    s = s.replace(/\b[A-Za-z0-9]{20,}\b/g, '[redacted-id]');
+    s = s.replace(/\s+/g, ' ').trim();
+    if (s.length > 160) s = s.slice(0, 157) + '...';
     return s;
 }
 
@@ -158,40 +161,31 @@ function evaluateBackupHealth(report) {
     return { ok: failures.length === 0, failures };
 }
 
-function decideAlert(failures, dedupe, nowMs) {
-    if (!failures || failures.length === 0) return { send: false, reason: 'healthy' };
-    if (dedupe && dedupe.sent === true) return { send: false, reason: 'already-sent' };
-    const now = typeof nowMs === 'number' ? nowMs : 0;
-    if (dedupe && typeof dedupe.leaseUntil === 'number' && dedupe.leaseUntil > now) {
-        return { send: false, reason: 'lease-held' };
+function sanitizeCloudFunction(fn) {
+    const src = fn || {};
+    const build = src.buildConfig || {};
+    const svc = src.serviceConfig || {};
+    const env = svc.environmentVariables || src.environmentVariables || {};
+    const secrets = svc.secretEnvironmentVariables || src.secretEnvironmentVariables || [];
+    const secretNames = [];
+    for (let i = 0; i < secrets.length; i++) {
+        const item = secrets[i] || {};
+        if (item.secret) secretNames.push(String(item.secret));
+        else if (item.key) secretNames.push(String(item.key));
     }
-    return { send: true, reason: 'failure' };
-}
-
-// Same transitions the Firestore transaction applies to backup_alerts/{date}.
-function reduceDedupe(state, action, nowMs) {
-    const current = state || null;
-    if (!action || action.type === 'reserve') {
-        const decision = decideAlert(action && action.failures, current, nowMs);
-        if (!decision.send) return { state: current, decision };
-        return {
-            state: { sent: false, leaseUntil: nowMs + ALERT_LEASE_MS },
-            decision: { send: true, reason: 'reserved' },
-        };
-    }
-    if (action.type === 'sent') {
-        return {
-            state: { sent: true, leaseUntil: nowMs },
-            decision: { send: false, reason: 'marked-sent' },
-        };
-    }
-    if (action.type === 'release') {
-        return {
-            state: { sent: false, leaseUntil: 0 },
-            decision: { send: false, reason: 'released' },
-        };
-    }
-    throw new Error('unknown dedupe action');
+    return {
+        name: src.name || null,
+        state: src.state || src.status || null,
+        updateTime: src.updateTime || null,
+        runtime: build.runtime || src.runtime || null,
+        entryPoint: build.entryPoint || src.entryPoint || null,
+        availableMemory: svc.availableMemory || src.availableMemoryMb || null,
+        timeoutSeconds: svc.timeoutSeconds || src.timeout || null,
+        maxInstanceCount: svc.maxInstanceCount || null,
+        serviceAccountEmail: svc.serviceAccountEmail || null,
+        envKeys: Object.keys(env).sort(),
+        secretNames: secretNames.sort(),
+    };
 }
 
 function sanitizeSchedulerJob(job) {
@@ -214,29 +208,8 @@ function sanitizeSchedulerJob(job) {
     return copy;
 }
 
-function buildAlertBody(input) {
-    const src = input || {};
-    const lines = [
-        'Bitcoin Quest nightly backup health check failed.',
-        'Backup date: ' + (src.date || ''),
-        'Checked at: ' + (src.checkedAt || ''),
-        '',
-        'Failed checks:',
-    ];
-    const failures = src.failures || [];
-    for (let i = 0; i < failures.length; i++) {
-        const failure = failures[i] || {};
-        lines.push('- ' + String(failure.check || 'unknown') + ': ' + sanitizeAlertDetail(failure.detail || ''));
-    }
-    lines.push('');
-    lines.push('This alert does not include account data.');
-    return lines.join('\n');
-}
-
 module.exports = {
-    ALERT_EMAIL,
     USER_COUNT_TOLERANCE,
-    ALERT_LEASE_MS,
     CONFIG_OBJECT_NAMES,
     utcDateString,
     addUtcDays,
@@ -248,8 +221,6 @@ module.exports = {
     missingConfigFiles,
     assessConfig,
     evaluateBackupHealth,
-    decideAlert,
-    reduceDedupe,
+    sanitizeCloudFunction,
     sanitizeSchedulerJob,
-    buildAlertBody,
 };

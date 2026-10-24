@@ -1,9 +1,9 @@
 'use strict';
 
 // Nightly backups for Bitcoin Quest. Scheduled from functions/index.js.
-// No HTTPS handlers. Failure mail goes only to backupHealth.ALERT_EMAIL
-// through nodemailer. Do not send these alerts to Telegram, Discord, or any
-// other chat. The Telegram group is public.
+// No HTTPS handlers. Each job writes backup_status/latest and appends
+// backup_history. Do not send these results by email, Telegram, or Discord.
+// AUTH_BACKUP_KEY is read from the bound secret and is never logged.
 
 const zlib = require('zlib');
 const admin = require('firebase-admin');
@@ -11,6 +11,7 @@ const fetch = require('node-fetch');
 const crypto = require('./authBackupCrypto');
 const format = require('./authBackupFormat');
 const health = require('./backupHealth');
+const backupStatus = require('./backupStatus');
 
 const PROJECT_ID = 'bitcoin-education-archive';
 const FIRESTORE_BACKUP_BUCKET = 'bitcoin-education-archive-backups';
@@ -177,28 +178,72 @@ async function fetchHashConfig(token) {
     return format.pickHashConfig(json);
 }
 
+async function recordJob(event) {
+    try {
+        await backupStatus.writeBackupResult(admin.firestore(), admin, event);
+    } catch (e) {
+        console.error('[backup-status] write failed', event && event.job, shortError(e));
+    }
+}
+
 async function recordFirestoreExportAttempt(input) {
     const src = input || {};
     const token = src.token || await accessToken();
+    const now = new Date().toISOString();
+    const failed = !!src.error;
     const body = {
         date: src.date,
         outputUriPrefix: src.outputUriPrefix,
         operation: src.operation || null,
-        error: src.error ? String(src.error).slice(0, 300) : null,
-        recordedAt: new Date().toISOString(),
+        error: failed ? 'export request failed' : null,
+        recordedAt: now,
     };
     await uploadJson(token, FIRESTORE_BACKUP_BUCKET, 'status/firestore-' + src.date + '.json', body);
+    await recordJob({
+        job: 'firestore',
+        date: src.date,
+        ok: false,
+        startedAt: now,
+        finishedAt: now,
+        detail: failed ? 'Firestore export request failed' : 'Firestore export started',
+    });
 }
 
 async function exportAuthUsers(input) {
-    const key = crypto.parseBackupKey(input && input.key);
+    const startedAt = new Date().toISOString();
     const date = utcDate();
+    try {
+        const userCount = await runAuthExport(input, date);
+        await recordJob({
+            job: 'auth',
+            date: date,
+            ok: true,
+            startedAt: startedAt,
+            finishedAt: new Date().toISOString(),
+            detail: 'auth export written, user count ' + userCount,
+        });
+    } catch (e) {
+        console.error('[auth-backup] failed', shortError(e));
+        await recordJob({
+            job: 'auth',
+            date: date,
+            ok: false,
+            startedAt: startedAt,
+            finishedAt: new Date().toISOString(),
+            detail: 'auth export failed',
+        });
+        throw e;
+    }
+}
+
+async function runAuthExport(input, date) {
+    const key = crypto.parseBackupKey(input && input.key);
     const token = await accessToken();
     let hashConfig = null;
     try {
         hashConfig = await fetchHashConfig(token);
     } catch (e) {
-        console.error('[auth-backup] hash config unavailable', e.status || '', e.message);
+        console.error('[auth-backup] hash config unavailable', e.status || '', shortError(e));
     }
     const users = [];
     let pageToken;
@@ -242,6 +287,7 @@ async function exportAuthUsers(input) {
     };
     await uploadJson(token, AUTH_BACKUP_BUCKET, 'auth/' + date + '/manifest.json', manifest);
     console.log('[auth-backup] wrote', objectName, 'users', users.length, 'anonymous', anonymous, 'passwordHashes', passwordHashes);
+    return users.length;
 }
 
 function shapeRules(release, ruleset) {
@@ -255,8 +301,53 @@ function shapeRules(release, ruleset) {
     };
 }
 
+async function listCloudFunctions(token) {
+    const urls = [
+        'https://cloudfunctions.googleapis.com/v2/projects/' + PROJECT_ID + '/locations/-/functions?pageSize=100',
+        'https://cloudfunctions.googleapis.com/v1/projects/' + PROJECT_ID + '/locations/us-central1/functions?pageSize=100',
+    ];
+    const out = [];
+    for (let i = 0; i < urls.length; i++) {
+        try {
+            const field = urls[i].indexOf('/v2/') !== -1 ? 'functions' : 'functions';
+            const batch = await listPaged(urls[i], token, field);
+            for (let j = 0; j < batch.length; j++) out.push(health.sanitizeCloudFunction(batch[j]));
+        } catch (e) {
+            console.error('[config-backup] function list', e.status || '', shortError(e));
+            if (i === urls.length - 1 && !out.length) throw e;
+        }
+    }
+    return out;
+}
+
 async function snapshotConfig() {
+    const startedAt = new Date().toISOString();
     const date = utcDate();
+    try {
+        await runConfigSnapshot(date);
+        await recordJob({
+            job: 'config',
+            date: date,
+            ok: true,
+            startedAt: startedAt,
+            finishedAt: new Date().toISOString(),
+            detail: 'config snapshot written',
+        });
+    } catch (e) {
+        console.error('[config-backup] failed', shortError(e));
+        await recordJob({
+            job: 'config',
+            date: date,
+            ok: false,
+            startedAt: startedAt,
+            finishedAt: new Date().toISOString(),
+            detail: 'config snapshot failed',
+        });
+        throw e;
+    }
+}
+
+async function runConfigSnapshot(date) {
     const token = await accessToken();
     const releases = await listPaged(
         'https://firebaserules.googleapis.com/v1/projects/' + PROJECT_ID + '/releases?pageSize=100',
@@ -273,6 +364,7 @@ async function snapshotConfig() {
     const indexes = await listPaged(db + 'indexes?pageSize=300', token, 'indexes');
     const fields = await listPaged(db + 'fields?pageSize=300&filter=' + encodeURIComponent('ttl'), token, 'fields');
     const jobs = await listSchedulerJobs(token);
+    const functions = await listCloudFunctions(token);
     const prefix = 'config/' + date + '/';
     await uploadJson(token, FIRESTORE_BACKUP_BUCKET, prefix + 'firestore-rules.json', shapeRules(firestoreRelease, firestoreRuleset));
     await uploadJson(token, FIRESTORE_BACKUP_BUCKET, prefix + 'storage-rules.json', shapeRules(storageRelease, storageRuleset));
@@ -281,7 +373,8 @@ async function snapshotConfig() {
     await uploadJson(token, FIRESTORE_BACKUP_BUCKET, prefix + 'scheduler-jobs.json', {
         jobs: jobs.map(health.sanitizeSchedulerJob),
     });
-    console.log('[config-backup] wrote', prefix, 'indexes', indexes.length, 'ttl', fields.length, 'jobs', jobs.length);
+    await uploadJson(token, FIRESTORE_BACKUP_BUCKET, prefix + 'cloud-functions.json', { functions: functions });
+    console.log('[config-backup] wrote', prefix, 'indexes', indexes.length, 'ttl', fields.length, 'jobs', jobs.length, 'functions', functions.length);
 }
 
 async function listSchedulerJobs(token) {
@@ -294,7 +387,7 @@ async function listSchedulerJobs(token) {
         const ids = (listed.locations || []).map((loc) => loc.locationId).filter(Boolean);
         if (ids.length) locations = ids;
     } catch (e) {
-        console.error('[config-backup] scheduler locations', e.status || '', e.message);
+        console.error('[config-backup] scheduler locations', e.status || '', shortError(e));
     }
     const jobs = [];
     for (let i = 0; i < locations.length; i++) {
@@ -307,7 +400,7 @@ async function listSchedulerJobs(token) {
             );
             for (let j = 0; j < batch.length; j++) jobs.push(batch[j]);
         } catch (e) {
-            console.error('[config-backup] scheduler', locations[i], e.status || '', e.message);
+            console.error('[config-backup] scheduler', locations[i], e.status || '', shortError(e));
         }
     }
     if (!jobs.length) throw new Error('Cloud Scheduler returned no jobs');
@@ -362,7 +455,35 @@ async function ensureTransferJob(token) {
 }
 
 async function copyUploads() {
+    const startedAt = new Date().toISOString();
     const date = utcDate();
+    try {
+        const result = await runUploadsCopy(date);
+        await recordJob({
+            job: 'uploads',
+            date: date,
+            ok: result.ok === true,
+            startedAt: startedAt,
+            finishedAt: new Date().toISOString(),
+            detail: result.detail,
+        });
+        if (!result.settled) throw new Error('uploads backup did not finish');
+    } catch (e) {
+        if (e && e.message === 'uploads backup did not finish') throw e;
+        console.error('[uploads-backup] failed', shortError(e));
+        await recordJob({
+            job: 'uploads',
+            date: date,
+            ok: false,
+            startedAt: startedAt,
+            finishedAt: new Date().toISOString(),
+            detail: 'uploads copy failed',
+        });
+        throw e;
+    }
+}
+
+async function runUploadsCopy(date) {
     const token = await accessToken();
     let job = null;
     let op = null;
@@ -373,7 +494,7 @@ async function copyUploads() {
             { token, method: 'POST', body: { projectId: PROJECT_ID } }
         );
     } catch (e) {
-        console.error('[uploads-backup] storage transfer unavailable', e.status || '', e.message);
+        console.error('[uploads-backup] storage transfer unavailable', e.status || '', shortError(e));
         const fallback = await incrementalFallback(token, date);
         await uploadJson(token, UPLOADS_BACKUP_BUCKET, 'status/' + date + '.json', {
             date,
@@ -386,8 +507,8 @@ async function copyUploads() {
             examined: fallback.examined,
             startedAt: new Date().toISOString(),
         });
-        if (!fallback.complete) throw new Error('uploads backup did not finish');
-        return;
+        if (!fallback.complete) return { ok: false, settled: false, detail: 'uploads copy did not finish' };
+        return { ok: true, settled: true, detail: 'uploads incremental copy finished' };
     }
     await uploadJson(token, UPLOADS_BACKUP_BUCKET, 'status/' + date + '.json', {
         date,
@@ -400,6 +521,7 @@ async function copyUploads() {
         startedAt: new Date().toISOString(),
     });
     console.log('[uploads-backup] started', job.name, op.name || '');
+    return { ok: false, settled: true, detail: 'uploads transfer started' };
 }
 
 async function destNeedsCopy(token, src) {
@@ -586,7 +708,7 @@ async function gatherUploads(token, date) {
             if (op.error) operationError = 'failed';
             if (op.done && !operationStatus && !op.error) operationStatus = 'SUCCESS';
         } catch (e) {
-            console.error('[backup-health] transfer operation', e.status || '', e.message);
+            console.error('[backup-health] transfer operation', e.status || '', shortError(e));
         }
     }
     return health.assessUploads({
@@ -611,7 +733,7 @@ async function guard(name, fn) {
     try {
         return await fn();
     } catch (e) {
-        console.error('[backup-health]', name, e.status || '', e.message);
+        console.error('[backup-health]', name, e.status || '', shortError(e));
         const detail = name + ' check could not be read: ' + shortError(e);
         if (name === 'firestore') return { succeeded: false, folderPresent: false, detail };
         if (name === 'auth') return { present: false, countOk: false, detail };
@@ -620,103 +742,32 @@ async function guard(name, fn) {
     }
 }
 
-function alertsCollection() {
-    return admin.firestore().collection('backup_alerts');
-}
-
-async function reserveAlert(date, nowMs, failures) {
-    const ref = alertsCollection().doc(date);
-    return admin.firestore().runTransaction(async (tx) => {
-        const snap = await tx.get(ref);
-        const reduced = health.reduceDedupe(snap.exists ? snap.data() : null, {
-            type: 'reserve',
-            failures,
-        }, nowMs);
-        if (!reduced.decision.send) return { reserved: false, reason: reduced.decision.reason };
-        tx.set(ref, {
-            date,
-            sent: false,
-            leaseUntil: reduced.state.leaseUntil,
-            checks: failures.map((failure) => failure.check),
-        });
-        return { reserved: true, reason: 'reserved' };
-    });
-}
-
-async function markAlertSent(date, nowMs, failures) {
-    const reduced = health.reduceDedupe(null, { type: 'sent' }, nowMs);
-    await alertsCollection().doc(date).set({
-        date,
-        sent: true,
-        leaseUntil: reduced.state.leaseUntil,
-        sentAt: new Date(nowMs).toISOString(),
-        checks: failures.map((failure) => failure.check),
-    }, { merge: true });
-}
-
-async function releaseAlert(date) {
-    const reduced = health.reduceDedupe(null, { type: 'release' }, Date.now());
-    await alertsCollection().doc(date).set({
-        sent: false,
-        leaseUntil: reduced.state.leaseUntil,
-    }, { merge: true });
-}
-
-function legacyMail() {
-    // firebase-functions v7 throws from functions.config(). Keep the try so a
-    // runtime that still has the old mail.user / mail.pass values can send.
-    try {
-        const functions = require('firebase-functions');
-        const cfg = functions.config && functions.config();
-        const mail = cfg && cfg.mail;
-        if (mail && mail.user && mail.pass) {
-            return { user: String(mail.user), pass: String(mail.pass) };
-        }
-    } catch (e) {
-        return null;
+function verifiedJob(name, report) {
+    if (name === 'firestore') {
+        return {
+            ok: report.succeeded === true && report.folderPresent === true,
+            detail: report.detail || 'Firestore export did not succeed',
+        };
     }
-    return null;
-}
-
-function cleanCred(value) {
-    return String(value == null ? '' : value).replace(/[\r\n]/g, '').trim();
-}
-
-async function sendAlertMail(input) {
-    let user = cleanCred(input.smtpUser);
-    let pass = cleanCred(input.smtpPass);
-    let source = 'secret-manager';
-    if (!user || !pass) {
-        const legacy = legacyMail();
-        if (legacy) {
-            user = cleanCred(legacy.user);
-            pass = cleanCred(legacy.pass);
-            source = 'functions.config().mail';
-        }
+    if (name === 'auth') {
+        return {
+            ok: report.present === true && report.countOk === true,
+            detail: report.detail || 'Auth export failed the health check',
+        };
     }
-    if (!user || !pass) {
-        throw new Error('Backup alert email is not configured. Set Secret Manager ALERT_SMTP_USER and ALERT_SMTP_PASS.');
+    if (name === 'uploads') {
+        return {
+            ok: report.ran === true,
+            detail: report.detail || 'Uploads copy did not run',
+        };
     }
-    const nodemailer = require('nodemailer');
-    const host = process.env.ALERT_SMTP_HOST || 'smtp.gmail.com';
-    const port = Number(process.env.ALERT_SMTP_PORT || 465);
-    const transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: { user, pass },
-    });
-    await transporter.sendMail({
-        from: 'Bitcoin Quest Backups <' + user + '>',
-        to: health.ALERT_EMAIL,
-        subject: 'Bitcoin Quest backup failed (' + input.date + ')',
-        text: input.text,
-    });
-    console.log('[backup-health] alert emailed via', source);
+    return {
+        ok: report.present === true,
+        detail: report.detail || 'Config snapshot is missing',
+    };
 }
 
-async function checkBackupHealth(input) {
-    const opts = input || {};
+async function checkBackupHealth() {
     const date = utcDate();
     let report;
     try {
@@ -728,7 +779,8 @@ async function checkBackupHealth(input) {
             config: await guard('config', () => gatherConfig(token, date)),
         };
     } catch (e) {
-        const detail = 'backup health check could not start: ' + shortError(e);
+        console.error('[backup-health] could not start', shortError(e));
+        const detail = 'backup health check could not start';
         report = {
             firestore: { succeeded: false, folderPresent: false, detail },
             auth: { present: false, countOk: false, detail },
@@ -737,34 +789,30 @@ async function checkBackupHealth(input) {
         };
     }
     const verdict = health.evaluateBackupHealth(report);
-    console.log('[backup-health]', date, verdict.ok ? 'ok' : verdict.failures.map((f) => f.check).join(','));
-    if (verdict.ok) return verdict;
-    const nowMs = Date.now();
-    const reserved = await reserveAlert(date, nowMs, verdict.failures);
-    if (!reserved.reserved) {
-        console.log('[backup-health] alert suppressed', reserved.reason);
-        return verdict;
-    }
-    const text = health.buildAlertBody({
-        date,
-        failures: verdict.failures,
-        checkedAt: new Date(nowMs).toISOString(),
-    });
-    try {
-        await sendAlertMail({
-            smtpUser: opts.smtpUser,
-            smtpPass: opts.smtpPass,
-            date,
-            text,
+    const finishedAt = new Date().toISOString();
+    const stamp = finishedAt.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+    const names = backupStatus.JOB_NAMES;
+    const events = [];
+    for (let i = 0; i < names.length; i++) {
+        const job = names[i];
+        const verified = verifiedJob(job, report[job] || {});
+        events.push({
+            job: job,
+            date: date,
+            ok: verified.ok,
+            finishedAt: finishedAt,
+            detail: verified.detail,
+            runId: 'verify-' + job + '-' + stamp,
         });
-        await markAlertSent(date, nowMs, verdict.failures);
-    } catch (e) {
-        try { await releaseAlert(date); } catch (releaseErr) {
-            console.error('[backup-health] could not release alert lease', releaseErr.message);
-        }
-        console.error('[backup-health] alert email failed');
-        throw e;
     }
+    try {
+        await backupStatus.writeBackupResults(admin.firestore(), admin, events);
+    } catch (e) {
+        console.error('[backup-status] health write failed', shortError(e));
+        throw new Error('backup status write failed');
+    }
+    const failed = verdict.failures.map((failure) => failure.check).join(', ');
+    console.log('[backup-health]', date, verdict.ok ? 'ok' : ('failed: ' + failed));
     return verdict;
 }
 

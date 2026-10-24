@@ -2399,8 +2399,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Nightly backup alert dedupe. One doc per UTC day. Admin SDK only.
-    match /backup_alerts/{date} {
+    // Nightly backup status. Admin SDK only. Clients cannot read or write.
+    match /backup_status/{docId} {
+      allow read, write: if false;
+    }
+    match /backup_history/{docId} {
       allow read, write: if false;
     }
 
