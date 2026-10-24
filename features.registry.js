@@ -410,15 +410,15 @@
             openFns: ['openAllPostSpinGifts', 'openGift', 'openSingleGift', 'showSpinWheel'] }),
         R({ id: 'ciphers', title: 'Locked ciphers', group: 'Rewards', term: 'cipher', priority: 90,
             kw: 'cipher ciphers locked cipher decrypt unlock puzzle',
-            desc: 'A locked cipher opens when you use a key that has the same label. If an accepted peer sent the key and you open the cipher, you both get the same prize and they see a reveal of what you won. That counts as one of their 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Ask in Chat whether anyone has the key.',
-            how: 'Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key.',
+            desc: 'A locked cipher opens when you use a key with the same label.',
+            how: 'If an accepted peer sent that key, you both get the same prize and they see a reveal of what you won.',
             follow: 'How do I get a key for my cipher?',
             hash: 'app/ciphers', aliases: ['ciphers', 'cipher', 'locked-cipher'], kind: 'cipher',
             openFns: ['openKeysAndCiphers', 'openNookInventory', 'openCipherWithMatch', 'showQuestHub'] }),
         R({ id: 'keys', title: 'Cipher keys', group: 'Rewards', term: 'keys', priority: 100,
             kw: 'key keys cipher key send key peer label',
-            desc: 'Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.',
-            how: 'Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours.',
+            desc: 'Keys open locked ciphers with the same label, and you can send up to 3 a day to each accepted peer.',
+            how: 'If a peer opens a cipher with your key, you both win the same prize and you see a reveal of what you won.',
             follow: 'Want to add a peer so you have someone to trade keys with?',
             hash: 'app/keys', aliases: ['keys', 'cipher-keys'], kind: 'cipher',
             openFns: ['openNookInventory', 'showPeerPickerForKeys', 'showKeyPickerForPeer'] }),
@@ -1323,10 +1323,11 @@
                 feats.length + ' feature' + (feats.length === 1 ? '' : 's') + '</div><div>';
             feats.forEach(function (row) {
                 var f = row.feature;
+                var blurb = (f.id === 'ciphers' || f.id === 'keys') ? (f.desc + ' ' + f.how) : f.desc;
                 html += '<div class="sr-item" data-bq-feature="' + f.id + '" style="border-left:3px solid var(--accent);cursor:pointer;" onclick="window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();">' +
                     '<div class="sr-cat">Feature</div>' +
                     '<div>' + esc(f.title) + '</div>' +
-                    '<div class="sr-match">' + esc(f.desc) + '</div>' +
+                    '<div class="sr-match">' + esc(blurb) + '</div>' +
                     '<button type="button" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();" style="margin-top:6px;padding:6px 12px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Open</button>' +
                     '</div>';
             });
