@@ -66,7 +66,8 @@
         var last = '';
         try { last = localStorage.getItem('btc_last_spin_date') || ''; } catch (e) {}
         if (last === utc || last === offset) return true;
-        var server = (window.currentUser && window.currentUser.lastSpinDate) ? String(window.currentUser.lastSpinDate) : '';
+        var user = (typeof currentUser !== 'undefined' && currentUser) || window.currentUser;
+        var server = (user && user.lastSpinDate) ? String(user.lastSpinDate) : '';
         return server === utc || server === offset;
     }
 
@@ -82,7 +83,7 @@
     }
 
     function sayHiDone() {
-        var user = window.currentUser;
+        var user = (typeof currentUser !== 'undefined' && currentUser) || window.currentUser;
         return !!(user && user.sayHiClaimedDay === todayKey());
     }
 
