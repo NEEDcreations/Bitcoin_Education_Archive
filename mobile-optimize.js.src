@@ -39,11 +39,9 @@ function cleanupFloatingButtons() {
 
         var btt = document.getElementById('backToTop');
         if (btt) {
-            btt.style.width = '32px';
-            btt.style.height = '32px';
+            btt.style.width = '44px';
+            btt.style.height = '44px';
             btt.style.fontSize = '0.9rem';
-            btt.style.bottom = '70px';
-            btt.style.right = '10px';
         }
     }
 
@@ -55,14 +53,6 @@ function cleanupFloatingButtons() {
                 el.style.display = 'none';
             }
         });
-
-        var lbBtn = document.getElementById('lbFloatBtn');
-        if (lbBtn) {
-            lbBtn.style.bottom = '70px';
-            lbBtn.style.right = '10px';
-            lbBtn.style.padding = '8px 12px';
-            lbBtn.style.fontSize = '0.8rem';
-        }
     }
 }
 
@@ -91,7 +81,7 @@ function showSwipeHint() {
     localStorage.setItem('btc_swipe_hint_shown', 'true');
 
     var hint = document.createElement('div');
-    hint.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:300;' +
+    hint.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);z-index:300;' +
         'background:rgba(15,23,42,0.95);border:1px solid rgba(249,115,22,0.3);color:#fff;' +
         'padding:12px 20px;border-radius:14px;font-size:0.85rem;font-weight:600;' +
         'box-shadow:0 8px 30px rgba(0,0,0,0.4);display:flex;align-items:center;gap:10px;' +

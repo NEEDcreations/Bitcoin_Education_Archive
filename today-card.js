@@ -249,7 +249,7 @@
         }
         delete cd.dataset.live;
         var remain = Math.max(0, (info.target || 21) - info.points);
-        cd.textContent = remain ? (remain + ' to next payout') : 'Payout ready';
+        cd.textContent = remain ? (remain + ' more until the next hashing window') : 'Payout ready';
     }
 
     window._paintTodayFavor = function (info) {

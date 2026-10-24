@@ -1663,7 +1663,10 @@ window.toggleChatOverlay = function() {
 
     _overlayOpen = !_overlayOpen;
     window._chatOverlayOpen = _overlayOpen;
+    document.body.classList.toggle('chat-panel-open', _overlayOpen);
+    panel.classList.toggle('chat-panel-open', _overlayOpen);
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
+    if (typeof window.syncFabHold === 'function') window.syncFabHold();
     // Shift leaderboard button up when chat is open so it doesn't cover input buttons
     var _lbFab = document.getElementById('lbFloatBtn');
     if (_lbFab) { if (_overlayOpen) _lbFab.classList.add('chat-shifted'); else _lbFab.classList.remove('chat-shifted'); }
@@ -1934,8 +1937,13 @@ window.renderChatHub = function(tab) {
     if (_overlayOpen) {
         _overlayOpen = false;
         window._chatOverlayOpen = false;
+        document.body.classList.remove('chat-panel-open');
         var panel = document.getElementById('chatOverlay');
-        if (panel) panel.style.transform = 'translateY(100%)';
+        if (panel) {
+            panel.classList.remove('chat-panel-open');
+            panel.style.transform = 'translateY(100%)';
+        }
+        if (typeof window.syncFabHold === 'function') window.syncFabHold();
         if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
         var bd = document.getElementById('chatOverlayBackdrop');
         if (bd) bd.remove();
@@ -2161,7 +2169,7 @@ window.showGifPicker = function() {
     var picker = document.createElement('div');
     picker.id = 'gifPicker';
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
-    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 120px);left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
     picker.innerHTML =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
@@ -2382,7 +2390,7 @@ window.showEmojiPicker = function() {
     var picker = document.createElement('div');
     picker.id = 'gcEmojiPicker';
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
-    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:360px;display:flex;flex-direction:column;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 120px);left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:360px;display:flex;flex-direction:column;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
     var cats = Object.keys(EMOJI_CATEGORIES);
     // Search bar
@@ -2771,7 +2779,7 @@ window.showDJControlPanel = function() {
 
     var panel = document.createElement('div');
     panel.id = 'djControlPanel';
-    panel.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:310;width:280px;background:var(--bg-side,#1a1a2e);border:2px solid #6366f1;border-radius:16px;box-shadow:0 8px 32px rgba(99,102,241,0.3);display:flex;flex-direction:column;transition:0.3s;overflow:hidden;';
+    panel.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);right:max(16px, calc(12px + env(safe-area-inset-right, 0px)));z-index:310;width:280px;background:var(--bg-side,#1a1a2e);border:2px solid #6366f1;border-radius:16px;box-shadow:0 8px 32px rgba(99,102,241,0.3);display:flex;flex-direction:column;transition:0.3s;overflow:hidden;';
 
     panel.innerHTML =
         '<div onclick="var body=document.getElementById(\'djControlBody\');var arrow=document.getElementById(\'djControlArrow\');if(body.style.display===\'none\'){body.style.display=\'block\';arrow.textContent=\'▼\'}else{body.style.display=\'none\';arrow.textContent=\'▶\'}" style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid var(--border);">' +
@@ -2871,7 +2879,7 @@ window.djShowTrackPicker = function() {
 
     var picker = document.createElement('div');
     picker.id = 'djTrackPicker';
-    picker.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:320;width:280px;max-height:300px;background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);right:max(16px, calc(12px + env(safe-area-inset-right, 0px)));z-index:320;width:280px;max-height:300px;background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;';
 
     var searchHtml = '<div style="padding:8px;border-bottom:1px solid var(--border);">' +
         '<input id="djTrackSearch" type="text" placeholder="Search tracks..." style="width:100%;padding:8px 10px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:inherit;outline:none;box-sizing:border-box;" oninput="djFilterTracks(this.value)">' +
