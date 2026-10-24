@@ -644,10 +644,10 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2331'));
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    // Pin only: the patch-notes page shows the whole card. 7900 keeps the
-    // same recent notes inside after the conversation-XP Latest line, the
+    // Pin only: the patch-notes page shows the whole card. 8200 keeps the
+    // same recent notes inside after the collections Latest line, the
     // Google sign-in note, and the demoted TCTV and daily-XP notes.
-    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 7900);
+    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 8200);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
     assert.ok(notesHtml.includes('Marketplace fixed: you can post, edit, remove and save listings again.'));
