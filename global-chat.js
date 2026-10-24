@@ -621,7 +621,7 @@ function renderChatMessages(msgs) {
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         // Cosmetics: chat flair prefix & nacho skin avatar
         var _chatFlairPrefix = (!isNacho && m.hasChatFlair) ? '<span style="font-size:0.85rem;margin-right:2px;">' + esc(m.chatFlairEmoji || '🔥') + '</span>' : '';
-        var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.style.display=\'none\'" />' : '';
+        var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="/nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />' : '';
         var nameStyle = 'font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';';
         var nameClick = '';
         if (!isDeleted) {
@@ -782,7 +782,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261023_v2333';
+        s.src = 'quests.js?v=20261024_v2350';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;

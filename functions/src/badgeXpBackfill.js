@@ -14,13 +14,17 @@ const { classifyHeld } = require('../../scripts/backfill-badge-favor');
 const { planLevelFavor, levelNameForPoints } = require('./satoshiFavor');
 
 function legacyZero(award) {
-    return !!(award && award.source === 'legacy'
+    // counter_backfill_legacy is a profile badge the counter script verified.
+    // xp 0 means the old table amount was already paid, same as source legacy.
+    const source = award && award.source;
+    return !!((source === 'legacy' || source === 'counter_backfill_legacy')
         && Object.prototype.hasOwnProperty.call(award, 'xp')
         && Number(award.xp) === 0);
 }
 
 function cappedZero(award) {
-    return !!(award && award.source !== 'legacy'
+    const source = award && award.source;
+    return !!(award && source !== 'legacy' && source !== 'counter_backfill_legacy'
         && Object.prototype.hasOwnProperty.call(award, 'xp')
         && award.xp != null
         && Number(award.xp) === 0);

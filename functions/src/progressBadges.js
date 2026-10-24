@@ -102,6 +102,9 @@ async function grantProgress(db, adminSdk, uid, spec) {
             try { await noteFlexAll(db, adminSdk, uid, spec.day); }
             catch (e) { console.warn('[flex] all-day tally', e && e.message); }
         }
+        // grantFamily reads badge_awards once, skips ids already earned, tallies
+        // daily_action_counts once outside a transaction, and opens awardBadge
+        // only when that server tally meets the badge.
         await grantFamily(db, adminSdk, uid, flexBadgeIds(spec.flexId));
         return;
     }

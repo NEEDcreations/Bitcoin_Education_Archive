@@ -155,6 +155,8 @@ const DELETION_QUERIES = [
     ['notifications', 'senderId', '==', []],
     ['keys', 'ownerId', '==', []],
     ['locked_ciphers', 'ownerId', '==', []],
+    ['cipher_shares', 'senderUid', '==', []],
+    ['cipher_shares', 'openerUid', '==', []],
     ['peer_requests', 'from', '==', []],
     ['peer_requests', 'to', '==', []],
     ['peerRelationships', 'uid1', '==', []],
