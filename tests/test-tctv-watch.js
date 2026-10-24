@@ -389,7 +389,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(watchTag.includes('color:var(--text-faint)'));
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
-    assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
+    assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2350'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
@@ -411,7 +412,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2352'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2353'"));
+    assert.ok(!sw.includes('btc-archive-v2352'));
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(!sw.includes('btc-archive-v2350'));
     assert.ok(!sw.includes('btc-archive-v2349'));
@@ -762,9 +764,9 @@ test('playback with no server clock asks the server to start it and does not inv
     assert.strictEqual(width, '8%');
 });
 
-test('patch notes keep one Latest line and keep Google sign-in and the live timer', () => {
+test('patch notes keep one Latest line for the Music station cleanup', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.';
+    const latest = 'Latest: Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
     const flex = 'Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';
     const live = 'Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.';
     const google = 'Google sign-in stays on this page and works on Android with the app installed.';
@@ -774,6 +776,8 @@ test('patch notes keep one Latest line and keep Google sign-in and the live time
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
     assert.ok(notes.includes(flex));
+    assert.ok(notes.includes('If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.'));
+    assert.ok(!notes.includes('Latest: If your username'));
     assert.ok(!notes.includes('Latest: Flex XP'));
     assert.ok(notes.includes('Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.'));
     assert.ok(!notes.includes('Latest: Nacho answers from'));

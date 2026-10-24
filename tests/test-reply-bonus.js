@@ -639,7 +639,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2352'"));
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2353'"));
+    assert.ok(!swText.includes('btc-archive-v2352'));
     assert.ok(!swText.includes('btc-archive-v2351'));
     assert.ok(!swText.includes('btc-archive-v2350'));
     assert.ok(!swText.includes('btc-archive-v2349'));
@@ -661,8 +662,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     // Pin only: the patch-notes page shows the whole card. 9600 keeps the
-    // shoutout inside after the username-repick Latest line, the demoted
-    // Flex XP note, and the demoted Nacho knowledge-base notes.
+    // shoutout inside after the Music station line, the demoted username
+    // line, the Flex XP note, and the demoted Nacho knowledge-base notes.
     const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 9600);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
