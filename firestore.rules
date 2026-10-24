@@ -2383,6 +2383,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Nightly backup alert dedupe. One doc per UTC day. Admin SDK only.
+    match /backup_alerts/{date} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
