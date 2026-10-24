@@ -47,11 +47,9 @@ function emailHmac(email) {
     return hmacHex(emailMaterial(email));
 }
 
-function identityMaterials(spec) {
+function providerMaterials(spec) {
     const src = spec || {};
     const out = [];
-    const emailMat = emailMaterial(src.email);
-    if (emailMat) out.push(emailMat);
     const providers = Array.isArray(src.providers) ? src.providers : [];
     providers.forEach(function (row) {
         if (!row) return;
@@ -63,6 +61,33 @@ function identityMaterials(spec) {
         else if (id === 'github.com') out.push('github:' + puid);
         else if (id === 'facebook.com') out.push('facebook:' + puid);
     });
+    const seen = {};
+    return out.filter(function (material) {
+        if (seen[material]) return false;
+        seen[material] = true;
+        return true;
+    }).sort();
+}
+
+function providersHashOf(spec) {
+    const mats = providerMaterials(spec);
+    if (!mats.length) return '';
+    return hmacHex('providers:' + mats.join('|'));
+}
+
+function providerHashIds(spec) {
+    return providerMaterials(spec).map(hmacHex).filter(Boolean);
+}
+
+function identityMaterials(spec) {
+    const src = spec || {};
+    const out = [];
+    // An email counts only when the caller already proved it. users.email never qualifies.
+    if (src.emailVerified === true) {
+        const emailMat = emailMaterial(src.email);
+        if (emailMat) out.push(emailMat);
+    }
+    providerMaterials(src).forEach(function (material) { out.push(material); });
     const uid = String(src.uid || '');
     if (uid.indexOf('nostr:') === 0) {
         const pubkey = uid.slice('nostr:'.length).trim().toLowerCase();
@@ -82,9 +107,19 @@ function identityMaterials(spec) {
 function identityFrom(spec) {
     const src = spec || {};
     const authUser = src.authUser || null;
-    const token = src.token || {};
-    const user = src.user || {};
-    const email = (authUser && authUser.email) || token.email || user.email || '';
+    const token = src.token || null;
+    let email = '';
+    let emailVerified = false;
+    if (authUser && authUser.email && authUser.emailVerified === true) {
+        email = String(authUser.email);
+        emailVerified = true;
+    } else if (token && token.email && token.email_verified === true) {
+        email = String(token.email);
+        emailVerified = true;
+    } else if (src.emailVerified === true && src.email) {
+        email = String(src.email);
+        emailVerified = true;
+    }
     let providers = Array.isArray(src.providers) ? src.providers : [];
     if (!providers.length && authUser && Array.isArray(authUser.providerData)) {
         providers = authUser.providerData.map(function (row) {
@@ -94,15 +129,34 @@ function identityFrom(spec) {
             };
         });
     }
+    const normalized = normalizeEmail(email);
     return {
         uid: src.uid || (authUser && authUser.uid) || '',
-        email: email,
+        email: normalized,
+        emailVerified: !!(emailVerified && normalized),
         providers: providers,
     };
 }
 
 function hashIdsFor(spec) {
     return identityMaterials(spec).map(hmacHex).filter(Boolean);
+}
+
+function millisOf(value) {
+    if (value == null || value === '') return 0;
+    if (typeof value === 'number' && isFinite(value)) return value;
+    if (typeof value.toMillis === 'function') {
+        const ms = value.toMillis();
+        return isFinite(ms) ? ms : 0;
+    }
+    if (typeof value.toDate === 'function') {
+        const ms = value.toDate().getTime();
+        return isFinite(ms) ? ms : 0;
+    }
+    if (value instanceof Date) return value.getTime() || 0;
+    if (typeof value === 'object' && typeof value._seconds === 'number') return value._seconds * 1000;
+    const parsed = Date.parse(String(value));
+    return isFinite(parsed) ? parsed : 0;
 }
 
 function emptySummary() {
@@ -113,8 +167,11 @@ function emptySummary() {
         flagged: false,
         faucetClaimed: false,
         referralRedeemed: false,
+        refereePaid: false,
+        referrerEarned: false,
         lifetimeSats: 0,
         ageDays: 0,
+        lastClaimAt: 0,
     };
 }
 
@@ -127,9 +184,14 @@ function summarizeTombstones(docs) {
         if (doc.ledgerBanned === true) out.ledgerBanned = true;
         if (doc.flagged === true) out.flagged = true;
         if (doc.faucetClaimed === true) out.faucetClaimed = true;
-        if (doc.referralRedeemed === true) out.referralRedeemed = true;
+        if (doc.refereePaid === true || doc.referralRedeemed === true) {
+            out.refereePaid = true;
+            out.referralRedeemed = true;
+        }
+        if (doc.referrerEarned === true) out.referrerEarned = true;
         out.lifetimeSats = Math.max(out.lifetimeSats, Number(doc.lifetimeSats) || 0);
         out.ageDays = Math.max(out.ageDays, Number(doc.ageDays) || 0);
+        out.lastClaimAt = Math.max(out.lastClaimAt, millisOf(doc.lastClaimAt));
     });
     return out;
 }
@@ -162,6 +224,9 @@ function buildRecord(input) {
     const lifetimeSats = (Number(src.priorLifetimeSats) || 0) + withdrawn;
     const ageDays = Math.max(Number(src.priorAgeDays) || 0, Number(src.ageDays) || 0);
     const faucetClaimed = src.faucetClaimed === true || withdrawn > 0 || !!src.lastSatsClaim;
+    const refereePaid = src.refereePaid === true || src.referralRedeemed === true;
+    const referrerEarned = src.referrerEarned === true;
+    const lastClaimAt = Math.max(millisOf(src.lastClaimAt), millisOf(src.lastSatsClaim), millisOf(src.priorLastClaimAt));
     const record = {
         deletedAt: now,
         oldUidPrefix: String(src.uid || '').slice(0, 8),
@@ -171,10 +236,13 @@ function buildRecord(input) {
         flagged: src.flagged === true,
         faucetClaimed: faucetClaimed,
         lifetimeSats: lifetimeSats,
-        referralRedeemed: src.referralRedeemed === true,
+        refereePaid: refereePaid,
+        referrerEarned: referrerEarned,
+        referralRedeemed: refereePaid,
         ageDays: ageDays,
         deletionHits: recentHits(src.priorHits, now).concat([now]),
     };
+    if (lastClaimAt > 0) record.lastClaimAt = lastClaimAt;
     if (!shouldRetain(record)) record.expireAt = new Date(now + CLEAN_RETENTION_MS);
     return record;
 }
@@ -187,7 +255,12 @@ function mergeRecord(prev, next) {
     record.ledgerBanned = record.ledgerBanned || prior.ledgerBanned === true;
     record.flagged = record.flagged || prior.flagged === true;
     record.faucetClaimed = record.faucetClaimed || prior.faucetClaimed === true;
-    record.referralRedeemed = record.referralRedeemed || prior.referralRedeemed === true;
+    record.refereePaid = record.refereePaid === true || prior.refereePaid === true || prior.referralRedeemed === true;
+    record.referrerEarned = record.referrerEarned === true || prior.referrerEarned === true;
+    record.referralRedeemed = record.refereePaid === true;
+    const lastClaimAt = Math.max(millisOf(record.lastClaimAt), millisOf(prior.lastClaimAt));
+    if (lastClaimAt > 0) record.lastClaimAt = lastClaimAt;
+    else delete record.lastClaimAt;
     if (shouldRetain(record)) delete record.expireAt;
     return record;
 }
@@ -221,11 +294,16 @@ function pulledCreatedMs(authCreatedMs, summary, nowMs) {
 }
 
 async function readTombstones(db, hashes) {
+    const ids = (hashes || []).filter(Boolean);
+    if (!ids.length) return [];
+    const refs = ids.map(function (id) { return db.collection('deleted_accounts').doc(id); });
+    let snaps;
+    if (db && typeof db.getAll === 'function') snaps = await db.getAll.apply(db, refs);
+    else snaps = await Promise.all(refs.map(function (ref) { return ref.get(); }));
     const out = [];
-    const ids = hashes || [];
-    for (let i = 0; i < ids.length; i++) {
-        const snap = await db.collection('deleted_accounts').doc(ids[i]).get();
-        if (snap && snap.exists) out.push(Object.assign({ id: ids[i] }, snap.data() || {}));
+    for (let i = 0; i < snaps.length; i++) {
+        const snap = snaps[i];
+        if (snap && snap.exists) out.push(Object.assign({ id: ids[i] }, (snap.data && snap.data()) || {}));
     }
     return out;
 }
@@ -244,24 +322,34 @@ async function lookupByMaterials(db, spec) {
     };
 }
 
-async function assertDeletionAllowed(db, spec, nowMs) {
+function appendHashIds(hashes, extraHashes) {
+    const out = hashes.slice();
+    (extraHashes || []).forEach(function (hash) {
+        const id = String(hash || '').trim().toLowerCase();
+        if (!/^[a-f0-9]{64}$/.test(id)) return;
+        if (out.indexOf(id) === -1) out.push(id);
+    });
+    return out;
+}
+
+async function assertDeletionAllowed(db, spec, nowMs, extraHashes) {
     const materials = identityMaterials(spec || {});
     if (!secretReady()) {
-        if (materials.length) {
+        if (materials.length || (extraHashes && extraHashes.length)) {
             const err = new Error('Account deletion is unavailable right now.');
             err.code = 'failed-precondition';
             throw err;
         }
         return { hashes: [], docs: [], materials: materials };
     }
-    const hashes = materials.map(hmacHex).filter(Boolean);
+    const hashes = appendHashIds(materials.map(hmacHex).filter(Boolean), extraHashes);
     const docs = await readTombstones(db, hashes);
     const byId = {};
     docs.forEach(function (doc) { byId[doc.id] = doc; });
     for (let i = 0; i < hashes.length; i++) {
         const row = byId[hashes[i]];
         if (row && overDeletionLimit(row.deletionHits, nowMs)) {
-            const err = new Error('Too many account deletions from this network. Try again later.');
+            const err = new Error('Too many deletions for this sign-in. Try again later.');
             err.code = 'resource-exhausted';
             throw err;
         }
@@ -276,11 +364,13 @@ async function writeTombstones(db, spec) {
     const docs = src.docs || [];
     let priorLifetime = 0;
     let priorAge = 0;
+    let priorLastClaim = 0;
     const byId = {};
     docs.forEach(function (doc) {
         byId[doc.id] = doc;
         priorLifetime = Math.max(priorLifetime, Number(doc.lifetimeSats) || 0);
         priorAge = Math.max(priorAge, Number(doc.ageDays) || 0);
+        priorLastClaim = Math.max(priorLastClaim, millisOf(doc.lastClaimAt));
     });
     const now = Number(src.nowMs) || Date.now();
     for (let i = 0; i < hashes.length; i++) {
@@ -288,6 +378,7 @@ async function writeTombstones(db, spec) {
         const record = mergeRecord(prev, buildRecord(Object.assign({}, src, {
             priorLifetimeSats: priorLifetime,
             priorAgeDays: priorAge,
+            priorLastClaimAt: priorLastClaim,
             priorHits: prev.deletionHits || [],
             nowMs: now,
         })));
@@ -317,8 +408,13 @@ module.exports = {
     normalizeEmail: normalizeEmail,
     emailMaterial: emailMaterial,
     emailHmac: emailHmac,
+    providerMaterials: providerMaterials,
+    providersHashOf: providersHashOf,
+    providerHashIds: providerHashIds,
     identityMaterials: identityMaterials,
     identityFrom: identityFrom,
+    millisOf: millisOf,
+    readTombstones: readTombstones,
     hashIdsFor: hashIdsFor,
     emptySummary: emptySummary,
     summarizeTombstones: summarizeTombstones,

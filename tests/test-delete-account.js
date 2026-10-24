@@ -242,6 +242,12 @@ function createFakeDb(initial) {
         };
         return fn(tx);
     };
+    db.getAll = async function() {
+        const refs = Array.prototype.slice.call(arguments);
+        const snaps = [];
+        for (let i = 0; i < refs.length; i++) snaps.push(await refs[i].get());
+        return snaps;
+    };
     db.batch = function() {
         const ops = [];
         return {
@@ -1605,10 +1611,15 @@ function auth(uid, extras) {
             authenticator: { generateSecret: function() { return 'x'; }, keyuri: function() { return 'otpauth'; }, checkDelta: function() { return null; }, options: {} },
             QRCode: { toDataURL: async function() { return ''; } },
         });
+        const authApi = okAuth(db);
+        authApi.getUser = async function(uid) {
+            const email = uid === 'u9' ? 'ned@example.com' : 'alice@example.com';
+            return { uid: uid, email: email, emailVerified: true, providerData: [] };
+        };
         const handlers = _createDeleteAccountHandlers({
             db: db,
             bucket: createBucket([]),
-            authApi: okAuth(db),
+            authApi: authApi,
             HttpsError: HttpsError,
             nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
             nowMs: function() { return Date.now(); },
@@ -1616,7 +1627,7 @@ function auth(uid, extras) {
             ipSecret: 'unit-secret-tomb',
         });
         await handlers.deleteAccount({ confirmUsername: 'Alice', acknowledgeForfeit: true }, {
-            auth: auth('u1', { token: { auth_time: 1000, email: 'alice@example.com' } }),
+            auth: auth('u1', { token: { auth_time: 1000, email: 'alice@example.com', email_verified: true } }),
             rawRequest: { headers: {} },
         });
         const id = tomb.emailHmac('alice@example.com');
@@ -1630,7 +1641,7 @@ function auth(uid, extras) {
         await assert.rejects(
             function() {
                 return handlers.deleteAccount({ confirmUsername: 'Alice', acknowledgeForfeit: true }, {
-                    auth: auth('u1', { token: { auth_time: 1000, email: 'alice@example.com' } }),
+                    auth: auth('u1', { token: { auth_time: 1000, email: 'alice@example.com', email_verified: true } }),
                     rawRequest: { headers: {} },
                 });
             },
@@ -1642,7 +1653,7 @@ function auth(uid, extras) {
         await assert.rejects(
             function() {
                 return handlers.deleteAccount({ confirmUsername: 'Ned' }, {
-                    auth: auth('u9', { token: { auth_time: 1000, email: 'ned@example.com' } }),
+                    auth: auth('u9', { token: { auth_time: 1000, email: 'ned@example.com', email_verified: true } }),
                     rawRequest: { headers: {} },
                 });
             },
@@ -1695,6 +1706,146 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('notifications/cshare_s2'));
         assert.strictEqual(db.docs.has('cipher_shares/s1'), false);
         assert.strictEqual(db.docs.has('dm_conversations/u1_u2'), false);
+    });
+
+    await testAsync('an admin delete of an email-less lightning user does not tombstone the admin email', async function() {
+        const tomb = require(path.join(root, 'functions', 'src', 'accountTombstone'));
+        const lnUid = 'ln:' + 'ab'.repeat(32);
+        const adminEmail = 'admin-secret@example.com';
+        const clientEmail = 'client-written@example.com';
+        const db = createFakeDb({
+            ['users/' + lnUid]: { username: 'Zap', banned: true, email: clientEmail },
+        });
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-admin-ln',
+        });
+        const result = await handlers.deleteAccount(
+            { uid: lnUid },
+            { auth: { uid: 'admin', token: { admin: true, email: adminEmail, email_verified: true, auth_time: 1 } } }
+        );
+        assert.strictEqual(result.ok, true);
+        assert.strictEqual(db.docs.has('deleted_accounts/' + tomb.emailHmac(adminEmail)), false);
+        assert.strictEqual(db.docs.has('deleted_accounts/' + tomb.emailHmac(clientEmail)), false);
+        const lnHash = tomb.hmacHex('ln:' + lnUid.slice(3));
+        const row = db.docs.get('deleted_accounts/' + lnHash);
+        assert.ok(row);
+        assert.strictEqual(row.banned, true);
+    });
+
+    await testAsync('deletion keeps previous email hashes and merges their tombstones', async function() {
+        const tomb = require(path.join(root, 'functions', 'src', 'accountTombstone'));
+        const oldHash = tomb.emailHmac('old-banned@example.com');
+        const nowHash = tomb.emailHmac('now-banned@example.com');
+        const db = createFakeDb({
+            'users/u1': { username: 'Ada', banned: true, emailHash: nowHash, satsWithdrawn: 5 },
+            'email_history/u1': { hashes: [oldHash] },
+            ['deleted_accounts/' + oldHash]: { lifetimeSats: 40, deletionHits: [1000], banned: false, ageDays: 3 },
+        });
+        const authApi = okAuth(db);
+        authApi.getUser = async function() {
+            return {
+                uid: 'u1',
+                email: 'now-banned@example.com',
+                emailVerified: true,
+                providerData: [],
+                metadata: { creationTime: '2020-01-01T00:00:00.000Z' },
+            };
+        };
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: authApi,
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-history',
+        });
+        await handlers.deleteAccount({}, {
+            auth: auth('u1', { token: { auth_time: 1000, email: 'now-banned@example.com', email_verified: true } }),
+            rawRequest: { headers: {} },
+        });
+        const oldDoc = db.docs.get('deleted_accounts/' + oldHash);
+        assert.ok(oldDoc);
+        assert.strictEqual(oldDoc.banned, true);
+        assert.ok(oldDoc.lifetimeSats >= 45);
+        assert.ok(oldDoc.deletionHits.length >= 2);
+        assert.ok(db.docs.has('deleted_accounts/' + nowHash));
+        const unverified = tomb.identityFrom({
+            uid: 'u9',
+            user: { email: 'plain@example.com' },
+            token: { email: 'plain@example.com', email_verified: false },
+        });
+        assert.strictEqual(unverified.emailVerified, false);
+        assert.deepStrictEqual(tomb.identityMaterials(unverified), []);
+    });
+
+    await testAsync('a deleted-user reply and a legacy subcollection reply keep the parent', async function() {
+        const db = createFakeDb({
+            'users/u1': { username: 'Ada' },
+            'forum_posts/nested': { authorId: 'u1', body: 'keep me', title: 'thread' },
+            'forum_posts/nested/replies/r1': { authorId: 'deleted', body: 'old' },
+            'articles/nestedA': { authorId: 'u1', body: 'essay', title: 'piece' },
+            'articles/nestedA/comments/c1': { authorId: 'someone', body: 'hi' },
+            'forum_posts/legacy': { authorId: 'u1', body: 'top', title: 't' },
+            'forum_replies/gone': { authorId: 'deleted', postId: 'legacy', body: 'was here' },
+        });
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-replies',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.strictEqual(db.docs.get('forum_posts/nested').authorId, 'deleted');
+        assert.strictEqual(db.docs.get('forum_posts/nested').body, '[deleted]');
+        assert.strictEqual(db.docs.get('articles/nestedA').authorId, 'deleted');
+        assert.strictEqual(db.docs.get('forum_posts/legacy').authorId, 'deleted');
+        assert.ok(db.docs.has('forum_posts/nested/replies/r1'));
+        assert.ok(db.docs.has('articles/nestedA/comments/c1'));
+    });
+
+    await testAsync('the hash limit names the sign-in, and the delete overlay scrolls', async function() {
+        const tomb = require(path.join(root, 'functions', 'src', 'accountTombstone'));
+        const email = 'limited@example.com';
+        const id = tomb.emailHmac(email);
+        const now = Date.now();
+        const db = createFakeDb({
+            ['deleted_accounts/' + id]: { deletionHits: [now - 1000, now - 2000, now - 3000] },
+        });
+        await assert.rejects(
+            function() {
+                return tomb.assertDeletionAllowed(db, tomb.identityFrom({
+                    uid: 'u1',
+                    authUser: { email: email, emailVerified: true },
+                }), now);
+            },
+            function(err) { return err.message === 'Too many deletions for this sign-in. Try again later.'; }
+        );
+        const src = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+        assert.ok(src.includes('Too many deletions for this sign-in. Try again later.'));
+        assert.ok(!src.includes('Too many account deletions from this network. Try again later.'));
+        const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+        assert.ok(ranking.includes('align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch'));
+        assert.ok(ranking.includes('margin:auto 0'));
+        assert.ok(ranking.includes('Sats withdrawals are paused until '));
+        assert.ok(ranking.includes('id="satsHoldNotice"'));
+        const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
+        const magic = 'If you register with an email address, a verification magic link will be sent to your inbox. Nostr sign-in requires a NIP-07 compatible browser extension (Alby, nos2x). Lightning sign-in uses LNURL-auth — scan a QR code with a compatible Lightning wallet. Accounts that violate these terms may be suspended or deleted.';
+        const deletion = 'You can delete the account from Settings → Account after confirming your username.';
+        assert.ok(terms.includes(magic));
+        assert.ok(terms.indexOf(magic) < terms.indexOf(deletion));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

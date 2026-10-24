@@ -129,7 +129,8 @@ service cloud.firestore {
         'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
-        'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes'
+        'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
+        'providersHash', 'providerHashes'
       ];
     }
 
@@ -2406,6 +2407,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /email_change_pending/{docId} {
+      allow read, write: if false;
+    }
+    match /identity_history/{docId} {
       allow read, write: if false;
     }
 

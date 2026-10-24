@@ -10,6 +10,7 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
+if (!process.env.DELETION_HMAC_SECRET) process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
 
 if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
     const child = spawnSync('npx', [

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Email change: prepare is generic, sync holds sats only when the prep row is missing.
+// Email change: every real change holds sats, including a prepared one.
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
@@ -78,6 +79,12 @@ function createDb(initial) {
                 commit: async function () { ops.forEach(function (p) { docs.delete(p); }); },
             };
         },
+        getAll: async function () {
+            const refs = Array.prototype.slice.call(arguments);
+            const snaps = [];
+            for (let i = 0; i < refs.length; i++) snaps.push(await refs[i].get());
+            return snaps;
+        },
     };
 }
 
@@ -148,6 +155,8 @@ function auth(email) {
         const pending = db.docs.get('email_change_pending/u1');
         assert.strictEqual(pending.emailHmac, tomb.emailHmac('new@example.com'));
         assert.ok(JSON.stringify(pending).indexOf('new@example.com') === -1);
+        assert.strictEqual(typeof pending.stepUp.totp, 'boolean');
+        assert.strictEqual(typeof pending.stepUp.phone, 'boolean');
         const changed = await api.syncEmailChange({}, auth('other@example.com'));
         assert.strictEqual(changed.changed, true);
         assert.strictEqual(changed.notice, emailChange.CHANGED_NOTICE);
@@ -155,9 +164,12 @@ function auth(email) {
         assert.ok(db.docs.get('email_history/u1').hashes.indexOf(tomb.emailHmac('old@example.com')) !== -1);
         const auditKeys = Array.from(db.docs.keys()).filter(function (key) { return key.indexOf('admin_audit_log/') === 0; });
         assert.strictEqual(JSON.stringify(db.docs.get(auditKeys[0])).indexOf('@'), -1);
+        const note = db.docs.get('notifications/emailchg_notice_u1');
+        assert.strictEqual(note.recipientId, 'u1');
+        assert.strictEqual(JSON.stringify(note).indexOf('@'), -1);
     });
 
-    await test('a matching prep row does not hold sats, and the first sync does not revoke', async function () {
+    await test('a prepared email change still holds sats, and the first sync does not revoke', async function () {
         const db = createDb({ 'users/u1': {} });
         let revoked = 0;
         const api = handlers(db, { revokeRefreshTokens: async function () { revoked++; } });
@@ -170,10 +182,11 @@ function auth(email) {
             emailHmac: tomb.emailHmac('second@example.com'),
             expireAt: new Date(1_700_000_000_000 + 60 * 1000),
             createdAt: 1,
+            stepUp: { totp: false, phone: false },
         });
         const second = await api.syncEmailChange({}, auth('second@example.com'));
-        assert.strictEqual(second.hold, false);
-        assert.ok(!db.docs.get('users/u1').satsHold);
+        assert.strictEqual(second.hold, true);
+        assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
         assert.strictEqual(db.docs.has('email_change_pending/u1'), false);
     });
 
@@ -208,6 +221,139 @@ function auth(email) {
             { uid: 'b', email: 'same@example.com' }
         );
         assert.ok(plain.indexOf('same-email') !== -1);
+        const referrerOnly = referrals.fraudFlags(
+            { uid: 'a', email: 'a@example.com' },
+            { uid: 'b', email: 'b@example.com', priorReferral: true }
+        );
+        assert.strictEqual(referrerOnly.indexOf('prior-referral'), -1);
+    });
+
+    await test('unverified and client-written emails do not create a tombstone identity', async function () {
+        const spec = tomb.identityFrom({
+            uid: 'u1',
+            user: { email: 'client@example.com' },
+            token: { email: 'token@example.com', email_verified: false },
+            authUser: { email: 'auth@example.com', emailVerified: false, providerData: [] },
+        });
+        assert.strictEqual(spec.email, '');
+        assert.strictEqual(spec.emailVerified, false);
+        assert.deepStrictEqual(tomb.identityMaterials(spec), []);
+        const db = createDb({ 'users/u1': { email: 'client@example.com' } });
+        const api = handlers(db, { revokeRefreshTokens: async function () {} });
+        const skipped = await api.syncEmailChange({}, {
+            auth: { uid: 'u1', token: { email: 'token@example.com', email_verified: false, auth_time: 1_700_000_000 } },
+        });
+        assert.strictEqual(skipped.skipped, true);
+        assert.ok(!db.docs.get('users/u1').emailHash);
+        assert.strictEqual(db.docs.get('users/u1').email, 'client@example.com');
+    });
+
+    await test('a legacy email that differs from the verified Auth email is held', async function () {
+        const db = createDb({ 'users/u1': { email: 'legacy@example.com' } });
+        const result = await emailChange.reconcileEmail(db, { revokeRefreshTokens: async function () {} }, 'u1', {
+            uid: 'u1',
+            email: 'auth@example.com',
+            emailVerified: true,
+            providerData: [],
+        }, 1_700_000_000_000);
+        assert.strictEqual(result.hold, true);
+        assert.ok(db.docs.get('email_history/u1').hashes.indexOf(tomb.emailHmac('legacy@example.com')) !== -1);
+        assert.strictEqual(db.docs.get('users/u1').email, 'auth@example.com');
+        assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
+    });
+
+    await test('a direct email change with no sync denies claimSats and claimCipherWin', async function () {
+        const db = createDb({
+            'users/u1': { email: 'old@example.com', emailHash: tomb.emailHmac('old@example.com') },
+        });
+        const authUser = { uid: 'u1', email: 'new@example.com', emailVerified: true, providerData: [] };
+        const gate = await emailChange.beginPayout(db, { revokeRefreshTokens: async function () {} }, 'u1', authUser, 1_700_000_000_000);
+        assert.strictEqual(gate.ok, false);
+        assert.strictEqual(gate.error, emailChange.HOLD_ERROR);
+        const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+        const claimStart = index.indexOf('exports.claimSats');
+        const claim = index.slice(claimStart, index.indexOf('function _unknownPayError', claimStart));
+        assert.ok(claim.includes('beginPayout'));
+        assert.ok(claim.includes('secretReady'));
+        assert.ok(claim.includes('tombSummary.lastClaimAt') || claim.includes('summary.lastClaimAt') || claim.includes('millisOf(tombSummary && tombSummary.lastClaimAt)'));
+        const gifting = fs.readFileSync(path.join(root, 'functions', 'src', 'gifting.js'), 'utf8');
+        assert.ok(gifting.includes('secrets: [deletionHmacSecret]'));
+        assert.ok(gifting.includes('beginPayout'));
+        assert.ok(gifting.includes("Number(userRow.satsHold) > Date.now()"));
+        assert.ok(gifting.includes('tombSatsDisabled'));
+        assert.ok(gifting.includes('tombLedgerBanned'));
+        const referral = fs.readFileSync(path.join(root, 'functions', 'src', 'referralService.js'), 'utf8');
+        assert.ok(referral.includes('beforeSnap.exists !== true'));
+        assert.ok(referral.includes('applyIdentityFlags'));
+        assert.ok(!referral.includes('referred.email ||'));
+        assert.ok(!referral.includes('email: profile.email || referred.email'));
+    });
+
+    await test('a provider-set change holds sats and keeps the old provider hashes', async function () {
+        const oldProviders = [{ providerId: 'google.com', uid: 'google-old' }];
+        const oldIds = tomb.providerHashIds(tomb.identityFrom({ providers: oldProviders }));
+        const db = createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                providersHash: tomb.providersHashOf(tomb.identityFrom({ providers: oldProviders })),
+                providerHashes: oldIds,
+            },
+        });
+        const result = await emailChange.reconcileEmail(db, { revokeRefreshTokens: async function () {} }, 'u1', {
+            uid: 'u1',
+            email: 'same@example.com',
+            emailVerified: true,
+            providerData: [{ providerId: 'google.com', uid: 'google-new' }],
+        }, 1_700_000_000_000);
+        assert.strictEqual(result.hold, true);
+        assert.ok(db.docs.get('identity_history/u1').hashes.indexOf(oldIds[0]) !== -1);
+        assert.strictEqual(db.docs.get('users/u1').satsHold, 1_700_000_000_000 + emailChange.SATS_HOLD_MS);
+    });
+
+    await test('claims fail closed when the deletion secret is missing', async function () {
+        const prev = process.env.DELETION_HMAC_SECRET;
+        delete process.env.DELETION_HMAC_SECRET;
+        try {
+            const db = createDb({ 'users/u1': { emailHash: tomb.emailHmac('a@example.com') } });
+            const gate = await emailChange.beginPayout(db, {}, 'u1', {
+                uid: 'u1', email: 'a@example.com', emailVerified: true, providerData: [],
+            }, 1_700_000_000_000);
+            assert.strictEqual(gate.ok, false);
+            assert.strictEqual(gate.paused, true);
+            assert.strictEqual(gate.error, emailChange.PAUSED_CLAIMS);
+            const gifting = fs.readFileSync(path.join(root, 'functions', 'src', 'gifting.js'), 'utf8');
+            assert.ok(gifting.includes("throw httpsError('failed-precondition', payoutGate.error)"));
+        } finally {
+            process.env.DELETION_HMAC_SECRET = prev;
+        }
+    });
+
+    await test('tombstone reads use getAll and split referee from referrer', async function () {
+        let calls = 0;
+        const db = {
+            collection: function () {
+                return { doc: function (id) { return { id: id }; } };
+            },
+            getAll: async function () {
+                calls += 1;
+                return [{ exists: true, data: function () { return { banned: true, referralRedeemed: true, lastClaimAt: 50 }; } }];
+            },
+        };
+        const docs = await tomb.readTombstones(db, ['abc']);
+        assert.strictEqual(calls, 1);
+        assert.strictEqual(docs[0].banned, true);
+        const summary = tomb.summarizeTombstones([
+            { referralRedeemed: true },
+            { referrerEarned: true, lastClaimAt: 80 },
+        ]);
+        assert.strictEqual(summary.refereePaid, true);
+        assert.strictEqual(summary.referrerEarned, true);
+        assert.strictEqual(summary.lastClaimAt, 80);
+        const record = tomb.buildRecord({ uid: 'u1', lastSatsClaim: 90, nowMs: 1000, refereePaid: true, referrerEarned: false });
+        assert.strictEqual(record.lastClaimAt, 90);
+        assert.strictEqual(record.refereePaid, true);
+        assert.strictEqual(record.referrerEarned, false);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

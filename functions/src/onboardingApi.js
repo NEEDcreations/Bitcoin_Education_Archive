@@ -526,7 +526,6 @@ function registerOnboarding(deps) {
             uid: uid,
             authUser: authUser,
             token: (context && context.auth && context.auth.token) || {},
-            user: profileData,
         }));
         if (tomb.configured && (tomb.summary.banned || tomb.summary.satsDisabled || tomb.summary.ledgerBanned)) {
             await accountTombstone.applyIdentityFlags(db, uid, tomb.summary);

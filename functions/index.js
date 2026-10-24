@@ -1643,12 +1643,16 @@ exports.claimSats = functionsV1.runWith({
     );
     if (!preBan.ok) return { success: false, error: preBan.error };
 
+    const accountTombstone = require('./src/accountTombstone');
+    if (!accountTombstone.secretReady()) {
+        return { success: false, error: 'Sats claims are paused. Try again later.' };
+    }
+
     const holdUntil = userPreSnap.exists ? (Number(userPreSnap.data().satsHold) || 0) : 0;
     if (holdUntil > Date.now()) {
         return { success: false, error: 'Sats withdrawals are paused on this account. Try again later.' };
     }
 
-    const accountTombstone = require('./src/accountTombstone');
     let tombSummary = accountTombstone.emptySummary();
 
     if (data && typeof data === 'object') {
@@ -1664,13 +1668,15 @@ exports.claimSats = functionsV1.runWith({
     let userRecord;
     try {
         userRecord = await admin.auth().getUser(uid);
+        const emailChange = require('./src/emailChange');
+        const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now());
+        if (!payoutGate.ok) return { success: false, error: payoutGate.error };
         const creationDate = new Date(userRecord.metadata.creationTime);
         const authAgeDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);
         const looked = await accountTombstone.lookupByMaterials(db, accountTombstone.identityFrom({
             uid: uid,
             authUser: userRecord,
             token: context.auth.token || {},
-            user: userPreSnap.exists ? userPreSnap.data() : {},
         }));
         tombSummary = looked.summary;
         if (looked.configured && (tombSummary.banned || tombSummary.satsDisabled || tombSummary.ledgerBanned)) {
@@ -1883,7 +1889,8 @@ exports.claimSats = functionsV1.runWith({
 
             const userLastClaim = _toMillis(user.lastSatsClaim);
             const ledgerLastClaim = _toMillis(ledger.lastSatsClaim);
-            const lastClaim = Math.max(userLastClaim, ledgerLastClaim);
+            const tombLastClaim = accountTombstone.millisOf(tombSummary && tombSummary.lastClaimAt);
+            const lastClaim = Math.max(userLastClaim, ledgerLastClaim, tombLastClaim);
             if (lastClaim) {
                 const cooldownEnd = lastClaim + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
                 if (Date.now() < cooldownEnd) {

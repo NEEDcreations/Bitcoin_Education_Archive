@@ -113,7 +113,7 @@ function fraudFlags(referred, referrer, signupIp) {
     if (lnA && lnB && lnA === lnB) flags.push('same-lightning');
     const referredCode = referralCodeForUid(referred.uid);
     if (referredCode && lower(referrer.referredBy) === lower(referredCode)) flags.push('circular');
-    if (referred.priorReferral === true || referrer.priorReferral === true) flags.push('prior-referral');
+    if (referred.priorReferral === true) flags.push('prior-referral');
     return flags;
 }
 

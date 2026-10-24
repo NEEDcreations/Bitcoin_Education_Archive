@@ -345,7 +345,7 @@ async function enforceDeleteRateLimit(db, spec) {
             const inWindow = !!start && age < DELETE_RATE_WINDOW_MS && age >= -60000;
             const count = inWindow ? (Number(data.count) || 0) : 0;
             if (count >= item.max) {
-                const err = new Error('Too many account deletions from this network. Try again later.');
+                const err = new Error('Too many deletions for this sign-in. Try again later.');
                 err.code = 'resource-exhausted';
                 throw err;
             }
@@ -934,9 +934,50 @@ function authorOf(data) {
 function repliedByOther(docs, uid) {
     for (let i = 0; i < docs.length; i++) {
         const who = authorOf(docs[i].data ? docs[i].data() : docs[i]);
-        if (who && who !== uid && who !== DELETED_UID) return true;
+        // A reply already marked deleted still belongs to someone else.
+        if (who && who !== uid) return true;
     }
     return false;
+}
+
+async function subcollectionReplies(parentRef) {
+    if (!parentRef || typeof parentRef.collection !== 'function') return [];
+    const names = ['replies', 'comments'];
+    const out = [];
+    for (let i = 0; i < names.length; i++) {
+        let snap = null;
+        try {
+            snap = await parentRef.collection(names[i]).get();
+        } catch (err) {
+            snap = null;
+        }
+        if (!snap || typeof snap.forEach !== 'function') continue;
+        snap.forEach(function (doc) { out.push(doc); });
+    }
+    return out;
+}
+
+async function priorIdentityHashes(db, uid, userData) {
+    const out = [];
+    function add(value) {
+        const hash = String(value || '').trim().toLowerCase();
+        if (!/^[a-f0-9]{64}$/.test(hash)) return;
+        if (out.indexOf(hash) === -1) out.push(hash);
+    }
+    const user = userData || {};
+    add(user.emailHash);
+    if (Array.isArray(user.providerHashes)) user.providerHashes.forEach(add);
+    try {
+        const hist = await db.collection('email_history').doc(uid).get();
+        const hashes = hist && hist.exists && hist.data() && hist.data().hashes;
+        if (Array.isArray(hashes)) hashes.forEach(add);
+    } catch (err) { /* history is included when the read succeeds */ }
+    try {
+        const ident = await db.collection('identity_history').doc(uid).get();
+        const hashes = ident && ident.exists && ident.data() && ident.data().hashes;
+        if (Array.isArray(hashes)) hashes.forEach(add);
+    } catch (err) { /* provider history is included when the read succeeds */ }
+    return out;
 }
 
 function authoredTombstone() {
@@ -977,7 +1018,8 @@ async function anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField) {
     );
     for (let i = 0; i < posts.length; i++) {
         const replies = await repliesWhere(db, 'forum_replies', 'postId', posts[i].id, documentIdField);
-        await settleAuthoredDoc(db, batcher, posts[i], uid, replies, documentIdField, ['replies', 'comments']);
+        const nested = await subcollectionReplies(posts[i].ref);
+        await settleAuthoredDoc(db, batcher, posts[i], uid, replies.concat(nested), documentIdField, ['replies', 'comments']);
     }
     const forumReplies = await collectDocs(
         db.collection('forum_replies').where('authorId', '==', uid),
@@ -993,7 +1035,8 @@ async function anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField) {
     );
     for (let i = 0; i < articles.length; i++) {
         const replies = await repliesWhere(db, 'article_replies', 'articleId', articles[i].id, documentIdField);
-        await settleAuthoredDoc(db, batcher, articles[i], uid, replies, documentIdField, ['replies', 'comments']);
+        const nested = await subcollectionReplies(articles[i].ref);
+        await settleAuthoredDoc(db, batcher, articles[i], uid, replies.concat(nested), documentIdField, ['replies', 'comments']);
     }
     const articleReplies = await collectDocs(
         db.collection('article_replies').where('authorId', '==', uid),
@@ -1343,18 +1386,19 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                         if (!isUserNotFound(err)) throw err;
                     }
                 }
+                const ownerCaller = !decision.byAdmin && context.auth && context.auth.uid === targetUid;
                 const identity = accountTombstone.identityFrom({
                     uid: targetUid,
                     authUser: authUser,
-                    token: (context.auth && context.auth.token) || {},
-                    user: userData,
+                    token: ownerCaller ? ((context.auth && context.auth.token) || {}) : null,
                 });
+                const priorHashes = await priorIdentityHashes(db, targetUid, userData);
                 let gate;
                 try {
-                    gate = await accountTombstone.assertDeletionAllowed(db, identity, clock);
+                    gate = await accountTombstone.assertDeletionAllowed(db, identity, clock, priorHashes);
                 } catch (err) {
                     if (err && err.code === 'resource-exhausted') {
-                        throw new HttpsError('resource-exhausted', 'Too many account deletions from this network. Try again later.');
+                        throw new HttpsError('resource-exhausted', 'Too many deletions for this sign-in. Try again later.');
                     }
                     if (err && err.code === 'failed-precondition') {
                         throw new HttpsError('failed-precondition', 'Account deletion is unavailable right now.');
@@ -1384,7 +1428,8 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                     ledgerSatsWithdrawn: Number(ledger.satsWithdrawn) || 0,
                     lastSatsClaim: lastClaim,
                     faucetClaimed: withdrawn > 0 || !!lastClaim,
-                    referralRedeemed: !!referral.ticketsAwarded || referral.status === 'paid' || (Number(userData.referralTicketsEarned) || 0) > 0,
+                    refereePaid: !!referral.ticketsAwarded || referral.status === 'paid',
+                    referrerEarned: (Number(userData.referralTicketsEarned) || 0) > 0,
                 });
             }
             const summary = await purgeAccount({

@@ -5,6 +5,8 @@
 // Admin SDK writes bypass Firestore rules; rules still deny client writes.
 
 const functionsV1 = require('firebase-functions/v1');
+const { defineSecret } = require('firebase-functions/params');
+const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const dns = require('dns').promises;
@@ -1033,13 +1035,18 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret] }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
     if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
+    const accountTombstone = require('./accountTombstone');
+    const emailChange = require('./emailChange');
+    if (!accountTombstone.secretReady()) {
+        throw httpsError('failed-precondition', 'Sats claims are paused. Try again later.');
+    }
 
     const winRef = db.collection('cipher_wins').doc(winId);
     const userRef = db.collection('users').doc(uid);
@@ -1051,9 +1058,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
     // The decision itself runs inside the transaction, with the user and ledger docs.
     let ageDays = 0;
     let ageKnown = false;
+    let authUser = null;
+    let tombSatsDisabled = false;
+    let tombLedgerBanned = false;
     try {
-        const userRecord = await admin.auth().getUser(uid);
-        const created = new Date(userRecord.metadata.creationTime).getTime();
+        authUser = await admin.auth().getUser(uid);
+        const created = new Date(authUser.metadata.creationTime).getTime();
         if (Number.isFinite(created)) {
             ageDays = Math.floor((Date.now() - created) / 86400000);
             ageKnown = true;
@@ -1061,6 +1071,18 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
     } catch (e) {
         console.error('[claimCipherWin] Could not verify account age:', e.message);
     }
+    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now());
+    if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
+    const looked = await accountTombstone.lookupByMaterials(db, accountTombstone.identityFrom({
+        uid: uid,
+        authUser: authUser,
+        token: (context.auth && context.auth.token) || {},
+    }));
+    if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
+        await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
+    }
+    tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
+    tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
 
     await db.runTransaction(async (t) => {
         const winDoc = await t.get(winRef);
@@ -1076,13 +1098,20 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
         if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
             throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
+        const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
+        if (Number(userRow.satsHold) > Date.now()) {
+            throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
+        }
+        const token = (context.auth && context.auth.token) || {};
+        const verifiedAuthEmail = authUser && authUser.email && authUser.emailVerified === true;
+        const verifiedTokenEmail = token.email && token.email_verified === true;
         const gate = assessCipherClaim({
-            email: context.auth.token.email || '',
-            emailVerified: context.auth.token.email_verified === true,
+            email: verifiedAuthEmail ? authUser.email : (verifiedTokenEmail ? token.email : ''),
+            emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
             ageKnown: ageKnown,
             ageDays: ageDays,
-            satsDisabled: userDoc.exists && userDoc.data().satsDisabled === true,
-            ledgerBanned: ledgerDoc.exists && ledgerDoc.data().banned === true,
+            satsDisabled: userRow.satsDisabled === true || tombSatsDisabled,
+            ledgerBanned: (ledgerDoc.exists && ledgerDoc.data().banned === true) || tombLedgerBanned,
         });
         if (!gate.ok) throw httpsError('failed-precondition', gate.error);
         amount = win.amount;

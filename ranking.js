@@ -871,6 +871,10 @@ async function syncAccountEmailFromAuth() {
     if (!user || user.isAnonymous || typeof firebase === 'undefined' || !firebase.functions) return null;
     var res = await firebase.functions().httpsCallable('syncEmailChange')({});
     var data = res && res.data ? res.data : {};
+    if (data.hold === true) {
+        var until = Number(data.holdUntil) || 0;
+        if (until > Date.now()) window._satsHoldUntil = until;
+    }
     if (data.notice && typeof showToast === 'function') showToast(data.notice, 8000);
     return data;
 }
@@ -4961,7 +4965,7 @@ window._changeExperienceMode = function(mode) {
 window.showDeleteAccountConfirm = function() {
     var overlay = document.createElement('div');
     overlay.id = 'deleteAccountOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:450000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:450000;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var username = (currentUser && currentUser.username) ? currentUser.username : '';
@@ -4979,7 +4983,7 @@ window.showDeleteAccountConfirm = function() {
     }
 
     overlay.innerHTML =
-        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:20px;padding:28px;max-width:420px;width:100%;">' +
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:20px;padding:28px;max-width:420px;width:100%;margin:auto 0;">' +
             '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:3rem;">⚠️</span></div>' +
             '<h2 style="color:#ef4444;text-align:center;margin:0 0 12px;font-size:1.2rem;">Delete Your Account?</h2>' +
             '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:16px;text-align:center;">' +
@@ -6922,6 +6926,13 @@ function accountDeleteRowHtml(user) {
         var acctCreated = user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime) : null;
         var acctAgeDays = acctCreated ? Math.floor((now - acctCreated.getTime()) / 86400000) : 0;
         var hasEmail = user.email && user.emailVerified;
+        var holdRaw = currentUser ? currentUser.satsHold : 0;
+        var holdUntil = 0;
+        if (holdRaw && typeof holdRaw.seconds === 'number') holdUntil = holdRaw.seconds * 1000;
+        else if (holdRaw && typeof holdRaw.toMillis === 'function') holdUntil = holdRaw.toMillis();
+        else holdUntil = Number(holdRaw) || 0;
+        if (window._satsHoldUntil && Number(window._satsHoldUntil) > holdUntil) holdUntil = Number(window._satsHoldUntil);
+        var satsHeld = holdUntil > now;
 
         // Eligibility checks
         var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10;
@@ -6932,6 +6943,11 @@ function accountDeleteRowHtml(user) {
         html += '<button id="satsSubClaim" onclick="window._satsSubTab=\'claim\';showSettingsPage(\'sats\')" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid ' + (_satsSubTab==='claim'?'var(--accent)':'var(--border)') + ';background:' + (_satsSubTab==='claim'?'var(--accent)':'none') + ';color:' + (_satsSubTab==='claim'?'#fff':'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Claim Sats</button>';
         html += '<button id="satsSubDonate" onclick="window._satsSubTab=\'donate\';showSettingsPage(\'sats\')" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid ' + (_satsSubTab==='donate'?'#ef4444':'var(--border)') + ';background:' + (_satsSubTab==='donate'?'linear-gradient(135deg,#ef4444,#dc2626)':'none') + ';color:' + (_satsSubTab==='donate'?'#fff':'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Donate XP</button>';
         html += '</div>';
+
+        if (satsHeld) {
+            var holdWhen = new Date(holdUntil).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            html += '<div id="satsHoldNotice" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-radius:12px;padding:12px;margin-bottom:16px;color:#ef4444;font-size:0.9rem;font-weight:700;line-height:1.45;">Sats withdrawals are paused until ' + holdWhen + '</div>';
+        }
 
         if (_satsSubTab !== 'donate') {
         html += '<div style="text-align:center;margin-bottom:20px;">';

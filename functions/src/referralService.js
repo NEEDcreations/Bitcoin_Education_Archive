@@ -240,10 +240,13 @@ async function registerReferral(data, context) {
     const referred = userView(uid, referredSnap.data());
     const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
         uid: uid,
-        email: profile.email || referred.email || '',
-        providers: profile.providerRows || [],
+        authUser: {
+            uid: uid,
+            email: profile.email || '',
+            emailVerified: profile.emailVerified === true,
+            providerData: profile.providerRows || [],
+        },
         token: (context.auth && context.auth.token) || {},
-        user: referred,
     }));
     if (tomb.configured && (tomb.summary.banned || tomb.summary.satsDisabled || tomb.summary.ledgerBanned)) {
         const patch = await accountTombstone.applyIdentityFlags(db(), uid, tomb.summary);
@@ -280,14 +283,17 @@ async function registerReferral(data, context) {
     } catch (e) {
         throw httpsError('failed-precondition', 'Referral signup cannot be recorded right now');
     }
-    referred.emailHash = referred.emailHash || accountTombstone.emailHmac(profile.email || referred.email || '');
+    if (profile.emailVerified === true && profile.email && !referred.emailHash) {
+        referred.emailHash = accountTombstone.emailHmac(profile.email);
+    }
     referred.emailHistoryHashes = await emailHistoryHashes(uid);
     if (referrer) {
-        referrer.emailHash = referrer.emailHash || accountTombstone.emailHmac(referrer.email || '');
         referrer.emailHistoryHashes = await emailHistoryHashes(referrer.uid);
     }
     const flags = referrer ? referrals.fraudFlags(referred, referrer, rawIp) : [];
-    if (tomb.summary && tomb.summary.referralRedeemed && flags.indexOf('prior-referral') === -1) {
+    const refereeAlreadyPaid = !!(tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
+    if (refereeAlreadyPaid) referred.priorReferral = true;
+    if (refereeAlreadyPaid && flags.indexOf('prior-referral') === -1) {
         flags.push('prior-referral');
     }
     linked.forEach(function(reason) {
@@ -358,11 +364,15 @@ async function payIfQualified(referredUid) {
     const referrerUid = current.data().referrerUid || await lookupReferrerUid(current.data().referrerCode, uid);
     if (!referrerUid) return { paid: false, reason: 'missing-user' };
     const profile = await authProfile(uid);
-    const tomb = await accountTombstone.lookupByMaterials(db(), {
+    const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
         uid: uid,
-        email: profile.email || '',
-        providers: profile.providerRows || [],
-    });
+        authUser: {
+            uid: uid,
+            email: profile.email || '',
+            emailVerified: profile.emailVerified === true,
+            providerData: profile.providerRows || [],
+        },
+    }));
     const createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, Date.now());
     const referrerRef = db().collection('users').doc(referrerUid);
     const referredLedgerRef = db().collection('faucet_ledger').doc(uid);
@@ -402,12 +412,13 @@ async function payIfQualified(referredUid) {
         referrerView.ledgerBanned = referrerLedger.exists && referrerLedger.data().banned === true;
         if (tomb.summary && tomb.summary.ledgerBanned) referredView.ledgerBanned = true;
         Object.assign(referredView, accountTombstone.applyFlagsPatch(tomb.summary).user);
-        referredView.priorReferral = !!(tomb.summary && tomb.summary.referralRedeemed);
+        referredView.priorReferral = !!(tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
         referredView.createdMs = createdMs;
         referredView.emailVerified = profile.emailVerified;
         referredView.providers = profile.providers;
-        referredView.emailHash = referredView.emailHash || accountTombstone.emailHmac(profile.email || referredView.email || '');
-        referrerView.emailHash = referrerView.emailHash || accountTombstone.emailHmac(referrerView.email || '');
+        if (profile.emailVerified === true && profile.email && !referredView.emailHash) {
+            referredView.emailHash = accountTombstone.emailHmac(profile.email);
+        }
         referredView.emailHistoryHashes = referredHist.exists && Array.isArray(referredHist.data().hashes) ? referredHist.data().hashes : [];
         referrerView.emailHistoryHashes = referrerHist.exists && Array.isArray(referrerHist.data().hashes) ? referrerHist.data().hashes : [];
         const signal = signalDoc.data() || {};
@@ -510,7 +521,23 @@ async function onUserWritten(event) {
     const afterSnap = event.data && event.data.after;
     if (!afterSnap || !afterSnap.exists) return null;
     const uid = event.params.uid;
-    const before = event.data.before && event.data.before.exists ? (event.data.before.data() || {}) : {};
+    const beforeSnap = event.data && event.data.before;
+    const created = !beforeSnap || beforeSnap.exists !== true;
+    if (created) {
+        try {
+            const authUser = await admin.auth().getUser(uid);
+            const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
+                uid: uid,
+                authUser: authUser,
+            }));
+            if (tomb.summary && (tomb.summary.banned || tomb.summary.satsDisabled || tomb.summary.ledgerBanned)) {
+                await accountTombstone.applyIdentityFlags(db(), uid, tomb.summary);
+            }
+        } catch (err) {
+            console.warn('[onUserReferral] identity', err && err.message ? err.message : err);
+        }
+    }
+    const before = beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : {};
     const after = afterSnap.data() || {};
     try {
         if (!after.referralCode) await ensureReferralCode(uid);
