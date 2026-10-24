@@ -621,13 +621,15 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261023_v2342'));
+    assert.ok(html.includes('ranking.js?v=20261024_v2351'));
+    assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2348'"));
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2351'"));
+    assert.ok(!swText.includes('btc-archive-v2348'));
     assert.ok(!swText.includes('btc-archive-v2347'));
     assert.ok(!swText.includes('btc-archive-v2346'));
     assert.ok(!swText.includes('btc-archive-v2345'));
@@ -644,10 +646,10 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2331'));
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    // Pin only: the patch-notes page shows the whole card. 7900 keeps the
-    // same recent notes inside after the conversation-XP Latest line, the
+    // Pin only: the patch-notes page shows the whole card. 8200 keeps the
+    // same recent notes inside after the username-repick Latest line, the
     // Google sign-in note, and the demoted TCTV and daily-XP notes.
-    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 7900);
+    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 8200);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
     assert.ok(notesHtml.includes('Marketplace fixed: you can post, edit, remove and save listings again.'));
