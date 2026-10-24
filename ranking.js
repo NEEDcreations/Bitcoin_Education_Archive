@@ -7202,7 +7202,7 @@ function showSettingsPage(tab) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261022_v2322';
+            s.src = 'notifications.js?v=20261024_v2354';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -8738,7 +8738,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261022_v2322';
+    s.src = 'notifications.js?v=20261024_v2354';
     s.onload = run;
     document.body.appendChild(s);
 };

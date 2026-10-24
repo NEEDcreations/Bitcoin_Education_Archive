@@ -412,7 +412,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2353'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2354'"));
+    assert.ok(!sw.includes('btc-archive-v2353'));
     assert.ok(!sw.includes('btc-archive-v2352'));
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(!sw.includes('btc-archive-v2350'));
@@ -766,7 +767,9 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for the Music station cleanup', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
+    const latest = 'Latest: Badges you already earned appear once, and one toast shows them.';
+    const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
+    const repick = 'If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.';
     const flex = 'Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';
     const live = 'Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.';
     const google = 'Google sign-in stays on this page and works on Android with the app installed.';
@@ -775,6 +778,10 @@ test('patch notes keep one Latest line for the Music station cleanup', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(music));
+    assert.ok(!notes.includes('Latest: Timechain TV Music'));
+    assert.ok(notes.includes(repick));
+    assert.ok(!notes.includes('Latest: If your username'));
     assert.ok(notes.includes(flex));
     assert.ok(notes.includes('If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.'));
     assert.ok(!notes.includes('Latest: If your username'));

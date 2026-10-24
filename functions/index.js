@@ -9002,6 +9002,10 @@ exports.deleteAccount = deleteAccountFns.deleteAccount;
 const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
 exports.tctvWatchHeartbeat = tctvWatchHeartbeat;
 
+// Clears the one-time backfill badge toast. The script writes the flag.
+const { ackBadgeBackfillToast } = require('./ack-badge-backfill');
+exports.ackBadgeBackfillToast = ackBadgeBackfillToast;
+
 // Topic discussions. Clients read topic_discussions; these callables are the
 // only writers. postTopicComment awaits Nacho's reply before returning.
 const { createTopicDiscussion } = require('./src/topicDiscussion');

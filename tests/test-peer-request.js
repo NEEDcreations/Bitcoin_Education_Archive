@@ -399,7 +399,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261024_v2352'));
+    assert.ok(html.includes('ranking.js?v=20261024_v2354'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2352'));
     assert.ok(!html.includes('ranking.js?v=20261024_repickc'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2350'));
     assert.ok(!html.includes('ranking.js?v=20261024_repickb'));
@@ -412,7 +413,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.ok(html.includes('gifting.js?v=20261022_v2254'));
-    assert.ok(html.includes('notifications.js?v=20261022_v2322'));
+    assert.ok(html.includes('notifications.js?v=20261024_v2354'));
+    assert.ok(!html.includes('notifications.js?v=20261024_v2352'));
     assert.strictEqual(html.includes('notifications.js?v=20261022_v2262'), false);
     assert.strictEqual(html.includes('notifications.js?v=20261022_v2254'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
@@ -491,7 +493,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2353'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2354'"));
+    assert.ok(!sw.includes('btc-archive-v2353'));
     assert.ok(!sw.includes('btc-archive-v2352'));
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(!sw.includes('btc-archive-v2350'));
