@@ -202,7 +202,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN or a device is already used by another account.'));
+    assert.ok(notes.includes('Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN, proxy, or Tor exit.'));
     assert.ok(!notes.includes('Latest: The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.'));
     assert.ok(notes.includes('Key and cipher help now says that when an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won.'));
     assert.ok(!notes.includes('Latest: Key and cipher help'));

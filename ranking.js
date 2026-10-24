@@ -17,8 +17,8 @@ const FIREBASE_CONFIG = {
 var APP_CHECK_RECAPTCHA_SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
 
 // Public IPQS device-tracker settings. Not a secret. The API key never ships to the browser.
-// Phil: paste the Device Tracker ID from the IPQS dashboard (Device Fingerprint).
-// Leave the ID blank to skip the tracker. The server then uses the existing checks.
+// Device checks are off until Phil turns on the server switch IPQS_DEVICE_ENABLED.
+// Leave the tracker ID blank. The server ignores any request id while that switch is off.
 // If IPQS assigns a custom script domain, change IPQS_DEVICE_SCRIPT_HOST.
 // A separate device postback key, if the dashboard issues one, is the server env
 // IPQS_DEVICE_POSTBACK_KEY and is never placed here.

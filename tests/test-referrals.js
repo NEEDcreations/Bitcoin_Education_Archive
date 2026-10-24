@@ -85,12 +85,14 @@ test('Maxi pays 50 to each side once, and fraud blocks payment', () => {
     const flagged = referrals.assessReferralPayout(payoutInput(referred, referrer, Object.assign({}, pending, { status: 'flagged' })));
     assert.strictEqual(flagged.action, 'skip');
 
-    const weakFingerprint = referrals.assessReferralPayout(payoutInput(
+    const sameFingerprint = referrals.assessReferralPayout(payoutInput(
         Object.assign({}, referred, { fingerprint: 'device-1' }),
         Object.assign({}, referrer, { fingerprint: 'device-1' }),
         pending
     ));
-    assert.strictEqual(weakFingerprint.action, 'pay');
+    assert.strictEqual(sameFingerprint.action, 'flag');
+    assert.ok(sameFingerprint.flags.indexOf('same-fingerprint') !== -1);
+    assert.notStrictEqual(sameFingerprint.action, 'pay');
 
     const sameDevice = referrals.assessReferralPayout(payoutInput(
         Object.assign({}, referred, { deviceHmac: 'abc123' }),

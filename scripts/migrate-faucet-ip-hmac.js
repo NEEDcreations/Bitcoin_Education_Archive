@@ -14,7 +14,7 @@ const ipHmac = require('../functions/src/ipHmac');
 const ipReputation = require('../functions/src/ipReputation');
 
 function secretFromEnv() {
-    return process.env.IP_REP_HMAC_SECRET || process.env.REFERRAL_IP_HMAC_SECRET || '';
+    return process.env.REFERRAL_IP_HMAC_SECRET || '';
 }
 
 function parseArgs(argv) {
@@ -35,16 +35,18 @@ async function rekeyCollection(db, name, kind, secret, apply) {
         counts.rekey++;
         if (!apply) continue;
         const dest = db.collection(name).doc(plan.to);
+        const sourceData = doc.data();
+        let removed = false;
         await db.runTransaction(async function(t) {
             const existing = await t.get(dest);
-            const merged = ipReputation.mergeSlot(existing.exists ? existing.data() : null, doc.data());
+            const merged = ipReputation.mergeSlot(existing.exists ? existing.data() : null, sourceData);
+            if (!ipReputation.slotCovers(merged, sourceData)) return;
             t.set(dest, merged);
+            if (typeof t.delete === 'function') t.delete(doc.ref);
+            removed = true;
         });
-        const check = await dest.get();
-        if (check.exists) {
-            await doc.ref.delete();
-            counts.deleted++;
-        }
+        if (!removed) continue;
+        counts.deleted++;
     }
     return counts;
 }
@@ -83,7 +85,7 @@ async function main() {
     const args = parseArgs(process.argv.slice(2));
     const secret = secretFromEnv();
     if (secret.length < ipHmac.MIN_SECRET) {
-        console.error('[migrate] set REFERRAL_IP_HMAC_SECRET or IP_REP_HMAC_SECRET (16+ characters). Nothing was read.');
+        console.error('[migrate] set REFERRAL_IP_HMAC_SECRET (16+ characters). Nothing was read.');
         process.exit(1);
     }
     const admin = require('firebase-admin');
@@ -97,7 +99,11 @@ async function main() {
     console.log('[migrate] faucet_ip_log seen=' + ipCounts.seen + ' rekey=' + ipCounts.rekey + ' skip=' + ipCounts.skip + ' unparsed=' + ipCounts.unparsed + ' deleted=' + ipCounts.deleted);
     console.log('[migrate] faucet_subnet_log seen=' + rangeCounts.seen + ' rekey=' + rangeCounts.rekey + ' skip=' + rangeCounts.skip + ' unparsed=' + rangeCounts.unparsed + ' deleted=' + rangeCounts.deleted);
     console.log('[migrate] faucet_uid_signals seen=' + signalCounts.seen + ' update=' + signalCounts.update + ' skip=' + signalCounts.skip);
-    if (!args.apply) console.log('[migrate] dry-run only. Re-run with --apply after review. Raw IP docs are deleted only after the HMAC copy is written.');
+    if (!args.apply) console.log('[migrate] dry-run only. Re-run with --apply after review. Raw IP docs are deleted only after the HMAC copy is verified.');
+    if (!args.apply) return;
+    const unparsed = ipCounts.unparsed + rangeCounts.unparsed;
+    const leftover = (ipCounts.rekey - ipCounts.deleted) + (rangeCounts.rekey - rangeCounts.deleted);
+    if (unparsed > 0 || leftover > 0) process.exit(1);
 }
 
 if (require.main === module) {

@@ -109,11 +109,13 @@ function memoryDb() {
             const writes = [];
             const t = {
                 get: function(target) { return target.get(); },
-                set: function(target, data, opts) { writes.push({ target: target, data: data, opts: opts }); },
+                set: function(target, data, opts) { writes.push({ kind: 'set', target: target, data: data, opts: opts }); },
+                delete: function(target) { writes.push({ kind: 'delete', target: target }); },
             };
             await fn(t);
             for (let i = 0; i < writes.length; i++) {
-                await writes[i].target.set(writes[i].data, writes[i].opts);
+                if (writes[i].kind === 'delete') await writes[i].target.delete();
+                else await writes[i].target.set(writes[i].data, writes[i].opts);
             }
         },
     };
@@ -269,7 +271,9 @@ test('a timeout falls open and counts an error without storing the address', asy
     const blob = JSON.stringify(db._docs);
     assert.strictEqual(blob.includes('203.0.113'), false);
     assert.strictEqual(blob.includes(API_KEY), false);
-    const usage = Object.keys(db._docs).filter(function(key) { return key.indexOf('ipqs_usage/') === 0; });
+    const usage = Object.keys(db._docs).filter(function(key) {
+        return key.indexOf('ipqs_usage/') === 0 && key.indexOf('_u_') === -1;
+    });
     assert.strictEqual(usage.length, 1);
     assert.strictEqual(db._docs[usage[0]].lastError, 'timeout');
     assert.ok(db._docs[usage[0]].errors >= 1);
@@ -326,6 +330,7 @@ test('the first account on a device is allowed and a later account is held', asy
         fetchImpl: fetchImpl,
         now: now,
         requestId: 'req_alice_01',
+        deviceEnabled: true,
     }));
     assert.strictEqual(first.action, 'allow');
     assert.strictEqual(first.deviceAction, 'allow');
@@ -336,6 +341,7 @@ test('the first account on a device is allowed and a later account is held', asy
         now: now + 1000,
         uid: 'bobuser',
         requestId: 'req_bob_0002',
+        deviceEnabled: true,
     }));
     assert.strictEqual(second.action, 'hold');
     assert.strictEqual(second.reason, 'later-account');
@@ -348,6 +354,7 @@ test('the first account on a device is allowed and a later account is held', asy
         now: now + 2000,
         uid: 'bobuser',
         requestId: '',
+        deviceEnabled: true,
     }));
     assert.strictEqual(bypass.action, 'hold');
     assert.strictEqual(bypass.reason, 'existing-hold');
@@ -373,7 +380,7 @@ test('a device fraud chance of 90 denies the reward', async function() {
         }
         return Promise.resolve(jsonResponse(200, cleanBody()));
     };
-    const result = await rep.assessReward(gateOpts(db, { fetchImpl: fetchImpl, now: now, requestId: 'req_fraud_01' }));
+    const result = await rep.assessReward(gateOpts(db, { fetchImpl: fetchImpl, now: now, requestId: 'req_fraud_01', deviceEnabled: true }));
     assert.strictEqual(result.action, 'deny');
     assert.strictEqual(result.reason, 'device-fraud');
     assert.strictEqual(result.message, rep.DENY_DEVICE);
@@ -401,6 +408,7 @@ test('an approved household can claim without a fresh request id', async functio
         uid: 'carol01',
         ip: '',
         requestId: '',
+        deviceEnabled: true,
     }));
     assert.strictEqual(result.action, 'allow');
     assert.strictEqual(result.reason, 'household');
@@ -529,10 +537,19 @@ test('claim and referral paths call the gate and keep new collections server-onl
     const claimEnd = index.indexOf('\nexports.', claimStart + 20);
     const claim = index.slice(claimStart, claimEnd);
     assert.ok(claim.indexOf('assessBan') < claim.indexOf('assessReward'));
+    assert.ok(claim.indexOf('sats_daily') < claim.indexOf('assessReward'));
+    assert.ok(claim.indexOf('Cooldown active') < claim.indexOf('assessReward'));
+    assert.ok(claim.indexOf('lightning_addresses') < claim.indexOf('assessReward'));
+    assert.ok(claim.indexOf('Device verification required.') < claim.indexOf('assessReward'));
+    assert.ok(claim.indexOf('Sats claims are paused. Try again later.') < claim.indexOf('assessReward'));
     assert.ok(claim.indexOf('assessReward') < claim.indexOf('resolveLnurlInvoice'));
     assert.ok(claim.includes('networkDocIds'));
+    assert.ok(claim.includes('fingerprint_abuse'));
+    assert.ok(claim.includes('legacyIpRef'));
+    assert.ok(claim.includes('neverClaimed'));
     assert.ok(claim.includes('ipqsRequestId'));
-    assert.strictEqual(claim.includes('doc(net.exactId)'), false);
+    assert.ok(claim.includes('netIds.ipId'));
+    assert.ok(claim.includes('.doc(net.exactId)'));
     assert.strictEqual(claim.includes('label: net.rangeLabel'), false);
     assert.ok(claim.includes('enforceAppCheck: true'));
     const referralStart = index.indexOf('exports.registerReferral');
@@ -552,10 +569,12 @@ test('claim and referral paths call the gate and keep new collections server-onl
     const favorBlock = favor.slice(favorAt, favorAt + 400);
     assert.ok(favorBlock.includes('enforceAppCheck: false'));
     assert.ok(favor.includes('assessReward'));
+    assert.ok(favor.includes('favor_ip_cache'));
+    assert.ok(favor.includes('shouldReuseFavorCheck'));
     const onboarding = read('functions/src/onboardingApi.js');
     assert.ok(onboarding.includes('setUsername: functionsV1.runWith({ enforceAppCheck: false })'));
     const rules = read('firestore.rules');
-    ['ip_reputation', 'ipqs_usage', 'device_links', 'device_holds', 'user_devices'].forEach(function(name) {
+    ['ip_reputation', 'ipqs_usage', 'device_links', 'device_holds', 'user_devices', 'favor_ip_cache', 'ops_alerts'].forEach(function(name) {
         const at = rules.indexOf('match /' + name + '/{docId}');
         assert.ok(at !== -1, name);
         const block = rules.slice(at, rules.indexOf('match /', at + 10));
@@ -564,6 +583,8 @@ test('claim and referral paths call the gate and keep new collections server-onl
     const privacy = read('privacy.html');
     assert.ok(privacy.includes('IPQualityScore'));
     assert.ok(privacy.includes('device signals'));
+    assert.ok(privacy.includes('not active yet'));
+    assert.ok(privacy.includes('including after the account is deleted'));
     assert.ok(privacy.includes('multi-account reward abuse'));
     const terms = read('terms.html');
     assert.ok(terms.includes('one account per person'));
@@ -574,15 +595,207 @@ test('claim and referral paths call the gate and keep new collections server-onl
     assert.ok(ranking.includes('faucet: 1, referral: 1, favor: 1'));
     assert.strictEqual(ranking.includes('IPQS_API_KEY'), false);
     const worker = read('workers/seo-router/worker.js');
-    assert.ok(worker.includes('https://www.ipqscdn.com'));
-    assert.ok(worker.includes('https://ipqualityscore.com'));
+    assert.strictEqual(worker.includes('ipqscdn.com'), false);
+    assert.strictEqual(worker.includes('ipqualityscore.com'), false);
+    const hosting = read('firebase.json');
+    assert.strictEqual(hosting.includes('ipqscdn.com'), false);
+    assert.strictEqual(hosting.includes('ipqualityscore.com'), false);
     const bundle = read('bundle.min.js');
     assert.ok(bundle.includes('btcShowReferralRewardNote'));
     assert.ok(bundle.includes('ipqsRequestId'));
     const referrals = read('functions/src/referrals.js');
     assert.ok(referrals.includes('deviceHmac'));
+    assert.ok(referrals.includes('referred.fingerprint'));
     assert.ok(referrals.includes('ipqs-hold'));
     assert.strictEqual(referrals.includes('same-fingerprint') && referrals.includes('deviceHmac'), true);
+    const service = read('functions/src/referralService.js');
+    assert.ok(service.includes('linked-ip-unverified'));
+    assert.ok(service.includes('legacyNetworkIds'));
+    assert.ok(service.includes("purpose: 'referral'"));
+    const script = read('scripts/migrate-faucet-ip-hmac.js');
+    assert.ok(script.includes('REFERRAL_IP_HMAC_SECRET'));
+    assert.strictEqual(script.includes('IP_REP_HMAC_SECRET'), false);
+    assert.ok(script.includes('slotCovers'));
+    assert.ok(script.includes('process.exit(1)'));
+    const guard = read('functions/src/faucetGuard.js');
+    assert.ok(guard.includes('function assessFingerprint'));
+    assert.ok(claim.includes("type: 'fingerprint_abuse'"));
+});
+
+test('a forged device id does nothing while the server switch is off', async function() {
+    delete process.env.IPQS_DEVICE_ENABLED;
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    const ip = '203.0.113.77';
+    db._docs['ip_reputation/' + ipHmac.hmacIp(ip, SECRET)] = {
+        action: 'deny',
+        reason: 'score',
+        fraudScore: 95,
+        checkedAtMs: now,
+        expireAt: now + 100000,
+    };
+    let fetches = 0;
+    const result = await rep.assessReward(gateOpts(db, {
+        fetchImpl: function() {
+            fetches++;
+            return Promise.resolve(jsonResponse(200, cleanBody()));
+        },
+        now: now,
+        ip: ip,
+        requestId: 'forged_request_id_0001',
+        deviceEnabled: false,
+    }));
+    assert.strictEqual(result.action, 'deny');
+    assert.strictEqual(result.reason, 'score');
+    assert.strictEqual(result.deviceAction, 'off');
+    assert.strictEqual(result.deviceHmac, '');
+    assert.strictEqual(fetches, 0);
+    const keys = Object.keys(db._docs);
+    assert.strictEqual(keys.some(function(key) { return key.indexOf('device_') === 0; }), false);
+    assert.strictEqual(keys.some(function(key) { return key.indexOf('ipqs_usage/') === 0; }), false);
+});
+
+test('the fourth fresh lookup for one account is held', async function() {
+    const db = memoryDb();
+    let fetches = 0;
+    const fetchImpl = scriptedFetch(function() {
+        fetches++;
+        return jsonResponse(200, cleanBody({ fraud_score: 10 }));
+    });
+    const now = 1_700_000_000_000;
+    for (let i = 0; i < 3; i++) {
+        const got = await rep.assessReward(gateOpts(db, {
+            fetchImpl: fetchImpl,
+            now: now,
+            ip: '203.0.113.' + (10 + i),
+            userCap: 3,
+            cap: 30,
+        }));
+        assert.strictEqual(got.action, 'allow');
+    }
+    const held = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.40',
+        userCap: 3,
+        cap: 30,
+    }));
+    assert.strictEqual(held.action, 'hold');
+    assert.strictEqual(held.reason, 'user-quota');
+    assert.strictEqual(held.message, rep.USER_HOLD);
+    assert.strictEqual(fetches, 3);
+});
+
+test('purpose caps keep a favor lookup from spending the faucet bucket', async function() {
+    const db = memoryDb();
+    let fetches = 0;
+    const fetchImpl = scriptedFetch(function() {
+        fetches++;
+        return jsonResponse(200, cleanBody({ fraud_score: 10 }));
+    });
+    const now = 1_700_000_000_000;
+    const purposeCaps = { faucet: 1, favor: 1, referral: 1 };
+    const faucet = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.10',
+        cap: 30,
+        purpose: 'faucet',
+        purposeCaps: purposeCaps,
+    }));
+    assert.strictEqual(faucet.action, 'allow');
+    const blocked = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.11',
+        cap: 30,
+        purpose: 'faucet',
+        purposeCaps: purposeCaps,
+    }));
+    assert.strictEqual(blocked.action, 'fallback');
+    assert.strictEqual(blocked.reason, 'quota');
+    const favor = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.12',
+        cap: 30,
+        purpose: 'favor',
+        purposeCaps: purposeCaps,
+        uid: 'favoruser1',
+    }));
+    assert.strictEqual(favor.action, 'allow');
+    assert.strictEqual(favor.message, '');
+    assert.strictEqual(fetches, 2);
+    assert.ok(db._docs['ops_alerts/ipqs_2023-11-14']);
+    assert.strictEqual(db._docs['ops_alerts/ipqs_2023-11-14'].kind, 'ipqs');
+});
+
+test('quota holds a never-claimed faucet account and lets a returning account through', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    db._docs['ipqs_usage/2023-11-14'] = { lookups: 30, faucet: 20, expireAt: now + 100000 };
+    const fetchImpl = function() { throw new Error('lookup should not run'); };
+    const held = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '198.51.100.20',
+        cap: 30,
+        purpose: 'faucet',
+        neverClaimed: true,
+    }));
+    assert.strictEqual(held.action, 'hold');
+    assert.strictEqual(held.reason, 'quota');
+    assert.strictEqual(held.message, rep.NEVER_CLAIMED_HOLD);
+    const returning = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '198.51.100.21',
+        cap: 30,
+        purpose: 'faucet',
+        neverClaimed: false,
+        uid: 'olduser01',
+    }));
+    assert.strictEqual(returning.action, 'fallback');
+    assert.strictEqual(returning.reason, 'quota');
+    assert.strictEqual(returning.message, '');
+});
+
+test('a missing hmac secret cannot build a network doc id', function() {
+    assert.strictEqual(rep.networkDocIds('203.0.113.10', ''), null);
+    assert.strictEqual(rep.networkDocIds('203.0.113.10', 'short-secret'), null);
+    assert.strictEqual(rep.legacyNetworkIds('203.0.113.10').ipId, '203_0_113_10');
+});
+
+test('a favor verdict is reused only for the same window', function() {
+    const now = 1_700_000_000_000;
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-1',
+        action: 'hold',
+        expireAt: now + 1000,
+    }, 'cycle-1', now), true);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-1',
+        action: 'hold',
+        expireAt: now - 1,
+    }, 'cycle-1', now), false);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-2',
+        action: 'allow',
+        expireAt: now + 1000,
+    }, 'cycle-1', now), false);
+});
+
+test('referral holds use invite wording', async function() {
+    const db = memoryDb();
+    const result = await rep.assessReward(gateOpts(db, {
+        fetchImpl: scriptedFetch(function() {
+            return jsonResponse(200, cleanBody({ vpn: true, fraud_score: 80 }));
+        }),
+        purpose: 'referral',
+    }));
+    assert.strictEqual(result.action, 'hold');
+    assert.strictEqual(result.message, rep.HOLD_REFERRAL);
+    assert.ok(result.message.indexOf('claim sats') === -1);
 });
 
 Promise.all(queue).then(function() {

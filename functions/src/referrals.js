@@ -95,9 +95,11 @@ function fraudFlags(referred, referrer, signupIp) {
     if (referred.satsDisabled === true || referrer.satsDisabled === true) flags.push('sats-disabled');
     if (referred.banned === true || referrer.banned === true) flags.push('banned');
     if (referred.ledgerBanned === true || referrer.ledgerBanned === true) flags.push('ledger-banned');
+    const fpA = String(referred.fingerprint || '').trim();
+    const fpB = String(referrer.fingerprint || '').trim();
     const devA = String(referred.deviceHmac || '').trim().toLowerCase();
     const devB = String(referrer.deviceHmac || '').trim().toLowerCase();
-    if (devA && devB && devA === devB) flags.push('same-fingerprint');
+    if ((fpA && fpB && fpA === fpB) || (devA && devB && devA === devB)) flags.push('same-fingerprint');
     if (referred.ipqsAction === 'deny') flags.push('ipqs-deny');
     if (referred.ipqsAction === 'hold') flags.push('ipqs-hold');
     if (referred.deviceAction === 'deny') flags.push('device-deny');

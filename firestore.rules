@@ -2311,6 +2311,12 @@ service cloud.firestore {
     match /user_devices/{docId} {
       allow read, write: if false;
     }
+    match /favor_ip_cache/{docId} {
+      allow read, write: if false;
+    }
+    match /ops_alerts/{docId} {
+      allow read, write: if false;
+    }
 
     // Daily faucet abuse report and the flags that feed it. Admins read, server writes.
     match /faucet_admin_flags/{docId} {

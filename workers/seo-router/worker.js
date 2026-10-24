@@ -100,8 +100,6 @@ function buildCSP(nonce) {
             " https://cdnjs.cloudflare.com" +
             " https://translate.google.com" +
             " https://www.google.com" +          // reCAPTCHA v3 (App Check token generation)
-            " https://www.ipqscdn.com" +         // IPQS device tracker, reward screens only
-            " https://www.ipqualityscore.com" +
             " https://www.youtube.com",
 
         // connect-src: every outbound fetch / WebSocket the app makes
@@ -126,10 +124,7 @@ function buildCSP(nonce) {
             " https://*.needcreations.workers.dev" + // CF Workers (search, embed-proxy, pleb-sync)
             " https://us-central1-bitcoin-education-archive.cloudfunctions.net" +
             " https://ppq.ai" +                                          // PPQ AI Tools embed
-            " https://*.ppq.ai" +                                         // PPQ AI subdomains
-            " https://www.ipqscdn.com" +                                  // IPQS device tracker
-            " https://www.ipqualityscore.com" +
-            " https://ipqualityscore.com",
+            " https://*.ppq.ai",                                         // PPQ AI subdomains
 
         "img-src 'self' data: blob: https:",         // Broad: GIF picker, user avatars, YouTube thumbs
 

@@ -239,7 +239,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN or a device is already used by another account.'));
+    assert.ok(notes.includes('Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN, proxy, or Tor exit.'));
     assert.ok(!notes.includes('Latest: The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.'));
     assert.ok(notes.includes('Key and cipher help now says that when an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won.'));
     assert.ok(!notes.includes('Latest: Key and cipher help'));

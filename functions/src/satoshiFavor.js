@@ -700,22 +700,45 @@ exports.hashForFavor = onCall({
   }
 
   const favorHeaders = request.rawRequest && request.rawRequest.headers ? request.rawRequest.headers : {};
-  let rewardGate = { action: 'fallback', message: '' };
+  const favorCycleId = String(stateData.currentCycleId || 'window');
+  const favorCacheId = favorCycleId.replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 40) + '_' + String(uid).replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 120);
+  const favorCacheRef = db.collection('favor_ip_cache').doc(favorCacheId);
+  let rewardGate = { action: 'fallback', message: '', reason: 'lookup' };
   try {
-    rewardGate = await ipReputation.assessReward({
-      db: db,
-      ip: faucetGuard.clientIpFromRequest(request.rawRequest) || '',
-      uid: uid,
-      userAgent: favorHeaders['user-agent'] || '',
-      language: favorHeaders['accept-language'] || '',
-      requestId: data && data.ipqsRequestId,
-      purpose: 'favor',
-    });
+    const cachedGate = await favorCacheRef.get();
+    const cachedData = cachedGate.exists ? (cachedGate.data() || {}) : null;
+    if (ipReputation.shouldReuseFavorCheck(cachedData, favorCycleId, now)) {
+      rewardGate = {
+        action: cachedData.action,
+        message: cachedData.message || '',
+        reason: cachedData.reason || 'cache',
+        deviceAction: 'off',
+      };
+    } else {
+      rewardGate = await ipReputation.assessReward({
+        db: db,
+        ip: faucetGuard.clientIpFromRequest(request.rawRequest) || '',
+        uid: uid,
+        userAgent: favorHeaders['user-agent'] || '',
+        language: favorHeaders['accept-language'] || '',
+        requestId: data && data.ipqsRequestId,
+        purpose: 'favor',
+      });
+      await favorCacheRef.set({
+        uid: uid,
+        cycleId: favorCycleId,
+        action: rewardGate.action || 'fallback',
+        reason: String(rewardGate.reason || '').slice(0, 40),
+        message: String(rewardGate.message || '').slice(0, 240),
+        checkedAtMs: now,
+        expireAt: admin.firestore.Timestamp.fromMillis(now + (7 * 24 * 60 * 60 * 1000)),
+      });
+    }
   } catch (gateErr) {
     console.error('[FAVOR] reward gate fallback');
   }
   if (rewardGate.action === 'deny' || rewardGate.action === 'hold') {
-    throw new HttpsError('failed-precondition', rewardGate.message);
+    throw new HttpsError('failed-precondition', rewardGate.message || ipReputation.HOLD_CONNECTION);
   }
 
   // Get username (outside transaction — read-only, not security-critical).

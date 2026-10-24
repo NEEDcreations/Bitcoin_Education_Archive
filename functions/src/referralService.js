@@ -68,9 +68,18 @@ async function linkedAccount(uid, user, ip, nowMs) {
         if (!decision.ok) reasons.push('linked-fingerprint');
     }
     const netIds = ipReputation.networkDocIds(ip);
-    if (netIds) {
-        const ipDoc = await db().collection('faucet_ip_log').doc(netIds.ipId).get();
-        const subnetDoc = await db().collection('faucet_subnet_log').doc(netIds.rangeId).get();
+    if (ip && !netIds) {
+        reasons.push('linked-ip-unverified');
+    } else if (netIds) {
+        const legacy = ipReputation.legacyNetworkIds(ip);
+        let ipDoc = await db().collection('faucet_ip_log').doc(netIds.ipId).get();
+        let subnetDoc = await db().collection('faucet_subnet_log').doc(netIds.rangeId).get();
+        if (!ipDoc.exists && legacy && legacy.ipId !== netIds.ipId) {
+            ipDoc = await db().collection('faucet_ip_log').doc(legacy.ipId).get();
+        }
+        if (!subnetDoc.exists && legacy && legacy.rangeId !== netIds.rangeId) {
+            subnetDoc = await db().collection('faucet_subnet_log').doc(legacy.rangeId).get();
+        }
         const ipSlot = ipDoc.exists ? ipDoc.data() : {};
         const subnetSlot = subnetDoc.exists ? subnetDoc.data() : {};
         const ipDecision = faucetGuard.assessExactIpSlot({
@@ -263,7 +272,7 @@ async function registerReferral(data, context) {
         const referrerSnap = await db().collection('users').doc(referrerUid).get();
         if (referrerSnap.exists) referrer = userView(referrerUid, referrerSnap.data());
     }
-    if (referrer) {
+    if (referrer && ipReputation.deviceEnabled()) {
         const referrerDevice = await db().collection('user_devices').doc(referrer.uid).get();
         referrer.deviceHmac = referrerDevice.exists ? String((referrerDevice.data() || {}).deviceHmac || '') : '';
     }
@@ -340,7 +349,18 @@ async function registerReferral(data, context) {
     };
 }
 
-async function payIfQualified(referredUid) {
+function rawIpFromUser(user) {
+    if (!user) return '';
+    const raw = Array.isArray(user.known_ips) ? user.known_ips : String(user.known_ips || '').split(/[,\s]+/);
+    for (let i = raw.length - 1; i >= 0; i--) {
+        const ip = String(raw[i] || '').trim();
+        if (!ip || /^[0-9a-f]{64}$/.test(ip)) continue;
+        if (faucetGuard.networkKeys(ip)) return ip;
+    }
+    return '';
+}
+
+async function payIfQualified(referredUid, opts) {
     const uid = String(referredUid || '');
     if (!uid) return { paid: false, reason: 'missing-user' };
     const refRef = db().collection('referrals').doc(uid);
@@ -357,6 +377,29 @@ async function payIfQualified(referredUid) {
     const current = pre;
     const referrerUid = current.data().referrerUid || await lookupReferrerUid(current.data().referrerCode, uid);
     if (!referrerUid) return { paid: false, reason: 'missing-user' };
+    const extra = opts || {};
+    let checkIp = String(extra.ip || '');
+    if (!checkIp) {
+        const remembered = await referredRef.get();
+        checkIp = rawIpFromUser(remembered.exists ? remembered.data() : null);
+    }
+    let freshGate = null;
+    if (checkIp) {
+        try {
+            freshGate = await ipReputation.assessReward({
+                db: db(),
+                ip: checkIp,
+                uid: uid,
+                purpose: 'referral',
+                userAgent: extra.userAgent || '',
+                language: extra.language || '',
+            });
+        } catch (e) {
+            console.error('[referral] payout recheck fallback');
+            freshGate = null;
+        }
+    }
+    const devicesOn = ipReputation.deviceEnabled();
     const profile = await authProfile(uid);
     const referrerRef = db().collection('users').doc(referrerUid);
     const referredLedgerRef = db().collection('faucet_ledger').doc(uid);
@@ -368,7 +411,7 @@ async function payIfQualified(referredUid) {
 
     let outcome = { paid: false, reason: 'skip' };
     await db().runTransaction(async function(t) {
-        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger, limitDoc, referredHold, referredDevice, referrerDevice] = await Promise.all([
+        const reads = [
             t.get(refRef),
             t.get(referredRef),
             t.get(referrerRef),
@@ -376,10 +419,21 @@ async function payIfQualified(referredUid) {
             t.get(referredLedgerRef),
             t.get(referrerLedgerRef),
             t.get(limitRef),
-            t.get(referredHoldRef),
-            t.get(referredDeviceRef),
-            t.get(referrerDeviceRef),
-        ]);
+        ];
+        if (devicesOn) {
+            reads.push(t.get(referredHoldRef), t.get(referredDeviceRef), t.get(referrerDeviceRef));
+        }
+        const got = await Promise.all(reads);
+        const referralDoc = got[0];
+        const referredDoc = got[1];
+        const referrerDoc = got[2];
+        const signalDoc = got[3];
+        const referredLedger = got[4];
+        const referrerLedger = got[5];
+        const limitDoc = got[6];
+        const referredHold = devicesOn ? got[7] : { exists: false };
+        const referredDevice = devicesOn ? got[8] : { exists: false };
+        const referrerDevice = devicesOn ? got[9] : { exists: false };
         if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists) {
             outcome = { paid: false, reason: 'missing-user' };
             return;
@@ -405,13 +459,26 @@ async function payIfQualified(referredUid) {
         const storedHmac = fresh ? String(signal.signupIpHmac || '') : '';
         referredView.known_ips = fresh ? hmacIps(referredView.known_ips) : [];
         referrerView.known_ips = fresh ? hmacIps(referrerView.known_ips) : [];
-        referredView.ipqsAction = String(signal.ipqsAction || '');
-        referredView.deviceHmac = String(signal.deviceHmac || '');
-        if (!referredView.deviceHmac && referredDevice.exists) {
-            referredView.deviceHmac = String((referredDevice.data() || {}).deviceHmac || '');
+        const storedAction = String(signal.ipqsAction || '');
+        const liveAction = freshGate && (freshGate.action === 'allow' || freshGate.action === 'hold' || freshGate.action === 'deny')
+            ? freshGate.action
+            : '';
+        referredView.ipqsAction = liveAction || storedAction;
+        if (liveAction && liveAction !== storedAction) {
+            t.set(signalRef, {
+                ipqsAction: liveAction,
+                ipqsReason: String(freshGate.reason || '').slice(0, 40),
+                ipqsCheckedAtMs: Date.now(),
+            }, { merge: true });
         }
-        if (referrerDevice.exists) {
-            referrerView.deviceHmac = String((referrerDevice.data() || {}).deviceHmac || '');
+        if (devicesOn) {
+            referredView.deviceHmac = String(signal.deviceHmac || '');
+            if (!referredView.deviceHmac && referredDevice.exists) {
+                referredView.deviceHmac = String((referredDevice.data() || {}).deviceHmac || '');
+            }
+            if (referrerDevice.exists) {
+                referrerView.deviceHmac = String((referrerDevice.data() || {}).deviceHmac || '');
+            }
         }
         const hold = referredHold.exists ? (referredHold.data() || {}) : null;
         const holdExp = hold ? millisOf(hold.expireAt) : 0;

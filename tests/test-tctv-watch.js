@@ -774,7 +774,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN or a device is already used by another account.';
+    const latest = 'Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN, proxy, or Tor exit.';
     const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
     const repick = 'If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.';
     const flex = 'Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';

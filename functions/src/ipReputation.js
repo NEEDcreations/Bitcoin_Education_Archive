@@ -19,6 +19,13 @@ const DENY_CONNECTION = "This connection can't claim sats. Turn off your VPN or 
 const HOLD_CONNECTION = 'Switch to a regular connection to claim sats. A VPN, proxy, or Tor exit can\'t claim right now.';
 const HOLD_DEVICE = 'This device is already linked to another account. Contact support if this is a shared household.';
 const DENY_DEVICE = "This device can't claim rewards right now. Contact support.";
+const DENY_REFERRAL = "This connection can't be used for an invite reward. Turn off your VPN or contact support.";
+const HOLD_REFERRAL = 'Your invite reward is on hold because this connection looks like a VPN. Contact support if this is a mistake.';
+const HOLD_REFERRAL_DEVICE = 'Your invite reward is on hold because this device is already linked to another account. Contact support if this is a shared household.';
+const USER_HOLD = 'Too many connection checks from this account today. Try again tomorrow.';
+const NEVER_CLAIMED_HOLD = "New accounts can't claim sats right now. Try again later.";
+const PURPOSE_CAPS = { faucet: 20, favor: 5, referral: 5 };
+const USER_DAILY_CAP = 3;
 
 const IP_URL = 'https://ipqualityscore.com/api/json/ip/';
 const POSTBACK_URL = 'https://ipqualityscore.com/api/json/postback/';
@@ -312,6 +319,65 @@ function dailyCap(opts) {
     return DEFAULT_DAILY_CAP;
 }
 
+function purposeName(purpose) {
+    if (purpose === 'favor' || purpose === 'referral' || purpose === 'faucet') return purpose;
+    return 'faucet';
+}
+
+function purposeCap(purpose, opts) {
+    const key = purposeName(purpose);
+    if (opts && opts.purposeCaps && Number.isFinite(Number(opts.purposeCaps[key]))) {
+        return Math.max(0, Math.floor(Number(opts.purposeCaps[key])));
+    }
+    const raw = process.env['IPQS_CAP_' + key.toUpperCase()];
+    const n = Number(raw);
+    if (raw != null && raw !== '' && Number.isFinite(n) && n >= 0) return Math.floor(n);
+    return PURPOSE_CAPS[key];
+}
+
+function userLookupCap(opts) {
+    if (opts && Number.isFinite(Number(opts.userCap))) return Math.max(0, Math.floor(Number(opts.userCap)));
+    const raw = process.env.IPQS_USER_DAILY_CAP;
+    const n = Number(raw);
+    if (raw != null && raw !== '' && Number.isFinite(n) && n >= 0) return Math.floor(n);
+    return USER_DAILY_CAP;
+}
+
+// Default off. A blank tracker id is not enough: the server ignores device
+// input until IPQS_DEVICE_ENABLED is exactly on.
+function deviceEnabled(opts) {
+    if (opts && opts.deviceEnabled === true) return true;
+    if (opts && opts.deviceEnabled === false) return false;
+    const raw = String(process.env.IPQS_DEVICE_ENABLED || '').trim().toLowerCase();
+    return raw === '1' || raw === 'true' || raw === 'on' || raw === 'yes';
+}
+
+function legacyNetworkIds(ip) {
+    const net = faucetGuard.networkKeys(ip);
+    if (!net || !net.exactId || !net.rangeId) return null;
+    return { ipId: net.exactId, rangeId: net.rangeId };
+}
+
+function slotCovers(dest, source) {
+    const left = dest && typeof dest === 'object' ? dest : {};
+    const right = source && typeof source === 'object' ? source : {};
+    if ((Number(left.claimCount) || 0) < (Number(right.claimCount) || 0)) return false;
+    const seen = right.seen && typeof right.seen === 'object' && !Array.isArray(right.seen) ? right.seen : {};
+    const have = left.seen && typeof left.seen === 'object' && !Array.isArray(left.seen) ? left.seen : {};
+    const keys = Object.keys(seen);
+    for (let i = 0; i < keys.length; i++) {
+        if ((Number(have[keys[i]]) || 0) < (Number(seen[keys[i]]) || 0)) return false;
+    }
+    return true;
+}
+
+function shouldReuseFavorCheck(data, cycleId, now) {
+    if (!data || String(data.cycleId || '') !== String(cycleId || '')) return false;
+    const exp = expireMillis(data.expireAt);
+    if (exp && exp <= now) return false;
+    return data.action === 'allow' || data.action === 'hold' || data.action === 'deny' || data.action === 'fallback';
+}
+
 function defaultBindings() {
     const admin = require('firebase-admin');
     return {
@@ -328,14 +394,44 @@ function usageRef(db, now) {
     return db.collection('ipqs_usage').doc(dayKey(now));
 }
 
-async function reserveLookup(db, now, cap, bindings) {
-    if (!db) return false;
-    const ref = usageRef(db, now);
-    let allowed = false;
+function userUsageId(now, uid) {
+    const safe = String(uid || '').replace(/\//g, '_').slice(0, 200);
+    return dayKey(now) + '_u_' + safe;
+}
+
+async function reserveUserLookup(db, now, uid, cap, bindings) {
+    if (!db || !uid) return 'ok';
+    const ref = db.collection('ipqs_usage').doc(userUsageId(now, uid));
+    let result = 'ok';
     await db.runTransaction(async function(t) {
         const snap = await t.get(ref);
         const lookups = snap.exists ? (Number(snap.data().lookups) || 0) : 0;
         if (lookups >= cap) {
+            result = 'hold';
+            return;
+        }
+        t.set(ref, {
+            lookups: bindings.increment(1),
+            day: dayKey(now),
+            updatedAtMs: now,
+            expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
+        }, { merge: true });
+    });
+    return result;
+}
+
+async function reserveLookup(db, now, cap, bindings, purpose, purposeLimit) {
+    if (!db) return false;
+    const field = purposeName(purpose);
+    const limit = Number.isFinite(Number(purposeLimit)) ? Math.max(0, Math.floor(Number(purposeLimit))) : cap;
+    const ref = usageRef(db, now);
+    let allowed = false;
+    await db.runTransaction(async function(t) {
+        const snap = await t.get(ref);
+        const data = snap.exists ? (snap.data() || {}) : {};
+        const lookups = Number(data.lookups) || 0;
+        const used = Number(data[field]) || 0;
+        if (lookups >= cap || used >= limit) {
             t.set(ref, {
                 errors: bindings.increment(1),
                 quotaSkips: bindings.increment(1),
@@ -347,15 +443,37 @@ async function reserveLookup(db, now, cap, bindings) {
             allowed = false;
             return;
         }
-        t.set(ref, {
+        const update = {
             lookups: bindings.increment(1),
             day: dayKey(now),
             updatedAtMs: now,
             expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
-        }, { merge: true });
+        };
+        update[field] = bindings.increment(1);
+        t.set(ref, update, { merge: true });
         allowed = true;
     });
     return allowed;
+}
+
+async function recordOpsAlert(db, now, bindings, reason) {
+    if (!db) return;
+    const ref = db.collection('ops_alerts').doc('ipqs_' + dayKey(now));
+    try {
+        await db.runTransaction(async function(t) {
+            const snap = await t.get(ref);
+            if (snap.exists) return;
+            t.set(ref, {
+                kind: 'ipqs',
+                day: dayKey(now),
+                reason: String(reason || 'quota').slice(0, 24),
+                createdAtMs: now,
+                expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
+            });
+        });
+    } catch (e) {
+        console.error('[ipqs] alert write failed');
+    }
 }
 
 async function recordError(opts, reason) {
@@ -502,9 +620,16 @@ async function lookupIp(opts) {
         await recordError(opts, 'secret');
         return fallback('secret');
     }
+    const userCap = userLookupCap(opts);
+    const userSlot = await reserveUserLookup(opts.db, now, opts.uid, userCap, opts.bindings);
+    if (userSlot === 'hold') {
+        logVerdict(docId, 'hold', 'user-quota', null);
+        return { action: 'hold', reason: 'user-quota', verdict: null };
+    }
     const cap = dailyCap(opts);
-    const reserved = await reserveLookup(opts.db, now, cap, opts.bindings);
+    const reserved = await reserveLookup(opts.db, now, cap, opts.bindings, opts.purpose, purposeCap(opts.purpose, opts));
     if (!reserved) {
+        await recordOpsAlert(opts.db, now, opts.bindings, 'quota');
         logVerdict(docId, 'fallback', 'quota', null);
         return fallback('quota');
     }
@@ -530,6 +655,7 @@ async function lookupIp(opts) {
     if (scored.action === 'fallback' || (body && body.success === false)) {
         const reason = failureReason(body, status);
         await recordError(opts, reason);
+        if (reason === 'credits') await recordOpsAlert(opts.db, now, opts.bindings, 'credits');
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);
     }
@@ -612,8 +738,11 @@ async function lookupDevice(opts) {
         await recordError(opts, 'secret');
         return { action: 'fallback', reason: 'secret', deviceHmac: '' };
     }
-    const reserved = await reserveLookup(opts.db, now, dailyCap(opts), opts.bindings);
-    if (!reserved) return { action: 'fallback', reason: 'quota', deviceHmac: '' };
+    const reserved = await reserveLookup(opts.db, now, dailyCap(opts), opts.bindings, 'faucet', purposeCap('faucet', opts));
+    if (!reserved) {
+        await recordOpsAlert(opts.db, now, opts.bindings, 'quota');
+        return { action: 'fallback', reason: 'quota', deviceHmac: '' };
+    }
     const url = POSTBACK_URL + encodeURIComponent(apiKey) + '?request_id=' + encodeURIComponent(requestId);
     let body = null;
     let status = 0;
@@ -659,7 +788,13 @@ async function lookupDevice(opts) {
     }
 }
 
-function messageFor(action, source) {
+function messageFor(action, source, purpose) {
+    if (purpose === 'referral') {
+        if (action === 'deny' && source === 'device') return DENY_DEVICE;
+        if (action === 'hold' && source === 'device') return HOLD_REFERRAL_DEVICE;
+        if (action === 'deny') return DENY_REFERRAL;
+        if (action === 'hold') return HOLD_REFERRAL;
+    }
     if (action === 'deny' && source === 'device') return DENY_DEVICE;
     if (action === 'hold' && source === 'device') return HOLD_DEVICE;
     if (action === 'deny') return DENY_CONNECTION;
@@ -686,30 +821,49 @@ async function assessReward(opts) {
         userAgent: src.userAgent || '',
         language: src.language || '',
         requestId: src.requestId || '',
+        purpose: src.purpose || 'faucet',
     };
+    packed.deviceEnabled = src.deviceEnabled;
+    packed.userCap = src.userCap;
+    packed.purposeCaps = src.purposeCaps;
     try {
         let ipResult = { action: 'fallback', reason: 'no-ip', verdict: null };
         if (packed.ip && packed.ip !== 'unknown' && packed.db) {
             ipResult = await lookupIp(packed);
         }
         if (ipResult.action === 'deny' || ipResult.action === 'hold') {
+            const reason = ipResult.reason;
+            const message = reason === 'user-quota'
+                ? USER_HOLD
+                : messageFor(ipResult.action, 'ip', packed.purpose);
             return {
                 action: ipResult.action,
-                reason: ipResult.reason,
-                message: messageFor(ipResult.action, 'ip'),
+                reason: reason,
+                message: message,
                 ipVerdict: ipResult.verdict,
                 deviceHmac: '',
-                deviceAction: 'fallback',
+                deviceAction: 'off',
             };
         }
-        const device = packed.db
+        if ((ipResult.reason === 'quota' || ipResult.reason === 'credits') && packed.purpose === 'faucet' && src.neverClaimed === true) {
+            return {
+                action: 'hold',
+                reason: ipResult.reason,
+                message: NEVER_CLAIMED_HOLD,
+                ipVerdict: ipResult.verdict,
+                deviceHmac: '',
+                deviceAction: 'off',
+            };
+        }
+        const devicesOn = deviceEnabled(packed);
+        const device = devicesOn && packed.db
             ? await lookupDevice(packed)
-            : { action: 'fallback', reason: 'no-user', deviceHmac: '' };
+            : { action: 'off', reason: 'device-off', deviceHmac: '' };
         if (device.action === 'deny' || device.action === 'hold') {
             return {
                 action: device.action,
                 reason: device.reason,
-                message: messageFor(device.action, 'device'),
+                message: messageFor(device.action, 'device', packed.purpose),
                 ipVerdict: ipResult.verdict,
                 deviceHmac: device.deviceHmac || '',
                 deviceAction: device.action,
@@ -718,11 +872,11 @@ async function assessReward(opts) {
         const action = ipResult.action === 'allow' || device.action === 'allow' ? 'allow' : 'fallback';
         return {
             action: action,
-            reason: device.reason || ipResult.reason,
+            reason: devicesOn ? (device.reason || ipResult.reason) : ipResult.reason,
             message: '',
             ipVerdict: ipResult.verdict,
-            deviceHmac: device.deviceHmac || '',
-            deviceAction: device.action,
+            deviceHmac: devicesOn ? (device.deviceHmac || '') : '',
+            deviceAction: devicesOn ? device.action : 'off',
         };
     } catch (e) {
         console.error('[ipqs] gate fallback');
@@ -749,6 +903,13 @@ module.exports = {
     HOLD_CONNECTION: HOLD_CONNECTION,
     HOLD_DEVICE: HOLD_DEVICE,
     DENY_DEVICE: DENY_DEVICE,
+    DENY_REFERRAL: DENY_REFERRAL,
+    HOLD_REFERRAL: HOLD_REFERRAL,
+    HOLD_REFERRAL_DEVICE: HOLD_REFERRAL_DEVICE,
+    USER_HOLD: USER_HOLD,
+    NEVER_CLAIMED_HOLD: NEVER_CLAIMED_HOLD,
+    PURPOSE_CAPS: PURPOSE_CAPS,
+    USER_DAILY_CAP: USER_DAILY_CAP,
     scoreIpLookup: scoreIpLookup,
     cacheTtlMs: cacheTtlMs,
     canonicalIp: canonicalIp,
@@ -760,6 +921,12 @@ module.exports = {
     planDocRekey: planDocRekey,
     planSignalFields: planSignalFields,
     mergeSlot: mergeSlot,
+    slotCovers: slotCovers,
+    legacyNetworkIds: legacyNetworkIds,
+    deviceEnabled: deviceEnabled,
+    purposeCap: purposeCap,
+    userLookupCap: userLookupCap,
+    shouldReuseFavorCheck: shouldReuseFavorCheck,
     cleanRequestId: cleanRequestId,
     trustDevice: trustDevice,
     decideDevice: decideDevice,

@@ -1323,9 +1323,14 @@ exports.nachoFeedbackReport = onSchedule({
 // Referral payouts are server-side. The old client path looked up `referredUid`
 // and paid 50 tickets from the referrer's browser; rules blocked that write, so
 // nobody was ever paid. This callable now only pays the signed-in referee, once.
-exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).https.onCall(async (data, context) => {
+exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, ipqsApiKey] }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    const result = await referralService.payIfQualified(context.auth.uid);
+    const verifyHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
+    const result = await referralService.payIfQualified(context.auth.uid, {
+        ip: faucetGuard.clientIpFromRequest(context.rawRequest) || '',
+        userAgent: verifyHeaders['user-agent'] || '',
+        language: verifyHeaders['accept-language'] || '',
+    });
     if (result && result.paid && result.referrerUid) {
         try {
             await sendUserPush(result.referrerUid, 'referrals', {
@@ -1365,7 +1370,7 @@ exports.approveHouseholdDevice = functionsV1.runWith({
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
     const uid = String((data && data.uid) || '').trim();
-    if (!/^[A-Za-z0-9]{6,128}$/.test(uid)) {
+    if (!/^[A-Za-z0-9:_-]{6,200}$/.test(uid)) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'A user id is required');
     }
     const now = Date.now();
@@ -1728,8 +1733,15 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: 'Sats faucet is temporarily paused.' };
     }
 
-    // Reputation and device checks sit after ban, age, and Turnstile, and
-    // before any Lightning lookup. A vendor miss falls through to the slots below.
+    // Cheap rejects happen before any IPQS lookup so a hostile client cannot
+    // spend the daily vendor cap on claims that would fail anyway.
+    const fingerprint = (data.fingerprint || '').trim();
+    const fpId = faucetGuard.fingerprintDocId(fingerprint);
+    if (!fpId) {
+        console.warn('[FAUCET] FINGERPRINT MISSING: uid=' + uid);
+        return { success: false, error: 'Device verification required.' };
+    }
+
     const clientIP = faucetGuard.clientIpFromRequest(context.rawRequest) || 'unknown';
     if (clientIP === 'unknown') {
         console.error('[FAUCET] Could not determine client IP for uid=' + uid);
@@ -1740,6 +1752,42 @@ exports.claimSats = functionsV1.runWith({
         console.error('[FAUCET] Unparsed client IP for uid=' + uid);
         return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
     }
+
+    const today = new Date().toISOString().split('T')[0];
+    const userPre = userPreSnap.exists ? userPreSnap.data() : {};
+    const ledgerPre = ledgerPreSnap.exists ? ledgerPreSnap.data() : {};
+    const dailyPre = await db.collection('users').doc(uid).collection('sats_daily').doc(today).get();
+    const dailyUsedPre = dailyPre.exists ? (Number(dailyPre.data().amount) || 0) : 0;
+    if (dailyUsedPre + lnAddrAmount > FAUCET.MAX_DAILY_PER_USER_SATS) {
+        const remaining = FAUCET.MAX_DAILY_PER_USER_SATS - dailyUsedPre;
+        return { success: false, error: 'Daily limit reached. You can claim ' + remaining + ' more sats today.' };
+    }
+    const lastClaimPre = Math.max(_toMillis(userPre.lastSatsClaim), _toMillis(ledgerPre.lastSatsClaim));
+    if (lastClaimPre) {
+        const cooldownEnd = lastClaimPre + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
+        if (Date.now() < cooldownEnd) {
+            const hoursLeft = Math.ceil((cooldownEnd - Date.now()) / 3600000);
+            return { success: false, error: 'Cooldown active. Try again in ~' + hoursLeft + ' hour(s).' };
+        }
+    }
+    const lockPre = await db.collection('lightning_addresses').doc(lnNorm).get();
+    const lockPreOwner = lockPre.exists ? String((lockPre.data() || {}).uid || '') : '';
+    if (lockPreOwner && lockPreOwner !== uid) {
+        return { success: false, error: faucetGuard.supportError('This Lightning Address is locked to another account.') };
+    }
+
+    const netIds = ipReputation.networkDocIds(clientIP);
+    if (!netIds) {
+        console.error('[FAUCET] ip-hmac-unavailable uid=' + uid);
+        return { success: false, error: 'Sats claims are paused. Try again later.' };
+    }
+    const withdrawnPre = Math.max(Number(userPre.satsWithdrawn) || 0, Number(ledgerPre.satsWithdrawn) || 0);
+    const neverClaimed = withdrawnPre <= 0 && !lastClaimPre;
+
+    // Reputation sits after the cheap checks and before any Lightning lookup.
+    // Device lookups stay off unless IPQS_DEVICE_ENABLED is set. A vendor miss
+    // falls through to the slot checks below, except a never-claimed account
+    // when the vendor quota or credits are exhausted.
     const rewardHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
     const rewardGate = await ipReputation.assessReward({
         db: db,
@@ -1749,6 +1797,7 @@ exports.claimSats = functionsV1.runWith({
         language: rewardHeaders['accept-language'] || '',
         requestId: data && data.ipqsRequestId,
         purpose: 'faucet',
+        neverClaimed: neverClaimed,
     });
     if (rewardGate.action === 'deny' || rewardGate.action === 'hold') {
         return { success: false, error: rewardGate.message, code: rewardGate.reason };
@@ -1823,23 +1872,16 @@ exports.claimSats = functionsV1.runWith({
     const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
     const invoiceRef = db.collection('faucet_invoices').doc(invoiceHash);
 
-    const fingerprint = (data.fingerprint || '').trim();
-    const fpId = faucetGuard.fingerprintDocId(fingerprint);
-    if (!fpId) {
-        console.warn('[FAUCET] FINGERPRINT MISSING weak signal uid=' + uid);
-    }
-
-    const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
     const dailyRef = userRef.collection('sats_daily').doc(today);
     const globalRef = db.collection('faucet_stats').doc(today);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const lockRef = db.collection('lightning_addresses').doc(lnNorm);
-    const netIds = ipReputation.networkDocIds(clientIP);
-    if (!netIds) console.error('[FAUCET] ip-hmac-unavailable uid=' + uid);
-    const fpRef = fpId ? db.collection('faucet_fingerprints').doc(fpId) : null;
-    const ipRef = netIds ? db.collection('faucet_ip_log').doc(netIds.ipId) : null;
-    const subnetRef = netIds ? db.collection('faucet_subnet_log').doc(netIds.rangeId) : null;
+    const fpRef = db.collection('faucet_fingerprints').doc(fpId);
+    const ipRef = db.collection('faucet_ip_log').doc(netIds.ipId);
+    const subnetRef = db.collection('faucet_subnet_log').doc(netIds.rangeId);
+    const legacyIpRef = net.exactId !== netIds.ipId ? db.collection('faucet_ip_log').doc(net.exactId) : null;
+    const legacySubnetRef = net.rangeId !== netIds.rangeId ? db.collection('faucet_subnet_log').doc(net.rangeId) : null;
     const lnRateRef = db.collection('faucet_ln_ratelimit').doc(faucetGuard.addressRateDocId(lnNorm));
     const signalRef = db.collection('faucet_uid_signals').doc(uid);
 
@@ -1861,9 +1903,11 @@ exports.claimSats = functionsV1.runWith({
             const dailyDoc = await t.get(dailyRef);
             const globalDoc = await t.get(globalRef);
             const lockDoc = await t.get(lockRef);
-            const fpDoc = fpRef ? await t.get(fpRef) : null;
-            const ipDoc = ipRef ? await t.get(ipRef) : null;
-            const subnetDoc = subnetRef ? await t.get(subnetRef) : null;
+            const fpDoc = await t.get(fpRef);
+            const ipDoc = await t.get(ipRef);
+            const subnetDoc = await t.get(subnetRef);
+            const legacyIpDoc = legacyIpRef ? await t.get(legacyIpRef) : null;
+            const legacySubnetDoc = legacySubnetRef ? await t.get(legacySubnetRef) : null;
             const lnRateDoc = await t.get(lnRateRef);
 
             if (invoiceDoc.exists) deny('This payout was already used. Wait a moment and try again.');
@@ -2004,33 +2048,35 @@ exports.claimSats = functionsV1.runWith({
                 deny(addrDecision.error, flag);
             }
 
-            const fpUids = fpDoc && fpDoc.exists ? (fpDoc.data().uids || []) : [];
-            const fpDecision = fpId ? faucetGuard.assessFingerprint(fpUids, uid) : { ok: true, others: [] };
-            if (!fpDecision.ok) {
-                console.error('[FAUCET] FINGERPRINT ABUSE weak signal fp=' + fpId.substring(0, 12) + ' uid=' + uid + ' others=' + fpDecision.others.length);
+            const fpUids = fpDoc.exists ? (fpDoc.data().uids || []) : [];
+            const fpDecision = faucetGuard.assessFingerprint(fpUids, uid);
+            const deviceClearsFp = rewardGate.deviceAction === 'allow';
+            if (!deviceClearsFp && !fpDecision.ok) {
+                console.error('[FAUCET] FINGERPRINT ABUSE fp=' + fpId + ' uid=' + uid + ' others=' + fpDecision.others.join(','));
+                deny(fpDecision.error, {
+                    type: 'fingerprint_abuse',
+                    uid: uid,
+                    displayName: displayName,
+                    otherUid: fpDecision.others[0] || '',
+                    detail: fpId,
+                });
             }
 
             const nowMs = Date.now();
-            const ipSlot = ipDoc && ipDoc.exists ? ipDoc.data() : {};
-            const subnetSlot = subnetDoc && subnetDoc.exists ? subnetDoc.data() : {};
-            let ipDecision = { ok: true, seen: null };
-            let subnetDecision = { ok: true, seen: null };
-            if (ipRef) {
-                ipDecision = faucetGuard.assessExactIpSlot({
-                    seen: ipSlot.seen || null,
-                    lastUid: ipSlot.lastUid || '',
-                    lastClaimMs: _toMillis(ipSlot.lastClaim),
-                }, uid, nowMs);
-                if (!ipDecision.ok) deny(ipDecision.error);
-            }
-            if (subnetRef) {
-                subnetDecision = faucetGuard.assessSubnetSlot({
-                    seen: subnetSlot.seen || null,
-                    lastUid: subnetSlot.lastUid || '',
-                    lastClaimMs: _toMillis(subnetSlot.lastClaim),
-                }, uid, nowMs);
-                if (!subnetDecision.ok) deny(subnetDecision.error);
-            }
+            const ipSlot = ipDoc.exists ? ipDoc.data() : (legacyIpDoc && legacyIpDoc.exists ? legacyIpDoc.data() : {});
+            const subnetSlot = subnetDoc.exists ? subnetDoc.data() : (legacySubnetDoc && legacySubnetDoc.exists ? legacySubnetDoc.data() : {});
+            const ipDecision = faucetGuard.assessExactIpSlot({
+                seen: ipSlot.seen || null,
+                lastUid: ipSlot.lastUid || '',
+                lastClaimMs: _toMillis(ipSlot.lastClaim),
+            }, uid, nowMs);
+            if (!ipDecision.ok) deny(ipDecision.error);
+            const subnetDecision = faucetGuard.assessSubnetSlot({
+                seen: subnetSlot.seen || null,
+                lastUid: subnetSlot.lastUid || '',
+                lastClaimMs: _toMillis(subnetSlot.lastClaim),
+            }, uid, nowMs);
+            if (!subnetDecision.ok) deny(subnetDecision.error);
 
             const priorClaims = lnRateDoc.exists ? (lnRateDoc.data().claims || []) : [];
             const rate = faucetGuard.assessAddressRate(priorClaims, nowMs);
