@@ -2419,7 +2419,8 @@ async function loadUser(uid, prefetchedDoc) {
         if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
         if (typeof showContinueReading === 'function') showContinueReading();
 
-        // Update auth button text if signed in with a provider
+        // Clear a stale local name before the auth button reads it.
+        maybeShowUsernameRepick();
         updateAuthButton();
 
         // Initialize Orange Tickets system
@@ -2587,6 +2588,185 @@ async function applyServerUsername(name) {
     return data.username;
 }
 window.applyServerUsername = applyServerUsername;
+
+function ensureUsernameRepickStyle() {
+    if (document.getElementById('usernameRepickStyle')) return;
+    var style = document.createElement('style');
+    style.id = 'usernameRepickStyle';
+    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:600000;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
+        '#usernameRepick .username-box{width:min(400px,100%);max-width:400px;margin:24px auto;box-sizing:border-box;}' +
+        '#usernameRepick h2{font-size:1.2rem;line-height:1.35;overflow-wrap:anywhere;}' +
+        '#usernameRepick input{font-size:16px;box-sizing:border-box;}' +
+        '#usernameRepickError{color:#ef4444;font-size:.85rem;min-height:1.2em;margin:-8px 0 12px;text-align:center;overflow-wrap:anywhere;}' +
+        '#usernameRepickSignOut{margin-top:10px;background:none;color:var(--text-muted,#94a3b8);border:1px solid var(--border,#334155);font-weight:600;}' +
+        '#usernameRepickSignOut:hover{background:none;color:var(--text,#e2e8f0);}' +
+        '@media (max-width:420px){#usernameRepick .username-box{padding:20px 16px;margin:12px auto;}}';
+    document.head.appendChild(style);
+}
+
+function usernameRepickFailure(e) {
+    var code = String((e && e.code) || '');
+    var msg = String((e && e.message) || '').replace(/^FirebaseError:\s*/i, '');
+    if (code.indexOf('resource-exhausted') !== -1 || /too many username attempts/i.test(msg)) {
+        return 'Too many username attempts. Try again in an hour, or sign out.';
+    }
+    if (/authenticator session required/i.test(msg) || /phone verification applies/i.test(msg) || /sign in again/i.test(msg) || code === 'auth/requires-recent-login') {
+        return 'Two-factor sign-in is required before this name can be saved. Sign out and sign back in.';
+    }
+    if (code.indexOf('unauthenticated') !== -1) {
+        return 'Your session expired. Sign out and sign back in.';
+    }
+    if (!msg || msg === 'internal') return 'Could not save that username. Try again, or sign out.';
+    return msg;
+}
+
+function showUsernameRepickPrompt() {
+    if (document.getElementById('usernameRepick')) return;
+    ensureUsernameRepickStyle();
+    var signup = document.getElementById('usernameModal');
+    if (signup) signup.classList.remove('open');
+    if (!window._usernameRepickKeys) {
+        window._usernameRepickKeys = true;
+        document.addEventListener('keydown', function (e) {
+            if (!document.getElementById('usernameRepick')) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
+    var overlay = document.createElement('div');
+    overlay.id = 'usernameRepick';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'usernameRepickTitle');
+    overlay.innerHTML = '<div class="username-box glass-dark">' +
+        '<h2 id="usernameRepickTitle">Your username needs updating. Please pick a new one</h2>' +
+        '<p>This stays open until the new name is saved.</p>' +
+        '<input type="text" id="usernameRepickInput" placeholder="Enter a username..." maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Choose a new username">' +
+        '<div id="usernameRepickError" role="alert"></div>' +
+        '<button type="button" id="usernameRepickSave">Save username</button>' +
+        '<button type="button" id="usernameRepickSignOut">Sign out</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    var input = document.getElementById('usernameRepickInput');
+    var save = document.getElementById('usernameRepickSave');
+    var signOut = document.getElementById('usernameRepickSignOut');
+    if (save) save.addEventListener('click', function () { submitUsernameRepick(); });
+    if (signOut) signOut.addEventListener('click', function () {
+        signOut.disabled = true;
+        var done;
+        try {
+            if (typeof signOutUser === 'function') done = signOutUser();
+            else if (typeof auth !== 'undefined' && auth && auth.signOut) done = auth.signOut();
+            else done = Promise.reject(new Error('sign out unavailable'));
+        } catch (e) {
+            done = Promise.reject(e);
+        }
+        Promise.resolve(done).catch(function () {
+            signOut.disabled = false;
+            var err = document.getElementById('usernameRepickError');
+            if (err) err.textContent = 'Could not sign out. Try again.';
+        });
+    });
+    if (input) {
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitUsernameRepick();
+            }
+        });
+        setTimeout(function () { try { input.focus(); } catch (e) {} }, 50);
+    }
+}
+window.showUsernameRepickPrompt = showUsernameRepickPrompt;
+
+function maybeShowUsernameRepick() {
+    var needed = window.usernameRepickNeeded;
+    if (typeof needed !== 'function') return;
+    var authUser = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    var user = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!needed(user, authUser)) return;
+    if (user && !user.username) {
+        try { localStorage.removeItem('btc_username'); } catch (e) {}
+    }
+    showUsernameRepickPrompt();
+}
+window.maybeShowUsernameRepick = maybeShowUsernameRepick;
+
+window.submitUsernameRepick = async function () {
+    var input = document.getElementById('usernameRepickInput');
+    var err = document.getElementById('usernameRepickError');
+    var btn = document.getElementById('usernameRepickSave');
+    function fail(msg) { if (err) err.textContent = msg || ''; }
+    var name = input ? input.value.trim() : '';
+    if (!name) { fail('Please enter a username.'); return; }
+    if (name.length < 3) { fail('Username must be at least 3 characters.'); return; }
+    if (name.length > 20) { fail('Username must be 20 characters or less.'); return; }
+    if (/[^A-Za-z0-9 _\-.]/.test(name)) { fail('Use letters, numbers, spaces, underscores, hyphens, or dots.'); return; }
+    if (typeof containsProfanity === 'function' && containsProfanity(name)) { fail('That username is not allowed.'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    fail('');
+    try {
+        var saved = await applyServerUsername(name);
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.username = saved;
+            currentUser.usernameNeedsRepick = false;
+        }
+        var overlay = document.getElementById('usernameRepick');
+        if (overlay) overlay.remove();
+        if (typeof updateAuthButton === 'function') updateAuthButton();
+        if (typeof updateRankUI === 'function') updateRankUI();
+        if (typeof showToast === 'function') showToast('Username updated');
+    } catch (e) {
+        fail(usernameRepickFailure(e));
+        if (btn) { btn.disabled = false; btn.textContent = 'Save username'; }
+    }
+};
+
+window.patchBlankProfileNames = function (root) {
+    if (!root || typeof db === 'undefined' || !db || typeof window.missingPublicName !== 'function' || typeof window.leaderboardDisplayName !== 'function') return;
+    var nodes = root.querySelectorAll('[data-profile-uid]');
+    window._pubNameCache = window._pubNameCache || {};
+    var jobs = [];
+    for (var i = 0; i < nodes.length && jobs.length < 25; i++) {
+        var node = nodes[i];
+        var raw = (node.textContent || '').replace(/^@/, '').trim();
+        var blank = node.getAttribute('data-blank-name') === '1' || !raw || raw === '\u2014' || raw === '-' || window.missingPublicName(raw);
+        if (!blank) continue;
+        var uid = node.getAttribute('data-profile-uid');
+        if (!uid) continue;
+        jobs.push({ node: node, uid: uid, at: /^\s*@/.test(node.textContent || '') });
+    }
+    jobs.forEach(function (job) {
+        function paint(name) {
+            if (!job.node || window.missingPublicName(name)) return;
+            job.node.textContent = (job.at ? '@' : '') + name;
+            job.node.removeAttribute('data-blank-name');
+        }
+        if (window._pubNameCache[job.uid]) {
+            paint(window._pubNameCache[job.uid]);
+            return;
+        }
+        if (window._pubNameCache[job.uid] === '') return;
+        window._pubNamePending = window._pubNamePending || {};
+        if (window._pubNamePending[job.uid]) {
+            window._pubNamePending[job.uid].push(paint);
+            return;
+        }
+        window._pubNamePending[job.uid] = [paint];
+        db.collection('public_profiles').doc(job.uid).get().then(function (snap) {
+            var name = snap && snap.exists && snap.data() ? snap.data().username : '';
+            var shown = window.leaderboardDisplayName('', name);
+            window._pubNameCache[job.uid] = shown === 'Anon' ? '' : shown;
+            var waiters = window._pubNamePending[job.uid] || [];
+            delete window._pubNamePending[job.uid];
+            waiters.forEach(function (fn) { fn(window._pubNameCache[job.uid]); });
+        }).catch(function () {
+            delete window._pubNamePending[job.uid];
+        });
+    });
+};
 
 async function stashGuestLink() {
     if (!auth || !auth.currentUser || !auth.currentUser.isAnonymous) return;
@@ -3568,7 +3748,7 @@ function updateRankUI() {
     // Cosmetics: Nacho skin - show deer avatar next to username
     var _hasNachoSkin = _ownedCosmetics.indexOf('nacho_skin_nook') !== -1;
     var _nachoAvatarHtml = _hasNachoSkin
-        ? '<img src="nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.textContent=\'🦌\';this.style.fontSize=\'0.9rem\'" />'
+        ? '<img src="/nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />'
         : '';
 
     // Cosmetics: pinned badge
@@ -4732,13 +4912,19 @@ function _renderPredictorBoard() {
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var uid = String(entry.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
             var isMe = myUid && uid === myUid;
-            var name = typeof escapeHtml === 'function' ? escapeHtml(entry.username || 'Anon') : String(entry.username || 'Anon');
+            var rawPredName = entry.username || '';
+            var predBlank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawPredName)
+                : (!String(rawPredName).trim() || /^(anon|anonymous)$/i.test(String(rawPredName).trim()));
+            var predShown = predBlank ? 'Anon' : rawPredName;
+            var name = typeof escapeHtml === 'function' ? escapeHtml(predShown) : String(predShown);
             var peerTag = (window._myPeers && window._myPeers.has(uid)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+            var predNameAttrs = uid ? ' data-profile-uid="' + uid + '"' + (predBlank ? ' data-blank-name="1"' : '') : '';
             var hidden = rank > 10 ? ' style="display:none;" class="lb-row pred-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
-                '<span class="lb-name">' + peerTag + name + '</span>' +
+                '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
                 '<span class="lb-score pred-score">' + (entry.pct || 0) + '%<span class="pred-score-frac">' + (entry.correct || 0) + '/' + (entry.total || 0) + '</span></span>' +
             '</div>';
         });
@@ -4748,6 +4934,7 @@ function _renderPredictorBoard() {
     }
     html += '</div><p id="predLbProgress" style="margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--text-muted);"></p>';
     root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
     _predLbBindInfo();
     var tip = document.getElementById('predLbTip');
     if (tip && !tip.hidden) tip.textContent = _predLbInfoText(period);
@@ -7015,7 +7202,7 @@ function showSettingsPage(tab) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261024_v2352';
+            s.src = 'notifications.js?v=20261024_v2354';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -8551,7 +8738,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261024_v2352';
+    s.src = 'notifications.js?v=20261024_v2354';
     s.onload = run;
     document.body.appendChild(s);
 };

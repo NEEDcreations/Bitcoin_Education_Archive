@@ -18,6 +18,502 @@ function sanitizeUrl(url) {
     return escapeHtml(u);
 }
 
+// Secret detector. Mirrors workers/nacho-search/secret-detect.mjs. Runs before any request leaves the device.
+var BIP39_WORDS = ["abandon","ability","able","about","above","absent","absorb","abstract","absurd","abuse","access","accident","account","accuse","achieve","acid","acoustic","acquire","across","act","action","actor","actress","actual","adapt","add","addict","address","adjust","admit","adult","advance","advice","aerobic","affair","afford","afraid","again","age","agent","agree","ahead","aim","air","airport","aisle","alarm","album","alcohol","alert","alien","all","alley","allow","almost","alone","alpha","already","also","alter","always","amateur","amazing","among","amount","amused","analyst","anchor","ancient","anger","angle","angry","animal","ankle","announce","annual","another","answer","antenna","antique","anxiety","any","apart","apology","appear","apple","approve","april","arch","arctic","area","arena","argue","arm","armed","armor","army","around","arrange","arrest","arrive","arrow","art","artefact","artist","artwork","ask","aspect","assault","asset","assist","assume","asthma","athlete","atom","attack","attend","attitude","attract","auction","audit","august","aunt","author","auto","autumn","average","avocado","avoid","awake","aware","away","awesome","awful","awkward","axis","baby","bachelor","bacon","badge","bag","balance","balcony","ball","bamboo","banana","banner","bar","barely","bargain","barrel","base","basic","basket","battle","beach","bean","beauty","because","become","beef","before","begin","behave","behind","believe","below","belt","bench","benefit","best","betray","better","between","beyond","bicycle","bid","bike","bind","biology","bird","birth","bitter","black","blade","blame","blanket","blast","bleak","bless","blind","blood","blossom","blouse","blue","blur","blush","board","boat","body","boil","bomb","bone","bonus","book","boost","border","boring","borrow","boss","bottom","bounce","box","boy","bracket","brain","brand","brass","brave","bread","breeze","brick","bridge","brief","bright","bring","brisk","broccoli","broken","bronze","broom","brother","brown","brush","bubble","buddy","budget","buffalo","build","bulb","bulk","bullet","bundle","bunker","burden","burger","burst","bus","business","busy","butter","buyer","buzz","cabbage","cabin","cable","cactus","cage","cake","call","calm","camera","camp","can","canal","cancel","candy","cannon","canoe","canvas","canyon","capable","capital","captain","car","carbon","card","cargo","carpet","carry","cart","case","cash","casino","castle","casual","cat","catalog","catch","category","cattle","caught","cause","caution","cave","ceiling","celery","cement","census","century","cereal","certain","chair","chalk","champion","change","chaos","chapter","charge","chase","chat","cheap","check","cheese","chef","cherry","chest","chicken","chief","child","chimney","choice","choose","chronic","chuckle","chunk","churn","cigar","cinnamon","circle","citizen","city","civil","claim","clap","clarify","claw","clay","clean","clerk","clever","click","client","cliff","climb","clinic","clip","clock","clog","close","cloth","cloud","clown","club","clump","cluster","clutch","coach","coast","coconut","code","coffee","coil","coin","collect","color","column","combine","come","comfort","comic","common","company","concert","conduct","confirm","congress","connect","consider","control","convince","cook","cool","copper","copy","coral","core","corn","correct","cost","cotton","couch","country","couple","course","cousin","cover","coyote","crack","cradle","craft","cram","crane","crash","crater","crawl","crazy","cream","credit","creek","crew","cricket","crime","crisp","critic","crop","cross","crouch","crowd","crucial","cruel","cruise","crumble","crunch","crush","cry","crystal","cube","culture","cup","cupboard","curious","current","curtain","curve","cushion","custom","cute","cycle","dad","damage","damp","dance","danger","daring","dash","daughter","dawn","day","deal","debate","debris","decade","december","decide","decline","decorate","decrease","deer","defense","define","defy","degree","delay","deliver","demand","demise","denial","dentist","deny","depart","depend","deposit","depth","deputy","derive","describe","desert","design","desk","despair","destroy","detail","detect","develop","device","devote","diagram","dial","diamond","diary","dice","diesel","diet","differ","digital","dignity","dilemma","dinner","dinosaur","direct","dirt","disagree","discover","disease","dish","dismiss","disorder","display","distance","divert","divide","divorce","dizzy","doctor","document","dog","doll","dolphin","domain","donate","donkey","donor","door","dose","double","dove","draft","dragon","drama","drastic","draw","dream","dress","drift","drill","drink","drip","drive","drop","drum","dry","duck","dumb","dune","during","dust","dutch","duty","dwarf","dynamic","eager","eagle","early","earn","earth","easily","east","easy","echo","ecology","economy","edge","edit","educate","effort","egg","eight","either","elbow","elder","electric","elegant","element","elephant","elevator","elite","else","embark","embody","embrace","emerge","emotion","employ","empower","empty","enable","enact","end","endless","endorse","enemy","energy","enforce","engage","engine","enhance","enjoy","enlist","enough","enrich","enroll","ensure","enter","entire","entry","envelope","episode","equal","equip","era","erase","erode","erosion","error","erupt","escape","essay","essence","estate","eternal","ethics","evidence","evil","evoke","evolve","exact","example","excess","exchange","excite","exclude","excuse","execute","exercise","exhaust","exhibit","exile","exist","exit","exotic","expand","expect","expire","explain","expose","express","extend","extra","eye","eyebrow","fabric","face","faculty","fade","faint","faith","fall","false","fame","family","famous","fan","fancy","fantasy","farm","fashion","fat","fatal","father","fatigue","fault","favorite","feature","february","federal","fee","feed","feel","female","fence","festival","fetch","fever","few","fiber","fiction","field","figure","file","film","filter","final","find","fine","finger","finish","fire","firm","first","fiscal","fish","fit","fitness","fix","flag","flame","flash","flat","flavor","flee","flight","flip","float","flock","floor","flower","fluid","flush","fly","foam","focus","fog","foil","fold","follow","food","foot","force","forest","forget","fork","fortune","forum","forward","fossil","foster","found","fox","fragile","frame","frequent","fresh","friend","fringe","frog","front","frost","frown","frozen","fruit","fuel","fun","funny","furnace","fury","future","gadget","gain","galaxy","gallery","game","gap","garage","garbage","garden","garlic","garment","gas","gasp","gate","gather","gauge","gaze","general","genius","genre","gentle","genuine","gesture","ghost","giant","gift","giggle","ginger","giraffe","girl","give","glad","glance","glare","glass","glide","glimpse","globe","gloom","glory","glove","glow","glue","goat","goddess","gold","good","goose","gorilla","gospel","gossip","govern","gown","grab","grace","grain","grant","grape","grass","gravity","great","green","grid","grief","grit","grocery","group","grow","grunt","guard","guess","guide","guilt","guitar","gun","gym","habit","hair","half","hammer","hamster","hand","happy","harbor","hard","harsh","harvest","hat","have","hawk","hazard","head","health","heart","heavy","hedgehog","height","hello","helmet","help","hen","hero","hidden","high","hill","hint","hip","hire","history","hobby","hockey","hold","hole","holiday","hollow","home","honey","hood","hope","horn","horror","horse","hospital","host","hotel","hour","hover","hub","huge","human","humble","humor","hundred","hungry","hunt","hurdle","hurry","hurt","husband","hybrid","ice","icon","idea","identify","idle","ignore","ill","illegal","illness","image","imitate","immense","immune","impact","impose","improve","impulse","inch","include","income","increase","index","indicate","indoor","industry","infant","inflict","inform","inhale","inherit","initial","inject","injury","inmate","inner","innocent","input","inquiry","insane","insect","inside","inspire","install","intact","interest","into","invest","invite","involve","iron","island","isolate","issue","item","ivory","jacket","jaguar","jar","jazz","jealous","jeans","jelly","jewel","job","join","joke","journey","joy","judge","juice","jump","jungle","junior","junk","just","kangaroo","keen","keep","ketchup","key","kick","kid","kidney","kind","kingdom","kiss","kit","kitchen","kite","kitten","kiwi","knee","knife","knock","know","lab","label","labor","ladder","lady","lake","lamp","language","laptop","large","later","latin","laugh","laundry","lava","law","lawn","lawsuit","layer","lazy","leader","leaf","learn","leave","lecture","left","leg","legal","legend","leisure","lemon","lend","length","lens","leopard","lesson","letter","level","liar","liberty","library","license","life","lift","light","like","limb","limit","link","lion","liquid","list","little","live","lizard","load","loan","lobster","local","lock","logic","lonely","long","loop","lottery","loud","lounge","love","loyal","lucky","luggage","lumber","lunar","lunch","luxury","lyrics","machine","mad","magic","magnet","maid","mail","main","major","make","mammal","man","manage","mandate","mango","mansion","manual","maple","marble","march","margin","marine","market","marriage","mask","mass","master","match","material","math","matrix","matter","maximum","maze","meadow","mean","measure","meat","mechanic","medal","media","melody","melt","member","memory","mention","menu","mercy","merge","merit","merry","mesh","message","metal","method","middle","midnight","milk","million","mimic","mind","minimum","minor","minute","miracle","mirror","misery","miss","mistake","mix","mixed","mixture","mobile","model","modify","mom","moment","monitor","monkey","monster","month","moon","moral","more","morning","mosquito","mother","motion","motor","mountain","mouse","move","movie","much","muffin","mule","multiply","muscle","museum","mushroom","music","must","mutual","myself","mystery","myth","naive","name","napkin","narrow","nasty","nation","nature","near","neck","need","negative","neglect","neither","nephew","nerve","nest","net","network","neutral","never","news","next","nice","night","noble","noise","nominee","noodle","normal","north","nose","notable","note","nothing","notice","novel","now","nuclear","number","nurse","nut","oak","obey","object","oblige","obscure","observe","obtain","obvious","occur","ocean","october","odor","off","offer","office","often","oil","okay","old","olive","olympic","omit","once","one","onion","online","only","open","opera","opinion","oppose","option","orange","orbit","orchard","order","ordinary","organ","orient","original","orphan","ostrich","other","outdoor","outer","output","outside","oval","oven","over","own","owner","oxygen","oyster","ozone","pact","paddle","page","pair","palace","palm","panda","panel","panic","panther","paper","parade","parent","park","parrot","party","pass","patch","path","patient","patrol","pattern","pause","pave","payment","peace","peanut","pear","peasant","pelican","pen","penalty","pencil","people","pepper","perfect","permit","person","pet","phone","photo","phrase","physical","piano","picnic","picture","piece","pig","pigeon","pill","pilot","pink","pioneer","pipe","pistol","pitch","pizza","place","planet","plastic","plate","play","please","pledge","pluck","plug","plunge","poem","poet","point","polar","pole","police","pond","pony","pool","popular","portion","position","possible","post","potato","pottery","poverty","powder","power","practice","praise","predict","prefer","prepare","present","pretty","prevent","price","pride","primary","print","priority","prison","private","prize","problem","process","produce","profit","program","project","promote","proof","property","prosper","protect","proud","provide","public","pudding","pull","pulp","pulse","pumpkin","punch","pupil","puppy","purchase","purity","purpose","purse","push","put","puzzle","pyramid","quality","quantum","quarter","question","quick","quit","quiz","quote","rabbit","raccoon","race","rack","radar","radio","rail","rain","raise","rally","ramp","ranch","random","range","rapid","rare","rate","rather","raven","raw","razor","ready","real","reason","rebel","rebuild","recall","receive","recipe","record","recycle","reduce","reflect","reform","refuse","region","regret","regular","reject","relax","release","relief","rely","remain","remember","remind","remove","render","renew","rent","reopen","repair","repeat","replace","report","require","rescue","resemble","resist","resource","response","result","retire","retreat","return","reunion","reveal","review","reward","rhythm","rib","ribbon","rice","rich","ride","ridge","rifle","right","rigid","ring","riot","ripple","risk","ritual","rival","river","road","roast","robot","robust","rocket","romance","roof","rookie","room","rose","rotate","rough","round","route","royal","rubber","rude","rug","rule","run","runway","rural","sad","saddle","sadness","safe","sail","salad","salmon","salon","salt","salute","same","sample","sand","satisfy","satoshi","sauce","sausage","save","say","scale","scan","scare","scatter","scene","scheme","school","science","scissors","scorpion","scout","scrap","screen","script","scrub","sea","search","season","seat","second","secret","section","security","seed","seek","segment","select","sell","seminar","senior","sense","sentence","series","service","session","settle","setup","seven","shadow","shaft","shallow","share","shed","shell","sheriff","shield","shift","shine","ship","shiver","shock","shoe","shoot","shop","short","shoulder","shove","shrimp","shrug","shuffle","shy","sibling","sick","side","siege","sight","sign","silent","silk","silly","silver","similar","simple","since","sing","siren","sister","situate","six","size","skate","sketch","ski","skill","skin","skirt","skull","slab","slam","sleep","slender","slice","slide","slight","slim","slogan","slot","slow","slush","small","smart","smile","smoke","smooth","snack","snake","snap","sniff","snow","soap","soccer","social","sock","soda","soft","solar","soldier","solid","solution","solve","someone","song","soon","sorry","sort","soul","sound","soup","source","south","space","spare","spatial","spawn","speak","special","speed","spell","spend","sphere","spice","spider","spike","spin","spirit","split","spoil","sponsor","spoon","sport","spot","spray","spread","spring","spy","square","squeeze","squirrel","stable","stadium","staff","stage","stairs","stamp","stand","start","state","stay","steak","steel","stem","step","stereo","stick","still","sting","stock","stomach","stone","stool","story","stove","strategy","street","strike","strong","struggle","student","stuff","stumble","style","subject","submit","subway","success","such","sudden","suffer","sugar","suggest","suit","summer","sun","sunny","sunset","super","supply","supreme","sure","surface","surge","surprise","surround","survey","suspect","sustain","swallow","swamp","swap","swarm","swear","sweet","swift","swim","swing","switch","sword","symbol","symptom","syrup","system","table","tackle","tag","tail","talent","talk","tank","tape","target","task","taste","tattoo","taxi","teach","team","tell","ten","tenant","tennis","tent","term","test","text","thank","that","theme","then","theory","there","they","thing","this","thought","three","thrive","throw","thumb","thunder","ticket","tide","tiger","tilt","timber","time","tiny","tip","tired","tissue","title","toast","tobacco","today","toddler","toe","together","toilet","token","tomato","tomorrow","tone","tongue","tonight","tool","tooth","top","topic","topple","torch","tornado","tortoise","toss","total","tourist","toward","tower","town","toy","track","trade","traffic","tragic","train","transfer","trap","trash","travel","tray","treat","tree","trend","trial","tribe","trick","trigger","trim","trip","trophy","trouble","truck","true","truly","trumpet","trust","truth","try","tube","tuition","tumble","tuna","tunnel","turkey","turn","turtle","twelve","twenty","twice","twin","twist","two","type","typical","ugly","umbrella","unable","unaware","uncle","uncover","under","undo","unfair","unfold","unhappy","uniform","unique","unit","universe","unknown","unlock","until","unusual","unveil","update","upgrade","uphold","upon","upper","upset","urban","urge","usage","use","used","useful","useless","usual","utility","vacant","vacuum","vague","valid","valley","valve","van","vanish","vapor","various","vast","vault","vehicle","velvet","vendor","venture","venue","verb","verify","version","very","vessel","veteran","viable","vibrant","vicious","victory","video","view","village","vintage","violin","virtual","virus","visa","visit","visual","vital","vivid","vocal","voice","void","volcano","volume","vote","voyage","wage","wagon","wait","walk","wall","walnut","want","warfare","warm","warrior","wash","wasp","waste","water","wave","way","wealth","weapon","wear","weasel","weather","web","wedding","weekend","weird","welcome","west","wet","whale","what","wheat","wheel","when","where","whip","whisper","wide","width","wife","wild","will","win","window","wine","wing","wink","winner","winter","wire","wisdom","wise","wish","witness","wolf","woman","wonder","wood","wool","word","work","world","worry","worth","wrap","wreck","wrestle","wrist","write","wrong","yard","year","yellow","you","young","youth","zebra","zero","zone","zoo"];
+
+const BIP39 = new Set(BIP39_WORDS);
+const WORD_INDEX = new Map();
+const PREFIX_UNIQUE = new Map();
+const PREFIX_COUNT = new Map();
+BIP39_WORDS.forEach(function (word, index) {
+    WORD_INDEX.set(word, index);
+    if (word.length < 4) return;
+    const prefix = word.slice(0, 4);
+    PREFIX_COUNT.set(prefix, (PREFIX_COUNT.get(prefix) || 0) + 1);
+});
+BIP39_WORDS.forEach(function (word) {
+    if (word.length < 4) return;
+    const prefix = word.slice(0, 4);
+    if (PREFIX_COUNT.get(prefix) === 1) PREFIX_UNIQUE.set(prefix, word);
+});
+const GAP = new Set("a an the and or of to for in on is are was were be been being with from it its i me my we our you your he she his her they them their at by as if but so no not yes just into per also then than too very do did does am".split(" "));
+const FUNC_BREAK = new Set("the a an or when about your".split(" "));
+const ZW_RE = /[\u200B-\u200D\uFEFF\u2060\u00AD\u180E\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+const HOMO = {
+    "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p", "\u0441": "c", "\u0443": "y", "\u0445": "x",
+    "\u0456": "i", "\u0455": "s", "\u0458": "j", "\u04bb": "h", "\u043a": "k", "\u043c": "m", "\u0442": "t",
+    "\u043d": "h", "\u0432": "b", "\u0454": "e", "\u0473": "f", "\u0501": "d",
+    "\u03b1": "a", "\u03b5": "e", "\u03bf": "o", "\u03c1": "p", "\u03c4": "t", "\u03c5": "u", "\u03bd": "v",
+    "\u03ba": "k", "\u03b9": "i", "\u03b7": "n", "\u03c7": "x", "\u03b3": "y", "\u03b2": "b", "\u03c9": "w"
+};
+const KEY_LABEL_RE = /\b(private[_\s-]?key|secret[_\s-]?key|privkey|priv[_\s-]?key|pk|priv|wif|secret|key)\b/g;
+const HANDOFF_VERB = "send|share|give|dm|message|provide|import|enter|type|paste|upload|submit|tell|reply";
+const HANDOFF_NOUN = "seed(?:\\s+phrase|\\s+words)?|mnemonic|recovery\\s+phrase|12\\s+words|24\\s+words|private\\s+key|wif|xprv";
+const HANDOFF_RE = new RegExp("\\b(?:" + HANDOFF_VERB + ")\\b([^.;!?:\\n]{0,80})\\b(?:" + HANDOFF_NOUN + ")\\b", "i");
+const XPRV_RE = /\b[tuvxyz]prv[1-9A-HJ-NP-Za-km-z]{10,}\b/i;
+const WIF_RE = /\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/;
+const MINIKEY_RE = /\bS[1-9A-HJ-NP-Za-km-z]{21}(?:[1-9A-HJ-NP-Za-km-z]{4}){0,2}\b/;
+const TX_LABEL_RE = /\b(txid|tx id|transaction(?: id| hash)?|block ?hash|blockhash)\b/g;
+const PARTY_RE = /\b(?:me|us|support|admin|administrator)\b|\bthis address\b|@[a-z0-9_]{2,}|\ba link\b|\bhere\b|\bthis (?:app|site|chat|form|page|bot)\b|https?:\/\/|www\./i;
+const WALLET_RESTORE_RE = /\b(?:wallet|device)\b/i;
+const RESTORE_VERB_RE = /\b(?:enter|type|import|paste)\b/i;
+const ALLOW_HOST_RE = /^(?:[a-z0-9-]+\.)*(?:bitcoineducation\.quest|bitcoin\.org|mempool\.space|github\.com|bitcoin\.it|learnmeabitcoin\.com|findahelpline\.com|stackexchange\.com)$/i;
+const SHA_K = new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+]);
+
+var HIDDEN_SECRET = "[hidden: looked like a seed phrase or private key]";
+
+function normalizeForScan(text) {
+    let value = String(text || "");
+    try { value = value.normalize("NFKC"); } catch (e) {}
+    value = value.replace(ZW_RE, "").toLowerCase();
+    let out = "";
+    for (let i = 0; i < value.length; i++) {
+        const ch = value.charAt(i);
+        out += HOMO[ch] || ch;
+    }
+    return out;
+}
+
+function rotr(x, n) {
+    return (x >>> n) | (x << (32 - n));
+}
+
+function sha256(bytes) {
+    const bitLen = bytes.length * 8;
+    const withOne = bytes.length + 1 + 8;
+    const padLen = withOne + ((64 - (withOne % 64)) % 64);
+    const data = new Uint8Array(padLen);
+    data.set(bytes);
+    data[bytes.length] = 0x80;
+    const view = new DataView(data.buffer);
+    view.setUint32(padLen - 4, bitLen >>> 0, false);
+    const h = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+    const w = new Uint32Array(64);
+    for (let off = 0; off < padLen; off += 64) {
+        for (let i = 0; i < 16; i++) w[i] = view.getUint32(off + (i * 4), false);
+        for (let i = 16; i < 64; i++) {
+            const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+            const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+            w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+        }
+        let a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+        for (let i = 0; i < 64; i++) {
+            const s1b = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+            const ch = (e & f) ^ ((~e) & g);
+            const t1 = (hh + s1b + ch + SHA_K[i] + w[i]) >>> 0;
+            const s0b = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+            const maj = (a & b) ^ (a & c) ^ (b & c);
+            const t2 = (s0b + maj) >>> 0;
+            hh = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+        }
+        h[0] = (h[0] + a) >>> 0;
+        h[1] = (h[1] + b) >>> 0;
+        h[2] = (h[2] + c) >>> 0;
+        h[3] = (h[3] + d) >>> 0;
+        h[4] = (h[4] + e) >>> 0;
+        h[5] = (h[5] + f) >>> 0;
+        h[6] = (h[6] + g) >>> 0;
+        h[7] = (h[7] + hh) >>> 0;
+    }
+    const out = new Uint8Array(32);
+    const ov = new DataView(out.buffer);
+    for (let i = 0; i < 8; i++) ov.setUint32(i * 4, h[i], false);
+    return out;
+}
+
+function resolveWord(token) {
+    if (BIP39.has(token)) return token;
+    if (token.length === 4 && PREFIX_UNIQUE.has(token)) return PREFIX_UNIQUE.get(token);
+    return "";
+}
+
+function checksumOk(words) {
+    const n = words.length;
+    if (n !== 12 && n !== 15 && n !== 18 && n !== 21 && n !== 24) return false;
+    const bits = [];
+    for (let i = 0; i < n; i++) {
+        const idx = WORD_INDEX.get(words[i]);
+        if (idx == null) return false;
+        for (let b = 10; b >= 0; b--) bits.push((idx >> b) & 1);
+    }
+    const csLen = n / 3;
+    const entLen = bits.length - csLen;
+    const entropy = new Uint8Array(entLen / 8);
+    for (let i = 0; i < entLen; i++) {
+        if (bits[i]) entropy[i >> 3] |= 1 << (7 - (i & 7));
+    }
+    const hash = sha256(entropy);
+    let got = 0;
+    let expect = 0;
+    for (let i = 0; i < csLen; i++) got = (got << 1) | bits[entLen + i];
+    for (let i = 0; i < csLen; i++) expect = (expect << 1) | ((hash[i >> 3] >> (7 - (i & 7))) & 1);
+    return got === expect;
+}
+
+function windowChecksum(run) {
+    const sizes = [12, 15, 18, 21, 24];
+    for (let s = 0; s < sizes.length; s++) {
+        const size = sizes[s];
+        if (run.length < size) continue;
+        for (let i = 0; i <= run.length - size; i++) {
+            if (checksumOk(run.slice(i, i + size))) return true;
+        }
+    }
+    return false;
+}
+
+function editDistance(a, b) {
+    const gap = a.length - b.length;
+    if (gap > 2 || gap < -2) return 3;
+    const prev = new Uint8Array(b.length + 1);
+    const next = new Uint8Array(b.length + 1);
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+        next[0] = i;
+        let best = next[0];
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+            const del = prev[j] + 1;
+            const ins = next[j - 1] + 1;
+            const sub = prev[j - 1] + cost;
+            const val = del < ins ? (del < sub ? del : sub) : (ins < sub ? ins : sub);
+            next[j] = val;
+            if (val < best) best = val;
+        }
+        if (best > 2) return 3;
+        prev.set(next);
+    }
+    return prev[b.length];
+}
+
+function nearMiss(token) {
+    if (!token || token.length < 3 || token.length > 10) return false;
+    if (GAP.has(token) || FUNC_BREAK.has(token) || BIP39.has(token)) return false;
+    for (let i = 0; i < BIP39_WORDS.length; i++) {
+        const word = BIP39_WORDS[i];
+        if (Math.abs(word.length - token.length) > 2) continue;
+        if (editDistance(token, word) <= 2) return true;
+    }
+    return false;
+}
+
+function hasSeedPhrase(text) {
+    const norm = normalizeForScan(text);
+    const segments = norm.replace(/(^|[^a-z0-9])(\d+)\.(?=\s|$)/g, "$1$2 ").split(/[.!?;]+/);
+    for (let s = 0; s < segments.length; s++) {
+        const tokens = segments[s].split(/[^a-z0-9]+/).filter(Boolean);
+        const run = [];
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
+            if (/^\d+$/.test(token)) continue;
+            // A unique 4-letter prefix (than → thank) counts even when the prefix is a gap word.
+            const resolved = resolveWord(token);
+            if (resolved) {
+                run.push(resolved);
+                if (run.length > 64) run.shift();
+                if (windowChecksum(run)) return true;
+                continue;
+            }
+            if (GAP.has(token) && !BIP39.has(token)) continue;
+            run.length = 0;
+        }
+    }
+    const dense = norm.split(/[.!?;,]+/);
+    for (let s = 0; s < dense.length; s++) {
+        const tokens = dense[s].split(/[^a-z0-9]+/).filter(Boolean);
+        let exact = 0;
+        let typos = 0;
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
+            if (/^\d+$/.test(token) || FUNC_BREAK.has(token) || (GAP.has(token) && !BIP39.has(token))) {
+                exact = 0;
+                typos = 0;
+                continue;
+            }
+            if (BIP39.has(token)) {
+                exact += 1;
+            } else if (typos < 2 && nearMiss(token)) {
+                typos += 1;
+            } else {
+                exact = 0;
+                typos = 0;
+                continue;
+            }
+            if (exact >= 11 && typos >= 1 && typos <= 2) return true;
+        }
+    }
+    return false;
+}
+
+function nearest(re, text) {
+    const flags = re.flags.indexOf("g") === -1 ? re.flags + "g" : re.flags;
+    const scan = new RegExp(re.source, flags);
+    let at = -1;
+    let match;
+    while ((match = scan.exec(text))) {
+        at = match.index;
+        if (match.index === scan.lastIndex) scan.lastIndex += 1;
+    }
+    return at;
+}
+
+function hasHexSecret(text) {
+    const lower = normalizeForScan(text);
+    if (/\b0x[a-f0-9]{64}\b/.test(lower)) return true;
+    const hex = /\b[a-f0-9]{64}\b/g;
+    let match;
+    while ((match = hex.exec(lower))) {
+        const before = lower.slice(Math.max(0, match.index - 80), match.index);
+        const keyAt = nearest(KEY_LABEL_RE, before);
+        const txAt = nearest(TX_LABEL_RE, before);
+        if (txAt >= 0 && (keyAt < 0 || txAt > keyAt)) continue;
+        return true;
+    }
+    return false;
+}
+
+function containsKeyMaterial(text) {
+    const raw = String(text || "");
+    if (hasSeedPhrase(raw)) return true;
+    if (WIF_RE.test(raw)) return true;
+    if (XPRV_RE.test(raw)) return true;
+    if (MINIKEY_RE.test(raw)) return true;
+    if (hasHexSecret(raw)) return true;
+    return false;
+}
+
+function redactSecretText(text) {
+    const raw = String(text || "");
+    if (!containsKeyMaterial(raw)) return raw;
+    return HIDDEN_SECRET;
+}
+
+const CLAUSE_MARKS = [",", ".", "\n", ";", "!", "?", ":"];
+const NOT_A_SCAM_RE = /\b(?:isn'?t|is not|not)\s+a\s+scam\b/g;
+const HOLLOW_RE = /\b(?:never\s+(?:miss|forget|ignore|skip|fear|seen|mind)|(?:don'?t|do not)\s+(?:miss|worry|sleep|forget|fear|panic)|(?:don'?t|do not)\s+be\s+(?:scared|afraid))\b/g;
+const WARN_RE = /\b(?:never|anyone who asks|red flag|don'?t|do not|a scammer will|scammers?|scammed|fake|scam|fraud|beware|trick|warning)\b/;
+const PHONE_RE = /(?:\+\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/;
+const SEND_TO_RE = /\bsend\b[^.]{0,40}\bto\b/;
+const WORDS_HANDOFF_RE = /\b(?:send|share|give|dm|message|provide|paste|reply)\b[^.;!?:\n]{0,40}\bwords\b/gi;
+
+function flattenUrls(lower) {
+    return String(lower || "").replace(/\b(?:https?:\/\/|www\.)\S+/g, " https://link ");
+}
+
+function clauseBefore(lower, idx) {
+    const before = lower.slice(0, idx);
+    let cut = -1;
+    for (let i = 0; i < CLAUSE_MARKS.length; i++) cut = Math.max(cut, before.lastIndexOf(CLAUSE_MARKS[i]));
+    return before.slice(cut + 1);
+}
+
+function clauseEnd(lower, idx) {
+    let end = lower.length;
+    for (let i = 0; i < CLAUSE_MARKS.length; i++) {
+        const at = lower.indexOf(CLAUSE_MARKS[i], idx);
+        if (at >= 0 && at < end) end = at;
+    }
+    return end;
+}
+
+function normalizeForPhrases(text) {
+    const folded = normalizeForScan(text).replace(/[013457]/g, function (ch, index, source) {
+        const prev = source.charAt(index - 1);
+        const next = source.charAt(index + 1);
+        if (/[0-9]/.test(prev) || /[0-9]/.test(next)) return ch;
+        if (!/[a-z]/.test(prev) && !/[a-z]/.test(next)) return ch;
+        return ({ "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t" })[ch];
+    });
+    return folded.replace(/\bur\b/g, "your");
+}
+
+function scrubCues(clause) {
+    return String(clause || "").replace(NOT_A_SCAM_RE, " ").replace(HOLLOW_RE, " ");
+}
+
+function warningContext(text) {
+    return WARN_RE.test(scrubCues(normalizeForPhrases(text)));
+}
+
+function ownWalletEntry(text) {
+    const lower = normalizeForPhrases(text);
+    if (!RESTORE_VERB_RE.test(lower) || !WALLET_RESTORE_RE.test(lower)) return false;
+    if (PARTY_RE.test(lower)) return false;
+    return true;
+}
+
+function clauseNegated(clause) {
+    const cleaned = scrubCues(clause);
+    return /\b(not|no|never|without|avoid)\b/.test(cleaned) || /n't/.test(cleaned);
+}
+
+function warningInClause(clause) {
+    return WARN_RE.test(scrubCues(clause));
+}
+
+function contactInSpan(span) {
+    const text = String(span || "");
+    return PARTY_RE.test(text) || PHONE_RE.test(text) || SEND_TO_RE.test(text);
+}
+
+function recipientSpan(lower, idx) {
+    return lower.slice(idx, clauseEnd(lower, idx));
+}
+
+function quoteSpans(lower) {
+    const spans = [];
+    const re = /(?:^|[^a-z0-9])(['"“”])([^'"“”]{1,300})\1/g;
+    let match;
+    while ((match = re.exec(lower))) {
+        const q = match[0].indexOf(match[1]);
+        const start = match.index + q;
+        spans.push([start, start + match[2].length + 2]);
+        if (match.index === re.lastIndex) re.lastIndex += 1;
+    }
+    return spans;
+}
+
+function insideQuotes(lower, idx) {
+    const spans = quoteSpans(lower);
+    for (let i = 0; i < spans.length; i++) {
+        if (idx >= spans[i][0] && idx < spans[i][1]) return true;
+    }
+    return false;
+}
+
+function outsideQuotes(lower) {
+    let out = lower;
+    const spans = quoteSpans(lower);
+    for (let i = spans.length - 1; i >= 0; i--) out = out.slice(0, spans[i][0]) + " " + out.slice(spans[i][1]);
+    return out;
+}
+
+function sentenceAround(lower, idx) {
+    const before = lower.slice(0, idx);
+    let start = 0;
+    for (let i = 0; i < before.length; i++) {
+        const ch = before.charAt(i);
+        if (ch === "." || ch === "!" || ch === "?" || ch === "\n") start = i + 1;
+    }
+    let end = lower.length;
+    for (let i = idx; i < lower.length; i++) {
+        const ch = lower.charAt(i);
+        if (ch === "." || ch === "!" || ch === "?" || ch === "\n") { end = i; break; }
+    }
+    return lower.slice(start, end);
+}
+
+// A warning exempts only the clause that contains it, and never a clause that names a recipient.
+function exemptMatch(lower, idx) {
+    const span = recipientSpan(lower, idx);
+    if (contactInSpan(span)) return false;
+    const around = clauseBefore(lower, idx) + " " + span;
+    if (warningInClause(around) || clauseNegated(around)) return true;
+    if (insideQuotes(lower, idx) && warningInClause(outsideQuotes(lower))) return true;
+    const sentence = sentenceAround(lower, idx);
+    if (/\bif\b/.test(sentence) && /\b(?:close|ignore|leave|stop|report|walk away)\b/.test(sentence)) return true;
+    return false;
+}
+
+function handsOverSecrets(text) {
+    if (ownWalletEntry(text)) return false;
+    const lower = flattenUrls(normalizeForPhrases(text));
+    const scan = new RegExp(HANDOFF_RE.source, "g");
+    let match;
+    while ((match = scan.exec(lower))) {
+        const between = match[1] || "";
+        if (/\b(how|why|what|where|when|which|about|whether)\b/.test(between)) continue;
+        if (exemptMatch(lower, match.index)) {
+            if (match.index === scan.lastIndex) scan.lastIndex += 1;
+            continue;
+        }
+        if (/\breply\b/.test(match[0]) && !/\bwith\b/.test(between) && !PARTY_RE.test(lower)) continue;
+        return true;
+    }
+    const words = new RegExp(WORDS_HANDOFF_RE.source, "gi");
+    while ((match = words.exec(lower))) {
+        if (!exemptMatch(lower, match.index) && contactInSpan(recipientSpan(lower, match.index))) return true;
+        if (match.index === words.lastIndex) words.lastIndex += 1;
+    }
+    return false;
+}
+
+function bareMatch(lower, re) {
+    const flags = re.flags.indexOf("g") === -1 ? re.flags + "g" : re.flags;
+    const scan = new RegExp(re.source, flags);
+    let match;
+    while ((match = scan.exec(lower))) {
+        if (!exemptMatch(lower, match.index)) return true;
+        if (match.index === scan.lastIndex) scan.lastIndex += 1;
+    }
+    return false;
+}
+
+function promiseScam(text) {
+    const lower = flattenUrls(normalizeForPhrases(text));
+    if (bareMatch(lower, /\bdouble your\b/)) return true;
+    if (bareMatch(lower, /\brisk[-\s]?free profit\b/)) return true;
+    if (bareMatch(lower, /\bguarant(?:e|eed|ees|ee)\b[^.]{0,40}\b(?:returns?|profits?|\d+\s*x)\b/)) return true;
+    if (bareMatch(lower, /get rich quick/)) return true;
+    if (bareMatch(lower, /\bsend\b[^.]{0,48}\b\d+(?:\.\d+)?\b[^.]{0,48}\bget\b[^.]{0,32}\b\d+(?:\.\d+)?\b/)) return true;
+    if (bareMatch(lower, /\bsend\b[^.]{0,60}\b(?:btc|bitcoin|\d+(?:\.\d+)?)\b[^.]{0,60}\b(?:get|receive)\b[^.]{0,40}\b(?:\d+(?:\.\d+)?|double|back|2x)\b/)) return true;
+    return false;
+}
+
+function scammy(text) {
+    if (handsOverSecrets(text)) return true;
+    return promiseScam(text);
+}
+
+function hasBadLink(text) {
+    const re = /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+/gi;
+    let match;
+    while ((match = re.exec(String(text || "")))) {
+        let host = match[0].replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+        host = host.split(/[/?#]/)[0].replace(/\.+$/, "").toLowerCase();
+        if (!ALLOW_HOST_RE.test(host)) return true;
+    }
+    return false;
+}
+
+function unsafeOutput(text) {
+    if (containsKeyMaterial(text)) return true;
+    if (handsOverSecrets(text)) return true;
+    if (hasBadLink(text)) return true;
+    return promiseScam(text);
+}
+
+function namesRecipient(text) {
+    const lower = normalizeForPhrases(text);
+    return PARTY_RE.test(lower) || PHONE_RE.test(lower) || SEND_TO_RE.test(lower);
+}
+
+function userPostUnsafe(text) {
+    if (containsKeyMaterial(text)) return true;
+    if (handsOverSecrets(text)) return true;
+    const raw = String(text || "").trim();
+    if (/\?\s*$/.test(raw) && !namesRecipient(raw)) return false;
+    return promiseScam(text);
+}
+
+window.nachoContainsKeyMaterial = containsKeyMaterial;
+window.nachoRedactSecret = redactSecretText;
+window.NACHO_SECRET_HIDDEN = HIDDEN_SECRET;
+var NACHO_SECRET_HIDDEN = HIDDEN_SECRET;
+function nachoLocalSecretAnswer() {
+    return escapeHtml(NACHO_SECRET_HIDDEN) + '<br>' + escapeHtml("Hmm, my antlers are telling me I shouldn't go there! 🦌 Ask me something about Bitcoin instead — that's what I'm best at!");
+}
+
+
 const NACHO_KB = [
 // === LIVE DATA AWARENESS ===
     { keys: ['what is the price','bitcoin price','current price','how much is bitcoin','price now','market price','how many dollars'],
@@ -2508,7 +3004,9 @@ function nachoConvoStorageKey() {
 function nachoPersistConvo() {
     try {
         var slim = _nachoConvoHistory.slice(-8).map(function (t) {
-            return { q: t.q, a: String(t.a || '').slice(0, 500), t: t.t || Date.now() };
+            return { q: nachoRedactSecret(t.q), a: nachoRedactSecret(String(t.a || '')).slice(0, 500), t: t.t || Date.now() };
+        }).filter(function (t) {
+            return t.q !== NACHO_SECRET_HIDDEN && !nachoContainsKeyMaterial(t.q) && !nachoContainsKeyMaterial(t.a);
         });
         localStorage.setItem(nachoConvoStorageKey(), JSON.stringify(slim));
     } catch (e) {}
@@ -2518,17 +3016,62 @@ function nachoRestoreConvo() {
     try {
         var stored = JSON.parse(localStorage.getItem(nachoConvoStorageKey()) || '[]');
         if (Array.isArray(stored) && stored.length && _nachoConvoHistory.length === 0) {
-            stored.slice(-8).forEach(function (t) { _nachoConvoHistory.push(t); });
+            stored.slice(-8).forEach(function (t) {
+                if (!t || nachoContainsKeyMaterial(t.q) || nachoContainsKeyMaterial(t.a)) return;
+                _nachoConvoHistory.push(t);
+            });
+            nachoPersistConvo();
         }
     } catch (e) {}
     window._nachoConvoHistory = _nachoConvoHistory;
 }
+function nachoScrubStoredSecrets() {
+    try {
+        var sent = JSON.parse(localStorage.getItem('btc_nacho_sent') || '[]');
+        if (Array.isArray(sent)) {
+            var next = sent.filter(function (item) { return !nachoContainsKeyMaterial(item); });
+            if (next.length !== sent.length) localStorage.setItem('btc_nacho_sent', JSON.stringify(next));
+        }
+        var chat = JSON.parse(localStorage.getItem('btc_nacho_chat') || '[]');
+        if (Array.isArray(chat)) {
+            var changed = false;
+            chat.forEach(function (msg) {
+                if (!msg) return;
+                if (nachoContainsKeyMaterial(msg.text)) { msg.text = NACHO_SECRET_HIDDEN; changed = true; }
+                var plain = String(msg.html || '').replace(/<[^>]+>/g, ' ');
+                if (nachoContainsKeyMaterial(plain)) { msg.html = escapeHtml(NACHO_SECRET_HIDDEN); changed = true; }
+            });
+            if (changed) localStorage.setItem('btc_nacho_chat', JSON.stringify(chat));
+        }
+        if (Array.isArray(window._nachoChatHistory)) {
+            window._nachoChatHistory.forEach(function (msg) {
+                if (!msg) return;
+                if (nachoContainsKeyMaterial(msg.text)) msg.text = NACHO_SECRET_HIDDEN;
+                var htmlPlain = String(msg.html || '').replace(/<[^>]+>/g, ' ');
+                if (nachoContainsKeyMaterial(htmlPlain)) msg.html = escapeHtml(NACHO_SECRET_HIDDEN);
+            });
+        }
+    } catch (e) {}
+}
 function nachoRemember(q, a) {
+    if (nachoContainsKeyMaterial(q) || nachoContainsKeyMaterial(a)) return;
     _nachoConvoHistory.push({ q: q, a: a, t: Date.now() });
     while (_nachoConvoHistory.length > 8) _nachoConvoHistory.shift();
     nachoPersistConvo();
 }
+function nachoHistoryPayload(limit, answerCap) {
+    var history = [];
+    for (var hi = Math.max(0, _nachoConvoHistory.length - limit); hi < _nachoConvoHistory.length; hi++) {
+        var turn = _nachoConvoHistory[hi] || {};
+        history.push({
+            q: nachoRedactSecret(turn.q),
+            a: nachoRedactSecret(String(turn.a || '')).substring(0, answerCap)
+        });
+    }
+    return history;
+}
 nachoRestoreConvo();
+nachoScrubStoredSecrets();
 
 function nachoLastQ() {
     return _nachoConvoHistory.length > 0 ? _nachoConvoHistory[_nachoConvoHistory.length - 1].q : '';
@@ -3266,7 +3809,7 @@ function findAnswer(input) {
     input = input.replace(/[?!.,;:()"]/g, ' ').replace(/['’]s\b/g, '').replace(/['’]/g, ' ').replace(/\s+/g, ' ').trim();
     if (input.length < 2) return null;
     // Feature registry wins before synonym expansion (which maps "keys" to "private key")
-    // and before the fuzzy KB matcher.
+    // and before the fuzzy KB matcher. A worker kbId still wins in nachoUnifiedAnswer.
     if (typeof window.resolveNachoFeature === 'function') {
         var _feat = window.resolveNachoFeature(_rawQ) || window.resolveNachoFeature(input);
         if (_feat && _feat.answer) return _feat;
@@ -3875,7 +4418,45 @@ function incrementAICount() {
     localStorage.setItem('btc_nacho_ai_uses', JSON.stringify(data));
 }
 
+function fillLiveTemplates(text) {
+    text = String(text || '');
+    if (!text || text.indexOf('{') === -1) return text;
+    var price = null;
+    var height = null;
+    var halving = null;
+    try {
+        if (window._btcData) {
+            price = window._btcData.price;
+            height = window._btcData.height;
+            halving = window._btcData.halvingBlocks;
+        }
+    } catch (e) {}
+    if (!price) { try { price = parseFloat(localStorage.getItem('btc_last_price')); } catch (e2) {} }
+    if (!height) { try { height = parseInt(localStorage.getItem('btc_last_height'), 10); } catch (e3) {} }
+    if (price) text = text.replace(/\{price\}/g, '$' + Math.round(price).toLocaleString());
+    if (height) text = text.replace(/\{height\}/g, Number(height).toLocaleString());
+    if (halving) text = text.replace(/\{halving\}/g, Number(halving).toLocaleString());
+    return text;
+}
+
+function workerGround() {
+    return {
+        links: Array.isArray(window._bqLastLinks) ? window._bqLastLinks.slice(0, 3) : [],
+        followUps: Array.isArray(window._bqLastFollowUps) ? window._bqLastFollowUps.slice(0, 3) : [],
+        asOf: window._bqLastAsOf || null
+    };
+}
+
+function resetNachoGround() {
+    window._bqLastLinks = [];
+    window._bqLastFollowUps = [];
+    window._bqLastFollowUp = '';
+    window._bqLastAsOf = null;
+}
+
 async function nachoAIAnswer(question, callback) {
+    window._bqLastKbId = '';
+    if (nachoContainsKeyMaterial(question)) { callback(null); return; }
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (getAICount() >= NACHO_AI_DAILY_LIMIT) { callback(null); return; }
     incrementAICount();
@@ -3887,18 +4468,16 @@ async function nachoAIAnswer(question, callback) {
     var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : (localStorage.getItem('btc_username') || '');
     var eli5 = window._nachoEli5 || false;
 
-    // Build conversation history for context (last 5 exchanges)
-    var history = [];
-    for (var hi = Math.max(0, _nachoConvoHistory.length - 5); hi < _nachoConvoHistory.length; hi++) {
-        history.push({ q: _nachoConvoHistory[hi].q, a: _nachoConvoHistory[hi].a.substring(0, 200) });
-    }
+    var history = nachoHistoryPayload(5, 200);
 
-    // Check if KB has a relevant answer to send as context
+    // Check if KB has a relevant answer to send as context.
+    // Fill {price} here. The template is only for local rendering otherwise.
     var kbContext = '';
     if (typeof findAnswer === 'function') {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
             var kbAnswerText = typeof kbMatch.answer === 'function' ? kbMatch.answer('') : kbMatch.answer;
+            kbAnswerText = fillLiveTemplates(kbAnswerText);
             kbContext = (kbAnswerText || '').substring(0, 1200);
             if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
@@ -3959,21 +4538,28 @@ async function nachoAIAnswer(question, callback) {
             if (timeoutId) clearTimeout(timeoutId);
             if (data && data.answer && !data.error) {
                 var conversationalAnswer = data.answer;
+                window._bqLastKbId = data.kbId ? String(data.kbId) : '';
+                window._bqLastLinks = Array.isArray(data.links) ? data.links.slice(0, 3) : [];
+                window._bqLastFollowUps = Array.isArray(data.followUps) ? data.followUps.filter(Boolean).slice(0, 3) : [];
+                window._bqLastAsOf = data.asOf || null;
                 if (data.followUp) {
                     var _fu = String(data.followUp).replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
                     if (_fu) window._bqLastFollowUp = _fu;
+                    if (!window._bqLastFollowUps.length && _fu) window._bqLastFollowUps = [_fu];
                 }
                 callback(conversationalAnswer);
             } else {
+                window._bqLastKbId = '';
                 callback(null);
             }
         })
-        .catch(function() { if (timeoutId) clearTimeout(timeoutId); callback(null); });
+        .catch(function() { if (timeoutId) clearTimeout(timeoutId); window._bqLastKbId = ''; callback(null); });
 }
 
 // ---- Conversational AI — for non-Bitcoin general chat ----
 // Uses NACHO_CONVO_PROMPT so Nacho can engage naturally with off-topic questions
 async function nachoConvoAIAnswer(question, callback) {
+    if (nachoContainsKeyMaterial(question)) { callback(null); return; }
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (getAICount() >= NACHO_AI_DAILY_LIMIT) { callback(null); return; }
     incrementAICount();
@@ -3984,11 +4570,7 @@ async function nachoConvoAIAnswer(question, callback) {
     var userLang = localStorage.getItem('btc_lang') || '';
     var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : (localStorage.getItem('btc_username') || '');
 
-    // Include recent conversation history for continuity
-    var history = [];
-    for (var hi = Math.max(0, _nachoConvoHistory.length - 4); hi < _nachoConvoHistory.length; hi++) {
-        history.push({ q: _nachoConvoHistory[hi].q, a: _nachoConvoHistory[hi].a.substring(0, 150) });
-    }
+    var history = nachoHistoryPayload(4, 150);
 
     var fetchOpts = {
         method: 'POST',
@@ -4052,6 +4634,7 @@ function canWebSearch() {
 }
 
 function nachoWebSearch(query, callback) {
+    if (nachoContainsKeyMaterial(query)) { callback(null); return; }
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (!canWebSearch()) { callback(null); return; }
     incrementWebSearchCount();
@@ -4172,6 +4755,19 @@ window.nachoAnswer = function() {
     if (!inp) return;
     var q = inp.value.trim();
     if (!q) return;
+    if (nachoContainsKeyMaterial(q)) {
+        inp.value = '';
+        window._nachoLastQ = NACHO_SECRET_HIDDEN;
+        var secretBubble = document.getElementById('nacho-bubble');
+        var secretText = document.getElementById('nacho-text');
+        if (secretBubble && secretText) {
+            secretBubble.setAttribute('data-interactive', 'true');
+            if (secretBubble.classList) secretBubble.classList.add('show');
+            secretText.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + nachoLocalSecretAnswer() + '</div>';
+        }
+        window._nachoBusy = false;
+        return;
+    }
 
     // Stop active voice recognition
     if (window._nachoRecognition && window._nachoListening) {
@@ -4238,8 +4834,8 @@ window.nachoAnswer = function() {
                 }
                 var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + (result.answer || 'Hmm, try asking another way! 🦌') + '</div>';
 
-                // Add channel link if available
-                if (result.channel) {
+                // Topic buttons already in the answer replace the single channel link.
+                if (result.channel && String(result.answer || '').indexOf('data-bq-links') === -1) {
                     html += '<br><a href="#" ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){go(\'' + result.channel + '\')},100)" style="color:var(--accent);font-weight:600;font-size:0.85rem;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
                 }
                 // Add site action button if available
@@ -4273,6 +4869,12 @@ window.nachoAnswer = function() {
 };
 
 function showNachoFallback(textEl, q) {
+    if (nachoContainsKeyMaterial(q)) {
+        window._nachoBusy = false;
+        window._nachoLastQ = NACHO_SECRET_HIDDEN;
+        if (textEl) textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + nachoLocalSecretAnswer() + '</div>';
+        return;
+    }
     window._nachoBusy = false;
     if (typeof setPose === 'function') setPose('think');
     nachoTrackTopic(q, 'fallback');
@@ -4825,6 +5427,10 @@ function _eli5Simplify(text) {
 
 // Deep search + web search + off-topic fallback chain (shared by STEP 5 paths)
 function _nachoStep5Fallback(q, callback, pq, disclaimer) {
+    if (nachoContainsKeyMaterial(q)) {
+        callback({ type: 'harm', answer: nachoLocalSecretAnswer(), suppressFollowUps: true, followUp: '' });
+        return;
+    }
     var deepResult = deepContentSearch(q);
     if (deepResult) {
         callback({ type: 'deepsearch', answer: '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">📚 Found in site content:</div>' + escapeHtml(deepResult.snippet) + (disclaimer || ''), channel: deepResult.channel, channelName: deepResult.channelName });
@@ -4862,10 +5468,19 @@ function _nachoStep5Fallback(q, callback, pq, disclaimer) {
 }
 
 window.nachoUnifiedAnswer = function(question, callback) {
-    var q = question.trim().toLowerCase();
+    if (nachoContainsKeyMaterial(question)) {
+        window._nachoLastQ = NACHO_SECRET_HIDDEN;
+        callback({ type: 'harm', answer: nachoLocalSecretAnswer(), suppressFollowUps: true, followUp: '' });
+        return;
+    }
+    resetNachoGround();
+    window._nachoAiReady = false;
+    window._nachoAiPrefetch = '';
+    var originalQ = question.trim();
+    var q = originalQ.toLowerCase();
     q = (typeof fixTypos === 'function') ? fixTypos(q) : q;
     q = (typeof expandSynonyms === 'function') ? expandSynonyms(q) : q;
-    window._nachoLastQ = question.trim(); // store original for feedback
+    window._nachoLastQ = originalQ; // store original for feedback
     if (!q) { callback({ type: 'fallback', answer: "Ask me something about Bitcoin! 🦌" }); return; }
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
@@ -4906,7 +5521,14 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var isFinAdvice = isFinancialAdvice(q);
     var disclaimer = isFinAdvice ? '<br><br>' + getNfaDisclaimer() : '';
     var isCurrentEvent = isCurrentEventQuestion(q);
-    
+
+    function takeAiPrefetch() {
+        if (!window._nachoAiReady) return undefined;
+        window._nachoAiReady = false;
+        return window._nachoAiPrefetch || '';
+    }
+
+    var runLocal = function () {
     // ANTI-SHITCOIN SHIELD: If it's about altcoins, bypass AI and use KB immediately
     var altcoinMatch = checkAltcoin(q);
     if (altcoinMatch) {
@@ -4944,6 +5566,20 @@ window.nachoUnifiedAnswer = function(question, callback) {
     }
 
     // ---- STEP 4: KB HIT → Use KB answer, optionally polish with AI ----
+    // Live data and the calculator already have the right answer. Do not let a polish pass replace them.
+    if (liveMatch) {
+        var _liveGround = workerGround();
+        callback({
+            type: 'live',
+            answer: processNfa(pq(liveMatch.answer && typeof liveMatch.answer === 'function' ? liveMatch.answer('') : kbMatch.answer)) + disclaimer,
+            channel: liveMatch.channel || kbMatch.channel || null,
+            channelName: liveMatch.channelName || kbMatch.channelName || null,
+            links: _liveGround.links,
+            followUps: _liveGround.followUps,
+            asOf: _liveGround.asOf
+        });
+        return;
+    }
     if (kbMatch) {
         var kbAnswer = processNfa(pq(kbMatch.answer));
         var ch = kbMatch.channel || null;
@@ -4982,9 +5618,38 @@ window.nachoUnifiedAnswer = function(question, callback) {
         }
         var _kbCallbackFired = false;
 
-        // Try AI to make the KB answer more conversational (but KB content is the truth)
-        if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
-            // Safety timeout: if AI doesn't respond in 5s, serve KB directly
+        function deliverPolished(aiAnswer) {
+            if (_kbCallbackFired) return;
+            _kbCallbackFired = true;
+            var _ground = workerGround();
+            // A worker kbId already returned above. A model answer still has to share the question's words.
+            if (aiAnswer && window._bqLastKbId) {
+                nachoRemember(originalQ, aiAnswer);
+                callback({ type: 'kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf, kbId: window._bqLastKbId });
+                return;
+            }
+            if (aiAnswer) {
+                var qWords = originalQ.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
+                var aiLower = aiAnswer.toLowerCase();
+                var relevantWords = qWords.filter(function(w) { return aiLower.indexOf(w) !== -1; });
+                var isDeflection = /shouldn.t go there|antlers are telling me|not a real-time|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+                if (isDeflection || (qWords.length > 2 && relevantWords.length < qWords.length * 0.3)) {
+                    nachoRemember(q, kbMatch.answer);
+                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
+                } else {
+                    nachoRemember(q, aiAnswer);
+                    callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
+                }
+            } else {
+                nachoRemember(q, kbMatch.answer);
+                callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
+            }
+        }
+
+        var _prefetched = takeAiPrefetch();
+        if (_prefetched !== undefined) {
+            deliverPolished(_prefetched);
+        } else if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
             var _kbSafetyTimer = setTimeout(function() {
                 if (!_kbCallbackFired) {
                     _kbCallbackFired = true;
@@ -4992,27 +5657,9 @@ window.nachoUnifiedAnswer = function(question, callback) {
                     callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
                 }
             }, 5000);
-            nachoAIAnswer(q, function(aiAnswer) {
-                if (_kbCallbackFired) return; // Safety timer already fired
-                _kbCallbackFired = true;
+            nachoAIAnswer(originalQ, function(aiAnswer) {
                 clearTimeout(_kbSafetyTimer);
-                if (aiAnswer) {
-                    // Relevance check: AI answer should share key terms with the question
-                    var qWords = q.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
-                    var aiLower = aiAnswer.toLowerCase();
-                    var relevantWords = qWords.filter(function(w) { return aiLower.indexOf(w) !== -1; });
-                    // If AI answer shares fewer than half the key question words, it's probably off-topic — use KB
-                    if (qWords.length > 2 && relevantWords.length < qWords.length * 0.3) {
-                        nachoRemember(q, kbMatch.answer);
-                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
-                    } else {
-                        nachoRemember(q, aiAnswer);
-                        callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName });
-                    }
-                } else {
-                    nachoRemember(q, kbMatch.answer);
-                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
-                }
+                deliverPolished(aiAnswer);
             });
         } else {
             // No AI budget — serve KB directly
@@ -5023,16 +5670,18 @@ window.nachoUnifiedAnswer = function(question, callback) {
     }
 
     // ---- STEP 5: KB MISS → AI fills the gap ----
-    if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
-        nachoAIAnswer(q, function(aiAnswer) {
+    var _missPrefetch = takeAiPrefetch();
+    if (_missPrefetch !== undefined || (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT)) {
+        var _useMiss = function (aiAnswer) {
             if (aiAnswer) {
                 var aiLower = aiAnswer.toLowerCase();
-                var isDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+                var isDeflection = /shouldn.t go there|antlers are telling me|not a real-time|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+                var _missGround = workerGround();
 
                 if (!isDeflection) {
                     // Maxi AI answered fine — use it
                     nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai', answer: escapeHtml(aiAnswer) + disclaimer });
+                    callback({ type: 'ai', answer: escapeHtml(aiAnswer) + disclaimer, links: _missGround.links, followUps: _missGround.followUps, asOf: _missGround.asOf });
                     return;
                 }
             }
@@ -5040,7 +5689,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
             // Maxi AI failed or deflected — fall back to conversational mode
             // This handles questions like "How are you?", "What's the weather?", general chat
             if (getAICount() < NACHO_AI_DAILY_LIMIT) {
-                nachoConvoAIAnswer(q, function(convoAnswer) {
+                nachoConvoAIAnswer(originalQ, function(convoAnswer) {
                     if (convoAnswer) {
                         var convoLower = convoAnswer.toLowerCase();
                         var convoDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|i don.t think i should/i.test(convoLower);
@@ -5058,7 +5707,9 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
             // All AI paths exhausted — deep search then off-topic
             _nachoStep5Fallback(q, callback, pq, disclaimer);
-        });
+        };
+        if (_missPrefetch !== undefined) _useMiss(_missPrefetch);
+        else nachoAIAnswer(originalQ, _useMiss);
         return;
     }
 
@@ -5109,6 +5760,41 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var smartFb = smartFallback(q);
     nachoTrackMiss(q);
     callback({ type: 'fallback', answer: pq(smartFb) });
+    };
+
+    // A confident worker KB answer (kbId) wins over the client KB and feature shortcuts.
+    // The worker sees the original wording, not the typo and synonym rewrite.
+    if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+        var _workerSettled = false;
+        var _workerTimer = setTimeout(function () {
+            if (_workerSettled) return;
+            _workerSettled = true;
+            runLocal();
+        }, 5000);
+        nachoAIAnswer(originalQ, function (aiAnswer) {
+            if (_workerSettled) return;
+            _workerSettled = true;
+            clearTimeout(_workerTimer);
+            if (aiAnswer && window._bqLastKbId) {
+                var _kbGround = workerGround();
+                nachoRemember(originalQ, aiAnswer);
+                callback({
+                    type: 'kb',
+                    answer: escapeHtml(aiAnswer) + disclaimer,
+                    links: _kbGround.links,
+                    followUps: _kbGround.followUps,
+                    asOf: _kbGround.asOf,
+                    kbId: window._bqLastKbId
+                });
+                return;
+            }
+            window._nachoAiReady = true;
+            window._nachoAiPrefetch = aiAnswer || '';
+            runLocal();
+        });
+        return;
+    }
+    runLocal();
 };
 
 // Expose IIFE functions to window
@@ -5127,6 +5813,7 @@ window.nachoCrisisAnswer = nachoCrisisAnswer;
 window.isFinancialAdvice = isFinancialAdvice;
 window.deepContentSearch = deepContentSearch;
 window.nachoWebSearch = nachoWebSearch;
+window._nachoStep5Fallback = _nachoStep5Fallback;
 window.escapeHtml = escapeHtml;
 
 })();
@@ -5314,6 +6001,7 @@ window.nachoFollowUps = function(answerText) {
     if (window._bqLastFollowUp && String(answerText).indexOf(String(window._bqLastFollowUp).slice(0, 24)) !== -1) {
         return [];
     }
+    if (window._bqLastFollowUps && window._bqLastFollowUps.length) return window._bqLastFollowUps.slice(0, 3);
     if (window._bqLastFollowUp) return [window._bqLastFollowUp];
     var a = answerText.toLowerCase();
     var suggestions = [];
@@ -5444,5 +6132,5 @@ window.nachoFollowUps = function(answerText) {
         suggestions[j] = suggestions[r];
         suggestions[r] = tmp;
     }
-    return suggestions.slice(0, 1);
+    return suggestions.slice(0, 3);
 };

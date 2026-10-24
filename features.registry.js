@@ -361,8 +361,8 @@
             openFns: ['openNookInventory', 'showQuestHub'] }),
         R({ id: 'double-xp', title: 'Double XP charge', group: 'Shop & items', term: 'double xp', priority: 70,
             kw: 'double xp 2x multiplier charge',
-            desc: 'A Double XP charge doubles XP for a while after you use it.',
-            how: 'Buy it in the Nook, then use it from Inventory.',
+            desc: 'A Double XP charge starts when you buy it and lasts 60 minutes.',
+            how: 'Buying another charge while one is running adds another hour, and it doubles daily activity XP only.',
             follow: 'Want to see your XP and the daily cap on the Sats page?',
             hash: 'app/double-xp', aliases: ['double-xp'], kind: 'quest', arg: 'nook' }),
         R({ id: 'hint-token', title: 'Hint tokens', group: 'Shop & items', term: 'hint token', priority: 70,
@@ -379,8 +379,8 @@
             hash: 'app/streak-freeze', aliases: ['streak-freeze'], kind: 'quest', arg: 'nook' }),
         R({ id: 'hash-booster', title: 'Hash booster', group: 'Shop & items', term: 'hash booster', priority: 70,
             kw: 'hash booster second rig hashes extra hash',
-            desc: 'A hash booster grants extra hashes in Satoshi\'s Favor. A second rig is the bigger version in the same shop.',
-            how: 'Buy a hash booster or second rig in the Nook, then use it when a Favor window is open.',
+            desc: 'A hash booster is spent one hash at a time, and while charges remain that hash skips the per-minute limit.',
+            how: 'A second rig is a separate rig with its own cooldown, and one charge unlocks rig 2 for the current cycle. It is not a larger booster.',
             follow: 'Want to open Satoshi\'s Favor now?',
             hash: 'app/hash-booster', aliases: ['hash-booster', 'second-rig'], kind: 'quest', arg: 'nook' }),
         R({ id: 'raffle', title: 'Orange ticket raffle', group: 'Shop & items', term: 'raffle', priority: 65,
@@ -540,8 +540,8 @@
             hash: 'dms', aliases: ['dms', 'messages', 'inbox'], kind: 'dms', openFns: ['showInbox', 'openDM', 'renderChatHub'] }),
         R({ id: 'buddy', title: 'Bitcoin Buddy', group: 'Community', term: 'buddy', priority: 60,
             kw: 'buddy bitcoin buddy finder mentor',
-            desc: 'Bitcoin Buddy matches you with a learning partner.',
-            how: 'Open the buddy finder from the chat hub.',
+            desc: 'Bitcoin Buddy pairs a learner with a teacher.',
+            how: 'Open Global Chat, tap Find a Buddy, pick Learn or Teach and an experience level, and a match opens a direct message with an icebreaker.',
             follow: 'Want IRL meetups if you would rather meet in person?',
             hash: 'app/buddy', aliases: ['buddy'], kind: 'buddy', openFns: ['showBuddyFinder'] }),
         R({ id: 'forum', title: 'PlebTalk forum', group: 'Community', term: 'forum', priority: 55,
@@ -634,8 +634,8 @@
             openFns: ['showSettings', 'showSettingsPage'] }),
         R({ id: 'faction', title: 'Faction', group: 'Account', term: 'faction', priority: 70,
             kw: 'faction honey badger cyber hornet badger hornet team',
-            desc: 'Your faction is Honey Badger or Cyber Hornet. It shows on the leaderboard and on charity.',
-            how: 'Open Settings → Account and pick a faction.',
+            desc: 'Your faction is Honey Badgers or Cyber Hornets, and the choice is permanent. It shows on the leaderboard and on charity.',
+            how: 'Open Settings, then Account, and pick Honey Badgers or Cyber Hornets once.',
             follow: 'Want the charity tab, where the faction pools XP?',
             hash: 'app/faction', aliases: ['faction'], kind: 'settings', arg: 'account' }),
         R({ id: 'security', title: 'Security and 2FA', group: 'Account', term: '2fa', priority: 80,
@@ -711,8 +711,8 @@
             settingsPages: ['account', 'profile'], openFns: ['showSettings', 'showSettingsPage'] }),
         R({ id: 'audio', title: 'Sound effects', group: 'Help', term: 'audio', priority: 30, aux: true,
             kw: 'audio sound mute volume',
-            desc: 'Sound effects can be turned on or off.',
-            how: 'Use the sound toggle or press M.',
+            desc: 'Sound effects can be turned on or off, and the volume slider sets how loud they are.',
+            how: 'The sound toggle flips sound and remembers the choice. The M key opens a random meme, and it does not control sound.',
             follow: 'Want Preferences for the rest of the display options?',
             hash: 'app/audio', aliases: ['audio'], kind: 'audio', openFns: ['toggleAudio'] })
     ];
@@ -1103,21 +1103,34 @@
         return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function renderNachoAnswerCard(hit) {
+    function renderNachoAnswerCard(hit, question) {
         var f = BY_ID[hit.featureId || hit.id];
         // The follow-up is the chip only. The card body is the how-to.
         var text = f ? (f.desc + ' ' + f.how) : String(hit.answer || '');
         var follow = hit.followUp || (f && f.follow) || '';
         if (follow && text.indexOf(follow) !== -1) text = text.replace(follow, '').trim();
         var id = (f && f.id) || hit.featureId || '';
+        var q = question || hit.q || (f && f.title) || '';
+        var ground = resolveGround(q, null);
+        var follows = [];
+        if (follow && String(follow).length <= 90 && String(follow).slice(-1) === '?') follows.push(follow);
+        (ground.followUps || []).forEach(function (item) {
+            if (follows.length >= 3) return;
+            if (follows.indexOf(item) === -1) follows.push(item);
+        });
+        win._bqLastFollowUps = follows.slice();
+        win._bqLastFollowUp = follows[0] || '';
         var chip = follow
             ? '<button type="button" data-bq-chip="1" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();window.bqAskFollowUp(this.getAttribute(\'data-q\'))" data-q="' + esc(follow) + '" style="display:block;width:100%;margin-top:6px;padding:7px 8px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#aaa);font-size:0.78rem;cursor:pointer;font-family:inherit;text-align:left;">' + esc(follow) + '</button>'
             : '';
+        var extras = follows.filter(function (item) { return item !== follow; });
         return '<div class="bq-nacho-card" data-bq-card="1" data-bq-chip="1" style="color:var(--text,#eee);line-height:1.55;">' +
             '<div>' + esc(text).replace(/\n/g, '<br>') + '</div>' +
             '<button type="button" data-bq-open="1" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + id + '\')" style="width:100%;margin-top:10px;padding:10px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Open it</button>' +
             '<a href="#' + esc(f ? f.hash : ('app/' + id)) + '" onclick="event.preventDefault();window.bqOpenFeature(\'' + id + '\')" style="display:block;margin-top:4px;text-align:center;font-size:0.72rem;color:var(--text-faint,#888);">#' + esc(f ? f.hash : id) + '</a>' +
+            (ground.links && ground.links.length ? linkButtonsHtml(ground.links) : '') +
             chip +
+            (extras.length ? followButtonsHtml(extras) : '') +
             '</div>';
     }
 
@@ -1360,38 +1373,179 @@
         win.doSearch = wrapped;
     }
 
+    var GROUND_LINKS = [
+        { re: /\b(price|priced|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b|\b(?:what(?:'s| is)|how much)\b[^?]{0,40}\bworth\b/i, ids: ['charts', 'market_cap', 'ta_tips'] },
+        { re: /\b(fees?|mempool)\b/i, ids: ['transaction_fees', 'vbyte', 'blockchain-timechain'], skip: /\blightning\b/i },
+        { re: /\b(height|timechain|current block)\b/i, ids: ['blockchain-timechain', 'block_time-block-size'] },
+        { re: /\b(halving|scarce|21 million|subsidy)\b/i, ids: ['scarce', 'mining'] },
+        { re: /\b(hashrate|hash rate|mining|difficulty)\b/i, ids: ['mining', 'difficulty-adjustment'] },
+        { re: /\b(wallet|seed|custody|private key)\b/i, ids: ['self-custody', 'public_key_vs_private_key'] },
+        { re: /\blightning\b/i, ids: ['layer-2-lightning', 'lightning_node'] },
+        { re: /\b(buy|invest|dca|should i)\b/i, ids: ['investment-strategy', 'self-custody', 'charts'] },
+        { re: /\butxos?\b/i, ids: ['utxos', 'blockchain-timechain'] },
+        { re: /\b(node|verify|able)\b/i, ids: ['nodes', 'consensus'] }
+    ];
+    var FOLLOW_BY_RE = [
+        { re: /\b(seed phrase|seed words|private key|custody|wallet)\b/i, qs: ['Why is self-custody important?', 'What is a seed phrase?', 'What does not your keys, not your coins mean?'] },
+        { re: /\b(price|priced|ath|chart|charts|market|euro|euros|pound|pounds|yen)\b|\b(?:what(?:'s| is)|how much)\b[^?]{0,40}\bworth\b/i, qs: ['How much did Bitcoin change in 24 hours?', 'What is 1 Bitcoin in euros?', 'What are Bitcoin fees right now?'] },
+        { re: /\b(fees?|mempool)\b/i, qs: ['What is the current block height?', 'What is a transaction fee?', 'When is the next Bitcoin halving?'], skip: /\blightning\b/i },
+        { re: /\b(halving|subsidy|scarce)\b/i, qs: ['How many bitcoin have been mined?', 'What is the current block height?', 'What is proof of work?'] },
+        { re: /\b(hashrate|hash rate|mining|difficulty)\b/i, qs: ['What is proof of work?', 'When is the next Bitcoin halving?', 'What is a Bitcoin node?'] },
+        { re: /\b(height|timechain|block)\b/i, qs: ['When is the next Bitcoin halving?', 'What is the mempool?', 'What is a UTXO?'] },
+        { re: /\blightning\b/i, qs: ['What is the Lightning Network?', 'What is a satoshi?', 'What are Bitcoin fees right now?'] },
+        { re: /\b(buy|invest|dca)\b/i, qs: ['What is dollar-cost averaging?', 'Why is self-custody important?', 'What is the Bitcoin price right now?'] },
+        { re: /\butxos?\b/i, qs: ['What is a transaction fee?', 'What is the current block height?', 'What is a Bitcoin node?'] }
+    ];
+    var GROUND_QUESTIONS = [
+        'What is the Bitcoin price right now?',
+        'What are Bitcoin fees right now?',
+        'What is the current block height?',
+        'When is the next Bitcoin halving?',
+        'What is a satoshi?',
+        'Why is self-custody important?',
+        'What is the Lightning Network?',
+        'What is proof of work?'
+    ];
+
+    function topicLinkTitle(id) {
+        var table = (typeof CHANNELS !== 'undefined') ? CHANNELS : win.CHANNELS;
+        var row = table && table[id];
+        var raw = row && row.title ? String(row.title) : id;
+        raw = raw.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F]/gu, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!raw) raw = id;
+        if (raw.length > 40) raw = raw.slice(0, 40).trim();
+        return raw.charAt(0).toUpperCase() + raw.slice(1);
+    }
+
+    function fallbackLinks(q) {
+        var text = String(q || '').toLowerCase();
+        var ids = [];
+        GROUND_LINKS.forEach(function (row) {
+            if (row.skip && row.skip.test(text)) return;
+            if (row.re.test(text)) ids = ids.concat(row.ids);
+        });
+        if (!ids.length) ids = ['one-stop-shop', 'faq-glossary'];
+        var out = [];
+        var seen = {};
+        ids.forEach(function (id) {
+            if (seen[id] || out.length >= 3) return;
+            seen[id] = 1;
+            out.push({ id: id, title: topicLinkTitle(id), hash: id, kind: 'topic' });
+        });
+        return out;
+    }
+
+    function fallbackFollowUps(q) {
+        var text = String(q || '');
+        var current = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        var picked = null;
+        FOLLOW_BY_RE.forEach(function (row) {
+            if (!picked && !(row.skip && row.skip.test(text)) && row.re.test(text)) picked = row.qs;
+        });
+        var source = picked || GROUND_QUESTIONS;
+        var out = [];
+        source.forEach(function (item) {
+            if (out.length >= 3) return;
+            var key = item.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (key === current) return;
+            if (item.length > 90 || item.charAt(item.length - 1) !== '?') return;
+            out.push(item);
+        });
+        return out.slice(0, 3);
+    }
+
+    win.bqNachoGround = {
+        groundQuestion: function (q) {
+            return { links: fallbackLinks(q), followUps: fallbackFollowUps(q) };
+        }
+    };
+
+    function formatAsOf(value) {
+        var ms = typeof value === 'number' ? value : Date.parse(value);
+        if (!isFinite(ms)) return '';
+        var label = '';
+        try { label = new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }); } catch (e) { label = ''; }
+        return label ? ('As of ' + label) : '';
+    }
+
+    function asOfHtml(value) {
+        var label = formatAsOf(value);
+        if (!label) return '';
+        var iso = '';
+        try { iso = new Date(typeof value === 'number' ? value : Date.parse(value)).toISOString(); } catch (e2) { iso = String(value); }
+        return '<div data-bq-asof="' + esc(iso) + '" style="margin-top:6px;font-size:0.72rem;color:var(--text-faint,#666);">' + esc(label) + '</div>';
+    }
+
+    function resolveGround(q, result) {
+        var links = result && result.links && result.links.length ? result.links.slice(0, 3) : [];
+        var followUps = result && result.followUps && result.followUps.length ? result.followUps.slice(0, 3) : [];
+        var g = null;
+        if ((!links.length || followUps.length < 2) && win.bqNachoGround && typeof win.bqNachoGround.groundQuestion === 'function') {
+            try { g = win.bqNachoGround.groundQuestion(q || ''); } catch (e) {}
+        }
+        if (!links.length) links = (g && g.links && g.links.length) ? g.links : fallbackLinks(q);
+        if (followUps.length < 2) followUps = (g && g.followUps && g.followUps.length) ? g.followUps : fallbackFollowUps(q);
+        return { links: links.slice(0, 3), followUps: followUps.slice(0, 3) };
+    }
+
+    function linkButtonsHtml(links) {
+        var html = '<div data-bq-links="1" style="margin-top:10px;">';
+        html += '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;letter-spacing:0.4px;">Learn more</div>';
+        for (var i = 0; i < links.length && i < 3; i++) {
+            var L = links[i] || {};
+            var id = String(L.id || '').replace(/[^a-z0-9_-]/gi, '');
+            if (!id) continue;
+            var kind = L.kind === 'app' ? 'app' : 'topic';
+            var click = kind === 'app'
+                ? "if(window.bqOpenFeature)window.bqOpenFeature('" + id + "');"
+                : "if(typeof go==='function')go('" + id + "');if(typeof hideBubble==='function')hideBubble(true);";
+            html += '<button type="button" data-bq-topic="' + id + '" data-bq-kind="' + kind + '" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();' + click + '" style="display:block;width:100%;margin-top:4px;padding:8px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:inherit;text-align:left;">\uD83D\uDCD6 ' + esc(L.title || id) + '</button>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function followButtonsHtml(list) {
+        var html = '<div data-bq-followups="1" style="margin-top:8px;">';
+        html += '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">You might also ask:</div>';
+        for (var i = 0; i < list.length && i < 3; i++) {
+            var text = String(list[i] || '').trim();
+            if (!text) continue;
+            html += '<button type="button" data-bq-chip="1" data-q="' + esc(text) + '" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();window.bqAskFollowUp(this.getAttribute(\'data-q\'))" style="display:block;width:100%;margin-top:4px;padding:6px 8px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#aaa);font-size:0.78rem;cursor:pointer;font-family:inherit;text-align:left;">' + esc(text) + '</button>';
+        }
+        html += '</div>';
+        return html;
+    }
+    win.nachoGroundHtml = function (links, followUps) {
+        return linkButtonsHtml(links || []) + followButtonsHtml(followUps || []);
+    };
+
     function decorateResult(result, q) {
         if (!result || result.rendered || !result.answer) return result;
         if (result.type === 'crisis' || result.type === 'harm' || result.suppressFollowUps) {
             win._bqLastFollowUp = '';
+            win._bqLastFollowUps = [];
+            win._bqLastLinks = [];
+            win._bqLastAsOf = null;
             return result;
         }
-        if (/data-bq-chip/.test(result.answer)) return result;
-        var plain = String(result.answer).replace(/<[^>]+>/g, '');
-        var tip = result.followUp || win._bqLastFollowUp || '';
-        // The sentence is already in the answer. A second chip would show it twice.
-        if (tip && plain.indexOf(String(tip).slice(0, 24)) !== -1) {
-            win._bqLastFollowUp = tip;
-            if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
-            return result;
+        if (result.asOf && !/data-bq-asof/.test(result.answer)) result.answer += asOfHtml(result.asOf);
+        if (/data-bq-links/.test(result.answer) && /data-bq-followups/.test(result.answer)) return result;
+        var ground = resolveGround(q, result);
+        if (ground.links.length && !/data-bq-links/.test(result.answer)) {
+            result.links = ground.links;
+            result.answer += linkButtonsHtml(ground.links);
         }
-        if (!tip) {
-            var linked = !!(result.channel || result.channelName || /<a\s/i.test(result.answer));
-            // A channel link is already the next step. Don't tack on a generic Quest Hub tip.
-            if (linked || /\?\s*$/.test(plain.trim())) {
-                if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
-                return result;
-            }
-            tip = pickTip(q);
-            if (!tip) {
-                if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
-                return result;
-            }
+        if (ground.followUps.length && !/data-bq-followups/.test(result.answer)) {
+            result.followUps = ground.followUps;
+            result.followUp = ground.followUps[0] || '';
+            win._bqLastFollowUps = ground.followUps.slice();
+            win._bqLastFollowUp = result.followUp;
+            result.answer += followButtonsHtml(ground.followUps);
         }
-        result.followUp = tip;
-        result.answer += '<div data-bq-chip="1" style="margin-top:8px;font-size:0.84rem;color:var(--text-muted,#bbb);">' + esc(tip) + '</div>';
-        win._bqLastFollowUp = tip;
-        if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
+        if (!result.plainAnswer) {
+            result.plainAnswer = String(result.answer).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        }
         return result;
     }
 
@@ -1405,6 +1559,10 @@
 
     function wrapUnified(orig) {
         var wrapped = function (question, cb) {
+            win._bqLastLinks = [];
+            win._bqLastFollowUps = [];
+            win._bqLastFollowUp = '';
+            win._bqLastAsOf = null;
             // Crisis, harm, and profanity beat every feature card.
             if (typeof win.nachoSafetyCheck === 'function' && win.nachoSafetyCheck(question)) {
                 win._bqLastFollowUp = '';
@@ -1423,11 +1581,12 @@
                 });
             }
             win._bqLastFollowUp = '';
+            win._bqLastFollowUps = [];
             var hit = resolveNachoFeature(question);
             if (hit) {
                 var plain = plainFeatureAnswer(hit);
-                win._bqLastFollowUp = hit.followUp;
-                var card = renderNachoAnswerCard(hit);
+                var card = renderNachoAnswerCard(hit, question);
+                win._bqLastFollowUp = (win._bqLastFollowUps && win._bqLastFollowUps[0]) || hit.followUp || '';
                 if (typeof win.nachoRemember === 'function') {
                     try { win.nachoRemember(question, plain.text); } catch (e) {}
                 }
@@ -1465,13 +1624,13 @@
                     win._bqLastFollowUp = '';
                     return [];
                 }
-                if (a.indexOf('data-bq-chip') !== -1) return [];
-                // Already printed in the answer text: do not add the same line as a chip.
+                if (a.indexOf('data-bq-followups') !== -1 || a.indexOf('data-bq-chip') !== -1) return [];
+                if (win._bqLastFollowUps && win._bqLastFollowUps.length) return win._bqLastFollowUps.slice(0, 3);
                 if (win._bqLastFollowUp && a.indexOf(String(win._bqLastFollowUp).slice(0, 24)) !== -1) return [];
                 if (win._bqLastFollowUp) return [win._bqLastFollowUp];
                 var list = [];
                 try { list = prev(a) || []; } catch (e) {}
-                return list.slice(0, 1);
+                return list.slice(0, 3);
             };
             wrapped._bq = true;
             win.nachoFollowUps = wrapped;

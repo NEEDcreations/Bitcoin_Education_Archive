@@ -3119,9 +3119,16 @@ function _loadLastSFWindow() {
         allWinners = allWinners.slice().sort(function(a, b) { return (a.value || 0) - (b.value || 0); });
         var lowestColor = hadWinner ? '#f7931a' : '#22c55e';
         function _renderWinnerRow(w) {
-            var display = w.username ? '@' + escapeHtml(w.username) : '🏆 Winner';
+            var nameMissing = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(w.username)
+                : !String(w.username || '').trim() || /^(anon|anonymous)$/i.test(String(w.username || '').trim());
+            var display = !nameMissing ? '@' + escapeHtml(w.username) : (w.uid ? '@Anon' : '🏆 Winner');
             var baseStyle = 'font-size:0.75rem;font-weight:700;color:#f7931a;';
             var clickHandler = '';
+            var lookupAttr = '';
+            if (w.uid && nameMissing) {
+                lookupAttr = ' data-profile-uid="' + escapeHtml(w.uid) + '" data-blank-name="1"';
+            }
             if (w.uid) {
                 clickHandler = 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+escapeHtml(w.uid)+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
@@ -3131,7 +3138,7 @@ function _loadLastSFWindow() {
                 clickHandler = 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeName+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
             }
-            return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(247,147,26,0.1);"><span style="font-size:0.95rem">🏆</span><span ' + clickHandler + ' style="' + baseStyle + '">' + display + '</span><span style="margin-left:auto;font-size:0.72rem;font-weight:700;color:#f7931a;font-family:monospace;">' + (w.value || 0).toLocaleString() + '</span></div>';
+            return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(247,147,26,0.1);"><span style="font-size:0.95rem">🏆</span><span ' + clickHandler + lookupAttr + ' style="' + baseStyle + '">' + display + '</span><span style="margin-left:auto;font-size:0.72rem;font-weight:700;color:#f7931a;font-family:monospace;">' + (w.value || 0).toLocaleString() + '</span></div>';
         }
         var winnerBanner;
         if (allWinners.length > 0) {
@@ -3158,6 +3165,7 @@ function _loadLastSFWindow() {
             '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);">' +
                 '\u23F1\uFE0F ' + durMin + ' min window \u00b7 ended ' + dateStr + ' ' + timeStr +
             '</div>';
+        if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el);
         // Legacy: if any winner has no username, try topHashes lookup
         if (hadWinner && allWinners.some(function(w) { return !w.username; }) && typeof db !== 'undefined') {
             db.collection('satoshiFavor').doc('topHashes').get().then(function(thDoc) {
@@ -3173,6 +3181,7 @@ function _loadLastSFWindow() {
                     if (bannerEl) {
                         var newRows = patched.map(_renderWinnerRow).join('');
                         bannerEl.innerHTML = '<div style="font-size:0.65rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🥇 Winner' + (patched.length > 1 ? 's (' + patched.length + ')' : '') + '</div>' + newRows;
+                        if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(bannerEl);
                     }
                 }
             }).catch(function(){});
@@ -3200,13 +3209,16 @@ function _loadPoolEpoch() {
         for (var i = 0; i < slots; i++) {
             var b = blocks[i];
             if (b) {
-                var uname = b.username ? '@' + (typeof escapeHtml === 'function' ? escapeHtml(b.username) : b.username) : '\u2014';
+                var _epochNameMissing = typeof window.missingPublicName === 'function'
+                    ? window.missingPublicName(b.username)
+                    : !String(b.username || '').trim() || /^(anon|anonymous)$/i.test(String(b.username || '').trim());
+                var uname = !_epochNameMissing ? '@' + (typeof escapeHtml === 'function' ? escapeHtml(b.username) : b.username) : '@\u2014';
                 var ts = b.foundAt ? (b.foundAt.toDate ? b.foundAt.toDate() : new Date(b.foundAt.seconds * 1000)) : null;
                 var tsStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
                 var _rawUid = b.uid || '';
                 var _attrUid = _rawUid.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
                 var unameEl = _rawUid
-                    ? '<span data-profile-uid="' + _attrUid + '" style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
+                    ? '<span data-profile-uid="' + _attrUid + '"' + (_epochNameMissing ? ' data-blank-name="1"' : '') + ' style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
                     : '<span style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;">' + uname + '</span>';
                 rows += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(247,147,26,0.08);">' +
                     '<span style="font-size:0.72rem;font-weight:800;color:var(--accent);width:18px;flex-shrink:0;">' + (i + 1) + '.</span>' +
@@ -3270,10 +3282,10 @@ function _loadPoolEpoch() {
             prevHtml += '</div>';
 
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; }
+            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
         }).catch(function() {
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; }
+            if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
         });
     }, function() {
         var el2 = document.getElementById('sfPoolEpochInner');
@@ -3846,7 +3858,7 @@ function _renderNookShop() {
         var extraHtml = '';
         if (c.id === 'nacho_skin_nook') {
             extraHtml = '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 8px;background:rgba(247,147,26,0.08);border-radius:8px;">' +
-                '<img src="nacho-deer.svg" style="width:36px;height:36px;border-radius:50%;border:2px solid #f7931a;filter:drop-shadow(0 0 6px rgba(247,147,26,0.6));" onerror="this.style.display=\'none\'">' +
+                '<img src="/nacho-deer.svg" style="width:36px;height:36px;border-radius:50%;border:2px solid #f7931a;filter:drop-shadow(0 0 6px rgba(247,147,26,0.6));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))">' +
                 '<span style="font-size:0.72rem;color:var(--text-muted);">Your avatar gets a golden Nacho glow in chat and on your profile!</span>' +
             '</div>';
         }
