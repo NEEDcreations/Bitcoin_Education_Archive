@@ -156,7 +156,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The 32 badge collections are now 11, and completing one pays its new bonus minus any older set bonuses you already hold.'));
+    assert.ok(notes.includes('Latest: Completing one of the 11 badge collections pays the server bonus you have not already received, adds 10 Satoshi\'s Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.'));
+    assert.ok(notes.includes('The 32 badge collections are now 11, and completing one pays its new bonus minus any older set bonuses you already hold.'));
+    assert.ok(!notes.includes('Latest: The 32 badge collections'));
     assert.ok(notes.includes('New badges cover gifts, keys, ciphers, Nook, raffles, and setup.'));
     assert.ok(!notes.includes('Latest: New badges cover'));
     assert.ok(notes.includes('Topic conversations earn XP, a new one is also posted on Pleb Talk, and replies stay mirrored.'));

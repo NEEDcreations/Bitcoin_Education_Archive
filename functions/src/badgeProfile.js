@@ -46,6 +46,19 @@ function profileBadgeIds(user) {
     return collectIds(user, LIST_FIELDS, SINGLE_FIELDS);
 }
 
+// Collection completion. These lists are server-only in firestore.rules.
+// earnedHidden, displayBadge, and equippedBadge are client-writable and do not count.
+const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'hiddenBadges', 'donationBadges'];
+
+function serverHeldBadgeIds(user, extraIds) {
+    const held = collectIds(user, SERVER_LIST_FIELDS, []);
+    (extraIds || []).forEach(function (raw) {
+        const id = cleanBadgeId(raw);
+        if (id) held.add(id);
+    });
+    return held;
+}
+
 function profileHoldsBadge(user, badgeId) {
     const id = cleanBadgeId(badgeId);
     if (!id) return false;
@@ -57,6 +70,8 @@ module.exports = {
     SINGLE_FIELDS: SINGLE_FIELDS,
     cleanBadgeId: cleanBadgeId,
     collectIds: collectIds,
+    SERVER_LIST_FIELDS: SERVER_LIST_FIELDS,
     profileBadgeIds: profileBadgeIds,
     profileHoldsBadge: profileHoldsBadge,
+    serverHeldBadgeIds: serverHeldBadgeIds,
 };

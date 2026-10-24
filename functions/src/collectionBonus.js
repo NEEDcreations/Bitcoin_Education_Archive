@@ -3,19 +3,23 @@
 // Eleven merged collections. Each old set keeps its badges and its bonus id.
 // The server stops paying those old bonuses. A finished collection pays
 // bonusPts minus the old bonuses the user already holds, and never below 0.
-// Payment is server-side only: xp_ledger, the shared daily cap, and one
-// Satoshi's Favor point. A client claim cannot choose the amount.
+// Payment is server-side only: xp_ledger, the shared daily cap, and ten
+// Satoshi's Favor points. The first record also posts one Nacho message in
+// Global Chat. A client claim cannot choose the amount or the post.
 
 const fs = require('fs');
 const path = require('path');
 
 const { applyDailyXp } = require('./applyDailyXp');
 const { rewardBlocked } = require('./cipherClaim');
-const { planFavorPoint } = require('./favorPool');
-const { profileBadgeIds } = require('./badgeProfile');
+const { planFavorPoints } = require('./favorPool');
+const { planDailyXp } = require('./dailyXp');
+const { serverHeldBadgeIds } = require('./badgeProfile');
 const { offsetDateKey } = require('./offsetDay');
 
 const SETS_FILE = path.join(__dirname, 'collection-sets.json');
+const COLLECTION_FAVOR_POINTS = 10;
+const NEUTRAL_NAME = 'A Bitcoiner';
 
 const GROUPS = [
     { id: 'col_learning', name: 'Learning', emoji: '📚', color: '#3b82f6', setIds: ['set_scholar', 'set_scholar_daily', 'set_explorer', 'set_trails'] },
@@ -128,7 +132,7 @@ function buildCollections(sets) {
                 seen[badgeId] = true;
                 badgeIds.push(badgeId);
             });
-            const pts = Number(set.legacyPts != null ? set.legacyPts : set.bonusPts) || 0;
+            const pts = serverPaidXp(set.bonusId);
             bonusPts += pts;
             legacyBonuses.push({ id: set.bonusId, pts: pts, setId: set.id });
         });
@@ -168,15 +172,33 @@ function isRetiredSetBonus(badgeId) {
     return !!retiredBonusIds()[badgeId];
 }
 
-function requiredMembers(col) {
+function serverPaidXp(bonusId) {
     const rules = require('./badgeRules');
-    const proven = [];
-    (col.badgeIds || []).forEach(function (id) {
-        const rule = rules.ruleFor(id);
-        if (rule && !rule.cosmetic) proven.push(id);
-    });
-    if (proven.length) return proven;
+    const rule = rules.ruleFor(bonusId);
+    if (!rule || rule.cosmetic) return 0;
+    return Math.max(0, Math.floor(Number(rule.xp) || 0));
+}
+
+// Every member, including cosmetic badges. A cosmetic badge counts only when
+// a server list or badge_awards already has it. Entertainment does not
+// complete on its three non-cosmetic badges.
+function requiredMembers(col) {
     return (col.badgeIds || []).slice();
+}
+
+// From a fresh day. Dropped XP is not banked. applyDailyXp uses the same taper.
+function dailyCapReport() {
+    return collections().map(function (col) {
+        const plan = planDailyXp(0, col.bonusPts);
+        return {
+            id: col.id,
+            name: col.name,
+            bonusPts: col.bonusPts,
+            awarded: plan.awarded,
+            dropped: plan.dropped,
+            exceeds: plan.dropped > 0,
+        };
+    });
 }
 
 function planGrant(col, heldIds) {
@@ -278,7 +300,8 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,
     };
     const nowMs = Number(src.nowMs) || Date.now();
-    const plan = planFavorPoint(stateData, nowMs);
+    const pointsToAdd = COLLECTION_FAVOR_POINTS;
+    const plan = planFavorPoints(stateData, nowMs, pointsToAdd);
     const faction = (src.user && src.user.faction) || null;
     t.set(src.contributorRef, {
         uid: src.uid,
@@ -288,12 +311,12 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         day: src.day,
         timestamp: adminSdk.firestore.FieldValue.serverTimestamp(),
         faction: faction,
-        pointsAdded: 1,
+        pointsAdded: pointsToAdd,
     });
     const field = factionField(faction);
     const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
     const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
-    totalsWrite[field] = (Number(totals[field]) || 0) + 1;
+    totalsWrite[field] = (Number(totals[field]) || 0) + pointsToAdd;
     t.set(src.totalsRef, Object.assign({}, totals, totalsWrite));
     const next = Object.assign({}, stateData, {
         points: plan.points,
@@ -325,10 +348,87 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
     t.set(src.stateRef, next);
     t.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(src.uid), {
         uid: src.uid,
-        points: adminSdk.firestore.FieldValue.increment(1),
+        points: adminSdk.firestore.FieldValue.increment(pointsToAdd),
         updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
     return true;
+}
+
+function mentionUsername(profile) {
+    const raw = profile && typeof profile.username === 'string' ? profile.username : '';
+    const name = raw.replace(/[\r\n<>@]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!name || name.toLowerCase() === 'anonymous') return '';
+    if (!/^[A-Za-z0-9 _.\-]{3,20}$/.test(name)) return '';
+    return name;
+}
+
+function collectionChatDocId(bonusId, uid) {
+    const clean = String(bonusId || '') + '_' + String(uid || '');
+    const safe = clean.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
+    return safe ? ('colbonus_' + safe) : '';
+}
+
+function collectionCongratsText(username, collectionName) {
+    const collection = String(collectionName || 'collection').replace(/[\r\n<>@]/g, ' ').trim() || 'collection';
+    const who = username ? ('@' + username) : NEUTRAL_NAME;
+    return '🎉 ' + who + ' completed the ' + collection + ' collection! The whole set is yours. Congratulations!';
+}
+
+async function postCollectionCongrats(db, adminSdk, uid, col) {
+    const docId = collectionChatDocId(col && col.bonusId, uid);
+    if (!db || !adminSdk || !docId || !col) return { wrote: false, reason: 'bad_plan' };
+    let username = '';
+    try {
+        const profileSnap = await db.collection('public_profiles').doc(uid).get();
+        const profile = profileSnap && profileSnap.exists ? (profileSnap.data() || {}) : null;
+        username = mentionUsername(profile);
+    } catch (err) {
+        username = '';
+    }
+    const text = collectionCongratsText(username, col.name).slice(0, 500);
+    const chatRef = db.collection('global_chat').doc(docId);
+    const notifRef = db.collection('notifications').doc(docId);
+    const serverTimestamp = function () { return adminSdk.firestore.FieldValue.serverTimestamp(); };
+    const outcome = await db.runTransaction(async function (t) {
+        const chatSnap = await t.get(chatRef);
+        if (chatSnap.exists) return { wrote: false, reason: 'already_posted' };
+        const msg = {
+            uid: 'nacho-bot',
+            name: '🦌 Nacho',
+            text: text,
+            isNachoAuto: false,
+            ts: serverTimestamp(),
+        };
+        if (username) msg.mentionUid = uid;
+        t.set(chatRef, msg);
+        if (username) {
+            t.set(notifRef, {
+                recipientId: uid,
+                senderId: 'nacho-bot',
+                senderName: 'Nacho 🦌',
+                type: 'chat_mention',
+                message: '💬 @Nacho mentioned you in Global Chat: "' + text.slice(0, 50) + '"',
+                targetType: 'chat',
+                targetId: docId,
+                read: false,
+                createdAt: serverTimestamp(),
+            });
+        }
+        return { wrote: true, reason: 'ok', mentionUid: username ? uid : '' };
+    });
+    if (outcome && outcome.wrote && outcome.mentionUid) {
+        try {
+            const push = require('./push');
+            await push.sendUserPush(outcome.mentionUid, 'mentions', {
+                title: 'You were mentioned',
+                body: '🦌 Nacho mentioned you in chat.',
+                url: 'https://bitcoineducation.quest/#chat',
+            });
+        } catch (err) {
+            console.warn('[collectionBonus] mention push failed', err && err.message ? err.message : err);
+        }
+    }
+    return outcome || { wrote: false, reason: 'empty' };
 }
 
 async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
@@ -345,7 +445,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
     const contributorRef = stateRef.collection('contributors').doc(uid + '_badge_' + col.bonusId);
     const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
 
-    return db.runTransaction(async function (t) {
+    const result = await db.runTransaction(async function (t) {
         const userSnap = await t.get(userRef);
         const ledgerSnap = await t.get(ledgerRef);
         const xpSnap = await t.get(xpRef);
@@ -357,8 +457,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
         if (rewardBlocked(user, ledger)) {
             return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: col.bonusId };
         }
-        const held = profileBadgeIds(user);
-        awardIdsFromSnap(awardsSnap).forEach(function (id) { held.add(id); });
+        const held = serverHeldBadgeIds(user, awardIdsFromSnap(awardsSnap));
         if (xpSnap.exists || awardSnap.exists || held.has(col.bonusId)) {
             return { granted: false, success: true, reason: 'already', awarded: 0, xp: 0, badgeId: col.bonusId };
         }
@@ -437,6 +536,16 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             collectionId: col.id,
         };
     });
+    if (result && result.granted === true && options.postChat !== false) {
+        try {
+            const posted = await postCollectionCongrats(db, adminSdk, uid, col);
+            result.chatPosted = !!(posted && posted.wrote);
+        } catch (err) {
+            console.error('[collectionBonus] chat', err && err.message ? err.message : err);
+            result.chatPosted = false;
+        }
+    }
+    return result;
 }
 
 async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
@@ -463,10 +572,16 @@ module.exports = {
     collectionById: collectionById,
     isRetiredSetBonus: isRetiredSetBonus,
     requiredMembers: requiredMembers,
+    dailyCapReport: dailyCapReport,
     planGrant: planGrant,
     emptyCounts: emptyCounts,
     summarizeUser: summarizeUser,
     addUser: addUser,
+    COLLECTION_FAVOR_POINTS: COLLECTION_FAVOR_POINTS,
+    mentionUsername: mentionUsername,
+    collectionChatDocId: collectionChatDocId,
+    collectionCongratsText: collectionCongratsText,
+    postCollectionCongrats: postCollectionCongrats,
     stageBadgeFavor: stageBadgeFavor,
     grantCollectionBonus: grantCollectionBonus,
     maybeGrantForBadge: maybeGrantForBadge,

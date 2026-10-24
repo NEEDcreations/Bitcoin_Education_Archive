@@ -246,13 +246,18 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         };
     });
     if (result && result.granted && options.skipCollections !== true) {
-        try {
-            await require('./collectionBonus').maybeGrantForBadge(db, adminSdk, uid, result.badgeId || badgeId, {
+        const hook = function () {
+            return require('./collectionBonus').maybeGrantForBadge(db, adminSdk, uid, result.badgeId || badgeId, {
                 day: day,
                 nowMs: nowMs,
             });
+        };
+        try {
+            await hook();
         } catch (err) {
             console.error('[collectionBonus]', err && err.message ? err.message : err);
+            try { await hook(); }
+            catch (err2) { console.error('[collectionBonus] retry', err2 && err2.message ? err2.message : err2); }
         }
     }
     return result;

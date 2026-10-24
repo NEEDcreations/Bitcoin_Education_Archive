@@ -1059,6 +1059,17 @@ exports.onArticleBadgeCount = onDocumentCreated({
     return null;
 });
 
+// Retries a collection bonus if awardBadge committed the last member and the
+// grant hook then failed. Existing award docs do not fire this, so a deploy
+// does not pay historical completions. The grant itself stays idempotent.
+exports.onBadgeAwardCreated = onDocumentCreated('users/{uid}/badge_awards/{badgeId}', async (event) => {
+    const uid = event.params && event.params.uid;
+    const badgeId = event.params && event.params.badgeId;
+    if (!uid || !badgeId) return null;
+    await require('./src/collectionBonus').maybeGrantForBadge(db, admin, uid, badgeId);
+    return null;
+});
+
 exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
     admin: admin,
     db: db,

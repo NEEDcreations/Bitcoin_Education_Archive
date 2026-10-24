@@ -9,8 +9,13 @@
  * --apply pays that remainder through grantCollectionBonus. That writes
  * xp_ledger, counts the XP under the shared daily cap via applyDailyXp
  * (full to 500, half from 500 to 900, a quarter from 900 to 1,000), and
- * adds one Satoshi's Favor point. A remainder of 0 still records the
- * bonus so it cannot be paid later.
+ * adds ten Satoshi's Favor points. A remainder of 0 still records the
+ * bonus so it cannot be paid later. Chat posts are off. There is no flag
+ * that turns them on.
+ *
+ * Held badges are badge_awards plus the server-only profile lists. xp_ledger
+ * ids are not treated as held. The daily-cap report is the fresh-day taper:
+ * anything past 1,000 credited XP is dropped and is not banked.
  *
  * Do not pass --apply as part of a deploy. This script has not been run.
  *
@@ -20,7 +25,7 @@
 'use strict';
 
 const { rewardBlocked } = require('../src/cipherClaim');
-const { profileBadgeIds } = require('../src/badgeProfile');
+const { serverHeldBadgeIds } = require('../src/badgeProfile');
 const collectionBonus = require('../src/collectionBonus');
 
 const PAGE = 200;
@@ -38,44 +43,67 @@ function helpText() {
         'Usage: node functions/scripts/backfill_collection_bonus.js [--apply]',
         '',
         'Dry-run prints counts only: scanned, banned skips, and per collection',
-        'complete, already, payUsers, remainderXp, and zeroRemainder.',
+        'complete, already, payUsers, remainderXp, zeroRemainder, and favorPoints.',
+        'favorPoints is 10 for each bonus this run would record.',
         'remainderXp is before the daily cap. --apply uses applyDailyXp.',
+        'The cap lines show how much of each full bonus a fresh day would drop.',
+        'Chat posts stay off. This script never posts Nacho messages.',
         'No user ids or emails are printed.',
     ].join('\n');
 }
 
+function favorPointsFor(row) {
+    const fresh = (Number(row && row.payUsers) || 0) + (Number(row && row.zeroRemainder) || 0);
+    return fresh * 10;
+}
+
 function printCounts(counts, apply) {
     const src = counts || { scanned: 0, bannedSkipped: 0, collections: {} };
+    let favorPoints = 0;
     console.log('[collection-bonus] scanned ' + src.scanned);
     console.log('[collection-bonus] banned skipped ' + src.bannedSkipped);
     Object.keys(src.collections || {}).forEach(function (id) {
         const row = src.collections[id];
+        const favor = favorPointsFor(row);
+        favorPoints += favor;
         console.log(
             '[collection-bonus] ' + row.name +
             ' complete ' + row.complete +
             ' already ' + row.already +
             ' payUsers ' + row.payUsers +
             ' remainderXp ' + row.remainderXp +
-            ' zeroRemainder ' + row.zeroRemainder
+            ' zeroRemainder ' + row.zeroRemainder +
+            ' favorPoints ' + favor
         );
     });
+    console.log('[collection-bonus] favorPoints ' + favorPoints + ' at 10 per recorded bonus');
     console.log('[collection-bonus] remainderXp is before the daily cap. --apply uses applyDailyXp.');
+    collectionBonus.dailyCapReport().forEach(function (row) {
+        console.log(
+            '[collection-bonus] cap ' + row.name +
+            ' bonus ' + row.bonusPts +
+            ' awarded ' + row.awarded +
+            ' dropped ' + row.dropped +
+            (row.exceeds ? ' EXCEEDS' : '')
+        );
+    });
+    console.log('[collection-bonus] chat posts off');
     console.log('[collection-bonus] mode ' + (apply ? 'apply' : 'dry-run'));
     console.log(JSON.stringify({
         scanned: src.scanned,
         bannedSkipped: src.bannedSkipped,
+        favorPoints: favorPoints,
+        favorPerBonus: 10,
         collections: src.collections,
         mode: apply ? 'apply' : 'dry-run',
     }));
 }
 
 async function heldIdsFor(userDoc, user) {
-    const held = profileBadgeIds(user);
     const awards = await userDoc.ref.collection('badge_awards').get();
-    awards.forEach(function (doc) { if (doc.id) held.add(doc.id); });
-    const ledger = await userDoc.ref.collection('xp_ledger').get();
-    ledger.forEach(function (doc) { if (doc.id) held.add(doc.id); });
-    return held;
+    const ids = [];
+    awards.forEach(function (doc) { if (doc.id) ids.push(doc.id); });
+    return serverHeldBadgeIds(user, ids);
 }
 
 async function main() {
@@ -111,7 +139,9 @@ async function main() {
             for (let r = 0; r < summary.rows.length; r++) {
                 const plan = summary.rows[r].plan || {};
                 if (!plan.eligible) continue;
-                await collectionBonus.grantCollectionBonus(db, admin, userDoc.id, summary.rows[r].id, {});
+                await collectionBonus.grantCollectionBonus(db, admin, userDoc.id, summary.rows[r].id, {
+                    postChat: false,
+                });
             }
         }
         cursor = snap.docs[snap.docs.length - 1];
@@ -123,6 +153,7 @@ async function main() {
 module.exports = {
     parseArgs: parseArgs,
     printCounts: printCounts,
+    favorPointsFor: favorPointsFor,
     helpText: helpText,
 };
 

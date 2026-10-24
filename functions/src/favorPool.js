@@ -24,7 +24,8 @@ function millisOf(value) {
     return 0;
 }
 
-function planFavorPoint(state, nowMs) {
+function planFavorPoints(state, nowMs, pointsToAdd) {
+    const add = Math.max(0, Math.floor(Number(pointsToAdd) || 0));
     const now = Number(nowMs);
     const at = Number.isFinite(now) ? now : Date.now();
     const src = state && typeof state === 'object' ? state : {};
@@ -50,7 +51,7 @@ function planFavorPoint(state, nowMs) {
             activated: false,
             points: points,
             favorActive: true,
-            bonusMinutes: Math.min(bonusMinutes + BONUS_MINUTES_PER_POINT, MAX_BONUS_MINUTES),
+            bonusMinutes: Math.min(bonusMinutes + (BONUS_MINUTES_PER_POINT * add), MAX_BONUS_MINUTES),
             favorStart: favorStart,
             favorEndBase: favorEndBase,
             currentCycleId: src.currentCycleId || null,
@@ -58,7 +59,7 @@ function planFavorPoint(state, nowMs) {
         };
     }
 
-    points = Math.min(points + 1, MAX_POINTS);
+    points = Math.min(points + add, MAX_POINTS);
     if (points >= POINTS_TO_ACTIVATE) {
         const overflow = points - POINTS_TO_ACTIVATE;
         return {
@@ -89,6 +90,10 @@ function planFavorPoint(state, nowMs) {
     };
 }
 
+function planFavorPoint(state, nowMs) {
+    return planFavorPoints(state, nowMs, 1);
+}
+
 module.exports = {
     FAVOR_DURATION_MINUTES: FAVOR_DURATION_MINUTES,
     BONUS_MINUTES_PER_POINT: BONUS_MINUTES_PER_POINT,
@@ -97,4 +102,5 @@ module.exports = {
     MAX_POINTS: MAX_POINTS,
     millisOf: millisOf,
     planFavorPoint: planFavorPoint,
+    planFavorPoints: planFavorPoints,
 };
