@@ -28,8 +28,8 @@ const HOMO = {
 };
 const KEY_LABEL_RE = /\b(private[_\s-]?key|secret[_\s-]?key|privkey|priv[_\s-]?key|pk|priv|wif|secret|key)\b/g;
 const HANDOFF_VERB = "send|share|give|dm|message|provide|import|enter|type|paste|upload|submit|tell|reply";
-const HANDOFF_NOUN = "seed(?:\\s+phrase|\\s+words)?|mnemonic|recovery\\s+phrase|12\\s+words|24\\s+words|private\\s+key|keys|wif|xprv";
-const HANDOFF_RE = new RegExp("\\b(?:" + HANDOFF_VERB + ")\\b([^.]{0,80})\\b(?:" + HANDOFF_NOUN + ")\\b", "i");
+const HANDOFF_NOUN = "seed(?:\\s+phrase|\\s+words)?|mnemonic|recovery\\s+phrase|12\\s+words|24\\s+words|private\\s+key|wif|xprv";
+const HANDOFF_RE = new RegExp("\\b(?:" + HANDOFF_VERB + ")\\b([^.;!?:\\n]{0,80})\\b(?:" + HANDOFF_NOUN + ")\\b", "i");
 const XPRV_RE = /\b[tuvxyz]prv[1-9A-HJ-NP-Za-km-z]{10,}\b/i;
 const WIF_RE = /\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/;
 const MINIKEY_RE = /\bS[1-9A-HJ-NP-Za-km-z]{21}(?:[1-9A-HJ-NP-Za-km-z]{4}){0,2}\b/;
@@ -194,15 +194,17 @@ export function hasSeedPhrase(text) {
         const run = [];
         for (let i = 0; i < tokens.length; i++) {
             const token = tokens[i];
-            if (/^\d+$/.test(token) || (GAP.has(token) && !BIP39.has(token))) continue;
+            if (/^\d+$/.test(token)) continue;
+            // A unique 4-letter prefix (than → thank) counts even when the prefix is a gap word.
             const resolved = resolveWord(token);
-            if (!resolved) {
-                run.length = 0;
+            if (resolved) {
+                run.push(resolved);
+                if (run.length > 64) run.shift();
+                if (windowChecksum(run)) return true;
                 continue;
             }
-            run.push(resolved);
-            if (run.length > 64) run.shift();
-            if (windowChecksum(run)) return true;
+            if (GAP.has(token) && !BIP39.has(token)) continue;
+            run.length = 0;
         }
     }
     const dense = norm.split(/[.!?;,]+/);
@@ -275,17 +277,32 @@ export function redactSecretText(text) {
     return HIDDEN_SECRET;
 }
 
+const CLAUSE_MARKS = [",", ".", "\n", ";", "!", "?", ":"];
+const NOT_A_SCAM_RE = /\b(?:isn'?t|is not|not)\s+a\s+scam\b/g;
+const HOLLOW_RE = /\b(?:never\s+(?:miss|forget|ignore|skip|fear|seen|mind)|(?:don'?t|do not)\s+(?:miss|worry|sleep|forget|fear|panic)|(?:don'?t|do not)\s+be\s+(?:scared|afraid))\b/g;
+const WARN_RE = /\b(?:never|anyone who asks|red flag|don'?t|do not|a scammer will|scammers?|scammed|fake|scam|fraud|beware|trick|warning)\b/;
+const PHONE_RE = /(?:\+\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/;
+const SEND_TO_RE = /\bsend\b[^.]{0,40}\bto\b/;
+const WORDS_HANDOFF_RE = /\b(?:send|share|give|dm|message|provide|paste|reply)\b[^.;!?:\n]{0,40}\bwords\b/gi;
+
+function flattenUrls(lower) {
+    return String(lower || "").replace(/\b(?:https?:\/\/|www\.)\S+/g, " https://link ");
+}
+
 function clauseBefore(lower, idx) {
     const before = lower.slice(0, idx);
-    const cut = Math.max(
-        before.lastIndexOf(","),
-        before.lastIndexOf("."),
-        before.lastIndexOf("\n"),
-        before.lastIndexOf(";"),
-        before.lastIndexOf("!"),
-        before.lastIndexOf("?")
-    );
+    let cut = -1;
+    for (let i = 0; i < CLAUSE_MARKS.length; i++) cut = Math.max(cut, before.lastIndexOf(CLAUSE_MARKS[i]));
     return before.slice(cut + 1);
+}
+
+function clauseEnd(lower, idx) {
+    let end = lower.length;
+    for (let i = 0; i < CLAUSE_MARKS.length; i++) {
+        const at = lower.indexOf(CLAUSE_MARKS[i], idx);
+        if (at >= 0 && at < end) end = at;
+    }
+    return end;
 }
 
 function normalizeForPhrases(text) {
@@ -299,11 +316,12 @@ function normalizeForPhrases(text) {
     return folded.replace(/\bur\b/g, "your");
 }
 
+function scrubCues(clause) {
+    return String(clause || "").replace(NOT_A_SCAM_RE, " ").replace(HOLLOW_RE, " ");
+}
+
 export function warningContext(text) {
-    const cleaned = normalizeForPhrases(text)
-        .replace(/\b(?:isn'?t|is not|not)\s+a\s+scam\b/g, " ")
-        .replace(/\bnever\s+(?:miss|forget|ignore|skip)\b/g, " ");
-    return /\b(?:never|anyone who asks|red flag|don'?t|do not|a scammer will|scammers?|scammed)\b/.test(cleaned);
+    return WARN_RE.test(scrubCues(normalizeForPhrases(text)));
 }
 
 function ownWalletEntry(text) {
@@ -314,26 +332,97 @@ function ownWalletEntry(text) {
 }
 
 function clauseNegated(clause) {
-    const cleaned = String(clause || "")
-        .replace(/\b(?:isn'?t|is not|not)\s+a\s+scam\b/g, " ")
-        .replace(/\bnever\s+(?:miss|forget|ignore|skip)\b/g, " ");
+    const cleaned = scrubCues(clause);
     return /\b(not|no|never|without|avoid)\b/.test(cleaned) || /n't/.test(cleaned);
 }
 
+function warningInClause(clause) {
+    return WARN_RE.test(scrubCues(clause));
+}
+
+function contactInSpan(span) {
+    const text = String(span || "");
+    return PARTY_RE.test(text) || PHONE_RE.test(text) || SEND_TO_RE.test(text);
+}
+
+function recipientSpan(lower, idx) {
+    return lower.slice(idx, clauseEnd(lower, idx));
+}
+
+function quoteSpans(lower) {
+    const spans = [];
+    const re = /(?:^|[^a-z0-9])(['"“”])([^'"“”]{1,300})\1/g;
+    let match;
+    while ((match = re.exec(lower))) {
+        const q = match[0].indexOf(match[1]);
+        const start = match.index + q;
+        spans.push([start, start + match[2].length + 2]);
+        if (match.index === re.lastIndex) re.lastIndex += 1;
+    }
+    return spans;
+}
+
+function insideQuotes(lower, idx) {
+    const spans = quoteSpans(lower);
+    for (let i = 0; i < spans.length; i++) {
+        if (idx >= spans[i][0] && idx < spans[i][1]) return true;
+    }
+    return false;
+}
+
+function outsideQuotes(lower) {
+    let out = lower;
+    const spans = quoteSpans(lower);
+    for (let i = spans.length - 1; i >= 0; i--) out = out.slice(0, spans[i][0]) + " " + out.slice(spans[i][1]);
+    return out;
+}
+
+function sentenceAround(lower, idx) {
+    const before = lower.slice(0, idx);
+    let start = 0;
+    for (let i = 0; i < before.length; i++) {
+        const ch = before.charAt(i);
+        if (ch === "." || ch === "!" || ch === "?" || ch === "\n") start = i + 1;
+    }
+    let end = lower.length;
+    for (let i = idx; i < lower.length; i++) {
+        const ch = lower.charAt(i);
+        if (ch === "." || ch === "!" || ch === "?" || ch === "\n") { end = i; break; }
+    }
+    return lower.slice(start, end);
+}
+
+// A warning exempts only the clause that contains it, and never a clause that names a recipient.
+function exemptMatch(lower, idx) {
+    const span = recipientSpan(lower, idx);
+    if (contactInSpan(span)) return false;
+    const around = clauseBefore(lower, idx) + " " + span;
+    if (warningInClause(around) || clauseNegated(around)) return true;
+    if (insideQuotes(lower, idx) && warningInClause(outsideQuotes(lower))) return true;
+    const sentence = sentenceAround(lower, idx);
+    if (/\bif\b/.test(sentence) && /\b(?:close|ignore|leave|stop|report|walk away)\b/.test(sentence)) return true;
+    return false;
+}
+
 export function handsOverSecrets(text) {
-    if (warningContext(text) || ownWalletEntry(text)) return false;
-    const lower = normalizeForPhrases(text);
+    if (ownWalletEntry(text)) return false;
+    const lower = flattenUrls(normalizeForPhrases(text));
     const scan = new RegExp(HANDOFF_RE.source, "g");
     let match;
     while ((match = scan.exec(lower))) {
         const between = match[1] || "";
         if (/\b(how|why|what|where|when|which|about|whether)\b/.test(between)) continue;
-        if (clauseNegated(between) || clauseNegated(clauseBefore(lower, match.index))) {
+        if (exemptMatch(lower, match.index)) {
             if (match.index === scan.lastIndex) scan.lastIndex += 1;
             continue;
         }
         if (/\breply\b/.test(match[0]) && !/\bwith\b/.test(between) && !PARTY_RE.test(lower)) continue;
         return true;
+    }
+    const words = new RegExp(WORDS_HANDOFF_RE.source, "gi");
+    while ((match = words.exec(lower))) {
+        if (!exemptMatch(lower, match.index) && contactInSpan(recipientSpan(lower, match.index))) return true;
+        if (match.index === words.lastIndex) words.lastIndex += 1;
     }
     return false;
 }
@@ -343,14 +432,14 @@ function bareMatch(lower, re) {
     const scan = new RegExp(re.source, flags);
     let match;
     while ((match = scan.exec(lower))) {
-        if (!clauseNegated(clauseBefore(lower, match.index))) return true;
+        if (!exemptMatch(lower, match.index)) return true;
         if (match.index === scan.lastIndex) scan.lastIndex += 1;
     }
     return false;
 }
 
 export function promiseScam(text) {
-    const lower = normalizeForPhrases(text);
+    const lower = flattenUrls(normalizeForPhrases(text));
     if (bareMatch(lower, /\bdouble your\b/)) return true;
     if (bareMatch(lower, /\brisk[-\s]?free profit\b/)) return true;
     if (bareMatch(lower, /\bguarant(?:e|eed|ees|ee)\b[^.]{0,40}\b(?:returns?|profits?|\d+\s*x)\b/)) return true;
@@ -362,7 +451,6 @@ export function promiseScam(text) {
 
 export function scammy(text) {
     if (handsOverSecrets(text)) return true;
-    if (warningContext(text)) return false;
     return promiseScam(text);
 }
 
@@ -381,13 +469,18 @@ export function unsafeOutput(text) {
     if (containsKeyMaterial(text)) return true;
     if (handsOverSecrets(text)) return true;
     if (hasBadLink(text)) return true;
-    if (warningContext(text)) return false;
     return promiseScam(text);
+}
+
+function namesRecipient(text) {
+    const lower = normalizeForPhrases(text);
+    return PARTY_RE.test(lower) || PHONE_RE.test(lower) || SEND_TO_RE.test(lower);
 }
 
 export function userPostUnsafe(text) {
     if (containsKeyMaterial(text)) return true;
     if (handsOverSecrets(text)) return true;
-    if (warningContext(text) || /\?\s*$/.test(String(text || "").trim())) return false;
+    const raw = String(text || "").trim();
+    if (/\?\s*$/.test(raw) && !namesRecipient(raw)) return false;
     return promiseScam(text);
 }

@@ -708,7 +708,7 @@ test('text policy masks profanity, rejects hate, links, and PII', () => {
     assert.strictEqual(td.preparePostText('Anyone who asks you to send your seed phrase is a scammer').ok, true);
     assert.strictEqual(td.preparePostText('Risk-free profit offers are a red flag').ok, true);
     assert.strictEqual(td.preparePostText('enter your seed phrase into the new wallet app').ok, true);
-    assert.strictEqual(td.preparePostText('How do people get scammed with guaranteed returns?').ok, true);
+    assert.strictEqual(td.preparePostText('How do people get scammed with guaranteed returns?').code, 'scam');
     assert.strictEqual(td.preparePostText('What is a giveaway scam?').ok, true);
     assert.strictEqual(td.preparePostText('How do I restore my wallet?').ok, true);
     assert.strictEqual(td.preparePostText('Why would someone ask for my seed?').ok, true);

@@ -48,8 +48,8 @@ const HOMO = {
 };
 const KEY_LABEL_RE = /\b(private[_\s-]?key|secret[_\s-]?key|privkey|priv[_\s-]?key|pk|priv|wif|secret|key)\b/g;
 const HANDOFF_VERB = "send|share|give|dm|message|provide|import|enter|type|paste|upload|submit|tell|reply";
-const HANDOFF_NOUN = "seed(?:\\s+phrase|\\s+words)?|mnemonic|recovery\\s+phrase|12\\s+words|24\\s+words|private\\s+key|keys|wif|xprv";
-const HANDOFF_RE = new RegExp("\\b(?:" + HANDOFF_VERB + ")\\b([^.]{0,80})\\b(?:" + HANDOFF_NOUN + ")\\b", "i");
+const HANDOFF_NOUN = "seed(?:\\s+phrase|\\s+words)?|mnemonic|recovery\\s+phrase|12\\s+words|24\\s+words|private\\s+key|wif|xprv";
+const HANDOFF_RE = new RegExp("\\b(?:" + HANDOFF_VERB + ")\\b([^.;!?:\\n]{0,80})\\b(?:" + HANDOFF_NOUN + ")\\b", "i");
 const XPRV_RE = /\b[tuvxyz]prv[1-9A-HJ-NP-Za-km-z]{10,}\b/i;
 const WIF_RE = /\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/;
 const MINIKEY_RE = /\bS[1-9A-HJ-NP-Za-km-z]{21}(?:[1-9A-HJ-NP-Za-km-z]{4}){0,2}\b/;
@@ -214,15 +214,17 @@ function hasSeedPhrase(text) {
         const run = [];
         for (let i = 0; i < tokens.length; i++) {
             const token = tokens[i];
-            if (/^\d+$/.test(token) || (GAP.has(token) && !BIP39.has(token))) continue;
+            if (/^\d+$/.test(token)) continue;
+            // A unique 4-letter prefix (than → thank) counts even when the prefix is a gap word.
             const resolved = resolveWord(token);
-            if (!resolved) {
-                run.length = 0;
+            if (resolved) {
+                run.push(resolved);
+                if (run.length > 64) run.shift();
+                if (windowChecksum(run)) return true;
                 continue;
             }
-            run.push(resolved);
-            if (run.length > 64) run.shift();
-            if (windowChecksum(run)) return true;
+            if (GAP.has(token) && !BIP39.has(token)) continue;
+            run.length = 0;
         }
     }
     const dense = norm.split(/[.!?;,]+/);
@@ -295,17 +297,32 @@ function redactSecretText(text) {
     return HIDDEN_SECRET;
 }
 
+const CLAUSE_MARKS = [",", ".", "\n", ";", "!", "?", ":"];
+const NOT_A_SCAM_RE = /\b(?:isn'?t|is not|not)\s+a\s+scam\b/g;
+const HOLLOW_RE = /\b(?:never\s+(?:miss|forget|ignore|skip|fear|seen|mind)|(?:don'?t|do not)\s+(?:miss|worry|sleep|forget|fear|panic)|(?:don'?t|do not)\s+be\s+(?:scared|afraid))\b/g;
+const WARN_RE = /\b(?:never|anyone who asks|red flag|don'?t|do not|a scammer will|scammers?|scammed|fake|scam|fraud|beware|trick|warning)\b/;
+const PHONE_RE = /(?:\+\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/;
+const SEND_TO_RE = /\bsend\b[^.]{0,40}\bto\b/;
+const WORDS_HANDOFF_RE = /\b(?:send|share|give|dm|message|provide|paste|reply)\b[^.;!?:\n]{0,40}\bwords\b/gi;
+
+function flattenUrls(lower) {
+    return String(lower || "").replace(/\b(?:https?:\/\/|www\.)\S+/g, " https://link ");
+}
+
 function clauseBefore(lower, idx) {
     const before = lower.slice(0, idx);
-    const cut = Math.max(
-        before.lastIndexOf(","),
-        before.lastIndexOf("."),
-        before.lastIndexOf("\n"),
-        before.lastIndexOf(";"),
-        before.lastIndexOf("!"),
-        before.lastIndexOf("?")
-    );
+    let cut = -1;
+    for (let i = 0; i < CLAUSE_MARKS.length; i++) cut = Math.max(cut, before.lastIndexOf(CLAUSE_MARKS[i]));
     return before.slice(cut + 1);
+}
+
+function clauseEnd(lower, idx) {
+    let end = lower.length;
+    for (let i = 0; i < CLAUSE_MARKS.length; i++) {
+        const at = lower.indexOf(CLAUSE_MARKS[i], idx);
+        if (at >= 0 && at < end) end = at;
+    }
+    return end;
 }
 
 function normalizeForPhrases(text) {
@@ -319,11 +336,12 @@ function normalizeForPhrases(text) {
     return folded.replace(/\bur\b/g, "your");
 }
 
+function scrubCues(clause) {
+    return String(clause || "").replace(NOT_A_SCAM_RE, " ").replace(HOLLOW_RE, " ");
+}
+
 function warningContext(text) {
-    const cleaned = normalizeForPhrases(text)
-        .replace(/\b(?:isn'?t|is not|not)\s+a\s+scam\b/g, " ")
-        .replace(/\bnever\s+(?:miss|forget|ignore|skip)\b/g, " ");
-    return /\b(?:never|anyone who asks|red flag|don'?t|do not|a scammer will|scammers?|scammed)\b/.test(cleaned);
+    return WARN_RE.test(scrubCues(normalizeForPhrases(text)));
 }
 
 function ownWalletEntry(text) {
@@ -334,26 +352,97 @@ function ownWalletEntry(text) {
 }
 
 function clauseNegated(clause) {
-    const cleaned = String(clause || "")
-        .replace(/\b(?:isn'?t|is not|not)\s+a\s+scam\b/g, " ")
-        .replace(/\bnever\s+(?:miss|forget|ignore|skip)\b/g, " ");
+    const cleaned = scrubCues(clause);
     return /\b(not|no|never|without|avoid)\b/.test(cleaned) || /n't/.test(cleaned);
 }
 
+function warningInClause(clause) {
+    return WARN_RE.test(scrubCues(clause));
+}
+
+function contactInSpan(span) {
+    const text = String(span || "");
+    return PARTY_RE.test(text) || PHONE_RE.test(text) || SEND_TO_RE.test(text);
+}
+
+function recipientSpan(lower, idx) {
+    return lower.slice(idx, clauseEnd(lower, idx));
+}
+
+function quoteSpans(lower) {
+    const spans = [];
+    const re = /(?:^|[^a-z0-9])(['"“”])([^'"“”]{1,300})\1/g;
+    let match;
+    while ((match = re.exec(lower))) {
+        const q = match[0].indexOf(match[1]);
+        const start = match.index + q;
+        spans.push([start, start + match[2].length + 2]);
+        if (match.index === re.lastIndex) re.lastIndex += 1;
+    }
+    return spans;
+}
+
+function insideQuotes(lower, idx) {
+    const spans = quoteSpans(lower);
+    for (let i = 0; i < spans.length; i++) {
+        if (idx >= spans[i][0] && idx < spans[i][1]) return true;
+    }
+    return false;
+}
+
+function outsideQuotes(lower) {
+    let out = lower;
+    const spans = quoteSpans(lower);
+    for (let i = spans.length - 1; i >= 0; i--) out = out.slice(0, spans[i][0]) + " " + out.slice(spans[i][1]);
+    return out;
+}
+
+function sentenceAround(lower, idx) {
+    const before = lower.slice(0, idx);
+    let start = 0;
+    for (let i = 0; i < before.length; i++) {
+        const ch = before.charAt(i);
+        if (ch === "." || ch === "!" || ch === "?" || ch === "\n") start = i + 1;
+    }
+    let end = lower.length;
+    for (let i = idx; i < lower.length; i++) {
+        const ch = lower.charAt(i);
+        if (ch === "." || ch === "!" || ch === "?" || ch === "\n") { end = i; break; }
+    }
+    return lower.slice(start, end);
+}
+
+// A warning exempts only the clause that contains it, and never a clause that names a recipient.
+function exemptMatch(lower, idx) {
+    const span = recipientSpan(lower, idx);
+    if (contactInSpan(span)) return false;
+    const around = clauseBefore(lower, idx) + " " + span;
+    if (warningInClause(around) || clauseNegated(around)) return true;
+    if (insideQuotes(lower, idx) && warningInClause(outsideQuotes(lower))) return true;
+    const sentence = sentenceAround(lower, idx);
+    if (/\bif\b/.test(sentence) && /\b(?:close|ignore|leave|stop|report|walk away)\b/.test(sentence)) return true;
+    return false;
+}
+
 function handsOverSecrets(text) {
-    if (warningContext(text) || ownWalletEntry(text)) return false;
-    const lower = normalizeForPhrases(text);
+    if (ownWalletEntry(text)) return false;
+    const lower = flattenUrls(normalizeForPhrases(text));
     const scan = new RegExp(HANDOFF_RE.source, "g");
     let match;
     while ((match = scan.exec(lower))) {
         const between = match[1] || "";
         if (/\b(how|why|what|where|when|which|about|whether)\b/.test(between)) continue;
-        if (clauseNegated(between) || clauseNegated(clauseBefore(lower, match.index))) {
+        if (exemptMatch(lower, match.index)) {
             if (match.index === scan.lastIndex) scan.lastIndex += 1;
             continue;
         }
         if (/\breply\b/.test(match[0]) && !/\bwith\b/.test(between) && !PARTY_RE.test(lower)) continue;
         return true;
+    }
+    const words = new RegExp(WORDS_HANDOFF_RE.source, "gi");
+    while ((match = words.exec(lower))) {
+        if (!exemptMatch(lower, match.index) && contactInSpan(recipientSpan(lower, match.index))) return true;
+        if (match.index === words.lastIndex) words.lastIndex += 1;
     }
     return false;
 }
@@ -363,14 +452,14 @@ function bareMatch(lower, re) {
     const scan = new RegExp(re.source, flags);
     let match;
     while ((match = scan.exec(lower))) {
-        if (!clauseNegated(clauseBefore(lower, match.index))) return true;
+        if (!exemptMatch(lower, match.index)) return true;
         if (match.index === scan.lastIndex) scan.lastIndex += 1;
     }
     return false;
 }
 
 function promiseScam(text) {
-    const lower = normalizeForPhrases(text);
+    const lower = flattenUrls(normalizeForPhrases(text));
     if (bareMatch(lower, /\bdouble your\b/)) return true;
     if (bareMatch(lower, /\brisk[-\s]?free profit\b/)) return true;
     if (bareMatch(lower, /\bguarant(?:e|eed|ees|ee)\b[^.]{0,40}\b(?:returns?|profits?|\d+\s*x)\b/)) return true;
@@ -382,7 +471,6 @@ function promiseScam(text) {
 
 function scammy(text) {
     if (handsOverSecrets(text)) return true;
-    if (warningContext(text)) return false;
     return promiseScam(text);
 }
 
@@ -401,14 +489,19 @@ function unsafeOutput(text) {
     if (containsKeyMaterial(text)) return true;
     if (handsOverSecrets(text)) return true;
     if (hasBadLink(text)) return true;
-    if (warningContext(text)) return false;
     return promiseScam(text);
+}
+
+function namesRecipient(text) {
+    const lower = normalizeForPhrases(text);
+    return PARTY_RE.test(lower) || PHONE_RE.test(lower) || SEND_TO_RE.test(lower);
 }
 
 function userPostUnsafe(text) {
     if (containsKeyMaterial(text)) return true;
     if (handsOverSecrets(text)) return true;
-    if (warningContext(text) || /\?\s*$/.test(String(text || "").trim())) return false;
+    const raw = String(text || "").trim();
+    if (/\?\s*$/.test(raw) && !namesRecipient(raw)) return false;
     return promiseScam(text);
 }
 
@@ -3707,6 +3800,16 @@ function _levenshtein(a, b) {
     return matrix[b.length][a.length];
 }
 
+function nachoFeatureExact(raw, hit) {
+    var norm = String(raw || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    var title = String((hit && hit.title) || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!norm || !title) return false;
+    if (norm === title) return true;
+    var core = norm.replace(/^(?:what is|what are|whats|what's)\s+(?:the\s+|a\s+|an\s+)?/, '');
+    if (!core || core === norm) return false;
+    return core === title || title.indexOf(core + ' ') === 0;
+}
+
 function findAnswer(input) {
     var _rawQ = String(input || '');
     // Safety before the feature registry, so "where is the chat" cannot hide a crisis.
@@ -3715,11 +3818,11 @@ function findAnswer(input) {
     // Trailing "?" used to glue onto the last word and hide the real key.
     input = input.replace(/[?!.,;:()"]/g, ' ').replace(/['’]s\b/g, '').replace(/['’]/g, ' ').replace(/\s+/g, ' ').trim();
     if (input.length < 2) return null;
-    // Feature registry wins before synonym expansion (which maps "keys" to "private key")
-    // and before the fuzzy KB matcher.
+    // Feature shortcuts only when the question names that feature. A longer Bitcoin
+    // question ("What is a double spend?") must not open Double XP.
     if (typeof window.resolveNachoFeature === 'function') {
         var _feat = window.resolveNachoFeature(_rawQ) || window.resolveNachoFeature(input);
-        if (_feat && _feat.answer) return _feat;
+        if (_feat && _feat.answer && nachoFeatureExact(_rawQ, _feat)) return _feat;
     }
     input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
 
@@ -4362,6 +4465,7 @@ function resetNachoGround() {
 }
 
 async function nachoAIAnswer(question, callback) {
+    window._bqLastKbId = '';
     if (nachoContainsKeyMaterial(question)) { callback(null); return; }
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (getAICount() >= NACHO_AI_DAILY_LIMIT) { callback(null); return; }
@@ -4444,6 +4548,7 @@ async function nachoAIAnswer(question, callback) {
             if (timeoutId) clearTimeout(timeoutId);
             if (data && data.answer && !data.error) {
                 var conversationalAnswer = data.answer;
+                window._bqLastKbId = data.kbId ? String(data.kbId) : '';
                 window._bqLastLinks = Array.isArray(data.links) ? data.links.slice(0, 3) : [];
                 window._bqLastFollowUps = Array.isArray(data.followUps) ? data.followUps.filter(Boolean).slice(0, 3) : [];
                 window._bqLastAsOf = data.asOf || null;
@@ -4454,10 +4559,11 @@ async function nachoAIAnswer(question, callback) {
                 }
                 callback(conversationalAnswer);
             } else {
+                window._bqLastKbId = '';
                 callback(null);
             }
         })
-        .catch(function() { if (timeoutId) clearTimeout(timeoutId); callback(null); });
+        .catch(function() { if (timeoutId) clearTimeout(timeoutId); window._bqLastKbId = ''; callback(null); });
 }
 
 // ---- Conversational AI — for non-Bitcoin general chat ----
@@ -5378,10 +5484,13 @@ window.nachoUnifiedAnswer = function(question, callback) {
         return;
     }
     resetNachoGround();
-    var q = question.trim().toLowerCase();
+    window._nachoAiReady = false;
+    window._nachoAiPrefetch = '';
+    var originalQ = question.trim();
+    var q = originalQ.toLowerCase();
     q = (typeof fixTypos === 'function') ? fixTypos(q) : q;
     q = (typeof expandSynonyms === 'function') ? expandSynonyms(q) : q;
-    window._nachoLastQ = question.trim(); // store original for feedback
+    window._nachoLastQ = originalQ; // store original for feedback
     if (!q) { callback({ type: 'fallback', answer: "Ask me something about Bitcoin! 🦌" }); return; }
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
@@ -5422,7 +5531,14 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var isFinAdvice = isFinancialAdvice(q);
     var disclaimer = isFinAdvice ? '<br><br>' + getNfaDisclaimer() : '';
     var isCurrentEvent = isCurrentEventQuestion(q);
-    
+
+    function takeAiPrefetch() {
+        if (!window._nachoAiReady) return undefined;
+        window._nachoAiReady = false;
+        return window._nachoAiPrefetch || '';
+    }
+
+    var runLocal = function () {
     // ANTI-SHITCOIN SHIELD: If it's about altcoins, bypass AI and use KB immediately
     var altcoinMatch = checkAltcoin(q);
     if (altcoinMatch) {
@@ -5512,9 +5628,38 @@ window.nachoUnifiedAnswer = function(question, callback) {
         }
         var _kbCallbackFired = false;
 
-        // Try AI to make the KB answer more conversational (but KB content is the truth)
-        if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
-            // Safety timeout: if AI doesn't respond in 5s, serve KB directly
+        function deliverPolished(aiAnswer) {
+            if (_kbCallbackFired) return;
+            _kbCallbackFired = true;
+            var _ground = workerGround();
+            // A worker kbId already returned above. A model answer still has to share the question's words.
+            if (aiAnswer && window._bqLastKbId) {
+                nachoRemember(originalQ, aiAnswer);
+                callback({ type: 'kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf, kbId: window._bqLastKbId });
+                return;
+            }
+            if (aiAnswer) {
+                var qWords = originalQ.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
+                var aiLower = aiAnswer.toLowerCase();
+                var relevantWords = qWords.filter(function(w) { return aiLower.indexOf(w) !== -1; });
+                var isDeflection = /shouldn.t go there|antlers are telling me|not a real-time|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+                if (isDeflection || (qWords.length > 2 && relevantWords.length < qWords.length * 0.3)) {
+                    nachoRemember(q, kbMatch.answer);
+                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
+                } else {
+                    nachoRemember(q, aiAnswer);
+                    callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
+                }
+            } else {
+                nachoRemember(q, kbMatch.answer);
+                callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
+            }
+        }
+
+        var _prefetched = takeAiPrefetch();
+        if (_prefetched !== undefined) {
+            deliverPolished(_prefetched);
+        } else if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
             var _kbSafetyTimer = setTimeout(function() {
                 if (!_kbCallbackFired) {
                     _kbCallbackFired = true;
@@ -5522,29 +5667,9 @@ window.nachoUnifiedAnswer = function(question, callback) {
                     callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
                 }
             }, 5000);
-            nachoAIAnswer(q, function(aiAnswer) {
-                if (_kbCallbackFired) return; // Safety timer already fired
-                _kbCallbackFired = true;
+            nachoAIAnswer(originalQ, function(aiAnswer) {
                 clearTimeout(_kbSafetyTimer);
-                var _ground = workerGround();
-                if (aiAnswer) {
-                    // Relevance check: AI answer should share key terms with the question
-                    var qWords = q.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
-                    var aiLower = aiAnswer.toLowerCase();
-                    var relevantWords = qWords.filter(function(w) { return aiLower.indexOf(w) !== -1; });
-                    var isDeflection = /shouldn.t go there|antlers are telling me|not a real-time|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
-                    // A refusal must not replace the knowledge-base answer.
-                    if (isDeflection || (qWords.length > 2 && relevantWords.length < qWords.length * 0.3)) {
-                        nachoRemember(q, kbMatch.answer);
-                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
-                    } else {
-                        nachoRemember(q, aiAnswer);
-                        callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
-                    }
-                } else {
-                    nachoRemember(q, kbMatch.answer);
-                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName, links: _ground.links, followUps: _ground.followUps, asOf: _ground.asOf });
-                }
+                deliverPolished(aiAnswer);
             });
         } else {
             // No AI budget — serve KB directly
@@ -5555,8 +5680,9 @@ window.nachoUnifiedAnswer = function(question, callback) {
     }
 
     // ---- STEP 5: KB MISS → AI fills the gap ----
-    if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
-        nachoAIAnswer(q, function(aiAnswer) {
+    var _missPrefetch = takeAiPrefetch();
+    if (_missPrefetch !== undefined || (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT)) {
+        var _useMiss = function (aiAnswer) {
             if (aiAnswer) {
                 var aiLower = aiAnswer.toLowerCase();
                 var isDeflection = /shouldn.t go there|antlers are telling me|not a real-time|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
@@ -5573,7 +5699,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
             // Maxi AI failed or deflected — fall back to conversational mode
             // This handles questions like "How are you?", "What's the weather?", general chat
             if (getAICount() < NACHO_AI_DAILY_LIMIT) {
-                nachoConvoAIAnswer(q, function(convoAnswer) {
+                nachoConvoAIAnswer(originalQ, function(convoAnswer) {
                     if (convoAnswer) {
                         var convoLower = convoAnswer.toLowerCase();
                         var convoDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|i don.t think i should/i.test(convoLower);
@@ -5591,7 +5717,9 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
             // All AI paths exhausted — deep search then off-topic
             _nachoStep5Fallback(q, callback, pq, disclaimer);
-        });
+        };
+        if (_missPrefetch !== undefined) _useMiss(_missPrefetch);
+        else nachoAIAnswer(originalQ, _useMiss);
         return;
     }
 
@@ -5642,6 +5770,41 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var smartFb = smartFallback(q);
     nachoTrackMiss(q);
     callback({ type: 'fallback', answer: pq(smartFb) });
+    };
+
+    // A confident worker KB answer (kbId) wins over the client KB and feature shortcuts.
+    // The worker sees the original wording, not the typo and synonym rewrite.
+    if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+        var _workerSettled = false;
+        var _workerTimer = setTimeout(function () {
+            if (_workerSettled) return;
+            _workerSettled = true;
+            runLocal();
+        }, 5000);
+        nachoAIAnswer(originalQ, function (aiAnswer) {
+            if (_workerSettled) return;
+            _workerSettled = true;
+            clearTimeout(_workerTimer);
+            if (aiAnswer && window._bqLastKbId) {
+                var _kbGround = workerGround();
+                nachoRemember(originalQ, aiAnswer);
+                callback({
+                    type: 'kb',
+                    answer: escapeHtml(aiAnswer) + disclaimer,
+                    links: _kbGround.links,
+                    followUps: _kbGround.followUps,
+                    asOf: _kbGround.asOf,
+                    kbId: window._bqLastKbId
+                });
+                return;
+            }
+            window._nachoAiReady = true;
+            window._nachoAiPrefetch = aiAnswer || '';
+            runLocal();
+        });
+        return;
+    }
+    runLocal();
 };
 
 // Expose IIFE functions to window
