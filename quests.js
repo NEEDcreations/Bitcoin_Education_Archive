@@ -3835,7 +3835,7 @@ function _renderNookShop() {
     html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
         '<div style="font-size:1.4rem;">🔑</div>' +
         '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Keys &amp; locked ciphers</div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);">Open gifts as the wheel gives them. Matching keys and ciphers are in Inventory.</div></div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);">Open gifts as the wheel gives them. Matching keys and ciphers are in Inventory. If a peer opens a cipher with your key, you both win the same prize.</div></div>' +
         '<button onclick="window._nookSubTab=\'inventory\';if(typeof _renderNookSubTabs===\'function\')_renderNookSubTabs();" style="padding:7px 14px;border-radius:8px;border:1px solid #f7931a;background:rgba(247,147,26,0.1);color:#f7931a;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Inventory</button>' +
     '</div>';
     html += '</div>';
