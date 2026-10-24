@@ -41,6 +41,13 @@ function loadAdmin() {
     }
 }
 
+function truncateUid(uid) {
+    const s = String(uid || '');
+    if (!s) return '';
+    if (s.length <= 6) return s.slice(0, 2) + '…';
+    return s.slice(0, 4) + '…' + s.slice(-2);
+}
+
 function summarize(parsed) {
     let anonymous = 0;
     let hashes = 0;
@@ -60,7 +67,7 @@ function summarize(parsed) {
         mfa,
         hashConfig: !!(hc && hc.algorithm && hc.signerKey),
         algorithm: hc && hc.algorithm ? String(hc.algorithm) : 'none',
-        sampleUids: users.slice(0, 5).map((user) => user.uid).filter(Boolean),
+        sampleUids: users.slice(0, 5).map((user) => truncateUid(user.uid)).filter(Boolean),
     };
 }
 

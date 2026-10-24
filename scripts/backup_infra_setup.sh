@@ -14,7 +14,10 @@
 #
 # With --apply it:
 #   - Enables the APIs the nightly functions call
-#   - Creates gs://bitcoin-education-archive-auth-backups (90-day lifecycle)
+#   - Creates gs://bitcoin-education-archive-auth-backups
+#     Versioning stays on. Live objects are deleted at age 90, which makes
+#     them noncurrent, and noncurrent generations are deleted after 1 day.
+#     Retention is 90 days, not 180.
 #   - Creates gs://bitcoin-education-archive-uploads-backup in a DIFFERENT
 #     region from the live *.firebasestorage.app bucket, with versioning and
 #     a 90-day lifecycle for noncurrent generations only
@@ -24,8 +27,11 @@
 #   - Enables Firestore point-in-time recovery and delete protection
 #   - Enables a TTL policy on backup_history.expireAt (documents set expireAt
 #     to finishedAt plus 90 days)
-#   - Grants the Cloud Functions runtime service account only the roles below
-#   - Creates an empty AUTH_BACKUP_KEY secret (no key material)
+#   - Creates bq-auth-backup@PROJECT.iam.gserviceaccount.com for nightlyAuthExport
+#     only. That account gets the custom Auth role (including getHashConfig),
+#     secretAccessor on AUTH_BACKUP_KEY, and object create/read on the auth
+#     backup bucket. The shared compute account does not get those.
+#   - Creates an empty AUTH_BACKUP_KEY secret (no key material, no version)
 #
 # AUTH_BACKUP_KEY (32 bytes). Create a version after --apply. The value
 # stays in Secret Manager and must never be committed or logged:
@@ -43,6 +49,7 @@ AUTH_BACKUP_BUCKET="${AUTH_BACKUP_BUCKET:-bitcoin-education-archive-auth-backups
 UPLOADS_BACKUP_BUCKET="${UPLOADS_BACKUP_BUCKET:-bitcoin-education-archive-uploads-backup}"
 SOURCE_UPLOADS_BUCKET="${SOURCE_UPLOADS_BUCKET:-bitcoin-education-archive.firebasestorage.app}"
 AUTH_BACKUP_LOCATION="${AUTH_BACKUP_LOCATION:-us}"
+AUTH_BACKUP_SA="${AUTH_BACKUP_SA:-bq-auth-backup@${PROJECT_ID}.iam.gserviceaccount.com}"
 
 APPLY=0
 for arg in "$@"; do
@@ -76,15 +83,20 @@ WOULD enable APIs:
   identitytoolkit.googleapis.com
   firebase.googleapis.com
   cloudfunctions.googleapis.com
+  iam.googleapis.com
 
 WOULD detect the gen2 service account on dailyFirestoreBackup, else
   PROJECT_NUMBER-compute@developer.gserviceaccount.com
+WOULD create ${AUTH_BACKUP_SA} if it is missing. nightlyAuthExport runs as
+  this account. The shared compute account is not given the Auth role, the
+  backup key, or object create on the auth backup bucket.
 
 WOULD create gs://${AUTH_BACKUP_BUCKET} in ${AUTH_BACKUP_LOCATION} if missing.
 WOULD set uniform bucket-level access, public access prevention enforced,
   and versioning on gs://${AUTH_BACKUP_BUCKET}.
-WOULD set its lifecycle to delete objects at age 90 days and noncurrent
-  generations after 90 days.
+WOULD set its lifecycle so a live object is deleted at age 90 days. With
+  versioning, that delete makes the object noncurrent. Noncurrent generations
+  are deleted after 1 day, so retention is 90 days rather than 180.
 
 WOULD read the location of gs://${SOURCE_UPLOADS_BUCKET}.
 WOULD put gs://${UPLOADS_BACKUP_BUCKET} in us-east1, or us-west1 when the
@@ -100,11 +112,21 @@ WOULD leave the lifecycle on gs://${FIRESTORE_BACKUP_BUCKET} unchanged.
 WOULD set uniform bucket-level access and public access prevention enforced
   on that existing bucket.
 
-WOULD grant roles/storage.admin on gs://${FIRESTORE_BACKUP_BUCKET} to the
-  Firestore service agent before uniform access is required.
-WOULD grant roles/storage.objectUser (fallback roles/storage.objectAdmin)
-  and roles/storage.legacyBucketReader on the three backup buckets to the
-  functions service account.
+WOULD grant roles/storage.objectAdmin and roles/storage.legacyBucketReader
+  on gs://${FIRESTORE_BACKUP_BUCKET} to the Firestore service agent BEFORE
+  uniform access is turned on. That replaces per-object ACLs the export uses
+  today. roles/storage.admin is not granted.
+WOULD grant roles/storage.objectCreator, roles/storage.objectViewer, and
+  roles/storage.legacyBucketReader on the Firestore backup bucket and the
+  uploads backup bucket to the functions service account. That account can
+  create and read backup objects. It is not granted a role that deletes them.
+WOULD grant ${AUTH_BACKUP_SA} roles/storage.objectCreator,
+  roles/storage.objectViewer, and roles/storage.legacyBucketReader on
+  gs://${AUTH_BACKUP_BUCKET} only.
+WOULD grant the functions service account roles/storage.objectViewer and
+  roles/storage.legacyBucketReader on gs://${AUTH_BACKUP_BUCKET} so the
+  health check can read the manifest and object metadata. It cannot create
+  objects there.
 WOULD grant roles/storage.objectViewer and roles/storage.legacyBucketReader
   on gs://${SOURCE_UPLOADS_BUCKET} to the functions service account.
 WOULD grant the Storage Transfer service agent objectViewer and
@@ -112,8 +134,8 @@ WOULD grant the Storage Transfer service agent objectViewer and
   on gs://${UPLOADS_BACKUP_BUCKET}.
 
 WOULD create empty secret AUTH_BACKUP_KEY if it is missing, without adding
-  a version, and grant roles/secretmanager.secretAccessor to the functions
-  service account.
+  a version, and grant roles/secretmanager.secretAccessor to ${AUTH_BACKUP_SA}
+  only.
 
 WOULD grant the functions service account:
   roles/datastore.importExportAdmin
@@ -123,10 +145,12 @@ WOULD grant the functions service account:
   roles/cloudscheduler.viewer
   roles/storagetransfer.user
   roles/cloudfunctions.viewer
-WOULD create or update custom role authBackupReader
-  (firebaseauth.users.get, firebaseauth.configs.get) and bind it.
-WOULD fall back to roles/firebaseauth.viewer if that custom role fails.
-WOULD NOT grant roles/firebaseauth.admin.
+WOULD create or update custom role authBackupReader with
+  firebaseauth.users.get, firebaseauth.configs.get, and
+  firebaseauth.configs.getHashConfig, and bind it only to ${AUTH_BACKUP_SA}.
+WOULD stop if that custom role cannot be created or bound.
+WOULD grant roles/iam.serviceAccountUser on ${AUTH_BACKUP_SA} to the Cloud
+  Functions service agent so deploy can run nightlyAuthExport as that account.
 
 WOULD enable Firestore point-in-time recovery on (default).
 WOULD enable Firestore delete protection on (default).
@@ -156,6 +180,7 @@ gcloud services enable \
   identitytoolkit.googleapis.com \
   firebase.googleapis.com \
   cloudfunctions.googleapis.com \
+  iam.googleapis.com \
   --project "${PROJECT_ID}"
 
 PROJECT_NUMBER="$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)')"
@@ -211,7 +236,7 @@ cat > "${TMP}/auth-lifecycle.json" <<'EOF'
 {
   "rule": [
     { "action": { "type": "Delete" }, "condition": { "age": 90 } },
-    { "action": { "type": "Delete" }, "condition": { "daysSinceNoncurrentTime": 90 } }
+    { "action": { "type": "Delete" }, "condition": { "daysSinceNoncurrentTime": 1 } }
   ]
 }
 EOF
@@ -275,13 +300,18 @@ bind_bucket() {
     --role "${role}"
 }
 
-bind_bucket_writer() {
+bind_bucket_creator() {
   local bucket="$1"
   local member="$2"
-  if ! bind_bucket "${bucket}" "${member}" "roles/storage.objectUser"; then
-    echo "APPLY: roles/storage.objectUser is unavailable. Granting roles/storage.objectAdmin on gs://${bucket}."
-    bind_bucket "${bucket}" "${member}" "roles/storage.objectAdmin"
-  fi
+  bind_bucket "${bucket}" "${member}" "roles/storage.objectCreator"
+  bind_bucket "${bucket}" "${member}" "roles/storage.objectViewer"
+  bind_bucket "${bucket}" "${member}" "roles/storage.legacyBucketReader"
+}
+
+bind_bucket_reader() {
+  local bucket="$1"
+  local member="$2"
+  bind_bucket "${bucket}" "${member}" "roles/storage.objectViewer"
   bind_bucket "${bucket}" "${member}" "roles/storage.legacyBucketReader"
 }
 
@@ -296,13 +326,23 @@ bind_project() {
   fi
 }
 
-echo "APPLY: bucket roles"
-bind_bucket "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FIRESTORE_SA}" "roles/storage.admin"
-bind_bucket_writer "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
-bind_bucket_writer "${AUTH_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
-bind_bucket_writer "${UPLOADS_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
-bind_bucket "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${FUNCTIONS_SA}" "roles/storage.objectViewer"
-bind_bucket "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${FUNCTIONS_SA}" "roles/storage.legacyBucketReader"
+echo "APPLY: dedicated auth backup service account"
+if gcloud iam service-accounts describe "${AUTH_BACKUP_SA}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
+  echo "APPLY: ${AUTH_BACKUP_SA} already exists."
+else
+  gcloud iam service-accounts create "${AUTH_BACKUP_SA%%@*}" \
+    --project "${PROJECT_ID}" \
+    --display-name "Bitcoin Quest auth backup"
+fi
+
+echo "APPLY: bucket roles (Firestore agent before uniform access)"
+bind_bucket "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FIRESTORE_SA}" "roles/storage.objectAdmin"
+bind_bucket "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FIRESTORE_SA}" "roles/storage.legacyBucketReader"
+bind_bucket_creator "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
+bind_bucket_creator "${UPLOADS_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
+bind_bucket_creator "${AUTH_BACKUP_BUCKET}" "serviceAccount:${AUTH_BACKUP_SA}"
+bind_bucket_reader "${AUTH_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
+bind_bucket_reader "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
 
 bind_bucket "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${STS_SA}" "roles/storage.objectViewer"
 bind_bucket "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${STS_SA}" "roles/storage.legacyBucketReader"
@@ -322,6 +362,7 @@ fi
 
 ensure_secret() {
   local name="$1"
+  local member="$2"
   if gcloud secrets describe "${name}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
     echo "APPLY: secret ${name} already exists. Versions were not changed."
   else
@@ -330,18 +371,18 @@ ensure_secret() {
   fi
   if ! gcloud secrets add-iam-policy-binding "${name}" \
     --project "${PROJECT_ID}" \
-    --member "serviceAccount:${FUNCTIONS_SA}" \
+    --member "serviceAccount:${member}" \
     --role "roles/secretmanager.secretAccessor" \
     --condition=None; then
     gcloud secrets add-iam-policy-binding "${name}" \
       --project "${PROJECT_ID}" \
-      --member "serviceAccount:${FUNCTIONS_SA}" \
+      --member "serviceAccount:${member}" \
       --role "roles/secretmanager.secretAccessor"
   fi
 }
 
-echo "APPLY: secret shell AUTH_BACKUP_KEY (no version)"
-ensure_secret AUTH_BACKUP_KEY
+echo "APPLY: secret shell AUTH_BACKUP_KEY for ${AUTH_BACKUP_SA} only (no version)"
+ensure_secret AUTH_BACKUP_KEY "${AUTH_BACKUP_SA}"
 
 echo "APPLY: project roles"
 bind_project "serviceAccount:${FUNCTIONS_SA}" "roles/datastore.importExportAdmin"
@@ -352,25 +393,32 @@ bind_project "serviceAccount:${FUNCTIONS_SA}" "roles/cloudscheduler.viewer"
 bind_project "serviceAccount:${FUNCTIONS_SA}" "roles/storagetransfer.user"
 bind_project "serviceAccount:${FUNCTIONS_SA}" "roles/cloudfunctions.viewer"
 
-AUTH_ROLE_READY=0
+AUTH_PERMS="firebaseauth.users.get,firebaseauth.configs.get,firebaseauth.configs.getHashConfig"
 if gcloud iam roles describe authBackupReader --project "${PROJECT_ID}" >/dev/null 2>&1; then
-  if gcloud iam roles update authBackupReader --project "${PROJECT_ID}" \
-    --permissions "firebaseauth.users.get,firebaseauth.configs.get" \
-    --stage GA; then
-    AUTH_ROLE_READY=1
-  fi
-elif gcloud iam roles create authBackupReader --project "${PROJECT_ID}" \
-  --title "Auth backup reader" \
-  --description "List Auth users and read the hash config for the encrypted nightly export" \
-  --permissions "firebaseauth.users.get,firebaseauth.configs.get" \
-  --stage GA; then
-  AUTH_ROLE_READY=1
-fi
-if [[ "${AUTH_ROLE_READY}" == "1" ]] && bind_project "serviceAccount:${FUNCTIONS_SA}" "projects/${PROJECT_ID}/roles/authBackupReader"; then
-  echo "APPLY: granted projects/${PROJECT_ID}/roles/authBackupReader"
+  gcloud iam roles update authBackupReader --project "${PROJECT_ID}" \
+    --permissions "${AUTH_PERMS}" \
+    --stage GA
 else
-  echo "APPLY: custom auth role was not granted. Granting roles/firebaseauth.viewer instead."
-  bind_project "serviceAccount:${FUNCTIONS_SA}" "roles/firebaseauth.viewer"
+  gcloud iam roles create authBackupReader --project "${PROJECT_ID}" \
+    --title "Auth backup reader" \
+    --description "List Auth users and read the hash config, including password hashes, for the encrypted nightly export" \
+    --permissions "${AUTH_PERMS}" \
+    --stage GA
+fi
+bind_project "serviceAccount:${AUTH_BACKUP_SA}" "projects/${PROJECT_ID}/roles/authBackupReader"
+echo "APPLY: granted projects/${PROJECT_ID}/roles/authBackupReader to ${AUTH_BACKUP_SA}"
+
+GCF_AGENT="service-${PROJECT_NUMBER}@gcf-admin-robot.iam.gserviceaccount.com"
+echo "APPLY: let the Cloud Functions service agent run nightlyAuthExport as ${AUTH_BACKUP_SA}"
+if ! gcloud iam service-accounts add-iam-policy-binding "${AUTH_BACKUP_SA}" \
+  --project "${PROJECT_ID}" \
+  --member "serviceAccount:${GCF_AGENT}" \
+  --role "roles/iam.serviceAccountUser" \
+  --condition=None; then
+  gcloud iam service-accounts add-iam-policy-binding "${AUTH_BACKUP_SA}" \
+    --project "${PROJECT_ID}" \
+    --member "serviceAccount:${GCF_AGENT}" \
+    --role "roles/iam.serviceAccountUser"
 fi
 
 echo "APPLY: Firestore point-in-time recovery"
@@ -400,9 +448,9 @@ Before deploy, add the auth backup key (do not commit it, do not log it):
   openssl rand -base64 32 | gcloud secrets versions add AUTH_BACKUP_KEY \\
     --project=${PROJECT_ID} --data-file=-
 
-If passwordHashCount in the auth manifest stays 0 for accounts that have
-passwords, the reader role is not enough. Grant roles/firebaseauth.admin
-to ${FUNCTIONS_SA} only in that case.
+The account that runs firebase deploy needs roles/iam.serviceAccountUser
+on ${AUTH_BACKUP_SA}. The Cloud Functions service agent was granted that
+role above. nightlyAuthExport is the only function that uses this account.
 
 Deploy:
 

@@ -92,6 +92,21 @@ function assessAuth(input) {
     if (!src.present || !(src.bytes > 0)) {
         return { present: false, countOk: false, detail: 'auth export object is missing' };
     }
+    if (src.headerOk !== true) {
+        return { present: true, countOk: false, detail: 'auth export header is not encrypted' };
+    }
+    if (src.manifestPresent !== true) {
+        return { present: true, countOk: false, detail: 'auth export manifest is missing' };
+    }
+    if (src.hashConfigIncluded !== true) {
+        return { present: true, countOk: false, detail: 'auth export hash config is missing' };
+    }
+    if (typeof src.passwordUserCount !== 'number') {
+        return { present: true, countOk: false, detail: 'auth export password user count is missing' };
+    }
+    if (src.passwordUserCount > 0 && !(src.passwordHashCount > 0)) {
+        return { present: true, countOk: false, detail: 'auth export has password users but no password hashes' };
+    }
     const cmp = compareUserCount(src.userCount, src.previousCount);
     return { present: true, countOk: cmp.ok, detail: cmp.detail };
 }
@@ -102,14 +117,20 @@ function assessUploads(input) {
     if (src.operationError || status === 'FAILED' || status === 'ABORTED') {
         return { ran: false, detail: 'uploads copy failed' };
     }
-    if (src.started && (status === 'SUCCESS' || status === 'IN_PROGRESS' || status === 'QUEUED')) {
-        return { ran: true, detail: 'uploads copy ' + status.toLowerCase() };
-    }
     if (src.fallbackComplete === true) {
         return { ran: true, detail: 'uploads incremental copy finished' };
     }
-    if (src.started && !status && !src.operationError) {
-        return { ran: true, detail: 'uploads copy started' };
+    if (src.unreadable === true) {
+        return { ran: false, detail: src.detail || 'uploads copy status could not be read' };
+    }
+    if (status === 'SUCCESS') {
+        return { ran: true, detail: 'uploads copy success' };
+    }
+    if (status === 'IN_PROGRESS' || status === 'QUEUED') {
+        return { ran: false, detail: 'uploads copy still running' };
+    }
+    if (src.statusMissing === true || !status) {
+        return { ran: false, detail: src.detail || 'uploads copy was not confirmed' };
     }
     return { ran: false, detail: src.detail || 'uploads copy did not run' };
 }

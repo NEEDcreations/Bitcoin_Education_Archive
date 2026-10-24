@@ -126,6 +126,29 @@ async function uploadJson(token, bucket, name, value) {
     await uploadBytes(token, bucket, name, Buffer.from(JSON.stringify(value)), 'application/json');
 }
 
+async function downloadRange(token, bucket, name, start, end) {
+    const url = 'https://storage.googleapis.com/storage/v1/b/' + encodeURIComponent(bucket)
+        + '/o/' + encodeURIComponent(name) + '?alt=media';
+    const want = end - start + 1;
+    const res = await fetch(url, {
+        headers: {
+            Authorization: 'Bearer ' + token,
+            Range: 'bytes=' + start + '-' + end,
+        },
+    });
+    if (res.status !== 206 && res.status !== 200) {
+        const parsed = await readResponse(res);
+        throw httpError(res, parsed.json, parsed.text);
+    }
+    const lenHeader = res.headers.get('content-length');
+    if (res.status === 200 && lenHeader && Number(lenHeader) > want) {
+        if (res.body && typeof res.body.destroy === 'function') res.body.destroy();
+        throw new Error('object range was not honored');
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.subarray(0, want);
+}
+
 async function downloadJson(token, bucket, name) {
     const url = 'https://storage.googleapis.com/storage/v1/b/' + encodeURIComponent(bucket)
         + '/o/' + encodeURIComponent(name) + '?alt=media';
@@ -250,6 +273,7 @@ async function runAuthExport(input, date) {
     let pages = 0;
     let anonymous = 0;
     let passwordHashes = 0;
+    let passwordUsers = 0;
     do {
         pages++;
         if (pages > AUTH_PAGE_LIMIT) throw new Error('auth export exceeded ' + AUTH_PAGE_LIMIT + ' pages');
@@ -258,6 +282,7 @@ async function runAuthExport(input, date) {
         for (let i = 0; i < listed.length; i++) {
             const rec = format.serializeAuthUser(listed[i]);
             if (rec.passwordHash) passwordHashes++;
+            if (format.isPasswordUser(rec)) passwordUsers++;
             if (format.isAnonymousRecord(rec)) anonymous++;
             users.push(rec);
         }
@@ -279,6 +304,7 @@ async function runAuthExport(input, date) {
         date,
         userCount: users.length,
         anonymousCount: anonymous,
+        passwordUserCount: passwordUsers,
         passwordHashCount: passwordHashes,
         hashConfigIncluded: !!hashConfig,
         alg: 'AES-256-GCM',
@@ -286,7 +312,7 @@ async function runAuthExport(input, date) {
         createdAt: exportedAt,
     };
     await uploadJson(token, AUTH_BACKUP_BUCKET, 'auth/' + date + '/manifest.json', manifest);
-    console.log('[auth-backup] wrote', objectName, 'users', users.length, 'anonymous', anonymous, 'passwordHashes', passwordHashes);
+    console.log('[auth-backup] wrote', objectName, 'users', users.length, 'anonymous', anonymous, 'passwordUsers', passwordUsers, 'passwordHashes', passwordHashes);
     return users.length;
 }
 
@@ -546,13 +572,9 @@ async function rewriteObject(token, src) {
         + '/rewriteTo/b/' + encodeURIComponent(UPLOADS_BACKUP_BUCKET)
         + '/o/' + encodeURIComponent(src.name);
     let rewriteToken = '';
-    let first = true;
+    const body = { metadata: { sourceGeneration: String(src.generation || '') } };
     for (let guard = 0; guard < 20; guard++) {
         const target = rewriteToken ? url + '?rewriteToken=' + encodeURIComponent(rewriteToken) : url;
-        const body = first
-            ? { metadata: { sourceGeneration: String(src.generation || '') } }
-            : {};
-        first = false;
         const res = await apiJson(target, { token, method: 'POST', body });
         if (res.done || !res.rewriteToken) return;
         rewriteToken = res.rewriteToken;
@@ -683,10 +705,25 @@ async function gatherAuth(token, date) {
     } catch (e) {
         if (e.status !== 404) throw e;
     }
+    let headerOk = false;
+    if (meta) {
+        try {
+            const head = await downloadRange(token, AUTH_BACKUP_BUCKET, 'auth/' + date + '/users.jsonl.gz.enc', 0, 4);
+            headerOk = crypto.headerMatches(head);
+        } catch (e) {
+            console.error('[backup-health] auth header', e.status || '', shortError(e));
+            headerOk = false;
+        }
+    }
     const previous = await previousAuthCount(token, date);
     return health.assessAuth({
         present: !!meta,
         bytes: meta ? Number(meta.size) : 0,
+        headerOk: headerOk,
+        manifestPresent: !!manifest,
+        hashConfigIncluded: !!(manifest && manifest.hashConfigIncluded === true),
+        passwordUserCount: manifest && typeof manifest.passwordUserCount === 'number' ? manifest.passwordUserCount : undefined,
+        passwordHashCount: manifest && typeof manifest.passwordHashCount === 'number' ? manifest.passwordHashCount : undefined,
         userCount: manifest ? manifest.userCount : undefined,
         previousCount: previous,
     });
@@ -697,26 +734,41 @@ async function gatherUploads(token, date) {
     try {
         status = await downloadJson(token, UPLOADS_BACKUP_BUCKET, 'status/' + date + '.json');
     } catch (e) {
-        if (e.status !== 404) throw e;
+        if (e.status !== 404) {
+            console.error('[backup-health] uploads status', e.status || '', shortError(e));
+            return health.assessUploads({ unreadable: true, detail: 'uploads copy status could not be read' });
+        }
+    }
+    if (!status) {
+        return health.assessUploads({ statusMissing: true, detail: 'uploads copy status was not recorded' });
+    }
+    if (status.fallbackComplete === true && !status.error) {
+        return health.assessUploads({ fallbackComplete: true });
+    }
+    if (status.error) {
+        return health.assessUploads({ operationError: true, detail: 'uploads copy failed' });
+    }
+    if (!status.operation) {
+        return health.assessUploads({ statusMissing: true, detail: 'uploads copy operation was not recorded' });
     }
     let operationStatus = '';
     let operationError = null;
-    if (status && status.operation) {
-        try {
-            const op = await apiJson('https://storagetransfer.googleapis.com/v1/' + status.operation, { token });
-            operationStatus = (op.metadata && op.metadata.status) || '';
-            if (op.error) operationError = 'failed';
-            if (op.done && !operationStatus && !op.error) operationStatus = 'SUCCESS';
-        } catch (e) {
-            console.error('[backup-health] transfer operation', e.status || '', shortError(e));
+    try {
+        const op = await apiJson('https://storagetransfer.googleapis.com/v1/' + status.operation, { token });
+        operationStatus = (op.metadata && op.metadata.status) || '';
+        if (op.error) operationError = 'failed';
+        if (op.done && !operationStatus && !op.error) operationStatus = 'SUCCESS';
+        if (!operationStatus && !operationError) {
+            return health.assessUploads({ unreadable: true, detail: 'uploads copy status could not be read' });
         }
+    } catch (e) {
+        console.error('[backup-health] transfer operation', e.status || '', shortError(e));
+        return health.assessUploads({ unreadable: true, detail: 'uploads copy status could not be read' });
     }
     return health.assessUploads({
-        started: !!(status && status.started && !status.error),
         operationStatus,
-        operationError: (status && status.error) || operationError,
-        fallbackComplete: !!(status && status.fallbackComplete),
-        detail: status && status.error ? 'uploads copy failed' : '',
+        operationError,
+        fallbackComplete: false,
     });
 }
 
@@ -801,12 +853,13 @@ async function checkBackupHealth() {
             date: date,
             ok: verified.ok,
             finishedAt: finishedAt,
+            verifiedAt: finishedAt,
             detail: verified.detail,
             runId: 'verify-' + job + '-' + stamp,
         });
     }
     try {
-        await backupStatus.writeBackupResults(admin.firestore(), admin, events);
+        await backupStatus.writeBackupResults(admin.firestore(), admin, events, finishedAt);
     } catch (e) {
         console.error('[backup-status] health write failed', shortError(e));
         throw new Error('backup status write failed');

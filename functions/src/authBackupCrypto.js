@@ -38,6 +38,11 @@ function parseBackupKey(raw) {
     return buf;
 }
 
+function headerMatches(buf) {
+    const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf || []);
+    return b.length >= 5 && b.subarray(0, 4).equals(MAGIC) && b[4] === VERSION;
+}
+
 function encryptAesGcm(plaintext, key) {
     const keyBuf = Buffer.isBuffer(key) && key.length === 32 ? key : parseBackupKey(key);
     const iv = crypto.randomBytes(12);
@@ -67,6 +72,7 @@ module.exports = {
     VERSION,
     HEADER_LEN,
     parseBackupKey,
+    headerMatches,
     encryptAesGcm,
     decryptAesGcm,
 };

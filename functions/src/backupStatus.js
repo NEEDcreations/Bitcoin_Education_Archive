@@ -31,7 +31,25 @@ function jobDetail(event) {
     return health.sanitizeAlertDetail(event && event.detail ? event.detail : fallback);
 }
 
-function nextLatest(previous, event) {
+function verifiedAfterCutoff(date, verifiedAt) {
+    if (!date || !verifiedAt) return false;
+    const verified = Date.parse(verifiedAt);
+    const cutoff = Date.parse(date + 'T05:00:00.000Z');
+    if (Number.isNaN(verified) || Number.isNaN(cutoff)) return false;
+    return verified >= cutoff;
+}
+
+function statusDetail(date, failed, verifiedAt, nowIso) {
+    if (failed.length) return 'failed: ' + failed.join(', ');
+    const now = new Date(nowIso || Date.now());
+    if (Number.isNaN(now.getTime()) || health.utcDateString(now) !== date) {
+        return 'status is not for today';
+    }
+    if (!verifiedAfterCutoff(date, verifiedAt)) return 'not verified after 05:00 UTC';
+    return 'all checks passed';
+}
+
+function nextLatest(previous, event, nowIso) {
     if (JOB_NAMES.indexOf(event.job) === -1) throw new Error('unknown backup job');
     const date = event.date;
     const sameDay = !!(previous && previous.date === date && previous.jobs);
@@ -52,11 +70,16 @@ function nextLatest(previous, event) {
         const name = JOB_NAMES[i];
         if (!jobs[name] || jobs[name].ok !== true) failed.push(name);
     }
+    // A job write clears verification. Only an event that carries verifiedAt
+    // (the 05:00 health check) can make the overall status ok.
+    const verifiedAt = event.verifiedAt || null;
+    const detail = statusDetail(date, failed, verifiedAt, nowIso);
     return {
-        ok: failed.length === 0,
+        ok: detail === 'all checks passed',
         date: date,
         updatedAt: event.finishedAt || new Date().toISOString(),
-        detail: failed.length === 0 ? 'all checks passed' : ('failed: ' + failed.join(', ')),
+        verifiedAt: verifiedAt,
+        detail: detail,
         jobs: jobs,
     };
 }
@@ -74,19 +97,20 @@ function historyDoc(event, expireAt) {
     };
 }
 
-async function writeBackupResults(db, admin, events) {
+async function writeBackupResults(db, admin, events, nowIso) {
     const list = events || [];
     if (!list.length) return [];
+    const now = nowIso || new Date().toISOString();
     const latestRef = db.collection(LATEST_COLLECTION).doc(LATEST_DOC);
     const runIds = [];
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(latestRef);
         let prev = snap.exists ? snap.data() : null;
         for (let i = 0; i < list.length; i++) {
-            const finishedAt = list[i].finishedAt || new Date().toISOString();
+            const finishedAt = list[i].finishedAt || now;
             const runId = list[i].runId || makeRunId(list[i].job, finishedAt);
             const full = Object.assign({}, list[i], { finishedAt: finishedAt, runId: runId });
-            prev = nextLatest(prev, full);
+            prev = nextLatest(prev, full, now);
             const expireAt = admin.firestore.Timestamp.fromDate(expireDate(finishedAt));
             tx.set(db.collection(HISTORY_COLLECTION).doc(runId), historyDoc(full, expireAt));
             runIds.push(runId);
@@ -109,6 +133,7 @@ module.exports = {
     HISTORY_COLLECTION,
     makeRunId,
     expireDate,
+    verifiedAfterCutoff,
     nextLatest,
     historyDoc,
     writeBackupResult,

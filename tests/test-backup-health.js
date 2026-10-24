@@ -78,20 +78,58 @@ test('user count stays inside 10 percent of the previous export', function () {
     assert.strictEqual(health.compareUserCount(25000, 0).ok, true);
     assert.strictEqual(health.compareUserCount(0, 25000).ok, false);
     assert.strictEqual(health.compareUserCount(undefined, 10).ok, false);
-    const auth = health.assessAuth({ present: true, bytes: 40, userCount: 1101, previousCount: 1000 });
+    const auth = health.assessAuth({
+        present: true,
+        bytes: 40,
+        headerOk: true,
+        manifestPresent: true,
+        hashConfigIncluded: true,
+        passwordUserCount: 5,
+        passwordHashCount: 5,
+        userCount: 1101,
+        previousCount: 1000,
+    });
     assert.strictEqual(auth.present, true);
     assert.strictEqual(auth.countOk, false);
     const missing = health.assessAuth({ present: false, bytes: 0, userCount: 10, previousCount: 10 });
     assert.strictEqual(missing.countOk, false);
+    const noHeader = health.assessAuth({
+        present: true, bytes: 40, headerOk: false, manifestPresent: true,
+        hashConfigIncluded: true, passwordUserCount: 0, passwordHashCount: 0, userCount: 10,
+    });
+    assert.strictEqual(noHeader.countOk, false);
+    assert.ok(noHeader.detail.indexOf('not encrypted') !== -1);
+    const noConfig = health.assessAuth({
+        present: true, bytes: 40, headerOk: true, manifestPresent: true,
+        hashConfigIncluded: false, passwordUserCount: 0, passwordHashCount: 0, userCount: 10,
+    });
+    assert.strictEqual(noConfig.countOk, false);
+    assert.ok(noConfig.detail.indexOf('hash config') !== -1);
+    const noHashes = health.assessAuth({
+        present: true, bytes: 40, headerOk: true, manifestPresent: true,
+        hashConfigIncluded: true, passwordUserCount: 4, passwordHashCount: 0, userCount: 10,
+    });
+    assert.strictEqual(noHashes.countOk, false);
+    assert.ok(noHashes.detail.indexOf('password hashes') !== -1);
+    const anonymousOnly = health.assessAuth({
+        present: true, bytes: 40, headerOk: true, manifestPresent: true,
+        hashConfigIncluded: true, passwordUserCount: 0, passwordHashCount: 0,
+        userCount: 10, previousCount: null,
+    });
+    assert.strictEqual(anonymousOnly.countOk, true);
 });
 
-test('uploads copy counts a started transfer and rejects a failed one', function () {
-    assert.strictEqual(health.assessUploads({ started: true, operationStatus: 'SUCCESS' }).ran, true);
-    assert.strictEqual(health.assessUploads({ started: true, operationStatus: 'IN_PROGRESS' }).ran, true);
-    assert.strictEqual(health.assessUploads({ started: true, operationStatus: 'QUEUED' }).ran, true);
-    assert.strictEqual(health.assessUploads({ started: true }).ran, true);
+test('uploads copy is ok only after SUCCESS or a finished fallback', function () {
+    assert.strictEqual(health.assessUploads({ operationStatus: 'SUCCESS' }).ran, true);
     assert.strictEqual(health.assessUploads({ fallbackComplete: true }).ran, true);
-    assert.strictEqual(health.assessUploads({ started: true, operationStatus: 'FAILED' }).ran, false);
+    const running = health.assessUploads({ operationStatus: 'IN_PROGRESS' });
+    assert.strictEqual(running.ran, false);
+    assert.ok(running.detail.indexOf('still running') !== -1);
+    assert.strictEqual(health.assessUploads({ operationStatus: 'QUEUED' }).ran, false);
+    assert.strictEqual(health.assessUploads({ started: true }).ran, false);
+    assert.strictEqual(health.assessUploads({ started: true, unreadable: true }).ran, false);
+    assert.strictEqual(health.assessUploads({ statusMissing: true }).ran, false);
+    assert.strictEqual(health.assessUploads({ operationStatus: 'FAILED' }).ran, false);
     assert.strictEqual(health.assessUploads({ operationError: 'boom' }).ran, false);
     assert.strictEqual(health.assessUploads({}).ran, false);
 });
@@ -217,6 +255,10 @@ test('backup modules do not call chat bridges or send mail', function () {
         'scripts/decrypt_auth_export.js',
         'scripts/backup_infra_setup.sh',
     ];
+    const nightlySrc = fs.readFileSync(path.join(__dirname, '..', 'functions/src/nightlyBackup.js'), 'utf8');
+    const rewrite = nightlySrc.slice(nightlySrc.indexOf('async function rewriteObject'), nightlySrc.indexOf('async function incrementalFallback'));
+    assert.strictEqual(rewrite.indexOf('let first'), -1);
+    assert.ok(rewrite.indexOf('const body = { metadata: { sourceGeneration:') !== -1);
     files.forEach((rel) => {
         const src = fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
         assert.ok(!/api\.telegram\.org/i.test(src), rel);
@@ -238,7 +280,10 @@ test('backup modules do not call chat bridges or send mail', function () {
     assert.ok(index.indexOf('exports.nightlyUploadsCopy') !== -1);
     assert.ok(index.indexOf('exports.nightlyConfigSnapshot') !== -1);
     assert.ok(index.indexOf('exports.backupHealthCheck') !== -1);
-    assert.ok(index.indexOf("invoker: 'private'") !== -1);
+    assert.strictEqual(index.indexOf("invoker: 'private'"), -1);
+    assert.ok(index.indexOf("serviceAccount: 'bq-auth-backup@bitcoin-education-archive.iam.gserviceaccount.com'") !== -1);
+    const sched = index.slice(index.indexOf('function backupSchedule'), index.indexOf('exports.nightlyAuthExport'));
+    assert.strictEqual(sched.indexOf('invoker'), -1);
     assert.ok(index.indexOf("secrets: [authBackupKey]") !== -1);
     assert.strictEqual(index.indexOf('ALERT_SMTP'), -1);
     assert.strictEqual(index.indexOf('alertSmtp'), -1);
@@ -268,6 +313,30 @@ test('restore stays a dry run unless --apply is an explicit flag', function () {
     assert.ok(src.indexOf('DRY RUN') !== -1);
     assert.ok(src.indexOf('AUTH_BACKUP_KEY') !== -1);
     assert.ok(!/process\.argv.*AUTH_BACKUP_KEY/.test(src));
+    assert.ok(src.indexOf('function truncateUid') !== -1);
+    const key = crypto.parseBackupKey(Buffer.from('0123456789abcdef0123456789abcdef').toString('base64'));
+    const uid = 'abcdefghijklmnopqrstuvwxyz12';
+    const header = {
+        exportedAt: '2026-10-24T02:30:00.000Z',
+        projectId: 'bitcoin-education-archive',
+        userCount: 1,
+        hashConfig: null,
+    };
+    const user = format.serializeAuthUser({ uid: uid, email: 'person@example.com', providerData: [] });
+    const enc = crypto.encryptAesGcm(zlib.gzipSync(Buffer.from(format.buildJsonl(header, [user]))), key);
+    const file = path.join('/tmp', 'auth-restore-sample.jsonl.gz.enc');
+    fs.writeFileSync(file, enc);
+    try {
+        const out = execFileSync('node', [path.join(__dirname, '..', 'scripts/restore_auth_export.js'), '--file', file], {
+            encoding: 'utf8',
+            env: Object.assign({}, process.env, { AUTH_BACKUP_KEY: key.toString('base64') }),
+        });
+        assert.strictEqual(out.indexOf(uid), -1);
+        assert.ok(out.indexOf('abcd…12') !== -1);
+        assert.ok(out.indexOf('DRY RUN') !== -1);
+    } finally {
+        fs.unlinkSync(file);
+    }
 });
 
 test('infra setup prints the plan unless --apply is passed', function () {
@@ -279,7 +348,15 @@ test('infra setup prints the plan unless --apply is passed', function () {
     assert.ok(src.indexOf('AUTH_BACKUP_KEY') !== -1);
     assert.ok(src.indexOf('cloudfunctions.googleapis.com') !== -1);
     assert.ok(src.indexOf('roles/cloudfunctions.viewer') !== -1);
+    assert.ok(src.indexOf('firebaseauth.configs.getHashConfig') !== -1);
+    assert.ok(src.indexOf('bq-auth-backup@') !== -1);
+    assert.ok(src.indexOf('roles/storage.objectCreator') !== -1);
+    assert.ok(src.indexOf('daysSinceNoncurrentTime": 1') !== -1);
     assert.strictEqual(src.indexOf('ALERT_SMTP'), -1);
+    assert.strictEqual(src.indexOf('firebaseauth.admin'), -1);
+    assert.strictEqual(src.indexOf('firebaseauth.viewer'), -1);
+    assert.strictEqual(src.indexOf('roles/storage.objectUser'), -1);
+    assert.strictEqual(src.indexOf('"roles/storage.admin"'), -1);
     const out = execFileSync('bash', [script], { encoding: 'utf8' });
     assert.ok(out.indexOf('WOULD') !== -1);
     assert.ok(out.indexOf('Dry run only') !== -1);
@@ -361,12 +438,14 @@ async function testAsync(name, fn) {
             ok: true,
             startedAt: '2026-10-24T02:00:00.000Z',
             finishedAt: finishedAt,
+            verifiedAt: finishedAt,
             detail: job + ' ok',
         }));
-        const ids = await status.writeBackupResults(store.db, adminStub, events);
+        const ids = await status.writeBackupResults(store.db, adminStub, events, finishedAt);
         assert.strictEqual(ids.length, 4);
         const latest = store.docs['backup_status/latest'];
-        assert.deepStrictEqual(Object.keys(latest).sort(), ['date', 'detail', 'jobs', 'ok', 'updatedAt']);
+        assert.deepStrictEqual(Object.keys(latest).sort(), ['date', 'detail', 'jobs', 'ok', 'updatedAt', 'verifiedAt']);
+        assert.strictEqual(latest.verifiedAt, finishedAt);
         assert.strictEqual(latest.ok, true);
         assert.strictEqual(latest.date, '2026-10-24');
         assert.strictEqual(latest.updatedAt, finishedAt);
@@ -445,6 +524,35 @@ async function testAsync(name, fn) {
         assert.strictEqual(latest.ok, false);
         assert.deepStrictEqual(Object.keys(latest.jobs), ['firestore']);
         assert.strictEqual(historyRows(store.docs).length, 5);
+    });
+
+    await testAsync('overall ok requires today, a post-05:00 verification, and four jobs', async function () {
+        const day = '2026-10-24';
+        const finishedAt = day + 'T05:00:00.000Z';
+        function jobs(verifiedAt) {
+            return status.JOB_NAMES.map((job) => ({
+                job: job,
+                date: day,
+                ok: true,
+                startedAt: day + 'T02:00:00.000Z',
+                finishedAt: finishedAt,
+                verifiedAt: verifiedAt,
+                detail: 'ok',
+            }));
+        }
+        const early = fakeDb();
+        await status.writeBackupResults(early.db, adminStub, jobs(null), day + 'T04:59:00.000Z');
+        assert.strictEqual(early.docs['backup_status/latest'].ok, false);
+        assert.strictEqual(early.docs['backup_status/latest'].verifiedAt, null);
+        assert.strictEqual(early.docs['backup_status/latest'].detail, 'not verified after 05:00 UTC');
+        const verified = fakeDb();
+        await status.writeBackupResults(verified.db, adminStub, jobs(finishedAt), finishedAt);
+        assert.strictEqual(verified.docs['backup_status/latest'].ok, true);
+        assert.strictEqual(verified.docs['backup_status/latest'].verifiedAt, finishedAt);
+        const stale = fakeDb();
+        await status.writeBackupResults(stale.db, adminStub, jobs(finishedAt), '2026-10-25T06:00:00.000Z');
+        assert.strictEqual(stale.docs['backup_status/latest'].ok, false);
+        assert.strictEqual(stale.docs['backup_status/latest'].detail, 'status is not for today');
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -63,6 +63,15 @@ function isAnonymousRecord(user) {
     return !user.email && !user.phoneNumber && (!user.providerData || user.providerData.length === 0);
 }
 
+function isPasswordUser(user) {
+    const providers = user && user.providerData;
+    if (!providers || !providers.length) return false;
+    for (let i = 0; i < providers.length; i++) {
+        if (providers[i] && providers[i].providerId === 'password') return true;
+    }
+    return false;
+}
+
 function pickHashConfig(json) {
     const hc = json && json.signIn && json.signIn.hashConfig;
     if (!hc || !hc.algorithm || !hc.signerKey) return null;
@@ -96,6 +105,7 @@ module.exports = {
     HEADER_TYPE,
     serializeAuthUser,
     isAnonymousRecord,
+    isPasswordUser,
     pickHashConfig,
     buildJsonl,
     parseJsonl,

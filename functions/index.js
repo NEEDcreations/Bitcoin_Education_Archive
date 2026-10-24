@@ -8826,13 +8826,13 @@ function backupSchedule(cron, extra) {
         timeoutSeconds: 540,
         memory: '512MiB',
         maxInstances: 1,
-        invoker: 'private',
     }, extra || {});
 }
 
 exports.nightlyAuthExport = onSchedule(backupSchedule('30 2 * * *', {
     memory: '1GiB',
     secrets: [authBackupKey],
+    serviceAccount: 'bq-auth-backup@bitcoin-education-archive.iam.gserviceaccount.com',
 }), async () => {
     await nightlyBackup.exportAuthUsers({ key: authBackupKey.value() });
 });
