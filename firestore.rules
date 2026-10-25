@@ -2301,7 +2301,8 @@ service cloud.firestore {
 
     // IP reputation cache, daily IPQS quota, and device links. Server only.
     // TTL fields: ip_reputation.expireAt, ipqs_usage.expireAt,
-    // device_links.expireAt, device_holds.expireAt, user_devices.expireAt.
+    // device_links.expireAt, device_holds.expireAt, user_devices.expireAt,
+    // favor_ip_cache.expireAt, ops_alerts.expireAt.
     match /ip_reputation/{docId} {
       allow read, write: if false;
     }

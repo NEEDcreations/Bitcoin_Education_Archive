@@ -402,6 +402,97 @@ function rawIpFromUser(user) {
     return '';
 }
 
+function liveIpVerdict(gate) {
+    const verdict = gate && gate.ipVerdict;
+    if (!verdict || typeof verdict !== 'object') return null;
+    const action = String(verdict.action || '');
+    if (action !== 'allow' && action !== 'hold' && action !== 'deny') return null;
+    return verdict;
+}
+
+// Cheap qualification only. A stored IPQS flag is ignored so a real recheck can
+// still run, but points, age, email, bans, and the other fraud flags go first.
+async function aboutToPayReferral(uid, referrerUid, profile, tomb) {
+    const devicesOn = ipReputation.deviceEnabled();
+    const reads = [
+        db().collection('referrals').doc(uid).get(),
+        db().collection('users').doc(uid).get(),
+        db().collection('users').doc(referrerUid).get(),
+        db().collection('referral_signals').doc(uid).get(),
+        db().collection('faucet_ledger').doc(uid).get(),
+        db().collection('faucet_ledger').doc(referrerUid).get(),
+        db().collection('referral_pay_limits').doc(referrerUid).get(),
+        db().collection('email_history').doc(uid).get(),
+        db().collection('email_history').doc(referrerUid).get(),
+    ];
+    if (devicesOn) {
+        reads.push(db().collection('device_holds').doc(uid).get());
+        reads.push(db().collection('user_devices').doc(uid).get());
+        reads.push(db().collection('user_devices').doc(referrerUid).get());
+    }
+    const got = await Promise.all(reads);
+    const referralDoc = got[0];
+    const referredDoc = got[1];
+    const referrerDoc = got[2];
+    const signalDoc = got[3];
+    const referredLedger = got[4];
+    const referrerLedger = got[5];
+    const limitDoc = got[6];
+    const referredHist = got[7];
+    const referrerHist = got[8];
+    const referredHold = devicesOn ? got[9] : { exists: false };
+    const referredDevice = devicesOn ? got[10] : { exists: false };
+    const referrerDevice = devicesOn ? got[11] : { exists: false };
+    if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists || !signalDoc.exists) return false;
+    const referredView = userView(uid, referredDoc.data());
+    const referrerView = userView(referrerUid, referrerDoc.data());
+    referredView.ledgerBanned = referredLedger.exists && referredLedger.data().banned === true;
+    referrerView.ledgerBanned = referrerLedger.exists && referrerLedger.data().banned === true;
+    if (tomb && tomb.summary && tomb.summary.ledgerBanned) referredView.ledgerBanned = true;
+    Object.assign(referredView, accountTombstone.applyFlagsPatch(tomb && tomb.summary).user);
+    referredView.priorReferral = !!(tomb && tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
+    referredView.createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb && tomb.summary, Date.now());
+    referredView.emailVerified = profile.emailVerified;
+    referredView.providers = profile.providers;
+    if (profile.emailVerified === true && profile.email && !referredView.emailHash) {
+        referredView.emailHash = accountTombstone.emailHmac(profile.email);
+    }
+    referredView.emailHistoryHashes = referredHist.exists && Array.isArray(referredHist.data().hashes) ? referredHist.data().hashes : [];
+    referrerView.emailHistoryHashes = referrerHist.exists && Array.isArray(referrerHist.data().hashes) ? referrerHist.data().hashes : [];
+    referredView.ipqsAction = '';
+    const signal = signalDoc.data() || {};
+    if (devicesOn) {
+        referredView.deviceHmac = String(signal.deviceHmac || '');
+        if (!referredView.deviceHmac && referredDevice.exists) {
+            referredView.deviceHmac = String((referredDevice.data() || {}).deviceHmac || '');
+        }
+        if (referrerDevice.exists) {
+            referrerView.deviceHmac = String((referrerDevice.data() || {}).deviceHmac || '');
+        }
+        const hold = referredHold.exists ? (referredHold.data() || {}) : null;
+        const holdExp = hold ? millisOf(hold.expireAt) : 0;
+        if (hold && hold.approved !== true && hold.held === true && (!holdExp || holdExp > Date.now())) {
+            referredView.deviceAction = hold.reason === 'device-fraud' ? 'deny' : 'hold';
+        }
+    }
+    const exp = millisOf(signal.expireAt);
+    const fresh = !exp || exp > Date.now();
+    const storedHmac = fresh ? String(signal.signupIpHmac || '') : '';
+    referredView.known_ips = fresh ? hmacIps(referredView.known_ips) : [];
+    referrerView.known_ips = fresh ? hmacIps(referrerView.known_ips) : [];
+    const recentPaidAt = limitDoc.exists ? (limitDoc.data().paidAtMs || []) : [];
+    const decision = referrals.assessReferralPayout({
+        hasSignal: true,
+        nowMs: Date.now(),
+        recentPaidAt: recentPaidAt,
+        referral: referralDoc.data(),
+        referred: referredView,
+        referrer: referrerView,
+        signupIpHmac: storedHmac,
+    });
+    return decision.action === 'pay';
+}
+
 async function payIfQualified(referredUid, opts) {
     const uid = String(referredUid || '');
     if (!uid) return { paid: false, reason: 'missing-user' };
@@ -425,8 +516,27 @@ async function payIfQualified(referredUid, opts) {
         const remembered = await referredRef.get();
         checkIp = rawIpFromUser(remembered.exists ? remembered.data() : null);
     }
+    const devicesOn = ipReputation.deviceEnabled();
+    const profile = await authProfile(uid);
+    const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
+        uid: uid,
+        authUser: {
+            uid: uid,
+            email: profile.email || '',
+            emailVerified: profile.emailVerified === true,
+            providerData: profile.providerRows || [],
+        },
+    }));
+    const createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, Date.now());
     let freshGate = null;
-    if (checkIp) {
+    let ready = false;
+    try {
+        ready = await aboutToPayReferral(uid, referrerUid, profile, tomb);
+    } catch (e) {
+        console.error('[referral] payout qualify fallback');
+        ready = false;
+    }
+    if (ready && checkIp) {
         try {
             freshGate = await ipReputation.assessReward({
                 db: db(),
@@ -441,18 +551,6 @@ async function payIfQualified(referredUid, opts) {
             freshGate = null;
         }
     }
-    const devicesOn = ipReputation.deviceEnabled();
-    const profile = await authProfile(uid);
-    const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
-        uid: uid,
-        authUser: {
-            uid: uid,
-            email: profile.email || '',
-            emailVerified: profile.emailVerified === true,
-            providerData: profile.providerRows || [],
-        },
-    }));
-    const createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, Date.now());
     const referrerRef = db().collection('users').doc(referrerUid);
     const referredLedgerRef = db().collection('faucet_ledger').doc(uid);
     const referrerLedgerRef = db().collection('faucet_ledger').doc(referrerUid);
@@ -526,14 +624,14 @@ async function payIfQualified(referredUid, opts) {
         referredView.known_ips = fresh ? hmacIps(referredView.known_ips) : [];
         referrerView.known_ips = fresh ? hmacIps(referrerView.known_ips) : [];
         const storedAction = String(signal.ipqsAction || '');
-        const liveAction = freshGate && (freshGate.action === 'allow' || freshGate.action === 'hold' || freshGate.action === 'deny')
-            ? freshGate.action
-            : '';
+        const verdict = liveIpVerdict(freshGate);
+        const liveAction = verdict ? verdict.action : '';
         referredView.ipqsAction = liveAction || storedAction;
         if (liveAction && liveAction !== storedAction) {
             t.set(signalRef, {
                 ipqsAction: liveAction,
-                ipqsReason: String(freshGate.reason || '').slice(0, 40),
+                ipqsReason: String(verdict.reason || '').slice(0, 40),
+                ipqsFraudScore: verdict.fraudScore == null ? null : verdict.fraudScore,
                 ipqsCheckedAtMs: Date.now(),
             }, { merge: true });
         }

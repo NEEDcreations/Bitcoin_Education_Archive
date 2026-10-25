@@ -1,10 +1,10 @@
 // Cache-buster pin. This ship branch is btc-archive-v2363.
-// v2362 stays unused. v2361 is the live account-deletion cache.
+// Live gh-pages is v2362. quests.js is 20261024_v2362.
 // bundle.min.js, ranking.js, and satoshi-favor.js are 20261024_v2363.
 // features.registry.js is 20261024_v2361.
 // global-chat.js and patches.js stay 20261024_v2360.
 // nacho-qa.js stays 20261024_v2350.
-// gifting.js, quests.js, and onboarding.js stay 20261024_v2358.
+// gifting.js and onboarding.js stay 20261024_v2358.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349. today-card.js is 20261024_v2351.
@@ -33,11 +33,11 @@ function test(name, fn) {
 test('service worker cache is v2363', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2363'"));
-assert.ok(!sw.includes('btc-archive-v2362'));
-assert.ok(!sw.includes('btc-archive-v2361'));
-assert.ok(!sw.includes('btc-archive-v2360'));
-assert.ok(!sw.includes('btc-archive-v2359'));
-assert.ok(!sw.includes('btc-archive-v2358'));
+    assert.ok(!sw.includes('btc-archive-v2362'));
+    assert.ok(!sw.includes('btc-archive-v2361'));
+    assert.ok(!sw.includes('btc-archive-v2360'));
+    assert.ok(!sw.includes('btc-archive-v2359'));
+    assert.ok(!sw.includes('btc-archive-v2358'));
     assert.ok(!sw.includes('btc-archive-v2357'));
     assert.ok(!sw.includes('btc-archive-v2356'));
     assert.ok(!sw.includes('btc-archive-v2355'));
@@ -197,7 +197,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2350/g) || []).length, 0);
@@ -257,6 +258,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN, proxy, or Tor exit.'));
+    assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
+    assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
     assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));

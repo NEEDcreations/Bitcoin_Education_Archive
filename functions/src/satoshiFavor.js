@@ -724,15 +724,19 @@ exports.hashForFavor = onCall({
         requestId: data && data.ipqsRequestId,
         purpose: 'favor',
       });
-      await favorCacheRef.set({
-        uid: uid,
-        cycleId: favorCycleId,
-        action: rewardGate.action || 'fallback',
-        reason: String(rewardGate.reason || '').slice(0, 40),
-        message: String(rewardGate.message || '').slice(0, 240),
-        checkedAtMs: now,
-        expireAt: admin.firestore.Timestamp.fromMillis(now + (7 * 24 * 60 * 60 * 1000)),
-      });
+      const favorVerdict = rewardGate.ipVerdict;
+      const favorReal = favorVerdict && (favorVerdict.action === 'allow' || favorVerdict.action === 'hold' || favorVerdict.action === 'deny');
+      if (favorReal) {
+        await favorCacheRef.set({
+          uid: uid,
+          cycleId: favorCycleId,
+          action: favorVerdict.action,
+          reason: String(favorVerdict.reason || '').slice(0, 40),
+          message: String(rewardGate.message || '').slice(0, 240),
+          checkedAtMs: now,
+          expireAt: admin.firestore.Timestamp.fromMillis(now + (7 * 24 * 60 * 60 * 1000)),
+        });
+      }
     }
   } catch (gateErr) {
     console.error('[FAVOR] reward gate fallback');

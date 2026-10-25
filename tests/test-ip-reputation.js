@@ -168,7 +168,9 @@ function gateOpts(db, extra) {
     }, extra || {});
 }
 
-test('scoring table denies datacenters, botnets, recent abuse, and scores of 90 or more', function() {
+test('scoring table denies datacenters, botnets, and scores of 90 or more', function() {
+    delete process.env.IPQS_DENY_RECENT_ABUSE;
+    delete process.env.IPQS_HOLD_SCORE_BAND;
     const dc = rep.scoreIpLookup(cleanBody({ connection_type: 'Data Center', fraud_score: 10 }));
     assert.strictEqual(dc.action, 'deny');
     assert.strictEqual(dc.reason, 'datacenter');
@@ -177,21 +179,25 @@ test('scoring table denies datacenters, botnets, recent abuse, and scores of 90 
     assert.strictEqual(dcVpn.reason, 'vpn');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ bot_status: true, fraud_score: 10 })).reason, 'botnet');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ bot_status: true, fraud_score: 10 })).action, 'deny');
-    assert.strictEqual(rep.scoreIpLookup(cleanBody({ recent_abuse: true })).action, 'deny');
-    assert.strictEqual(rep.scoreIpLookup(cleanBody({ recent_abuse: true })).reason, 'recent-abuse');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ recent_abuse: true, fraud_score: 10 })).action, 'allow');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ recent_abuse: true }), { denyRecentAbuse: true }).action, 'deny');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ recent_abuse: true }), { denyRecentAbuse: true }).reason, 'recent-abuse');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 90 })).action, 'deny');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 90 })).reason, 'fraud-score');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 99, vpn: true })).action, 'deny');
 });
 
-test('scoring table holds vpn, proxy, tor, and scores from 75 through 89', function() {
+test('scoring table holds vpn, proxy, and tor, and the score band stays off', function() {
+    delete process.env.IPQS_HOLD_SCORE_BAND;
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ vpn: true, fraud_score: 20 })).action, 'hold');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ vpn: true, fraud_score: 20 })).reason, 'vpn');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ proxy: true, fraud_score: 20 })).reason, 'proxy');
     assert.strictEqual(rep.scoreIpLookup(cleanBody({ tor: true, fraud_score: 20 })).reason, 'tor');
-    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 75 })).action, 'hold');
-    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 75 })).reason, 'score-hold');
-    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 89 })).action, 'hold');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 75 })).action, 'allow');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 89 })).action, 'allow');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 75 }), { holdScoreBand: true }).action, 'hold');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 75 }), { holdScoreBand: true }).reason, 'score-hold');
+    assert.strictEqual(rep.scoreIpLookup(cleanBody({ fraud_score: 89 }), { holdScoreBand: true }).action, 'hold');
     const clean = rep.scoreIpLookup(cleanBody({ fraud_score: 74 }));
     assert.strictEqual(clean.action, 'allow');
     assert.strictEqual(clean.reason, 'clean');
@@ -588,6 +594,15 @@ test('claim and referral paths call the gate and keep new collections server-onl
     assert.ok(privacy.includes('not active yet'));
     assert.ok(privacy.includes('including after the account is deleted'));
     assert.ok(privacy.includes('multi-account reward abuse'));
+    assert.ok(privacy.includes('browser language header'));
+    assert.ok(privacy.includes('while Satoshi\'s Favor is hashing'));
+    assert.ok(privacy.includes('referral payout is rechecked'));
+    assert.ok(privacy.includes('ipqs_usage'));
+    assert.ok(privacy.includes('favor_ip_cache'));
+    assert.ok(privacy.includes('kept for 90 days'));
+    assert.ok(privacy.includes('kept for 7 days'));
+    assert.ok(rules.includes('favor_ip_cache.expireAt'));
+    assert.ok(rules.includes('ops_alerts.expireAt'));
     const terms = read('terms.html');
     assert.ok(terms.includes('one account per person'));
     assert.ok(terms.includes('VPN, proxy, or Tor'));
@@ -614,6 +629,12 @@ test('claim and referral paths call the gate and keep new collections server-onl
     assert.ok(service.includes('linked-ip-unverified'));
     assert.ok(service.includes('legacyNetworkIds'));
     assert.ok(service.includes("purpose: 'referral'"));
+    const pay = service.slice(service.indexOf('async function payIfQualified'), service.indexOf('async function onUserWritten'));
+    assert.ok(pay.indexOf('aboutToPayReferral') !== -1);
+    assert.ok(pay.indexOf('aboutToPayReferral') < pay.indexOf('assessReward'));
+    assert.ok(pay.includes('liveIpVerdict'));
+    assert.strictEqual(pay.includes('freshGate.action'), false);
+    assert.ok(favor.includes('ipVerdict'));
     const script = read('scripts/migrate-faucet-ip-hmac.js');
     assert.ok(script.includes('REFERRAL_IP_HMAC_SECRET'));
     assert.strictEqual(script.includes('IP_REP_HMAC_SECRET'), false);
@@ -732,18 +753,31 @@ test('purpose caps keep a favor lookup from spending the faucet bucket', async f
     assert.strictEqual(db._docs['ops_alerts/ipqs_2023-11-14'].kind, 'ipqs');
 });
 
-test('quota holds a never-claimed faucet account and lets a returning account through', async function() {
+test('quota holds a never-claimed faucet account only when that switch is on', async function() {
+    delete process.env.IPQS_HOLD_NEVER_CLAIMED;
     const db = memoryDb();
     const now = 1_700_000_000_000;
     db._docs['ipqs_usage/2023-11-14'] = { lookups: 30, faucet: 20, expireAt: now + 100000 };
     const fetchImpl = function() { throw new Error('lookup should not run'); };
-    const held = await rep.assessReward(gateOpts(db, {
+    const open = await rep.assessReward(gateOpts(db, {
         fetchImpl: fetchImpl,
         now: now,
         ip: '198.51.100.20',
         cap: 30,
         purpose: 'faucet',
         neverClaimed: true,
+    }));
+    assert.strictEqual(open.action, 'fallback');
+    assert.strictEqual(open.reason, 'quota');
+    assert.strictEqual(open.message, '');
+    const held = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '198.51.100.22',
+        cap: 30,
+        purpose: 'faucet',
+        neverClaimed: true,
+        holdNeverClaimed: true,
     }));
     assert.strictEqual(held.action, 'hold');
     assert.strictEqual(held.reason, 'quota');
@@ -760,6 +794,132 @@ test('quota holds a never-claimed faucet account and lets a returning account th
     assert.strictEqual(returning.action, 'fallback');
     assert.strictEqual(returning.reason, 'quota');
     assert.strictEqual(returning.message, '');
+});
+
+function creditFetch() {
+    return {
+        status: 402,
+        json: async function() {
+            return { success: false, message: 'Insufficient credits remaining' };
+        },
+    };
+}
+
+test('zero credits fail open for a new account and do not spend the account cap', async function() {
+    delete process.env.IPQS_HOLD_NEVER_CLAIMED;
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = function() {
+        fetches++;
+        return Promise.resolve(creditFetch());
+    };
+    for (let i = 0; i < 4; i++) {
+        const got = await rep.assessReward(gateOpts(db, {
+            fetchImpl: fetchImpl,
+            now: now,
+            ip: '198.51.100.' + (30 + i),
+            purpose: 'faucet',
+            neverClaimed: true,
+            userCap: 3,
+        }));
+        assert.strictEqual(got.action, 'fallback');
+        assert.strictEqual(got.reason, 'credits');
+        assert.strictEqual(got.message, '');
+        assert.strictEqual(got.ipVerdict, null);
+    }
+    assert.strictEqual(fetches, 4);
+    const userKey = Object.keys(db._docs).filter(function(key) { return key.indexOf('_u_') !== -1; });
+    assert.strictEqual(userKey.length, 0);
+    assert.ok(db._docs['ops_alerts/ipqs_2023-11-14']);
+});
+
+test('a failed lookup does not count toward the account cap', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = function() {
+        fetches++;
+        return Promise.resolve(creditFetch());
+    };
+    for (let i = 0; i < 3; i++) {
+        const got = await rep.assessReward(gateOpts(db, {
+            fetchImpl: fetchImpl,
+            now: now + i,
+            ip: '203.0.113.' + (60 + i),
+            purpose: 'referral',
+            userCap: 3,
+        }));
+        assert.strictEqual(got.action, 'fallback');
+        assert.strictEqual(got.reason, 'credits');
+    }
+    const later = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.70',
+        purpose: 'faucet',
+        userCap: 3,
+    }));
+    assert.strictEqual(later.action, 'fallback');
+    assert.strictEqual(later.reason, 'credits');
+    assert.notStrictEqual(later.reason, 'user-quota');
+    assert.strictEqual(later.message, '');
+    assert.strictEqual(fetches, 4);
+});
+
+test('an exhausted purpose cap does not hold a later faucet check', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = scriptedFetch(function() {
+        fetches++;
+        return jsonResponse(200, cleanBody({ fraud_score: 10 }));
+    });
+    const purposeCaps = { faucet: 5, favor: 5, referral: 0 };
+    const referral = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.80',
+        purpose: 'referral',
+        purposeCaps: purposeCaps,
+        userCap: 3,
+    }));
+    assert.strictEqual(referral.action, 'fallback');
+    assert.strictEqual(referral.reason, 'quota');
+    assert.strictEqual(fetches, 0);
+    const faucet = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.81',
+        purpose: 'faucet',
+        purposeCaps: purposeCaps,
+        userCap: 3,
+    }));
+    assert.strictEqual(faucet.action, 'allow');
+    assert.strictEqual(fetches, 1);
+    const userKey = 'ipqs_usage/2023-11-14_u_alice01';
+    assert.strictEqual(db._docs[userKey].lookups, 1);
+});
+
+test('an account already at the cap fails open while the vendor is degraded', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    db._docs['ipqs_usage/2023-11-14_u_alice01'] = { lookups: 3, expireAt: now + 100000 };
+    db._docs['ipqs_usage/2023-11-14'] = { lookups: 3, lastError: 'credits', degraded: true, expireAt: now + 100000 };
+    let fetches = 0;
+    const result = await rep.assessReward(gateOpts(db, {
+        fetchImpl: function() {
+            fetches++;
+            return Promise.resolve(creditFetch());
+        },
+        now: now,
+        ip: '203.0.113.90',
+        userCap: 3,
+    }));
+    assert.strictEqual(result.action, 'fallback');
+    assert.strictEqual(result.reason, 'user-quota');
+    assert.strictEqual(result.message, '');
+    assert.strictEqual(fetches, 0);
 });
 
 test('a missing hmac secret cannot build a network doc id', function() {
@@ -785,6 +945,24 @@ test('a favor verdict is reused only for the same window', function() {
         action: 'allow',
         expireAt: now + 1000,
     }, 'cycle-1', now), false);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-1',
+        action: 'hold',
+        reason: 'user-quota',
+        expireAt: now + 1000,
+    }, 'cycle-1', now), false);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-1',
+        action: 'fallback',
+        reason: 'credits',
+        expireAt: now + 1000,
+    }, 'cycle-1', now), false);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-1',
+        action: 'hold',
+        reason: 'vpn',
+        expireAt: now + 1000,
+    }, 'cycle-1', now), true);
 });
 
 test('referral holds use invite wording', async function() {

@@ -52,7 +52,28 @@ function failureReason(body, status) {
     return 'lookup';
 }
 
-function scoreIpLookup(body) {
+function envSwitch(name, opts, key) {
+    if (opts && opts[key] === true) return true;
+    if (opts && opts[key] === false) return false;
+    const raw = String(process.env[name] || '').trim().toLowerCase();
+    return raw === '1' || raw === 'true' || raw === 'on' || raw === 'yes';
+}
+
+// Recent-abuse denies and the 75–89 score hold stay off unless Phil turns them on.
+function denyRecentAbuse(opts) {
+    return envSwitch('IPQS_DENY_RECENT_ABUSE', opts, 'denyRecentAbuse');
+}
+
+function holdScoreBand(opts) {
+    return envSwitch('IPQS_HOLD_SCORE_BAND', opts, 'holdScoreBand');
+}
+
+// Off by default. At 0 credits this hold would block every new account.
+function holdNeverClaimed(opts) {
+    return envSwitch('IPQS_HOLD_NEVER_CLAIMED', opts, 'holdNeverClaimed');
+}
+
+function scoreIpLookup(body, opts) {
     if (!body || typeof body !== 'object' || body.success === false) {
         return {
             action: 'fallback',
@@ -86,14 +107,16 @@ function scoreIpLookup(body) {
         botnet: botnet,
         countryCode: countryCode(body),
     };
-    if ((datacenter && !knownVpn) || botnet || recentAbuse || (fraudScore != null && fraudScore >= 90)) {
+    const recentDenies = denyRecentAbuse(opts) && recentAbuse;
+    if ((datacenter && !knownVpn) || botnet || recentDenies || (fraudScore != null && fraudScore >= 90)) {
         let reason = 'fraud-score';
         if (datacenter && !knownVpn) reason = 'datacenter';
         else if (botnet) reason = 'botnet';
-        else if (recentAbuse) reason = 'recent-abuse';
+        else if (recentDenies) reason = 'recent-abuse';
         return Object.assign({ action: 'deny', reason: reason }, base);
     }
-    if (knownVpn || (fraudScore != null && fraudScore >= 75 && fraudScore <= 89)) {
+    const scoreHolds = holdScoreBand(opts) && fraudScore != null && fraudScore >= 75 && fraudScore <= 89;
+    if (knownVpn || scoreHolds) {
         let reason = 'score-hold';
         if (vpn) reason = 'vpn';
         else if (proxy) reason = 'proxy';
@@ -375,7 +398,9 @@ function shouldReuseFavorCheck(data, cycleId, now) {
     if (!data || String(data.cycleId || '') !== String(cycleId || '')) return false;
     const exp = expireMillis(data.expireAt);
     if (exp && exp <= now) return false;
-    return data.action === 'allow' || data.action === 'hold' || data.action === 'deny' || data.action === 'fallback';
+    const reason = String(data.reason || '');
+    if (reason === 'user-quota' || reason === 'quota' || reason === 'credits' || reason === 'timeout') return false;
+    return data.action === 'allow' || data.action === 'hold' || data.action === 'deny';
 }
 
 function defaultBindings() {
@@ -399,27 +424,6 @@ function userUsageId(now, uid) {
     return dayKey(now) + '_u_' + safe;
 }
 
-async function reserveUserLookup(db, now, uid, cap, bindings) {
-    if (!db || !uid) return 'ok';
-    const ref = db.collection('ipqs_usage').doc(userUsageId(now, uid));
-    let result = 'ok';
-    await db.runTransaction(async function(t) {
-        const snap = await t.get(ref);
-        const lookups = snap.exists ? (Number(snap.data().lookups) || 0) : 0;
-        if (lookups >= cap) {
-            result = 'hold';
-            return;
-        }
-        t.set(ref, {
-            lookups: bindings.increment(1),
-            day: dayKey(now),
-            updatedAtMs: now,
-            expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
-        }, { merge: true });
-    });
-    return result;
-}
-
 async function reserveLookup(db, now, cap, bindings, purpose, purposeLimit) {
     if (!db) return false;
     const field = purposeName(purpose);
@@ -436,6 +440,7 @@ async function reserveLookup(db, now, cap, bindings, purpose, purposeLimit) {
                 errors: bindings.increment(1),
                 quotaSkips: bindings.increment(1),
                 lastError: 'quota',
+                degraded: true,
                 day: dayKey(now),
                 updatedAtMs: now,
                 expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
@@ -487,6 +492,7 @@ async function recordError(opts, reason) {
             t.set(ref, {
                 errors: bindings.increment(1),
                 lastError: code,
+                degraded: true,
                 day: dayKey(now),
                 updatedAtMs: now,
                 expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
@@ -595,6 +601,49 @@ function verdictDoc(scored, now, bindings) {
     };
 }
 
+function vendorDegraded(data) {
+    if (!data) return false;
+    if (data.degraded === true) return true;
+    const reason = String(data.lastError || '');
+    return reason === 'credits' || reason === 'timeout' || reason === 'http' || reason === 'lookup' || reason === 'quota' || reason === 'secret';
+}
+
+async function userLookupCount(db, now, uid) {
+    if (!db || !uid) return 0;
+    const snap = await db.collection('ipqs_usage').doc(userUsageId(now, uid)).get();
+    return snap.exists ? (Number((snap.data() || {}).lookups) || 0) : 0;
+}
+
+async function noteUserLookup(db, now, uid, bindings) {
+    if (!db || !uid) return;
+    const ref = db.collection('ipqs_usage').doc(userUsageId(now, uid));
+    await db.runTransaction(async function(t) {
+        t.set(ref, {
+            lookups: bindings.increment(1),
+            day: dayKey(now),
+            updatedAtMs: now,
+            expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
+        }, { merge: true });
+    });
+}
+
+async function clearDegraded(opts) {
+    if (!opts || !opts.db) return;
+    const ref = usageRef(opts.db, opts.now);
+    try {
+        await opts.db.runTransaction(async function(t) {
+            t.set(ref, {
+                degraded: false,
+                lastError: '',
+                day: dayKey(opts.now),
+                updatedAtMs: opts.now,
+            }, { merge: true });
+        });
+    } catch (e) {
+        console.error('[ipqs] clear degraded failed');
+    }
+}
+
 async function lookupIp(opts) {
     const now = opts.now;
     const canon = canonicalIp(opts.ip);
@@ -621,10 +670,18 @@ async function lookupIp(opts) {
         return fallback('secret');
     }
     const userCap = userLookupCap(opts);
-    const userSlot = await reserveUserLookup(opts.db, now, opts.uid, userCap, opts.bindings);
-    if (userSlot === 'hold') {
-        logVerdict(docId, 'hold', 'user-quota', null);
-        return { action: 'hold', reason: 'user-quota', verdict: null };
+    if (opts.uid) {
+        const used = await userLookupCount(opts.db, now, opts.uid);
+        if (used >= userCap) {
+            const usageSnap = await usageRef(opts.db, now).get();
+            const usage = usageSnap.exists ? (usageSnap.data() || {}) : {};
+            if (vendorDegraded(usage)) {
+                logVerdict(docId, 'fallback', 'user-quota', null);
+                return fallback('user-quota');
+            }
+            logVerdict(docId, 'hold', 'user-quota', null);
+            return { action: 'hold', reason: 'user-quota', verdict: null };
+        }
     }
     const cap = dailyCap(opts);
     const reserved = await reserveLookup(opts.db, now, cap, opts.bindings, opts.purpose, purposeCap(opts.purpose, opts));
@@ -659,6 +716,8 @@ async function lookupIp(opts) {
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);
     }
+    if (opts.uid) await noteUserLookup(opts.db, now, opts.uid, opts.bindings);
+    await clearDegraded(opts);
     const doc = verdictDoc(scored, now, opts.bindings);
     await opts.db.collection('ip_reputation').doc(docId).set(doc);
     logVerdict(docId, scored.action, scored.reason, scored.fraudScore);
@@ -845,7 +904,7 @@ async function assessReward(opts) {
                 deviceAction: 'off',
             };
         }
-        if ((ipResult.reason === 'quota' || ipResult.reason === 'credits') && packed.purpose === 'faucet' && src.neverClaimed === true) {
+        if (holdNeverClaimed(src) && (ipResult.reason === 'quota' || ipResult.reason === 'credits') && packed.purpose === 'faucet' && src.neverClaimed === true) {
             return {
                 action: 'hold',
                 reason: ipResult.reason,
@@ -932,6 +991,9 @@ module.exports = {
     decideDevice: decideDevice,
     postbackAgeMs: postbackAgeMs,
     assessReward: assessReward,
+    denyRecentAbuse: denyRecentAbuse,
+    holdScoreBand: holdScoreBand,
+    holdNeverClaimed: holdNeverClaimed,
     reserveLookup: reserveLookup,
     failureReason: failureReason,
 };
