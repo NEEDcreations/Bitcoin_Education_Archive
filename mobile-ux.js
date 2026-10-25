@@ -922,6 +922,7 @@ window.renderLearnMenu = function(container, view) {
         btn.appendChild(col);
         btn.addEventListener('click', function(ev) {
             ev.preventDefault();
+            ev.stopPropagation();
             if (item.run === 'quests') {
                 window.renderLearnMenu(container, 'quests');
                 return;
@@ -938,6 +939,7 @@ window.renderLearnMenu = function(container, view) {
             browse.style.cssText = 'margin:-2px 0 4px 28px;padding:6px 10px;background:none;border:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:left;text-decoration:underline;';
             browse.addEventListener('click', function(ev) {
                 ev.preventDefault();
+                ev.stopPropagation();
                 closeLearnMenus();
                 if (typeof toggleMenu === 'function') toggleMenu();
             });
