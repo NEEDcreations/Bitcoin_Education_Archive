@@ -56,6 +56,8 @@ function createDocument() {
             return Object.prototype.hasOwnProperty.call(el.attrs, name) ? el.attrs[name] : null;
         };
         el.removeAttribute = function(name) { delete el.attrs[name]; };
+        el.focus = function() { document.activeElement = el; };
+        el.tabIndex = 0;
         Object.defineProperty(el, 'textContent', {
             get: function() {
                 var out = '';
@@ -85,6 +87,20 @@ function createDocument() {
     document.documentElement = html;
     document.head = head;
     document.body = body;
+    document.activeElement = body;
+    document._listeners = {};
+    document.addEventListener = function(type, fn) {
+        if (!document._listeners[type]) document._listeners[type] = [];
+        document._listeners[type].push(fn);
+    };
+    document.removeEventListener = function(type, fn) {
+        var list = document._listeners[type] || [];
+        document._listeners[type] = list.filter(function(item) { return item !== fn; });
+    };
+    document.dispatchEvent = function(event) {
+        var list = (document._listeners[event.type] || []).slice();
+        list.forEach(function(fn) { fn(event); });
+    };
     document.getElementById = function(id) {
         var found = null;
         function walk(node) {
@@ -109,6 +125,28 @@ function buttonIn(row) {
         if (nodes[i].tagName === 'BUTTON') return nodes[i];
     }
     return null;
+}
+
+function findAttr(root, name, value) {
+    var found = null;
+    function walk(node) {
+        if (!node || found) return;
+        if (node.getAttribute && node.getAttribute(name) === value) { found = node; return; }
+        (node.childNodes || []).forEach(walk);
+    }
+    walk(root);
+    return found;
+}
+
+function findButtonText(root, text) {
+    var found = null;
+    function walk(node) {
+        if (!node || found) return;
+        if (node.tagName === 'BUTTON' && node.textContent === text) { found = node; return; }
+        (node.childNodes || []).forEach(walk);
+    }
+    walk(root);
+    return found;
 }
 
 function hasTag(node, tag) {
@@ -350,6 +388,93 @@ async function main() {
         await flush();
         assert.ok(env.document.getElementById('giftFollowUp').textContent.indexOf('Send to a peer') !== -1);
         assert.strictEqual(env.document.getElementById('openAllGiftsBtn').textContent, 'All opened');
+    });
+
+    failed += await test('a gift already opened in another tab is not a retry', async function() {
+        var env = boot();
+        env.sandbox.showPostSpinGiftModal(gifts(['a', 'b']));
+        env.sandbox.openSingleGift('a');
+        var err = new Error('Gift already opened');
+        err.code = 'already-exists';
+        env.pending.a.reject(err);
+        await flush();
+        var row = rowOf(env.document, 'a');
+        assert.strictEqual(row.getAttribute('data-gift-state'), 'already');
+        assert.ok(row.textContent.indexOf('Already opened') !== -1);
+        assert.strictEqual(row.textContent.indexOf('Try again') !== -1, false);
+        assert.strictEqual(row.textContent.indexOf('Could not open') !== -1, false);
+        assert.strictEqual(buttonIn(row), null);
+        var live = findAttr(row, 'aria-live', 'polite');
+        assert.ok(live);
+        assert.ok(live.textContent.indexOf('Already opened') !== -1);
+        assert.strictEqual(env.sandbox._postSpinGifts.some(function(g) { return g.id === 'a'; }), false);
+        assert.strictEqual(env.sandbox._postSpinGifts.some(function(g) { return g.id === 'b'; }), true);
+        assert.strictEqual(env.document.getElementById('openAllGiftsBtn').textContent, 'Open all');
+        env.sandbox.openSingleGift('b');
+        env.pending.b.reject(new Error('Gift already opened'));
+        await flush();
+        assert.strictEqual(rowOf(env.document, 'b').textContent.indexOf('Already opened') !== -1, true);
+        assert.strictEqual(buttonIn(rowOf(env.document, 'b')), null);
+        assert.strictEqual(env.sandbox._postSpinGifts.length, 0);
+        assert.strictEqual(env.document.getElementById('openAllGiftsBtn').textContent, 'All opened');
+        assert.strictEqual(env.document.getElementById('openAllGiftsBtn').disabled, true);
+    });
+
+    failed += await test('open all flips to All opened when the last gift opens alone', async function() {
+        var env = boot();
+        env.sandbox.showPostSpinGiftModal(gifts(['a', 'b']));
+        var allBtn = env.document.getElementById('openAllGiftsBtn');
+        assert.strictEqual(allBtn.textContent, 'Open all');
+        env.sandbox.openSingleGift('a');
+        env.pending.a.resolve(reward('tickets', { ticketCount: 1 }));
+        await flush();
+        assert.strictEqual(allBtn.textContent, 'Open all');
+        assert.strictEqual(allBtn.disabled, false);
+        assert.strictEqual(env.refreshPending() > 0, true);
+        env.sandbox.openSingleGift('b');
+        env.pending.b.resolve(reward('xp_bonus', { xpAmount: 10 }));
+        await flush();
+        assert.strictEqual(rowOf(env.document, 'b').getAttribute('data-gift-state'), 'opened');
+        assert.strictEqual(allBtn.textContent, 'All opened');
+        assert.strictEqual(allBtn.disabled, true);
+        assert.strictEqual(env.refreshPending() > 0, true);
+        env.releaseRefresh();
+        await flush();
+    });
+
+    failed += await test('the popup is a dialog and returns focus when it closes', async function() {
+        var env = boot();
+        var outside = env.document.createElement('button');
+        outside.textContent = 'Behind';
+        env.document.body.appendChild(outside);
+        outside.focus();
+        assert.strictEqual(env.document.activeElement, outside);
+        env.sandbox.showPostSpinGiftModal(gifts(['a']), { pending: true });
+        var dialog = findAttr(env.document.body, 'role', 'dialog');
+        assert.ok(dialog);
+        assert.strictEqual(dialog.getAttribute('aria-modal'), 'true');
+        assert.strictEqual(dialog.getAttribute('aria-labelledby'), 'postSpinGiftTitle');
+        assert.strictEqual(env.document.getElementById('postSpinGiftTitle').textContent.indexOf('gift') !== -1, true);
+        assert.strictEqual(env.document.activeElement, dialog);
+        env.sandbox.openSingleGift('a');
+        env.pending.a.resolve(reward('tickets', { ticketCount: 4 }));
+        await flush();
+        var prize = findAttr(rowOf(env.document, 'a'), 'aria-live', 'polite');
+        assert.ok(prize);
+        assert.strictEqual(prize.getAttribute('aria-atomic'), 'true');
+        assert.ok(prize.textContent.indexOf('+4 Orange Tickets') !== -1);
+        env.document.dispatchEvent({ type: 'keydown', key: 'Escape' });
+        assert.strictEqual(env.document.getElementById('postSpinGiftOverlay'), null);
+        assert.strictEqual(env.document.activeElement, outside);
+        assert.strictEqual(env.sandbox._suppressPendingGifts, true);
+        env.sandbox._suppressPendingGifts = false;
+        outside.focus();
+        env.sandbox.showPostSpinGiftModal(gifts(['c']));
+        findButtonText(env.document.body, 'Close').onclick();
+        assert.strictEqual(env.document.getElementById('postSpinGiftOverlay'), null);
+        assert.strictEqual(env.document.activeElement, outside);
+        env.releaseRefresh();
+        await flush();
     });
 
     failed += await test('modal background is solid and the open animation is capped', function() {

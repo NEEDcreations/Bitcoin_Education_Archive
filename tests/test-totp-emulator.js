@@ -10,6 +10,7 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
+if (!process.env.DELETION_HMAC_SECRET) process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
 
 if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
     const child = spawnSync('npx', [
@@ -461,7 +462,12 @@ async function main() {
             code: codeAt(enrolled.secret, now),
             action: 'deleteAccount',
         }, enrolled.context);
-        const deleted = await fns.deleteAccount.run({ freshProofId: stepped.freshProofId }, enrolled.context);
+        if (!process.env.DELETION_HMAC_SECRET) process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
+        const deleted = await fns.deleteAccount.run({
+            freshProofId: stepped.freshProofId,
+            confirmUsername: 'DELETE',
+            acknowledgeForfeit: true,
+        }, enrolled.context);
         assert.strictEqual(deleted.ok, true);
         let gone = false;
         try { await admin.auth().getUser(uid); } catch (e) { gone = true; }

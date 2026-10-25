@@ -179,6 +179,8 @@ var _giftSilent = {};
 var _giftAnimGen = 0;
 var _holdingsRefresh = null;
 var _holdingsRefreshQueued = false;
+var _giftReturnFocus = null;
+var _giftKeyBound = false;
 
 function _emptyEl(el) {
     if (!el) return;
@@ -532,6 +534,74 @@ function _settleGift(giftId) {
     }
 }
 
+function _nodeInside(node, root) {
+    if (!node || !root) return false;
+    if (typeof root.contains === 'function') return root.contains(node);
+    var cur = node;
+    while (cur) {
+        if (cur === root) return true;
+        cur = cur.parentNode;
+    }
+    return false;
+}
+
+function _isGiftAlreadyOpened(err) {
+    var code = err && err.code ? String(err.code) : '';
+    if (code === 'already-exists' || code === 'functions/already-exists') return true;
+    var msg = err && err.message ? String(err.message) : '';
+    return /already opened/i.test(msg);
+}
+
+function _removeUnopenedGift(giftId) {
+    var gifts = window._postSpinGifts;
+    if (!gifts || !gifts.length) return;
+    for (var i = gifts.length - 1; i >= 0; i--) {
+        if (gifts[i] && gifts[i].id === giftId) gifts.splice(i, 1);
+    }
+}
+
+function _syncOpenAllButton() {
+    var openAll = document.getElementById('openAllGiftsBtn');
+    if (!openAll) return;
+    var gifts = window._postSpinGifts || [];
+    for (var i = 0; i < gifts.length; i++) {
+        var id = gifts[i] && gifts[i].id;
+        if (id && _giftSettled[id] !== 'ok') return;
+    }
+    openAll.disabled = true;
+    openAll.removeAttribute('aria-busy');
+    openAll.textContent = 'All opened';
+    openAll.style.background = '#34d399';
+}
+
+function _closePostSpinGiftModal() {
+    var overlay = document.getElementById('postSpinGiftOverlay');
+    if (!overlay) return;
+    var pending = overlay.getAttribute('data-pending') === '1';
+    var back = _giftReturnFocus;
+    _giftReturnFocus = null;
+    overlay.remove();
+    if (pending) window._suppressPendingGifts = true;
+    if (back && typeof back.focus === 'function' && !_nodeInside(back, overlay)) {
+        try { back.focus(); } catch (e) { /* the opener may already be gone */ }
+    }
+}
+
+function _onGiftModalKeydown(e) {
+    if (!e) return;
+    var key = e.key;
+    if (key !== 'Escape' && key !== 'Esc' && e.keyCode !== 27) return;
+    if (!document.getElementById('postSpinGiftOverlay')) return;
+    if (e.preventDefault) e.preventDefault();
+    _closePostSpinGiftModal();
+}
+
+function _bindGiftModalKeys() {
+    if (_giftKeyBound || !document.addEventListener) return;
+    _giftKeyBound = true;
+    document.addEventListener('keydown', _onGiftModalKeydown);
+}
+
 function _refreshHoldingsInBackground() {
     if (_holdingsRefresh) {
         _holdingsRefreshQueued = true;
@@ -590,22 +660,31 @@ async function _runGiftOpen(giftId) {
         var rw = await _openGiftRequest(giftId);
         _markGiftRow(giftId, rw, false);
         _giftSettled[giftId] = 'ok';
+        _syncOpenAllButton();
         if (!silent) {
             _confetti();
             _toast('🎁 ' + _rewardLabel(rw), rw && rw.shoutoutConverted ? 6000 : undefined);
         }
         _refreshHoldingsInBackground();
     } catch (e) {
-        delete _giftSettled[giftId];
-        _markGiftRow(giftId, null, true);
-        var row = document.getElementById('giftRow_' + giftId);
-        if (row) {
-            var retry = _btn('Try again');
-            retry.className = 'gift-open-btn';
-            retry.onclick = function() { window.openSingleGift(giftId); };
-            row.appendChild(retry);
+        if (_isGiftAlreadyOpened(e)) {
+            _markGiftAlreadyOpened(giftId);
+            _giftSettled[giftId] = 'ok';
+            _removeUnopenedGift(giftId);
+            _syncOpenAllButton();
+            if (!silent) _toast('Already opened');
+        } else {
+            delete _giftSettled[giftId];
+            _markGiftRow(giftId, null, true);
+            var row = document.getElementById('giftRow_' + giftId);
+            if (row) {
+                var retry = _btn('Try again');
+                retry.className = 'gift-open-btn';
+                retry.onclick = function() { window.openSingleGift(giftId); };
+                row.appendChild(retry);
+            }
+            _toast('❌ ' + ((e && e.message) || 'Could not open that gift'));
         }
-        _toast('❌ ' + ((e && e.message) || 'Could not open that gift'));
     } finally {
         delete _giftsOpening[giftId];
         _giftActiveCount = Math.max(0, _giftActiveCount - 1);
@@ -617,8 +696,13 @@ async function _runGiftOpen(giftId) {
 window.showPostSpinGiftModal = function(gifts, opts) {
     _injectGiftingCSS();
     opts = opts || {};
+    var previousFocus = document.activeElement || null;
     var existing = document.getElementById('postSpinGiftOverlay');
-    if (existing) existing.remove();
+    if (existing) {
+        if (_nodeInside(previousFocus, existing)) previousFocus = _giftReturnFocus;
+        existing.remove();
+    }
+    _giftReturnFocus = previousFocus;
     _resetGiftOpenState();
     window._postSpinGifts = gifts.slice();
     window._openedGiftRewards = [];
@@ -627,9 +711,15 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     overlay.id = 'postSpinGiftOverlay';
     overlay.className = 'gifting-overlay';
     overlay.style.zIndex = '480000';
+    overlay.setAttribute('data-pending', opts.pending ? '1' : '0');
 
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'postSpinGiftTitle');
+    modal.tabIndex = -1;
+    modal.setAttribute('tabindex', '-1');
 
     var count = gifts.length;
     var title = document.createElement('div');
@@ -637,6 +727,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     emoji.textContent = '🎁';
     emoji.style.cssText = 'font-size:2.6rem;animation:giftBounce 0.6s ease-out;';
     var heading = document.createElement('div');
+    heading.id = 'postSpinGiftTitle';
     heading.style.cssText = 'color:#f7931a;font-weight:900;font-size:1.2rem;margin:4px 0;';
     heading.textContent = opts.pending
         ? ('You have ' + count + ' gift' + (count > 1 ? 's' : '') + ' to open')
@@ -697,16 +788,15 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     later.className = 'gift-later-btn';
     later.style.border = '1px solid var(--border,#334155)';
     later.style.color = 'var(--text-muted,#94a3b8)';
-    later.onclick = function() {
-        overlay.remove();
-        if (opts.pending) window._suppressPendingGifts = true;
-    };
+    later.onclick = function() { _closePostSpinGiftModal(); };
     actions.appendChild(openAll);
     actions.appendChild(later);
     actions.appendChild(_soundButton('giftSoundToggle'));
     modal.appendChild(actions);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    _bindGiftModalKeys();
+    try { modal.focus(); } catch (e) { /* focus is best-effort when the dialog opens */ }
 };
 
 function _markGiftRow(giftId, rw, failed) {
@@ -723,9 +813,11 @@ function _markGiftRow(giftId, rw, failed) {
     var label = document.createElement('div');
     label.className = 'gift-prize-label';
     label.style.cssText = 'flex:1;min-width:120px;font-size:0.95rem;font-weight:800;color:var(--text,#e2e8f0);line-height:1.3;';
-    label.textContent = failed ? 'Could not open — try again' : _rewardLabel(rw);
+    label.setAttribute('aria-live', 'polite');
+    label.setAttribute('aria-atomic', 'true');
     row.appendChild(icon);
     row.appendChild(label);
+    label.textContent = failed ? 'Could not open — try again' : _rewardLabel(rw);
     row.style.borderColor = failed ? 'rgba(239,68,68,0.45)' : 'rgba(52,211,153,0.45)';
     row.style.background = failed ? 'rgba(239,68,68,0.08)' : 'rgba(52,211,153,0.1)';
     row.setAttribute('data-gift-state', failed ? 'failed' : 'opened');
@@ -735,6 +827,29 @@ function _markGiftRow(giftId, rw, failed) {
         ok.style.cssText = 'color:#34d399;font-weight:800;font-size:1.1rem;flex-shrink:0;';
         row.appendChild(ok);
     }
+}
+
+function _markGiftAlreadyOpened(giftId) {
+    var row = document.getElementById('giftRow_' + giftId);
+    if (!row) return;
+    _emptyEl(row);
+    row.style.opacity = '';
+    var icon = document.createElement('span');
+    icon.className = 'gift-row-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'font-size:1.6rem;line-height:1;flex-shrink:0;';
+    icon.textContent = '🎁';
+    var label = document.createElement('div');
+    label.className = 'gift-prize-label';
+    label.style.cssText = 'flex:1;min-width:120px;font-size:0.95rem;font-weight:800;color:var(--text-muted,#94a3b8);line-height:1.3;';
+    label.setAttribute('aria-live', 'polite');
+    label.setAttribute('aria-atomic', 'true');
+    row.appendChild(icon);
+    row.appendChild(label);
+    label.textContent = 'Already opened';
+    row.style.borderColor = 'rgba(148,163,184,0.45)';
+    row.style.background = 'rgba(148,163,184,0.1)';
+    row.setAttribute('data-gift-state', 'already');
 }
 
 async function _openGiftRequest(giftId) {
@@ -773,13 +888,11 @@ window.openAllPostSpinGifts = async function() {
             for (var fi = 0; fi < ids.length; fi++) {
                 if (_giftSettled[ids[fi]] !== 'ok') anyFailed = true;
             }
-            openAll.removeAttribute('aria-busy');
-            if (!anyFailed && (ids.length || gifts.length)) {
-                openAll.disabled = true;
-                openAll.textContent = 'All opened';
-                openAll.style.background = '#34d399';
+            if (!anyFailed) {
+                _syncOpenAllButton();
             } else {
                 openAll.disabled = false;
+                openAll.removeAttribute('aria-busy');
                 openAll.textContent = 'Open all';
                 openAll.style.background = 'linear-gradient(135deg,#f7931a,#ea580c)';
             }

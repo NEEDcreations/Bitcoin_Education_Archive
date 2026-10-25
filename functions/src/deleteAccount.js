@@ -39,6 +39,7 @@ const {
     isUsableSecret,
     loadRateLimitSecret,
 } = require('./rateLimitSalt');
+const accountTombstone = require('./accountTombstone');
 
 const BATCH_LIMIT = 400;
 const QUERY_PAGE = 200;
@@ -130,6 +131,7 @@ const RETAINED_COLLECTIONS = [
     'reports',
     'prediction_payouts',
     'prediction_records',
+    'deleted_accounts',
 ];
 
 const RETAINED = new Set(RETAINED_COLLECTIONS);
@@ -141,15 +143,11 @@ const CHAT_MEDIA_FIELDS = ['imageUrl', 'gifUrl', 'imageBase64', 'storagePath', '
 const DELETION_QUERIES = [
     ['dm_conversations', 'participants', 'array-contains', ['messages']],
     ['conversations', 'participants', 'array-contains', ['messages']],
-    ['forum_posts', 'authorId', '==', ['replies', 'comments']],
-    ['forum_replies', 'authorId', '==', []],
     ['marketplace', 'sellerUid', '==', []],
     ['marketplace_messages', 'buyerUid', '==', []],
     ['marketplace_messages', 'sellerUid', '==', []],
     ['suggestions', 'uid', '==', []],
     ['beats_tracks', 'authorId', '==', ['comments']],
-    ['articles', 'authorId', '==', ['replies', 'comments']],
-    ['article_replies', 'authorId', '==', []],
     ['irl_events', 'hostId', '==', []],
     ['notifications', 'recipientId', '==', []],
     ['notifications', 'senderId', '==', []],
@@ -224,8 +222,22 @@ const BOUNDED_READS = [
     { collection: 'weekly_challenges', orderBy: '__name__', reason: 'participant map' },
 ];
 
+// Public posts are not in DELETION_QUERIES. A post another person replied to
+// is anonymized. The rest are deleted. These lookups stay single-field.
+const CONTENT_LOOKUPS = [
+    ['forum_posts', 'authorId', '==', []],
+    ['forum_replies', 'authorId', '==', []],
+    ['forum_replies', 'postId', '==', []],
+    ['forum_replies', 'parentReplyId', '==', []],
+    ['articles', 'authorId', '==', []],
+    ['article_replies', 'authorId', '==', []],
+    ['article_replies', 'articleId', '==', []],
+    ['article_replies', 'parentReplyId', '==', []],
+    ['posts', 'parentId', '==', []],
+];
+
 const INDEX_AUDIT = {
-    collectionQueries: DELETION_QUERIES.concat(DEFERRED_QUERIES).concat([
+    collectionQueries: DELETION_QUERIES.concat(DEFERRED_QUERIES).concat(CONTENT_LOOKUPS).concat([
         ['gifts', 'sentBy', '==', []],
         ['leaderboard_winners', 'uids', 'array-contains', []],
         ['beats_tracks', 'likedBy', 'array-contains', []],
@@ -333,7 +345,7 @@ async function enforceDeleteRateLimit(db, spec) {
             const inWindow = !!start && age < DELETE_RATE_WINDOW_MS && age >= -60000;
             const count = inWindow ? (Number(data.count) || 0) : 0;
             if (count >= item.max) {
-                const err = new Error('Too many account deletions from this network. Try again later.');
+                const err = new Error('Too many deletions for this sign-in. Try again later.');
                 err.code = 'resource-exhausted';
                 throw err;
             }
@@ -909,6 +921,175 @@ async function stripPollVoters(db, batcher, uid, documentIdField) {
     }
 }
 
+const CONTENT_CLEAR_FIELDS = [
+    'link', 'imageUrl', 'gifUrl', 'coverUrl', 'authorPic', 'fileUrl', 'audioUrl',
+    'storagePath', 'imageBase64', 'mediaUrl', 'thumbnail', 'subtitle', 'summary', 'authorFaction',
+];
+
+function authorOf(data) {
+    const src = data || {};
+    return String(src.authorId || src.uid || src.author || '');
+}
+
+function repliedByOther(docs, uid) {
+    for (let i = 0; i < docs.length; i++) {
+        const who = authorOf(docs[i].data ? docs[i].data() : docs[i]);
+        // A reply already marked deleted still belongs to someone else.
+        if (who && who !== uid) return true;
+    }
+    return false;
+}
+
+async function subcollectionReplies(parentRef) {
+    if (!parentRef || typeof parentRef.collection !== 'function') return [];
+    const names = ['replies', 'comments'];
+    const out = [];
+    for (let i = 0; i < names.length; i++) {
+        let snap = null;
+        try {
+            snap = await parentRef.collection(names[i]).get();
+        } catch (err) {
+            snap = null;
+        }
+        if (!snap || typeof snap.forEach !== 'function') continue;
+        snap.forEach(function (doc) { out.push(doc); });
+    }
+    return out;
+}
+
+async function priorIdentityHashes(db, uid, userData) {
+    const out = [];
+    function add(value) {
+        const hash = String(value || '').trim().toLowerCase();
+        if (!/^[a-f0-9]{64}$/.test(hash)) return;
+        if (out.indexOf(hash) === -1) out.push(hash);
+    }
+    const user = userData || {};
+    add(user.emailHash);
+    if (Array.isArray(user.providerHashes)) user.providerHashes.forEach(add);
+    try {
+        const hist = await db.collection('email_history').doc(uid).get();
+        const hashes = hist && hist.exists && hist.data() && hist.data().hashes;
+        if (Array.isArray(hashes)) hashes.forEach(add);
+    } catch (err) { /* history is included when the read succeeds */ }
+    try {
+        const ident = await db.collection('identity_history').doc(uid).get();
+        const hashes = ident && ident.exists && ident.data() && ident.data().hashes;
+        if (Array.isArray(hashes)) hashes.forEach(add);
+    } catch (err) { /* provider history is included when the read succeeds */ }
+    return out;
+}
+
+function authoredTombstone() {
+    const patch = {
+        deleted: true,
+        authorId: DELETED_UID,
+        author: DELETED_UID,
+        uid: DELETED_UID,
+        authorName: DELETED_LABEL,
+        name: DELETED_LABEL,
+        username: DELETED_LABEL,
+        body: DELETED_LABEL,
+        text: DELETED_LABEL,
+        title: DELETED_LABEL,
+    };
+    CONTENT_CLEAR_FIELDS.forEach(function (key) { patch[key] = ''; });
+    return patch;
+}
+
+async function repliesWhere(db, collectionName, field, id, documentIdField) {
+    if (!id || String(id).indexOf('/') !== -1) return [];
+    return collectDocs(db.collection(collectionName).where(field, '==', id), documentIdField);
+}
+
+async function settleAuthoredDoc(db, batcher, doc, uid, replyDocs, documentIdField, childNames) {
+    if (repliedByOther(replyDocs, uid)) {
+        await batcher.update(doc.ref, authoredTombstone());
+        return 'anon';
+    }
+    await deleteDocTree(batcher, doc.ref, childNames || [], documentIdField, false);
+    return 'delete';
+}
+
+async function anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField) {
+    const posts = await collectDocs(
+        db.collection('forum_posts').where('authorId', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < posts.length; i++) {
+        const replies = await repliesWhere(db, 'forum_replies', 'postId', posts[i].id, documentIdField);
+        const nested = await subcollectionReplies(posts[i].ref);
+        await settleAuthoredDoc(db, batcher, posts[i], uid, replies.concat(nested), documentIdField, ['replies', 'comments']);
+    }
+    const forumReplies = await collectDocs(
+        db.collection('forum_replies').where('authorId', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < forumReplies.length; i++) {
+        const children = await repliesWhere(db, 'forum_replies', 'parentReplyId', forumReplies[i].id, documentIdField);
+        await settleAuthoredDoc(db, batcher, forumReplies[i], uid, children, documentIdField, []);
+    }
+    const articles = await collectDocs(
+        db.collection('articles').where('authorId', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < articles.length; i++) {
+        const replies = await repliesWhere(db, 'article_replies', 'articleId', articles[i].id, documentIdField);
+        const nested = await subcollectionReplies(articles[i].ref);
+        await settleAuthoredDoc(db, batcher, articles[i], uid, replies.concat(nested), documentIdField, ['replies', 'comments']);
+    }
+    const articleReplies = await collectDocs(
+        db.collection('article_replies').where('authorId', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < articleReplies.length; i++) {
+        const children = await repliesWhere(db, 'article_replies', 'parentReplyId', articleReplies[i].id, documentIdField);
+        await settleAuthoredDoc(db, batcher, articleReplies[i], uid, children, documentIdField, []);
+    }
+}
+
+async function dropPendingCipherReveals(db, batcher, uid, documentIdField) {
+    const shares = await collectDocs(
+        db.collection('cipher_shares').where('senderUid', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < shares.length; i++) {
+        const data = shares[i].data() || {};
+        if (data.revealed === true) continue;
+        const shareId = String(data.shareId || shares[i].id || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (!shareId) continue;
+        await deleteExactIfPresent(db, batcher, 'notifications', 'cshare_' + shareId);
+    }
+}
+
+function usernameConfirmed(user, typed) {
+    const name = String(user && user.username || '').trim();
+    const input = String(typed || '').trim();
+    if (!name) return input.toUpperCase() === 'DELETE';
+    return input.toLowerCase() === name.toLowerCase();
+}
+
+function satsBalanceOf(user) {
+    const src = user || {};
+    const direct = Number(src.sats);
+    if (direct > 0) return direct;
+    const points = Number(src.points) || 0;
+    const claimed = Number(src.pointsClaimed) || 0;
+    const donated = Number(src.pointsDonated) || 0;
+    const exchanged = Number(src.pointsExchanged) || 0;
+    return Math.floor((points - claimed - donated - exchanged) / 10);
+}
+
+function forfeitRequired(user, withdrawals) {
+    if (satsBalanceOf(user) > 0) return true;
+    const rows = withdrawals || [];
+    for (let i = 0; i < rows.length; i++) {
+        const status = String((rows[i] && rows[i].status) || '').toLowerCase();
+        if (status === 'pending' || status === 'processing') return true;
+    }
+    return false;
+}
+
 async function deleteTopicPosts(db, batcher, uid, documentIdField) {
     await deleteExactIfPresent(db, batcher, 'topic_discussion_limits', uid);
     if (typeof db.collectionGroup !== 'function') return;
@@ -920,8 +1101,17 @@ async function deleteTopicPosts(db, batcher, uid, documentIdField) {
     for (let i = 0; i < posts.length; i++) {
         const parts = String(posts[i].ref && posts[i].ref.path || '').split('/');
         if (parts.length < 4 || parts[0] !== 'topic_discussions' || parts[2] !== 'posts') continue;
-        await deleteDocTree(batcher, posts[i].ref, ['reports'], documentIdField, false);
+        const parentPath = parts.slice(0, 3).join('/');
+        const replies = await collectDocs(
+            db.collection(parentPath).where('parentId', '==', parts[3]),
+            documentIdField
+        );
         await deleteExactIfPresent(db, batcher, 'topic_discussion_private', parts[1] + '~' + parts[3]);
+        if (repliedByOther(replies, uid)) {
+            await batcher.update(posts[i].ref, authoredTombstone());
+            continue;
+        }
+        await deleteDocTree(batcher, posts[i].ref, ['reports'], documentIdField, false);
     }
 }
 
@@ -1049,6 +1239,8 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     await deleteUsernameReservations(db, batcher, uid, userData, documentIdField);
     await removeBeatsLikes(db, batcher, uid, documentIdField);
     await deleteTopicPosts(db, batcher, uid, documentIdField);
+    await anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField);
+    await dropPendingCipherReveals(db, batcher, uid, documentIdField);
 
     let deletedDocs = 0;
     for (let i = 0; i < DELETION_QUERIES.length; i++) {
@@ -1086,6 +1278,9 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['totp_sessions', uid, []],
         ['recovery_codes', uid, []],
         ['suggestions', uid, []],
+        ['referral_signals', uid, []],
+        ['email_change_pending', uid, []],
+        ['email_history', uid, []],
     ];
     for (let i = 0; i < direct.length; i++) {
         await deleteDocTree(batcher, db.collection(direct[i][0]).doc(direct[i][1]), direct[i][2], documentIdField, false);
@@ -1165,13 +1360,85 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                 }
                 throw err;
             }
+            const targetUid = decision.uid;
+            const userSnap = await db.collection('users').doc(targetUid).get();
+            const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+            if (!decision.byAdmin) {
+                if (!usernameConfirmed(userData, data && data.confirmUsername)) {
+                    throw new HttpsError('failed-precondition', 'Type your username to confirm deletion.');
+                }
+                const withdrawalDocs = await collectDocs(
+                    db.collection('users').doc(targetUid).collection('sats_withdrawals'),
+                    documentIdField
+                );
+                const withdrawals = withdrawalDocs.map(function (doc) { return doc.data() || {}; });
+                if (forfeitRequired(userData, withdrawals) && !(data && data.acknowledgeForfeit === true)) {
+                    throw new HttpsError('failed-precondition', 'Confirm that your sats balance is forfeited.');
+                }
+            }
+            const light = anonymous && !decision.byAdmin;
+            if (!light) {
+                let authUser = null;
+                if (authApi && typeof authApi.getUser === 'function') {
+                    try {
+                        authUser = await authApi.getUser(targetUid);
+                    } catch (err) {
+                        if (!isUserNotFound(err)) throw err;
+                    }
+                }
+                const ownerCaller = !decision.byAdmin && context.auth && context.auth.uid === targetUid;
+                const identity = accountTombstone.identityFrom({
+                    uid: targetUid,
+                    authUser: authUser,
+                    token: ownerCaller ? ((context.auth && context.auth.token) || {}) : null,
+                });
+                const priorHashes = await priorIdentityHashes(db, targetUid, userData);
+                let gate;
+                try {
+                    gate = await accountTombstone.assertDeletionAllowed(db, identity, clock, priorHashes);
+                } catch (err) {
+                    if (err && err.code === 'resource-exhausted') {
+                        throw new HttpsError('resource-exhausted', 'Too many deletions for this sign-in. Try again later.');
+                    }
+                    if (err && err.code === 'failed-precondition') {
+                        throw new HttpsError('failed-precondition', 'Account deletion is unavailable right now.');
+                    }
+                    throw err;
+                }
+                const ledgerSnap = await db.collection('faucet_ledger').doc(targetUid).get();
+                const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
+                const referralSnap = await db.collection('referrals').doc(targetUid).get();
+                const referral = referralSnap.exists ? (referralSnap.data() || {}) : {};
+                const createdRaw = authUser && authUser.metadata && authUser.metadata.creationTime;
+                const createdMs = Date.parse(createdRaw || '') || 0;
+                const ageDays = createdMs ? Math.max(0, Math.floor((clock - createdMs) / 86400000)) : 0;
+                const withdrawn = Math.max(Number(userData.satsWithdrawn) || 0, Number(ledger.satsWithdrawn) || 0);
+                const lastClaim = userData.lastSatsClaim || ledger.lastSatsClaim || 0;
+                await accountTombstone.writeTombstones(db, {
+                    hashes: gate.hashes,
+                    docs: gate.docs,
+                    nowMs: clock,
+                    uid: targetUid,
+                    ageDays: ageDays,
+                    banned: userData.banned === true,
+                    satsDisabled: userData.satsDisabled === true,
+                    flagged: userData.flagged === true,
+                    ledgerBanned: ledger.banned === true,
+                    satsWithdrawn: withdrawn,
+                    ledgerSatsWithdrawn: Number(ledger.satsWithdrawn) || 0,
+                    lastSatsClaim: lastClaim,
+                    faucetClaimed: withdrawn > 0 || !!lastClaim,
+                    refereePaid: !!referral.ticketsAwarded || referral.status === 'paid',
+                    referrerEarned: (Number(userData.referralTicketsEarned) || 0) > 0,
+                });
+            }
             const summary = await purgeAccount({
                 db: db,
                 bucket: bucket,
                 authApi: authApi,
-                uid: decision.uid,
+                uid: targetUid,
                 documentIdField: documentIdField,
-                light: anonymous && !decision.byAdmin,
+                light: light,
             });
             return {
                 ok: true,
@@ -1187,7 +1454,7 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
     };
 }
 
-function bindDeleteAccount(functionsV1, admin, db) {
+function bindDeleteAccount(functionsV1, admin, db, secrets) {
     const handlers = createDeleteAccountHandlers({
         db: db,
         bucket: admin.storage().bucket(),
@@ -1200,6 +1467,7 @@ function bindDeleteAccount(functionsV1, admin, db) {
             timeoutSeconds: 540,
             memory: '1GB',
             enforceAppCheck: true,
+            secrets: secrets || [],
         }).https.onCall(handlers.deleteAccount),
     };
 }
@@ -1230,6 +1498,10 @@ module.exports = {
     anonymizeMentionText: anonymizeMentionText,
     reactionsWithoutUid: reactionsWithoutUid,
     purgeAccount: purgeAccount,
+    usernameConfirmed: usernameConfirmed,
+    forfeitRequired: forfeitRequired,
+    satsBalanceOf: satsBalanceOf,
+    authoredTombstone: authoredTombstone,
     createDeleteAccountHandlers: createDeleteAccountHandlers,
     bindDeleteAccount: bindDeleteAccount,
 };

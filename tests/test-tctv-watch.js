@@ -391,7 +391,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2358'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2350'));
@@ -416,6 +416,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2365'"));
+    assert.ok(!sw.includes('btc-archive-v2362'));
+    assert.ok(!sw.includes('btc-archive-v2361'));
+    assert.ok(!sw.includes('btc-archive-v2360'));
     assert.ok(!sw.includes('btc-archive-v2359'));
     assert.ok(!sw.includes('btc-archive-v2358'));
     assert.ok(!sw.includes('btc-archive-v2357'));
@@ -777,7 +780,11 @@ test('playback with no server clock asks the server to start it and does not inv
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
     const latest = 'Latest: Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
+    const favor = 'Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.';
+    const deleted = 'You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.';
+    const topicLinks = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const share = 'The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.';
+    const anchors = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
     const repick = 'If your username was cleared, pick a new one from the prompt, and Satoshi\'s Favor shows your public name instead of Anonymous.';
     const flex = 'Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.';
@@ -788,9 +795,15 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
-    assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
+    assert.ok(notes.includes(favor));
+    assert.ok(!notes.includes('Latest: Satoshi\'s Favor'));
+    assert.ok(notes.includes(deleted));
+    assert.ok(!notes.includes('Latest: You can delete your account'));
+    assert.ok(notes.includes(topicLinks));
     assert.ok(!notes.includes('Latest: Topic conversation links'));
     assert.ok(notes.includes(share));
+    assert.ok(notes.includes(anchors));
+    assert.ok(!notes.includes('Latest: Topic conversation'));
     assert.ok(!notes.includes('Latest: The share card'));
     assert.ok(notes.includes('Key and cipher help now says that when an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won.'));
     assert.ok(!notes.includes('Latest: Key and cipher help'));
