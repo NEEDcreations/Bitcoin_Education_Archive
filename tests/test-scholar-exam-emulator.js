@@ -83,9 +83,12 @@ async function main() {
     const after = (await db.collection('users').doc(uid).get()).data();
     assert.strictEqual(after.certPassed_prop, true);
     assert.strictEqual(after.scholarPoints, 2100);
-    assert.strictEqual(after.points, 2110, 'full cert bonus should land on the profile');
+    // 10 starting points + 2,100 cert bonus + the existing 150 scholar badge.
+    // The badge still shares the daily cap. The cert bonus does not.
+    assert.strictEqual(after.points, 2260, 'full cert bonus should land on the profile');
     const dailyRows = await db.collection('users').doc(uid).collection('daily_points').get();
-    assert.strictEqual(dailyRows.size, 0, 'cert bonus must not open a daily cap counter');
+    assert.strictEqual(dailyRows.size, 1);
+    assert.strictEqual(dailyRows.docs[0].data().total, 150, 'only the scholar badge counts toward the daily cap');
     const marker = await db.collection('users').doc(uid).collection('cert_bonuses').doc('prop').get();
     assert.strictEqual(marker.exists, true);
     assert.strictEqual(marker.data().source, 'cert_bonus');

@@ -426,7 +426,9 @@ test('home invite card is top-right and reads counts the user may see', () => {
     const scholar = indexJs.slice(indexJs.indexOf('exports.gradeScholarExam'), indexJs.indexOf('exports.startQuest'));
     assert.ok(scholar.indexOf('planDailyXp') === -1);
     assert.ok(scholar.indexOf("require('./src/certBonus')") !== -1);
-    assert.ok(scholar.indexOf('scholarPoints') !== -1);
+    assert.ok(scholar.indexOf('certBonus.bonusUserFields') !== -1);
+    const bonusSrc = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'certBonus.js'), 'utf8');
+    assert.ok(bonusSrc.indexOf('scholarPoints') !== -1);
     assert.ok(indexJs.indexOf('activeDayKeys') !== -1);
     assert.ok(rules.includes('resource.data.referrerUid == request.auth.uid'));
     assert.ok(rules.includes('resource.data.referredUserUid == request.auth.uid'));

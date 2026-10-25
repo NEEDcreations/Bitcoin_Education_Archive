@@ -3635,7 +3635,7 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Set up your profile in Settings → Account! Add a bio, website, Twitter, Nostr, and Lightning address! 📝" },
     { pose: 'eyes', text: "💡 Tip: Click any user on the leaderboard to see their profile — including their bio and social links! 👀" },
     // Scholar
-    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards 2,100 points — that's 21 million in sats! The magic number! 🎓" },
+    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards +2,100 XP, not limited by the daily cap. That's the 21 million number. 🎓" },
     // Nacho Closet
     { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
     { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
@@ -4836,16 +4836,9 @@ window._nachoDispatch = function(key) {
             if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
             break;
         case 'scholar':
-            if (typeof startScholarQuest === 'function') {
-                startScholarQuest();
-            } else {
-                // scholar.js not yet loaded — inject it then call
-                if (typeof showToast === 'function') showToast('⏳ Loading exam\u2026 one moment!');
-                var _s = document.createElement('script');
-                _s.src = 'scholar.js?v=20260809_1846';
-                _s.onload = function() { if (typeof startScholarQuest === 'function') startScholarQuest(); };
-                document.body.appendChild(_s);
-            }
+            if (typeof window.openCertification === 'function') window.openCertification('properties');
+            else if (typeof startScholarQuest === 'function') startScholarQuest('properties');
+            else if (typeof showToast === 'function') showToast('⏳ Loading exam… one moment!');
             break;
         case 'flashcards':
             // Open the Learning Quests hub which contains the flashcard launcher
@@ -14576,12 +14569,230 @@ window.dismissIOSA2HS = function() {
     localStorage.setItem('btc_ios_a2hs_dismissed', Date.now().toString());
 };
 
-// ---- Mobile Learn Menu ----
+// ---- Learn menu (desktop panel and mobile sheet share one renderer) ----
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261024_v2370';
+
+function learnExperienceMode() {
+    var mode = '';
+    try {
+        if (typeof window.getExperienceMode === 'function') mode = window.getExperienceMode() || '';
+    } catch (e) {}
+    if (!mode) {
+        try { mode = localStorage.getItem('btc_experience_mode') || ''; } catch (e2) {}
+    }
+    if (mode !== 'beginner' && mode !== 'intermediate') return 'advanced';
+    return mode;
+}
+
+function closeLearnMenus() {
+    var mobile = document.getElementById('mobileLearnMenu');
+    if (mobile) mobile.remove();
+    var desk = document.getElementById('homeLearnMenu');
+    if (desk) desk.style.display = 'none';
+}
+
+window.openCertification = function(type) {
+    var kind = type === 'technical' ? 'technical' : 'properties';
+    function start() {
+        if (typeof window.startScholarQuest === 'function') {
+            window.startScholarQuest(kind);
+            return true;
+        }
+        return false;
+    }
+    if (start()) return;
+    var src = window.SCHOLAR_SCRIPT || 'scholar.js';
+    var existing = document.querySelector('script[src="' + src + '"]') || document.querySelector('script[src^="scholar.js"]');
+    function poll() {
+        var n = 0;
+        var timer = setInterval(function() {
+            n += 1;
+            if (start() || n > 50) clearInterval(timer);
+        }, 100);
+    }
+    if (existing) {
+        existing.addEventListener('load', function() { start(); });
+        poll();
+        return;
+    }
+    var script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = function() { start(); };
+    document.body.appendChild(script);
+};
+
+window.openMeetupBuilder = function() {
+    window._mbRouted = true;
+    window._skipIRLRules = true;
+    try { localStorage.setItem('btc_irl_rules_accepted', 'true'); } catch (e) {}
+    if (typeof go === 'function') go('irl-sync');
+    setTimeout(function() {
+        var ro = document.getElementById('irlRulesOverlay');
+        if (ro) ro.remove();
+        var tries = 0;
+        var timer = setInterval(function() {
+            var ro2 = document.getElementById('irlRulesOverlay');
+            if (ro2) ro2.remove();
+            var el = document.getElementById('meetupBuilderSection');
+            if (el) {
+                clearInterval(timer);
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (++tries > 30) clearInterval(timer);
+        }, 300);
+    }, 1500);
+};
+
+window.openSpendBitcoin = function() {
+    if (typeof go === 'function') go('marketplace');
+    setTimeout(function() {
+        if (typeof renderMarketplace === 'function') renderMarketplace({ section: 'merchants' });
+    }, 500);
+};
+
+function learnCatalog(view) {
+    var all = ['beginner', 'intermediate', 'advanced'];
+    var later = ['intermediate', 'advanced'];
+    if (view === 'quests') {
+        return [
+            { id: 'learning-quests', emoji: '📖', title: 'Learning Quests', hint: '8 topics', desc: 'Slideshow lessons with key stats, graphics, and a quiz.', color: '#10b981', bg: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06))', modes: all, run: function() { if (typeof go === 'function') go('learning-quests'); } },
+            { id: 'trails', emoji: '🦌', title: "Nacho's trails", desc: 'Guided learning paths — Meadow, Mountain, and Summit.', color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05))', modes: all, run: function() { if (typeof go === 'function') go('trails'); } },
+            { id: 'daily-quests', emoji: '🎯', title: 'Daily quests', desc: 'Daily quizzes, trivia, and polls.', color: '#a78bfa', bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))', modes: later, run: function() { setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 200); } },
+            { id: 'scholar', emoji: '🎓', title: 'Bitcoin Scholar certification', desc: '+2,100 XP, not limited by the daily cap', color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.04))', modes: all, run: function() { window.openCertification('properties'); } },
+            { id: 'protocol', emoji: '🛠️', title: 'Bitcoin Protocol Expert certification', desc: '+2,100 XP, not limited by the daily cap', color: '#3b82f6', bg: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(59,130,246,0.05))', modes: all, run: function() { window.openCertification('technical'); } }
+        ];
+    }
+    return [
+        { id: 'brand-new', emoji: '🟢', title: 'Brand new to Bitcoin', hint: 'Start here', desc: "A zero-jargon intro if you have never owned BTC.", color: '#3b82f6', bg: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08))', modes: all, browse: true, run: function() { if (typeof go === 'function') go('one-stop-shop'); } },
+        { id: 'quests', emoji: '🗺️', title: 'Quests', desc: 'Lessons, trails, daily quests, and both certifications.', color: '#10b981', bg: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06))', modes: all, run: 'quests' },
+        { id: 'first-purchase', emoji: '🛒', title: 'First Bitcoin purchase', desc: 'A step-by-step guide to buying BTC from a trusted exchange.', color: '#22c55e', bg: 'linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06))', modes: all, run: function() { if (typeof go === 'function') go('first-purchase'); } },
+        { id: 'meetup', emoji: '🔨', title: 'Meetup builder', desc: 'Create or find a local Bitcoin meetup.', color: '#eab308', bg: 'linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06))', modes: later, run: function() { window.openMeetupBuilder(); } },
+        { id: 'spend', emoji: '₿', title: 'Spend Bitcoin', desc: 'Find merchants who accept sats.', color: '#ef4444', bg: 'linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08))', modes: later, run: function() { window.openSpendBitcoin(); } }
+    ];
+}
+
+function learnButtonStyle(item) {
+    return 'padding:11px 14px;background:' + item.bg + ';border:1px solid ' + item.color + ';color:' + item.color + ';border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;';
+}
+
+window.renderLearnMenu = function(container, view) {
+    if (!container) return;
+    var which = view === 'quests' ? 'quests' : 'root';
+    var mode = learnExperienceMode();
+    container.setAttribute('data-learn-view', which);
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    var header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:8px;';
+    if (which === 'quests') {
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.setAttribute('data-learn-id', 'back');
+        back.textContent = '← Back';
+        back.style.cssText = 'background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.8rem;';
+        back.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            window.renderLearnMenu(container, 'root');
+        });
+        header.appendChild(back);
+    }
+    var title = document.createElement('h3');
+    title.style.cssText = 'color:var(--heading);font-size:1.05rem;font-weight:800;margin:0;flex:1;';
+    title.textContent = which === 'quests' ? 'Quests' : 'Learn';
+    header.appendChild(title);
+    if (container.id === 'mobileLearnMenu') {
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.setAttribute('aria-label', 'Close');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;';
+        closeBtn.addEventListener('click', function() { closeLearnMenus(); });
+        header.appendChild(closeBtn);
+    }
+    container.appendChild(header);
+
+    var list = document.createElement('div');
+    list.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+    learnCatalog(which).forEach(function(item) {
+        if (item.modes.indexOf(mode) === -1) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('data-learn-id', item.id);
+        btn.style.cssText = learnButtonStyle(item);
+        var icon = document.createElement('span');
+        icon.textContent = item.emoji;
+        icon.setAttribute('aria-hidden', 'true');
+        icon.style.cssText = 'font-size:1.1rem;flex-shrink:0;line-height:1.4;';
+        var col = document.createElement('span');
+        col.style.cssText = 'display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;';
+        var nameRow = document.createElement('span');
+        nameRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
+        var name = document.createElement('span');
+        name.textContent = item.title;
+        nameRow.appendChild(name);
+        if (item.hint) {
+            var hint = document.createElement('span');
+            hint.textContent = item.hint;
+            hint.style.cssText = 'margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;font-weight:700;';
+            nameRow.appendChild(hint);
+        }
+        var desc = document.createElement('span');
+        desc.textContent = item.desc;
+        desc.style.cssText = 'font-size:0.72rem;font-weight:500;color:var(--text-muted);line-height:1.4;white-space:normal;';
+        col.appendChild(nameRow);
+        col.appendChild(desc);
+        btn.appendChild(icon);
+        btn.appendChild(col);
+        btn.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            if (item.run === 'quests') {
+                window.renderLearnMenu(container, 'quests');
+                return;
+            }
+            closeLearnMenus();
+            if (typeof item.run === 'function') item.run();
+        });
+        list.appendChild(btn);
+        if (item.browse) {
+            var browse = document.createElement('button');
+            browse.type = 'button';
+            browse.setAttribute('data-learn-id', 'browse-topics');
+            browse.textContent = 'Browse all 145 topics';
+            browse.style.cssText = 'margin:-2px 0 4px 28px;padding:6px 10px;background:none;border:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:left;text-decoration:underline;';
+            browse.addEventListener('click', function(ev) {
+                ev.preventDefault();
+                closeLearnMenus();
+                if (typeof toggleMenu === 'function') toggleMenu();
+            });
+            list.appendChild(browse);
+        }
+    });
+    container.appendChild(list);
+};
+
+window.openHomeLearnMenu = function() {
+    var menu = document.getElementById('homeLearnMenu');
+    if (!menu) {
+        window.toggleMobileLearnMenu();
+        return;
+    }
+    var open = menu.style.display === 'flex';
+    if (open) {
+        menu.style.display = 'none';
+        return;
+    }
+    menu.style.display = 'flex';
+    menu.style.flexDirection = 'column';
+    window.renderLearnMenu(menu, 'root');
+    if (typeof playSound === 'function') playSound('pop');
+};
+
 window.toggleMobileLearnMenu = function() {
     var existing = document.getElementById('mobileLearnMenu');
     if (existing) { existing.remove(); return; }
 
-    // Close apps menu if open
     var appsMenu = document.getElementById('appsMenu');
     if (appsMenu) appsMenu.remove();
 
@@ -14591,50 +14802,10 @@ window.toggleMobileLearnMenu = function() {
         'max-width:400px;margin:0 auto;' +
         'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;' +
         'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
-        'animation:fadeSlideIn 0.25s ease-out;';
-
-    
-    // Mode-aware Learn menu buttons
-    var _emMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
-
-    // Button definitions — tagged by which modes show them
-    var _learnBtns = [
-        { modes: ['beginner','intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🟢</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Brand New to Bitcoin?<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">⭐ Start here</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Zero jargon intro — start here if you\'ve never owned BTC</span></span></button>' },
-        { modes: ['beginner','intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'learning-quests\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border:1px solid #10b981;color:#10b981;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">📖</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Learning Quests<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">8 topics ▸</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Slideshow lessons with key stats, graphics &amp; a quiz. 8 topics.</span></span></button>' },
-        { modes: ['beginner','intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'trails\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🦌🗺️</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Nacho\'s Trails</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Guided learning paths — Meadow, Mountain &amp; Summit levels</span></span></button>' },
-        { modes: ['beginner','intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'first-purchase\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🛒</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Your First Bitcoin Purchase</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Step-by-step guide to buying BTC safely from a trusted exchange</span></span></button>' },
-        // Daily Quests — intermediate and advanced only
-        { modes: ['intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();setTimeout(function(){if(typeof showQuestHub===\'function\')showQuestHub()},200)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border:1px solid #8b5cf6;color:#a78bfa;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🎯</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Daily Quests</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Daily quizzes, trivia &amp; polls — earn XP and climb the leaderboard</span></span></button>' },
-        // Meetup Builder — intermediate and advanced only
-        { modes: ['intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();window._mbRouted=true;window._skipIRLRules=true;localStorage.setItem(\'btc_irl_rules_accepted\',\'true\');go(\'irl-sync\');setTimeout(function(){var ro=document.getElementById(\'irlRulesOverlay\');if(ro)ro.remove();var _t=0;var _i=setInterval(function(){var ro2=document.getElementById(\'irlRulesOverlay\');if(ro2)ro2.remove();var el=document.getElementById(\'meetupBuilderSection\');if(el){clearInterval(_i);el.scrollIntoView({behavior:\'smooth\',block:\'start\'});}if(++_t>30)clearInterval(_i);},300);},1500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06));border:1px solid #eab308;color:#eab308;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🔨</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Meetup Builder</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Create or find a local Bitcoin meetup in your city</span></span></button>' },
-        // Spend Bitcoin — intermediate and advanced only
-        { modes: ['intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'marketplace\');setTimeout(function(){renderMarketplace({section:\'merchants\'})},500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">₿</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.72rem;font-weight:400;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button>' }
-    ];
-
-    var _filteredBtns = _learnBtns.filter(function(b) {
-        return b.modes.indexOf(_emMode) !== -1;
-    }).map(function(b) { return b.html; }).join('');
-
-    menu.innerHTML =
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
-            '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0;">🎓 Learn</h3>' +
-            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>' +
-        '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px;">' +
-            _filteredBtns +
-            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();toggleMenu()" style="padding:11px 14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">📚</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Browse All Topics <span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">146 ▸</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.7);line-height:1.4;">146 curated channels of Bitcoin education</span></span></button>' +
-        '</div>';
-
+        'animation:fadeSlideIn 0.25s ease-out;max-height:70vh;overflow:auto;';
     document.body.appendChild(menu);
+    window.renderLearnMenu(menu, 'root');
 
-    // Close on outside tap
     setTimeout(function() {
         document.addEventListener('click', function closeMLearn(e) {
             var m = document.getElementById('mobileLearnMenu');
@@ -26356,11 +26527,11 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             return;
         }
 
-        // Desktop Learn menu: which buttons to HIDE per mode
-        // Beginner: hide Daily Quests, Meetup Builder, Spend Bitcoin
-        // Intermediate: nothing extra to hide in learn (has all)
-        var LEARN_HIDE_ONCLICK = {
-            beginner: ['showQuestHub', 'irl-sync', "section:'merchants'"],
+        // Desktop Learn menu: which buttons to HIDE per mode.
+        // Beginner: hide Daily quests, Meetup builder, Spend Bitcoin.
+        // Intermediate: nothing extra to hide in learn (has all).
+        var LEARN_HIDE_IDS = {
+            beginner: ['daily-quests', 'meetup', 'spend'],
             intermediate: []
         };
 
@@ -26370,19 +26541,24 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        var learnHide = LEARN_HIDE_ONCLICK[mode] || [];
+        var learnHide = LEARN_HIDE_IDS[mode] || [];
         var appsHide = APPS_HIDE_ONCLICK[mode] || [];
 
-        // Apply to homeLearnMenu buttons
+        // Apply to homeLearnMenu buttons (data-learn-id, filled by renderLearnMenu)
         var learnMenu = document.getElementById('homeLearnMenu');
+        if (learnMenu && learnMenu.getAttribute('data-learn-view') && learnMenu.style.display !== 'none' && typeof window.renderLearnMenu === 'function' && !learnMenu.getAttribute('data-learn-rendering')) {
+            learnMenu.setAttribute('data-learn-rendering', '1');
+            window.renderLearnMenu(learnMenu, learnMenu.getAttribute('data-learn-view'));
+            learnMenu.removeAttribute('data-learn-rendering');
+        }
         if (learnMenu) {
             learnMenu.querySelectorAll('button').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = learnHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var id = btn.getAttribute('data-learn-id') || '';
+                var shouldHide = learnHide.indexOf(id) !== -1;
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';
-                } else {
+                } else if (btn.getAttribute('data-em-desk-hidden')) {
                     btn.removeAttribute('data-em-desk-hidden');
                     btn.style.display = '';
                 }
