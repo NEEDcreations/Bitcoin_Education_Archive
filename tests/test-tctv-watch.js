@@ -795,6 +795,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     assert.ok(notes.includes(latest));
     assert.ok(notes.includes(deleted));
     assert.ok(!notes.includes('Latest: You can delete'));
+    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
+    assert.ok(!notes.includes("Latest: Satoshi"));
     assert.ok(notes.includes(share));
     assert.ok(notes.includes(anchors));
     assert.ok(!notes.includes('Latest: Topic conversation'));

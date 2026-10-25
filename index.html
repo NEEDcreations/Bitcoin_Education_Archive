@@ -770,6 +770,11 @@
             .daily-xp-quarter-long { display: none; }
             .daily-xp-quarter-short { display: inline; }
         }
+        @media (max-width: 360px) {
+            .daily-xp-scale { font-size: 0.52rem; }
+            .daily-xp-cap-word { font-size: 0.48rem; }
+            .daily-xp-rates { font-size: 0.58rem; }
+        }
         [data-theme="light"] #dailyXpMeterText,
         [data-theme="light"] .daily-xp-tick,
         [data-theme="light"] .daily-xp-rates { color: #0f172a; }
@@ -1471,10 +1476,10 @@
                             <h2 id="todayCardTitle">Today</h2>
                             <span id="todayDoneCount" aria-live="polite">0/6 done today</span>
                         </div>
-                        <div id="dailyXpMeter" class="daily-xp-meter" role="group" aria-label="Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap" title="Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap">
+                        <div id="dailyXpMeter" class="daily-xp-meter" role="group" aria-label="Sign in to see today's XP. Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap" title="Sign in to see today's XP. Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap">
                             <div id="dailyXpMeterText">Sign in to see today's XP</div>
                             <div class="daily-xp-scale" aria-hidden="true"><span class="daily-xp-tick daily-xp-tick-0">0</span><span class="daily-xp-tick daily-xp-tick-500">500</span><span class="daily-xp-tick daily-xp-tick-900">900</span><span class="daily-xp-tick daily-xp-tick-cap"><span class="daily-xp-cap-word">cap</span><span class="daily-xp-cap-num">1,000</span></span></div>
-                            <div class="daily-xp-track" aria-hidden="true" title="Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap">
+                            <div class="daily-xp-track" aria-hidden="true" title="Sign in to see today's XP. Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap">
                                 <div id="dailyXpMeterFill" class="daily-xp-fill"></div>
                                 <div class="daily-xp-mark daily-xp-mark-full" title="500"></div>
                                 <div class="daily-xp-mark daily-xp-mark-half" title="900"></div>
@@ -1830,7 +1835,7 @@
     <script src="bundle.min.js?v=20261024_v2361" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
-    <script src="today-card.js?v=20261024_v2351" defer></script>
+    <script src="today-card.js?v=20261024_v2368" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261024_v2360" defer></script>
     <script src="onboarding.js?v=20261024_v2358" defer></script>
@@ -1848,7 +1853,7 @@
             'satoshi-favor.js?v=20261024_v2352'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261024_v2358',
+            'quests.js?v=20261024_v2362',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
@@ -1922,9 +1927,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261023_v2324'],
             'learning-quests': ['learning-quests.js?v=20261023_v2324'],
-            'quests':        ['quests.js?v=20261024_v2358'],
-            'questhub':      ['quests.js?v=20261024_v2358'],
-            'app':           ['quests.js?v=20261024_v2358'],
+            'quests':        ['quests.js?v=20261024_v2362'],
+            'questhub':      ['quests.js?v=20261024_v2362'],
+            'app':           ['quests.js?v=20261024_v2362'],
             'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
             'tv':            ['timechain-tv.js?v=20261024_v2353']
         };

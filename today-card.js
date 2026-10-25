@@ -274,6 +274,8 @@
         if (chev) chev.textContent = open ? '\u25B2' : '\u25BC';
     }
 
+    var RATE_GUIDE = 'Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap';
+
     function meterNumber(snap) {
         var raw = snap.dailyXp != null ? snap.dailyXp : snap.dailyQuizXp;
         var n = Math.round(Number(raw) || 0);
@@ -282,19 +284,33 @@
         return n;
     }
 
+    function describeMeter(line) {
+        var meter = document.getElementById('dailyXpMeter');
+        if (!meter) return;
+        var label = line + '. ' + RATE_GUIDE;
+        meter.setAttribute('aria-label', label);
+        meter.setAttribute('title', label);
+        var track = meter.querySelector('.daily-xp-track');
+        if (track) track.setAttribute('title', label);
+    }
+
     window._paintDailyXpMeter = function (snap) {
         var text = document.getElementById('dailyXpMeterText');
         var fill = document.getElementById('dailyXpMeterFill');
         if (!text || !fill) return;
         var signed = snap && snap.signedIn !== false && (snap.signedIn === true || signedIn());
         if (!signed) {
-            text.textContent = "Sign in to see today's XP";
+            var signedOut = "Sign in to see today's XP";
+            text.textContent = signedOut;
             fill.style.width = '0%';
+            describeMeter(signedOut);
             return;
         }
         var used = meterNumber(snap || {});
-        text.textContent = used.toLocaleString() + '/1000 XP today';
+        var line = used.toLocaleString() + '/1000 XP today';
+        text.textContent = line;
         fill.style.width = (used / 10) + '%';
+        describeMeter(line);
     };
 
     function loadDailyXpMeter() {
