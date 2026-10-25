@@ -572,7 +572,9 @@ test('claim and referral paths call the gate and keep new collections server-onl
     assert.ok(favor.includes('favor_ip_cache'));
     assert.ok(favor.includes('shouldReuseFavorCheck'));
     const onboarding = read('functions/src/onboardingApi.js');
-    assert.ok(onboarding.includes('setUsername: functionsV1.runWith({ enforceAppCheck: false })'));
+    const setAt = onboarding.indexOf('setUsername: functionsV1.runWith({');
+    assert.ok(setAt !== -1);
+    assert.ok(onboarding.slice(setAt, setAt + 240).includes('enforceAppCheck: false'));
     const rules = read('firestore.rules');
     ['ip_reputation', 'ipqs_usage', 'device_links', 'device_holds', 'user_devices', 'favor_ip_cache', 'ops_alerts'].forEach(function(name) {
         const at = rules.indexOf('match /' + name + '/{docId}');

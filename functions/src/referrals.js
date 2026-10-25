@@ -32,6 +32,7 @@ const BLOCKING_FLAGS = {
     'same-lightning': 'flagged',
     'circular': 'flagged',
     'linked-account': 'flagged',
+    'prior-referral': 'rejected',
 };
 
 function referralCodeForUid(uid) {
@@ -116,12 +117,40 @@ function fraudFlags(referred, referrer, signupIp) {
     const emailA = lower(referred.email);
     const emailB = lower(referrer.email);
     if (emailA && emailB && emailA === emailB) flags.push('same-email');
+    if (emailHashesOverlap(referred, referrer) && flags.indexOf('same-email') === -1) flags.push('same-email');
     const lnA = lightningOf(referred);
     const lnB = lightningOf(referrer);
     if (lnA && lnB && lnA === lnB) flags.push('same-lightning');
     const referredCode = referralCodeForUid(referred.uid);
     if (referredCode && lower(referrer.referredBy) === lower(referredCode)) flags.push('circular');
+    if (referred.priorReferral === true) flags.push('prior-referral');
     return flags;
+}
+
+function emailHashList(user) {
+    const out = [];
+    const current = user && user.emailHash ? String(user.emailHash) : '';
+    if (current) out.push(current);
+    const history = user && user.emailHistoryHashes;
+    if (Array.isArray(history)) {
+        history.forEach(function (hash) {
+            const value = String(hash || '');
+            if (value && out.indexOf(value) === -1) out.push(value);
+        });
+    }
+    return out;
+}
+
+function emailHashesOverlap(referred, referrer) {
+    const left = emailHashList(referred);
+    const right = emailHashList(referrer);
+    if (!left.length || !right.length) return false;
+    const set = {};
+    left.forEach(function (hash) { set[hash] = true; });
+    for (let i = 0; i < right.length; i++) {
+        if (set[right[i]]) return true;
+    }
+    return false;
 }
 
 function statusForFlags(flags) {
@@ -417,6 +446,7 @@ module.exports = {
     alreadyPaid: alreadyPaid,
     registrationGate: registrationGate,
     fraudFlags: fraudFlags,
+    emailHashesOverlap: emailHashesOverlap,
     statusForFlags: statusForFlags,
     assessReferralPayout: assessReferralPayout,
     resolveReferrerUid: resolveReferrerUid,

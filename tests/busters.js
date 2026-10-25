@@ -1,10 +1,11 @@
 // Cache-buster pin. This ship branch is btc-archive-v2363.
-// v2362 and v2361 stay unused. v2360 is the merged gh-pages cache.
+// v2362 stays unused. v2361 is the live account-deletion cache.
 // bundle.min.js, ranking.js, and satoshi-favor.js are 20261024_v2363.
+// features.registry.js is 20261024_v2361.
 // global-chat.js and patches.js stay 20261024_v2360.
 // nacho-qa.js stays 20261024_v2350.
-// features.registry.js, gifting.js, and quests.js stay 20261024_v2358.
-// notifications.js stays 20261024_v2357. onboarding.js stays 20261024_v2358.
+// gifting.js, quests.js, and onboarding.js stay 20261024_v2358.
+// notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349. today-card.js is 20261024_v2351.
 // timechain-tv.js stays 20261024_v2353.
@@ -58,6 +59,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('bundle.min.js?v=20261024_v2363'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
+    assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2358'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2350'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2349'));
@@ -97,6 +99,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('ranking.js?v=20261024_v2363'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261024_v2363'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
@@ -140,7 +143,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2358'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2361'));
+    assert.ok(!html.includes('features.registry.js?v=20261024_v2359'));
+    assert.ok(!html.includes('features.registry.js?v=20261024_v2358'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2350'));
@@ -252,6 +257,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Sats claims, referral rewards, and Satoshi\'s Favor can be held when a connection looks like a VPN, proxy, or Tor exit.'));
+    assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
+    assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
     assert.ok(!notes.includes('Latest: Topic conversation'));
     assert.ok(notes.includes('The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.'));

@@ -3,6 +3,7 @@ const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const ipqsApiKey = defineSecret('IPQS_API_KEY');
+const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -1323,7 +1324,7 @@ exports.nachoFeedbackReport = onSchedule({
 // Referral payouts are server-side. The old client path looked up `referredUid`
 // and paid 50 tickets from the referrer's browser; rules blocked that write, so
 // nobody was ever paid. This callable now only pays the signed-in referee, once.
-exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, ipqsApiKey] }).https.onCall(async (data, context) => {
+exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, ipqsApiKey, deletionHmacSecret] }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const verifyHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
     const result = await referralService.payIfQualified(context.auth.uid, {
@@ -1351,7 +1352,7 @@ exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, ipqsA
 });
 
 exports.registerReferral = functionsV1.runWith({
-    secrets: [referralIpSecret, ipqsApiKey],
+    secrets: [referralIpSecret, ipqsApiKey, deletionHmacSecret],
     enforceAppCheck: true,
 }).https.onCall(async (data, context) => {
     return referralService.registerReferral(data, context);
@@ -1424,7 +1425,7 @@ exports.requestTipInvoice = functionsV1.https.onCall(async (data, context) => {
 
 exports.onUserReferral = onDocumentWritten({
     document: 'users/{uid}',
-    secrets: [referralIpSecret],
+    secrets: [referralIpSecret, ipqsApiKey, deletionHmacSecret],
 }, async (event) => {
     return referralService.onUserWritten(event);
 });
@@ -1432,7 +1433,7 @@ exports.onUserReferral = onDocumentWritten({
 exports.payQualifiedReferrals = onSchedule({
     schedule: 'every 60 minutes',
     timeZone: 'UTC',
-    secrets: [referralIpSecret],
+    secrets: [referralIpSecret, ipqsApiKey, deletionHmacSecret],
 }, async () => {
     return referralService.scanPending(40);
 });
@@ -1670,7 +1671,7 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
 exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
-    secrets: [referralIpSecret, ipqsApiKey],
+    secrets: [referralIpSecret, ipqsApiKey, deletionHmacSecret],
 }).https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
@@ -1705,6 +1706,18 @@ exports.claimSats = functionsV1.runWith({
     );
     if (!preBan.ok) return { success: false, error: preBan.error };
 
+    const accountTombstone = require('./src/accountTombstone');
+    if (!accountTombstone.secretReady()) {
+        return { success: false, error: 'Sats claims are paused. Try again later.' };
+    }
+
+    const holdUntil = userPreSnap.exists ? (Number(userPreSnap.data().satsHold) || 0) : 0;
+    if (holdUntil > Date.now()) {
+        return { success: false, error: 'Sats withdrawals are paused on this account. Try again later.' };
+    }
+
+    let tombSummary = accountTombstone.emptySummary();
+
     if (data && typeof data === 'object') {
         data = Object.assign({}, data, { lightningAddress: normalizeLnAddress(data.lightningAddress) });
     }
@@ -1718,8 +1731,21 @@ exports.claimSats = functionsV1.runWith({
     let userRecord;
     try {
         userRecord = await admin.auth().getUser(uid);
+        const emailChange = require('./src/emailChange');
+        const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {}, true);
+        if (!payoutGate.ok) return { success: false, error: payoutGate.error };
         const creationDate = new Date(userRecord.metadata.creationTime);
-        const ageDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);
+        const authAgeDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);
+        const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
+        tombSummary = looked.summary;
+        if (looked.configured && (tombSummary.banned || tombSummary.satsDisabled || tombSummary.ledgerBanned)) {
+            await accountTombstone.applyIdentityFlags(db, uid, tombSummary);
+            const flaggedUser = Object.assign({}, userPreSnap.exists ? userPreSnap.data() : {}, accountTombstone.applyFlagsPatch(tombSummary).user);
+            const flaggedLedger = Object.assign({}, ledgerPreSnap.exists ? ledgerPreSnap.data() : {}, accountTombstone.applyFlagsPatch(tombSummary).ledger);
+            const again = faucetGuard.assessBan(flaggedUser, flaggedLedger);
+            if (!again.ok) return { success: false, error: again.error };
+        }
+        const ageDays = accountTombstone.effectiveAgeDays(authAgeDays, tombSummary);
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
             return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
         }
@@ -1762,7 +1788,8 @@ exports.claimSats = functionsV1.runWith({
         const remaining = FAUCET.MAX_DAILY_PER_USER_SATS - dailyUsedPre;
         return { success: false, error: 'Daily limit reached. You can claim ' + remaining + ' more sats today.' };
     }
-    const lastClaimPre = Math.max(_toMillis(userPre.lastSatsClaim), _toMillis(ledgerPre.lastSatsClaim));
+    const tombLastPre = accountTombstone.millisOf(tombSummary && tombSummary.lastClaimAt);
+    const lastClaimPre = Math.max(_toMillis(userPre.lastSatsClaim), _toMillis(ledgerPre.lastSatsClaim), tombLastPre);
     if (lastClaimPre) {
         const cooldownEnd = lastClaimPre + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
         if (Date.now() < cooldownEnd) {
@@ -1781,7 +1808,10 @@ exports.claimSats = functionsV1.runWith({
         console.error('[FAUCET] ip-hmac-unavailable uid=' + uid);
         return { success: false, error: 'Sats claims are paused. Try again later.' };
     }
-    const withdrawnPre = Math.max(Number(userPre.satsWithdrawn) || 0, Number(ledgerPre.satsWithdrawn) || 0);
+    const withdrawnPre = accountTombstone.effectiveWithdrawn(
+        Math.max(Number(userPre.satsWithdrawn) || 0, Number(ledgerPre.satsWithdrawn) || 0),
+        tombSummary
+    );
     const neverClaimed = withdrawnPre <= 0 && !lastClaimPre;
 
     // Reputation sits after the cheap checks and before any Lightning lookup.
@@ -1918,6 +1948,8 @@ exports.claimSats = functionsV1.runWith({
 
             const ban = faucetGuard.assessBan(user, ledger);
             if (!ban.ok) deny(ban.error);
+            const holdInTx = Number(user.satsHold) || 0;
+            if (holdInTx > Date.now()) deny('Sats withdrawals are paused on this account. Try again later.');
 
             if (user._pendingClaim === true) {
                 const pendingAt = user._pendingClaimAt
@@ -1964,7 +1996,10 @@ exports.claimSats = functionsV1.runWith({
 
             const userSatsWithdrawn = user.satsWithdrawn || 0;
             const ledgerSatsWithdrawn = ledger.satsWithdrawn || 0;
-            const satsWithdrawn = Math.max(userSatsWithdrawn, ledgerSatsWithdrawn);
+            const satsWithdrawn = accountTombstone.effectiveWithdrawn(
+                Math.max(userSatsWithdrawn, ledgerSatsWithdrawn),
+                tombSummary
+            );
             if (satsWithdrawn + amount > FAUCET.MAX_LIFETIME_PER_USER_SATS) {
                 const remaining = FAUCET.MAX_LIFETIME_PER_USER_SATS - satsWithdrawn;
                 deny('Lifetime cap reached. You can withdraw ' + remaining + ' more sats.');
@@ -1972,7 +2007,8 @@ exports.claimSats = functionsV1.runWith({
 
             const userLastClaim = _toMillis(user.lastSatsClaim);
             const ledgerLastClaim = _toMillis(ledger.lastSatsClaim);
-            const lastClaim = Math.max(userLastClaim, ledgerLastClaim);
+            const tombLastClaim = accountTombstone.millisOf(tombSummary && tombSummary.lastClaimAt);
+            const lastClaim = Math.max(userLastClaim, ledgerLastClaim, tombLastClaim);
             if (lastClaim) {
                 const cooldownEnd = lastClaim + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
                 if (Date.now() < cooldownEnd) {
@@ -9122,12 +9158,18 @@ const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
 exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
 // claimOnboardingQuestStep, prepareGuestLink, linkGuestAccount, and setUsername.
 const { registerOnboarding } = require('./src/onboardingApi');
-Object.assign(exports, registerOnboarding({ db: db, admin: admin, functionsV1: functionsV1 }));
+Object.assign(exports, registerOnboarding({ db: db, admin: admin, functionsV1: functionsV1, secrets: [deletionHmacSecret] }));
 
 // Account deletion. Owner (recent sign-in) or admin. Admin SDK writes only.
 const { bindDeleteAccount } = require('./src/deleteAccount');
-const deleteAccountFns = bindDeleteAccount(functionsV1, admin, db);
+const deleteAccountFns = bindDeleteAccount(functionsV1, admin, db, [deletionHmacSecret]);
 exports.deleteAccount = deleteAccountFns.deleteAccount;
+
+const { bindEmailChange } = require('./src/emailChange');
+const emailChangeFns = bindEmailChange(functionsV1, admin, db, deletionHmacSecret);
+exports.prepareEmailChange = emailChangeFns.prepareEmailChange;
+exports.syncEmailChange = emailChangeFns.syncEmailChange;
+exports.confirmAccountLink = emailChangeFns.confirmAccountLink;
 
 // Daily Timechain TV watch reward. Presence counting stays on
 // tctvAggregatePresence; this callable only credits watch time.

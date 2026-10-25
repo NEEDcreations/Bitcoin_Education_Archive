@@ -128,7 +128,9 @@ service cloud.firestore {
         'badgeBackfillToast',
         'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
-        'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score'
+        'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
+        'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
+        'providersHash', 'providerHashes'
       ];
     }
 
@@ -152,7 +154,7 @@ service cloud.firestore {
                     && request.auth.uid == userId
                     && request.resource.data.keys().hasOnly([
                         // Identity / profile
-                        'email', 'profilePic',
+                        'profilePic',
                         'displayName', 'country', 'lightning', 'lightningAddress',
                         'nostr', 'lastLogin', 'lastVisit', 'lastActive', 'isOnline',
                         // Safe zero-value seeds written by ranking.js on signup
@@ -2425,6 +2427,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /topic_comment_pending/{docId} {
+      allow read, write: if false;
+    }
+    match /deleted_accounts/{docId} {
+      allow read, write: if false;
+    }
+    match /email_history/{docId} {
+      allow read, write: if false;
+    }
+    match /email_change_pending/{docId} {
+      allow read, write: if false;
+    }
+    match /identity_history/{docId} {
       allow read, write: if false;
     }
 
