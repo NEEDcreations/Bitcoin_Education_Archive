@@ -9,6 +9,12 @@ const { planDailyXp } = require('../functions/src/dailyXp');
 const root = path.join(__dirname, '..');
 let passed = 0;
 let failed = 0;
+const realPostCollectionCongrats = collectionBonus.postCollectionCongrats;
+const failChatDbs = new WeakSet();
+collectionBonus.postCollectionCongrats = async function (db, adminSdk, uid, col) {
+    if (failChatDbs.has(db)) throw new Error('chat down');
+    return realPostCollectionCongrats(db, adminSdk, uid, col);
+};
 
 function test(name, fn) {
     const run = fn();
@@ -673,11 +679,14 @@ queue.push(test('a failed congrats stays pending and the next grant posts once',
     const db = memoryDb(seedAwards(collectionBonus.requiredMembers(col), {
         'public_profiles/u': { username: 'BuilderFan' },
     }));
+    failChatDbs.add(db);
     let threw = false;
     try {
-        await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000, failChat: true });
+        await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: 1700000000000 });
     } catch (err) {
-        threw = err && err.message === 'failChat' && err.collectionChat === true;
+        threw = err && err.message === 'chat down' && err.collectionChat === true && err.grantResult && err.grantResult.granted === true && err.grantResult.congratsPending === true;
+    } finally {
+        failChatDbs.delete(db);
     }
     assert.strictEqual(threw, true);
     assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId].congratsPending, true);
@@ -742,6 +751,11 @@ queue.push(test('the award trigger skips unrelated badges and retries a pending 
     assert.ok(badges.includes('_collectionMemberLists'));
     assert.ok(badges.includes('optional'));
     assert.ok(!badges.includes("(+ ' + col.bonusPts"));
+    assert.ok(badges.includes('function _collectionRemainder'));
+    assert.ok(badges.includes('window.BADGE_COLLECTION_PAY'));
+    assert.ok(!badges.includes('_collectionBonusCopy(col.bonusPts)'));
+    const bonusSrc = fs.readFileSync(path.join(root, 'functions/src/collectionBonus.js'), 'utf8');
+    assert.ok(!bonusSrc.includes('failChat'));
     const clientSrc = fs.readFileSync(path.join(root, 'badges.catalog.js'), 'utf8');
     const clientStart = clientSrc.indexOf('window.BADGE_CATALOG=') + 'window.BADGE_CATALOG='.length;
     const clientEnd = clientSrc.indexOf(';\nwindow.BADGE_CATALOG_VERSION');
@@ -752,6 +766,76 @@ queue.push(test('the award trigger skips unrelated badges and retries a pending 
         flagged.sort();
         assert.deepStrictEqual(flagged, proof, row.id);
     });
+}));
+
+queue.push(test('the collection card remainder matches the server subtraction', function () {
+    const vm = require('vm');
+    const badges = fs.readFileSync(path.join(root, 'badges.js'), 'utf8');
+    const start = badges.indexOf('function _collectionRemainder');
+    const end = badges.indexOf('function _collectionMemberLists');
+    assert.ok(start > 0 && end > start);
+    const clientSrc = fs.readFileSync(path.join(root, 'badges.catalog.js'), 'utf8');
+    const payStart = clientSrc.indexOf('window.BADGE_COLLECTION_PAY=');
+    assert.ok(payStart > 0);
+    const pay = JSON.parse(clientSrc.slice(payStart + 'window.BADGE_COLLECTION_PAY='.length).replace(/;\s*$/, ''));
+    const remainder = vm.runInNewContext(badges.slice(start, end) + '\n_collectionRemainder(col, earned);', {
+        window: { BADGE_COLLECTION_PAY: pay },
+        col: { id: 'col_daily_habits' },
+        earned: new Set(['set_trifecta_complete', 'set_streak_complete']),
+    });
+    assert.strictEqual(remainder, 150);
+    const none = vm.runInNewContext(badges.slice(start, end) + '\n_collectionRemainder(col, earned);', {
+        window: { BADGE_COLLECTION_PAY: pay },
+        col: { id: 'col_daily_habits' },
+        earned: new Set(),
+    });
+    assert.strictEqual(none, 4150);
+    const missing = vm.runInNewContext(badges.slice(start, end) + '\n_collectionRemainder(col, earned);', {
+        window: {},
+        col: { id: 'col_daily_habits' },
+        earned: new Set(),
+    });
+    assert.strictEqual(missing, 0);
+    collectionBonus.collections().forEach(function (col) {
+        const row = pay[col.id];
+        assert.ok(row, col.id);
+        assert.strictEqual(row.bonusPts, col.bonusPts, col.id);
+        assert.deepStrictEqual(row.legacy.map(function (item) { return item.id + ':' + item.pts; }), col.legacyBonuses.map(function (item) { return item.id + ':' + item.pts; }));
+        const held = new Set(col.legacyBonuses.map(function (item) { return item.id; }));
+        const shown = vm.runInNewContext(badges.slice(start, end) + '\n_collectionRemainder(col, earned);', {
+            window: { BADGE_COLLECTION_PAY: pay },
+            col: { id: col.id },
+            earned: held,
+        });
+        assert.strictEqual(shown, collectionBonus.remainderXp(col.bonusPts, col.legacyBonuses), col.id);
+    });
+}));
+
+queue.push(test('a failed congrats retry is logged granted false and stays pending', async function () {
+    const col = collectionBonus.collectionById('col_entertainment');
+    const pendingDocs = seedAwards(collectionBonus.requiredMembers(col));
+    pendingDocs['users/u'].visibleBadges.push(col.bonusId);
+    pendingDocs['users/u/badge_awards/' + col.bonusId] = { badge: col.bonusId, source: 'collection_bonus', congratsPending: true, xp: 150 };
+    pendingDocs['users/u/xp_ledger/' + col.bonusId] = { source: 'collection_bonus', awarded: 150 };
+    const db = memoryDb(pendingDocs);
+    failChatDbs.add(db);
+    let caught = null;
+    try {
+        await collectionBonus.maybeGrantForBadge(db, admin, 'u', col.bonusId, { day: '2026-10-24', nowMs: 1700000000000 });
+    } catch (err) {
+        caught = err;
+    } finally {
+        failChatDbs.delete(db);
+    }
+    assert.ok(caught && caught.collectionChat === true);
+    assert.strictEqual(caught.grantResult.reason, 'already');
+    assert.strictEqual(caught.grantResult.granted, false);
+    assert.strictEqual(caught.chatReport.granted, false);
+    assert.strictEqual(caught.chatReport.congratsPending, true);
+    assert.strictEqual(caught.chatReport.reason, 'chat');
+    assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId].congratsPending, true);
+    assert.strictEqual(chatDocs(db).length, 0);
+    assert.ok(!fs.readFileSync(path.join(root, 'functions/src/collectionBonus.js'), 'utf8').includes('failChat'));
 }));
 
 Promise.all(queue).then(function () {

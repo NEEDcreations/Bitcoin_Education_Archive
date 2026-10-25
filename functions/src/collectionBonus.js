@@ -496,11 +496,8 @@ async function clearCongratsPending(db, awardRef) {
     });
 }
 
-async function finishCongrats(db, adminSdk, uid, col, awardRef, options) {
-    if (options && options.failChat) {
-        throw new Error('failChat');
-    }
-    const posted = await postCollectionCongrats(db, adminSdk, uid, col);
+async function finishCongrats(db, adminSdk, uid, col, awardRef) {
+    const posted = await module.exports.postCollectionCongrats(db, adminSdk, uid, col);
     const settled = !!(posted && (posted.wrote || posted.reason === 'already_posted'));
     if (settled) await clearCongratsPending(db, awardRef);
     return {
@@ -624,14 +621,17 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
     );
     if (shouldPost) {
         try {
-            const posted = await finishCongrats(db, adminSdk, uid, col, awardRef, options);
+            const posted = await finishCongrats(db, adminSdk, uid, col, awardRef);
             result.chatPosted = posted.chatPosted;
             result.congratsPending = posted.congratsPending;
         } catch (err) {
             console.error('[collectionBonus] chat', err && err.message ? err.message : err);
             result.chatPosted = false;
             result.congratsPending = true;
-            if (err && typeof err === 'object') err.collectionChat = true;
+            if (err && typeof err === 'object') {
+                err.collectionChat = true;
+                err.grantResult = result;
+            }
             throw err;
         }
     }
@@ -692,9 +692,9 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
             out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
         } catch (err) {
             if (!err || !err.collectionChat) throw err;
-            chatErr = chatErr || err;
-            out.push({
-                granted: true,
+            const prior = err.grantResult || {};
+            const report = {
+                granted: prior.reason === 'already' ? false : prior.granted === true,
                 success: true,
                 reason: 'chat',
                 chatPosted: false,
@@ -703,7 +703,13 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
                 xp: 0,
                 badgeId: hits[i].bonusId,
                 collectionId: hits[i].id,
-            });
+            };
+            console.error('[collectionBonus] pending', report.granted, report.congratsPending, report.reason);
+            if (!chatErr) {
+                err.chatReport = report;
+                chatErr = err;
+            }
+            out.push(report);
         }
     }
     if (chatErr) throw chatErr;

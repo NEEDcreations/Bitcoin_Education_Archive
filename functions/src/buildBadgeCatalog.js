@@ -271,6 +271,15 @@ Object.keys(badges).forEach(function (id) {
         serverAward: !!(rule && !rule.cosmetic),
     };
 });
-const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\n';
+const collectionPay = {};
+collectionBonus.collections().forEach(function (col) {
+    collectionPay[col.id] = {
+        bonusPts: col.bonusPts,
+        legacy: (col.legacyBonuses || []).map(function (row) {
+            return { id: row.id, pts: row.pts };
+        }),
+    };
+});
+const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\nwindow.BADGE_COLLECTION_PAY=' + JSON.stringify(collectionPay) + ';\n';
 fs.writeFileSync(path.join(root, 'badges.catalog.js'), clientJs);
 console.log('badges', Object.keys(badges).length, 'channels', channelCount);

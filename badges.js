@@ -1487,6 +1487,23 @@ function _collectionBonusCopy(pts) {
     return '+' + pts + ' XP bonus (not limited by the daily cap)';
 }
 
+// Same subtraction as the server remainder: full bonus minus server-paid
+// old set bonuses this account already holds, floored at 0. The pay table
+// is generated from the server catalog. The server still decides the payment.
+function _collectionRemainder(col, earned) {
+    var table = (typeof window !== 'undefined' && window.BADGE_COLLECTION_PAY) ? window.BADGE_COLLECTION_PAY : null;
+    var pay = table && col ? table[col.id] : null;
+    if (!pay) return 0;
+    var total = Math.max(0, Math.floor(Number(pay.bonusPts) || 0));
+    var already = 0;
+    (pay.legacy || []).forEach(function(row) {
+        if (!row || !earned || typeof earned.has !== 'function' || !earned.has(row.id)) return;
+        var pts = Number(row.pts);
+        if (pts > 0) already += pts;
+    });
+    return Math.max(0, total - already);
+}
+
 // Required members are the ones the server can award. Cosmetic members are
 // optional extras. A collection with no server-award member (Fun and Fitness)
 // still requires every badge.
@@ -1528,7 +1545,7 @@ window._badgeCollectionProgress = function(earned) {
             earned: count,
             total: total,
             pct: total ? Math.round((count / total) * 100) : 0,
-            bonusPts: col.bonusPts,
+            bonusPts: _collectionRemainder(col, held),
             bonusId: col.bonusId,
             bonusEarned: held.has(col.bonusId),
             complete: total > 0 && count >= total
@@ -1585,7 +1602,7 @@ function _renderBadgeSets(earnedBadges) {
         var pct = total ? Math.round((earnedReq.length / total) * 100) : 0;
         var complete = total > 0 && earnedReq.length >= total;
         var bonusEarned = earnedBadges.has(col.bonusId);
-        var bonusCopy = _collectionBonusCopy(col.bonusPts);
+        var bonusCopy = _collectionBonusCopy(_collectionRemainder(col, earnedBadges));
         html += '<div class="bc-card" style="border-color:' + (complete ? col.color + '55' : 'var(--border)') + ';' + (complete ? 'box-shadow:0 0 12px ' + col.color + '22;' : '') + '">';
         html += '<div class="bc-head">';
         html += '<span class="bc-emoji">' + col.emoji + '</span>';
