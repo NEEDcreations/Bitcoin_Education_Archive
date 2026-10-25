@@ -1,8 +1,9 @@
 // Cache-buster pin. This ship branch is btc-archive-v2366.
 // v2359 is reserved for another branch. timechain-tv.js stays 20261024_v2353.
-// bundle.min.js, ranking.js, and features.registry.js are 20261024_v2361.
+// bundle.min.js, ranking.js, and features.registry.js stay 20261024_v2361.
 // global-chat.js and patches.js stay 20261024_v2360. nacho-qa.js stays 20261024_v2350.
-// gifting.js, quests.js, and onboarding.js are 20261024_v2358. notifications.js stays 20261024_v2357.
+// gifting.js and onboarding.js stay 20261024_v2358. quests.js is 20261024_v2362.
+// notifications.js stays 20261024_v2357.
 // satoshi-favor.js and username-repick.js stay 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349. today-card.js is 20261024_v2351.
 // scholar.js stays 20261023_v2330. tctv-watch.js stays 20261023_v2340.
@@ -194,7 +195,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2350/g) || []).length, 0);
@@ -254,6 +256,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Encrypted account backups keep email addresses, phone numbers, and password hashes for 90 days.'));
+    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
+    assert.ok(!notes.includes("Latest: Satoshi's Favor now explains"));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
     assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));

@@ -349,6 +349,9 @@ test('infra setup prints the plan unless --apply is passed', function () {
     assert.ok(src.indexOf('projectOwner:') !== -1);
     assert.ok(src.indexOf('projectViewer:') !== -1);
     assert.ok(src.indexOf('Cloud Shell') !== -1);
+    assert.ok(src.indexOf('secrets versions access latest') !== -1);
+    assert.ok(src.indexOf('cannot download auth backups') !== -1);
+    assert.strictEqual(src.indexOf('already covers Phil'), -1);
     assert.ok(src.indexOf('expireAt') !== -1);
     assert.ok(src.indexOf('backup_history') !== -1);
     assert.ok(src.indexOf('AUTH_BACKUP_KEY') !== -1);
@@ -376,6 +379,8 @@ test('infra setup prints the plan unless --apply is passed', function () {
     assert.ok(out.indexOf('WOULD') !== -1);
     assert.ok(out.indexOf('Dry run only') !== -1);
     assert.ok(out.indexOf('Cloud Shell') !== -1);
+    assert.ok(out.indexOf('secrets versions access latest') !== -1);
+    assert.ok(out.indexOf('\n  clear\n') !== -1);
     assert.strictEqual(out.indexOf('APPLY:'), -1);
     assert.strictEqual(out.indexOf('OWNER:'), -1);
     assert.strictEqual(out.indexOf('ALERT_SMTP'), -1);
@@ -403,6 +408,31 @@ test('auth export skips its own status write and the key comment stays off the F
     const restore = fs.readFileSync(path.join(__dirname, '..', 'scripts/restore_auth_export.js'), 'utf8');
     assert.strictEqual(restore.indexOf('Create AUTH_BACKUP_KEY with scripts/backup_infra_setup.sh'), -1);
     assert.ok(restore.indexOf('empty AUTH_BACKUP_KEY secret') !== -1);
+    assert.ok(restore.indexOf('secrets versions access latest') !== -1);
+    assert.ok(restore.indexOf('roles/storage.objectViewer') !== -1);
+});
+
+test('a permission error is not treated as a missing bucket binding', function () {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts/backup_infra_setup.sh'), 'utf8');
+    const start = src.indexOf('binding_is_missing() {');
+    const end = src.indexOf('\nremove_bucket_binding()', start);
+    assert.ok(start !== -1 && end > start);
+    const fn = src.slice(start, end);
+    const success = fn.slice(fn.lastIndexOf('printf'));
+    assert.strictEqual(success.indexOf('does not have'), -1);
+    function missing(message) {
+        const script = fn + '\nif binding_is_missing ' + JSON.stringify(message) + '; then exit 0; else exit 3; fi\n';
+        try {
+            execFileSync('bash', ['-c', script], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+            return true;
+        } catch (e) {
+            assert.strictEqual(e.status, 3);
+            return false;
+        }
+    }
+    assert.strictEqual(missing('Policy binding was not found'), true);
+    assert.strictEqual(missing('ERROR: does not have storage.buckets.setIamPolicy access'), false);
+    assert.strictEqual(missing('403 PERMISSION_DENIED: The specified object was not found'), false);
 });
 
 test('auth bucket policy check rejects project editors and extra function roles', function () {

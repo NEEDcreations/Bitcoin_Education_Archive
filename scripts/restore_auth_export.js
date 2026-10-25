@@ -14,8 +14,13 @@
 // and not recreated. This script does not print emails, hashes, or the signer key.
 //
 // scripts/backup_infra_setup.sh creates an empty AUTH_BACKUP_KEY secret.
-// Phil adds the key version in Cloud Shell and keeps an offline copy.
-// Do not commit the key.
+// Phil adds the key version in Cloud Shell. The pipe does not print the key.
+// Print it once with `gcloud secrets versions access latest`, save that
+// output offline, then clear the screen. Do not commit the key.
+//
+// Project Owner cannot read objects in the auth backup bucket after the
+// legacy bindings are removed. Download the file with the deploy account,
+// or grant Phil roles/storage.objectViewer on that bucket first.
 
 const fs = require('fs');
 const path = require('path');

@@ -3,10 +3,14 @@
 // AES-256-GCM for the nightly Auth export. The key is Secret Manager
 // AUTH_BACKUP_KEY (32 bytes, base64 or 64-char hex). Never commit a key.
 //
-// Phil generates it in Cloud Shell, never on the deploy box, and keeps an
-// offline copy. The value is piped, so it is not a shell argument:
+// Phil generates it in Cloud Shell, never on the deploy box. The pipe does
+// not print the key, so it is not a shell argument. Print it once, save that
+// output offline, then clear the screen:
 //   openssl rand -base64 32 | gcloud secrets versions add AUTH_BACKUP_KEY \
 //     --project=bitcoin-education-archive --data-file=-
+//   gcloud secrets versions access latest --secret=AUTH_BACKUP_KEY \
+//     --project=bitcoin-education-archive
+//   clear
 //
 // File layout: magic "BQAE" | version 1 | 12-byte IV | 16-byte tag | ciphertext.
 

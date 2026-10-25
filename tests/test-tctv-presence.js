@@ -256,6 +256,7 @@ test('single-field index is declared for tctv_presence.ts', () => {
 test('cache name is v2358 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2366'"));
+    assert.ok(!sw.includes('btc-archive-v2362'));
     assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));
     assert.ok(!sw.includes('btc-archive-v2359'));
@@ -346,7 +347,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
     assert.ok(!html.includes('gifting.js?v=20261022_lightfix'));
     assert.ok(!html.includes('notifications.js?v=20261022_gifts'));
-    assert.ok(html.includes("'quests.js?v=20261024_v2358'"));
+    assert.ok(html.includes("'quests.js?v=20261024_v2362'"));
+    assert.ok(!html.includes("'quests.js?v=20261024_v2358'"));
     assert.ok(!html.includes("'quests.js?v=20261024_v2352'"));
     assert.ok(!html.includes("'quests.js?v=20261024_v2351'"));
     assert.ok(!html.includes("'quests.js?v=20261024_v2350'"));

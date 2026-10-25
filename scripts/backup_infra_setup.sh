@@ -23,10 +23,13 @@
 # It does not generate AUTH_BACKUP_KEY. Phil pipes that in Cloud Shell.
 #
 # AUTH_BACKUP_KEY (32 bytes). After both flags, Phil generates the version
-# in Cloud Shell, never on the deploy box, and keeps an offline copy. The
-# value is piped, so it is not a shell argument:
+# in Cloud Shell, never on the deploy box. The pipe does not print the key.
+# He then prints it once, saves that output offline, and clears the screen:
 #   openssl rand -base64 32 | gcloud secrets versions add AUTH_BACKUP_KEY \
 #     --project=bitcoin-education-archive --data-file=-
+#   gcloud secrets versions access latest --secret=AUTH_BACKUP_KEY \
+#     --project=bitcoin-education-archive
+#   clear
 
 set -euo pipefail
 
@@ -100,10 +103,14 @@ WOULD set its lifecycle so a live object is deleted at age 90 days. With
 WOULD set --soft-delete-duration=0 on that bucket so soft delete does not
   keep ciphertext past the 90 day lifecycle. Privacy copy stays 90 days.
 WOULD remove projectEditor, projectOwner, and projectViewer legacy bindings
-  on gs://${AUTH_BACKUP_BUCKET}. Project-level Owner already covers Phil.
+  on gs://${AUTH_BACKUP_BUCKET}. Owner has no object access once those
+  bindings are gone, so Phil cannot download auth backups as Owner. To
+  restore, the deploy account downloads the object, or Phil grants himself
+  roles/storage.objectViewer on this bucket first.
   The compute account holds Editor, so a leftover projectEditor binding would
   let it overwrite or delete auth backups and change bucket IAM. A missing
-  binding is success, so a re-run is safe.
+  binding is success, so a re-run is safe. A permission error is not a
+  missing binding.
 WOULD stop if that bucket policy still has projectEditor, projectOwner, or
   projectViewer, or if the functions service account has any role there other
   than roles/storage.objectViewer and roles/storage.legacyBucketReader.
@@ -160,10 +167,15 @@ WOULD enable a TTL policy on collection group backup_history field expireAt:
     --collection-group=backup_history --enable-ttl --project=${PROJECT_ID}
   Writers set expireAt to finishedAt plus 90 days.
 
-Phil, in Cloud Shell, never on the deploy box, after the secret exists:
+Phil, in Cloud Shell, never on the deploy box, after the secret exists.
+The pipe does not print the key. The next command prints it once. Save that
+output in the password manager, then clear the screen:
 
   openssl rand -base64 32 | gcloud secrets versions add AUTH_BACKUP_KEY \\
     --project=${PROJECT_ID} --data-file=-
+  gcloud secrets versions access latest --secret=AUTH_BACKUP_KEY \\
+    --project=${PROJECT_ID}
+  clear
 
 Then deploy:
 
@@ -177,7 +189,10 @@ if [[ "${OWNER}" != "1" && "${APPLY}" != "1" ]]; then
 fi
 
 binding_is_missing() {
-  printf '%s' "$1" | grep -qiE 'not found|does not have|does not exist|did not find|not present|no binding|was not found'
+  if printf '%s' "$1" | grep -qiE '403|PERMISSION_DENIED|forbidden|does not have'; then
+    return 1
+  fi
+  printf '%s' "$1" | grep -qiE 'not found|does not exist|did not find|not present|no binding|was not found'
 }
 
 remove_bucket_binding() {
@@ -552,11 +567,16 @@ cat <<EOF
 Changes finished. No buckets were deleted and no retention lock was set.
 No key was generated.
 
-Phil adds the auth backup key in Cloud Shell, never on the deploy box, and
-keeps an offline copy. Skip this if that version is already stored:
+Phil adds the auth backup key in Cloud Shell, never on the deploy box.
+Skip this if that version is already stored. The pipe does not print the
+key. The access command prints it once. Save that output in the password
+manager, then clear the screen:
 
   openssl rand -base64 32 | gcloud secrets versions add AUTH_BACKUP_KEY \\
     --project=${PROJECT_ID} --data-file=-
+  gcloud secrets versions access latest --secret=AUTH_BACKUP_KEY \\
+    --project=${PROJECT_ID}
+  clear
 
 The deploy account already has permission to deploy nightlyAuthExport as
 ${AUTH_BACKUP_SA}. This script does not grant that again.
