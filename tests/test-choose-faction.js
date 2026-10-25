@@ -377,7 +377,9 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
+    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
+    assert.strictEqual(notes.indexOf("Latest: Satoshi's Favor now explains"), -1);
+    assert.ok(notes.indexOf('Latest: Encrypted account backups keep email addresses, phone numbers, and password hashes for 90 days.') > 0);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 
