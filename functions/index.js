@@ -1328,7 +1328,7 @@ exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, ipqsA
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const verifyHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
     const result = await referralService.payIfQualified(context.auth.uid, {
-        ip: faucetGuard.clientIpFromRequest(context.rawRequest) || '',
+        requestIp: faucetGuard.clientIpFromRequest(context.rawRequest) || '',
         userAgent: verifyHeaders['user-agent'] || '',
         language: verifyHeaders['accept-language'] || '',
     });
@@ -1829,6 +1829,16 @@ exports.claimSats = functionsV1.runWith({
         purpose: 'faucet',
         neverClaimed: neverClaimed,
     });
+    if (userPre.referredBy && rewardGate && rewardGate.ipVerdict) {
+        try {
+            await referralService.payIfQualified(uid, {
+                applyObservation: true,
+                serverVerdict: rewardGate.ipVerdict,
+            });
+        } catch (referralErr) {
+            console.error('[referral] claim observation', referralErr && referralErr.message ? referralErr.message : referralErr);
+        }
+    }
     if (rewardGate.action === 'deny' || rewardGate.action === 'hold') {
         return { success: false, error: rewardGate.message, code: rewardGate.reason };
     }

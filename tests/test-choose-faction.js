@@ -379,7 +379,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.strictEqual(notes.indexOf("Latest: Satoshi's Favor now explains"), -1);
-    assert.ok(notes.indexOf("Latest: Sats claims, referral rewards, and Satoshi's Favor can be held when a connection looks like a VPN, proxy, or Tor exit. Turn it off to claim; the rest of the app keeps working.") > 0);
+    assert.ok(notes.indexOf("Latest: Sats claims and Satoshi's Favor are held on a VPN, proxy, or Tor exit. An invite reward waits and pays once that friend is on a regular connection, and the rest of the app keeps working.") > 0);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 

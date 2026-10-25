@@ -308,6 +308,7 @@ async function registerReferral(data, context) {
     }
     referred.deviceHmac = reward.deviceHmac || '';
     referred.ipqsAction = reward.ipVerdict ? reward.ipVerdict.action : '';
+    referred.ipqsReason = reward.ipVerdict ? String(reward.ipVerdict.reason || '') : '';
     referred.deviceAction = reward.deviceAction === 'deny' || reward.deviceAction === 'hold' ? reward.deviceAction : '';
     let signupIpHmac = '';
     try {
@@ -332,9 +333,11 @@ async function registerReferral(data, context) {
         if (flags.indexOf('linked-account') === -1) flags.push('linked-account');
         if (flags.indexOf(reason) === -1) flags.push(reason);
     });
-    let status = gate.ok && referrer ? referrals.statusForFlags(flags) : gate.status;
+    const connection = referrals.signupConnection(flags, reward.ipVerdict, now);
+    let status = gate.ok && referrer ? connection.status : gate.status;
     if (!gate.ok) status = gate.status;
     else if (!referrer) status = 'pending';
+    const ipqsHold = status === 'held_connection' ? connection.ipqsHold : null;
 
     const refRef = db().collection('referrals').doc(uid);
     const userRef = db().collection('users').doc(uid);
@@ -349,7 +352,7 @@ async function registerReferral(data, context) {
         if (fresh.data().referredBy && fresh.data().referredBy !== code) return;
         t.set(refRef, referralPayload(uid, referrer ? referrer.uid : '', code, status));
         const verdict = reward.ipVerdict || {};
-        t.set(signalRef, {
+        const signalBody = {
             signupIpHmac: signupIpHmac,
             expireAt: admin.firestore.Timestamp.fromMillis(now + referrals.SIGNAL_TTL_MS),
             referrerUid: referrer ? referrer.uid : '',
@@ -366,10 +369,12 @@ async function registerReferral(data, context) {
             ipqsCountry: String(verdict.countryCode || '').slice(0, 2),
             ipqsCheckedAtMs: Number(verdict.checkedAtMs) || 0,
             deviceHmac: reward.deviceHmac || '',
-        });
+        };
+        if (ipqsHold) signalBody.ipqsHold = ipqsHold;
+        t.set(signalRef, signalBody);
         const userUpdate = { referredBy: code, referralVerified: false };
         t.update(userRef, userUpdate);
-        if (referrerRef && (status === 'pending' || status === 'flagged')) {
+        if (referrerRef && (status === 'pending' || status === 'flagged' || status === 'held_connection')) {
             t.update(referrerRef, {
                 referralInvited: admin.firestore.FieldValue.increment(1),
             });
@@ -382,12 +387,15 @@ async function registerReferral(data, context) {
         const result = await payIfQualified(uid);
         paid = !!(result && result.paid);
     }
+    let message = '';
+    if (status === 'held_connection') message = reward.message || '';
+    else if (reward.action === 'deny') message = reward.message || '';
     return {
-        success: status === 'pending' || status === 'flagged',
+        success: status === 'pending' || status === 'flagged' || status === 'held_connection',
         reason: created ? status : 'exists',
         status: status,
         paid: paid,
-        message: reward.message || '',
+        message: message,
     };
 }
 
@@ -486,11 +494,21 @@ async function aboutToPayReferral(uid, referrerUid, profile, tomb) {
         nowMs: Date.now(),
         recentPaidAt: recentPaidAt,
         referral: referralDoc.data(),
+        signal: signal,
         referred: referredView,
         referrer: referrerView,
         signupIpHmac: storedHmac,
     });
     return decision.action === 'pay';
+}
+
+function observedVerdict(opts) {
+    if (!opts || opts.applyObservation !== true) return null;
+    const verdict = opts.serverVerdict;
+    if (!verdict || typeof verdict !== 'object') return null;
+    const action = String(verdict.action || '');
+    if (action !== 'allow' && action !== 'hold' && action !== 'deny') return null;
+    return verdict;
 }
 
 async function payIfQualified(referredUid, opts) {
@@ -511,11 +529,15 @@ async function payIfQualified(referredUid, opts) {
     const referrerUid = current.data().referrerUid || await lookupReferrerUid(current.data().referrerCode, uid);
     if (!referrerUid) return { paid: false, reason: 'missing-user' };
     const extra = opts || {};
-    let checkIp = String(extra.ip || '');
-    if (!checkIp) {
+    let checkIp = '';
+    if (!extra.requestIp && extra.applyObservation !== true) {
         const remembered = await referredRef.get();
         checkIp = rawIpFromUser(remembered.exists ? remembered.data() : null);
     }
+    const signalPre = await signalRef.get();
+    const signalPreData = signalPre.exists ? (signalPre.data() || {}) : {};
+    const holdPre = referrals.connectionHoldState(current.data(), signalPreData);
+    const legacyPre = referrals.isLegacyConnectionHold(current.data(), signalPreData);
     const devicesOn = ipReputation.deviceEnabled();
     const profile = await authProfile(uid);
     const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
@@ -536,11 +558,17 @@ async function payIfQualified(referredUid, opts) {
         console.error('[referral] payout qualify fallback');
         ready = false;
     }
-    if (ready && checkIp) {
+    const seen = observedVerdict(extra);
+    const requestIp = String(extra.requestIp || '');
+    const recheckDue = (holdPre || legacyPre) && requestIp && referrals.connectionRecheckDue(holdPre || { checkedAt: 0 }, Date.now());
+    const lookupIp = seen ? '' : (recheckDue ? requestIp : ((ready && !holdPre && !legacyPre) ? checkIp : ''));
+    if (seen) {
+        freshGate = { ipVerdict: seen };
+    } else if (lookupIp) {
         try {
             freshGate = await ipReputation.assessReward({
                 db: db(),
-                ip: checkIp,
+                ip: lookupIp,
                 uid: uid,
                 purpose: 'referral',
                 userAgent: extra.userAgent || '',
@@ -627,6 +655,7 @@ async function payIfQualified(referredUid, opts) {
         const verdict = liveIpVerdict(freshGate);
         const liveAction = verdict ? verdict.action : '';
         referredView.ipqsAction = liveAction || storedAction;
+        referredView.ipqsReason = verdict ? String(verdict.reason || '') : String(signal.ipqsReason || '');
         if (liveAction && liveAction !== storedAction) {
             t.set(signalRef, {
                 ipqsAction: liveAction,
@@ -655,14 +684,69 @@ async function payIfQualified(referredUid, opts) {
             nowMs: Date.now(),
             recentPaidAt: recentPaidAt,
             referral: referralDoc.data(),
+            signal: signal,
+            serverVerdict: verdict,
             referred: referredView,
             referrer: referrerView,
             signupIpHmac: storedHmac,
         });
         const clearFlags = { rejectionFlags: admin.firestore.FieldValue.delete() };
+        const dropHold = { ipqsHold: admin.firestore.FieldValue.delete() };
         if (decision.action === 'legacy') {
             t.update(refRef, Object.assign({ status: 'legacy' }, clearFlags));
             outcome = { paid: false, reason: 'legacy' };
+            return;
+        }
+        if (decision.action === 'hold') {
+            const nextHold = decision.ipqsHold || {};
+            let checkedAt = Number(nextHold.checkedAt) || Date.now();
+            if (lookupIp && !liveIpVerdict(freshGate)) checkedAt = Date.now();
+            t.update(refRef, Object.assign({
+                status: 'held_connection',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, {
+                ipqsHold: {
+                    reason: String(nextHold.reason || 'vpn').slice(0, 16),
+                    since: Number(nextHold.since) || Date.now(),
+                    checkedAt: checkedAt,
+                },
+                ipqsAction: 'hold',
+                ipqsReason: String(nextHold.reason || 'vpn').slice(0, 40),
+                ipqsCheckedAtMs: checkedAt,
+                flags: ['ipqs-hold'],
+            }, { merge: true });
+            outcome = { paid: false, reason: decision.reason, held: true };
+            return;
+        }
+        if (decision.action === 'clear') {
+            t.update(refRef, Object.assign({
+                status: 'pending',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, Object.assign({
+                ipqsAction: 'allow',
+                ipqsReason: 'clean',
+                ipqsCheckedAtMs: Date.now(),
+                flags: [],
+            }, dropHold), { merge: true });
+            outcome = { paid: false, reason: decision.reason, cleared: true };
+            return;
+        }
+        if (decision.action === 'expire') {
+            t.update(refRef, Object.assign({
+                status: 'expired',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, Object.assign({
+                ipqsAction: 'hold',
+                ipqsReason: 'expired',
+                flags: ['ipqs-hold-expired'],
+            }, dropHold), { merge: true });
+            outcome = { paid: false, reason: 'connection-hold-expired' };
             return;
         }
         if (decision.action === 'skip') {
@@ -676,7 +760,7 @@ async function payIfQualified(referredUid, opts) {
                 ticketsAwarded: false,
                 verified: false,
             }, clearFlags));
-            t.set(signalRef, { flags: decision.flags || [] }, { merge: true });
+            t.set(signalRef, Object.assign({ flags: decision.flags || [] }, dropHold), { merge: true });
             outcome = { paid: false, reason: decision.reason };
             return;
         }
@@ -698,6 +782,12 @@ async function payIfQualified(referredUid, opts) {
             verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
             ticketsEach: tickets,
         }, clearFlags));
+        t.set(signalRef, Object.assign({
+            ipqsAction: 'allow',
+            ipqsReason: 'clean',
+            ipqsCheckedAtMs: nowMs,
+            flags: [],
+        }, dropHold), { merge: true });
         t.set(limitRef, {
             paidAtMs: kept.slice(-40),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -773,20 +863,19 @@ async function onUserWritten(event) {
     return null;
 }
 
-async function scanPending(limit) {
-    const cap = Math.max(1, Math.min(40, Number(limit) || 40));
-    const stateRef = db().collection('referral_scan').doc('pending');
+async function scanStatus(status, cursorName, cap) {
+    const stateRef = db().collection('referral_scan').doc(cursorName);
     const state = await stateRef.get();
     const cursor = state.exists ? String(state.data().cursor || '') : '';
     let query = db().collection('referrals')
-        .where('status', '==', 'pending')
+        .where('status', '==', status)
         .orderBy(admin.firestore.FieldPath.documentId())
         .limit(cap);
     if (cursor) query = query.startAfter(cursor);
     let snap = await query.get();
     if (snap.empty && cursor) {
         snap = await db().collection('referrals')
-            .where('status', '==', 'pending')
+            .where('status', '==', status)
             .orderBy(admin.firestore.FieldPath.documentId())
             .limit(cap)
             .get();
@@ -806,6 +895,57 @@ async function scanPending(limit) {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return { scanned: snap.size, paid: paid, cursor: next };
+}
+
+async function scanLegacyConnection(cap) {
+    const stateRef = db().collection('referral_scan').doc('legacy_hold');
+    const state = await stateRef.get();
+    const cursor = state.exists ? String(state.data().cursor || '') : '';
+    let query = db().collection('referrals')
+        .where('status', '==', 'flagged')
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .limit(cap);
+    if (cursor) query = query.startAfter(cursor);
+    let snap = await query.get();
+    if (snap.empty && cursor) {
+        snap = await db().collection('referrals')
+            .where('status', '==', 'flagged')
+            .orderBy(admin.firestore.FieldPath.documentId())
+            .limit(cap)
+            .get();
+    }
+    let paid = 0;
+    let scanned = 0;
+    for (let i = 0; i < snap.docs.length; i++) {
+        try {
+            const signalSnap = await db().collection('referral_signals').doc(snap.docs[i].id).get();
+            const signal = signalSnap.exists ? (signalSnap.data() || {}) : {};
+            if (!referrals.isLegacyConnectionHold(snap.docs[i].data() || {}, signal)) continue;
+            scanned++;
+            const result = await payIfQualified(snap.docs[i].id);
+            if (result && result.paid) paid++;
+        } catch (e) {
+            console.error('[payQualifiedReferrals]', e && e.message ? e.message : e);
+        }
+    }
+    const next = snap.empty ? '' : snap.docs[snap.docs.length - 1].id;
+    await stateRef.set({
+        cursor: next,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { scanned: scanned, paid: paid, cursor: next };
+}
+
+async function scanPending(limit) {
+    const cap = Math.max(1, Math.min(40, Number(limit) || 40));
+    const pending = await scanStatus('pending', 'pending', cap);
+    const held = await scanStatus('held_connection', 'held', cap);
+    const legacy = await scanLegacyConnection(Math.min(10, cap));
+    return {
+        scanned: pending.scanned + held.scanned + legacy.scanned,
+        paid: pending.paid + held.paid + legacy.paid,
+        cursor: pending.cursor,
+    };
 }
 
 async function deleteMyReferralSignal(data, context) {

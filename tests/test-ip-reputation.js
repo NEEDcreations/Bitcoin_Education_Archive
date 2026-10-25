@@ -214,9 +214,8 @@ test('a failed lookup or a credit error falls open', function() {
     assert.strictEqual(rep.failureReason({ success: false }, 500), 'http');
     assert.strictEqual(rep.DENY_CONNECTION, "To prevent abuse, sats can't be claimed from this connection. You can still use everything else in the app. Try claiming from your home Wi-Fi or mobile data.");
     assert.strictEqual(rep.HOLD_CONNECTION, "To prevent abuse, sats can't be claimed over a VPN, proxy or Tor. You can still use everything else in the app. Turn it off and tap claim again to get your sats.");
-    assert.strictEqual(rep.HOLD_REFERRAL, "To prevent abuse, invite rewards aren't paid over a VPN, proxy or Tor. You can still use everything else in the app.");
-    assert.ok(rep.HOLD_REFERRAL.indexOf('will pay') === -1);
-    assert.ok(rep.HOLD_REFERRAL.indexOf('waiting') === -1);
+    assert.strictEqual(rep.HOLD_REFERRAL, "To prevent abuse, invite rewards aren't paid over a VPN, proxy or Tor. You can still use everything else in the app. Your reward is waiting and will pay automatically once you're on a regular connection.");
+    assert.ok(rep.HOLD_REFERRAL.indexOf("once you're on a regular connection") !== -1);
     assert.strictEqual(rep.HOLD_DEVICE, 'This device is already linked to another account. Contact support if this is a shared household.');
     assert.strictEqual(rep.DENY_DEVICE, "This device can't claim rewards right now. Contact support.");
     assert.ok(rep.HOLD_DEVICE.indexOf('Contact support') !== -1);
@@ -983,8 +982,7 @@ test('referral holds use invite wording', async function() {
     assert.strictEqual(result.action, 'hold');
     assert.strictEqual(result.message, rep.HOLD_REFERRAL);
     assert.ok(result.message.indexOf('claim sats') === -1);
-    assert.ok(result.message.indexOf('will pay') === -1);
-    assert.ok(result.message.indexOf('waiting') === -1);
+    assert.ok(result.message.indexOf("once you're on a regular connection") !== -1);
 });
 
 Promise.all(queue).then(function() {

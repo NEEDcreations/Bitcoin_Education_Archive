@@ -13,6 +13,8 @@ const SIGNUP_MAX_POINTS = 100;
 const PAYOUT_MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MIN_ACTIVE_DAYS = 3;
 const REFERRAL_PAY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const CONNECTION_HOLD_MS = 30 * 24 * 60 * 60 * 1000;
+const CONNECTION_RECHECK_MS = 24 * 60 * 60 * 1000;
 const REFERRAL_PAY_CAP = 5;
 const SIGNAL_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const EMAIL_PROVIDERS = { password: 1, 'google.com': 1, 'apple.com': 1, 'facebook.com': 1 };
@@ -102,7 +104,8 @@ function fraudFlags(referred, referrer, signupIp) {
     const devB = String(referrer.deviceHmac || '').trim().toLowerCase();
     if ((fpA && fpB && fpA === fpB) || (devA && devB && devA === devB)) flags.push('same-fingerprint');
     if (referred.ipqsAction === 'deny') flags.push('ipqs-deny');
-    if (referred.ipqsAction === 'hold') flags.push('ipqs-hold');
+    // VPN, proxy, and Tor wait. Any other IP hold, such as the optional score band, still flags.
+    if (referred.ipqsAction === 'hold' && !connectionHoldReason(referred.ipqsReason)) flags.push('ipqs-hold');
     if (referred.deviceAction === 'deny') flags.push('device-deny');
     if (referred.deviceAction === 'hold') flags.push('device-hold');
     const ipsA = ipList(referred.known_ips);
@@ -198,6 +201,121 @@ function emailOk(user) {
     return !!(user && user.emailVerified === true);
 }
 
+function connectionHoldReason(reason) {
+    const value = lower(reason);
+    if (value === 'vpn' || value === 'proxy' || value === 'tor') return value;
+    return '';
+}
+
+function normalizeIpqsHold(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const reason = connectionHoldReason(value.reason);
+    const since = Number(value.since) || 0;
+    if (!reason || !since) return null;
+    return {
+        reason: reason,
+        since: since,
+        checkedAt: Number(value.checkedAt) || since,
+    };
+}
+
+function signalFlagList(signal) {
+    const flags = signal && signal.flags;
+    if (!Array.isArray(flags)) return [];
+    return flags.map(function(flag) { return String(flag || ''); }).filter(Boolean);
+}
+
+// A pre-change doc flagged only for VPN, proxy, or Tor is waiting, not dead.
+function isLegacyConnectionHold(referral, signal) {
+    if (!referral || alreadyPaid(referral) || referral.status !== 'flagged') return false;
+    const flags = signalFlagList(signal);
+    const other = flags.filter(function(flag) { return flag !== 'ipqs-hold'; });
+    if (other.length) return false;
+    const marked = flags.indexOf('ipqs-hold') !== -1 || (signal && signal.ipqsAction === 'hold');
+    if (!marked) return false;
+    if (connectionHoldReason(signal && signal.ipqsReason)) return true;
+    return !!(signal && (signal.ipqsVpn || signal.ipqsProxy || signal.ipqsTor));
+}
+
+function connectionHoldState(referral, signal) {
+    const marked = normalizeIpqsHold(signal && signal.ipqsHold) || normalizeIpqsHold(referral && referral.ipqsHold);
+    if (marked) return marked;
+    const storedReason = connectionHoldReason(signal && signal.ipqsReason);
+    if (signal && signal.ipqsAction === 'hold' && storedReason) {
+        const checkedAt = Number(signal.ipqsCheckedAtMs) || 0;
+        return { reason: storedReason, since: checkedAt, checkedAt: checkedAt };
+    }
+    const legacy = isLegacyConnectionHold(referral, signal);
+    if (!referral || (referral.status !== 'held_connection' && !legacy)) return null;
+    const reason = storedReason
+        || (signal && signal.ipqsTor ? 'tor' : '')
+        || (signal && signal.ipqsProxy ? 'proxy' : '')
+        || (signal && signal.ipqsVpn ? 'vpn' : '')
+        || 'vpn';
+    const checkedAt = Number(signal && signal.ipqsCheckedAtMs) || 0;
+    const since = Number(signal && signal.holdSince) || checkedAt;
+    return { reason: reason, since: since, checkedAt: checkedAt || since };
+}
+
+function connectionRecheckDue(hold, nowMs) {
+    if (!hold) return false;
+    const checked = Number(hold.checkedAt) || 0;
+    if (!checked) return true;
+    return (Number(nowMs) || 0) - checked >= CONNECTION_RECHECK_MS;
+}
+
+function realServerVerdict(verdict) {
+    if (!verdict || typeof verdict !== 'object') return null;
+    const action = String(verdict.action || '');
+    if (action !== 'allow' && action !== 'hold' && action !== 'deny') return null;
+    return verdict;
+}
+
+// Client flags are ignored. Only a real server verdict can clear or refresh a hold.
+function settleConnection(input) {
+    const src = input || {};
+    const now = Number(src.nowMs) || 0;
+    const referral = src.referral || {};
+    const signal = src.signal || {};
+    const verdict = realServerVerdict(src.serverVerdict);
+    const hold = connectionHoldState(referral, signal);
+    const legacy = isLegacyConnectionHold(referral, signal);
+    const watching = !!(hold && (referral.status === 'held_connection' || referral.status === 'pending' || referral.status === 'flagged' || legacy));
+    if (verdict && verdict.action === 'deny') {
+        return { effect: 'deny', reason: connectionHoldReason(verdict.reason) || String(verdict.reason || 'ipqs-deny') };
+    }
+    if (verdict && verdict.action === 'allow') {
+        if (!watching && !hold) return { effect: 'none' };
+        return { effect: 'clear' };
+    }
+    if (verdict && verdict.action === 'hold' && connectionHoldReason(verdict.reason)) {
+        const since = hold && hold.since ? hold.since : now;
+        const next = { reason: connectionHoldReason(verdict.reason), since: since || now, checkedAt: now || since };
+        if (next.since && now - next.since >= CONNECTION_HOLD_MS) return { effect: 'expire', ipqsHold: next };
+        return { effect: 'hold', ipqsHold: next };
+    }
+    if (verdict && verdict.action === 'hold') {
+        return { effect: 'flag-hold', reason: String(verdict.reason || 'ipqs-hold') };
+    }
+    if (!watching) return { effect: 'none' };
+    if (hold && hold.since && now - hold.since >= CONNECTION_HOLD_MS) return { effect: 'expire', ipqsHold: hold };
+    return { effect: 'hold', ipqsHold: hold };
+}
+
+function signupConnection(flags, verdict, nowMs) {
+    const status = statusForFlags(flags);
+    const reason = connectionHoldReason(verdict && verdict.reason);
+    const action = verdict && verdict.action;
+    const now = Number(nowMs) || 0;
+    if (status === 'pending' && action === 'hold' && reason) {
+        return {
+            status: 'held_connection',
+            ipqsHold: { reason: reason, since: now, checkedAt: now },
+        };
+    }
+    return { status: status, ipqsHold: null };
+}
+
 function assessReferralPayout(input) {
     const src = input || {};
     const referral = src.referral;
@@ -205,32 +323,66 @@ function assessReferralPayout(input) {
     const referrer = src.referrer;
     if (!referral) return { action: 'skip', reason: 'no-referral' };
     if (alreadyPaid(referral)) return { action: 'skip', reason: 'already-paid' };
-    if (referral.status === 'flagged' || referral.status === 'rejected' || referral.status === 'late' || referral.status === 'untrusted' || referral.status === 'legacy') {
+    const signal = src.signal || {};
+    const legacyHold = isLegacyConnectionHold(referral, signal);
+    if (referral.status === 'expired') return { action: 'skip', reason: 'expired' };
+    if (referral.status === 'flagged' && !legacyHold) return { action: 'skip', reason: 'flagged' };
+    if (referral.status === 'rejected' || referral.status === 'late' || referral.status === 'untrusted' || referral.status === 'legacy') {
         return { action: 'skip', reason: referral.status };
     }
     // Client-written docs have no server signal. They are never auto-paid.
     if (!src.hasSignal) return { action: 'legacy', reason: 'legacy' };
     if (!referred || !referrer || !referred.uid || !referrer.uid) return { action: 'skip', reason: 'missing-user' };
     if (referred.uid === referrer.uid) return { action: 'reject', reason: 'self', flags: ['self'] };
-    if (activityPoints(referred) < MAXI_POINTS) return { action: 'skip', reason: 'below-maxi' };
     const now = Number(src.nowMs) || 0;
-    const created = referred.createdMs == null ? null : Number(referred.createdMs);
-    if (created == null || !isFinite(created)) return { action: 'skip', reason: 'age-unknown' };
-    if (now - created < PAYOUT_MIN_AGE_MS) return { action: 'skip', reason: 'too-new' };
-    const days = {};
-    (Array.isArray(referred.activeDayKeys) ? referred.activeDayKeys : []).forEach(function(day) {
-        if (day) days[day] = 1;
+    const settlement = settleConnection({
+        nowMs: now,
+        referral: referral,
+        signal: signal,
+        serverVerdict: src.serverVerdict,
     });
-    if (Object.keys(days).length < MIN_ACTIVE_DAYS) return { action: 'skip', reason: 'inactive' };
-    if (!emailOk(referred)) return { action: 'skip', reason: 'email-unverified' };
+    if (settlement.effect === 'deny') {
+        referred.ipqsAction = 'deny';
+        referred.ipqsReason = settlement.reason;
+    } else if (settlement.effect === 'flag-hold') {
+        referred.ipqsAction = 'hold';
+        referred.ipqsReason = settlement.reason;
+    } else if (settlement.effect === 'clear') {
+        referred.ipqsAction = 'allow';
+        referred.ipqsReason = 'clean';
+    } else if (settlement.effect === 'hold' && connectionHoldReason(referred.ipqsReason)) {
+        referred.ipqsAction = '';
+    }
     const flags = fraudFlags(referred, referrer, src.signupIpHmac || src.signupIp || '');
     const blocking = flags.filter(function(flag) { return !!BLOCKING_FLAGS[flag]; });
     if (blocking.length) {
         const status = statusForFlags(blocking);
-        return { action: status === 'rejected' ? 'reject' : 'flag', reason: blocking[0], flags: blocking };
+        return { action: status === 'rejected' ? 'reject' : 'flag', reason: blocking[0], flags: blocking, clearHold: true };
     }
+    if (settlement.effect === 'expire') {
+        return { action: 'expire', reason: 'connection-hold-expired', ipqsHold: settlement.ipqsHold, clearHold: true };
+    }
+    if (settlement.effect === 'hold') {
+        const nextHold = settlement.ipqsHold || { reason: 'vpn', since: now, checkedAt: now };
+        return { action: 'hold', reason: nextHold.reason || 'vpn', ipqsHold: nextHold, flags: [] };
+    }
+    const cleared = settlement.effect === 'clear';
+    function waiting(reason) {
+        if (cleared) return { action: 'clear', reason: reason, clearHold: true };
+        return { action: 'skip', reason: reason };
+    }
+    if (activityPoints(referred) < MAXI_POINTS) return waiting('below-maxi');
+    const created = referred.createdMs == null ? null : Number(referred.createdMs);
+    if (created == null || !isFinite(created)) return waiting('age-unknown');
+    if (now - created < PAYOUT_MIN_AGE_MS) return waiting('too-new');
+    const days = {};
+    (Array.isArray(referred.activeDayKeys) ? referred.activeDayKeys : []).forEach(function(day) {
+        if (day) days[day] = 1;
+    });
+    if (Object.keys(days).length < MIN_ACTIVE_DAYS) return waiting('inactive');
+    if (!emailOk(referred)) return waiting('email-unverified');
     if (countRecentPays(src.recentPaidAt, now) >= REFERRAL_PAY_CAP) {
-        return { action: 'flag', reason: 'referral-cap', flags: ['referral-cap'] };
+        return { action: 'flag', reason: 'referral-cap', flags: ['referral-cap'], clearHold: cleared };
     }
     return {
         action: 'pay',
@@ -238,6 +390,7 @@ function assessReferralPayout(input) {
         ticketsEach: REFERRAL_TICKETS,
         referredUid: referred.uid,
         referrerUid: referrer.uid,
+        clearHold: cleared,
     };
 }
 
@@ -379,7 +532,7 @@ function planBackfill(input) {
         if (!id) return;
         const row = Object.assign({}, referral, { referredUid: id });
         if (alreadyPaid(row)) return;
-        if (row.status === 'flagged' || row.status === 'rejected' || row.status === 'late' || row.status === 'untrusted' || row.status === 'legacy') return;
+        if (row.status === 'flagged' || row.status === 'rejected' || row.status === 'late' || row.status === 'untrusted' || row.status === 'legacy' || row.status === 'expired') return;
         if (!signalSet[id] && !row.hasSignal) return;
         const referred = byUid[row.referredUid];
         if (!referred) return;
@@ -431,6 +584,8 @@ module.exports = {
     MIN_ACTIVE_DAYS: MIN_ACTIVE_DAYS,
     REFERRAL_PAY_CAP: REFERRAL_PAY_CAP,
     REFERRAL_PAY_WINDOW_MS: REFERRAL_PAY_WINDOW_MS,
+    CONNECTION_HOLD_MS: CONNECTION_HOLD_MS,
+    CONNECTION_RECHECK_MS: CONNECTION_RECHECK_MS,
     SIGNAL_TTL_MS: SIGNAL_TTL_MS,
     REGISTER_RATE_MS: REGISTER_RATE_MS,
     activityPoints: activityPoints,
@@ -448,6 +603,12 @@ module.exports = {
     fraudFlags: fraudFlags,
     emailHashesOverlap: emailHashesOverlap,
     statusForFlags: statusForFlags,
+    connectionHoldReason: connectionHoldReason,
+    isLegacyConnectionHold: isLegacyConnectionHold,
+    connectionHoldState: connectionHoldState,
+    connectionRecheckDue: connectionRecheckDue,
+    settleConnection: settleConnection,
+    signupConnection: signupConnection,
     assessReferralPayout: assessReferralPayout,
     resolveReferrerUid: resolveReferrerUid,
     buildCodeIndex: buildCodeIndex,
