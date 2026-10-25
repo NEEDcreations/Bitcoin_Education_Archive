@@ -1762,11 +1762,11 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             return;
         }
 
-        // Desktop Learn menu: which buttons to HIDE per mode
-        // Beginner: hide Daily Quests, Meetup Builder, Spend Bitcoin
-        // Intermediate: nothing extra to hide in learn (has all)
-        var LEARN_HIDE_ONCLICK = {
-            beginner: ['showQuestHub', 'irl-sync', "section:'merchants'"],
+        // Desktop Learn menu: which buttons to HIDE per mode.
+        // Beginner: hide Daily quests, Meetup builder, Spend Bitcoin.
+        // Intermediate: nothing extra to hide in learn (has all).
+        var LEARN_HIDE_IDS = {
+            beginner: ['daily-quests', 'meetup', 'spend'],
             intermediate: []
         };
 
@@ -1776,19 +1776,24 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        var learnHide = LEARN_HIDE_ONCLICK[mode] || [];
+        var learnHide = LEARN_HIDE_IDS[mode] || [];
         var appsHide = APPS_HIDE_ONCLICK[mode] || [];
 
-        // Apply to homeLearnMenu buttons
+        // Apply to homeLearnMenu buttons (data-learn-id, filled by renderLearnMenu)
         var learnMenu = document.getElementById('homeLearnMenu');
+        if (learnMenu && learnMenu.getAttribute('data-learn-view') && learnMenu.style.display !== 'none' && typeof window.renderLearnMenu === 'function' && !learnMenu.getAttribute('data-learn-rendering')) {
+            learnMenu.setAttribute('data-learn-rendering', '1');
+            window.renderLearnMenu(learnMenu, learnMenu.getAttribute('data-learn-view'));
+            learnMenu.removeAttribute('data-learn-rendering');
+        }
         if (learnMenu) {
             learnMenu.querySelectorAll('button').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = learnHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var id = btn.getAttribute('data-learn-id') || '';
+                var shouldHide = learnHide.indexOf(id) !== -1;
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';
-                } else {
+                } else if (btn.getAttribute('data-em-desk-hidden')) {
                     btn.removeAttribute('data-em-desk-hidden');
                     btn.style.display = '';
                 }

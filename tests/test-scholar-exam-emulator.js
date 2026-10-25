@@ -77,15 +77,24 @@ async function main() {
 
     const first = await fns.gradeScholarExam.run({ examId: examRef.id, answers: answers() }, ctx(uid));
     assert.strictEqual(first.passed, true, 'first exam should pass');
-    // 2,100 still shares the daily cap: full through 500, half through 900, quarter until 1,000.
-    assert.strictEqual(first.pointsAwarded, 1000);
+    assert.strictEqual(first.pointsAwarded, 2100);
+    assert.strictEqual(first.capExempt, true);
+    assert.strictEqual(first.already, false);
     const after = (await db.collection('users').doc(uid).get()).data();
     assert.strictEqual(after.certPassed_prop, true);
-    assert.strictEqual(after.scholarPoints, 1000);
-    assert.strictEqual(after.points, 1010, 'tapered exam XP should land on the profile');
+    assert.strictEqual(after.scholarPoints, 2100);
+    assert.strictEqual(after.points, 2110, 'full cert bonus should land on the profile');
     const dailyRows = await db.collection('users').doc(uid).collection('daily_points').get();
-    assert.strictEqual(dailyRows.size, 1);
-    assert.strictEqual(dailyRows.docs[0].data().total, 1000);
+    assert.strictEqual(dailyRows.size, 0, 'cert bonus must not open a daily cap counter');
+    const marker = await db.collection('users').doc(uid).collection('cert_bonuses').doc('prop').get();
+    assert.strictEqual(marker.exists, true);
+    assert.strictEqual(marker.data().source, 'cert_bonus');
+    assert.strictEqual(marker.data().amount, 2100);
+    assert.strictEqual(marker.data().countedTowardDailyCap, false);
+    const ledger = await db.collection('users').doc(uid).collection('xp_ledger').doc('cert_bonus_prop').get();
+    assert.strictEqual(ledger.exists, true);
+    assert.strictEqual(ledger.data().source, 'cert_bonus');
+    assert.strictEqual(ledger.data().awarded, 2100);
     const pointsAfterFirst = after.points;
     const scholarPointsAfterFirst = after.scholarPoints;
     const passedRow = (await examRef.get()).data();
@@ -111,6 +120,7 @@ async function main() {
     assert.strictEqual(second.passed, false);
     assert.strictEqual(second.pointsAwarded, 0);
     assert.strictEqual(second.blocked, 'already_certified');
+    assert.strictEqual(second.already, true);
     const afterRetry = (await db.collection('users').doc(uid).get()).data();
     assert.strictEqual(afterRetry.points, pointsAfterFirst, 'cleared flags must not pay the exam again');
     assert.strictEqual(afterRetry.scholarPoints, scholarPointsAfterFirst);
@@ -146,6 +156,47 @@ async function main() {
     assert.strictEqual(errorCode(refusedTech), 'permission-denied');
     const forgedCerts = await db.collection('certs').where('uid', '==', bare).get();
     assert.strictEqual(forgedCerts.empty, true);
+
+    const capped = 'capped-user';
+    const cappedRef = db.collection('users').doc(capped);
+    await cappedRef.set({ username: 'Cara', points: 50, scholarPoints: 0 });
+    const { offsetDateKey } = require('../functions/src/offsetDay');
+    const day = offsetDateKey(Date.now());
+    await cappedRef.collection('daily_points').doc(day).set({ total: 1000 });
+    const techRef = db.collection('scholar_exam_keys').doc(capped + '_technical_1');
+    await techRef.set({
+        uid: capped,
+        type: 'technical',
+        keys: keys(),
+        graded: false,
+    });
+    const cappedPass = await fns.gradeScholarExam.run({ examId: techRef.id, answers: answers() }, ctx(capped));
+    assert.strictEqual(cappedPass.passed, true);
+    assert.strictEqual(cappedPass.pointsAwarded, 2100, 'a full-cap day still pays the cert bonus');
+    assert.strictEqual(cappedPass.capExempt, true);
+    const cappedUser = (await cappedRef.get()).data();
+    assert.strictEqual(cappedUser.points, 2150);
+    assert.strictEqual(cappedUser.scholarPoints, 2100);
+    assert.strictEqual(cappedUser.certPassed_tech, true);
+    const cappedDay = await cappedRef.collection('daily_points').doc(day).get();
+    assert.strictEqual(cappedDay.data().total, 1000, 'cert bonus must not raise the daily counter');
+    const techMarker = await cappedRef.collection('cert_bonuses').doc('tech').get();
+    assert.strictEqual(techMarker.data().source, 'cert_bonus');
+    const techLedger = await cappedRef.collection('xp_ledger').doc('cert_bonus_tech').get();
+    assert.strictEqual(techLedger.data().source, 'cert_bonus');
+    assert.strictEqual(techLedger.data().awarded, 2100);
+
+    const techRetry = db.collection('scholar_exam_keys').doc(capped + '_technical_2');
+    await techRetry.set({ uid: capped, type: 'technical', keys: keys(), graded: false });
+    await cappedRef.update({
+        certPassed_tech: admin.firestore.FieldValue.delete(),
+        certPassedAt_tech: admin.firestore.FieldValue.delete(),
+        lastExamAttempt_tech: admin.firestore.FieldValue.delete(),
+    });
+    const cappedSecond = await fns.gradeScholarExam.run({ examId: techRetry.id, answers: answers() }, ctx(capped));
+    assert.strictEqual(cappedSecond.already, true);
+    assert.strictEqual(cappedSecond.pointsAwarded, 0);
+    assert.strictEqual((await cappedRef.get()).data().points, 2150);
 
     const issued = await fns.issueCertificate.run({ type: 'scholar', name: 'Ada' }, ctx(uid));
     assert.strictEqual(issued.success, true);
