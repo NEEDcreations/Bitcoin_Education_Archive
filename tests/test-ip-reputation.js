@@ -212,8 +212,13 @@ test('a failed lookup or a credit error falls open', function() {
     assert.strictEqual(missing.reason, 'credits');
     assert.strictEqual(rep.failureReason({ message: 'nope' }, 402), 'credits');
     assert.strictEqual(rep.failureReason({ success: false }, 500), 'http');
-    assert.strictEqual(rep.DENY_CONNECTION, "This connection can't claim sats. Turn off your VPN or contact support.");
-    assert.ok(rep.HOLD_CONNECTION.indexOf('Switch to a regular connection') === 0);
+    assert.strictEqual(rep.DENY_CONNECTION, "To prevent abuse, sats can't be claimed from this connection. You can still use everything else in the app. Try claiming from your home Wi-Fi or mobile data.");
+    assert.strictEqual(rep.HOLD_CONNECTION, "To prevent abuse, sats can't be claimed over a VPN, proxy or Tor. You can still use everything else in the app. Turn it off and tap claim again to get your sats.");
+    assert.strictEqual(rep.HOLD_REFERRAL, "To prevent abuse, invite rewards aren't paid over a VPN, proxy or Tor. You can still use everything else in the app.");
+    assert.ok(rep.HOLD_REFERRAL.indexOf('will pay') === -1);
+    assert.ok(rep.HOLD_REFERRAL.indexOf('waiting') === -1);
+    assert.strictEqual(rep.HOLD_DEVICE, 'This device is already linked to another account. Contact support if this is a shared household.');
+    assert.strictEqual(rep.DENY_DEVICE, "This device can't claim rewards right now. Contact support.");
     assert.ok(rep.HOLD_DEVICE.indexOf('Contact support') !== -1);
     assert.ok(rep.DENY_DEVICE.indexOf('Contact support') !== -1);
 });
@@ -607,6 +612,8 @@ test('claim and referral paths call the gate and keep new collections server-onl
     assert.ok(terms.includes('one account per person'));
     assert.ok(terms.includes('VPN, proxy, or Tor'));
     const ranking = read('ranking.js');
+    assert.ok(ranking.includes('id="satsClaimHoldNote"'));
+    assert.ok(ranking.includes('Turn off your VPN, proxy, or Tor and tap claim again. The rest of the app still works.'));
     assert.ok(ranking.includes('var IPQS_DEVICE_TRACKER_ID'));
     assert.ok(ranking.includes('IPQS_DEVICE_SCRIPT_HOST'));
     assert.ok(ranking.includes('faucet: 1, referral: 1, favor: 1'));
@@ -976,6 +983,8 @@ test('referral holds use invite wording', async function() {
     assert.strictEqual(result.action, 'hold');
     assert.strictEqual(result.message, rep.HOLD_REFERRAL);
     assert.ok(result.message.indexOf('claim sats') === -1);
+    assert.ok(result.message.indexOf('will pay') === -1);
+    assert.ok(result.message.indexOf('waiting') === -1);
 });
 
 Promise.all(queue).then(function() {

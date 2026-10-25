@@ -10614,6 +10614,7 @@ window.initSatsClaim = function() {
     html += '<div id="satsClaimTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
 
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
+    html += '<p id="satsClaimHoldNote" hidden style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);text-align:center;line-height:1.45;"></p>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
     html += '</div>';
 
@@ -10668,11 +10669,24 @@ function _generateDeviceFingerprint() {
 window._satsClaimInProgress = false;
 window._satsClaimTab = 'ln';
 
+function setSatsClaimHoldNote(code) {
+    var note = document.getElementById('satsClaimHoldNote');
+    if (!note) return;
+    if (code === 'vpn' || code === 'proxy' || code === 'tor') {
+        note.textContent = 'Turn off your VPN, proxy, or Tor and tap claim again. The rest of the app still works.';
+        note.hidden = false;
+        return;
+    }
+    note.textContent = '';
+    note.hidden = true;
+}
+
 window.submitSatsClaim = async function() {
     if (window._satsClaimInProgress) return;
     var btn = document.getElementById('satsClaimBtn');
     var errorEl = document.getElementById('satsClaimError');
     if (!btn) return;
+    setSatsClaimHoldNote('');
 
     var claimPayload;
     var lnAddrEl = document.getElementById('satsLnAddr');
@@ -10791,6 +10805,7 @@ window.submitSatsClaim = async function() {
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+            setSatsClaimHoldNote(result.data && result.data.code);
             if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
                 try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
                 openWithdrawalAddress({ mode: 'reset', address: lnAddr });
@@ -10804,6 +10819,7 @@ window.submitSatsClaim = async function() {
         console.error('Sats claim error:', e);
         var errMsg = e.message || 'Claim failed - try again';
         if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+        setSatsClaimHoldNote('');
         window._satsClaimInProgress = false;
         btn.disabled = false;
         btn.textContent = '⚡ Send Sats to My Wallet';

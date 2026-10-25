@@ -15,12 +15,12 @@ const DEVICE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 const USAGE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const FRESH_MS = 2 * 60 * 1000;
 
-const DENY_CONNECTION = "This connection can't claim sats. Turn off your VPN or contact support.";
-const HOLD_CONNECTION = 'Switch to a regular connection to claim sats. A VPN, proxy, or Tor exit can\'t claim right now.';
+const DENY_CONNECTION = "To prevent abuse, sats can't be claimed from this connection. You can still use everything else in the app. Try claiming from your home Wi-Fi or mobile data.";
+const HOLD_CONNECTION = "To prevent abuse, sats can't be claimed over a VPN, proxy or Tor. You can still use everything else in the app. Turn it off and tap claim again to get your sats.";
 const HOLD_DEVICE = 'This device is already linked to another account. Contact support if this is a shared household.';
 const DENY_DEVICE = "This device can't claim rewards right now. Contact support.";
 const DENY_REFERRAL = "This connection can't be used for an invite reward. Turn off your VPN or contact support.";
-const HOLD_REFERRAL = 'Your invite reward is on hold because this connection looks like a VPN. Contact support if this is a mistake.';
+const HOLD_REFERRAL = "To prevent abuse, invite rewards aren't paid over a VPN, proxy or Tor. You can still use everything else in the app.";
 const HOLD_REFERRAL_DEVICE = 'Your invite reward is on hold because this device is already linked to another account. Contact support if this is a shared household.';
 const USER_HOLD = 'Too many connection checks from this account today. Try again tomorrow.';
 const NEVER_CLAIMED_HOLD = "New accounts can't claim sats right now. Try again later.";
