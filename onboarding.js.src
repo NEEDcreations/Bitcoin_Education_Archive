@@ -332,15 +332,31 @@
                 btn.style.transform = 'none';
             }
         }
-        var invite = document.getElementById('invitePill');
+        var blockers = [];
+        var guestPill = document.getElementById('inviteGuestPill');
+        if (guestPill && !guestPill.hasAttribute('hidden')) blockers.push(guestPill);
         var card = document.getElementById('inviteCard');
-        if (!invite || !card || card.getAttribute('data-show') !== '1' || card.getAttribute('data-state') !== 'min') return;
-        var ib = invite.getBoundingClientRect();
-        var qb = btn.getBoundingClientRect();
-        if (ib.width < 1 || ib.height < 1) return;
-        var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
-        if (!stacked) return;
-        btn.style.top = Math.round(ib.bottom + 12) + 'px';
+        if (card && card.getAttribute('data-show') === '1') {
+            var inviteState = card.getAttribute('data-state');
+            if (inviteState === 'min') {
+                var invite = document.getElementById('invitePill');
+                if (invite) blockers.push(invite);
+            } else if (inviteState === 'open') {
+                blockers.push(card);
+            }
+        }
+        var lowest = null;
+        var b;
+        for (b = 0; b < blockers.length; b++) {
+            var ib = blockers[b].getBoundingClientRect();
+            var qb = btn.getBoundingClientRect();
+            if (ib.width < 1 || ib.height < 1) continue;
+            var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
+            if (!stacked) continue;
+            if (lowest === null || ib.bottom > lowest) lowest = ib.bottom;
+        }
+        if (lowest === null) return;
+        btn.style.top = Math.round(lowest + 12) + 'px';
         btn.style.bottom = 'auto';
     }
 
@@ -375,6 +391,15 @@
                 if (pill) placeNachoQuestPill(pill);
             }).observe(modal, { attributes: true, attributeFilter: ['class'] });
         }
+        function watchInvite(el, filter) {
+            if (!el || !window.MutationObserver) return;
+            new MutationObserver(function () {
+                var pill = document.getElementById('nachoQuestPill');
+                if (pill) placeNachoQuestPill(pill);
+            }).observe(el, { attributes: true, attributeFilter: filter });
+        }
+        watchInvite(document.getElementById('inviteCard'), ['data-state', 'data-show', 'style']);
+        watchInvite(document.getElementById('inviteGuestPill'), ['hidden', 'style']);
     };
 
     window._showNachoQuestOverlay = function () {

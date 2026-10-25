@@ -390,6 +390,15 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(tickets.includes('btc_session_popup'));
     assert.ok(tickets.includes('inviteCard: state'));
     assert.ok(tickets.includes("localStorage.setItem(_inviteStorageKey(uid), state)"));
+    assert.ok(html.includes('id="inviteGuestPill"'));
+    assert.ok(html.includes('🎟️ Invite friends'));
+    assert.ok(tickets.includes("if (state === 'off') return 'min'"));
+    assert.ok(tickets.includes("if (state === 'off') state = 'min'"));
+    assert.ok(tickets.includes('btc_invite_auto_'));
+    assert.ok(tickets.includes('7 * 24 * 60 * 60 * 1000'));
+    assert.ok(tickets.includes("_inviteWriteStored('min')"));
+    assert.ok(!tickets.includes("_inviteWriteStored('off')"));
+    assert.ok(tickets.includes("pill.textContent = '🎟️ Invite friends'"));
     assert.ok(rules.includes("request.resource.data.inviteCard == 'open'"));
     assert.ok(rules.includes("request.resource.data.inviteCard == 'min'"));
     assert.ok(rules.includes("request.resource.data.inviteCard == 'off'"));

@@ -415,7 +415,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2361'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2369'"));
+    assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));
     assert.ok(!sw.includes('btc-archive-v2359'));
     assert.ok(!sw.includes('btc-archive-v2358'));
@@ -777,7 +778,8 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.';
+    const latest = 'Latest: The Invite button now stays on the home screen as a small pill, so you can always invite a friend.';
+    const account = 'You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.';
     const share = 'The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.';
     const anchors = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
@@ -790,6 +792,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(account));
+    assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes(share));
     assert.ok(notes.includes(anchors));
     assert.ok(!notes.includes('Latest: Topic conversation'));

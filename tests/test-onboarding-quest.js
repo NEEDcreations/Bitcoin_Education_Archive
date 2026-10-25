@@ -267,6 +267,9 @@ test('the client quest list matches the server modes', function () {
     assert.ok(src.includes('usernameModal'));
     assert.ok(src.includes("Satoshi's Favor"));
     assert.ok(src.includes('id = \'onboardingQuizEntry\''));
+    assert.ok(src.includes('inviteGuestPill'));
+    assert.ok(src.includes("inviteState === 'min'"));
+    assert.ok(src.includes("inviteState === 'open'"));
 });
 
 test('guest merge never writes daily action counts and usernames survive a missing app check', function () {
