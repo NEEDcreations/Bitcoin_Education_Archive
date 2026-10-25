@@ -839,6 +839,7 @@
         #todayInviteGuest { display: none; margin: 0 auto 16px; border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.75rem; line-height: 1.3; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; max-width: 100%; }
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #todayInviteGuest { display: inline-flex; align-self: center; }
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteCard { display: none !important; }
+        body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteGuestPill { display: none !important; }
         @media (max-width: 480px) {
             #em-quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             #todayFavorStrip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
@@ -1842,7 +1843,7 @@
             'satoshi-favor.js?v=20261024_v2352'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261024_v2358',
+            'quests.js?v=20261024_v2362',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
@@ -1916,9 +1917,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261023_v2324'],
             'learning-quests': ['learning-quests.js?v=20261023_v2324'],
-            'quests':        ['quests.js?v=20261024_v2358'],
-            'questhub':      ['quests.js?v=20261024_v2358'],
-            'app':           ['quests.js?v=20261024_v2358'],
+            'quests':        ['quests.js?v=20261024_v2362'],
+            'questhub':      ['quests.js?v=20261024_v2362'],
+            'app':           ['quests.js?v=20261024_v2362'],
             'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
             'tv':            ['timechain-tv.js?v=20261024_v2353']
         };
@@ -2024,10 +2025,10 @@ if ('serviceWorker' in navigator) {
             <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.</p>
         </div>
     </div>
-    <button type="button" class="invite-pill" id="invitePill" onclick="expandInviteCard()">🎟️ Invite</button>
+    <button type="button" class="invite-pill" id="invitePill" aria-label="Invite friends" onclick="expandInviteCard()">🎟️ Invite</button>
     <button type="button" class="invite-guest" id="inviteGuest" onclick="inviteGuestSignup()">Sign up to get your invite link</button>
 </div>
-<button type="button" class="invite-pill" id="inviteGuestPill" hidden onclick="inviteGuestSignup()">🎟️ Invite friends</button>
+<button type="button" class="invite-pill" id="inviteGuestPill" hidden aria-label="Invite friends" onclick="inviteGuestSignup()">🎟️ Invite friends</button>
 </body>
 </html>
 <!-- v1771873982 -->

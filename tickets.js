@@ -257,8 +257,15 @@ function _inviteStorageKey(uid) {
 
 function _inviteNormalize(state) {
     if (state === 'off') return 'min';
-    if (state === 'open' || state === 'min') return state;
+    // A stored "open" is a past visit. Later visits rest on the pill.
+    if (state === 'open') return 'min';
+    if (state === 'min') return state;
     return '';
+}
+
+function _inviteStoredOpen(uid) {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard === 'open') return true;
+    try { return localStorage.getItem(_inviteStorageKey(uid)) === 'open'; } catch (e) { return false; }
 }
 
 function _inviteReadStored(uid) {
@@ -276,6 +283,7 @@ function _inviteReadStored(uid) {
 
 function _inviteWriteStored(state) {
     if (state === 'off') state = 'min';
+    if (state === 'open') state = 'min';
     var uid = _inviteUid();
     if (!uid || !INVITE_STATES[state]) return;
     try { localStorage.setItem(_inviteStorageKey(uid), state); } catch (e) {}
@@ -309,19 +317,32 @@ function _inviteClearSessionAuto() {
     try { sessionStorage.removeItem(INVITE_AUTO_SESSION); } catch (e) {}
 }
 
+function _invitePopupElement(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.id === 'inviteCard' || el.id === 'inviteGuestPill' || el.id === 'todayInviteGuest') return false;
+    if (el.closest && (el.closest('#inviteCard') || el.closest('#introVideoSection') || el.closest('#featuredOnSection'))) return false;
+    if (el.hasAttribute('hidden')) return false;
+    var style;
+    try { style = window.getComputedStyle(el); } catch (e) { return false; }
+    if (!style || style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
+    if (style.position !== 'fixed') return false;
+    var box = el.getBoundingClientRect();
+    if (box.width < 160 || box.height < 80) return false;
+    var id = String(el.id || '');
+    var cls = typeof el.className === 'string' ? el.className : '';
+    var role = el.getAttribute('role') || '';
+    var named = /modal|overlay|dialog|lightbox|leaderboard/i.test(id + ' ' + cls) || role === 'dialog' || el.getAttribute('aria-modal') === 'true';
+    var opened = el.classList.contains('open') || el.hasAttribute('open') || el.getAttribute('data-open') === '1';
+    if (!named && !opened) return false;
+    return true;
+}
+
 function _inviteModalOpen() {
-    var ids = ['usernameModal', 'questModal', 'tosModal', 'leaderboard', 'lb'];
+    var nodes = document.querySelectorAll('[role="dialog"], [aria-modal="true"], [id*="Modal"], [id*="modal"], [id*="Overlay"], [id*="overlay"], [class*="modal"], [class*="overlay"], [class*="Modal"], [class*="Overlay"], .open, dialog[open]');
     var i;
-    for (i = 0; i < ids.length; i++) {
-        var el = document.getElementById(ids[i]);
-        if (el && el.classList.contains('open')) return true;
+    for (i = 0; i < nodes.length; i++) {
+        if (_invitePopupElement(nodes[i])) return true;
     }
-    var search = document.getElementById('searchOverlay');
-    if (search && search.getAttribute('data-open') === '1') return true;
-    if (document.getElementById('btcIntroOverlay')) return true;
-    if (document.getElementById('nachoQuestOverlay')) return true;
-    if (document.getElementById('mfaSignInOverlay')) return true;
-    if (document.getElementById('totpSignInOverlay')) return true;
     return false;
 }
 
@@ -419,16 +440,23 @@ function _loadInviteCounts() {
 function _applyInviteState(state) {
     var card = document.getElementById('inviteCard');
     if (!card) return;
-    card.setAttribute('data-state', state);
-    card.setAttribute('data-show', state === 'off' ? '0' : '1');
+    var show = state === 'off' ? '0' : '1';
+    if (card.getAttribute('data-state') !== state) card.setAttribute('data-state', state);
+    if (card.getAttribute('data-show') !== show) card.setAttribute('data-show', show);
 }
+
+var _inviteHeldOpen = false;
 
 function _paintGuestPill(show) {
     var pill = document.getElementById('inviteGuestPill');
     if (!pill) return;
     if (pill.textContent !== '🎟️ Invite friends') pill.textContent = '🎟️ Invite friends';
-    if (show) pill.removeAttribute('hidden');
-    else pill.setAttribute('hidden', '');
+    if (pill.getAttribute('aria-label') !== 'Invite friends') pill.setAttribute('aria-label', 'Invite friends');
+    if (show) {
+        if (pill.hasAttribute('hidden')) pill.removeAttribute('hidden');
+    } else if (!pill.hasAttribute('hidden')) {
+        pill.setAttribute('hidden', '');
+    }
 }
 
 function _showSignedInOpen() {
@@ -439,6 +467,7 @@ function _showSignedInOpen() {
 }
 
 function _collapseSignedIn() {
+    _inviteHeldOpen = false;
     _inviteClearSessionAuto();
     _inviteMarkAuto(_inviteUid());
     _inviteWriteStored('min');
@@ -505,12 +534,11 @@ function refreshInviteCard() {
     }
     if (_inviteSignedIn()) {
         var uid = _inviteUid();
-        var state = _inviteReadStored(uid);
-        if (state === 'open') {
-            _showSignedInOpen();
-            return;
+        if (_inviteStoredOpen(uid)) {
+            _inviteMarkAuto(uid);
+            _inviteWriteStored('min');
         }
-        var resume = _inviteSessionAuto();
+        var resume = _inviteHeldOpen || _inviteSessionAuto();
         if ((resume || _inviteAutoDue(uid)) && !_inviteAutoBlocked() && _claimInvitePopup()) {
             if (!resume) {
                 _inviteMarkAuto(uid);
@@ -525,14 +553,14 @@ function refreshInviteCard() {
         return;
     }
     var homeGuest = _inviteHomeVisible();
-    _paintGuestPill(homeGuest);
     var dismissed = false;
     try { dismissed = sessionStorage.getItem('btc_invite_guest_dismissed') === '1'; } catch (e) {}
-    if (!dismissed && !_guestBannerVisible() && !_invitePopupTaken() && _claimInvitePopup()) {
+    if (!dismissed && !_guestBannerVisible() && !_inviteAutoBlocked() && _claimInvitePopup()) {
+        _paintGuestPill(false);
         _applyInviteState('guest');
-        _placeInvitePills();
         return;
     }
+    _paintGuestPill(homeGuest);
     _applyInviteState('off');
     _placeInvitePills();
 }
@@ -542,16 +570,14 @@ function openInviteFriends(force) {
         if (!force && (_invitePopupTaken() || !_claimInvitePopup())) return;
         try { sessionStorage.removeItem('btc_invite_guest_dismissed'); } catch (e) {}
         if (typeof goHome === 'function') goHome();
-        _paintGuestPill(true);
+        _paintGuestPill(false);
         _applyInviteState('guest');
-        _placeInvitePills();
         return;
     }
-    if (force) _inviteWriteStored('open');
     var modal = document.getElementById('usernameModal');
     if (modal) modal.classList.remove('open');
     if (typeof goHome === 'function') goHome();
-    _showSignedInOpen();
+    expandInviteCard();
 }
 
 function minimizeInviteCard() {
@@ -561,7 +587,16 @@ function minimizeInviteCard() {
 
 function expandInviteCard() {
     if (!_inviteSignedIn()) return;
-    _inviteWriteStored('open');
+    _inviteWriteStored('min');
+    _inviteMarkAuto(_inviteUid());
+    _inviteHeldOpen = true;
+    if (_inviteAutoBlocked()) {
+        _paintGuestPill(false);
+        _applyInviteState('min');
+        _placeInvitePills();
+        return;
+    }
+    _claimInvitePopup();
     _showSignedInOpen();
 }
 
@@ -671,6 +706,17 @@ if (typeof window !== 'undefined') {
     if (!window._invitePlaceBound) {
         window._invitePlaceBound = true;
         window.addEventListener('resize', function() { _placeInvitePills(); });
+    }
+    if (!window._invitePopupWatch && typeof MutationObserver === 'function') {
+        window._invitePopupWatch = true;
+        new MutationObserver(function() {
+            if (window._inviteRefreshQueued) return;
+            window._inviteRefreshQueued = true;
+            setTimeout(function() {
+                window._inviteRefreshQueued = false;
+                refreshInviteCard();
+            }, 50);
+        }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open', 'data-open', 'aria-modal'] });
     }
     refreshInviteCard();
 }
