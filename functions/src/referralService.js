@@ -9,6 +9,7 @@ const referrals = require('./referrals');
 const rewardNotify = require('./rewardNotify');
 const faucetGuard = require('./faucetGuard');
 const ipHmac = require('./ipHmac');
+const accountTombstone = require('./accountTombstone');
 
 function db() {
     return admin.firestore();
@@ -51,9 +52,13 @@ async function authProfile(uid) {
             createdMs: isFinite(ms) ? ms : null,
             emailVerified: !!(record && record.emailVerified),
             providers: providers,
+            email: (record && record.email) || '',
+            providerRows: ((record && record.providerData) || []).map(function (row) {
+                return { providerId: row && row.providerId, uid: row && row.uid };
+            }),
         };
     } catch (e) {
-        return { createdMs: null, emailVerified: false, providers: [] };
+        return { createdMs: null, emailVerified: false, providers: [], email: '', providerRows: [] };
     }
 }
 
@@ -206,6 +211,16 @@ function hmacIps(list) {
     return out;
 }
 
+async function emailHistoryHashes(uid) {
+    try {
+        const snap = await db().collection('email_history').doc(uid).get();
+        const hashes = snap && snap.exists && Array.isArray(snap.data().hashes) ? snap.data().hashes : [];
+        return hashes.map(function (hash) { return String(hash || ''); }).filter(Boolean);
+    } catch (e) {
+        return [];
+    }
+}
+
 async function registerReferral(data, context) {
     const uid = requireUser(context);
     const code = referrals.normalizeCode(data && data.refCode);
@@ -220,10 +235,25 @@ async function registerReferral(data, context) {
     if (!rate.ok) throw httpsError('resource-exhausted', 'Too many referral attempts. Wait a moment and try again.');
 
     const profile = await authProfile(uid);
-    const createdMs = profile.createdMs;
     const referredSnap = await db().collection('users').doc(uid).get();
     if (!referredSnap.exists) throw httpsError('not-found', 'User not found');
     const referred = userView(uid, referredSnap.data());
+    const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
+        uid: uid,
+        authUser: {
+            uid: uid,
+            email: profile.email || '',
+            emailVerified: profile.emailVerified === true,
+            providerData: profile.providerRows || [],
+        },
+        token: (context.auth && context.auth.token) || {},
+    }));
+    if (tomb.configured && (tomb.summary.banned || tomb.summary.satsDisabled || tomb.summary.ledgerBanned)) {
+        const patch = await accountTombstone.applyIdentityFlags(db(), uid, tomb.summary);
+        Object.assign(referred, patch.user);
+        if (patch.ledger.banned) referred.ledgerBanned = true;
+    }
+    const createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, now);
     const rawIp = requestIp(context);
     const linked = await linkedAccount(uid, referred, rawIp, now);
     const gate = referrals.registrationGate({
@@ -253,7 +283,19 @@ async function registerReferral(data, context) {
     } catch (e) {
         throw httpsError('failed-precondition', 'Referral signup cannot be recorded right now');
     }
+    if (profile.emailVerified === true && profile.email && !referred.emailHash) {
+        referred.emailHash = accountTombstone.emailHmac(profile.email);
+    }
+    referred.emailHistoryHashes = await emailHistoryHashes(uid);
+    if (referrer) {
+        referrer.emailHistoryHashes = await emailHistoryHashes(referrer.uid);
+    }
     const flags = referrer ? referrals.fraudFlags(referred, referrer, rawIp) : [];
+    const refereeAlreadyPaid = !!(tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
+    if (refereeAlreadyPaid) referred.priorReferral = true;
+    if (refereeAlreadyPaid && flags.indexOf('prior-referral') === -1) {
+        flags.push('prior-referral');
+    }
     linked.forEach(function(reason) {
         if (flags.indexOf('linked-account') === -1) flags.push('linked-account');
         if (flags.indexOf(reason) === -1) flags.push(reason);
@@ -322,14 +364,26 @@ async function payIfQualified(referredUid) {
     const referrerUid = current.data().referrerUid || await lookupReferrerUid(current.data().referrerCode, uid);
     if (!referrerUid) return { paid: false, reason: 'missing-user' };
     const profile = await authProfile(uid);
+    const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
+        uid: uid,
+        authUser: {
+            uid: uid,
+            email: profile.email || '',
+            emailVerified: profile.emailVerified === true,
+            providerData: profile.providerRows || [],
+        },
+    }));
+    const createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, Date.now());
     const referrerRef = db().collection('users').doc(referrerUid);
     const referredLedgerRef = db().collection('faucet_ledger').doc(uid);
     const referrerLedgerRef = db().collection('faucet_ledger').doc(referrerUid);
     const limitRef = db().collection('referral_pay_limits').doc(referrerUid);
+    const referredHistRef = db().collection('email_history').doc(uid);
+    const referrerHistRef = db().collection('email_history').doc(referrerUid);
 
     let outcome = { paid: false, reason: 'skip' };
     await db().runTransaction(async function(t) {
-        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger, limitDoc] = await Promise.all([
+        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger, limitDoc, referredHist, referrerHist] = await Promise.all([
             t.get(refRef),
             t.get(referredRef),
             t.get(referrerRef),
@@ -337,6 +391,8 @@ async function payIfQualified(referredUid) {
             t.get(referredLedgerRef),
             t.get(referrerLedgerRef),
             t.get(limitRef),
+            t.get(referredHistRef),
+            t.get(referrerHistRef),
         ]);
         if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists) {
             outcome = { paid: false, reason: 'missing-user' };
@@ -354,9 +410,17 @@ async function payIfQualified(referredUid) {
         const referrerView = userView(referrerUid, referrerDoc.data());
         referredView.ledgerBanned = referredLedger.exists && referredLedger.data().banned === true;
         referrerView.ledgerBanned = referrerLedger.exists && referrerLedger.data().banned === true;
-        referredView.createdMs = profile.createdMs;
+        if (tomb.summary && tomb.summary.ledgerBanned) referredView.ledgerBanned = true;
+        Object.assign(referredView, accountTombstone.applyFlagsPatch(tomb.summary).user);
+        referredView.priorReferral = !!(tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
+        referredView.createdMs = createdMs;
         referredView.emailVerified = profile.emailVerified;
         referredView.providers = profile.providers;
+        if (profile.emailVerified === true && profile.email && !referredView.emailHash) {
+            referredView.emailHash = accountTombstone.emailHmac(profile.email);
+        }
+        referredView.emailHistoryHashes = referredHist.exists && Array.isArray(referredHist.data().hashes) ? referredHist.data().hashes : [];
+        referrerView.emailHistoryHashes = referrerHist.exists && Array.isArray(referrerHist.data().hashes) ? referrerHist.data().hashes : [];
         const signal = signalDoc.data() || {};
         const exp = millisOf(signal.expireAt);
         const fresh = !exp || exp > Date.now();
@@ -457,7 +521,23 @@ async function onUserWritten(event) {
     const afterSnap = event.data && event.data.after;
     if (!afterSnap || !afterSnap.exists) return null;
     const uid = event.params.uid;
-    const before = event.data.before && event.data.before.exists ? (event.data.before.data() || {}) : {};
+    const beforeSnap = event.data && event.data.before;
+    const created = !beforeSnap || beforeSnap.exists !== true;
+    if (created) {
+        try {
+            const authUser = await admin.auth().getUser(uid);
+            const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
+                uid: uid,
+                authUser: authUser,
+            }));
+            if (tomb.summary && (tomb.summary.banned || tomb.summary.satsDisabled || tomb.summary.ledgerBanned)) {
+                await accountTombstone.applyIdentityFlags(db(), uid, tomb.summary);
+            }
+        } catch (err) {
+            console.warn('[onUserReferral] identity', err && err.message ? err.message : err);
+        }
+    }
+    const before = beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : {};
     const after = afterSnap.data() || {};
     try {
         if (!after.referralCode) await ensureReferralCode(uid);

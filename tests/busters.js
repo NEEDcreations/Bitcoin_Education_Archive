@@ -1,10 +1,9 @@
 // Cache-buster pin. This ship branch is btc-archive-v2367.
-// v2359 is reserved for another branch. timechain-tv.js stays 20261024_v2353.
-// bundle.min.js, global-chat.js, and patches.js stay 20261024_v2360.
-// nacho-qa.js stays 20261024_v2350.
-// quests.js is 20261024_v2367.
-// ranking.js, features.registry.js, and gifting.js stay 20261024_v2358.
-// notifications.js stays 20261024_v2357. onboarding.js is 20261024_v2358.
+// Live gh-pages is v2362. timechain-tv.js stays 20261024_v2353.
+// bundle.min.js, ranking.js, and features.registry.js stay 20261024_v2361.
+// global-chat.js and patches.js stay 20261024_v2360. nacho-qa.js stays 20261024_v2350.
+// gifting.js and onboarding.js stay 20261024_v2358. quests.js is 20261024_v2367.
+// notifications.js stays 20261024_v2357.
 // satoshi-favor.js and username-repick.js stay 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349. today-card.js is 20261024_v2351.
 // scholar.js stays 20261023_v2330. tctv-watch.js stays 20261023_v2340.
@@ -57,8 +56,10 @@ test('service worker cache is v2367', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261024_v2360/g) || []).length, 2);
-    assert.ok(html.includes('bundle.min.js?v=20261024_v2360'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261024_v2361/g) || []).length, 2);
+    assert.ok(html.includes('bundle.min.js?v=20261024_v2361'));
+    assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
+    assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2358'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2350'));
     assert.ok(!html.includes('bundle.min.js?v=20261023_v2349'));
@@ -95,8 +96,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261024_v2358'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261024_v2358'));
+    assert.ok(html.includes('ranking.js?v=20261024_v2361'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261024_v2361'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
@@ -140,7 +143,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2358'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2361'));
+    assert.ok(!html.includes('features.registry.js?v=20261024_v2359'));
+    assert.ok(!html.includes('features.registry.js?v=20261024_v2358'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2350'));
@@ -192,6 +197,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2367/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
@@ -252,6 +258,10 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Trivia and poll community totals now update the moment you answer and stay live while the results are open.'));
+    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
+    assert.ok(!notes.includes("Latest: Satoshi's Favor"));
+    assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
+    assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
     assert.ok(!notes.includes('Latest: Topic conversation links'));
     assert.ok(notes.includes('The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.'));

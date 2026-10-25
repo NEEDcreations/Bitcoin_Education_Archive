@@ -2406,7 +2406,8 @@ function _renderFavorTab(body) {
     }
 
     // ── Faction Scoreboard (below progress bar) ──
-    html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
+    html += '<style>#sfNoFactionChooseBtn{display:inline-block;padding:12px 18px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;min-width:220px;}@media (max-width:640px){#sfNoFactionChooseBtn{display:block;width:100%;box-sizing:border-box;min-width:0;}}</style>' +
+        '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
         '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:4px;">⚔️ Faction SF Competition</div>' +
         '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:2px;">Race to 10,000 points</div>' +
         '<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:12px;">🏆 Winning Faction receives a special prize!</div>' +
@@ -2443,10 +2444,16 @@ function _renderFavorTab(body) {
         '<div id="sfMyContribution" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
             '<span id="sfMyContributionText" style="font-size:0.78rem;font-weight:700;color:var(--text);"></span>' +
         '</div>' +
-        '<div id="sfUnclaimedPool" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
-            '<span id="sfScoreUnaffiliated" style="font-size:0.75rem;font-weight:800;color:var(--text-muted);font-family:monospace;">Unclaimed: 0 pts</span>' +
+        '<div id="sfUnclaimedPool" style="display:none;margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;line-height:1.45;">' +
+            '<div id="sfScoreUnaffiliated" style="font-size:0.85rem;font-weight:800;color:var(--heading);">0 pts unclaimed</div>' +
+            '<div id="sfUnclaimedExplain" style="display:block;margin-top:4px;font-size:0.75rem;font-weight:500;color:var(--text-muted);">' + "These come from players who haven't picked a faction yet." + '</div>' +
         '</div>' +
-        '<div id="sfNoFactionNote" style="display:none;"></div>' +
+        '<div id="sfNoFactionNote" style="display:none;">' +
+            '<div id="sfNoFactionNoteBody" style="display:none;margin-top:8px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
+                '<div id="sfNoFactionNoteText" style="font-size:0.8rem;color:var(--text);line-height:1.45;margin-bottom:12px;">' + "You haven't picked a faction yet, so your points count as unclaimed. Pick a side to help a team win." + '</div>' +
+                '<button type="button" id="sfNoFactionChooseBtn" onclick="window._openFactionPicker()">Choose a faction</button>' +
+            '</div>' +
+        '</div>' +
         '<div id="sfAdminBackfill" style="display:none;margin-top:8px;text-align:center;">' +
             '<button onclick="window._runFactionBackfill()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:7px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
         '</div>' +
@@ -2686,7 +2693,9 @@ function _startFactionScoreboardListener() {
 
         if (elH) elH.textContent = hornets.toLocaleString();
         if (elB) elB.textContent = badgers.toLocaleString();
-        if (elU) elU.textContent = 'Unclaimed: ' + unaffiliated.toLocaleString() + ' pts';
+        if (elU) elU.textContent = unaffiliated.toLocaleString() + ' pts unclaimed';
+        var elExplain = document.getElementById('sfUnclaimedExplain');
+        if (elExplain) elExplain.textContent = "These come from players who haven't picked a faction yet.";
         var poolRow = document.getElementById('sfUnclaimedPool');
 
         // Leader label
@@ -2705,9 +2714,16 @@ function _startFactionScoreboardListener() {
 
         // Show user's faction status dynamically
         var userFaction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
+        // Guests and signed-out users keep the small button. A signed-in player
+        // with no faction gets the note button instead, so only one is visible.
+        var sfCanChoose = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
         if (elNote) {
             elNote.style.display = userFaction ? 'none' : 'block';
         }
+        var noteBody = document.getElementById('sfNoFactionNoteBody');
+        var noteText = document.getElementById('sfNoFactionNoteText');
+        if (noteText) noteText.textContent = "You haven't picked a faction yet, so your points count as unclaimed. Pick a side to help a team win.";
+        if (noteBody) noteBody.style.display = (!userFaction && sfCanChoose) ? 'block' : 'none';
         var sfLabel = document.getElementById('sfUserFactionLabel');
         var sfIcon = document.getElementById('sfUserFactionIcon');
         var sfChoose = document.getElementById('sfChooseFactionBtn');
@@ -2728,7 +2744,7 @@ function _startFactionScoreboardListener() {
                 sfIcon.textContent = '👤';
                 sfLabel.textContent = 'Unclaimed faction points: ' + unaffiliated.toLocaleString();
                 sfLabel.style.color = 'var(--text)';
-                if (sfChoose) sfChoose.style.display = 'inline-block';
+                if (sfChoose) sfChoose.style.display = sfCanChoose ? 'none' : 'inline-block';
             }
         }
         if (poolRow) poolRow.style.display = (userFaction === 'cyber_hornets' || userFaction === 'honey_badgers') ? 'block' : 'none';

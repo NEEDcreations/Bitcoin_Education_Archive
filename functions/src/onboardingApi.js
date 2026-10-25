@@ -6,6 +6,7 @@ const names = require('./usernamePolicy');
 const faucetGuard = require('./faucetGuard');
 const rateSalt = require('./rateLimitSalt');
 const { isSatsBanned } = require('./cipherClaim');
+const accountTombstone = require('./accountTombstone');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
@@ -512,6 +513,23 @@ function registerOnboarding(deps) {
         if (!(meta.exists && meta.data() && meta.data().applied === true)) {
             throw httpsError(functionsV1, 'unavailable', 'Username check is still catching up. Try again shortly.');
         }
+        let authUser = null;
+        try {
+            const authApi = admin && typeof admin.auth === 'function' ? admin.auth() : null;
+            if (authApi && typeof authApi.getUser === 'function') authUser = await authApi.getUser(uid);
+        } catch (authErr) {
+            authUser = null;
+        }
+        const profileBefore = await userRef.get();
+        const profileData = profileBefore.exists ? (profileBefore.data() || {}) : {};
+        const tomb = await accountTombstone.lookupByMaterials(db, accountTombstone.identityFrom({
+            uid: uid,
+            authUser: authUser,
+            token: (context && context.auth && context.auth.token) || {},
+        }));
+        if (tomb.configured && (tomb.summary.banned || tomb.summary.satsDisabled || tomb.summary.ledgerBanned)) {
+            await accountTombstone.applyIdentityFlags(db, uid, tomb.summary);
+        }
         const saved = await db.runTransaction(async function (tx) {
             const userSnap = await tx.get(userRef);
             const nameSnap = await tx.get(nameRef);
@@ -598,7 +616,10 @@ function registerOnboarding(deps) {
         markIntroSeen: onCall()(markIntroSeen),
         prepareGuestLink: onCall()(prepareGuestLink),
         linkGuestAccount: onCall()(linkGuestAccount),
-        setUsername: functionsV1.runWith({ enforceAppCheck: false }).https.onCall(setUsername),
+        setUsername: functionsV1.runWith({
+            enforceAppCheck: false,
+            secrets: deps.secrets || [],
+        }).https.onCall(setUsername),
     };
 }
 
