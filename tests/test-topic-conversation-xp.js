@@ -203,6 +203,8 @@ test('rules, terms, and the client toast come from the server payload', () => {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
+    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
+    assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
     assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));

@@ -352,14 +352,35 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(quests.indexOf('Unclaimed faction points: ') > 0);
     assert.ok(quests.indexOf('Your faction: Cyber Hornets') > 0);
     assert.ok(quests.indexOf('Your faction: Honey Badgers') > 0);
-    assert.ok(quests.indexOf("'Unclaimed: ' + unaffiliated.toLocaleString() + ' pts'") > 0);
+    assert.ok(quests.indexOf("elU.textContent = unaffiliated.toLocaleString() + ' pts unclaimed'") > 0);
+    assert.ok(quests.indexOf("'Unclaimed: ' + unaffiliated.toLocaleString() + ' pts'") === -1);
+    assert.ok(quests.indexOf("These come from players who haven't picked a faction yet.") > 0);
+    assert.ok(quests.indexOf("You haven't picked a faction yet, so your points count as unclaimed. Pick a side to help a team win.") > 0);
+    assert.ok(quests.indexOf('id="sfNoFactionChooseBtn"') > 0);
+    assert.ok(quests.indexOf('id="sfUnclaimedExplain"') > 0);
+    var poolStart = quests.indexOf('id="sfUnclaimedPool"');
+    var poolEnd = quests.indexOf('id="sfNoFactionNote"');
+    assert.ok(poolStart > 0 && poolEnd > poolStart);
+    assert.ok(quests.slice(poolStart, poolEnd).indexOf('font-family:monospace') === -1);
+    assert.ok(quests.indexOf("@media (max-width:640px){#sfNoFactionChooseBtn{display:block;width:100%") > 0);
+    assert.ok(quests.indexOf('var sfCanChoose = (typeof auth !== \'undefined\' && auth && auth.currentUser && !auth.currentUser.isAnonymous);') > 0);
+    assert.ok(quests.indexOf("noteBody.style.display = (!userFaction && sfCanChoose) ? 'block' : 'none'") > 0);
+    assert.ok(quests.indexOf("sfChoose.style.display = sfCanChoose ? 'none' : 'inline-block'") > 0);
     assert.ok(quests.indexOf("poolRow.style.display = (userFaction === 'cyber_hornets' || userFaction === 'honey_badgers') ? 'block' : 'none'") > 0);
     assert.ok(quests.indexOf('Choose a faction') > 0);
     assert.ok(quests.indexOf('sfLabel.innerHTML') === -1);
+    assert.ok(quests.indexOf('elNote.innerHTML') === -1);
+    assert.ok(quests.indexOf('noteText.innerHTML') === -1);
     assert.ok(quests.indexOf('window._openFactionPicker') > 0);
+    assert.ok(quests.indexOf('points transfer') === -1);
+    assert.ok(quests.indexOf('points move to') === -1);
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
+    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
+    assert.ok(notes.indexOf('Latest: Satoshi') === -1);
+    assert.ok(notes.indexOf('Latest: Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.') > 0);
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 
 Promise.all(queue).then(function () {

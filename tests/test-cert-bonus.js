@@ -52,26 +52,67 @@ test('marker or ledger means already paid', function () {
     assert.strictEqual(certBonus.alreadyPaid(no, no), false);
 });
 
-test('backfill lists the full amount and skips a second marker', function () {
-    const fresh = certBonus.planBackfillRow({
-        uid: 'u1',
-        username: 'Ada',
+test('backfill pays only the shortfall and never a second time', function () {
+    const preCap = certBonus.planBackfillRow({
+        uid: 'abcdefghijklmnop',
         type: 'properties',
-        exam: { passed: true, score: 22, type: 'properties' },
-        banned: false,
-        alreadyPaid: false,
+        exam: { passed: true, score: 22, type: 'properties', gradedAt: '2026-04-12T00:00:00.000Z' },
     });
-    assert.strictEqual(fresh.pay, true);
-    assert.strictEqual(fresh.amount, 2100);
+    assert.strictEqual(preCap.pay, false);
+    assert.strictEqual(preCap.credited, 2100);
+    assert.strictEqual(preCap.shortfall, 0);
+    assert.strictEqual(preCap.reason, 'settled');
+
+    const tapered = certBonus.planBackfillRow({
+        uid: 'abcdefghijklmnop',
+        type: 'technical',
+        exam: { passed: true, score: 24, type: 'technical', gradedAt: '2026-10-24T00:00:00.000Z' },
+        notice: { xp: 1000 },
+    });
+    assert.strictEqual(tapered.pay, true);
+    assert.strictEqual(tapered.credited, 1000);
+    assert.strictEqual(tapered.shortfall, 1100);
+    assert.strictEqual(tapered.amount, 1100);
+
+    const zero = certBonus.planBackfillRow({
+        uid: 'abcdefghijklmnop',
+        type: 'technical',
+        exam: { passed: true, score: 21, pointsAwarded: 0, gradedAt: '2026-10-24T00:00:00.000Z' },
+    });
+    assert.strictEqual(zero.credited, 0);
+    assert.strictEqual(zero.shortfall, 2100);
+    assert.strictEqual(zero.pay, true);
+
     const again = certBonus.planBackfillRow({
-        uid: 'u1',
-        type: 'properties',
-        exam: { passed: true, score: 22 },
+        uid: 'abcdefghijklmnop',
+        type: 'technical',
+        exam: { passed: true, score: 24, pointsAwarded: 1000 },
+        notice: { xp: 1000 },
         alreadyPaid: true,
     });
     assert.strictEqual(again.pay, false);
     assert.strictEqual(again.amount, 0);
+    assert.strictEqual(again.shortfall, 0);
     assert.strictEqual(again.reason, 'already');
+
+    const clash = certBonus.planBackfillRow({
+        uid: 'zzzzzzzzzzzz',
+        type: 'properties',
+        exam: { passed: true, score: 22, pointsAwarded: 2100 },
+        notice: { xp: 1000 },
+    });
+    assert.strictEqual(clash.reason, 'unknown');
+    assert.strictEqual(clash.pay, false);
+    assert.strictEqual(clash.amount, 0);
+
+    const missing = certBonus.planBackfillRow({
+        uid: 'zzzzzzzzzzzz',
+        type: 'properties',
+        exam: { passed: true, score: 22, gradedAt: '2026-10-24T12:00:00.000Z' },
+    });
+    assert.strictEqual(missing.reason, 'unknown');
+    assert.strictEqual(missing.pay, false);
+
     const thin = certBonus.planBackfillRow({
         uid: 'u2',
         type: 'technical',
@@ -79,8 +120,31 @@ test('backfill lists the full amount and skips a second marker', function () {
     });
     assert.strictEqual(thin.amount, 0);
     assert.strictEqual(thin.reason, 'unverified-score');
+
+    const ledger = certBonus.planBackfillRow({
+        uid: 'u3',
+        type: 'properties',
+        exam: { passed: true, score: 23, gradedAt: '2026-10-24T00:00:00.000Z' },
+        ledgerDocs: [{ id: 'scholar_prop', source: 'scholar_exam', certType: 'properties', awarded: 400 }],
+    });
+    assert.strictEqual(ledger.credited, 400);
+    assert.strictEqual(ledger.shortfall, 1700);
+
+    const line = script.lineFor(tapered);
+    assert.ok(line.indexOf('uid=abcdefgh…') === 0);
+    assert.ok(line.indexOf('abcdefghijklmnop') === -1);
+    assert.ok(line.indexOf('cert=technical') !== -1);
+    assert.ok(line.indexOf('credited=1000') !== -1);
+    assert.ok(line.indexOf('shortfall=1100') !== -1);
+    assert.ok(line.indexOf('@') === -1);
+    assert.strictEqual(script.lineFor(missing).indexOf('credited=unknown') !== -1, true);
+    const totals = script.summarize([preCap, tapered, missing]);
+    assert.strictEqual(totals.users, 2);
+    assert.strictEqual(totals.xp, 1100);
+    assert.strictEqual(totals.unknown, 1);
     assert.deepStrictEqual(script.parseArgs(['--apply']), { help: false, apply: true });
     assert.strictEqual(script.parseArgs([]).apply, false);
+    assert.strictEqual(certBonus.planCertBonus({ type: 'technical', passed: true }).amount, 2100);
 });
 
 test('gradeScholarExam pays cert_bonus and does not taper it', function () {

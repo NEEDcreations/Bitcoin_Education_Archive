@@ -4664,9 +4664,6 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.amount)
             : {};
 
-        // Mark exam as graded
-        tx.update(examRef, { graded: true, score, passed, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-
         // Save attempt date (rate-limits to one attempt per UTC day)
         const attemptField = 'lastExamAttempt_' + keyPrefix;
         const update = {};
@@ -4680,6 +4677,14 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
 
+        // pointsAwarded stays on the exam key so a later backfill can see it.
+        tx.update(examRef, {
+            graded: true,
+            score: score,
+            passed: passed,
+            pointsAwarded: pointsAwarded,
+            gradedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
         tx.update(userRef, update);
         if (scholarPlan.pay) {
             certBonus.writeMarkers(tx, admin, {

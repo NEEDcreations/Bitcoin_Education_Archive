@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 /**
- * List certification completion bonuses for people who already passed.
+ * Pay the unpaid certification shortfall for people who already passed.
  * Dry-run is the default. This file does not write unless --apply is passed.
  *
- * A payable row is one passed scholar_exam_keys document whose score is at
- * least 20, for properties (Bitcoin Scholar) or technical (Protocol Expert),
- * with no cert_bonuses marker and no xp_ledger row sourced cert_bonus.
- * Banned accounts are listed at 0. The amount is the full 2,100. Earlier
- * tapered exam XP is not subtracted, because it was not tagged cert_bonus.
- * Review the list before --apply.
+ * Shortfall is 2,100 minus the XP that passing exam actually credited, read
+ * from the exam key (pointsAwarded / awarded / xp), an xp_ledger exam row,
+ * or the grade-result notice. A pass graded before the 2026-10-23 cap
+ * commit, with no conflicting record, was credited 2,100 and pays 0.
+ * A recorded taper or 0 pays the difference. If those records are missing
+ * or disagree, the row is unknown and pays nothing.
  *
- * --apply re-reads the pass inside a transaction and credits points and
- * scholarPoints. It does not change daily_points.
+ * --apply re-reads the pass inside a transaction. It writes the cert_bonuses
+ * marker and the cert_bonus ledger row even when the shortfall is 0, so a
+ * rerun and gradeScholarExam both pay 0. It does not change daily_points.
+ * Unknown rows are not marked.
  *
  *   node functions/scripts/backfill_cert_bonus.js
  *   node functions/scripts/backfill_cert_bonus.js --apply
@@ -27,9 +29,10 @@ function helpText() {
     return [
         'Usage: node functions/scripts/backfill_cert_bonus.js [--apply]',
         '',
-        'Dry-run lists users who already passed a certification and the XP',
-        'a later --apply would credit (2,100 per unpaid cert, outside the',
-        'daily cap). No writes happen unless --apply is present.',
+        'Dry-run lists each passed certification, the XP already credited,',
+        'and the shortfall a later --apply would add (2,100 minus that',
+        'credit). Unknown credits are listed and not paid. No writes happen',
+        'unless --apply is present.',
     ].join('\n');
 }
 
@@ -40,12 +43,17 @@ function parseArgs(argv) {
     };
 }
 
+function docsOf(snap) {
+    const docs = [];
+    if (!snap || typeof snap.forEach !== 'function') return docs;
+    snap.forEach(function (doc) {
+        docs.push(Object.assign({ id: doc.id }, doc.data() || {}));
+    });
+    return docs;
+}
+
 function idsOf(snap) {
-    const ids = [];
-    if (!snap) return ids;
-    if (typeof snap.forEach === 'function') snap.forEach(function (doc) { ids.push(doc.id); });
-    else (snap.docs || []).forEach(function (doc) { ids.push(doc.id); });
-    return ids;
+    return docsOf(snap).map(function (doc) { return doc.id; });
 }
 
 function passedByUser(docs) {
@@ -56,11 +64,8 @@ function passedByUser(docs) {
         if (row.type !== 'properties' && row.type !== 'technical') return;
         const uid = String(row.uid || '');
         if (!uid) return;
-        if (!map.has(uid)) map.set(uid, {});
-        const bag = map.get(uid);
-        const prev = bag[row.type];
-        const score = Number(row.score);
-        if (!prev || (Number.isFinite(score) && score > Number(prev.score || 0))) bag[row.type] = row;
+        if (!map.has(uid)) map.set(uid, { properties: [], technical: [] });
+        map.get(uid)[row.type].push(row);
     });
     return map;
 }
@@ -80,10 +85,27 @@ async function loadExamPages(db, admin) {
     return docs;
 }
 
-function lineFor(row, wrote) {
-    const name = row.username ? (' username=' + row.username) : '';
-    const verb = wrote ? 'WROTE' : (row.pay ? 'PAY' : 'SKIP');
-    return verb + ' uid=' + row.uid + name + ' type=' + row.type + ' amount=' + row.amount + ' reason=' + row.reason;
+function truncateUid(uid) {
+    const clean = String(uid || '').replace(/[^A-Za-z0-9]/g, '');
+    if (!clean) return '…';
+    return clean.slice(0, 8) + '…';
+}
+
+function lineFor(row) {
+    const credited = row.credited == null ? 'unknown' : String(row.credited);
+    return 'uid=' + truncateUid(row.uid) + ' cert=' + row.type + ' credited=' + credited + ' shortfall=' + (Number(row.shortfall) || 0);
+}
+
+function summarize(rows) {
+    const users = new Set();
+    let xp = 0;
+    let unknown = 0;
+    (rows || []).forEach(function (row) {
+        if (row.uid) users.add(row.uid);
+        if (row.reason === 'unknown') unknown += 1;
+        if (row.pay) xp += Number(row.amount) || 0;
+    });
+    return { users: users.size, certs: (rows || []).length, xp: xp, unknown: unknown };
 }
 
 async function main() {
@@ -109,45 +131,46 @@ async function main() {
         const markerSnap = userSnap.exists ? await db.collection('users').doc(uid).collection('cert_bonuses').get() : null;
         const ledgerSnap = userSnap.exists ? await db.collection('users').doc(uid).collection('xp_ledger').get() : null;
         const markerIds = idsOf(markerSnap);
-        const ledgerIds = idsOf(ledgerSnap);
+        const ledgerDocs = docsOf(ledgerSnap);
+        const ledgerIds = ledgerDocs.map(function (doc) { return doc.id; });
         const bag = grouped.get(uid);
-        ['properties', 'technical'].forEach(function (type) {
-            if (!bag[type]) return;
+        const types = ['properties', 'technical'];
+        for (let t = 0; t < types.length; t++) {
+            const type = types[t];
+            if (!bag[type] || !bag[type].length) continue;
+            const noticeSnap = await db.collection('notifications').doc(certBonus.gradeNoticeId(uid, type)).get();
+            const notice = noticeSnap.exists ? (noticeSnap.data() || null) : null;
             const row = certBonus.planBackfillRow({
                 uid: uid,
-                username: String(user.username || '').replace(/[\r\n\t]/g, ' ').slice(0, 40),
                 type: type,
-                exam: bag[type],
+                exams: bag[type],
                 banned: banned,
                 alreadyPaid: markerIds.indexOf(certBonus.markerId(type)) !== -1
                     || ledgerIds.indexOf(certBonus.ledgerId(type)) !== -1,
+                ledgerDocs: ledgerDocs,
+                notice: notice,
             });
             rows.push(row);
-        });
+        }
     }
 
     console.log(args.apply ? 'APPLY cert bonus' : 'DRY RUN cert bonus (no writes)');
-    let payable = 0;
-    let xp = 0;
     for (let r = 0; r < rows.length; r++) {
         const row = rows[r];
-        let wrote = false;
-        if (args.apply && row.pay) {
+        if (args.apply && (row.pay || row.reason === 'settled')) {
             const result = await certBonus.creditExistingPass(db, admin, row.uid, row.type);
-            wrote = !!(result && result.pay);
-            if (!wrote) {
-                row.pay = false;
-                row.amount = 0;
-                row.reason = (result && result.reason) || 'skipped';
+            if (result) {
+                row.pay = result.pay === true;
+                row.amount = Number(result.amount) || 0;
+                row.shortfall = Number(result.shortfall) || 0;
+                row.credited = result.credited;
+                row.reason = result.reason || row.reason;
             }
         }
-        if (row.pay) {
-            payable += 1;
-            xp += row.amount;
-        }
-        console.log(lineFor(row, wrote));
+        console.log(lineFor(row));
     }
-    console.log('passedCerts=' + rows.length + ' payable=' + payable + ' xp=' + xp + ' apply=' + (args.apply ? 'yes' : 'no'));
+    const totals = summarize(rows);
+    console.log('users=' + totals.users + ' certs=' + totals.certs + ' xp=' + totals.xp + ' unknown=' + totals.unknown + ' apply=' + (args.apply ? 'yes' : 'no'));
 }
 
 if (require.main === module) {
@@ -160,5 +183,7 @@ if (require.main === module) {
 module.exports = {
     parseArgs: parseArgs,
     passedByUser: passedByUser,
+    truncateUid: truncateUid,
     lineFor: lineFor,
+    summarize: summarize,
 };

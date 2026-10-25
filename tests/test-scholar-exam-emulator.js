@@ -102,6 +102,7 @@ async function main() {
     const scholarPointsAfterFirst = after.scholarPoints;
     const passedRow = (await examRef.get()).data();
     assert.strictEqual(passedRow.passed, true);
+    assert.strictEqual(passedRow.pointsAwarded, 2100);
 
     await db.collection('users').doc(uid).update({
         certPassed_prop: admin.firestore.FieldValue.delete(),
@@ -188,6 +189,7 @@ async function main() {
     const techLedger = await cappedRef.collection('xp_ledger').doc('cert_bonus_tech').get();
     assert.strictEqual(techLedger.data().source, 'cert_bonus');
     assert.strictEqual(techLedger.data().awarded, 2100);
+    assert.strictEqual((await techRef.get()).data().pointsAwarded, 2100, 'protocol expert records the same 2,100');
 
     const techRetry = db.collection('scholar_exam_keys').doc(capped + '_technical_2');
     await techRetry.set({ uid: capped, type: 'technical', keys: keys(), graded: false });

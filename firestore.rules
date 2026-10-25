@@ -1784,8 +1784,8 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // XP ledger. Server functions write it. Certification bonuses use source
-    // cert_bonus. Clients cannot read or write it.
+    // Topic conversation XP ledger. Written only by the server function that
+    // accepts the post. source is topic_conversation. Clients cannot write it.
     match /users/{userId}/xp_ledger/{docId} {
       allow read, write: if false;
     }

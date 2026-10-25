@@ -13,10 +13,11 @@
 //   fresh day paid 1,000 and a full day paid 0. 8a4dfa79 recorded that taper.
 //
 // This module restores the 2,100 and pays it in full outside the 1,000 cap.
-// gradeScholarExam is the only caller that can credit a new pass. The
-// backfill script credits an older pass only with --apply, and only after it
-// re-reads a server pass row whose score is at least 20. Nothing here is
-// callable from the browser.
+// gradeScholarExam is the only caller that can credit a new pass, and it
+// pays the full 2,100 for both certifications. The backfill script pays only
+// the shortfall (2,100 minus the XP that passing exam already credited) and
+// only with --apply. A missing or conflicting record is unknown and pays
+// nothing. Nothing here is callable from the browser.
 
 const { rewardBlocked } = require('./cipherClaim');
 const { offsetDateKey } = require('./offsetDay');
@@ -24,6 +25,9 @@ const { offsetDateKey } = require('./offsetDay');
 const CERT_BONUS_XP = 2100;
 const CERT_BONUS_SOURCE = 'cert_bonus';
 const PASS_SCORE = 20;
+// b0979d93 folded the direct 2,100 into the daily taper at this commit.
+// A pass graded before this instant was incremented by exactly 2,100.
+const CAP_AT_MS = Date.parse('2026-10-23T17:16:31.000Z');
 
 const TYPES = {
     properties: 'prop',
@@ -89,8 +93,8 @@ function bonusUserFields(adminSdk, plan) {
     };
 }
 
-function markerData(adminSdk, uid, type, amount, nowMs) {
-    return {
+function markerData(adminSdk, uid, type, amount, nowMs, priorCredit) {
+    const data = {
         uid: uid,
         certType: type,
         source: CERT_BONUS_SOURCE,
@@ -99,10 +103,12 @@ function markerData(adminSdk, uid, type, amount, nowMs) {
         createdAtMs: nowMs,
         createdAt: adminSdk.firestore.FieldValue.serverTimestamp(),
     };
+    if (priorCredit != null && Number.isFinite(Number(priorCredit))) data.priorCredit = Number(priorCredit);
+    return data;
 }
 
-function ledgerData(uid, type, amount, day, nowMs) {
-    return {
+function ledgerData(uid, type, amount, day, nowMs, priorCredit) {
+    const data = {
         source: CERT_BONUS_SOURCE,
         amount: amount,
         requested: amount,
@@ -113,46 +119,165 @@ function ledgerData(uid, type, amount, day, nowMs) {
         createdAtMs: nowMs,
         countedTowardDailyCap: false,
     };
+    if (priorCredit != null && Number.isFinite(Number(priorCredit))) data.priorCredit = Number(priorCredit);
+    return data;
 }
 
 function writeMarkers(tx, adminSdk, fields, plan, nowMs) {
-    if (!plan || !plan.pay) return;
+    if (!plan || (!plan.pay && !plan.settle)) return;
     const when = Number(nowMs) || Date.now();
-    tx.set(fields.markerRef, markerData(adminSdk, fields.uid, fields.type, plan.amount, when));
-    tx.set(fields.ledgerRef, ledgerData(fields.uid, fields.type, plan.amount, fields.day, when));
+    const amount = plan.pay ? plan.amount : 0;
+    const prior = plan.priorCredit;
+    tx.set(fields.markerRef, markerData(adminSdk, fields.uid, fields.type, amount, when, prior));
+    tx.set(fields.ledgerRef, ledgerData(fields.uid, fields.type, amount, fields.day, when, prior));
 }
 
-// Backfill row. A passed exam with a server score of at least 20 is payable
-// once. Prior tapered exam XP is not subtracted: it was not this source.
+function cleanAward(value) {
+    if (value == null || value === '') return { present: false };
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0 || n > CERT_BONUS_XP || Math.round(n) !== n) return { present: true, bad: true };
+    return { present: true, amount: n };
+}
+
+function gradedAtMs(exam) {
+    const g = exam && exam.gradedAt;
+    if (g == null || g === '') return null;
+    if (typeof g === 'number' && Number.isFinite(g)) return g < 1e12 ? g * 1000 : g;
+    if (typeof g === 'string') {
+        const parsed = Date.parse(g);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    if (typeof g.toDate === 'function') {
+        const date = g.toDate();
+        const ms = date && date.getTime();
+        return Number.isFinite(ms) ? ms : null;
+    }
+    const sec = g.seconds != null ? g.seconds : g._seconds;
+    if (typeof sec === 'number' && Number.isFinite(sec)) return sec * 1000;
+    return null;
+}
+
+// Same id rewardNotify writes for onceKey scholar_prop / scholar_tech.
+function gradeNoticeId(uid, type) {
+    const prefix = keyPrefix(type);
+    if (!prefix) return '';
+    const safe = String(uid || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+    return 'rn_' + safe + '_scholar_' + prefix;
+}
+
+function ledgerIsExamCredit(doc, type) {
+    if (!doc || !TYPES[type]) return false;
+    const prefix = keyPrefix(type);
+    const id = String(doc.id || '');
+    if (id === ledgerId(type) || doc.source === CERT_BONUS_SOURCE) return false;
+    if (doc.certType && doc.certType !== type) return false;
+    if (id === 'scholar_' + prefix) return true;
+    if (doc.source === 'scholar_exam' || doc.source === 'gradeScholarExam') return doc.certType === type;
+    return false;
+}
+
+// credited is the XP that passing exam already added. known is false when
+// the records disagree or a post-cap pass has no stored amount.
+function resolvePriorCredit(opts) {
+    const src = opts || {};
+    const exams = src.exams || (src.exam ? [src.exam] : []);
+    const amounts = [];
+    let conflict = false;
+    function add(hit) {
+        if (!hit.present) return;
+        if (hit.bad) conflict = true;
+        else amounts.push(hit.amount);
+    }
+    exams.forEach(function (exam) {
+        if (!exam) return;
+        ['pointsAwarded', 'awarded', 'xp'].forEach(function (key) {
+            if (exam[key] == null || exam[key] === '') return;
+            add(cleanAward(exam[key]));
+        });
+    });
+    (src.ledgerDocs || []).forEach(function (doc) {
+        if (!ledgerIsExamCredit(doc, src.type)) return;
+        const raw = doc.awarded != null ? doc.awarded : (doc.amount != null ? doc.amount : doc.xp);
+        add(cleanAward(raw));
+    });
+    if (src.notice && src.notice.xp != null && src.notice.xp !== '') add(cleanAward(src.notice.xp));
+    if (conflict) return { known: false, reason: 'unknown' };
+    if (amounts.length) {
+        const first = amounts[0];
+        for (let i = 1; i < amounts.length; i++) {
+            if (amounts[i] !== first) return { known: false, reason: 'unknown' };
+        }
+        return { known: true, credited: first, reason: 'recorded' };
+    }
+    if (!exams.length) return { known: false, reason: 'unknown' };
+    for (let i = 0; i < exams.length; i++) {
+        const when = gradedAtMs(exams[i]);
+        if (when == null || when >= CAP_AT_MS) return { known: false, reason: 'unknown' };
+    }
+    return { known: true, credited: CERT_BONUS_XP, reason: 'pre-cap' };
+}
+
+function examList(src) {
+    if (src.exams && src.exams.length) return src.exams;
+    if (src.exam) return [src.exam];
+    return [];
+}
+
+// Shortfall only. A full pre-cap 2,100 leaves 0. A recorded taper or 0 leaves
+// the difference. Unknown and already-settled rows pay nothing.
 function planBackfillRow(opts) {
     const src = opts || {};
-    const passed = eligiblePass(src.exam);
-    const plan = planCertBonus({
-        type: src.type,
-        passed: passed,
-        banned: src.banned === true,
-        alreadyPaid: src.alreadyPaid === true,
-    });
-    let reason = plan.reason;
-    if (!passed && src.exam && src.exam.passed === true) reason = 'unverified-score';
-    return {
+    const exams = examList(src);
+    const row = {
         uid: src.uid || '',
-        username: src.username || '',
         type: src.type,
-        amount: plan.pay ? plan.amount : 0,
-        reason: reason,
-        pay: plan.pay,
+        amount: 0,
+        shortfall: 0,
+        credited: null,
+        reason: 'type',
+        pay: false,
     };
+    if (!TYPES[src.type]) return row;
+    const passed = exams.some(eligiblePass);
+    if (!passed) {
+        row.reason = exams.some(function (exam) { return exam && exam.passed === true; }) ? 'unverified-score' : 'not-passed';
+        return row;
+    }
+    const prior = resolvePriorCredit(Object.assign({}, src, { exams: exams }));
+    if (src.banned) {
+        row.reason = 'banned';
+        if (prior.known) row.credited = prior.credited;
+        return row;
+    }
+    if (src.alreadyPaid) {
+        row.reason = 'already';
+        if (prior.known) row.credited = prior.credited;
+        return row;
+    }
+    if (!prior.known) {
+        row.reason = 'unknown';
+        return row;
+    }
+    const shortfall = CERT_BONUS_XP - prior.credited;
+    row.credited = prior.credited;
+    row.shortfall = shortfall;
+    row.amount = shortfall;
+    row.pay = shortfall > 0;
+    row.reason = shortfall > 0 ? 'shortfall' : 'settled';
+    return row;
 }
 
-// Pays one older pass. The transaction re-reads the exam, the user, the ban
-// ledger, and both markers. It does not touch daily_points.
+// Pays the shortfall for one older pass, or writes a zero marker when the
+// earlier credit was already 2,100. The transaction re-reads the exam, the
+// grade-result notice, the ledger, and both markers. A second call finds the
+// marker and pays 0. It does not touch daily_points.
 async function creditExistingPass(db, adminSdk, uid, type, nowMs) {
     if (!uid || !TYPES[type]) return planCertBonus({ type: type });
     const userRef = db.collection('users').doc(uid);
     const mRef = markerRef(userRef, type);
     const lRef = ledgerRef(userRef, type);
     const faucetRef = db.collection('faucet_ledger').doc(uid);
+    const noticeRef = db.collection('notifications').doc(gradeNoticeId(uid, type));
     const when = Number(nowMs) || Date.now();
     const day = offsetDateKey(when);
     return db.runTransaction(async function (tx) {
@@ -160,25 +285,49 @@ async function creditExistingPass(db, adminSdk, uid, type, nowMs) {
         const markerSnap = await tx.get(mRef);
         const ledgerSnap = await tx.get(lRef);
         const faucetSnap = await tx.get(faucetRef);
+        const noticeSnap = await tx.get(noticeRef);
+        const ledgerCol = await tx.get(userRef.collection('xp_ledger'));
         const exams = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
-        let exam = null;
+        const examRows = [];
         if (exams && typeof exams.forEach === 'function') {
             exams.forEach(function (doc) {
-                if (exam) return;
-                const row = doc.data() || {};
-                if (row.type === type && eligiblePass(row)) exam = row;
+                const data = doc.data() || {};
+                if (data.type === type && data.passed === true) examRows.push(data);
+            });
+        }
+        const ledgerDocs = [];
+        if (ledgerCol && typeof ledgerCol.forEach === 'function') {
+            ledgerCol.forEach(function (doc) {
+                ledgerDocs.push(Object.assign({ id: doc.id }, doc.data() || {}));
             });
         }
         const user = userSnap.exists ? (userSnap.data() || {}) : null;
         const faucet = faucetSnap.exists ? (faucetSnap.data() || {}) : {};
-        const plan = planCertBonus({
+        const notice = noticeSnap && noticeSnap.exists === true ? (noticeSnap.data() || {}) : null;
+        const row = planBackfillRow({
+            uid: uid,
             type: type,
-            passed: !!exam,
+            exams: examRows,
             banned: !user || rewardBlocked(user, faucet),
             alreadyPaid: alreadyPaid(markerSnap, ledgerSnap),
+            ledgerDocs: ledgerDocs,
+            notice: notice,
         });
-        if (!plan.pay || !userSnap.exists) return plan;
-        tx.update(userRef, bonusUserFields(adminSdk, plan));
+        const skip = !userSnap.exists
+            || row.reason === 'unknown'
+            || row.reason === 'banned'
+            || row.reason === 'already'
+            || (!row.pay && row.reason !== 'settled');
+        if (skip) return row;
+        const plan = {
+            pay: row.pay === true,
+            settle: row.reason === 'settled',
+            amount: row.amount,
+            priorCredit: row.credited,
+            source: CERT_BONUS_SOURCE,
+            capExempt: true,
+        };
+        if (plan.pay) tx.update(userRef, bonusUserFields(adminSdk, plan));
         writeMarkers(tx, adminSdk, {
             uid: uid,
             type: type,
@@ -186,7 +335,7 @@ async function creditExistingPass(db, adminSdk, uid, type, nowMs) {
             ledgerRef: lRef,
             day: day,
         }, plan, when);
-        return plan;
+        return row;
     });
 }
 
@@ -194,6 +343,7 @@ module.exports = {
     CERT_BONUS_XP: CERT_BONUS_XP,
     CERT_BONUS_SOURCE: CERT_BONUS_SOURCE,
     PASS_SCORE: PASS_SCORE,
+    CAP_AT_MS: CAP_AT_MS,
     keyPrefix: keyPrefix,
     markerId: markerId,
     ledgerId: ledgerId,
@@ -202,6 +352,8 @@ module.exports = {
     alreadyPaid: alreadyPaid,
     eligiblePass: eligiblePass,
     planCertBonus: planCertBonus,
+    gradeNoticeId: gradeNoticeId,
+    resolvePriorCredit: resolvePriorCredit,
     planBackfillRow: planBackfillRow,
     bonusUserFields: bonusUserFields,
     writeMarkers: writeMarkers,
