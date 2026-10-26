@@ -9381,6 +9381,24 @@ async function isUsernameTaken(username, excludeUid) {
     }
 }
 
+document.addEventListener('click', function(ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (!t.closest('#signupStartBtn')) return;
+    var check = document.getElementById('signupTosCheck');
+    if (!document.getElementById('usernameInput') || !check || check.checked) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    var row = document.getElementById('signupConsentRow');
+    if (row) {
+        row.classList.remove('shake');
+        void row.offsetWidth;
+        row.classList.add('shake');
+    }
+    var hint = document.getElementById('signupNeedTick');
+    if (hint) hint.hidden = false;
+}, true);
+
 window.submitUsername = async function() {
     try {
     var signupCheck = document.getElementById('signupTosCheck');

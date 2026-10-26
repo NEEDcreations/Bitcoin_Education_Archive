@@ -3185,7 +3185,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
 
-    function homeLearnTitle(raw) {
+    function homeLearnTitle(id, raw) {
+        var slug = String(id || '').replace(/[_]+/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+        if (slug) {
+            return slug.replace(/\b([a-z])/g, function(_, ch) { return ch.toUpperCase(); });
+        }
         return String(raw || '').replace(/^[^\w\s]+/u, '').trim();
     }
     window.paintHomeLearnCard = function() {
@@ -3197,7 +3201,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var desc = document.getElementById('homeLearnDesc');
         if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
             if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(CHANNELS[last].title) || last;
+            title.textContent = homeLearnTitle(last, CHANNELS[last].title) || last;
             if (desc) desc.textContent = CHANNELS[last].cat || 'Continue reading';
             window._homeLearnId = last;
             return;
@@ -3205,7 +3209,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var daily = window._channelOfTheDay;
         if (daily && typeof CHANNELS !== 'undefined' && CHANNELS[daily]) {
             if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(CHANNELS[daily].title) || daily;
+            title.textContent = homeLearnTitle(daily, CHANNELS[daily].title) || daily;
             if (desc) desc.textContent = 'Channel of the day';
             window._homeLearnId = daily;
         }

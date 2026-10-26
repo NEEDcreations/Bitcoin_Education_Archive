@@ -350,7 +350,7 @@
                 }
             }
         }
-        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'em-quick-actions'];
+        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'em-quick-actions', 'todayCard', 'homeLearnCard'];
         for (var a = 0; a < avoidIds.length; a++) {
             var block = document.getElementById(avoidIds[a]);
             if (!block) continue;

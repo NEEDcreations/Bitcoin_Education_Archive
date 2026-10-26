@@ -381,18 +381,21 @@ function placeInvitePill() {
         if (today) today.style.marginTop = '';
         return;
     }
-    var anchor = document.getElementById('homeWalletStrip');
-    if (!anchor || window.getComputedStyle(anchor).display === 'none') anchor = document.getElementById('homeGuestActions');
-    if (!anchor || window.getComputedStyle(anchor).display === 'none') anchor = document.getElementById('homeHero');
+    var anchorBottom = 0;
+    ['homeWalletStrip', 'homeGuestActions', 'homeHero'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var cs = window.getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return;
+        var rect = el.getBoundingClientRect();
+        if (rect.height > 1 && rect.bottom > anchorBottom) anchorBottom = rect.bottom;
+    });
     var top = 8;
     var bar = document.querySelector('.mobile-bar');
     if (bar && window.innerWidth <= 900 && window.getComputedStyle(bar).display !== 'none') {
         top = Math.round(bar.getBoundingClientRect().bottom + 8);
     }
-    if (anchor) {
-        var rect = anchor.getBoundingClientRect();
-        if (rect.height > 1) top = Math.max(top, Math.round(rect.bottom + 8));
-    }
+    if (anchorBottom > 1) top = Math.max(top, Math.round(anchorBottom + 8));
     card.style.top = top + 'px';
     if (today && (state === 'min' || state === 'guest')) {
         var pillH = card.getBoundingClientRect().height || 40;

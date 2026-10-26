@@ -856,9 +856,9 @@
             .sidebar-expand-btn { display: none !important; }
             .sidebar-collapse-btn { display: none !important; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(54px + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(76px + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
             .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 100; overflow: hidden; gap: 6px; }
-            .mobile-bar h2 { color: var(--accent); font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            .mobile-bar h2 { color: var(--accent); font-size: clamp(11px, 3.1vw, 0.85rem); font-weight: 900; text-transform: uppercase; letter-spacing: 0; line-height: 1.05; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
             .mobile-close { display: flex !important; }
@@ -926,7 +926,7 @@
             .invite-card { width: min(188px, calc(100vw - 16px)); }
             .home-stats { gap: 8px; }
             .home-stat-num { font-size: 1.1rem; }
-            .mobile-bar h2 { font-size: 0.75rem; }
+            .mobile-bar h2 { font-size: clamp(10px, 3.2vw, 0.72rem); letter-spacing: 0; line-height: 1.05; }
             .mobile-bar { padding: 10px 8px; gap: 4px; }
             #mobileUserInfo { max-width: 50px !important; font-size: 0.6rem !important; }
             .channel-logos .channel-logo-img { width: 54px; height: 54px; }

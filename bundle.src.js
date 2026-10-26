@@ -2865,18 +2865,21 @@ function placeInvitePill() {
         if (today) today.style.marginTop = '';
         return;
     }
-    var anchor = document.getElementById('homeWalletStrip');
-    if (!anchor || window.getComputedStyle(anchor).display === 'none') anchor = document.getElementById('homeGuestActions');
-    if (!anchor || window.getComputedStyle(anchor).display === 'none') anchor = document.getElementById('homeHero');
+    var anchorBottom = 0;
+    ['homeWalletStrip', 'homeGuestActions', 'homeHero'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var cs = window.getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return;
+        var rect = el.getBoundingClientRect();
+        if (rect.height > 1 && rect.bottom > anchorBottom) anchorBottom = rect.bottom;
+    });
     var top = 8;
     var bar = document.querySelector('.mobile-bar');
     if (bar && window.innerWidth <= 900 && window.getComputedStyle(bar).display !== 'none') {
         top = Math.round(bar.getBoundingClientRect().bottom + 8);
     }
-    if (anchor) {
-        var rect = anchor.getBoundingClientRect();
-        if (rect.height > 1) top = Math.max(top, Math.round(rect.bottom + 8));
-    }
+    if (anchorBottom > 1) top = Math.max(top, Math.round(anchorBottom + 8));
     card.style.top = top + 'px';
     if (today && (state === 'min' || state === 'guest')) {
         var pillH = card.getBoundingClientRect().height || 40;
@@ -20276,7 +20279,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
 
-    function homeLearnTitle(raw) {
+    function homeLearnTitle(id, raw) {
+        var slug = String(id || '').replace(/[_]+/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+        if (slug) {
+            return slug.replace(/\b([a-z])/g, function(_, ch) { return ch.toUpperCase(); });
+        }
         return String(raw || '').replace(/^[^\w\s]+/u, '').trim();
     }
     window.paintHomeLearnCard = function() {
@@ -20288,7 +20295,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var desc = document.getElementById('homeLearnDesc');
         if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
             if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(CHANNELS[last].title) || last;
+            title.textContent = homeLearnTitle(last, CHANNELS[last].title) || last;
             if (desc) desc.textContent = CHANNELS[last].cat || 'Continue reading';
             window._homeLearnId = last;
             return;
@@ -20296,7 +20303,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var daily = window._channelOfTheDay;
         if (daily && typeof CHANNELS !== 'undefined' && CHANNELS[daily]) {
             if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(CHANNELS[daily].title) || daily;
+            title.textContent = homeLearnTitle(daily, CHANNELS[daily].title) || daily;
             if (desc) desc.textContent = 'Channel of the day';
             window._homeLearnId = daily;
         }
@@ -26319,14 +26326,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     // IDs to hide per mode
     var HIDE_IDS = {
         beginner: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailySpinBanner', 'em-quick-actions',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'
         ],
         intermediate: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'
