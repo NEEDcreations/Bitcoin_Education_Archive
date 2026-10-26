@@ -287,6 +287,8 @@ service cloud.firestore {
                         // Guest-link nonce and the one-time merge marker.
                         'guestLinkNonce', 'guestLinkNonceAt', 'mergedInto', 'mergedFromGuest',
                         'usernameChangedAt',
+                        // Username-spaces migration: free-rename grant and audit fields.
+                        'usernameFreeRename', 'usernameMigratedFrom', 'usernameMigratedAt',
                         'totpEnabled', 'phoneVerified',
                         // Push tokens stay in push_tokens/{uid}/devices, never on the profile
                         'fcmToken', 'pushToken', 'pushEnabled'
@@ -303,7 +305,7 @@ service cloud.firestore {
             || (request.resource.data.username is string
                 && request.resource.data.username.size() >= 3
                 && request.resource.data.username.size() <= 20
-                && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')))
+                && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.]+$')))
           && (!changed.hasAny(['displayBadge'])
             || !('displayBadge' in request.resource.data)
             || request.resource.data.displayBadge == ''
@@ -2054,12 +2056,35 @@ service cloud.firestore {
       }
     }
 
-    // Faction totals — public read, server writes only
-    // Announce dedup doc — clients race to claim start/end announce slots (prevents spam)
+    // Announce dedup — server only. Clients may still read it. The live
+    // window post is written by the Admin SDK, not by this doc.
     match /satoshiFavor/announceDedup {
       allow read: if true;
-      allow create, update: if request.auth != null
-        && request.resource.data.keys().hasOnly(['startAnnouncedAt', 'endAnnouncedAt']);
+      allow write: if false;
+    }
+
+    // One live-window announcement per cycle. Admin SDK only.
+    match /sf_live_announcements/{cycleId} {
+      allow read, write: if false;
+    }
+
+    // Badge GGs burst queue and per-award claims. Admin SDK only.
+    match /badge_gg_bursts/{uid} {
+      allow read, write: if false;
+    }
+    match /badge_gg_claims/{claimId} {
+      allow read, write: if false;
+    }
+
+    // Telegram mirror queue. One claim per chat doc. Admin SDK only.
+    match /telegram_mirror_claims/{claimId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_queue/{itemId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_state/{docId} {
+      allow read, write: if false;
     }
 
     match /satoshiFavor/factionTotals {

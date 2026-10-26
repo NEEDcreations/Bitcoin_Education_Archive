@@ -250,6 +250,21 @@ test('a hung bridge times out and the plain shoutout text is left intact', async
     assert.strictEqual(bridge.WEB_BRIDGE_TIMEOUT_MS, 60000);
 });
 
+test('a caller with db defers to the chat mirror', async function() {
+    let calls = 0;
+    const deferred = await bridge.mirrorShoutoutOnce({
+        db: {},
+        docId: 'shoutout_gift_abc',
+        post: async function() {
+            calls++;
+            return { ok: true, telegramMsgId: '1', chatId: '2' };
+        },
+    });
+    assert.strictEqual(deferred.mirrored, false);
+    assert.strictEqual(deferred.reason, 'server_mirror');
+    assert.strictEqual(calls, 0);
+});
+
 test('normal bridge posts keep the caller username and ignore data.user', function() {
     const payload = bridge.buildWebBridgePayload('Phil', 'uid_phil', {
         user: '🦌 Nacho',
@@ -274,10 +289,9 @@ test('normal bridge posts keep the caller username and ignore data.user', functi
     const end = indexSrc.indexOf('exports.claimSats');
     const fn = indexSrc.slice(start, end);
     assert.ok(start !== -1 && end > start);
-    assert.ok(fn.indexOf('buildWebBridgePayload') !== -1);
-    assert.ok(fn.indexOf('postToTelegramBridge') !== -1);
-    assert.ok(fn.indexOf('WEB_BRIDGE_TIMEOUT_MS') !== -1);
-    assert.ok(fn.indexOf('verifiedUsername') !== -1);
+    assert.ok(fn.indexOf("skipped: 'server_mirror'") !== -1);
+    assert.strictEqual(fn.indexOf('postToTelegramBridge'), -1);
+    assert.strictEqual(fn.indexOf('buildWebBridgePayload'), -1);
     assert.strictEqual(fn.indexOf('data.user'), -1);
     assert.strictEqual(fn.indexOf("user: data.user"), -1);
 

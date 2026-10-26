@@ -391,7 +391,8 @@ function registerOnboarding(deps) {
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;
                 const free = !reserved || !reserved.uid || reserved.uid === anonUid || reserved.uid === uid || !names.reservationBlocks(reserved, uid, nowMs);
-                if (free) movedName = guestName;
+                // A guest name from before the no-spaces rule is not carried over.
+                if (free && names.assessUsername(guestName, { allowReserved: true }).ok) movedName = guestName;
             }
             if (!freshDest.exists) {
                 const created = {
@@ -548,7 +549,9 @@ function registerOnboarding(deps) {
             if (accountBlocked(current, ledger)) return { ok: false, error: 'unavailable' };
             const selfHasSame = prevLower === lower;
             const changedAt = timestampMs(current.usernameChangedAt);
-            const renameTooSoon = !selfHasSame && !!prevLower && changedAt != null && (nowMs - changedAt) < names.RENAME_MS;
+            // usernameFreeRename is server-only (set by migrate-username-spaces.js).
+            const freeRename = current.usernameFreeRename === true;
+            const renameTooSoon = !freeRename && !selfHasSame && !!prevLower && changedAt != null && (nowMs - changedAt) < names.RENAME_MS;
             const reservedDoc = nameSnap.exists ? reservationView(nameSnap.data()) : null;
             const reservedByOther = !!(reservedDoc && names.reservationBlocks(reservedDoc, uid, nowMs));
             const decision = names.assessUsername(rawName, {
@@ -577,7 +580,14 @@ function registerOnboarding(deps) {
                 username_lower: decision.username_lower,
                 usernameNeedsRepick: admin.firestore.FieldValue.delete(),
             };
-            if (!selfHasSame && prevLower) patch.usernameChangedAt = admin.firestore.FieldValue.serverTimestamp();
+            const realRename = !selfHasSame && !!prevLower;
+            if (realRename) {
+                patch.usernameChangedAt = admin.firestore.FieldValue.serverTimestamp();
+                if (freeRename) patch.usernameFreeRename = admin.firestore.FieldValue.delete();
+                // A later name, including the one free change, drops the old name.
+                patch.usernameMigratedFrom = admin.firestore.FieldValue.delete();
+                patch.usernameMigratedAt = admin.firestore.FieldValue.delete();
+            }
             if (!userSnap.exists) {
                 tx.set(userRef, Object.assign({
                     points: 0,
@@ -590,11 +600,13 @@ function registerOnboarding(deps) {
                 tx.update(userRef, patch);
             }
             if (profileSnap.exists) {
-                tx.update(profileRef, {
+                const profilePatch = {
                     username: decision.username,
                     username_lower: decision.username_lower,
                     usernameNeedsRepick: admin.firestore.FieldValue.delete(),
-                });
+                };
+                if (realRename) profilePatch.usernameMigratedFrom = admin.firestore.FieldValue.delete();
+                tx.update(profileRef, profilePatch);
             }
             return { ok: true, username: decision.username, already: selfHasSame };
         });

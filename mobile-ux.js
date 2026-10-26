@@ -26,7 +26,7 @@ function initBottomNav() {
             '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
             '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
             '<button onclick="if(typeof toggleNotifOverlay===\'function\')toggleNotifOverlay()" class="bnav-btn" id="bnavNotif" style="position:relative;"><span class="bnav-icon">🔔</span><span class="bnav-label">Alerts</span><span id="bnavNotifBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
-            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span></button>' +
+            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings" style="position:relative;"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span><span class="whats-new-dot" hidden></span></button>' +
         '</div>';
 
     // Add styles
@@ -43,6 +43,7 @@ function initBottomNav() {
     document.head.appendChild(style);
     document.body.appendChild(nav);
     watchBottomNavHeight();
+    if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
 }
 
 // --bnav-h is the nav's height above the safe-area inset. CSS adds
@@ -497,6 +498,15 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
     }
 
     el.innerHTML = html;
+    var raidLine = document.getElementById('todayRaidLine');
+    if (raidLine) {
+        if (activeBoss) {
+            raidLine.textContent = '⚔️ Raid: ' + (activeBoss.name || 'Boss') + ' ' + (activeBoss.current || 0) + '/' + (activeBoss.target || 0);
+        } else if (upcomingBoss) {
+            raidLine.textContent = '⚔️ Raid: ' + (upcomingBoss.name || 'soon');
+        }
+        raidLine.hidden = false;
+    }
 
     // Update countdowns every second
     window._raidHomeTimer = setInterval(function() {
@@ -745,7 +755,7 @@ window.dismissIOSA2HS = function() {
 };
 
 // ---- Learn menu (desktop panel and mobile sheet share one renderer) ----
-window.SCHOLAR_SCRIPT = 'scholar.js?v=20261024_v2370';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2378';
 
 function learnExperienceMode() {
     var mode = '';

@@ -380,6 +380,16 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.ok(notes.indexOf('Latest: Satoshi') === -1);
     assert.ok(notes.indexOf('Latest: Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.') > 0);
+    assert.ok(notes.indexOf("Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") > 0);
+    assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") === -1);
+    assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") === -1);
+    assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
+    assert.ok(notes.indexOf("Latest: The home page is simpler") === -1);
+    assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
+    assert.ok(notes.indexOf("Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.") > 0);
+    assert.ok(notes.indexOf("Latest: Global chat messages") === -1);
+    assert.ok(notes.indexOf('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.') > 0);
+    assert.ok(notes.indexOf('Latest: Usernames') === -1);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 

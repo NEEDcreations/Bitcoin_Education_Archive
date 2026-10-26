@@ -210,24 +210,26 @@ function getTodayString() {
  * Must be called inside a transaction with the current state doc ref.
  * Returns the (possibly reset) state data.
  */
-function checkAndResetFavor(stateData, transaction, stateRef) {
+function checkAndResetFavor(stateData, transaction, stateRef, store) {
   if (!stateData.favorActive) return stateData;
+  const database = store || db;
 
   const now = Date.now();
-  const favorEndBase = stateData.favorEndBase ? stateData.favorEndBase.toMillis() : 0;
+  const favorEndBase = stateData.favorEndBase && typeof stateData.favorEndBase.toMillis === 'function'
+    ? stateData.favorEndBase.toMillis() : 0;
   const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
   const effectiveEnd = favorEndBase + bonusMs;
 
   if (now > effectiveEnd) {
     // Archive last window stats before resetting
     try {
-      const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
+      const lastWindowRef = database.collection('satoshiFavor').doc('lastWindow');
       transaction.set(lastWindowRef, {
         cycleId: stateData.currentCycleId || null,
         startedAt: stateData.favorStart || null,
         endedAt: admin.firestore.Timestamp.now(),
         durationMinutes: (function() {
-          if (!stateData.favorStart || !effectiveEnd) return 0;
+          if (!stateData.favorStart || typeof stateData.favorStart.toMillis !== 'function' || !effectiveEnd) return 0;
           const startMs = stateData.favorStart.toMillis();
           const durMs = effectiveEnd - startMs;
           return durMs > 0 ? Math.round(durMs / 60000) : 0;
@@ -264,6 +266,31 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
   }
 
   return stateData;
+}
+
+// Transactional expiry reset. The cron and checkFavorState both use this so
+// eraHashes, and the rest of the archived window, cannot be dropped by a
+// bare set() outside the transaction.
+async function resetExpiredFavor(nowMs) {
+  return resetExpiredFavorWith(db, nowMs);
+}
+
+async function resetExpiredFavorWith(store, nowMs) {
+  const stateRef = store.collection('satoshiFavor').doc('current');
+  const clock = Number(nowMs) || Date.now();
+  return store.runTransaction(async function (transaction) {
+    const snap = await transaction.get(stateRef);
+    if (!snap.exists) return { reset: false, reason: 'missing' };
+    const before = snap.data() || {};
+    const eraHashes = before.eraHashes || 0;
+    if (!before.favorActive) return { reset: false, reason: 'inactive', eraHashes: eraHashes };
+    const favorEndBase = before.favorEndBase && typeof before.favorEndBase.toMillis === 'function'
+      ? before.favorEndBase.toMillis() : 0;
+    const bonusMs = (before.bonusMinutes || 0) * 60 * 1000;
+    if (clock <= favorEndBase + bonusMs) return { reset: false, reason: 'open', eraHashes: eraHashes };
+    const next = checkAndResetFavor(before, transaction, stateRef, store);
+    return { reset: next.favorActive !== true, eraHashes: next.eraHashes || 0, state: next };
+  });
 }
 
 // One Satoshi's Favor point for a proven daily trifecta.
@@ -361,6 +388,8 @@ async function creditDailyAllThree(uid, day) {
 }
 
 exports.creditDailyAllThree = creditDailyAllThree;
+exports.resetExpiredFavor = resetExpiredFavor;
+exports.resetExpiredFavorWith = resetExpiredFavorWith;
 exports.favorSourceAllowed = favorSourceAllowed;
 exports.resolveSolverName = resolveSolverName;
 exports.cleanSolverName = cleanSolverName;
@@ -1144,56 +1173,15 @@ exports.checkFavorState = functionsV1.https.onCall(async (data, context) => {
 
   let stateData = stateDoc.data();
 
-  // Check if expired and reset
+  // Expired windows reset inside a transaction so eraHashes survive.
   if (stateData.favorActive) {
     const now = Date.now();
-    const favorEndBase = stateData.favorEndBase ? stateData.favorEndBase.toMillis() : 0;
+    const favorEndBase = stateData.favorEndBase && typeof stateData.favorEndBase.toMillis === 'function'
+      ? stateData.favorEndBase.toMillis() : 0;
     const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
-    const effectiveEnd = favorEndBase + bonusMs;
-
-    if (now > effectiveEnd) {
-      // Archive last window stats before resetting
-      try {
-        const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
-        await lastWindowRef.set({
-          cycleId: stateData.currentCycleId || null,
-          startedAt: stateData.favorStart || null,
-          endedAt: admin.firestore.Timestamp.now(),
-          durationMinutes: (function() {
-            if (!stateData.favorStart || !effectiveEnd) return 0;
-            const startMs = stateData.favorStart.toMillis();
-            const durMs = effectiveEnd - startMs;
-            return durMs > 0 ? Math.round(durMs / 60000) : 0;
-          })(),
-          totalHashes: stateData.totalHashes || 0,
-          lowestHash: stateData.lowestHashThisWindow || null,
-          difficultyTarget: DIFFICULTY_TARGET,
-          winner: stateData.lowestHashThisWindowUid ? {
-            uid: stateData.lowestHashThisWindowUid,
-            username: stateData.lowestHashThisWindowUsername || null,
-          } : null,
-          winners: stateData.winnersThisWindow || [],
-          archivedAt: admin.firestore.Timestamp.now(),
-        }, { merge: false });
-      } catch (e) {
-        console.warn('[FAVOR] checkFavorState lastWindow archive failed:', e.message);
-      }
-      // Reset (preserve eraHashes — never wipe it)
-      const resetData = {
-        points: 0,
-        favorActive: false,
-        favorStart: null,
-        favorEndBase: null,
-        bonusMinutes: 0,
-        totalHashes: 0,
-        lowestHashThisWindow: null,
-        winnersThisWindow: [],
-        lastReset: admin.firestore.Timestamp.now(),
-        currentCycleId: stateData.currentCycleId || null,
-        eraHashes: stateData.eraHashes || 0,
-      };
-      await stateRef.set(resetData);
-      stateData = resetData;
+    if (now > favorEndBase + bonusMs) {
+      const reset = await resetExpiredFavor(now);
+      if (reset && reset.state) stateData = reset.state;
     }
   }
 

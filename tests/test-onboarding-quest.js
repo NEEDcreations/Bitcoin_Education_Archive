@@ -238,7 +238,7 @@ test('rules block client writes to reward and onboarding fields', function () {
     const create = rules.split('allow create:')[1].split('allow update:')[0];
     const update = rules.split('allow update:')[1].split('allow delete:')[0];
     assert.ok(!create.includes("'username'"), 'create still allows username');
-    ['username', 'username_lower', 'usernameNeedsRepick', 'onboardingQuest', 'nachoQuestDone', 'introSeen', 'guestLinkNonce', 'guestLinkNonceAt', 'usernameChangedAt', 'mergedInto', 'orangeTickets', 'points'].forEach(function (field) {
+    ['username', 'username_lower', 'usernameNeedsRepick', 'usernameFreeRename', 'usernameMigratedFrom', 'usernameMigratedAt', 'onboardingQuest', 'nachoQuestDone', 'introSeen', 'guestLinkNonce', 'guestLinkNonceAt', 'usernameChangedAt', 'mergedInto', 'orangeTickets', 'points'].forEach(function (field) {
         assert.ok(update.includes("'" + field + "'"), 'update denylist missing ' + field);
     });
     assert.ok(rules.includes('match /users/{userId}/onboarding_evidence/{docId}'));

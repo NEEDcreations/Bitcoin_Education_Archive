@@ -111,6 +111,44 @@ const POINTS = {
 const TOS_CURRENT_VERSION = '2026-10-23';
 window.TOS_CURRENT_VERSION = TOS_CURRENT_VERSION;
 
+// One lifetime cap. The shared helper is 15,000 for every account.
+// The old fallback of 10000 hid claimable sats for anyone past 10k withdrawn.
+function lifetimeSatCap() {
+    if (typeof getSatCap === 'function') return getSatCap();
+    if (typeof window.SAT_LIFETIME_CAP === 'number') return window.SAT_LIFETIME_CAP;
+    return 15000;
+}
+window.lifetimeSatCap = lifetimeSatCap;
+
+function tosBlocking() {
+    var m = document.getElementById('tosModal');
+    return !!(m && m.classList.contains('open'));
+}
+window.tosBlocking = tosBlocking;
+
+function chromeBlocksToasts() {
+    if (tosBlocking()) return true;
+    var signup = document.getElementById('usernameModal');
+    if (signup && signup.classList.contains('open')) return true;
+    return false;
+}
+
+window._deferUntilTos = window._deferUntilTos || [];
+window.runAfterTos = function(fn) {
+    if (typeof fn !== 'function') return;
+    if (!tosBlocking()) { fn(); return; }
+    window._deferUntilTos.push(fn);
+};
+function flushAfterTos() {
+    var queued = window._deferUntilTos || [];
+    window._deferUntilTos = [];
+    queued.forEach(function(fn) { try { fn(); } catch (e) {} });
+    if (!chromeBlocksToasts() && typeof _toastQueue !== 'undefined' && _toastQueue.length && typeof window._showToastNow === 'function') {
+        window._showToastNow(_toastQueue.shift());
+    }
+}
+window.flushAfterTos = flushAfterTos;
+
 let db, auth, currentUser = null;
 let signInAttempts = 0;
 let signInLockout = 0;
@@ -3127,8 +3165,174 @@ async function loadUser(uid, prefetchedDoc) {
 // Track if button was ever set to "signed in" state - never downgrade once set
 var _authBtnSignedIn = false;
 
+function homePreviewAllowed() {
+    try {
+        var host = String(location.hostname || '');
+        return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+    } catch (e) { return false; }
+}
+function homePreviewUser() {
+    if (!homePreviewAllowed()) return null;
+    return window._homePreviewUser || null;
+}
+
+function homeSignedInNow() {
+    if (homePreviewUser()) return true;
+    return !!_authBtnSignedIn;
+}
+
+// Strip numbers come only from server-maintained counters.
+function satsHomeSnapshot(user) {
+    var u = user || {};
+    var previewUser = homePreviewUser();
+    var preview = !!(previewUser && u === previewUser);
+    var math = (typeof window.claimableSats === 'function')
+        ? window.claimableSats(u)
+        : { balance: 0, lifetimeLeft: 0, claimable: 0, cap: lifetimeSatCap(), withdrawn: Number(u.satsWithdrawn) || 0 };
+    var address = String(u.lightning || u.lightningAddress || '').trim();
+    var anon = true;
+    var emailOk = false;
+    var ageDays = 0;
+    var channels = 0;
+    if (Array.isArray(u.visitedChannelsList)) channels = u.visitedChannelsList.length;
+    else if (Array.isArray(u.readChannels)) channels = u.readChannels.length;
+    else if (u.readChannels && typeof u.readChannels === 'object') channels = Object.keys(u.readChannels).length;
+    if (preview) {
+        anon = false;
+        emailOk = !!(u.email && u.emailVerified);
+        ageDays = Number(u.accountAgeDays) || 0;
+        if (Number(u.channelsRead) > channels) channels = Number(u.channelsRead);
+    } else if (typeof auth !== 'undefined' && auth && auth.currentUser) {
+        var fu = auth.currentUser;
+        anon = !!fu.isAnonymous;
+        emailOk = !!(fu.email && fu.emailVerified);
+        var created = fu.metadata && fu.metadata.creationTime ? new Date(fu.metadata.creationTime) : null;
+        ageDays = created ? Math.floor((Date.now() - created.getTime()) / 86400000) : 0;
+    }
+    if (!preview && channels === 0) {
+        try {
+            var localList = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+            if (Array.isArray(localList) && localList.length > channels) channels = localList.length;
+        } catch (e) {}
+    }
+    var lastClaim = u.lastSatsClaim || null;
+    var onCooldown = false;
+    if (lastClaim) {
+        var claimMs = lastClaim.seconds ? lastClaim.seconds * 1000 : new Date(lastClaim).getTime();
+        if (claimMs && Date.now() < claimMs + 24 * 60 * 60 * 1000) onCooldown = true;
+    }
+    var checks = [!anon, emailOk, ageDays >= 7, channels >= 10, math.claimable >= 100];
+    var met = 0;
+    for (var i = 0; i < checks.length; i++) if (checks[i]) met++;
+    return {
+        claimable: math.claimable,
+        balance: math.balance,
+        lifetimeLeft: math.lifetimeLeft,
+        cap: math.cap,
+        address: address,
+        canClaim: met === checks.length && !onCooldown && !!address,
+        onCooldown: onCooldown,
+        checksMet: met,
+        checksTotal: checks.length
+    };
+}
+window.satsHomeSnapshot = satsHomeSnapshot;
+
+function paintHomeStrip(snap, invited, maxi) {
+    var satsEl = document.getElementById('homeSatsValue');
+    var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
+    if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
+    var invEl = document.getElementById('homeInvitesValue');
+    if (invEl) invEl.textContent = String(invited || 0);
+    var invNote = document.getElementById('homeInvitesNote');
+    if (invNote) invNote.textContent = (Number(maxi) === 1) ? '1 reached Maxi' : (Number(maxi) || 0) + ' reached Maxi';
+    var kicker = document.getElementById('homeWithdrawKicker');
+    var value = document.getElementById('homeWithdrawValue');
+    var note = document.getElementById('homeWithdrawNote');
+    if (!value) return;
+    if (!snap.address) {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Withdraw ›';
+        if (note) note.textContent = 'Set Lightning address';
+    } else if (snap.canClaim) {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Claim ' + claimNow.toLocaleString() + ' ›';
+        var shortAddr = snap.address.length > 16 ? snap.address.slice(0, 10) + '…' : snap.address;
+        if (note) note.textContent = 'to ⚡ ' + shortAddr;
+    } else if (snap.onCooldown && snap.checksMet === snap.checksTotal) {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Withdraw ›';
+        if (note) note.textContent = 'Next claim soon';
+    } else {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Withdraw ›';
+        if (note) note.textContent = snap.checksMet + '/' + snap.checksTotal + ' ready';
+    }
+}
+
+window.refreshHomeStrip = function() {
+    var signed = homeSignedInNow();
+    document.documentElement.classList.toggle('home-signed-in', signed);
+    if (document.body) document.body.classList.toggle('home-signed-in', signed);
+    if (!signed) {
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
+        return;
+    }
+    var previewUser = homePreviewUser();
+    var user = previewUser || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var snap = satsHomeSnapshot(user);
+    var invited = Number(user.referralInvited) || 0;
+    var maxi = Number(user.referralCount) || 0;
+    paintHomeStrip(snap, invited, maxi);
+    if (!previewUser && typeof getReferralStats === 'function') {
+        getReferralStats().then(function(stats) {
+            if (!stats) return;
+            var gotInvited = (typeof stats.invited === 'number') ? stats.invited : invited;
+            var gotMaxi = (typeof stats.maxi === 'number') ? stats.maxi : maxi;
+            if (stats.failed && !gotInvited && !gotMaxi) return;
+            paintHomeStrip(snap, gotInvited, gotMaxi);
+        }).catch(function() {});
+    }
+    if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+    if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
+};
+
+function openHomeSats() {
+    if (typeof showSettingsPage === 'function') showSettingsPage('sats');
+    else if (typeof showSettings === 'function') showSettings();
+}
+window.openHomeSats = openHomeSats;
+
+function openHomeInvites() {
+    if (typeof openInviteFriends === 'function') openInviteFriends(true);
+}
+window.openHomeInvites = openHomeInvites;
+
+function openHomeWithdraw() {
+    var user = homePreviewUser() || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var snap = satsHomeSnapshot(user);
+    if (!snap.address) {
+        if (typeof openWithdrawalAddress === 'function') openWithdrawalAddress({ mode: 'reset' });
+        return;
+    }
+    if (typeof showSettingsPage === 'function') showSettingsPage('sats');
+}
+window.openHomeWithdraw = openHomeWithdraw;
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (homePreviewUser()) window.refreshHomeStrip();
+});
+
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
+    if (homePreviewUser()) {
+        document.documentElement.classList.add('home-signed-in');
+        document.body.classList.add('home-signed-in');
+        if (btn) btn.style.display = 'none';
+        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+        return;
+    }
     if (!btn) return;
     // Check all possible ways a user can be "signed in":
     var firebaseUser = auth && auth.currentUser;
@@ -3179,8 +3383,10 @@ function updateAuthButton() {
     if (guestBanner && _authBtnSignedIn) {
         guestBanner.style.display = 'none';
     }
-
-
+    document.documentElement.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+    if (document.body) document.body.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+    if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+    if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
 }
 
 // Sanitize user input - strip HTML tags and dangerous chars
@@ -3262,7 +3468,11 @@ async function applyServerUsername(name) {
     var res = await fn({ name: name });
     var data = res && res.data ? res.data : {};
     if (!data.ok || !data.username) throw new Error('Could not save that username.');
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = data.username;
+    var previousName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        currentUser.username = data.username;
+        if (previousName && previousName !== data.username) currentUser.usernameFreeRename = false;
+    }
     try { localStorage.setItem('btc_username', data.username); } catch (e) {}
     return data.username;
 }
@@ -3300,6 +3510,10 @@ function usernameRepickFailure(e) {
 }
 
 function showUsernameRepickPrompt() {
+    if (tosBlocking()) {
+        window.runAfterTos(function() { showUsernameRepickPrompt(); });
+        return;
+    }
     if (document.getElementById('usernameRepick')) return;
     ensureUsernameRepickStyle();
     var signup = document.getElementById('usernameModal');
@@ -3382,7 +3596,8 @@ window.submitUsernameRepick = async function () {
     if (!name) { fail('Please enter a username.'); return; }
     if (name.length < 3) { fail('Username must be at least 3 characters.'); return; }
     if (name.length > 20) { fail('Username must be 20 characters or less.'); return; }
-    if (/[^A-Za-z0-9 _\-.]/.test(name)) { fail('Use letters, numbers, spaces, underscores, hyphens, or dots.'); return; }
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { fail('No spaces, please. Try an underscore instead, like ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + '.'); return; }
+    if (/[^A-Za-z0-9_\-.]/.test(name)) { fail('Use letters, numbers, underscores, hyphens, or dots.'); return; }
     if (typeof containsProfanity === 'function' && containsProfanity(name)) { fail('That username is not allowed.'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
     fail('');
@@ -3537,15 +3752,21 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     }
     const uid = auth.currentUser.uid;
     username = sanitizeInput(username);
+    // Spaces, NBSP, and zero-width characters are rejected before the ASCII strip,
+    // so they are not silently deleted into a different name.
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(username)) {
+        showToast('⚠️ Usernames cannot contain spaces. Try ' + username.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.');
+        return;
+    }
     // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
     username = username.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
     if (!username || username.length < 3) {
         showToast('Username must be at least 3 characters.');
         return;
     }
-    // Only allow English letters, digits, spaces, underscores, hyphens, and dots
-    if (/[^A-Za-z0-9 _\-.]/g.test(username)) {
-        showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.');
+    // Only allow English letters, digits, underscores, hyphens, and dots. No spaces.
+    if (/[^A-Za-z0-9_\-.]/g.test(username)) {
+        showToast('⚠️ Username can only contain English letters, numbers, underscores, hyphens, and dots.');
         return;
     }
     if (containsProfanity(username)) {
@@ -5760,8 +5981,8 @@ var _toastQueue = [];
 function showToast(msg, duration) {
     // Suppress toasts during direct link cooldown
     if (window._directLinkMode) return;
-    // If Nacho is busy (Q&A, voice, reading answer), queue the toast
-    if (window._nachoBusy) {
+    // Queue while Nacho is busy, or while Terms / sign-up is blocking the screen.
+    if (window._nachoBusy || chromeBlocksToasts()) {
         _toastQueue.push({ msg: msg, duration: duration });
         return;
     }
@@ -5783,7 +6004,7 @@ window._showToastNow = function _showToastNow(msg, duration) {
 }
 // Flush queued toasts when Nacho is no longer busy
 setInterval(function() {
-    if (!window._nachoBusy && _toastQueue.length > 0) {
+    if (!window._nachoBusy && !chromeBlocksToasts() && _toastQueue.length > 0) {
         _showToastNow(_toastQueue.shift());
     }
 }, 2000);
@@ -6249,6 +6470,7 @@ function showSettingsPage(tab) {
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
             _titlePillHtml +
             _equipTitleHtml +
+            '<div style="margin-top:10px;"><a href="/patch-notes.html" id="settingsWhatsNew" onclick="if(window._markPatchSeen)window._markPatchSeen()" style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:0.85rem;text-decoration:none;">What\'s new <span class="whats-new-dot" hidden></span></a></div>' +
             '</div>';
 
         // Country selector (custom autocomplete - datalist broken on iOS Safari)
@@ -6377,6 +6599,7 @@ function showSettingsPage(tab) {
         _advHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
+            ((currentUser && currentUser.usernameFreeRename === true) ? '<div style="color:var(--accent);font-size:0.8rem;margin-bottom:10px;">You have one free username change. It skips the 24 hour wait once.</div>' : '') +
             '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
             '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
             '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
@@ -6889,10 +7112,11 @@ function accountDeleteRowHtml(user) {
         var pointsExchanged = currentUser ? currentUser.pointsExchanged || 0 : 0;
         // All three offset counters reduce the redeemable pool
         var availableForClaim = userPts - pointsClaimed - pointsDonated - pointsExchanged;
-        var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
-        var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
-        var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
-        var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
+        var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser || {}) : null;
+        var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser ? currentUser.satsWithdrawn || 0 : 0);
+        var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
+        var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
+        var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
         var claimable = Math.min(satsBalance, 200, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
         var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
@@ -7952,6 +8176,7 @@ function accountDeleteRowHtml(user) {
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
+    if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
     if (settingsTab === 'account') mountAccountGoogleLinkButton();
     var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';
     var profileLn = document.getElementById('profileLnReadonly');
@@ -8861,13 +9086,27 @@ window.clearUserLocalStorage = clearUserLocalStorage;
 function _showTosModal() {
     var m = document.getElementById('tosModal');
     if (m) m.classList.add('open');
+    document.querySelectorAll('.rank-toast').forEach(function(el) { el.remove(); });
+    var pill = document.getElementById('nachoQuestPill');
+    if (pill) pill.style.display = 'none';
+}
+
+function _tosNeedsTick() {
+    var row = document.getElementById('tosConsentRow');
+    if (row) {
+        row.classList.remove('shake');
+        void row.offsetWidth;
+        row.classList.add('shake');
+    }
+    var hint = document.getElementById('tosNeedTick');
+    if (hint) hint.hidden = false;
 }
 
 window._acceptTos = async function() {
     var check = document.getElementById('tosModalCheck');
-    if (!check || !check.checked) return;
+    if (!check || !check.checked) { _tosNeedsTick(); return; }
     var btn = document.getElementById('tosAcceptBtn');
-    if (btn) { btn.textContent = 'Saving...'; btn.classList.remove('ready'); }
+    if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
     try {
         if (currentUser && auth.currentUser && !auth.currentUser.isAnonymous) {
             await db.collection('users').doc(auth.currentUser.uid).set({
@@ -8883,9 +9122,10 @@ window._acceptTos = async function() {
         }
         var m = document.getElementById('tosModal');
         if (m) m.classList.remove('open');
+        flushAfterTos();
         if (typeof showToast === 'function') showToast('✅ Terms accepted. Welcome back!');
     } catch(e) {
-        if (btn) { btn.textContent = 'Accept & Continue →'; btn.classList.add('ready'); }
+        if (btn) { btn.textContent = 'Accept & Continue →'; btn.disabled = false; }
         if (typeof showToast === 'function') showToast('Error saving. Please try again.');
         console.error('[TOS] Accept error:', e);
     }
@@ -9112,6 +9352,11 @@ window.hideUsernamePrompt = function() {
         modal.classList.remove('open');
         modal.style.zIndex = '';
     }
+    if (typeof flushAfterTos === 'function' && !tosBlocking()) {
+        if (!chromeBlocksToasts() && typeof _toastQueue !== 'undefined' && _toastQueue.length && typeof window._showToastNow === 'function') {
+            window._showToastNow(_toastQueue.shift());
+        }
+    }
     // Show guide return button if user navigated from the guide
     if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
         showGuideReturnBtn();
@@ -9164,8 +9409,38 @@ async function isUsernameTaken(username, excludeUid) {
     }
 }
 
+document.addEventListener('click', function(ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (!t.closest('#signupStartBtn')) return;
+    var check = document.getElementById('signupTosCheck');
+    if (!document.getElementById('usernameInput') || !check || check.checked) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    var row = document.getElementById('signupConsentRow');
+    if (row) {
+        row.classList.remove('shake');
+        void row.offsetWidth;
+        row.classList.add('shake');
+    }
+    var hint = document.getElementById('signupNeedTick');
+    if (hint) hint.hidden = false;
+}, true);
+
 window.submitUsername = async function() {
     try {
+    var signupCheck = document.getElementById('signupTosCheck');
+    var signupRow = document.getElementById('signupConsentRow');
+    if (document.getElementById('usernameInput') && signupCheck && !signupCheck.checked) {
+        if (signupRow) {
+            signupRow.classList.remove('shake');
+            void signupRow.offsetWidth;
+            signupRow.classList.add('shake');
+        }
+        var signupHint = document.getElementById('signupNeedTick');
+        if (signupHint) signupHint.hidden = false;
+        return;
+    }
     // Check if this is the INITIAL SIGNUP modal or the settings username change
     var input = document.getElementById('usernameInput') || document.getElementById('newUsername');
     if (!input) { console.error('[submitUsername] No input found'); return; }
@@ -9173,7 +9448,8 @@ window.submitUsername = async function() {
     if (!name) { showToast('Please enter a username!'); return; }
     if (name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username must be 20 characters or less'); return; }
-    if (/[^A-Za-z0-9 _\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.'); return; }
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { showToast('⚠️ Usernames cannot contain spaces. Try ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.'); return; }
+    if (/[^A-Za-z0-9_\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, underscores, hyphens, and dots.'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
 
     // INITIAL SIGNUP (usernameInput exists = signup modal)
@@ -9655,6 +9931,7 @@ window.setDisplayBadge = function(badgeId) {
 if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) {
     // Read from input if no name passed
     if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
+    if (name && /[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { showToast('⚠️ Usernames cannot contain spaces. Try ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.'); return; }
     // Strip non-ASCII (prevent Unicode/homoglyph bypass)
     if (name) name = name.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
     if (!name || name.length < 3) { showToast('Username must be at least 3 characters'); return; }
@@ -9821,6 +10098,10 @@ window.verifyMFACode = async function() {
 // TOTP sign-in challenge — shown when totpEnabled===true and session not yet verified.
 // Uses existing totpCheck Cloud Function. Calls loadUser again on success.
 window._showTotpSignInChallenge = function() {
+    if (tosBlocking()) {
+        window.runAfterTos(function() { window._showTotpSignInChallenge(); });
+        return;
+    }
     if (document.getElementById('totpSignInOverlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'totpSignInOverlay';
@@ -9902,6 +10183,10 @@ window._submitTotpSignIn = async function() {
 
 // Show MFA sign-in challenge when user with phone 2FA tries to sign in
 window._showMFASignInChallenge = async function(resolver) {
+    if (tosBlocking()) {
+        window.runAfterTos(function() { window._showMFASignInChallenge(resolver); });
+        return;
+    }
     // Guard against double-fire (direct catch + race catch both triggering)
     if (document.getElementById('mfaSignInOverlay')) return;
     window._mfaResolver = resolver;
@@ -10504,10 +10789,11 @@ window.initSatsClaim = function() {
     }
     // All three offset counters (claimed, donated, exchanged) reduce the redeemable pool
     var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0) - (currentUser.pointsDonated || 0) - (currentUser.pointsExchanged || 0);
-    var satsBalance = Math.floor(Math.max(0, availPts) / 10);
-    var satsWithdrawn = currentUser.satsWithdrawn || 0;
-    var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
-    var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
+    var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser) : null;
+    var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availPts) / 10);
+    var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser.satsWithdrawn || 0);
+    var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
+    var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
     var maxClaim = Math.min(satsBalance, 200, lifetimeLeft);
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
@@ -10705,7 +10991,7 @@ window.submitSatsClaim = async function() {
             // Fun celebration popup + confetti
             if (typeof launchConfetti === 'function') launchConfetti();
             var _totalClaimed = currentUser.satsWithdrawn || paidAmount;
-            var _claimCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
+            var _claimCap = lifetimeSatCap();
             var _remaining = Math.max(0, _claimCap - _totalClaimed);
             var _celebOverlay = document.createElement('div');
             _celebOverlay.id = 'satsCelebration';
@@ -10867,7 +11153,7 @@ window.loadSatsHistory = function() {
     db.collection('users').doc(currentUser.uid).collection('sats_withdrawals').orderBy('timestamp', 'desc').get().then(function(snap) {
         if (snap.empty) { el.textContent = 'No withdrawals yet'; return; }
         var totalWithdrawn = 0;
-        var LIFETIME_MAX = typeof getSatCap === 'function' ? getSatCap() : 10000;
+        var LIFETIME_MAX = lifetimeSatCap();
         var rows = '';
         snap.forEach(function(doc) {
             var d = doc.data();
