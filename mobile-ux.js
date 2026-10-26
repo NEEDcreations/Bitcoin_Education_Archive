@@ -23,8 +23,8 @@ function initBottomNav() {
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
-            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
-            '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
+            '<button type="button" onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps" aria-expanded="false" aria-controls="appsMenu"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
+            '<button type="button" onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" aria-expanded="false" aria-controls="mobileLearnMenu" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
             '<button onclick="if(typeof toggleNotifOverlay===\'function\')toggleNotifOverlay()" class="bnav-btn" id="bnavNotif" style="position:relative;"><span class="bnav-icon">🔔</span><span class="bnav-label">Alerts</span><span id="bnavNotifBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings" style="position:relative;"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span><span class="whats-new-dot" hidden></span></button>' +
         '</div>';
@@ -822,10 +822,11 @@ function dismissSheet(menu, opts) {
     var sel = menu.getAttribute('data-return-focus');
     if (menu._detachDismiss) menu._detachDismiss();
     menu.remove();
+    var returnBtn = sel && document.querySelector(sel);
+    if (returnBtn) returnBtn.setAttribute('aria-expanded', 'false');
     if (skipFocus) return;
     if (document.getElementById('mobileLearnMenu') || document.getElementById('appsMenu')) return;
-    var btn = sel && document.querySelector(sel);
-    if (btn && btn.focus) btn.focus();
+    if (returnBtn && returnBtn.focus) returnBtn.focus();
 }
 
 function bindSheetDismiss(menu, toggleSelector) {
@@ -982,10 +983,7 @@ function openProofOfPlay() {
 }
 
 function walletRouteReady() {
-    if (typeof window.go !== 'function' || typeof window.renderLightning !== 'function') return false;
-    var src = '';
-    try { src = Function.prototype.toString.call(window.go); } catch (e) { return false; }
-    return src.indexOf('channel:"wallet"') !== -1 || src.indexOf("channel: 'wallet'") !== -1 || src.indexOf("channel:'wallet'") !== -1;
+    return window._bqWalletRouteReady === true && typeof window.go === 'function' && typeof window.renderLightning === 'function';
 }
 
 var _walletTapQueued = false;
@@ -1005,7 +1003,7 @@ function openWalletWhenReady() {
     if (typeof window._loadDeferred === 'function') window._loadDeferred();
     loadScriptOnce('lightning.js?v=20261023_v2323');
     loadScriptOnce('lightning-tips.js?v=20261022_v2279');
-    loadScriptOnce('wallet-router.js?v=20260524', flushWalletTap);
+    loadScriptOnce('wallet-router.js?v=20261026_v2402', flushWalletTap);
     pollUntil(function() {
         if (!walletRouteReady()) return false;
         flushWalletTap();
@@ -1165,6 +1163,8 @@ window.toggleMobileLearnMenu = function() {
     var closeBtn = menu.querySelector('[aria-label="Close"]');
     if (closeBtn && closeBtn.focus) closeBtn.focus();
     bindSheetDismiss(menu, '#bnavLearn');
+    var learnBtn = document.getElementById('bnavLearn');
+    if (learnBtn) learnBtn.setAttribute('aria-expanded', 'true');
 };
 
 window.openMobileExploreApps = function() {
@@ -1238,6 +1238,8 @@ window.openMobileExploreApps = function() {
     document.body.appendChild(menu);
     if (closeBtn.focus) closeBtn.focus();
     bindSheetDismiss(menu, '#bnavApps');
+    var appsBtn = document.getElementById('bnavApps');
+    if (appsBtn) appsBtn.setAttribute('aria-expanded', 'true');
     if (typeof playSound === 'function') playSound('pop');
 };
 
@@ -1377,7 +1379,7 @@ function appHandledOverlayOpen() {
     if (topics && topics.isConnected && !topics.hidden) return true;
     var search = document.getElementById('searchOverlay');
     if (search && (search.getAttribute('data-open') === '1' || (search.style.display && search.style.display !== 'none'))) return true;
-    var ids = ['nachoStoryOverlay', 'spinModal', 'donateModal', 'kbHelpModal', 'pvpOverlay'];
+    var ids = ['nachoStoryOverlay', 'spinModal', 'donateModal', 'kbHelpModal', 'pvpOverlay', 'nachoModeScreen', 'tipOverlay'];
     var i;
     for (i = 0; i < ids.length; i++) {
         if (document.getElementById(ids[i])) return true;

@@ -3934,6 +3934,10 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close PVP overlay
             var pvp = document.getElementById('pvpOverlay');
             if (pvp) { if (typeof exitPVPMode === 'function') exitPVPMode(); return; }
+            // Close a tip or Nacho before any menu under them.
+            var tip = document.getElementById('tipOverlay');
+            if (tip) { tip.remove(); return; }
+            if (document.getElementById('nachoModeScreen') && window._nachoMode && typeof exitNachoMode === 'function') { exitNachoMode(); return; }
             // Close apps menu
             var am = document.getElementById('appsMenu');
             if (am && am.style.display === 'block') { am.style.display = 'none'; return; }

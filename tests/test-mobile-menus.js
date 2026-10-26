@@ -85,6 +85,12 @@ test('phone and desktop menus both render the same registry lists', function () 
     assert.ok(ux.includes('aria-expanded'));
     assert.ok(ux.includes('function sheetFocusables'));
     assert.ok(ux.includes('function openWalletWhenReady'));
+    assert.ok(ux.includes('window._bqWalletRouteReady'));
+    assert.ok(!ux.includes('Function.prototype.toString'));
+    assert.ok(ux.includes("'nachoModeScreen', 'tipOverlay'"));
+    assert.ok(ux.includes('aria-expanded="false" aria-controls="mobileLearnMenu"'));
+    assert.ok(ux.includes('aria-expanded="false" aria-controls="appsMenu"'));
+    assert.ok(read('wallet-router.js.src').includes('window._bqWalletRouteReady = true'));
     assert.ok(ux.includes("window._bqEscapeTop !== 'menu'"));
     assert.ok(html.includes('aria-expanded="false" aria-controls="homeLearnMenu"'));
     assert.ok(html.includes('aria-expanded="false" aria-controls="homeAppsMenu"'));
