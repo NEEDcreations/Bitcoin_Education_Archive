@@ -418,6 +418,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2402'"));
+    assert.ok(!sw.includes('btc-archive-v2379'));
+    assert.ok(!sw.includes('btc-archive-v2396'));
     assert.ok(!sw.includes('btc-archive-v2399'));
     assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2377'));
@@ -812,6 +814,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const invite = 'The Invite button now stays on the home screen as a small pill, so you can always invite a friend.';
     assert.ok(notes.includes(invite));
     assert.ok(!notes.includes('Latest: The Invite button'));
+    const sidebar = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    assert.ok(notes.includes(sidebar));
+    assert.ok(!notes.includes('Latest: Sidebar'));
     const favorLive = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
     const topics = 'On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
     assert.ok(notes.includes(topics));
@@ -860,6 +865,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const inventory = 'Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
     assert.ok(notes.includes(inventory));
     assert.ok(!notes.includes('Latest: Inventory'));
+    const badgeNote = 'Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.';
+    assert.ok(notes.includes(badgeNote));
+    assert.ok(!notes.includes('Latest: Badge'));
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
     assert.ok(!notes.includes('Latest: Opening gifts'));

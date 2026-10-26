@@ -2114,7 +2114,7 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261026_v2378',
+            'global-chat.js?v=20261026_v2379',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
@@ -2181,10 +2181,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2378'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2378'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2378'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2378'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2379'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2379'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2379'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2379'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],

@@ -219,6 +219,17 @@ function announcementId(uid, startedAtMs) {
     return 'badgegg_' + safeId(uid) + '_' + startedAtMs;
 }
 
+// Ids only. The chat line stays plain text for the Telegram mirror.
+function postedBadgeIds(items) {
+    const ids = [];
+    (items || []).forEach(function (item) {
+        const id = String(item && item.badgeId || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+        if (!id || ids.indexOf(id) !== -1) return;
+        ids.push(id);
+    });
+    return ids.slice(0, 80);
+}
+
 function displayNameFromUser(user) {
     const data = user || {};
     return visiblePlayerName(data.username || '');
@@ -237,6 +248,7 @@ function stageAnnouncement(t, db, adminSdk, burst, user, existingSnap) {
             text: text,
             isNachoAuto: true,
             mentionUid: burst.uid,
+            badgeIds: postedBadgeIds(burst.items),
             ts: adminSdk.firestore.FieldValue.serverTimestamp(),
             postedByUid: 'badge-gg',
         });
@@ -345,4 +357,5 @@ module.exports = {
     queueBadgeGg: queueBadgeGg,
     flushDueBursts: flushDueBursts,
     announcementId: announcementId,
+    postedBadgeIds: postedBadgeIds,
 };

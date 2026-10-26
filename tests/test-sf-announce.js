@@ -108,7 +108,9 @@ function memoryDb(seed) {
                     const copy = {};
                     Object.keys(w.data || {}).forEach(function (key) {
                         const value = w.data[key];
-                        copy[key] = Array.isArray(value) ? value.map(function (item) { return Object.assign({}, item); }) : value;
+                        copy[key] = Array.isArray(value) ? value.map(function (item) {
+                            return (item && typeof item === 'object') ? Object.assign({}, item) : item;
+                        }) : value;
                     });
                     docs[w.path] = copy;
                 });
@@ -204,6 +206,9 @@ queue.push(test('badges in one 60s burst become one GGs post', async function ()
     assert.strictEqual(flushed[0].text, '🏅 @Pat earned 12 flex badges (+12 SF points)');
     const annId = badgeGg.announcementId('pat', start);
     assert.strictEqual(db.docs['announcements/' + annId].text, flushed[0].text);
+    assert.deepStrictEqual(db.docs['announcements/' + annId].badgeIds, ids);
+    assert.strictEqual(db.docs['announcements/' + annId].text.indexOf('<'), -1);
+    assert.strictEqual(db.docs['announcements/' + annId].postedByUid, 'badge-gg');
     assert.strictEqual(db.docs['announcements/' + annId].mentionUid, 'pat');
     assert.strictEqual(db.docs['announcements/' + annId].uid, 'nacho-bot');
     assert.ok(flushed[0].text.indexOf('pat') === -1);
@@ -393,6 +398,8 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Phone and desktop Learn now follow Brand new to Bitcoin, Quests (lessons, trails, daily quests, Bitcoin Scholar, and Bitcoin Protocol Expert), First Bitcoin purchase, Meetup builder, and Spend Bitcoin, and Explore Apps on both uses that same list, including AI Tools, Metrics, Leaderboard, and Wallet. Pleb Talk, IRL Sync and Lightning Mart are now open from the start.'));
+    assert.ok(notes.includes('Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.'));
+    assert.ok(!notes.includes('Latest: Badge'));
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory'));
     assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
@@ -406,6 +413,8 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(!notes.includes('Latest: A miner'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
     assert.ok(!notes.includes('Latest: Opening gifts'));
+    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar'));
     assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));
     assert.ok(!notes.includes('Latest: The Invite button'));
     assert.ok(notes.includes('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
