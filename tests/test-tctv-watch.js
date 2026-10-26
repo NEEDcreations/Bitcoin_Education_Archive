@@ -416,11 +416,12 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2371'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2372'"));
     assert.ok(!sw.includes('btc-archive-v2375'));
+    assert.ok(!sw.includes('btc-archive-v2374'));
+    assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2373'));
-    assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2369'));
     assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2368'));
@@ -429,7 +430,6 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!sw.includes('btc-archive-v2366'));
     assert.ok(!sw.includes('btc-archive-v2363'));
     assert.ok(!sw.includes('btc-archive-v2364'));
-    assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2362'));
     assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));
@@ -793,13 +793,16 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.';
+    const latest = 'Latest: Trivia and poll community totals now update the moment you answer and stay live while the results are open.';
     const topics = 'On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
     assert.ok(notes.includes(topics));
     assert.ok(!notes.includes('Latest: On a computer'));
     const tools = 'A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.';
     assert.ok(notes.includes(tools));
     assert.ok(!notes.includes('Latest: A More tools button'));
+    const xpBar = 'The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.';
+    assert.ok(notes.includes(xpBar));
+    assert.ok(!notes.includes('Latest: The daily XP bar'));
     const usernames = 'Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.';
     assert.ok(notes.includes(usernames));
     assert.ok(!notes.includes('Latest: Usernames'));
