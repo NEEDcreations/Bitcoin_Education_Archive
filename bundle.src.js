@@ -3920,7 +3920,7 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Set up your profile in Settings → Account! Add a bio, website, Twitter, Nostr, and Lightning address! 📝" },
     { pose: 'eyes', text: "💡 Tip: Click any user on the leaderboard to see their profile — including their bio and social links! 👀" },
     // Scholar
-    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards 2,100 points — that's 21 million in sats! The magic number! 🎓" },
+    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards +2,100 XP, not limited by the daily cap. That's the 21 million number. 🎓" },
     // Nacho Closet
     { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
     { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
@@ -5124,16 +5124,9 @@ window._nachoDispatch = function(key) {
             if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
             break;
         case 'scholar':
-            if (typeof startScholarQuest === 'function') {
-                startScholarQuest();
-            } else {
-                // scholar.js not yet loaded — inject it then call
-                if (typeof showToast === 'function') showToast('⏳ Loading exam\u2026 one moment!');
-                var _s = document.createElement('script');
-                _s.src = 'scholar.js?v=20260809_1846';
-                _s.onload = function() { if (typeof startScholarQuest === 'function') startScholarQuest(); };
-                document.body.appendChild(_s);
-            }
+            if (typeof window.openCertification === 'function') window.openCertification('properties');
+            else if (typeof startScholarQuest === 'function') startScholarQuest('properties');
+            else if (typeof showToast === 'function') showToast('⏳ Loading exam… one moment!');
             break;
         case 'flashcards':
             // Open the Learning Quests hub which contains the flashcard launcher
@@ -14928,6 +14921,7 @@ window.dismissIOSA2HS = function() {
 // window.BQ_LEARN_MENU and window.BQ_EXPLORE_APPS from features.registry.js.
 // Wallet taps wait until wallet-router.js has patched go().
 var MOBILE_SHEET_Z = '2100020';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2377';
 
 function ensureMobileSheetStyle() {
     if (document.getElementById('mobileSheetStyle')) return;
@@ -15085,7 +15079,14 @@ window.openCertification = function(type) {
         return true;
     }
     if (start()) return;
-    loadScriptOnce('scholar.js?v=20261023_v2330');
+    var src = window.SCHOLAR_SCRIPT || 'scholar.js';
+    var existing = document.querySelector('script[src="' + src + '"]') || document.querySelector('script[src^="scholar.js"]');
+    if (existing) {
+        existing.addEventListener('load', function() { start(); });
+        pollUntil(start, 50);
+        return;
+    }
+    loadScriptOnce(src, start);
     pollUntil(start, 50);
 };
 
@@ -27799,11 +27800,11 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             return;
         }
 
-        // Desktop Learn menu: which buttons to HIDE per mode
-        // Beginner: hide Daily Quests, Meetup Builder, Spend Bitcoin
-        // Intermediate: nothing extra to hide in learn (has all)
-        var LEARN_HIDE_ONCLICK = {
-            beginner: ['showQuestHub', 'irl-sync', "section:'merchants'"],
+        // Desktop Learn menu: which buttons to HIDE per mode.
+        // Beginner: hide Daily quests, Meetup builder, Spend Bitcoin.
+        // Intermediate: nothing extra to hide in learn (has all).
+        var LEARN_HIDE_IDS = {
+            beginner: ['daily-quests', 'meetup', 'spend'],
             intermediate: []
         };
 
@@ -27816,19 +27817,24 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        var learnHide = LEARN_HIDE_ONCLICK[mode] || [];
+        var learnHide = LEARN_HIDE_IDS[mode] || [];
         var appsHide = APPS_HIDE_ONCLICK[mode] || [];
 
-        // Apply to homeLearnMenu buttons
+        // Apply to homeLearnMenu buttons (data-learn-id, filled by renderLearnMenu)
         var learnMenu = document.getElementById('homeLearnMenu');
+        if (learnMenu && learnMenu.getAttribute('data-learn-view') && learnMenu.style.display !== 'none' && typeof window.renderLearnMenu === 'function' && !learnMenu.getAttribute('data-learn-rendering')) {
+            learnMenu.setAttribute('data-learn-rendering', '1');
+            window.renderLearnMenu(learnMenu, learnMenu.getAttribute('data-learn-view'));
+            learnMenu.removeAttribute('data-learn-rendering');
+        }
         if (learnMenu) {
             learnMenu.querySelectorAll('button').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = learnHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var id = btn.getAttribute('data-learn-id') || '';
+                var shouldHide = learnHide.indexOf(id) !== -1;
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';
-                } else {
+                } else if (btn.getAttribute('data-em-desk-hidden')) {
                     btn.removeAttribute('data-em-desk-hidden');
                     btn.style.display = '';
                 }

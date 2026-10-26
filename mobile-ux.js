@@ -759,6 +759,7 @@ window.dismissIOSA2HS = function() {
 // window.BQ_LEARN_MENU and window.BQ_EXPLORE_APPS from features.registry.js.
 // Wallet taps wait until wallet-router.js has patched go().
 var MOBILE_SHEET_Z = '2100020';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2377';
 
 function ensureMobileSheetStyle() {
     if (document.getElementById('mobileSheetStyle')) return;
@@ -916,7 +917,14 @@ window.openCertification = function(type) {
         return true;
     }
     if (start()) return;
-    loadScriptOnce('scholar.js?v=20261023_v2330');
+    var src = window.SCHOLAR_SCRIPT || 'scholar.js';
+    var existing = document.querySelector('script[src="' + src + '"]') || document.querySelector('script[src^="scholar.js"]');
+    if (existing) {
+        existing.addEventListener('load', function() { start(); });
+        pollUntil(start, 50);
+        return;
+    }
+    loadScriptOnce(src, start);
     pollUntil(start, 50);
 };
 
