@@ -32,7 +32,10 @@ const admin = {
             increment: function (n) { return { _increment: n }; },
             arrayUnion: function () { return { _arrayUnion: Array.prototype.slice.call(arguments) }; },
         },
-        Timestamp: { fromMillis: function (ms) { return { _ms: ms }; } },
+        Timestamp: {
+            fromMillis: function (ms) { return { _ms: ms }; },
+            now: function () { return { _serverNow: true }; },
+        },
     },
 };
 
@@ -395,6 +398,7 @@ queue.push(test('the dry-run backfill prints counts and does not apply unless as
     const src = fs.readFileSync(path.join(root, 'functions/scripts/backfill_collection_bonus.js'), 'utf8');
     assert.ok(src.includes('if (require.main === module)'));
     assert.ok(src.includes('postChat: false'));
+    assert.ok(src.includes('ggSkip'));
     assert.ok(!src.includes('--post-chat'));
     assert.ok(!src.includes("collection('xp_ledger')"));
     assert.ok(src.includes('serverHeldBadgeIds'));
@@ -809,6 +813,72 @@ queue.push(test('the collection card remainder matches the server subtraction', 
         });
         assert.strictEqual(shown, collectionBonus.remainderXp(col.bonusPts, col.legacyBonuses), col.id);
     });
+}));
+
+queue.push(test('a quiet collection award skips GGs and an expired window stamps lastReset', async function () {
+    const col = collectionBonus.collectionById('col_builder');
+    const now = 1700000000000;
+    const members = collectionBonus.requiredMembers(col);
+    const quiet = memoryDb(seedAwards(members));
+    const skipped = await collectionBonus.grantCollectionBonus(quiet, admin, 'u', col.id, { day: '2026-10-24', nowMs: now, postChat: false });
+    assert.strictEqual(skipped.granted, true);
+    assert.strictEqual(skipped.favor, true);
+    const quietAward = quiet.docs['users/u/badge_awards/' + col.bonusId];
+    assert.strictEqual(quietAward.ggSkip, true);
+    assert.strictEqual(quietAward.favorPoint, true);
+    assert.strictEqual(quietAward.congratsPending, false);
+    assert.strictEqual(quietAward.source, 'collection_bonus');
+    assert.strictEqual(chatDocs(quiet).length, 0);
+
+    const live = memoryDb(seedAwards(members, {
+        'public_profiles/u': { username: 'BuilderFan' },
+    }));
+    const posted = await collectionBonus.grantCollectionBonus(live, admin, 'u', col.id, { day: '2026-10-24', nowMs: now });
+    const liveAward = live.docs['users/u/badge_awards/' + col.bonusId];
+    assert.strictEqual(posted.chatPosted, true);
+    assert.strictEqual(liveAward.favorPoint, true);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(liveAward, 'ggSkip'), false);
+    assert.strictEqual(chatDocs(live).length, 1);
+
+    const open = memoryDb(seedAwards(members, {
+        'satoshiFavor/current': {
+            points: 21,
+            favorActive: true,
+            bonusMinutes: 10,
+            favorEndBase: { toMillis: function () { return now + 60000; } },
+        },
+    }));
+    const extended = await collectionBonus.grantCollectionBonus(open, admin, 'u', col.id, { day: '2026-10-24', nowMs: now, postChat: false });
+    assert.strictEqual(extended.favor, true);
+    const openAward = open.docs['users/u/badge_awards/' + col.bonusId];
+    assert.strictEqual(openAward.favorPoint, false);
+    assert.strictEqual(openAward.ggSkip, true);
+    assert.strictEqual(open.docs['satoshiFavor/current'].lastReset, undefined);
+
+    const expired = memoryDb(seedAwards(members, {
+        'satoshiFavor/current': {
+            points: 21,
+            favorActive: true,
+            bonusMinutes: 0,
+            eraHashes: 7,
+            currentCycleId: 'cycle_old',
+            lastReset: { _ms: 1 },
+            favorEndBase: { toMillis: function () { return now - 60000; } },
+        },
+    }));
+    const reset = await collectionBonus.grantCollectionBonus(expired, admin, 'u', col.id, { day: '2026-10-24', nowMs: now, postChat: false });
+    assert.strictEqual(reset.favor, true);
+    const state = expired.docs['satoshiFavor/current'];
+    assert.deepStrictEqual(state.lastReset, { _serverNow: true });
+    assert.strictEqual(state.eraHashes, 7);
+    assert.strictEqual(state.favorActive, false);
+    assert.strictEqual(state.points, 10);
+    assert.strictEqual(expired.docs['satoshiFavor/lastWindow'].cycleId, 'cycle_old');
+    assert.strictEqual(expired.docs['users/u/badge_awards/' + col.bonusId].ggSkip, true);
+    assert.strictEqual(expired.docs['users/u/badge_awards/' + col.bonusId].favorPoint, true);
+    const src = fs.readFileSync(path.join(root, 'functions/scripts/backfill_collection_bonus.js'), 'utf8');
+    assert.ok(src.includes('postChat: false'));
+    assert.ok(src.includes('ggSkip'));
 }));
 
 queue.push(test('a failed congrats retry is logged granted false and stays pending', async function () {

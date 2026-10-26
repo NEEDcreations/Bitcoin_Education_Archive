@@ -293,7 +293,10 @@ function awardIdsFromSnap(snap) {
 
 function stageBadgeFavor(t, db, adminSdk, ctx) {
     const src = ctx || {};
-    if (!src.contributorSnap || src.contributorSnap.exists) return false;
+    if (!src.contributorSnap || src.contributorSnap.exists) {
+        src.favorPoint = false;
+        return false;
+    }
     const stateSnap = src.stateSnap;
     const stateData = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : {
         points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,
@@ -338,6 +341,9 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         next.winnersThisWindow = [];
     }
     if (plan.expired) {
+        // Same stamp checkAndResetFavor writes. A later live announce treats
+        // hashes from before lastReset as the previous window.
+        next.lastReset = adminSdk.firestore.Timestamp.now();
         t.set(db.collection('satoshiFavor').doc('lastWindow'), {
             cycleId: stateData.currentCycleId || null,
             endedAt: stamp(adminSdk, nowMs),
@@ -350,6 +356,8 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         points: adminSdk.firestore.FieldValue.increment(pointsToAdd),
         updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+    // Pool points only. An open window adds bonus minutes and does not count.
+    src.favorPoint = plan.extended !== true;
     return true;
 }
 
@@ -577,18 +585,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             collectionId: col.id,
             legacyHeld: plan.legacyHeld,
         });
-        t.set(awardRef, {
-            awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
-            badge: col.bonusId,
-            xp: xp,
-            requestedXp: plan.remainder,
-            dropped: 0,
-            day: day,
-            source: 'collection_bonus',
-            congratsPending: options.postChat === false ? false : true,
-        });
-        t.update(userRef, update);
-        const favor = stageBadgeFavor(t, db, adminSdk, {
+        const favorCtx = {
             uid: uid,
             badgeId: col.bonusId,
             day: day,
@@ -600,7 +597,24 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             stateRef: stateRef,
             contributorRef: contributorRef,
             totalsRef: totalsRef,
-        });
+        };
+        const favor = stageBadgeFavor(t, db, adminSdk, favorCtx);
+        const awardDoc = {
+            awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+            badge: col.bonusId,
+            xp: xp,
+            requestedXp: plan.remainder,
+            dropped: 0,
+            day: day,
+            source: 'collection_bonus',
+            congratsPending: options.postChat === false ? false : true,
+            favorPoint: favorCtx.favorPoint === true,
+        };
+        // Backfill passes postChat false. GGs posts on every badge_awards create,
+        // so that path has to say it is not a chat announcement.
+        if (options.postChat === false) awardDoc.ggSkip = true;
+        t.set(awardRef, awardDoc);
+        t.update(userRef, update);
         return {
             granted: true,
             success: true,

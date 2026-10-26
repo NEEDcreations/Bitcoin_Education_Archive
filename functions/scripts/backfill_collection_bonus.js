@@ -11,7 +11,9 @@
  * xp_ledger with source collection_bonus, does not call applyDailyXp, does
  * not write daily_points, and adds ten Satoshi's Favor points. A remainder
  * of 0 still records the bonus so it cannot be paid later. Chat posts are
- * off, and congratsPending stays false. There is no flag that turns them on.
+ * off, and congratsPending stays false. The badge_awards doc sets ggSkip
+ * true so GGs does not post, and records favorPoint. There is no flag that
+ * turns chat or GGs on.
  *
  * Held badges are badge_awards plus badges, visibleBadges, and donationBadges.
  * A hiddenBadges id counts only when that same id is already in one of those.
@@ -47,7 +49,8 @@ function helpText() {
         'complete, already, payUsers, remainderXp, zeroRemainder, and favorPoints.',
         'favorPoints is 10 for each bonus this run would record.',
         'remainderXp is paid in full and is not limited by the daily cap.',
-        'Chat posts stay off. This script never posts Nacho messages.',
+        'Chat posts stay off. The award doc sets ggSkip so GGs does not post.',
+        'This script never posts Nacho messages.',
         'No user ids or emails are printed.',
     ].join('\n');
 }
