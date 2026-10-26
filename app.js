@@ -4477,6 +4477,60 @@ window.nachoQuizAnswer = function(btn, correct) {
             window._nachoReturnPending = true;
         }
 
+        if (typeof id === 'string' && id.indexOf('cert/') === 0) {
+            var _certRaw = id.slice('cert/'.length).split(/[?#]/)[0];
+            var _certOk = /^(?:CERT-)?[A-Za-z0-9-]{8,80}$/.test(_certRaw);
+            if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+            var _homeEl = document.getElementById('home');
+            if (_homeEl) _homeEl.classList.add('hidden');
+            var _heroEl = document.getElementById('hero');
+            if (_heroEl) { _heroEl.innerHTML = ''; _heroEl.style.display = 'none'; }
+            var _msgsEl = document.getElementById('msgs');
+            if (_msgsEl) { _msgsEl.innerHTML = ''; _msgsEl.style.display = 'none'; }
+            var _fc = document.getElementById('forumContainer');
+            if (_fc) {
+                _fc.style.display = 'block';
+                _fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;">' +
+                    '<div style="font-size:2rem;margin-bottom:12px;">⏳</div>' +
+                    '<div style="color:var(--text-muted);">Verifying certificate...</div></div>';
+            }
+            try { history.pushState({ channel: id }, '', '#' + id); } catch (e) {}
+            if (!_certOk) {
+                if (_fc) {
+                    _fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;">' +
+                        '<h2 style="color:var(--heading);">Certificate Not Found</h2></div>';
+                }
+                return;
+            }
+            function _showCertPage() {
+                if (typeof window.renderCertVerification === 'function') window.renderCertVerification(_certRaw);
+            }
+            if (typeof window.renderCertVerification === 'function') {
+                _showCertPage();
+            } else {
+                var _certSrc = 'shareable-certs.js?v=20261026_v2410';
+                var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
+                if (!_existingCertScript) {
+                    var _certScript = document.createElement('script');
+                    _certScript.src = _certSrc;
+                    _certScript.onload = _showCertPage;
+                    document.head.appendChild(_certScript);
+                } else {
+                    var _certWait = 0;
+                    var _certTimer = setInterval(function () {
+                        _certWait += 50;
+                        if (typeof window.renderCertVerification === 'function' || _certWait > 4000) {
+                            clearInterval(_certTimer);
+                            _showCertPage();
+                        }
+                    }, 50);
+                }
+            }
+            var _mainEl = document.getElementById('main');
+            if (_mainEl) _mainEl.scrollTop = 0;
+            return;
+        }
+
         // Show skeleton loader
         var msgs = document.getElementById('msgs');
         var hero = document.getElementById('hero');
@@ -5957,7 +6011,7 @@ if (locked) {
         console.log('[ROUTE] Routing to:', hash);
         // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
         // so the script is ready when _routeApp starts polling for it.
-        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app'];
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app','cert'];
         if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
             window._loadDeferred();
         }

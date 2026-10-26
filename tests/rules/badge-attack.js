@@ -137,6 +137,7 @@ const parts = emu.split(':');
         const examFields = [
             'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
             'lastExamAttempt_prop', 'lastExamAttempt_tech',
+            'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
             'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         ];
         for (let i = 0; i < examFields.length; i++) {

@@ -77,14 +77,42 @@ function ctx(uid) {
     };
 }
 
-function keys() {
-    const rows = [];
-    for (let i = 0; i < 25; i++) rows.push({ index: i, correct: 'yes' });
-    return rows;
+const attemptLib = require('../functions/src/scholarAttempt');
+
+function pack(prefix) {
+    const served = [];
+    const answers = [];
+    for (let i = 0; i < 25; i++) {
+        const questionId = prefix + '-q' + i;
+        const optionId = prefix + '-ok' + i;
+        served.push({
+            questionId: questionId,
+            correctOptionId: optionId,
+            optionIds: [optionId, prefix + '-no' + i],
+        });
+        answers.push({ questionId: questionId, optionId: optionId });
+    }
+    return { served: served, answers: answers };
 }
 
-function answers() {
-    return new Array(25).fill('yes');
+async function plant(id, uid, type, opts) {
+    const options = opts || {};
+    const packed = pack(id);
+    const startedAtMs = options.startedAtMs != null ? options.startedAtMs : (Date.now() - 90000);
+    await db.collection('scholar_exam_keys').doc(id).set({
+        uid: uid,
+        type: type,
+        served: packed.served,
+        startedAtMs: startedAtMs,
+        graded: false,
+    });
+    if (options.slot !== false) {
+        const field = type === 'technical' ? 'examSlotId_tech' : 'examSlotId_prop';
+        const patch = {};
+        patch[field] = id;
+        await db.collection('users').doc(uid).set(patch, { merge: true });
+    }
+    return packed;
 }
 
 function errorCode(err) {
@@ -95,14 +123,9 @@ async function main() {
     const uid = 'scholar-user';
     await db.collection('users').doc(uid).set({ username: 'Ada', points: 10, scholarPoints: 0 });
     const examRef = db.collection('scholar_exam_keys').doc(uid + '_properties_1');
-    await examRef.set({
-        uid: uid,
-        type: 'properties',
-        keys: keys(),
-        graded: false,
-    });
+    const firstPack = await plant(examRef.id, uid, 'properties');
 
-    const first = await fns.gradeScholarExam.run({ examId: examRef.id, answers: answers() }, ctx(uid));
+    const first = await fns.gradeScholarExam.run({ examId: examRef.id, answers: firstPack.answers }, ctx(uid));
     assert.strictEqual(first.passed, true, 'first exam should pass');
     assert.strictEqual(first.pointsAwarded, 2100);
     assert.strictEqual(first.capExempt, true);
@@ -141,13 +164,8 @@ async function main() {
     });
 
     const retryRef = db.collection('scholar_exam_keys').doc(uid + '_properties_2');
-    await retryRef.set({
-        uid: uid,
-        type: 'properties',
-        keys: keys(),
-        graded: false,
-    });
-    const second = await fns.gradeScholarExam.run({ examId: retryRef.id, answers: answers() }, ctx(uid));
+    const retryPack = await plant(retryRef.id, uid, 'properties', { slot: false });
+    const second = await fns.gradeScholarExam.run({ examId: retryRef.id, answers: retryPack.answers }, ctx(uid));
     assert.strictEqual(second.passed, false);
     assert.strictEqual(second.pointsAwarded, 0);
     assert.strictEqual(second.blocked, 'already_certified');
@@ -195,13 +213,8 @@ async function main() {
     const day = offsetDateKey(Date.now());
     await cappedRef.collection('daily_points').doc(day).set({ total: 1000 });
     const techRef = db.collection('scholar_exam_keys').doc(capped + '_technical_1');
-    await techRef.set({
-        uid: capped,
-        type: 'technical',
-        keys: keys(),
-        graded: false,
-    });
-    const cappedPass = await fns.gradeScholarExam.run({ examId: techRef.id, answers: answers() }, ctx(capped));
+    const techPack = await plant(techRef.id, capped, 'technical');
+    const cappedPass = await fns.gradeScholarExam.run({ examId: techRef.id, answers: techPack.answers }, ctx(capped));
     assert.strictEqual(cappedPass.passed, true);
     assert.strictEqual(cappedPass.pointsAwarded, 2100, 'a full-cap day still pays the cert bonus');
     assert.strictEqual(cappedPass.capExempt, true);
@@ -219,13 +232,13 @@ async function main() {
     assert.strictEqual((await techRef.get()).data().pointsAwarded, 2100, 'protocol expert records the same 2,100');
 
     const techRetry = db.collection('scholar_exam_keys').doc(capped + '_technical_2');
-    await techRetry.set({ uid: capped, type: 'technical', keys: keys(), graded: false });
+    const techRetryPack = await plant(techRetry.id, capped, 'technical', { slot: false });
     await cappedRef.update({
         certPassed_tech: admin.firestore.FieldValue.delete(),
         certPassedAt_tech: admin.firestore.FieldValue.delete(),
         lastExamAttempt_tech: admin.firestore.FieldValue.delete(),
     });
-    const cappedSecond = await fns.gradeScholarExam.run({ examId: techRetry.id, answers: answers() }, ctx(capped));
+    const cappedSecond = await fns.gradeScholarExam.run({ examId: techRetry.id, answers: techRetryPack.answers }, ctx(capped));
     assert.strictEqual(cappedSecond.already, true);
     assert.strictEqual(cappedSecond.pointsAwarded, 0);
     assert.strictEqual((await cappedRef.get()).data().points, 2150);
@@ -235,13 +248,13 @@ async function main() {
     await raceRef.set({ username: 'Rae', points: 0, scholarPoints: 0 });
     const raceA = db.collection('scholar_exam_keys').doc(race + '_technical_a');
     const raceB = db.collection('scholar_exam_keys').doc(race + '_technical_b');
-    await raceA.set({ uid: race, type: 'technical', keys: keys(), graded: false });
-    await raceB.set({ uid: race, type: 'technical', keys: keys(), graded: false });
+    const racePackA = await plant(raceA.id, race, 'technical');
+    const racePackB = await plant(raceB.id, race, 'technical', { slot: false });
     const raced = await Promise.all([
-        fns.gradeScholarExam.run({ examId: raceA.id, answers: answers() }, ctx(race)).catch(function () {
+        fns.gradeScholarExam.run({ examId: raceA.id, answers: racePackA.answers }, ctx(race)).catch(function () {
             return { pointsAwarded: 0, passed: false };
         }),
-        fns.gradeScholarExam.run({ examId: raceB.id, answers: answers() }, ctx(race)).catch(function () {
+        fns.gradeScholarExam.run({ examId: raceB.id, answers: racePackB.answers }, ctx(race)).catch(function () {
             return { pointsAwarded: 0, passed: false };
         }),
     ]);
@@ -260,8 +273,8 @@ async function main() {
     const bannedRef = db.collection('users').doc(bannedUid);
     await bannedRef.set({ username: 'Ban', points: 40, scholarPoints: 0, banned: true, ban_reason: 'abuse' });
     const bannedExam = db.collection('scholar_exam_keys').doc(bannedUid + '_technical_1');
-    await bannedExam.set({ uid: bannedUid, type: 'technical', keys: keys(), graded: false });
-    const bannedGrade = await fns.gradeScholarExam.run({ examId: bannedExam.id, answers: answers() }, ctx(bannedUid));
+    const bannedPack = await plant(bannedExam.id, bannedUid, 'technical');
+    const bannedGrade = await fns.gradeScholarExam.run({ examId: bannedExam.id, answers: bannedPack.answers }, ctx(bannedUid));
     assert.strictEqual(bannedGrade.passed, true);
     assert.strictEqual(bannedGrade.pointsAwarded, 0);
     assert.strictEqual((await bannedRef.get()).data().points, 40);
@@ -270,6 +283,15 @@ async function main() {
     const bannedExamData = (await bannedExam.get()).data();
     assert.strictEqual(bannedExamData.bonusBlocked, 'banned');
     assert.ok(bannedExamData.bonusBlockedAt, 'a withheld ban bonus stamps when it was blocked');
+    let bannedIssue = null;
+    try {
+        await fns.issueCertificate.run({ type: 'technical', name: 'Ban' }, ctx(bannedUid));
+    } catch (err) {
+        bannedIssue = err;
+    }
+    assert.strictEqual(errorCode(bannedIssue), 'permission-denied');
+    assert.strictEqual((await db.collection('cert_by_user').doc(bannedUid + '_technical').get()).exists, false);
+    assert.strictEqual((await db.collection('certs').where('name', '==', 'Ban').get()).empty, true);
     const certBonus = require('../functions/src/certBonus');
     const banHistory = certBonus.banHistoryAfterUnban({
         banned: true,
@@ -292,7 +314,7 @@ async function main() {
     const fakeRef = db.collection('users').doc(fakeUid);
     await fakeRef.set({ username: 'Fay', points: 7, scholarPoints: 0 });
     const fakeExam = db.collection('scholar_exam_keys').doc(fakeUid + '_properties_1');
-    await fakeExam.set({ uid: fakeUid, type: 'properties', keys: keys(), graded: false });
+    await plant(fakeExam.id, fakeUid, 'properties');
     const fakeGrade = await fns.gradeScholarExam.run({
         examId: fakeExam.id,
         answers: new Array(25).fill('no'),
@@ -305,12 +327,165 @@ async function main() {
     assert.strictEqual((await fakeRef.get()).data().points, 7);
     assert.strictEqual((await fakeRef.collection('cert_bonuses').doc('prop').get()).exists, false);
 
-    const issued = await fns.issueCertificate.run({ type: 'scholar', name: 'Ada' }, ctx(uid));
+    const issued = await fns.issueCertificate.run({ type: 'scholar', name: 'Someone Else' }, ctx(uid));
     assert.strictEqual(issued.success, true);
     assert.ok(issued.certId);
+    assert.strictEqual(issued.name, 'Ada');
+    assert.strictEqual(issued.score, 25);
     const stored = await db.collection('certs').doc(issued.certId).get();
     assert.strictEqual(stored.exists, true);
-    assert.strictEqual(stored.data().uid, uid);
+    assert.strictEqual(stored.data().uid, undefined);
+    assert.strictEqual(stored.data().name, 'Ada');
+    assert.strictEqual(stored.data().score, 25);
+    assert.strictEqual(stored.data().quest, 'bitcoin-scholar');
+    const owner = await db.collection('cert_owners').doc(issued.certId).get();
+    assert.strictEqual(owner.data().uid, uid);
+    const again = await fns.issueCertificate.run({ type: 'scholar', name: 'Changed' }, ctx(uid));
+    assert.strictEqual(again.certId, issued.certId);
+    assert.strictEqual(again.name, 'Ada');
+    const certRows = await db.collection('certs').get();
+    const adaCerts = certRows.docs.filter(function (doc) { return doc.data().name === 'Ada' && doc.data().type === 'scholar'; });
+    assert.strictEqual(adaCerts.length, 1);
+
+    const knownUid = 'known-key-user';
+    await db.collection('users').doc(knownUid).set({ username: 'Kim', points: 4, scholarPoints: 0 });
+    const knownPack = await plant('known-exam', knownUid, 'properties');
+    const textAnswers = knownPack.served.map(function (row) {
+        return { questionId: row.questionId, optionId: 'yes' };
+    });
+    const knownGrade = await fns.gradeScholarExam.run({
+        examId: 'known-exam',
+        answers: textAnswers,
+        score: 25,
+        passed: true,
+    }, ctx(knownUid));
+    assert.ok(knownGrade.score < 20);
+    assert.strictEqual(knownGrade.passed, false);
+    assert.strictEqual(knownGrade.pointsAwarded, 0);
+
+    const fastUid = 'fast-user';
+    await db.collection('users').doc(fastUid).set({ username: 'Fay', points: 2, scholarPoints: 0 });
+    const fastPack = await plant('fast-exam', fastUid, 'properties', { startedAtMs: Date.now() - 1000 });
+    let fastErr = null;
+    try {
+        await fns.gradeScholarExam.run({ examId: 'fast-exam', answers: fastPack.answers }, ctx(fastUid));
+    } catch (err) {
+        fastErr = err;
+    }
+    assert.strictEqual(errorCode(fastErr), 'failed-precondition');
+    assert.strictEqual((await db.collection('scholar_exam_keys').doc('fast-exam').get()).data().graded, false);
+    assert.strictEqual((await db.collection('users').doc(fastUid).get()).data().points, 2);
+
+    const expiredUid = 'expired-user';
+    await db.collection('users').doc(expiredUid).set({ username: 'Eve', points: 2, scholarPoints: 0 });
+    const expiredAt = Date.now() - attemptLib.EXAM_LIMIT_MS - attemptLib.EXAM_GRACE_MS - 1000;
+    const expiredPack = await plant('expired-exam', expiredUid, 'properties', { startedAtMs: expiredAt });
+    let expiredErr = null;
+    try {
+        await fns.gradeScholarExam.run({ examId: 'expired-exam', answers: expiredPack.answers }, ctx(expiredUid));
+    } catch (err) {
+        expiredErr = err;
+    }
+    assert.strictEqual(errorCode(expiredErr), 'deadline-exceeded');
+    assert.strictEqual((await db.collection('scholar_exam_keys').doc('expired-exam').get()).data().graded, false);
+
+    const strayUid = 'stray-user';
+    await db.collection('users').doc(strayUid).set({ username: 'Sue', points: 2, scholarPoints: 0 });
+    const strayPack = await plant('stray-exam', strayUid, 'properties');
+    const strayAnswers = strayPack.answers.slice();
+    strayAnswers[0] = { questionId: 'not-in-this-attempt', optionId: strayPack.served[0].correctOptionId };
+    let strayErr = null;
+    try {
+        await fns.gradeScholarExam.run({ examId: 'stray-exam', answers: strayAnswers }, ctx(strayUid));
+    } catch (err) {
+        strayErr = err;
+    }
+    assert.strictEqual(errorCode(strayErr), 'invalid-argument');
+    assert.strictEqual((await db.collection('scholar_exam_keys').doc('stray-exam').get()).data().graded, false);
+    assert.strictEqual((await db.collection('users').doc(strayUid).get()).data().points, 2);
+
+    const starter = 'start-user';
+    await db.collection('users').doc(starter).set({ username: 'Sam', points: 0, scholarPoints: 0 });
+    const started = await Promise.all([
+        fns.startScholarExam.run({ type: 'properties' }, ctx(starter)),
+        fns.startScholarExam.run({ type: 'properties' }, ctx(starter)),
+    ]);
+    assert.strictEqual(started[0].examId, started[1].examId);
+    assert.strictEqual(started[0].questions.length, 25);
+    assert.ok(!JSON.stringify(started[0].questions).includes('correctOptionId'));
+    const startRows = await db.collection('scholar_exam_keys').where('uid', '==', starter).get();
+    assert.strictEqual(startRows.size, 1);
+
+    let passedStart = null;
+    try {
+        await fns.startScholarExam.run({ type: 'properties' }, ctx(uid));
+    } catch (err) {
+        passedStart = err;
+    }
+    assert.strictEqual(errorCode(passedStart), 'failed-precondition');
+
+    const dailyUid = 'daily-user';
+    const oldId = 'daily-old';
+    await db.collection('users').doc(dailyUid).set({
+        username: 'Day',
+        points: 1,
+        lastExamAttempt_prop: new Date().toISOString().slice(0, 10),
+        examSlotId_prop: oldId,
+    });
+    await db.collection('scholar_exam_keys').doc(oldId).set({
+        uid: dailyUid,
+        type: 'properties',
+        graded: false,
+        startedAtMs: Date.now() - attemptLib.EXAM_LIMIT_MS - attemptLib.EXAM_GRACE_MS - 1000,
+        questions: [],
+        served: [],
+    });
+    let dailyErr = null;
+    try {
+        await fns.startScholarExam.run({ type: 'properties' }, ctx(dailyUid));
+    } catch (err) {
+        dailyErr = err;
+    }
+    assert.strictEqual(errorCode(dailyErr), 'resource-exhausted');
+    const dailyExamRows = await db.collection('scholar_exam_keys').where('uid', '==', dailyUid).get();
+    assert.strictEqual(dailyExamRows.size, 1);
+
+    const nextUid = 'next-day-user';
+    await db.collection('users').doc(nextUid).set({
+        username: 'Nia',
+        points: 3,
+        scholarPoints: 0,
+        examSlotId_prop: 'next-slot',
+        lastExamAttempt_prop: '2000-01-01',
+    });
+    const latePack = await plant('next-late', nextUid, 'properties', { slot: false });
+    let nextErr = null;
+    try {
+        await fns.gradeScholarExam.run({ examId: 'next-late', answers: latePack.answers }, ctx(nextUid));
+    } catch (err) {
+        nextErr = err;
+    }
+    assert.strictEqual(errorCode(nextErr), 'resource-exhausted');
+    assert.strictEqual((await db.collection('scholar_exam_keys').doc('next-late').get()).data().graded, false);
+    assert.strictEqual((await db.collection('users').doc(nextUid).get()).data().points, 3);
+
+    const { initializeTestEnvironment, assertSucceeds, assertFails } = require(path.join(root, 'tests/rules/node_modules/@firebase/rules-unit-testing'));
+    const { doc, getDoc, getDocs, collection, setDoc, updateDoc } = require(path.join(root, 'tests/rules/node_modules/firebase/firestore'));
+    const emu = (process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080').split(':');
+    const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    const env = await initializeTestEnvironment({
+        projectId: firebaseConfig.projectId,
+        firestore: { rules: rules, host: emu[0], port: Number(emu[1]) },
+    });
+    const guest = env.unauthenticatedContext();
+    const dbClient = guest.firestore();
+    await assertSucceeds(getDoc(doc(dbClient, 'certs', issued.certId)));
+    await assertFails(getDocs(collection(dbClient, 'certs')));
+    await assertFails(setDoc(doc(dbClient, 'certs', 'CERT-FORGED0001'), { name: 'Forged', type: 'scholar' }));
+    await assertFails(updateDoc(doc(dbClient, 'certs', issued.certId), { name: 'Forged' }));
+    await assertFails(getDoc(doc(dbClient, 'scholar_exam_keys', examRef.id)));
+    await assertFails(getDoc(doc(dbClient, 'cert_owners', issued.certId)));
+    await assertFails(getDocs(collection(dbClient, 'cert_by_user')));
 
     console.log('scholar exam emulator ok');
 }
