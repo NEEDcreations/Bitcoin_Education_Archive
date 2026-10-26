@@ -260,12 +260,14 @@
         var tokens = meaningful(qNorm ? qNorm.split(' ') : []);
         var rows = prepare(topics, index);
         var forced = {};
-        var listed = phraseIds(qNorm, index);
+        var curatedAt = {};
+        var listed = phraseIds(qNorm, index) || [];
         var f;
-        if (listed) {
-            for (f = 0; f < listed.length; f++) forced[listed[f]] = 2;
+        for (f = 0; f < listed.length; f++) {
+            forced[listed[f]] = 2;
+            curatedAt[listed[f]] = f;
         }
-        if (!tokens.length && !listed) return { query: qNorm, matches: [] };
+        if (!tokens.length && !listed.length) return { query: qNorm, matches: [] };
         var matches = [];
         var i;
         for (i = 0; i < rows.length; i++) {
@@ -296,6 +298,12 @@
         }
         matches.sort(function (a, b) {
             if (a.rank !== b.rank) return a.rank - b.rank;
+            var aCur = curatedAt[a.id];
+            var bCur = curatedAt[b.id];
+            var aListed = aCur != null;
+            var bListed = bCur != null;
+            if (aListed !== bListed) return aListed ? -1 : 1;
+            if (aListed && bListed && aCur !== bCur) return aCur - bCur;
             if (a.sum !== b.sum) return a.sum - b.sum;
             return a.order - b.order;
         });

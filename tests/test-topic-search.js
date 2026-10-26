@@ -146,6 +146,14 @@ CASES.forEach(function (row) {
     });
 });
 
+test('curated topics lead buy, wallet, mining, and merch', function () {
+    assert.deepStrictEqual(idsFor('buy').slice(0, 3), ['first-purchase', 'swag-merch', 'marketplace']);
+    assert.deepStrictEqual(idsFor('wallet').slice(0, 3), ['self-custody', 'hardware', 'public_key_vs_private_key']);
+    assert.deepStrictEqual(idsFor('mining').slice(0, 3), ['mining', '0_mining__hashing', 'hardware']);
+    assert.deepStrictEqual(idsFor('merch').slice(0, 2), ['swag-merch', 'marketplace']);
+    assert.strictEqual(hit('mining').matches[0].rank, 0);
+});
+
 test('buy returns every mapped buy topic, not a short list', function () {
     const ids = idsFor('buy');
     assert.ok(ids.length >= 10, 'only ' + ids.length);

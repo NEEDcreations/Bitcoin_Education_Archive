@@ -2709,26 +2709,21 @@ window.awardTickets = async function() {
 };
 
 // ---- Home "Invite friends" corner card ----
-// Top-right. Signed-in users get the link. Guests see nothing unless this
-// session has no other popup, in which case one short sign-up line appears.
+// Signed-in users always keep a small pill on the home screen. Dismiss and
+// minimize both collapse to that pill. A stored "off" is read as "min" so
+// older clients can still save off, and this client never hides the pill.
+// The full card opens on its own at most once every 7 days, and only when
+// no other session popup or modal is up. Guests always keep a small
+// "Invite friends" pill. Their larger sign-up prompt still shows once a session.
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
-
-function _invitePreviewOn() {
-    try {
-        var host = String(location.hostname || '');
-        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
-    } catch (e) { return false; }
-    return !!window._homePreviewUser;
-}
+var INVITE_AUTO_MS = 7 * 24 * 60 * 60 * 1000;
 
 function _inviteSignedIn() {
-    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
-    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -2737,28 +2732,91 @@ function _inviteStorageKey(uid) {
     return 'btc_invite_card_' + String(uid || '');
 }
 
+function _inviteNormalize(state) {
+    if (state === 'off') return 'min';
+    // A stored "open" is a past visit. Later visits rest on the pill.
+    if (state === 'open') return 'min';
+    if (state === 'min') return state;
+    return '';
+}
+
+function _inviteStoredOpen(uid) {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard === 'open') return true;
+    try { return localStorage.getItem(_inviteStorageKey(uid)) === 'open'; } catch (e) { return false; }
+}
+
 function _inviteReadStored(uid) {
     var fromUser = '';
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
-        fromUser = String(currentUser.inviteCard);
+        fromUser = _inviteNormalize(String(currentUser.inviteCard));
     }
-    if (fromUser === 'off') return 'min';
-    if (INVITE_STATES[fromUser]) return fromUser;
+    if (fromUser) return fromUser;
     try {
-        var local = localStorage.getItem(_inviteStorageKey(uid));
-        if (local === 'off') return 'min';
-        if (INVITE_STATES[local]) return local;
+        var local = _inviteNormalize(localStorage.getItem(_inviteStorageKey(uid)));
+        if (local) return local;
     } catch (e) {}
     return 'min';
 }
 
 function _inviteWriteStored(state) {
+    if (state === 'off') state = 'min';
+    if (state === 'open') state = 'min';
     var uid = _inviteUid();
     if (!uid || !INVITE_STATES[state]) return;
     try { localStorage.setItem(_inviteStorageKey(uid), state); } catch (e) {}
     if (typeof currentUser !== 'undefined' && currentUser) currentUser.inviteCard = state;
     if (typeof db === 'undefined' || !db) return;
     db.collection('users').doc(uid).update({ inviteCard: state }).catch(function() {});
+}
+
+function _inviteAutoKey(uid) {
+    return 'btc_invite_auto_' + String(uid || '');
+}
+
+function _inviteAutoDue(uid) {
+    try {
+        var at = parseInt(localStorage.getItem(_inviteAutoKey(uid)), 10);
+        if (!at) return true;
+        return (Date.now() - at) >= INVITE_AUTO_MS;
+    } catch (e) { return false; }
+}
+
+function _inviteMarkAuto(uid) {
+    if (!uid) return;
+    try { localStorage.setItem(_inviteAutoKey(uid), String(Date.now())); } catch (e) {}
+}
+
+function _invitePopupElement(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.id === 'inviteCard' || el.id === 'inviteGuestPill' || el.id === 'todayInviteGuest') return false;
+    if (el.closest && (el.closest('#inviteCard') || el.closest('#introVideoSection') || el.closest('#featuredOnSection'))) return false;
+    if (el.hasAttribute('hidden')) return false;
+    var style;
+    try { style = window.getComputedStyle(el); } catch (e) { return false; }
+    if (!style || style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
+    if (style.position !== 'fixed') return false;
+    var box = el.getBoundingClientRect();
+    if (box.width < 160 || box.height < 80) return false;
+    var id = String(el.id || '');
+    var cls = typeof el.className === 'string' ? el.className : '';
+    var role = el.getAttribute('role') || '';
+    var named = /modal|overlay|dialog|lightbox|leaderboard/i.test(id + ' ' + cls) || role === 'dialog' || el.getAttribute('aria-modal') === 'true';
+    var opened = el.classList.contains('open') || el.hasAttribute('open') || el.getAttribute('data-open') === '1';
+    if (!named && !opened) return false;
+    return true;
+}
+
+function _inviteModalOpen() {
+    var nodes = document.querySelectorAll('[role="dialog"], [aria-modal="true"], [id*="Modal"], [id*="modal"], [id*="Overlay"], [id*="overlay"], [class*="modal"], [class*="overlay"], [class*="Modal"], [class*="Overlay"], .open, dialog[open]');
+    var i;
+    for (i = 0; i < nodes.length; i++) {
+        if (_invitePopupElement(nodes[i])) return true;
+    }
+    return false;
+}
+
+function _inviteAutoBlocked() {
+    return _inviteModalOpen() || _invitePopupTaken();
 }
 
 function _inviteHomeVisible() {
@@ -2851,20 +2909,121 @@ function _loadInviteCounts() {
 function _applyInviteState(state) {
     var card = document.getElementById('inviteCard');
     if (!card) return;
-    card.setAttribute('data-state', state);
-    card.setAttribute('data-show', state === 'off' ? '0' : '1');
+    var show = state === 'off' ? '0' : '1';
+    if (card.getAttribute('data-state') !== state) card.setAttribute('data-state', state);
+    if (card.getAttribute('data-show') !== show) card.setAttribute('data-show', show);
+}
+
+var _inviteHeldOpen = false;
+
+function _paintGuestPill(show) {
+    var pill = document.getElementById('inviteGuestPill');
+    if (!pill) return;
+    if (pill.textContent !== '🎟️ Invite friends') pill.textContent = '🎟️ Invite friends';
+    if (pill.getAttribute('aria-label') !== 'Invite friends') pill.setAttribute('aria-label', 'Invite friends');
+    if (show) {
+        if (pill.hasAttribute('hidden')) pill.removeAttribute('hidden');
+    } else if (!pill.hasAttribute('hidden')) {
+        pill.setAttribute('hidden', '');
+    }
+}
+
+function _showSignedInOpen() {
+    _paintGuestPill(false);
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
+}
+
+function _collapseSignedIn() {
+    _inviteHeldOpen = false;
+    _inviteMarkAuto(_inviteUid());
+    _inviteWriteStored('min');
+    _paintGuestPill(false);
+    _applyInviteState('min');
+    _placeInvitePills();
+}
+
+function _obstacleBox(id) {
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') return null;
+    var box = el.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) return null;
+    return box;
+}
+
+function _inviteClampTop(top, pillH) {
+    var floor = window.innerHeight - 16 - pillH;
+    var ids = ['chatOverlayBtn', 'nacho-toggle', 'fabExpandBtn', 'bottomNav', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn', 'fabMinimizeBtn'];
+    var i;
+    for (i = 0; i < ids.length; i++) {
+        var ob = _obstacleBox(ids[i]);
+        if (!ob || ob.top < window.innerHeight * 0.45) continue;
+        var limit = ob.top - 12 - pillH;
+        if (limit < floor) floor = limit;
+    }
+    if (top > floor) return Math.max(8, Math.round(floor));
+    return top;
+}
+
+function _nudgeInvitePill(node) {
+    if (!node) return;
+    node.style.bottom = '';
+    var box = node.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) return;
+    var floor = window.innerHeight - 16;
+    var ids = ['notifOverlayBtn', 'guestPointsBanner', 'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn', 'fabMinimizeBtn', 'nacho-toggle', 'fabExpandBtn'];
+    var top = box.top;
+    var changed = false;
+    var i;
+    for (i = 0; i < ids.length; i++) {
+        var ob = _obstacleBox(ids[i]);
+        if (!ob) continue;
+        var hit = !(box.right < ob.left - 8 || box.left > ob.right + 8 || box.bottom < ob.top - 8 || box.top > ob.bottom + 8);
+        if (!hit) continue;
+        var below = Math.round(ob.bottom + 12);
+        if (below + box.height < floor - 80) {
+            if (below > top) { top = below; changed = true; }
+        } else {
+            var above = Math.round(ob.top - 12 - box.height);
+            if (above < top) { top = Math.max(8, above); changed = true; }
+        }
+        box = { left: box.left, right: box.right, width: box.width, height: box.height, top: top, bottom: top + box.height };
+    }
+    if (changed) {
+        node.style.top = _inviteClampTop(Math.max(8, Math.round(top)), box.height) + 'px';
+        node.style.bottom = 'auto';
+    }
+}
+
+function _placeInvitePills() {
     placeInvitePill();
 }
 
 function placeInvitePill() {
     var card = document.getElementById('inviteCard');
     var today = document.getElementById('todayCard');
-    if (!card) return;
+    var guest = document.getElementById('inviteGuestPill');
+    if (!card) {
+        if (guest && !guest.hasAttribute('hidden')) {
+            guest.style.top = '';
+            guest.style.bottom = '';
+            _nudgeInvitePill(guest);
+        }
+        return;
+    }
     var state = card.getAttribute('data-state');
     var shown = card.getAttribute('data-show') === '1' && state !== 'off';
     if (!shown) {
         card.style.top = '';
         if (today) today.style.marginTop = '';
+        if (guest && !guest.hasAttribute('hidden')) {
+            guest.style.top = '';
+            guest.style.bottom = '';
+            _nudgeInvitePill(guest);
+        }
         return;
     }
     var anchorBottom = 0;
@@ -2882,43 +3041,73 @@ function placeInvitePill() {
         top = Math.round(bar.getBoundingClientRect().bottom + 8);
     }
     if (anchorBottom > 1) top = Math.max(top, Math.round(anchorBottom + 8));
-    card.style.top = top + 'px';
-    if (today && (state === 'min' || state === 'guest')) {
-        var pillH = card.getBoundingClientRect().height || 40;
-        today.style.marginTop = Math.round(pillH + 12) + 'px';
+    var pillH = card.getBoundingClientRect().height || 40;
+    if (state === 'min' || state === 'guest') {
+        top = _inviteClampTop(top, pillH);
+        card.style.top = top + 'px';
+        if (today) today.style.marginTop = Math.round(pillH + 12) + 'px';
+        _nudgeInvitePill(card);
     } else if (today) {
+        card.style.top = '';
         today.style.marginTop = '';
+    }
+    if (guest && !guest.hasAttribute('hidden')) {
+        guest.style.top = '';
+        guest.style.bottom = '';
+        _nudgeInvitePill(guest);
     }
 }
 window.placeInvitePill = placeInvitePill;
 
+function _scheduleInvitePlace() {
+    if (window._invitePlaceRaf) return;
+    window._invitePlaceRaf = requestAnimationFrame(function () {
+        window._invitePlaceRaf = 0;
+        placeInvitePill();
+    });
+}
+
 function refreshInviteCard() {
     var card = document.getElementById('inviteCard');
     if (!card) return;
-    if (!_inviteHomeVisible()) {
+    if (!_inviteHomeVisible() || typeof auth === 'undefined' || !auth) {
         card.setAttribute('data-show', '0');
-        return;
-    }
-    if (typeof auth === 'undefined' || !auth) {
-        card.setAttribute('data-show', '0');
+        _paintGuestPill(false);
         return;
     }
     if (_inviteSignedIn()) {
-        var state = _inviteReadStored(_inviteUid());
-        _applyInviteState(state);
-        if (state === 'open') {
-            _fillInviteCard();
-            _loadInviteCounts();
+        var uid = _inviteUid();
+        if (_inviteStoredOpen(uid)) {
+            _inviteMarkAuto(uid);
+            _inviteWriteStored('min');
         }
+        if (_inviteHeldOpen && !_inviteAutoBlocked()) {
+            _claimInvitePopup();
+            _showSignedInOpen();
+            return;
+        }
+        if (_inviteAutoDue(uid) && !_inviteAutoBlocked() && _claimInvitePopup()) {
+            _inviteMarkAuto(uid);
+            _inviteHeldOpen = true;
+            _showSignedInOpen();
+            return;
+        }
+        _paintGuestPill(false);
+        _applyInviteState('min');
+        _placeInvitePills();
         return;
     }
+    var homeGuest = _inviteHomeVisible();
     var dismissed = false;
     try { dismissed = sessionStorage.getItem('btc_invite_guest_dismissed') === '1'; } catch (e) {}
-    if (dismissed || _guestBannerVisible() || _invitePopupTaken() || !_claimInvitePopup()) {
-        _applyInviteState('off');
+    if (!dismissed && !_guestBannerVisible() && !_inviteAutoBlocked() && _claimInvitePopup()) {
+        _paintGuestPill(false);
+        _applyInviteState('guest');
         return;
     }
-    _applyInviteState('guest');
+    _paintGuestPill(homeGuest);
+    _applyInviteState('off');
+    _placeInvitePills();
 }
 
 function openInviteFriends(force) {
@@ -2926,39 +3115,45 @@ function openInviteFriends(force) {
         if (!force && (_invitePopupTaken() || !_claimInvitePopup())) return;
         try { sessionStorage.removeItem('btc_invite_guest_dismissed'); } catch (e) {}
         if (typeof goHome === 'function') goHome();
+        _paintGuestPill(false);
         _applyInviteState('guest');
         return;
     }
-    if (force) _inviteWriteStored('open');
     var modal = document.getElementById('usernameModal');
     if (modal) modal.classList.remove('open');
     if (typeof goHome === 'function') goHome();
-    _applyInviteState('open');
-    _fillInviteCard();
-    _loadInviteCounts();
+    expandInviteCard();
 }
 
 function minimizeInviteCard() {
     if (!_inviteSignedIn()) return;
-    _inviteWriteStored('min');
-    _applyInviteState('min');
+    _collapseSignedIn();
 }
 
 function expandInviteCard() {
     if (!_inviteSignedIn()) return;
-    _inviteWriteStored('open');
-    _applyInviteState('open');
-    _fillInviteCard();
-    _loadInviteCounts();
+    _inviteWriteStored('min');
+    _inviteMarkAuto(_inviteUid());
+    _inviteHeldOpen = true;
+    if (_inviteAutoBlocked()) {
+        _paintGuestPill(false);
+        _applyInviteState('min');
+        _placeInvitePills();
+        return;
+    }
+    _claimInvitePopup();
+    _showSignedInOpen();
 }
 
 function dismissInviteCard() {
     if (!_inviteSignedIn()) {
         try { sessionStorage.setItem('btc_invite_guest_dismissed', '1'); } catch (e) {}
         _applyInviteState('off');
+        _paintGuestPill(_inviteHomeVisible() && typeof auth !== 'undefined' && !!auth);
+        _placeInvitePills();
         return;
     }
-    minimizeInviteCard();
+    _collapseSignedIn();
 }
 
 function toggleInviteHow() {
@@ -3053,13 +3248,24 @@ if (typeof window !== 'undefined') {
             if (bindInviteAuth() || inviteTries > 60) clearInterval(inviteWatch);
         }, 1000);
     }
-    refreshInviteCard();
-    if (!window._invitePillWatch) {
-        window._invitePillWatch = true;
-        window.addEventListener('resize', function() { placeInvitePill(); });
+    if (!window._invitePlaceBound) {
+        window._invitePlaceBound = true;
+        window.addEventListener('resize', _scheduleInvitePlace);
         var inviteMain = document.getElementById('main');
-        if (inviteMain) inviteMain.addEventListener('scroll', function() { placeInvitePill(); }, { passive: true });
+        if (inviteMain) inviteMain.addEventListener('scroll', _scheduleInvitePlace, { passive: true });
     }
+    if (!window._invitePopupWatch && typeof MutationObserver === 'function') {
+        window._invitePopupWatch = true;
+        new MutationObserver(function() {
+            if (window._inviteRefreshQueued) return;
+            window._inviteRefreshQueued = true;
+            setTimeout(function() {
+                window._inviteRefreshQueued = false;
+                refreshInviteCard();
+            }, 50);
+        }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open', 'data-open', 'aria-modal'] });
+    }
+    refreshInviteCard();
 }
 // Phase 10: Loyalty & Learning Boosts 🎓
 
@@ -17247,7 +17453,7 @@ document.addEventListener('btcProfileSaved', function() {
     var _topicsScrollLock = null;
     var _topicsBrowserCache = null;
     var _topicSearchPromise = null;
-    var TOPIC_SEARCH_VERSION = '20261026_v2398';
+    var TOPIC_SEARCH_VERSION = '20261026_v2406';
     var _topicsInerted = [];
     var _topicsPushed = false;
     var _topicsSwallowPop = false;

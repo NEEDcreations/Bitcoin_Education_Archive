@@ -101,7 +101,7 @@
     var _topicsScrollLock = null;
     var _topicsBrowserCache = null;
     var _topicSearchPromise = null;
-    var TOPIC_SEARCH_VERSION = '20261026_v2398';
+    var TOPIC_SEARCH_VERSION = '20261026_v2406';
     var _topicsInerted = [];
     var _topicsPushed = false;
     var _topicsSwallowPop = false;

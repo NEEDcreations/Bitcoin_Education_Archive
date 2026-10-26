@@ -163,7 +163,7 @@ const EXTRA = {
 };
 
 const QUERIES = {
-    'buy': ['swag-merch', 'first-purchase', 'marketplace', 'referral-links', 'use-cases', 'investment-strategy', 'privacy-nonkyc', '100_sats', 'apps-tools', 'faq-glossary'],
+    'buy': ['first-purchase', 'swag-merch', 'marketplace', 'referral-links', 'use-cases', 'investment-strategy', 'privacy-nonkyc', '100_sats', 'apps-tools', 'faq-glossary'],
     'buy bitcoin': ['first-purchase', 'referral-links', 'privacy-nonkyc', 'investment-strategy', 'apps-tools'],
     'how to buy': ['first-purchase', 'referral-links', 'faq-glossary', 'one-stop-shop'],
     'how to buy bitcoin': ['first-purchase', 'referral-links', 'faq-glossary'],
