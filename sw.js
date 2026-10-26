@@ -67,8 +67,7 @@ firebase.messaging().onBackgroundMessage(function (payload) {
 } catch (e) { /* FCM scripts are optional; cache and click handling still run */ }
 
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v2395';
-const IMG_CACHE = 'btc-images-v2';
+const CACHE_NAME = 'btc-archive-v2395';const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
 // [AUDIT FIX B10] Pre-cache critical files including key JS modules

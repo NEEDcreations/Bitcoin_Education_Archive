@@ -63,7 +63,7 @@ test('legit beats upload still pays xp and zero tickets', function () {
     const mem = fresh();
     const spoof = grant(mem, { action: '🎫 Beat uploaded', pts: 50, tickets: 10 });
     assert.strictEqual(spoof.awarded, 0);
-    const real = grant(mem, { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50, trackId: 'track1' }, null, { docOwner: 'u' });
+    const real = grant(mem, { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50, trackId: 'track1' }, null, { docOwner: 'u', createdAt: Date.now() });
     assert.strictEqual(real.awarded, 50);
     assert.strictEqual(real.tickets, 0);
     assert.strictEqual(mem.users.u.orangeTickets, 0);
@@ -137,7 +137,7 @@ test('quiz and chat share the one daily counter', function () {
     const quiz = grant(mem, { action: '🎮 Quiz correct!', pts: 10, quizQuestion: firstQ.q, quizChoice: firstQ.a });
     assert.strictEqual(quiz.awarded, 2);
     assert.strictEqual(mem.daily.u.total, 992);
-    const chat = grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'msg1' }, null, { docOwner: 'u' });
+    const chat = grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'msg1' }, null, { docOwner: 'u', createdAt: Date.now() });
     assert.strictEqual(chat.awarded, 1);
     assert.strictEqual(mem.daily.u.total, 993);
     const more = grant(mem, { action: '🎮 Quiz correct!', pts: 10, quizQuestion: secondQ.q, quizChoice: secondQ.a });

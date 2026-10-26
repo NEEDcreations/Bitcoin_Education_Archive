@@ -126,13 +126,15 @@ service cloud.firestore {
         'sfWindowStreak',
         'explorationMilestone_25', 'explorationMilestone_50',
         'explorationMilestone_75', 'explorationMilestone_100',
-        'pendingLeaderboardReward'
+        'pendingLeaderboardReward',
+        'experienceMode', 'pvpAlertsMuted', 'pvpPushEnabled', 'pvpPushShard'
       ];
     }
 
     function userProfileServerOnlyKeys() {
       return [
         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
         'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
         'marketListings', 'marketMessages', 'marketSold',
         'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
@@ -229,6 +231,7 @@ service cloud.firestore {
           || changed.hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+                        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
                         'orangeTickets', 'tickets',
                         // Timechain TV daily watch (tctvWatchHeartbeat only)
@@ -368,7 +371,22 @@ service cloud.firestore {
             || request.resource.data.beatsShowUncensored == false)
           && (!changed.hasAny(['lightning', 'lightningAddress', 'lnAddress']) || (true && lightningLockOk()))
           && (!changed.hasAny(['notificationPrefs']) || notificationPrefsOk())
-          && (!changed.hasAny(['notifPrompt']) || notifPromptOk());
+          && (!changed.hasAny(['notifPrompt']) || notifPromptOk())
+          && (!changed.hasAny(['experienceMode'])
+            || request.resource.data.experienceMode == 'beginner'
+            || request.resource.data.experienceMode == 'intermediate'
+            || request.resource.data.experienceMode == 'advanced')
+          && (!changed.hasAny(['pvpAlertsMuted'])
+            || request.resource.data.pvpAlertsMuted == true
+            || request.resource.data.pvpAlertsMuted == false)
+          && (!changed.hasAny(['pvpPushEnabled'])
+            || request.resource.data.pvpPushEnabled == true
+            || request.resource.data.pvpPushEnabled == false)
+          && (!changed.hasAny(['pvpPushShard'])
+            || !('pvpPushShard' in request.resource.data)
+            || (request.resource.data.pvpPushShard is int
+                && request.resource.data.pvpPushShard >= 0
+                && request.resource.data.pvpPushShard <= 9));
       }
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
@@ -797,6 +815,17 @@ service cloud.firestore {
         || ('topicPost' in resource.data)
         || ('topicLink' in resource.data);
     }
+    // Author identity and the creation time stay put. A client cannot hand a
+    // paid document to another account or refresh it back inside the 24h window.
+    function evidenceAuthorFrozen() {
+      return request.resource.data.get('authorId', null) == resource.data.get('authorId', null)
+        && request.resource.data.get('authorUid', null) == resource.data.get('authorUid', null)
+        && request.resource.data.get('author', null) == resource.data.get('author', null)
+        && request.resource.data.get('authorName', null) == resource.data.get('authorName', null)
+        && request.resource.data.get('uid', null) == resource.data.get('uid', null)
+        && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
+        && request.resource.data.get('ts', null) == resource.data.get('ts', null);
+    }
     function forumAuthorMayUpdate(maxBody) {
       return resource.data.authorId == request.auth.uid
         && (
@@ -824,6 +853,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       isAdmin()
                       || (
@@ -866,6 +896,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       isAdmin()
                       || (
@@ -1316,6 +1347,7 @@ service cloud.firestore {
                         || (request.resource.data.releaseDate is string
                             && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       // Author can update their own track (with coverUrl + XSS validation)
                       (resource.data.authorId == request.auth.uid
@@ -1417,6 +1449,7 @@ service cloud.firestore {
                     && request.resource.data.body is string
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       // Author can edit their own article
                       resource.data.authorId == request.auth.uid
@@ -1466,6 +1499,7 @@ service cloud.firestore {
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 2000;
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                             && (!(request.auth.uid in resource.data.get('voters', [])))
@@ -1775,6 +1809,11 @@ service cloud.firestore {
     // Faucet lifetime ledger — server-only, immune to client account deletion.
     // Tracks satsWithdrawn + lastSatsClaim keyed by UID. Even if the user deletes
     // their /users/{uid} doc, this ledger persists (Fix C-NEW-6).
+    // One award per source document, across every account. Admin SDK only.
+    match /award_doc_claims/{claimId} {
+      allow read, write: if false;
+    }
+
     match /faucet_ledger/{docId} {
       allow read, write: if false; // Cloud Function admin SDK only
     }
@@ -1996,31 +2035,10 @@ service cloud.firestore {
                     && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
     }
 
-    // Trivia cumulative stats (all-time per question) — read public, increment only
+    // Trivia cumulative stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_cumulative/{triviaId} {
       allow read: if true;
-      // [SECURITY FIX] create: schema locked + values bounded (was completely unconstrained)
-      allow create: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total == 1
-                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
-                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
-                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
-                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total >= resource.data.get('total', 0)
-                    && request.resource.data.total <= resource.data.get('total', 0) + 1
-                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // ===== RAID BOSS =====
@@ -2179,26 +2197,10 @@ service cloud.firestore {
       }
     }
 
-    // Trivia answer stats — public read, authenticated users can merge-increment
+    // Trivia answer stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_stats/{date} {
       allow read: if true;
-      allow create: if request.auth != null
-                   && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total == 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                   && request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total >= resource.data.get('total', 0)
-                   && request.resource.data.total <= resource.data.get('total', 0) + 1
-                   && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                   && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                   && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                   && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                   && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                   && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                   && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                   && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // Charity donations — public read (for leaderboard/feed), CF-only write

@@ -20,6 +20,9 @@ function fresh() {
 function grant(mem, data, proof, day) {
     return awardActions.applyAward(mem, 'u', data, { day: day || '2026-10-22', proof: proof, doubleXpActive: !!(proof && proof.doubleXpActive) });
 }
+function owned(extra) {
+    return Object.assign({ docOwner: 'u', createdAt: Date.now() }, extra || {});
+}
 const quiz = banks.quests._general[0];
 
 test('a quiz pays only when the server grades it, once per question', function () {
@@ -75,16 +78,56 @@ test('chat, forum, and beats uploads need an owned document', function () {
     const mem = fresh();
     assert.strictEqual(grant(mem, { action: '💬 Global Chat', pts: 5 }).awarded, 0);
     assert.strictEqual(grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'm1' }, { docOwner: 'other' }).awarded, 0);
-    assert.strictEqual(grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'm1' }, { docOwner: 'u' }).awarded, 5);
-    assert.strictEqual(grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'm1' }, { docOwner: 'u' }).awarded, 0);
-    assert.strictEqual(grant(mem, { action: '📝 Forum post', pts: 10, postId: 'p1' }, { docOwner: 'u' }).awarded, 10);
+    assert.strictEqual(grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'm1' }, owned()).awarded, 5);
+    assert.strictEqual(grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'm1' }, owned()).awarded, 0);
+    assert.strictEqual(grant(mem, { action: '📝 Forum post', pts: 10, postId: 'p1' }, owned()).awarded, 10);
     assert.strictEqual(grant(mem, { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50 }).awarded, 0);
-    const batch = grant(mem, { action: 'Uploaded 3 tracks to Bitcoin Beats!', pts: 75, trackIds: 'a,b,c' }, { docOwner: 'u' });
+    const batch = grant(mem, { action: 'Uploaded 3 tracks to Bitcoin Beats!', pts: 75, trackIds: 'a,b,c' }, owned());
     assert.strictEqual(batch.awarded, 50);
-    const reused = grant(fresh(), { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50, trackId: 'a' }, { docOwner: 'u' });
+    const reused = grant(fresh(), { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50, trackId: 'a' }, owned());
     assert.strictEqual(reused.awarded, 50);
-    const again = grant(mem, { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50, trackId: 'a' }, { docOwner: 'u' });
+    const again = grant(mem, { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50, trackId: 'a' }, owned());
     assert.strictEqual(again.awarded, 0);
+});
+
+test('a document pays once across accounts, and deleting it does not clear the claim', function () {
+    const mem = fresh();
+    const first = awardActions.applyAward(mem, 'u', { action: '📝 Forum post', pts: 10, postId: 'p9' }, {
+        day: '2026-10-26',
+        proof: owned(),
+    });
+    assert.strictEqual(first.awarded, 10);
+    assert.strictEqual(mem.globalClaims['forum_posts__p9'], true);
+    const stolen = awardActions.applyAward(mem, 'b', { action: '📝 Forum post', pts: 10, postId: 'p9' }, {
+        day: '2026-10-26',
+        proof: { docOwner: 'b', createdAt: Date.now() },
+    });
+    assert.strictEqual(stolen.awarded, 0);
+    const stale = grant(fresh(), { action: '💬 Global Chat', pts: 5, messageId: 'old' }, {
+        docOwner: 'u',
+        createdAt: Date.now() - (25 * 60 * 60 * 1000),
+    });
+    assert.strictEqual(stale.awarded, 0);
+    const ahead = grant(fresh(), { action: '💬 Global Chat', pts: 5, messageId: 'future' }, {
+        docOwner: 'u',
+        createdAt: Date.now() + (5 * 60 * 1000),
+    });
+    assert.strictEqual(ahead.awarded, 0);
+});
+
+test('quiz questions with more than one right answer accept each of them once', function () {
+    const mem = fresh();
+    const nodeA = 'Software that routes payments on the Lightning Network using payment channels';
+    const nodeB = 'Software that opens channels, routes payments, and earns fees for providing liquidity';
+    const joinA = "A privacy technique combining multiple users' transactions to break heuristics";
+    const joinB = 'A privacy technique where multiple users combine transactions to obscure the sender/receiver trail';
+    assert.strictEqual(grant(mem, { action: '🎮 Quiz correct!', pts: 5, quizQuestion: 'What is a Lightning node?', quizChoice: nodeA }).awarded, 5);
+    assert.strictEqual(grant(mem, { action: '🎮 Quiz correct!', pts: 5, quizQuestion: 'What is a Lightning node?', quizChoice: nodeB }).awarded, 0);
+    const other = fresh();
+    assert.strictEqual(grant(other, { action: '🎮 Quiz correct!', pts: 5, quizQuestion: 'What is a Lightning node?', quizChoice: nodeB }).awarded, 5);
+    assert.strictEqual(grant(other, { action: '🎮 Quiz correct!', pts: 5, quizQuestion: 'What is CoinJoin?', quizChoice: joinA }).awarded, 5);
+    assert.strictEqual(grant(fresh(), { action: '🎮 Quiz correct!', pts: 5, quizQuestion: 'What is CoinJoin?', quizChoice: joinB }).awarded, 5);
+    assert.strictEqual(grant(fresh(), { action: '🎮 Quiz correct!', pts: 5, quizQuestion: 'What is CoinJoin?', quizChoice: 'A mining pool' }).awarded, 0);
 });
 
 test('chat streak bonuses use the server streak', function () {
@@ -130,8 +173,17 @@ test('unverified actions share a 100 XP pool and stay out of claimable sats', fu
     assert.strictEqual(flex.awarded, 0);
     assert.strictEqual(mem.users.u.points, 100);
     assert.strictEqual(mem.users.u.unclaimableXp, 100);
-    assert.strictEqual(mem.daily.u.total || 0, 0);
+    assert.strictEqual(mem.daily.u.total, 100);
+    assert.strictEqual(mem.daily.u.unverified, 100);
+    assert.strictEqual(mem.users.u.weeklyXP, 100);
+    assert.strictEqual(mem.users.u.monthlyXP, 100);
     assert.strictEqual(awardEvidence.claimablePoints(mem.users.u), 0);
+    const nearCap = fresh();
+    nearCap.daily.u = { total: 990, unverified: 0 };
+    const tapered = grant(nearCap, { action: 'Listened to a full track on Bitcoin Beats 🎵', pts: 10 });
+    assert.strictEqual(tapered.awarded, 2);
+    assert.strictEqual(nearCap.daily.u.total, 992);
+    assert.strictEqual(nearCap.users.u.unclaimableXp, 2);
     const claimable = fresh();
     grant(claimable, { action: '📖 Completed Chapter 2', pts: 15 });
     assert.strictEqual(awardEvidence.claimablePoints(claimable.users.u), 15);
@@ -146,7 +198,9 @@ test('a normal flex day still pays its catalog amounts inside the unverified poo
     const day = grant(mem, { action: 'flex day', pts: 50, actionKey: 'flex_day_complete' });
     assert.strictEqual(day.awarded, 50);
     assert.strictEqual(mem.users.u.unclaimableXp, 75);
-    assert.strictEqual(mem.daily.u.total || 0, 0);
+    assert.strictEqual(mem.daily.u.total, 75);
+    assert.strictEqual(mem.users.u.weeklyXP, 75);
+    assert.strictEqual(awardEvidence.claimablePoints(mem.users.u), 0);
 });
 
 test('visit, prediction, and welcome still pay their old amounts when the server record exists', function () {

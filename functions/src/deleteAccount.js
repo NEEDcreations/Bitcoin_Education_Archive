@@ -1079,7 +1079,9 @@ function satsBalanceOf(user) {
     const claimed = Number(src.pointsClaimed) || 0;
     const donated = Number(src.pointsDonated) || 0;
     const exchanged = Number(src.pointsExchanged) || 0;
-    return Math.floor((points - claimed - donated - exchanged) / 10);
+    let unclaimable = Number(src.unclaimableXp) || 0;
+    if (unclaimable < 0) unclaimable = 0;
+    return Math.floor(Math.max(0, points - claimed - donated - exchanged - unclaimable) / 10);
 }
 
 function forfeitRequired(user, withdrawals) {

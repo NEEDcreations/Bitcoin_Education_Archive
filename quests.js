@@ -3446,6 +3446,7 @@ function _questScreenTitle(tab) {
 }
 
 function _closeQuestScreen() {
+    if (typeof _detachCommunityResultListeners === 'function') _detachCommunityResultListeners();
     if (typeof window._cleanupRaidBoss === 'function') window._cleanupRaidBoss();
     if (typeof window._cleanupCharityListeners === 'function') window._cleanupCharityListeners();
     if (typeof _cleanupLastWindowListener === 'function') _cleanupLastWindowListener();
@@ -3503,6 +3504,7 @@ function _ensureQuestScreen() {
         var ov = document.getElementById('questHubOverlay');
         if (!ov) return;
         if (typeof window._cleanupRaidBoss === 'function') window._cleanupRaidBoss();
+        if (typeof _detachCommunityResultListeners === 'function') _detachCommunityResultListeners();
         ov.remove();
         window._qhPopHandler = null;
     }
@@ -3639,6 +3641,8 @@ function _renderQuestHubTab() {
     if (tab !== 'raid') window._cleanupRaidBoss();
     if (tab !== 'charity') window._cleanupCharityListeners && window._cleanupCharityListeners();
     if (tab !== 'favor') _cleanupLastWindowListener && _cleanupLastWindowListener();
+    if (tab !== 'trivia' && typeof _detachTriviaStatsListener === 'function') _detachTriviaStatsListener();
+    if (tab !== 'poll' && typeof _detachPollStatsListener === 'function') _detachPollStatsListener();
 
     if (tab === 'quiz') _renderQuizTab(body);
     else if (tab === 'trivia') _renderTriviaTab(body);
@@ -3808,7 +3812,7 @@ function _renderNookShop() {
     if (!el) return;
     var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
     var tickets = u.orangeTickets || 0;
-    var pts = u.points || 0;
+    var pts = Math.max(0, _spendableXp(u));
     var ownedCosmetics = u.ownedCosmetics || [];
 
     function buyBtn(itemId, cost, qty, label, extraStyle) {
@@ -4441,6 +4445,13 @@ function _renderCharityTab(body) {
     }, function() { _recentReady = true; _maybeRender(); });
 }
 
+function _spendableXp(user) {
+    var u = user || {};
+    var unclaimable = Number(u.unclaimableXp) || 0;
+    if (unclaimable < 0) unclaimable = 0;
+    return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
+}
+
 function _renderCharityTabInner(body) {
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
@@ -4449,7 +4460,8 @@ function _renderCharityTabInner(body) {
     var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
     var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
     var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
-    var available = Math.max(0, pts - claimed - donated - exchanged);
+    var unclaimable = typeof currentUser !== 'undefined' && currentUser ? Math.max(0, Number(currentUser.unclaimableXp) || 0) : 0;
+    var available = Math.max(0, pts - claimed - donated - exchanged - unclaimable);
 
     var stats = _charityStats || { totalDonated: 0, factionTotals: {} };
     var totalDonated = stats.totalDonated || 0;
@@ -4599,11 +4611,8 @@ function _renderCharityTabInner(body) {
     function _patchCharityDonateSection() {
         var donateSection = document.getElementById('charityDonateSection');
         if (!donateSection) return;
-        var pts = typeof currentUser !== 'undefined' && currentUser ? (currentUser.points || 0) : 0;
-        var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
+        var available = Math.max(0, _spendableXp(typeof currentUser !== 'undefined' ? currentUser : null));
         var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
-        var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
-        var available = Math.max(0, pts - claimed - donated - exchanged);
         // Available XP line
         var avEl = donateSection.querySelector('[data-charity-avail]');
         if (avEl) avEl.textContent = available.toLocaleString() + ' XP';
@@ -4635,7 +4644,7 @@ function _renderCharityTabInner(body) {
         var inp = document.getElementById('charityAmtInput');
         var amt = parseInt(inp ? inp.value : '') || 0;
         if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
-        var avail = Math.max(0, (typeof currentUser !== 'undefined' && currentUser ? (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0) : 0));
+        var avail = Math.max(0, _spendableXp(typeof currentUser !== 'undefined' ? currentUser : null));
         if (amt > avail) { if (typeof showToast === 'function') showToast('Not enough available XP. You have ' + avail.toLocaleString() + ' pts available.'); return; }
         var anon = document.getElementById('charityAnonToggle') ? document.getElementById('charityAnonToggle').checked : false;
         var btn = document.querySelector('[onclick="window._submitCharityDonation()"]');
@@ -4859,7 +4868,180 @@ function _setTriviaState(state) {
     try { localStorage.setItem('btc_trivia_state', JSON.stringify(state)); } catch(e) {}
 }
 
+function _numStat(value) {
+    var n = Number(value);
+    if (!isFinite(n) || n <= 0) return 0;
+    return Math.floor(n);
+}
+
+function _detachTriviaStatsListener() {
+    window._triviaStatsGen = (window._triviaStatsGen || 0) + 1;
+    if (typeof window._triviaStatsUnsub === 'function') {
+        var unsub = window._triviaStatsUnsub;
+        window._triviaStatsUnsub = null;
+        try { unsub(); } catch (e) {}
+    }
+}
+
+function _detachPollStatsListener() {
+    window._pollStatsGen = (window._pollStatsGen || 0) + 1;
+    if (typeof window._pollStatsUnsub === 'function') {
+        var unsub = window._pollStatsUnsub;
+        window._pollStatsUnsub = null;
+        try { unsub(); } catch (e) {}
+    }
+}
+
+function _detachCommunityResultListeners() {
+    _detachTriviaStatsListener();
+    _detachPollStatsListener();
+}
+
+function _triviaCountsFromDoc(data) {
+    var counts = {};
+    for (var i = 0; i < 4; i++) counts['option_' + i] = _numStat(data && data['option_' + i]);
+    return { total: _numStat(data && data.total), counts: counts };
+}
+
+function _triviaStatKeys(trivia) {
+    var keys = [];
+    var n = trivia && trivia.options ? trivia.options.length : 0;
+    for (var i = 0; i < n; i++) keys.push('option_' + _triviaStatIndex(trivia, i));
+    return keys;
+}
+
+// Pre-answer snapshot plus the in-flight vote until the live doc includes it.
+// After that, the server numbers are used exactly.
+function _mergeLiveCounts(serverCounts, serverTotal, preCounts, preTotal, chosenKey, keys) {
+    var haveServer = !!serverCounts;
+    var havePre = !!preCounts;
+    if (!haveServer && !havePre) return null;
+    var sTotal = haveServer ? _numStat(serverTotal) : 0;
+    var pTotal = havePre ? _numStat(preTotal) : 0;
+    var chosenServer = haveServer && chosenKey != null ? _numStat(serverCounts[chosenKey]) : 0;
+    var chosenPre = havePre && chosenKey != null ? _numStat(preCounts[chosenKey]) : 0;
+    var reflected = !!(haveServer && havePre && chosenKey != null
+        && sTotal >= pTotal + 1
+        && chosenServer >= chosenPre + 1);
+    if (!havePre || reflected) {
+        var pure = {};
+        for (var i = 0; i < keys.length; i++) pure[keys[i]] = haveServer ? _numStat(serverCounts[keys[i]]) : 0;
+        return { total: sTotal, counts: pure, reflected: true };
+    }
+    var counts = {};
+    var sum = 0;
+    for (var j = 0; j < keys.length; j++) {
+        var key = keys[j];
+        var serverVal = haveServer ? _numStat(serverCounts[key]) : _numStat(preCounts[key]);
+        var preVal = _numStat(preCounts[key]);
+        var shown = Math.max(serverVal, preVal + (key === chosenKey ? 1 : 0));
+        counts[key] = shown;
+        sum += shown;
+    }
+    return { total: Math.max(sTotal, pTotal + 1, sum), counts: counts, reflected: false };
+}
+
+function _applyTriviaCommunity(trivia, display) {
+    var totalEl = document.getElementById('triviaTotalVotes');
+    if (!display || !display.total) {
+        if (totalEl) totalEl.textContent = 'Loading community results...';
+        return;
+    }
+    var total = display.total;
+    for (var oi = 0; oi < trivia.options.length; oi++) {
+        var statKey = 'option_' + _triviaStatIndex(trivia, oi);
+        var count = display.counts[statKey] || 0;
+        var pct = Math.round((count / total) * 100);
+        var barEl = document.getElementById('triviaBar_' + oi);
+        var pctEl = document.getElementById('triviaPct_' + oi);
+        if (barEl) barEl.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
+    }
+    if (totalEl) totalEl.textContent = total.toLocaleString() + ' answer' + (total === 1 ? '' : 's') + ' today';
+}
+
+function _paintTriviaCommunity(trivia, todayKey) {
+    var keys = _triviaStatKeys(trivia);
+    var base = window._triviaBaseline;
+    var pending = !!(window._triviaAwaitingWrite && base && base.key === todayKey && base.known && base.counts);
+    var serverDoc = window._triviaLiveKey === todayKey ? window._triviaLiveDoc : null;
+    var server = serverDoc ? _triviaCountsFromDoc(serverDoc) : null;
+    var chosenKey = pending ? ('option_' + base.bankIdx) : null;
+    var merged = _mergeLiveCounts(
+        server ? server.counts : null,
+        server ? server.total : 0,
+        pending ? base.counts : null,
+        pending ? base.total : 0,
+        chosenKey,
+        keys
+    );
+    if (pending && merged && merged.reflected) window._triviaAwaitingWrite = false;
+    _applyTriviaCommunity(trivia, merged && merged.total > 0 ? merged : null);
+}
+
+function _markCommunityResultsUnavailable(totalId) {
+    var el = document.getElementById(totalId);
+    if (!el) return;
+    var text = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text || text === 'Loading community results...') {
+        el.textContent = 'Community results are unavailable right now.';
+    }
+}
+
+function _listenTriviaStats(todayKey, onSnap) {
+    _detachTriviaStatsListener();
+    var gen = window._triviaStatsGen;
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') return;
+    try {
+        window._triviaStatsUnsub = db.collection('trivia_stats').doc(todayKey).onSnapshot(function(doc) {
+            if (gen !== window._triviaStatsGen) return;
+            window._triviaLiveKey = todayKey;
+            window._triviaLiveDoc = (doc && doc.exists) ? (doc.data() || {}) : {};
+            if (onSnap) onSnap(window._triviaLiveDoc);
+        }, function() {
+            if (gen !== window._triviaStatsGen) return;
+            _markCommunityResultsUnavailable('triviaTotalVotes');
+        });
+    } catch (e) {}
+}
+
+function _captureTriviaBaseline(todayKey, bankIdx, done) {
+    function store(data, known) {
+        if (known) {
+            var parsed = _triviaCountsFromDoc(data || {});
+            window._triviaLiveKey = todayKey;
+            window._triviaLiveDoc = data || {};
+            window._triviaBaseline = {
+                key: todayKey,
+                bankIdx: bankIdx,
+                known: true,
+                total: parsed.total,
+                counts: parsed.counts
+            };
+        } else {
+            window._triviaBaseline = { key: todayKey, bankIdx: bankIdx, known: false, total: 0, counts: null };
+        }
+        done();
+    }
+    if (window._triviaLiveKey === todayKey && window._triviaLiveDoc) {
+        store(window._triviaLiveDoc, true);
+        return;
+    }
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') {
+        store(null, false);
+        return;
+    }
+    try {
+        db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
+            store((doc && doc.exists) ? (doc.data() || {}) : {}, true);
+        }).catch(function() { store(null, false); });
+    } catch (e) {
+        store(null, false);
+    }
+}
+
 function _renderTriviaTab(body, optimisticVote) {
+    _detachTriviaStatsListener();
     var today = _getTriviaToday();
     if (!today || !today.trivia) {
         body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Trivia questions loading...</div>';
@@ -4914,34 +5096,9 @@ function _renderTriviaTab(body, optimisticVote) {
         html += '<div style="margin-top:14px;margin-bottom:6px;font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;text-align:center;">👥 Community Answers</div>';
     }
 
-    // Community stats section — baked directly into HTML (no DOM patching race condition).
-    // When optimisticVote is present we already know the count locally, so we skip the
-    // Firestore read and render immediately.  On subsequent opens (no optimisticVote) we
-    // fire an async read and patch only the per-option bars + the total line.
-    var _triviaOptimisticStats = null; // set below when we can render without a round-trip
-
-    if (answered && optimisticVote && typeof optimisticVote.chosenIdx === 'number') {
-        // User just answered — we don't need Firestore; synthesise stats from scratch.
-        // The Firestore write is in-flight; the only guaranteed fact is that THIS user
-        // chose chosenIdx.  Build a minimal stats object with just that one vote so the
-        // bars render correctly right away.  Once Firestore settles the onSnapshot /
-        // next tab-open will show the real community totals.
-        _triviaOptimisticStats = { total: 1 };
-        _triviaOptimisticStats['option_' + _triviaStatIndex(t, optimisticVote.chosenIdx)] = 1;
-    } else if (answered && typeof db !== 'undefined') {
-        // Normal re-open path: read real community stats from Firestore and patch DOM
-        // after body.innerHTML is set (deferred below).
-    }
-
-    // Show explanation if answered
+    // Show explanation if answered. Counts stay empty until the live tally is known.
     if (answered) {
-        // Bake the total count into the HTML directly so it is correct even before
-        // any Firestore read completes.  _triviaOptimisticStats is non-null only on
-        // the immediate post-answer render.
-        var _initialTotalText = _triviaOptimisticStats
-            ? (_triviaOptimisticStats.total.toLocaleString() + ' answer' + (_triviaOptimisticStats.total !== 1 ? 's' : '') + ' today')
-            : 'Loading community results...';
-        html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">' + _initialTotalText + '</div>';
+        html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">Loading community results...</div>';
         html += '<div style="margin-top:4px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
             '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
             '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.explanation) : t.explanation) + '</div>' +
@@ -4951,41 +5108,19 @@ function _renderTriviaTab(body, optimisticVote) {
 
     body.innerHTML = html;
 
-    // After DOM is set: apply stats to bars + total line.
-    if (answered) {
-        if (_triviaOptimisticStats) {
-            // Optimistic path — no Firestore needed; bake in the single known vote.
-            var _ots = _triviaOptimisticStats;
-            var _otTotal = _ots.total || 1;
-            for (var oi = 0; oi < t.options.length; oi++) {
-                var _oCount = _ots['option_' + _triviaStatIndex(t, oi)] || 0;
-                var _oPct = Math.round((_oCount / _otTotal) * 100);
-                var _oBar = document.getElementById('triviaBar_' + oi);
-                var _oPctEl = document.getElementById('triviaPct_' + oi);
-                if (_oBar) _oBar.style.width = _oPct + '%';
-                if (_oPctEl) _oPctEl.textContent = _oPct + '% (' + _oCount + ')';
-            }
-            // Total line already baked into HTML; nothing more to do.
-        } else if (typeof db !== 'undefined') {
-            // Normal re-open: fetch real community totals from Firestore and patch DOM.
-            var _capturedTodayKey = todayKey;
-            var _capturedOptions = t.options.length;
-            db.collection('trivia_stats').doc(_capturedTodayKey).get().then(function(doc) {
-                var stats = doc.exists ? doc.data() : {};
-                var total = stats.total || 0;
-                if (total < 1) return; // nothing to show yet
-                for (var j = 0; j < _capturedOptions; j++) {
-                    var count = stats['option_' + _triviaStatIndex(t, j)] || 0;
-                    var pct = Math.round((count / total) * 100);
-                    var barEl = document.getElementById('triviaBar_' + j);
-                    var pctEl = document.getElementById('triviaPct_' + j);
-                    if (barEl) barEl.style.width = pct + '%';
-                    if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
-                }
-                var totEl = document.getElementById('triviaTotalVotes');
-                if (totEl) totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
-            }).catch(function() {});
+    if (answered && optimisticVote && typeof optimisticVote.chosenIdx === 'number') {
+        var ownIdx = _triviaStatIndex(t, optimisticVote.chosenIdx);
+        if (!window._triviaBaseline || window._triviaBaseline.key !== todayKey) {
+            window._triviaBaseline = { key: todayKey, bankIdx: ownIdx, known: false, total: 0, counts: null };
         }
+        window._triviaAwaitingWrite = true;
+    }
+
+    if (answered) {
+        _paintTriviaCommunity(t, todayKey);
+        _listenTriviaStats(todayKey, function() { _paintTriviaCommunity(t, todayKey); });
+    } else {
+        _listenTriviaStats(todayKey, null);
     }
 }
 
@@ -5001,7 +5136,7 @@ window.triviaAnswer = function(chosenIdx) {
 
     var chosenText = t.options[chosenIdx];
 
-    function _finishTrivia(isCorrect, awarded, banned) {
+    function _finishTrivia(isCorrect, awarded, banned, statsRecorded) {
         state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: !!isCorrect };
         _setTriviaState(state);
         if (isCorrect && !banned && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
@@ -5015,17 +5150,9 @@ window.triviaAnswer = function(chosenIdx) {
             _markDailyActivity('trivia');
             _checkDailyAllThree();
         }
-        if (typeof db !== 'undefined') {
-            var _bankIdx = _triviaStatIndex(t, chosenIdx);
-            var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: today.index };
-            statsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
-            db.collection('trivia_cumulative').doc('t_' + today.index).set(statsUpdate, { merge: true }).catch(function() {});
-            var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
-            dayStatsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
-            db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true }).catch(function() {});
-        }
+        window._triviaAwaitingWrite = statsRecorded === true;
         var body = document.getElementById('questHubBody');
-        if (body) _renderTriviaTab(body, { chosenIdx: chosenIdx });
+        if (body) _renderTriviaTab(body, statsRecorded === true ? { chosenIdx: chosenIdx } : null);
         if (typeof showToast === 'function') {
             var toast = isCorrect
                 ? (awarded > 0 ? '✅ Correct! +' + awarded + ' XP 🧠' : '✅ Correct!')
@@ -5035,35 +5162,39 @@ window.triviaAnswer = function(chosenIdx) {
         window._triviaSubmitting = false;
     }
 
-    var signedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
-        && typeof firebase !== 'undefined' && firebase.functions;
-    if (!signedIn) {
-        _finishTrivia(chosenIdx === t.answer, 0, false);
-        return;
-    }
-
-    firebase.functions().httpsCallable('answerTrivia')({
-        dayKey: todayKey,
-        questionIndex: today.index,
-        q: t.q,
-        chosen: chosenText
-    }).then(function(res) {
-        var d = (res && res.data) || {};
-        if (d.success === false && d.reason && d.reason !== 'incorrect') {
-            window._triviaSubmitting = false;
-            if (typeof showToast === 'function') {
-                showToast(d.reason === 'wrong-question'
-                    ? 'Trivia updated, please refresh'
-                    : '❌ Could not grade trivia. Try again.');
-            }
+    function _submitTrivia() {
+        var signedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
+            && typeof firebase !== 'undefined' && firebase.functions;
+        if (!signedIn) {
+            _finishTrivia(chosenIdx === t.answer, 0, false, false);
             return;
         }
-        var awarded = typeof d.awarded === 'number' ? d.awarded : 0;
-        _finishTrivia(d.correct === true, awarded, d.banned === true);
-    }).catch(function() {
-        window._triviaSubmitting = false;
-        if (typeof showToast === 'function') showToast('❌ Could not grade trivia. Try again.');
-    });
+
+        firebase.functions().httpsCallable('answerTrivia')({
+            dayKey: todayKey,
+            questionIndex: today.index,
+            q: t.q,
+            chosen: chosenText
+        }).then(function(res) {
+            var d = (res && res.data) || {};
+            if (d.success === false && d.reason && d.reason !== 'incorrect') {
+                window._triviaSubmitting = false;
+                if (typeof showToast === 'function') {
+                    showToast(d.reason === 'wrong-question'
+                        ? 'Trivia updated, please refresh'
+                        : '❌ Could not grade trivia. Try again.');
+                }
+                return;
+            }
+            var awarded = typeof d.awarded === 'number' ? d.awarded : 0;
+            _finishTrivia(d.correct === true, awarded, d.banned === true, d.statsRecorded === true);
+        }).catch(function() {
+            window._triviaSubmitting = false;
+            if (typeof showToast === 'function') showToast('❌ Could not grade trivia. Try again.');
+        });
+    }
+
+    _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), _submitTrivia);
 };
 
 // ============================================================
@@ -5090,6 +5221,7 @@ function _setPollState(state) {
 }
 
 function _renderPollTab(body) {
+    _detachPollStatsListener();
     var today = _getPollToday();
     if (!today || !today.poll) {
         body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">⏳ Loading poll...</div>';
@@ -5178,28 +5310,144 @@ function _showPollVoteButtons(body, html, p) {
     body.innerHTML = html;
     clearTimeout(window._pollVoteReadyTimer);
     window._pollVoteReadyTimer = setTimeout(function() { window._pollVoteReady = true; }, 400);
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+    if ((window._questHubTab || 'quiz') === 'poll') _listenPollStats(_pollDocId(p, todayKey), null);
+}
+
+function _pollDocId(poll, todayKey) {
+    return (poll && poll.id ? poll.id + '_' + todayKey : 'poll_day_' + todayKey);
+}
+
+function _pollVectors(data, optionCount) {
+    var votes = [];
+    var raw = data && Array.isArray(data.votes) ? data.votes : null;
+    var summed = 0;
+    for (var i = 0; i < optionCount; i++) {
+        var n = raw ? _numStat(raw[i]) : 0;
+        votes.push(n);
+        summed += n;
+    }
+    var total = data && data.total != null ? _numStat(data.total) : summed;
+    if (total < summed) total = summed;
+    return { votes: votes, total: total };
+}
+
+function _mergePollCounts(serverVotes, serverTotal, preVotes, preTotal, chosenIdx, optionCount, pending) {
+    var keys = [];
+    var serverCounts = null;
+    var preCounts = null;
+    for (var i = 0; i < optionCount; i++) keys.push(String(i));
+    if (serverVotes) {
+        serverCounts = {};
+        for (var s = 0; s < optionCount; s++) serverCounts[String(s)] = _numStat(serverVotes[s]);
+    }
+    if (pending && preVotes) {
+        preCounts = {};
+        for (var p = 0; p < optionCount; p++) preCounts[String(p)] = _numStat(preVotes[p]);
+    }
+    var chosenKey = pending && typeof chosenIdx === 'number' && chosenIdx >= 0 ? String(chosenIdx) : null;
+    var merged = _mergeLiveCounts(
+        serverCounts,
+        serverVotes ? serverTotal : 0,
+        preCounts,
+        pending && preVotes ? preTotal : 0,
+        chosenKey,
+        keys
+    );
+    if (!merged) return null;
+    var votes = [];
+    for (var j = 0; j < optionCount; j++) votes.push(merged.counts[String(j)] || 0);
+    return { votes: votes, total: merged.total, reflected: merged.reflected };
+}
+
+function _capturePollBaseline(pollId, optionCount, done) {
+    function store(data, known) {
+        if (known) {
+            var parsed = _pollVectors(data || {}, optionCount);
+            window._pollLiveKey = pollId;
+            window._pollLiveDoc = data || {};
+            window._pollBaseline = {
+                key: pollId,
+                known: true,
+                votes: parsed.votes,
+                total: parsed.total,
+                chosenIdx: -1
+            };
+        } else {
+            window._pollBaseline = { key: pollId, known: false, votes: null, total: 0, chosenIdx: -1 };
+        }
+        done();
+    }
+    if (window._pollLiveKey === pollId && window._pollLiveDoc) {
+        store(window._pollLiveDoc, true);
+        return;
+    }
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') {
+        store(null, false);
+        return;
+    }
+    try {
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+            store((doc && doc.exists) ? (doc.data() || {}) : {}, true);
+        }).catch(function() { store(null, false); });
+    } catch (e) {
+        store(null, false);
+    }
+}
+
+function _listenPollStats(pollId, onSnap) {
+    _detachPollStatsListener();
+    var gen = window._pollStatsGen;
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') return;
+    try {
+        window._pollStatsUnsub = db.collection('poll_votes').doc(pollId).onSnapshot(function(doc) {
+            if (gen !== window._pollStatsGen) return;
+            window._pollLiveKey = pollId;
+            window._pollLiveDoc = (doc && doc.exists) ? (doc.data() || {}) : {};
+            if (onSnap) onSnap(window._pollLiveDoc);
+        }, function() {
+            if (gen !== window._pollStatsGen) return;
+            _markCommunityResultsUnavailable('pollTotalVotes');
+        });
+    } catch (e) {}
+}
+
+function _showPollLoading(body, htmlPrefix) {
+    body.innerHTML = htmlPrefix;
+    var el = document.createElement('div');
+    el.id = 'pollTotalVotes';
+    el.style.cssText = 'text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;';
+    el.textContent = 'Loading community results...';
+    body.appendChild(el);
 }
 
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
-    // Read from today's day-scoped doc (resets each day — shows today's votes only)
-    if (typeof db !== 'undefined' && poll.id) {
-        var pollId = poll.id + '_' + todayKey;
-        // Force server read so vote totals are always fresh (cache only has local writes)
-        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
-            if (doc.exists) {
-                var d = doc.data();
-                var votes = d.votes || poll.options.map(function() { return 0; });
-                var total = votes.reduce(function(a, b) { return a + b; }, 0) || 1;
-                _drawPollResults(body, htmlPrefix, poll, votes, total, state.chosen);
-            } else {
-                _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
-            }
-        }).catch(function() {
-            _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
-        });
-    } else {
-        _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
+    var optionCount = poll && poll.options ? poll.options.length : 0;
+    var pollId = _pollDocId(poll, todayKey);
+    var chosen = state && typeof state.chosen === 'number' ? state.chosen : -1;
+    function paint() {
+        var base = window._pollBaseline;
+        var pending = !!(window._pollAwaitingWrite && base && base.key === pollId && base.known && base.votes);
+        var server = window._pollLiveKey === pollId && window._pollLiveDoc
+            ? _pollVectors(window._pollLiveDoc, optionCount) : null;
+        var merged = _mergePollCounts(
+            server ? server.votes : null,
+            server ? server.total : 0,
+            pending ? base.votes : null,
+            pending ? base.total : 0,
+            pending ? base.chosenIdx : chosen,
+            optionCount,
+            pending
+        );
+        if (pending && merged && merged.reflected) window._pollAwaitingWrite = false;
+        if (!merged || merged.total < 1) {
+            _showPollLoading(body, htmlPrefix);
+            return;
+        }
+        _drawPollResults(body, htmlPrefix, poll, merged.votes, merged.total, chosen);
     }
+    paint();
+    _listenPollStats(pollId, paint);
 }
 
 function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
@@ -5218,30 +5466,58 @@ function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
             }
         }
     } catch(e) {}
-    var html = htmlPrefix;
+    body.innerHTML = htmlPrefix;
+    var wrap = document.createElement('div');
+    wrap.id = 'pollResults';
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
     var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
-    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+    var safeTotal = total > 0 ? total : 1;
     for (var i = 0; i < poll.options.length; i++) {
-        var optText = typeof escapeHtml === 'function' ? escapeHtml(poll.options[i]) : poll.options[i];
-        var pct = Math.round((votes[i] / total) * 100);
+        var count = votes[i] || 0;
+        var pct = Math.round((count / safeTotal) * 100);
         var isChosen = i === chosen;
-        html += '<div style="position:relative;padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';border-radius:12px;overflow:hidden;">' +
-            '<div style="position:absolute;top:0;left:0;height:100%;width:' + pct + '%;background:' + colors[i] + ';opacity:0.12;transition:width 0.8s ease;border-radius:10px;"></div>' +
-            '<div style="position:relative;display:flex;justify-content:space-between;align-items:center;">' +
-                '<div style="display:flex;align-items:center;gap:10px;">' +
-                    '<span style="min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? colors[i] : 'transparent') + ';border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';">' + (isChosen ? '✓' : String.fromCharCode(65 + i)) + '</span>' +
-                    '<span style="color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';">' + optText + '</span>' +
-                '</div>' +
-                '<div style="text-align:right;">' +
-                    '<span style="font-size:0.85rem;font-weight:800;color:' + colors[i] + ';">' + pct + '%</span>' +
-                    '<div style="font-size:0.68rem;color:var(--text-faint);">' + votes[i] + ' vote' + (votes[i] !== 1 ? 's' : '') + '</div>' +
-                '</div>' +
-            '</div>' +
-        '</div>';
+        var color = colors[i % colors.length];
+        var row = document.createElement('div');
+        row.style.cssText = 'position:relative;padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChosen ? color : 'var(--border)') + ';border-radius:12px;overflow:hidden;';
+        var bar = document.createElement('div');
+        bar.id = 'pollBar_' + i;
+        bar.style.cssText = 'position:absolute;top:0;left:0;height:100%;width:' + pct + '%;background:' + color + ';opacity:0.12;transition:width 0.8s ease;border-radius:10px;';
+        var line = document.createElement('div');
+        line.style.cssText = 'position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+        var left = document.createElement('div');
+        left.style.cssText = 'display:flex;align-items:center;gap:10px;';
+        var badge = document.createElement('span');
+        badge.style.cssText = 'min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? color : 'transparent') + ';border:2px solid ' + (isChosen ? color : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';';
+        badge.textContent = isChosen ? '✓' : String.fromCharCode(65 + i);
+        var label = document.createElement('span');
+        label.style.cssText = 'color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';';
+        label.textContent = String(poll.options[i] == null ? '' : poll.options[i]);
+        left.appendChild(badge);
+        left.appendChild(label);
+        var right = document.createElement('div');
+        right.style.cssText = 'text-align:right;';
+        var pctEl = document.createElement('span');
+        pctEl.id = 'pollPct_' + i;
+        pctEl.style.cssText = 'font-size:0.85rem;font-weight:800;color:' + color + ';';
+        pctEl.textContent = pct + '%';
+        var countEl = document.createElement('div');
+        countEl.id = 'pollCount_' + i;
+        countEl.style.cssText = 'font-size:0.68rem;color:var(--text-faint);';
+        countEl.textContent = count + ' vote' + (count === 1 ? '' : 's');
+        right.appendChild(pctEl);
+        right.appendChild(countEl);
+        line.appendChild(left);
+        line.appendChild(right);
+        row.appendChild(bar);
+        row.appendChild(line);
+        wrap.appendChild(row);
     }
-    html += '</div>';
-    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total.toLocaleString() + ' total vote' + (total !== 1 ? 's' : '') + ' today · Come back tomorrow for a new poll!</div>';
-    body.innerHTML = html;
+    body.appendChild(wrap);
+    var totalEl = document.createElement('div');
+    totalEl.id = 'pollTotalVotes';
+    totalEl.style.cssText = 'text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;';
+    totalEl.textContent = total.toLocaleString() + ' total vote' + (total === 1 ? '' : 's') + ' today · Come back tomorrow for a new poll!';
+    body.appendChild(totalEl);
 }
 
 // Guard against ghost taps being processed before the 350ms delay expires
@@ -5250,13 +5526,16 @@ window._pollVoteReadyTimer = null;
 
 window.pollVote = function(chosenIdx) {
     // Reject calls that arrive before the delayed button render has settled
-    if (!window._pollVoteReady) return;
+    if (!window._pollVoteReady || window._pollSubmitting) return;
     var today = _getPollToday();
     if (!today || !today.poll) return;
     var p = today.poll;
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = _getPollState();
     if (state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0) return; // Already voted (local)
+
+    window._pollSubmitting = true;
+    window._pollVoteReady = false;
 
     // Disable buttons immediately to prevent double-tap
     var pollBtns = document.querySelectorAll('#pollOptions button');
@@ -5265,46 +5544,57 @@ window.pollVote = function(chosenIdx) {
     var pollId = (p.id ? p.id + '_' + todayKey : 'poll_day_' + todayKey);
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
 
-    // The server records the vote, the XP, and the trifecta proof.
-    if (typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous) {
-        firebase.functions().httpsCallable('dailyPollVote')({ chosenIdx: chosenIdx }).then(function(res) {
-            var data = (res && res.data) || {};
-            state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-            _setPollState(state);
-            if (data.already) {
-                if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
-            } else {
-                var awarded = Number(data.awarded) || 0;
-                if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
-                if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
-                if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP') : '📊 Vote recorded!', 3000);
-                _markDailyActivity('poll');
-                _checkDailyAllThree();
-            }
-            var body = document.getElementById('questHubBody');
-            if (body) _renderPollTab(body);
-        }).catch(function(e) {
-            var code = String((e && (e.code || e.message)) || '');
-            if (code.indexOf('already-exists') !== -1 || code.indexOf('already-voted') !== -1) {
-                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-                _setPollState(state);
-                if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
-                var votedBody = document.getElementById('questHubBody');
-                if (votedBody) _renderPollTab(votedBody);
-                return;
-            }
-            console.error('[POLL] Vote failed:', e);
-            if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
-            pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
-        });
-    } else {
-        // No auth or offline - local-only vote (no XP, no server record)
-        state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-        _setPollState(state);
-        if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
+    function _showPollBody(countServerVote) {
+        if (window._pollBaseline && window._pollBaseline.key === pollId) window._pollBaseline.chosenIdx = chosenIdx;
+        window._pollAwaitingWrite = !!countServerVote;
+        window._pollSubmitting = false;
         var body = document.getElementById('questHubBody');
         if (body) _renderPollTab(body);
     }
+
+    _capturePollBaseline(pollId, p.options.length, function() {
+        // The server records the vote, the XP, and the trifecta proof.
+        if (typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous) {
+            firebase.functions().httpsCallable('dailyPollVote')({ chosenIdx: chosenIdx }).then(function(res) {
+                var data = (res && res.data) || {};
+                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+                _setPollState(state);
+                if (data.already) {
+                    if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
+                    _showPollBody(false);
+                } else {
+                    var awarded = Number(data.awarded) || 0;
+                    if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
+                    if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
+                    if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP') : '📊 Vote recorded!', 3000);
+                    _markDailyActivity('poll');
+                    _checkDailyAllThree();
+                    _showPollBody(true);
+                }
+            }).catch(function(e) {
+                var code = String((e && (e.code || e.message)) || '');
+                if (code.indexOf('already-exists') !== -1 || code.indexOf('already-voted') !== -1) {
+                    state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+                    _setPollState(state);
+                    if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
+                    _showPollBody(false);
+                    return;
+                }
+                window._pollSubmitting = false;
+                window._pollAwaitingWrite = false;
+                console.error('[POLL] Vote failed:', e);
+                if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
+                pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
+                window._pollVoteReady = true;
+            });
+        } else {
+            // No auth or offline - local-only vote (no XP, no server record)
+            state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+            _setPollState(state);
+            if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
+            _showPollBody(false);
+        }
+    });
 };
 
 // ============================================================

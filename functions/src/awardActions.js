@@ -428,6 +428,7 @@ function applyAward(mem, uid, data, opts) {
     store.claims = store.claims || {};
     store.counts = store.counts || {};
     store.daily = store.daily || {};
+    store.globalClaims = store.globalClaims || {};
     const user = store.users[uid] || { points: 0, orangeTickets: 0, pendingOverflow: 0, ban_reason: '' };
     store.users[uid] = user;
     const day = (opts && opts.day) || '2026-10-22';
@@ -516,6 +517,8 @@ function applyAward(mem, uid, data, opts) {
         proof: opts && opts.proof,
         claims: store.claims,
         claimPrefix: uid + '/',
+        globalClaims: store.globalClaims,
+        now: opts && opts.now,
     });
     if (!confirmed.ok) {
         return {
@@ -558,15 +561,21 @@ function applyAward(mem, uid, data, opts) {
 
     const unverified = !!(confirmed.unverified || resolved.unverified);
     let grant;
+    function rememberDocClaims() {
+        awardEvidence.markerIds(resolved.id, claimTargets, data).forEach(function (id) {
+            store.globalClaims[id] = true;
+        });
+    }
     if (unverified) {
         const usedU = daily.unverified || 0;
+        const tapered = planGrant({ xp: xp, dailyUsed: daily.total || 0 });
         const room = Math.max(0, awardEvidence.UNVERIFIED_DAILY_CAP - usedU);
-        const awardedU = Math.min(xp, room);
+        const awardedU = Math.min(tapered.awarded, room);
         grant = {
             awarded: awardedU,
             dropped: xp - awardedU,
             capped: awardedU < xp,
-            pastCap: usedU >= awardEvidence.UNVERIFIED_DAILY_CAP,
+            pastCap: usedU >= awardEvidence.UNVERIFIED_DAILY_CAP || tapered.pastCap,
             dailyXp: daily.total || 0,
             dailyCap: DAILY_CAP,
             fullUntil: TAPER_FULL_UNTIL,
@@ -575,8 +584,12 @@ function applyAward(mem, uid, data, opts) {
         if (awardedU > 0) {
             user.points = (user.points || 0) + awardedU;
             user.unclaimableXp = (user.unclaimableXp || 0) + awardedU;
+            user.weeklyXP = (user.weeklyXP || 0) + awardedU;
+            user.monthlyXP = (user.monthlyXP || 0) + awardedU;
             daily.unverified = usedU + awardedU;
+            daily.total = (daily.total || 0) + awardedU;
             store.daily[uid] = daily;
+            rememberDocClaims();
         }
         claimKeys.forEach(function (key) { store.claims[key] = true; });
         store.counts[countKey] = usedCount + 1;
@@ -592,7 +605,10 @@ function applyAward(mem, uid, data, opts) {
         daily.total = (daily.total || 0) + grant.awarded;
         store.daily[uid] = daily;
         store.counts[countKey] = usedCount + 1;
-        if (!resolved.badge) claimKeys.forEach(function (key) { store.claims[key] = true; });
+        if (!resolved.badge) {
+            claimKeys.forEach(function (key) { store.claims[key] = true; });
+            rememberDocClaims();
+        }
     }
     if (!unverified && resolved.id === 'anon_merge') {
         claimKeys.forEach(function (key) { store.claims[key] = true; });

@@ -2,7 +2,9 @@
 
 // Evidence for awardPoints. The client phrase is not proof.
 // Verified actions keep their allowlist amount only when a server read matches.
-// Unverified actions share a small daily pool and do not count toward claimSats.
+// Unverified actions share a 100 XP daily pool. That XP still lands in the
+// daily total and the weekly boards, and it does not count toward claimSats.
+// A document pays once, across every account, and only within 24 hours of creation.
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -10,6 +12,8 @@ const path = require('path');
 
 const UNVERIFIED_DAILY_CAP = 100;
 const ANON_POINT_CAP = 500;
+const FRESH_MS = 24 * 60 * 60 * 1000;
+const CLOCK_SKEW_MS = 60 * 1000;
 
 const GENERIC_QUIZ = [
     {
@@ -86,12 +90,23 @@ function quizzes() {
     if (quizMap) return quizMap;
     const banks = require('../reward-banks.json');
     const map = new Map();
+    function addAnswer(q, a) {
+        const question = norm(q);
+        const answer = norm(a);
+        if (!question || !answer) return;
+        let set = map.get(question);
+        if (!set) {
+            set = new Set();
+            map.set(question, set);
+        }
+        set.add(answer);
+        const plain = answer.replace(/\\/g, '');
+        if (plain && plain !== answer) set.add(plain);
+    }
     function add(list) {
         const rows = Array.isArray(list) ? list : [];
         rows.forEach(function (item) {
-            const q = norm(item && item.q);
-            const a = norm(item && item.a);
-            if (q && a) map.set(q, a);
+            addAnswer(item && item.q, item && item.a);
         });
     }
     Object.keys(banks.quests || {}).forEach(function (topic) { add(banks.quests[topic]); });
@@ -105,8 +120,8 @@ function gradeQuiz(question, choice) {
     const q = norm(question);
     const chosen = norm(choice);
     if (!q || !chosen || q.length > 600 || chosen.length > 400) return fail('Quiz answer did not match');
-    const answer = quizzes().get(q);
-    if (!answer || answer !== chosen) return fail('Quiz answer did not match');
+    const answers = quizzes().get(q);
+    if (!answers || !answers.has(chosen)) return fail('Quiz answer did not match');
     const key = crypto.createHash('sha256').update(q).digest('hex').slice(0, 20);
     return pass({ key: key });
 }
@@ -123,6 +138,76 @@ function idList(value, max) {
         out.push(id);
     }
     return out;
+}
+
+function createdMillis(value) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    if (typeof value.toMillis === 'function') {
+        const millis = value.toMillis();
+        return Number.isFinite(millis) ? millis : null;
+    }
+    if (typeof value.seconds === 'number') {
+        return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1e6);
+    }
+    if (typeof value._seconds === 'number') {
+        return (value._seconds * 1000) + Math.floor((value._nanoseconds || 0) / 1e6);
+    }
+    return null;
+}
+
+function freshEnough(value, now) {
+    const ms = createdMillis(value);
+    if (ms == null) return false;
+    const clock = typeof now === 'number' ? now : Date.now();
+    if (ms > clock + CLOCK_SKEW_MS) return false;
+    if (clock - ms > FRESH_MS) return false;
+    return true;
+}
+
+function docTime(row, proof) {
+    if (proof && proof.createdAt != null) return proof.createdAt;
+    if (!row) return null;
+    if (row.createdAt != null) return row.createdAt;
+    if (row.ts != null) return row.ts;
+    return null;
+}
+
+function markerIdFor(actionId, target, data) {
+    const id = cleanId(target, 128);
+    if (!id) return '';
+    if (actionId === 'beats_upload' || actionId === 'beats_upload_batch') return 'beats_tracks__' + id;
+    if (actionId === 'beats_comment') {
+        const trackId = cleanId(data && data.trackId, 128);
+        if (!trackId) return '';
+        return 'beats_comment_' + trackId + '_' + id;
+    }
+    const spec = DOC_ACTIONS[actionId];
+    if (!spec) return '';
+    return spec.collection + '__' + id;
+}
+
+function markerIds(actionId, targets, data) {
+    const list = Array.isArray(targets) ? targets : [targets];
+    const out = [];
+    for (let i = 0; i < list.length; i++) {
+        const id = markerIdFor(actionId, list[i], data);
+        if (id && out.indexOf(id) === -1) out.push(id);
+    }
+    return out;
+}
+
+function markerTaken(ctx, id) {
+    if (!id) return false;
+    const context = ctx || {};
+    if (context.globalClaims && context.globalClaims[id]) return true;
+    const snap = context.snaps && context.snaps['marker:' + id];
+    return !!(snap && (snap.exists === true || (snap.exists !== false && snap.data)));
 }
 
 function ownerOf(row, field) {
@@ -215,18 +300,25 @@ function planReads(db, userRef, uid, resolved, data) {
     if (!resolved) return out;
     const spec = DOC_ACTIONS[resolved.id];
     if (spec && spec.collection !== 'beats_comment') {
-        add('doc', db.collection(spec.collection).doc(cleanId(src[spec.field], 128)));
+        const docId = cleanId(src[spec.field], 128);
+        add('doc', db.collection(spec.collection).doc(docId));
+        const marker = markerIdFor(resolved.id, docId, src);
+        if (marker) add('marker:' + marker, db.collection('award_doc_claims').doc(marker));
     }
     if (resolved.id === 'beats_comment') {
         const trackId = cleanId(src.trackId, 128);
         const commentId = cleanId(src.commentId, 128);
         if (trackId && commentId) {
             add('doc', db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId));
+            const marker = markerIdFor(resolved.id, commentId, src);
+            if (marker) add('marker:' + marker, db.collection('award_doc_claims').doc(marker));
         }
     }
     if (resolved.id === 'beats_upload_batch') {
         idList(src.trackIds, 8).forEach(function (id, index) {
             add('track' + index, db.collection('beats_tracks').doc(id));
+            const marker = markerIdFor('beats_upload', id, src);
+            if (marker) add('marker:' + marker, db.collection('award_doc_claims').doc(marker));
         });
     }
     if (resolved.id === 'story_complete') {
@@ -304,23 +396,40 @@ function confirm(resolved, data, ctx) {
         const row = snapRow(context, 'doc');
         const owner = proof.docOwner != null ? proof.docOwner : ownerOf(row, spec.owner);
         if (!owner || owner !== uid) return fail('Evidence required');
+        if (!freshEnough(docTime(row, proof), context.now)) return fail('Evidence expired');
+        const marker = markerIdFor(resolved.id, resolved.target || (data && data[spec.field]), data);
+        if (markerTaken(context, marker)) return fail('Already claimed');
         return pass({ xp: resolved.xp });
     }
 
     if (resolved.id === 'beats_upload_batch') {
         const ids = idList((data && data.trackIds) || proof.trackIds, 8);
         const ownedIds = [];
+        const times = {};
         if (typeof proof.ownedTracks === 'number') {
-            for (let i = 0; i < Math.min(proof.ownedTracks, ids.length); i++) ownedIds.push(ids[i]);
+            for (let i = 0; i < Math.min(proof.ownedTracks, ids.length); i++) {
+                ownedIds.push(ids[i]);
+                times[ids[i]] = proof.createdAt;
+            }
         } else if (proof.docOwner === uid) {
-            ids.forEach(function (id) { ownedIds.push(id); });
+            ids.forEach(function (id) {
+                ownedIds.push(id);
+                times[id] = proof.createdAt;
+            });
         } else {
             ids.forEach(function (id, index) {
                 const row = snapRow(context, 'track' + index);
-                if (row && ownerOf(row, 'authorId') === uid) ownedIds.push(id);
+                if (row && ownerOf(row, 'authorId') === uid) {
+                    ownedIds.push(id);
+                    times[id] = docTime(row, proof);
+                }
             });
         }
         if (!ownedIds.length) return fail('Evidence required');
+        for (let oi = 0; oi < ownedIds.length; oi++) {
+            if (!freshEnough(times[ownedIds[oi]], context.now)) return fail('Evidence expired');
+            if (markerTaken(context, markerIdFor('beats_upload', ownedIds[oi], data))) return fail('Already claimed');
+        }
         let xp = Math.min(25 * ownedIds.length, 50);
         if (resolved.requiresDoubleXp) xp = Math.min(xp * 2, 50);
         if (resolved.xp != null && xp > resolved.xp) xp = resolved.xp;
@@ -380,4 +489,6 @@ module.exports = {
     claimablePoints: claimablePoints,
     nextChatStreak: nextChatStreak,
     cleanId: cleanId,
+    markerIds: markerIds,
+    freshEnough: freshEnough,
 };

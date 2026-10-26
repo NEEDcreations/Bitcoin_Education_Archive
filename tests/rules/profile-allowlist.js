@@ -42,7 +42,9 @@ function valueFor(field) {
     if (field === 'country') return 'Japan';
     if (field === 'displayBadge' || field === 'equippedBadge') return 'first_channel';
     if (field === 'inviteCard') return 'open';
-    if (field === 'beatsShowUncensored' || field === 'ghostMode' || field === 'isOnline' || field === 'newsletterOptIn' || field === 'nachoStoryComplete') return true;
+    if (field === 'beatsShowUncensored' || field === 'ghostMode' || field === 'isOnline' || field === 'newsletterOptIn' || field === 'nachoStoryComplete' || field === 'pvpAlertsMuted' || field === 'pvpPushEnabled') return true;
+    if (field === 'experienceMode') return 'beginner';
+    if (field === 'pvpPushShard') return 0;
     if (field === 'spinCount' || field === 'questsCompletedToday' || field === 'nachoStoryProgress' || field === 'nachoInteractions' || field === 'nachoQuestions' || field === 'sfWindowStreak') return 1;
     if (field === 'notificationPrefs') return { master: true, rewards: false };
     if (field === 'notifPrompt') return { count: 1, lastAsked: 1, stopped: false, dontAsk: false };
@@ -110,7 +112,43 @@ function valueFor(field) {
                 lnAddress: 'ada@walletofsatoshi.com',
             });
         }, true);
-        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'brandNewReward'];
+        await expect('experienceMode intermediate', function () {
+            return updateDoc(ref, { experienceMode: 'intermediate' });
+        }, true);
+        await expect('experienceMode advanced', function () {
+            return updateDoc(ref, { experienceMode: 'advanced' });
+        }, true);
+        await expect('deny experienceMode expert', function () {
+            return updateDoc(ref, { experienceMode: 'expert' });
+        }, false);
+        await expect('pvp alerts off', function () {
+            return updateDoc(ref, { pvpAlertsMuted: false });
+        }, true);
+        await expect('deny pvp alerts string', function () {
+            return updateDoc(ref, { pvpAlertsMuted: 'yes' });
+        }, false);
+        await expect('pvp push off', function () {
+            return updateDoc(ref, { pvpPushEnabled: false });
+        }, true);
+        await expect('deny pvp push number', function () {
+            return updateDoc(ref, { pvpPushEnabled: 1 });
+        }, false);
+        await expect('pvp shard 9', function () {
+            return updateDoc(ref, { pvpPushShard: 9 });
+        }, true);
+        await expect('deny pvp shard 10', function () {
+            return updateDoc(ref, { pvpPushShard: 10 });
+        }, false);
+        await expect('deny pvp shard string', function () {
+            return updateDoc(ref, { pvpPushShard: '3' });
+        }, false);
+        await expect('deny pvp shard float', function () {
+            return updateDoc(ref, { pvpPushShard: 1.5 });
+        }, false);
+        await expect('delete pvp shard', function () {
+            return updateDoc(ref, { pvpPushShard: deleteField() });
+        }, true);
+        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'chatXpStreak', 'chatXpDay', 'brandNewReward'];
         for (let d = 0; d < denied.length; d++) {
             const field = denied[d];
             const patch = {};

@@ -4,6 +4,15 @@
 // Bitcoin Education Archive - Ranking System
 // =============================================
 
+// XP a person can still spend on sats, donations, or tickets.
+// Unverified Listen and Flex XP stays on the point total and is left out here.
+function spendableXp(user) {
+    var u = user || {};
+    var unclaimable = Number(u.unclaimableXp) || 0;
+    if (unclaimable < 0) unclaimable = 0;
+    return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
+}
+
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
     authDomain: "bitcoineducation.quest", // Must match app origin — auth iframe proxied via seo-router worker (/__/auth/*) so Safari ITP allows postMessage
@@ -3165,27 +3174,13 @@ async function loadUser(uid, prefetchedDoc) {
 // Track if button was ever set to "signed in" state - never downgrade once set
 var _authBtnSignedIn = false;
 
-function homePreviewAllowed() {
-    try {
-        var host = String(location.hostname || '');
-        return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
-    } catch (e) { return false; }
-}
-function homePreviewUser() {
-    if (!homePreviewAllowed()) return null;
-    return window._homePreviewUser || null;
-}
-
 function homeSignedInNow() {
-    if (homePreviewUser()) return true;
     return !!_authBtnSignedIn;
 }
 
 // Strip numbers come only from server-maintained counters.
 function satsHomeSnapshot(user) {
     var u = user || {};
-    var previewUser = homePreviewUser();
-    var preview = !!(previewUser && u === previewUser);
     var math = (typeof window.claimableSats === 'function')
         ? window.claimableSats(u)
         : { balance: 0, lifetimeLeft: 0, claimable: 0, cap: lifetimeSatCap(), withdrawn: Number(u.satsWithdrawn) || 0 };
@@ -3197,19 +3192,14 @@ function satsHomeSnapshot(user) {
     if (Array.isArray(u.visitedChannelsList)) channels = u.visitedChannelsList.length;
     else if (Array.isArray(u.readChannels)) channels = u.readChannels.length;
     else if (u.readChannels && typeof u.readChannels === 'object') channels = Object.keys(u.readChannels).length;
-    if (preview) {
-        anon = false;
-        emailOk = !!(u.email && u.emailVerified);
-        ageDays = Number(u.accountAgeDays) || 0;
-        if (Number(u.channelsRead) > channels) channels = Number(u.channelsRead);
-    } else if (typeof auth !== 'undefined' && auth && auth.currentUser) {
+    if (typeof auth !== 'undefined' && auth && auth.currentUser) {
         var fu = auth.currentUser;
         anon = !!fu.isAnonymous;
         emailOk = !!(fu.email && fu.emailVerified);
         var created = fu.metadata && fu.metadata.creationTime ? new Date(fu.metadata.creationTime) : null;
         ageDays = created ? Math.floor((Date.now() - created.getTime()) / 86400000) : 0;
     }
-    if (!preview && channels === 0) {
+    if (channels === 0) {
         try {
             var localList = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
             if (Array.isArray(localList) && localList.length > channels) channels = localList.length;
@@ -3279,13 +3269,12 @@ window.refreshHomeStrip = function() {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
         return;
     }
-    var previewUser = homePreviewUser();
-    var user = previewUser || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
     var invited = Number(user.referralInvited) || 0;
     var maxi = Number(user.referralCount) || 0;
     paintHomeStrip(snap, invited, maxi);
-    if (!previewUser && typeof getReferralStats === 'function') {
+    if (typeof getReferralStats === 'function') {
         getReferralStats().then(function(stats) {
             if (!stats) return;
             var gotInvited = (typeof stats.invited === 'number') ? stats.invited : invited;
@@ -3310,7 +3299,7 @@ function openHomeInvites() {
 window.openHomeInvites = openHomeInvites;
 
 function openHomeWithdraw() {
-    var user = homePreviewUser() || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
     if (!snap.address) {
         if (typeof openWithdrawalAddress === 'function') openWithdrawalAddress({ mode: 'reset' });
@@ -3320,19 +3309,8 @@ function openHomeWithdraw() {
 }
 window.openHomeWithdraw = openHomeWithdraw;
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (homePreviewUser()) window.refreshHomeStrip();
-});
-
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
-    if (homePreviewUser()) {
-        document.documentElement.classList.add('home-signed-in');
-        document.body.classList.add('home-signed-in');
-        if (btn) btn.style.display = 'none';
-        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
-        return;
-    }
     if (!btn) return;
     // Check all possible ways a user can be "signed in":
     var firebaseUser = auth && auth.currentUser;
@@ -5192,7 +5170,7 @@ window.showDeleteAccountConfirm = function() {
     var pts = currentUser ? (currentUser.points || 0) : 0;
     var streak = currentUser ? (currentUser.streak || 0) : 0;
     var directSats = currentUser ? Number(currentUser.sats) : 0;
-    var availablePts = currentUser ? ((Number(currentUser.points) || 0) - (Number(currentUser.pointsClaimed) || 0) - (Number(currentUser.pointsDonated) || 0) - (Number(currentUser.pointsExchanged) || 0)) : 0;
+    var availablePts = currentUser ? spendableXp(currentUser) : 0;
     var satsN = directSats > 0 ? directSats : Math.floor(Math.max(0, availablePts) / 10);
     var forfeitHtml = '';
     if (satsN > 0) {
@@ -7108,8 +7086,9 @@ function accountDeleteRowHtml(user) {
         var pointsClaimed = currentUser ? currentUser.pointsClaimed || 0 : 0;
         var pointsDonated = currentUser ? currentUser.pointsDonated || 0 : 0;
         var pointsExchanged = currentUser ? currentUser.pointsExchanged || 0 : 0;
-        // All three offset counters reduce the redeemable pool
-        var availableForClaim = userPts - pointsClaimed - pointsDonated - pointsExchanged;
+        var unclaimableXp = currentUser ? Math.max(0, Number(currentUser.unclaimableXp) || 0) : 0;
+        // Claimed, donated, exchanged, and unverified XP all reduce the redeemable pool
+        var availableForClaim = userPts - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp;
         var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser || {}) : null;
         var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser ? currentUser.satsWithdrawn || 0 : 0);
         var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
@@ -7184,7 +7163,7 @@ function accountDeleteRowHtml(user) {
         var _displayAvail = Math.max(0, availableForClaim);
         var _availLabel = availableForClaim < 0
             ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total - keep earning!)</span>'
-            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged)';
+            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged - ' + unclaimableXp.toLocaleString() + ' unclaimable)';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 15,000 sats</div>';
         html += '</div>';
@@ -7383,7 +7362,7 @@ function accountDeleteRowHtml(user) {
 
         } else {
         // ===== DONATE XP SUB-TAB =====
-        var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated - pointsExchanged);
+        var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp);
         var _userFaction = currentUser ? (currentUser.faction || '') : '';
 
         html += '<div style="text-align:center;margin-bottom:20px;">';
@@ -7396,8 +7375,8 @@ function accountDeleteRowHtml(user) {
         html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
         html += '<div data-sats-charity-avail style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
-        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated - pointsExchanged;
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged</div>';
+        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp;
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged - ' + unclaimableXp.toLocaleString() + ' unclaimable</div>';
         if (_rawAvailForDonate < 0) {
             html += '<div style="margin-top:8px;font-size:0.75rem;color:#ef4444;font-weight:600;">⚠️ XP fully used - earn more to donate again</div>';
         }
@@ -8320,7 +8299,7 @@ function accountDeleteRowHtml(user) {
             var inp = document.getElementById('satsCharityAmtInput');
             var amt = parseInt(inp ? inp.value : '') || 0;
             var avail = typeof currentUser !== 'undefined' && currentUser
-                ? Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0)) : 0;
+                ? Math.max(0, spendableXp(currentUser)) : 0;
             if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
             if (avail <= 0) {
                 if (typeof showToast === 'function') showToast('\u26a0\ufe0f No XP available to donate. Keep earning!', 5000);
@@ -8355,7 +8334,7 @@ function accountDeleteRowHtml(user) {
                     // Update available XP display in-place
                     var _avEl = document.querySelector('#settingsModal [data-sats-charity-avail]');
                     if (_avEl) {
-                        var _newAvail = Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0));
+                        var _newAvail = Math.max(0, spendableXp(currentUser));
                         _avEl.textContent = '\u2764\ufe0f ' + _newAvail.toLocaleString() + ' XP';
                     }
                     // Patch donated total line
@@ -10786,7 +10765,7 @@ window.initSatsClaim = function() {
         return;
     }
     // All three offset counters (claimed, donated, exchanged) reduce the redeemable pool
-    var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0) - (currentUser.pointsDonated || 0) - (currentUser.pointsExchanged || 0);
+    var availPts = spendableXp(currentUser);
     var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser) : null;
     var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availPts) / 10);
     var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser.satsWithdrawn || 0);

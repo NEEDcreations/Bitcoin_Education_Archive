@@ -3333,18 +3333,18 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             const unverifiedUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().unverified || 0) : 0;
             let grant;
             if (unverifiedGrant) {
-                const labels = awardActions.planGrant({ xp: 0, dailyUsed: dailyUsed, dailyCap: DAILY_CAP });
+                const tapered = awardActions.planGrant({ xp: Math.max(0, pts), dailyUsed: dailyUsed, dailyCap: DAILY_CAP });
                 const room = Math.max(0, awardEvidence.UNVERIFIED_DAILY_CAP - unverifiedUsed);
-                const awardedU = Math.min(Math.max(0, pts), room);
+                const awardedU = Math.min(tapered.awarded, room);
                 grant = {
                     awarded: awardedU,
                     dropped: Math.max(0, pts) - awardedU,
-                    capped: awardedU < pts,
-                    pastCap: unverifiedUsed >= awardEvidence.UNVERIFIED_DAILY_CAP,
+                    capped: awardedU < Math.max(0, pts),
+                    pastCap: unverifiedUsed >= awardEvidence.UNVERIFIED_DAILY_CAP || tapered.pastCap,
                     dailyXp: dailyUsed,
-                    dailyCap: labels.dailyCap,
-                    fullUntil: labels.fullUntil,
-                    halfUntil: labels.halfUntil,
+                    dailyCap: tapered.dailyCap,
+                    fullUntil: tapered.fullUntil,
+                    halfUntil: tapered.halfUntil,
                 };
             } else {
                 grant = awardActions.planGrant({
@@ -3389,11 +3389,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             const totalPointsOut = awarded;
             if (totalPointsOut > 0) {
                 userUpdate.points = admin.firestore.FieldValue.increment(totalPointsOut);
+                userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
+                userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
                 if (unverifiedGrant) {
                     userUpdate.unclaimableXp = admin.firestore.FieldValue.increment(awarded);
                 } else {
-                    userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
-                    userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
                     userUpdate.activeDayKeys = referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now());
                 }
             }
@@ -3459,9 +3459,24 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (Object.keys(userUpdate).length > 0) {
                 t.update(userRef, userUpdate);
             }
+            if (awarded > 0) {
+                const markerList = awardEvidence.markerIds(
+                    matchedAction,
+                    claimTargets && claimTargets.length ? claimTargets : [resolved.target],
+                    data
+                );
+                for (let mi = 0; mi < markerList.length; mi++) {
+                    t.set(db.collection('award_doc_claims').doc(markerList[mi]), {
+                        action: matchedAction,
+                        uid: uid,
+                        at: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                }
+            }
             if (awarded > 0 && unverifiedGrant) {
                 t.set(dailyPtsRef, {
                     unverified: unverifiedUsed + awarded,
+                    total: dailyUsed + awarded,
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
             } else if (awarded > 0) {
@@ -3501,7 +3516,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 tickets: bonus.tickets,
                 capped: capped,
                 dropped: dropped,
-                dailyUsed: unverifiedGrant ? dailyUsed : dailyUsed + awarded,
+                dailyUsed: dailyUsed + awarded,
                 chatStreak: chatStreakNow,
                 overflowAdded: 0,
                 overflowRedeemed: 0,
