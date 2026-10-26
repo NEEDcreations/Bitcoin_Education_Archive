@@ -44,7 +44,8 @@ const SCAM_PATTERNS = [
     /(?:admin|mod|moderator)[\s\S]{0,24}(?:will\s*)?(?:dm|message)\s*(?:you|me|the)/,
     /contact[\s\S]{0,40}support[\s\S]{0,48}(?:telegram|whatsapp|discord|recover|funds|seed|sats?|btc)/,
     /recover\s*your\s*funds/,
-    /(?:send|share|give|enter|paste|dm|tell|provide)[\s\S]{0,36}(?:your\s*)?(?:seed|recovery)(?:\s*phrase)?/,
+    /(?:send|share|give|paste|dm|tell|provide)[\s\S]{0,36}(?:your\s*)?(?:seed|recovery)(?:\s*phrase)?/,
+    /enter[\s\S]{0,24}(?:your\s*)?(?:seed|recovery)(?:\s*phrase)?[\s\S]{0,40}(?:website|site|link|telegram|form|here|below|admin|mod\b|me\b)/,
     /your\s*(?:seed|recovery)(?:\s*phrase)?[\s\S]{0,28}(?:verify|validate|unlock|admin|mod\b|dm\b)/,
     /(?:give\s*away|giveaway)[\s\S]{0,40}(?:sats?|btc|bitcoin|seed|wallet)/,
     /(?:sats?|btc|bitcoin)[\s\S]{0,40}(?:give\s*away|giveaway)/,
@@ -232,7 +233,11 @@ function scamHit(text) {
         const norm = forms[f];
         if (!norm) continue;
         if (unknownScamDomain(text)) return true;
-        const guarded = norm.replace(/\b(?:never|do not|don't|dont|not)\s+(?:share|send|give|enter|paste|tell|type|provide)\b/g, ' ');
+        let guarded = norm.replace(/\b(?:never|do not|don't|dont|not)\s+(?:share|send|give|enter|paste|tell|type|provide)\b/g, ' ');
+        if (/\b(?:scammer|scam|red flag|asks you to|ask you to|asking you to|who asks)\b/.test(guarded)
+            && !/\b(?:dm|telegram|admin|mod)\b/.test(guarded)) {
+            guarded = guarded.replace(/\b(?:send|share|give|paste|tell|provide|enter)\b[\s\S]{0,40}\b(?:seed|recovery)\b/g, ' ');
+        }
         for (let i = 0; i < SCAM_PATTERNS.length; i++) {
             if (SCAM_PATTERNS[i].test(guarded)) return true;
         }
