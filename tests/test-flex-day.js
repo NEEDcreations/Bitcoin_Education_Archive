@@ -102,9 +102,16 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261026_v2365') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2390') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2371') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2375') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2365') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261024_v2368') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261024_v2351') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261023_v2349') === -1);
+    assert.ok(card.indexOf("meter.setAttribute('aria-label', label)") > 0);
+    assert.ok(card.indexOf("used.toLocaleString() + '/1000 XP today'") > 0);
+    assert.ok(card.indexOf('Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap') > 0);
     assert.ok(html.indexOf('today-card.js?v=20261023_v2330') === -1);
     const quests = read('quests.js');
     assert.ok(quests.indexOf("actionKey: 'flex_day_complete'") > 0);
