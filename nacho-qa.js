@@ -4748,10 +4748,15 @@ function renderNachoAnswer(textEl, answerHtml, match) {
 
 
 function nachoRaisePanel() {
+    // A returning player (more than two visits, or the tour already seen)
+    // gets a greeting bubble. That bubble clears the section session, so
+    // hold the topic and paragraph and put them back before the request.
+    var keptSession = window._nachoSectionSession || null;
     if (typeof window.showNacho === 'function') {
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 99;
         if (visits > 2 || localStorage.getItem('btc_nacho_tour_shown')) window.showNacho();
     }
+    if (keptSession) window._nachoSectionSession = keptSession;
     var nc = document.getElementById('nacho-container');
     if (nc) {
         nc.classList.remove('hidden');

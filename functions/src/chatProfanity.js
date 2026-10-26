@@ -38,8 +38,9 @@ const SCAM_TLDS = 'com|net|org|io|co|app|gg|me|info|biz|site|online|live|link|sp
 // sentence into one word until a digit. pay(?!ment) keeps "payment" out.
 const SCAM_PATTERNS = [
     /send\s*me\s*\d+(?:[.,]\d+)?\s*btc/,
+    /send\s*\d+(?:[.,]\d+)?\s*(?:btc|bitcoin|sats?)\s*to\s*(?:me|you)/,
     /double\s*your\s*(?:btc|bitcoin|sats?|money|coins|crypto)/,
-    /\d+\s*x\s*your\s*(?:btc|bitcoin|sats?|money|coins|crypto)/,
+    /\d{1,9}\s*x\s*your\s*(?:btc|bitcoin|sats?|money|coins|crypto)/,
     /guaranteed[\s\S]{0,48}returns?/,
     /invest[\s\S]{0,40}guaranteed/,
     /free\s*bitcoin[\s\S]{0,40}send/,
@@ -47,15 +48,15 @@ const SCAM_PATTERNS = [
     /(?:sync|verify|unlock|validate)[\s\S]{0,40}(?:your\s*)?(?:wallet|account|rewards?)[\s\S]{0,40}(?:sats?|btc|bitcoin|seed|mnemonic|pay(?!ment)|send|deposit)/,
     /(?:earn|win|claim|get)[\s\S]{0,48}\d[\d.,]*[\s\S]{0,24}sats?[\s\S]{0,48}(?:admin|moderator|mod|dm|message|seed|mnemonic|telegram)/,
     /(?:dm|message)\s*(?:the\s*)?(?:admin|moderator|mod|support)\s*(?:to\s*|for\s*)(?:your\s*)?(?:claim|reward|prize|verify|unlock|seed|mnemonic|sats?|btc|bitcoin|funds|giveaway|sync|validate|recover)/,
-    /(?:dm|message)\s*(?:the\s*)?(?:admin|moderator|mod)\s*(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words)/,
+    /(?:dm|message)\s*(?:the\s*)?(?:admin|moderator|mod)\s*(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words)/,
     /(?:admin|moderator|mod)\s*will\s*(?:dm|message)\s*(?:you|me)/,
     /telegram[\s\S]{0,48}(?:claim|reward|prize|seed|mnemonic|recover|verify|unlock|admin|funds|sats?|btc)/,
     /(?:claim|reward|prize|seed|mnemonic|recover|verify|unlock|funds)[\s\S]{0,48}telegram/,
     /contact[\s\S]{0,40}support[\s\S]{0,48}(?:telegram|whatsapp|discord|recover|funds|seed|mnemonic|sats?|btc)/,
     /recover\s*your\s*funds/,
-    /(?:send|share|give|paste|dm|tell|provide|type)\s*(?:me\s*)?(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words)/,
-    /enter\s*(?:your\s*)?(?:seed|recovery|mnemonic)(?:\s*phrase)?[\s\S]{0,40}(?:website|site|link|telegram|form|here|below|admin|mod|me)/,
-    /your\s*(?:seed|recovery|mnemonic)(?:\s*phrase)?[\s\S]{0,28}(?:verify|validate|unlock|admin|mod|dm)/,
+    /(?:send|share|give|paste|dm|tell|provide|type)\s*(?:me\s*)?(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words|private\s*key|secret\s*key)/,
+    /enter\s*(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words|private\s*key|secret\s*key)(?:\s*phrase)?[\s\S]{0,40}(?:website|site|link|telegram|form|here|below|admin|mod|me)/,
+    /your\s*(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words|private\s*key|secret\s*key)(?:\s*phrase)?[\s\S]{0,28}(?:verify|validate|unlock|admin|mod|dm|\bme\b)/,
     /(?:give\s*away|giveaway)[\s\S]{0,40}(?:sats?|btc|bitcoin|seed|wallet)/,
     /(?:sats?|btc|bitcoin)[\s\S]{0,40}(?:give\s*away|giveaway)/,
 ];
@@ -206,12 +207,19 @@ function normalizeScamText(text, alt) {
     s = applyScamLeet(s);
     s = s.replace(/[\r\n]+/g, ' ');
     s = joinScamSingles(s);
+    // Before hyphens are stripped, so "twenty-four words" stays a seed length.
+    s = s.replace(/\btwenty[\s-]+four\b/g, '24');
+    // A period glued to the previous word ends a clause. A spaced "." is an
+    // obfuscated domain dot ("bit quest . xyz") and must stay for the gluer.
+    s = s.replace(/([^\s\n])[.!?]+(?=[^\S\n]|$)/g, '$1\n');
+    s = s.replace(/([^\s\n])[;:]+(?=[^\S\n]|$)/g, '$1\n');
     s = stripScamInnerPunct(s);
     s = s.replace(/\bd0t\b/g, 'dot');
     s = s.replace(/\bdot\b/g, '.');
     s = foldScamNumberWords(s);
-    s = s.replace(/\s+/g, ' ').trim();
-    s = s.replace(/\s*\.\s*/g, '.');
+    s = s.replace(/[^\S\n]+/g, ' ');
+    s = s.replace(/[^\S\n]*\.[^\S\n]*/g, '.');
+    s = s.replace(/ *\n+ */g, '\n').trim();
     return s;
 }
 
@@ -259,21 +267,82 @@ function unknownScamDomain(original, norm) {
     return false;
 }
 
-// Longer phrases first so "do not need to share" is not cut at "do not".
-const SCAM_NEGATION_RE = /\b(?:do not need to|don't need to|dont need to|no need to|never need to|do not|don't|dont|cannot|can not|can't|cant|never|avoid|beware(?:\s+of)?|not)\s+(?:sharing|sending|giving|entering|pasting|telling|typing|providing|depositing|paying|transferring|doubling|share|send|give|enter|paste|tell|type|provide|deposit|pay|transfer|double|dm|message|contact)\b[^.,!?]{0,80}/g;
-// Explaining a scam is not the same as pitching one. A direct "send me" /
-// "DM me" still matches. "scammed" is not in this list: the regression
-// sentence about guaranteed returns stays a hit.
-const SCAM_WARNING_RE = /\b(?:red flags?|beware|watch out|stay away|do not exist|does not exist|don't exist|dont exist|is a scam|it's a scam|its a scam|scammers?)\b/;
-const SCAM_DIRECT_PITCH_RE = /\b(?:send\s*me|dm\s*me|message\s*me)\b|\b(?:deposit|pay(?!ment)|transfer)\s*\d/;
+// Awareness can soften a soft phrase ("double your bitcoin", "guaranteed
+// returns") only inside the clause that carries the warning. It never
+// deletes the next 80 characters, and it never skips a hard ask: a bad or
+// dot-obfuscated domain, a seed or key request, sats sent to verify, or
+// "DM me". "scammed" is not a warning word: the regression sentence about
+// guaranteed returns stays a hit.
+const SCAM_INPUT_MAX = 4000;
+const SCAM_WARNING_RE = /\b(?:red flags?|beware|watch out|stay away|do not exist|does not exist|don't exist|dont exist|is a scam|it's a scam|its a scam|scammers?)\b/i;
+const NEGATED_VERB_RE = /\b(?:do not need to|don't need to|dont need to|no need to|never need to|do not|don't|dont|cannot|can not|can't|cant|never|avoid|beware(?:\s+of)?|not)\s+(?:sharing|sending|giving|entering|pasting|telling|typing|providing|depositing|paying|transferring|doubling|share|send|give|enter|paste|tell|type|provide|deposit|pay|transfer|double|dm|message|contact)\b/gi;
+// Hard asks. Same shapes as the soft list, without the phrases awareness may
+// soften. No trailing word boundary: letter-spacing glues the line.
+const HARD_SCAM_RES = [
+    /send\s*me\s*\d+(?:[.,]\d+)?\s*btc/,
+    /send\s*\d+(?:[.,]\d+)?\s*(?:btc|bitcoin|sats?)\s*to\s*(?:me|you)/,
+    /(?:dm|message|send)\s*me/,
+    /(?:send|deposit|pay(?!ment)|transfer)[\s\S]{0,80}(?:sats?|btc|bitcoin)[\s\S]{0,80}(?:sync|verify|unlock|validate|wallet|seed|mnemonic)/,
+    /(?:sync|verify|unlock|validate)[\s\S]{0,40}(?:your\s*)?(?:wallet|account|rewards?)[\s\S]{0,40}(?:sats?|btc|bitcoin|seed|mnemonic|pay(?!ment)|send|deposit)/,
+    /(?:send|share|give|paste|dm|tell|provide|type)\s*(?:me\s*)?(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words|private\s*key|secret\s*key)/,
+    /enter\s*(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words|private\s*key|secret\s*key)(?:\s*phrase)?[\s\S]{0,40}(?:website|site|link|telegram|form|here|below|admin|mod|me)/,
+    /your\s*(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words|private\s*key|secret\s*key)(?:\s*phrase)?[\s\S]{0,28}(?:verify|validate|unlock|admin|mod|dm|\bme\b)/,
+    /(?:admin|moderator|mod)\s*will\s*(?:dm|message)\s*(?:you|me)/,
+    /(?:dm|message)\s*(?:the\s*)?(?:admin|moderator|mod)\s*(?:your\s*)?(?:seed|recovery|mnemonic|12\s*words|twelve\s*words|24\s*words)/,
+];
+const LIVE_REQUEST_RE = /\b(?:send|share|give|paste|dm|tell|provide|type|enter|deposit|pay(?!ment)|transfer|message|contact|double)\b/i;
+const SECOND_PERSON_RE = /\b(?:me|you|your|yours)\b/i;
+const SECOND_PERSON_ASK_RE = /\b(?:except|but|only)\s+me\b|\b(?:dm|message|send|give|paste|tell|provide)\s+me\b|\bto\s+me\b/i;
 
-function guardScamText(norm) {
-    return String(norm || '').replace(SCAM_NEGATION_RE, ' ');
+function stripReportedSpeech(clause) {
+    return String(clause || '')
+        .replace(/\b(?:asks?|tells?|asking|telling)\s+you\s+to\s+(?:send|share|give|paste|deposit|pay|transfer|enter|type|provide|dm|message|double)\b/gi, ' ')
+        .replace(/\b(?:says|said|say)\s+(?:they|he|she|it)\s+will\s+(?:send|share|give|double|deposit|pay|transfer|dm|message|ask|steal|take|\d{1,9}\s*x)\b/gi, ' ')
+        .replace(/\bwho\s+(?:asks?|tells?|says)\s+(?:you\s+to\s+)?(?:send|share|give|double|dm|message)\b/gi, ' ');
+}
+
+function stripNegatedVerbs(clause) {
+    // "red flag or not, deposit ..." loses the comma during normalizing,
+    // and "or not" must not erase the ask that follows it.
+    const saved = String(clause || '').replace(/\b(?:whether\s+or\s+not|or\s+not)\b/gi, 'or nah');
+    NEGATED_VERB_RE.lastIndex = 0;
+    return saved.replace(NEGATED_VERB_RE, ' ').replace(/\bor nah\b/gi, 'or not');
+}
+
+// A warning clause still counts as a pitch when the ask is aimed at you.
+function hasLiveRequest(clause) {
+    const raw = String(clause || '');
+    if (SECOND_PERSON_ASK_RE.test(raw)) return true;
+    const bare = stripNegatedVerbs(stripReportedSpeech(raw));
+    if (/\d{1,9}\s*x\s*your\b/i.test(bare)) return true;
+    return LIVE_REQUEST_RE.test(bare) && SECOND_PERSON_RE.test(bare);
+}
+
+function clauseIsAwareness(clause) {
+    if (hasLiveRequest(clause)) return false;
+    if (SCAM_WARNING_RE.test(clause)) return true;
+    const stripped = stripNegatedVerbs(clause);
+    return stripped !== clause;
+}
+
+function hardText(clause) {
+    let next = stripReportedSpeech(clause);
+    if (!SECOND_PERSON_ASK_RE.test(clause)) next = stripNegatedVerbs(next);
+    return next;
+}
+
+function hardHit(clause) {
+    const text = hardText(clause);
+    for (let i = 0; i < HARD_SCAM_RES.length; i++) {
+        if (HARD_SCAM_RES[i].test(text)) return true;
+    }
+    return false;
 }
 
 function scamHit(text) {
-    const base = [normalizeScamText(text, false)];
-    const alt = normalizeScamText(text, true);
+    const clipped = String(text || '').slice(0, SCAM_INPUT_MAX);
+    const base = [normalizeScamText(clipped, false)];
+    const alt = normalizeScamText(clipped, true);
     if (alt !== base[0]) base.push(alt);
     const forms = [];
     for (let i = 0; i < base.length; i++) scamSqueezeForms(base[i]).forEach(function(form) {
@@ -282,11 +351,19 @@ function scamHit(text) {
     for (let f = 0; f < forms.length; f++) {
         const norm = forms[f];
         if (!norm) continue;
-        const guarded = guardScamText(norm);
-        if (SCAM_WARNING_RE.test(norm) && !SCAM_DIRECT_PITCH_RE.test(guarded)) continue;
-        if (unknownScamDomain(text, guarded)) return true;
+        if (unknownScamDomain(clipped, norm.replace(/\n/g, ' '))) return true;
+        const clauses = norm.split(/\n+/);
+        const live = [];
+        for (let c = 0; c < clauses.length; c++) {
+            const clause = clauses[c].trim();
+            if (!clause) continue;
+            if (hardHit(clause)) return true;
+            if (!clauseIsAwareness(clause)) live.push(clause);
+        }
+        const soft = live.join(' ');
+        if (!soft) continue;
         for (let i = 0; i < SCAM_PATTERNS.length; i++) {
-            if (SCAM_PATTERNS[i].test(guarded)) return true;
+            if (SCAM_PATTERNS[i].test(soft)) return true;
         }
     }
     return false;
