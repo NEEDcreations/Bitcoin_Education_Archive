@@ -616,7 +616,7 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261024_v2360'));
+    assert.ok(html.includes('global-chat.js?v=20261026_v2373'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2350'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2345'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2343'));
@@ -628,7 +628,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261024_v2361'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
@@ -645,7 +645,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2362'"));
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2373'"));
     assert.ok(!swText.includes('btc-archive-v2361'));
     assert.ok(!swText.includes('btc-archive-v2360'));
     assert.ok(!swText.includes('btc-archive-v2359'));

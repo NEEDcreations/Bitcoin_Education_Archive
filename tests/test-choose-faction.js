@@ -377,7 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
+    assert.ok(notes.indexOf("Latest: Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.") > 0);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 
