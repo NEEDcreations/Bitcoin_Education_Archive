@@ -185,11 +185,32 @@ function markerIdFor(actionId, target, data) {
     if (actionId === 'beats_comment') {
         const trackId = cleanId(data && data.trackId, 128);
         if (!trackId) return '';
-        return 'beats_comment_' + trackId + '_' + id;
+        return 'beats_comment__' + trackId + '__' + id;
     }
     const spec = DOC_ACTIONS[actionId];
     if (!spec) return '';
     return spec.collection + '__' + id;
+}
+
+// New claims use "__". A marker written before that change used a single "_"
+// and is still honored, so an old claim cannot be paid again.
+function markerReadIds(actionId, target, data) {
+    const primary = markerIdFor(actionId, target, data);
+    if (!primary) return [];
+    const ids = [primary];
+    if (actionId === 'beats_comment') {
+        const trackId = cleanId(data && data.trackId, 128);
+        const commentId = cleanId(target, 128);
+        const legacy = trackId && commentId ? ('beats_comment_' + trackId + '_' + commentId) : '';
+        if (legacy && ids.indexOf(legacy) === -1) ids.push(legacy);
+    }
+    return ids;
+}
+
+function topicCopy(row, proof) {
+    const doc = row || {};
+    const src = proof || {};
+    return !!(doc.topicPost || doc.topicLink || src.topicPost || src.topicLink);
 }
 
 function markerIds(actionId, targets, data) {
@@ -302,16 +323,18 @@ function planReads(db, userRef, uid, resolved, data) {
     if (spec && spec.collection !== 'beats_comment') {
         const docId = cleanId(src[spec.field], 128);
         add('doc', db.collection(spec.collection).doc(docId));
-        const marker = markerIdFor(resolved.id, docId, src);
-        if (marker) add('marker:' + marker, db.collection('award_doc_claims').doc(marker));
+        markerReadIds(resolved.id, docId, src).forEach(function (marker) {
+            add('marker:' + marker, db.collection('award_doc_claims').doc(marker));
+        });
     }
     if (resolved.id === 'beats_comment') {
         const trackId = cleanId(src.trackId, 128);
         const commentId = cleanId(src.commentId, 128);
         if (trackId && commentId) {
             add('doc', db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId));
-            const marker = markerIdFor(resolved.id, commentId, src);
-            if (marker) add('marker:' + marker, db.collection('award_doc_claims').doc(marker));
+            markerReadIds(resolved.id, commentId, src).forEach(function (marker) {
+                add('marker:' + marker, db.collection('award_doc_claims').doc(marker));
+            });
         }
     }
     if (resolved.id === 'beats_upload_batch') {
@@ -396,9 +419,14 @@ function confirm(resolved, data, ctx) {
         const row = snapRow(context, 'doc');
         const owner = proof.docOwner != null ? proof.docOwner : ownerOf(row, spec.owner);
         if (!owner || owner !== uid) return fail('Evidence required');
+        if ((resolved.id === 'forum_post' || resolved.id === 'forum_reply') && topicCopy(row, proof)) {
+            return fail('Evidence required');
+        }
         if (!freshEnough(docTime(row, proof), context.now)) return fail('Evidence expired');
-        const marker = markerIdFor(resolved.id, resolved.target || (data && data[spec.field]), data);
-        if (markerTaken(context, marker)) return fail('Already claimed');
+        const markers = markerReadIds(resolved.id, resolved.target || (data && data[spec.field]), data);
+        for (let mi = 0; mi < markers.length; mi++) {
+            if (markerTaken(context, markers[mi])) return fail('Already claimed');
+        }
         return pass({ xp: resolved.xp });
     }
 

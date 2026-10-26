@@ -2917,17 +2917,53 @@ window._sfHashTap = function(rowId, diffTarget) {
     }
 };
 
-function _renderTopHashesHTML(entries) {
-    var myUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-    var now = Date.now();
-    var SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
-    var html = '';
+function _sfStoredNameMissing(name) {
+    var raw = String(name == null ? '' : name);
+    if (/[\u0000-\u001F\u007F]/.test(raw)) return true;
+    var text = raw.trim();
+    if (!/^[A-Za-z0-9_\-.]{3,20}$/.test(text)) return true;
+    if (/^(anon|anonymous)$/i.test(text)) return true;
+    if (typeof window.missingPublicName === 'function' && window.missingPublicName(text)) return true;
+    return false;
+}
 
-    function renderEntry(e, i) {
-        var isMe = myUsername && e.username === myUsername;
+function _sfRowIsMine(value, username, nameMissing) {
+    var mine = (typeof window !== 'undefined' && window._sfMyTopHashValues) || null;
+    if (mine && mine[value] === true) return true;
+    try {
+        var stored = localStorage.getItem('btc_sf_best_hash');
+        if (stored != null && stored !== '' && Number(stored) === Number(value)) return true;
+    } catch (e) {}
+    var myUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+    return !nameMissing && !!myUsername && username === myUsername;
+}
+
+function _sfNoteOwnHashes(data) {
+    var mine = {};
+    var list = data && Array.isArray(data.topHashValues) ? data.topHashValues : [];
+    for (var i = 0; i < list.length; i++) {
+        if (list[i] != null) mine[list[i]] = true;
+    }
+    if (data && data.value != null) mine[data.value] = true;
+    window._sfMyTopHashValues = mine;
+    var el = document.getElementById('favorTopHashes');
+    if (el && window._sfTopHashEntries && window._sfTopHashEntries.length) {
+        el.innerHTML = _renderTopHashesHTML(window._sfTopHashEntries);
+    }
+}
+
+function _renderTopHashesHTML(entries) {
+        var now = Date.now();
+        var SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
+        var html = '';
+
+        function renderEntry(e, i) {
+        var nameMissing = _sfStoredNameMissing(e.username);
+        var isMe = _sfRowIsMine(e.value, e.username, nameMissing);
         var rank = i + 1;
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
-        var name = typeof escapeHtml === 'function' ? escapeHtml(e.username || 'Anon') : (e.username || 'Anon');
+        var shownName = nameMissing ? 'Anon' : ('@' + e.username);
+        var name = typeof escapeHtml === 'function' ? escapeHtml(shownName) : shownName;
            // Winner = hash beat the difficulty target that was ACTIVE when it was mined.
         // e.difficultyTarget is stored by the cloud function (backfilled for legacy entries).
         // Fall back to inferring from timestamp using the known history if missing.
@@ -2962,9 +2998,12 @@ function _renderTopHashesHTML(entries) {
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                    (function(){ var _safeU = (e.username||'').replace(/\\/g,'').replace(/['"<>]/g,'');
-
-                    return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeU+'\')" style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @'+name+'\'s profile">' + name + (isMe ? ' (you)' : '') + badges + '</span>'; })() +
+                    (function(){
+                    var _safeU = (nameMissing ? '' : (e.username || '')).replace(/\\/g,'').replace(/['"<>]/g,'');
+                    var click = nameMissing
+                        ? ''
+                        : 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + _safeU + '\')"';
+                    return '<span ' + click + ' style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View ' + name + '\'s profile">' + name + '</span>' + (isMe ? ' (you)' : '') + badges; })() +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
                     '<div style="display:flex;align-items:center;gap:6px;">' +
@@ -3163,10 +3202,8 @@ function _loadLastSFWindow() {
         allWinners = allWinners.slice().sort(function(a, b) { return (a.value || 0) - (b.value || 0); });
         var lowestColor = hadWinner ? '#f7931a' : '#22c55e';
         function _renderWinnerRow(w) {
-            var nameMissing = typeof window.missingPublicName === 'function'
-                ? window.missingPublicName(w.username)
-                : !String(w.username || '').trim() || /^(anon|anonymous)$/i.test(String(w.username || '').trim());
-            var display = !nameMissing ? '@' + escapeHtml(w.username) : (w.uid ? '@Anon' : '🏆 Winner');
+            var nameMissing = _sfStoredNameMissing(w.username);
+            var display = !nameMissing ? '@' + escapeHtml(w.username) : 'Anon';
             var baseStyle = 'font-size:0.75rem;font-weight:700;color:#f7931a;';
             var clickHandler = '';
             var lookupAttr = '';
@@ -3253,9 +3290,7 @@ function _loadPoolEpoch() {
         for (var i = 0; i < slots; i++) {
             var b = blocks[i];
             if (b) {
-                var _epochNameMissing = typeof window.missingPublicName === 'function'
-                    ? window.missingPublicName(b.username)
-                    : !String(b.username || '').trim() || /^(anon|anonymous)$/i.test(String(b.username || '').trim());
+                var _epochNameMissing = _sfStoredNameMissing(b.username);
                 var uname = !_epochNameMissing ? '@' + (typeof escapeHtml === 'function' ? escapeHtml(b.username) : b.username) : '@\u2014';
                 var ts = b.foundAt ? (b.foundAt.toDate ? b.foundAt.toDate() : new Date(b.foundAt.seconds * 1000)) : null;
                 var tsStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
@@ -3353,7 +3388,8 @@ function _loadFavorLeaderboards() {
             el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to hash!</div>';
             return;
         }
-        el.innerHTML = _renderTopHashesHTML(doc.data().entries);
+        window._sfTopHashEntries = doc.data().entries;
+        el.innerHTML = _renderTopHashesHTML(window._sfTopHashEntries);
     }, function() {
         var el = document.getElementById('favorTopHashes');
         if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load leaderboard</div>';
@@ -3368,6 +3404,7 @@ function _loadFavorLeaderboards() {
     }
     var _legacyChecked = false;
     _favorPBUnsub = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(myUid).onSnapshot(function(doc) {
+        _sfNoteOwnHashes(doc && doc.exists ? doc.data() : null);
         var pbEl = document.getElementById('favorPersonalBest');
         if (!pbEl) return;
         if (doc.exists) {

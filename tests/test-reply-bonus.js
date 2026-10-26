@@ -616,7 +616,11 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2395'));    assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(html.includes('global-chat.js?v=20261026_v2395'));
+assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2380'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2373'));
@@ -653,8 +657,10 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2395'"));
     assert.ok(!swText.includes('btc-archive-v2371'));
     assert.ok(!swText.includes('btc-archive-v2375'));
-    assert.ok(!swText.includes('btc-archive-v2370'));    assert.ok(!swText.includes('btc-archive-v2377'));
+    assert.ok(!swText.includes('btc-archive-v2370'));
+assert.ok(!swText.includes('btc-archive-v2377'));
     assert.ok(!swText.includes('btc-archive-v2376'));
+    assert.ok(!swText.includes('btc-archive-v2377'));
     assert.ok(!swText.includes('btc-archive-v2374'));
     assert.ok(!swText.includes('btc-archive-v2373'));
     assert.ok(!swText.includes('btc-archive-v2372'));

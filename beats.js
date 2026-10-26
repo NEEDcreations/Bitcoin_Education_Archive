@@ -700,10 +700,12 @@ window.beatsPlayTrack = function(idx) {
         // but lets genuine replays each register (play 5x = 5 plays)
         if (now - lastCount < 45000) return;
         window._beatsPlayCooldowns[_countTrackId] = now;
-        if (typeof db !== 'undefined') {
-            db.collection('beats_tracks').doc(_countTrackId).update({
-                plays: firebase.firestore.FieldValue.increment(1)
-            }).catch(function() {});
+        // Rules do not let a listener increment someone else's play count.
+        // recordBeatsPlay writes it with the Admin SDK. There is no client fallback.
+        if (typeof firebase !== 'undefined' && firebase.functions) {
+            try {
+                firebase.functions().httpsCallable('recordBeatsPlay')({ trackId: _countTrackId }).catch(function () {});
+            } catch (playErr) {}
         }
     }, 30000);
 

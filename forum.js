@@ -854,13 +854,15 @@ window.forumSubmitReply = async function(postId) {
 
         var replyRef = await db.collection('forum_replies').add(replyData);
 
-        // Increment reply count
-        await db.collection('forum_posts').doc(postId).update({
-            replyCount: firebase.firestore.FieldValue.increment(1)
-        });
-
+        // replyCount is maintained by onForumReplyCount. A non-author cannot
+        // write that field, and that denial must not skip the reply XP.
         var skipForumReplyAward = forumPostIsTopicMirror(forumCurrentPost);
-        if (!skipForumReplyAward && typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply', null, null, null, null, { replyId: replyRef && replyRef.id });
+        if (!skipForumReplyAward && typeof awardPoints === 'function') {
+            try {
+                var replyAward = awardPoints(5, '💬 Forum reply', null, null, null, null, { replyId: replyRef && replyRef.id });
+                if (replyAward && typeof replyAward.catch === 'function') replyAward.catch(function () {});
+            } catch (awardErr) { /* the reply is already saved */ }
+        }
         // Combo tracking. A mirrored topic reply already earns conversation XP.
         if (!skipForumReplyAward && typeof window._trackCombo === 'function') window._trackCombo('forum');
         if (!skipForumReplyAward) {
@@ -1026,10 +1028,7 @@ window.forumDeleteReply = async function(replyId, postId) {
 
     try {
         await db.collection('forum_replies').doc(replyId).delete();
-        // Decrement reply count
-        await db.collection('forum_posts').doc(postId).update({
-            replyCount: firebase.firestore.FieldValue.increment(-1)
-        });
+        // onForumReplyCountDeleted adjusts replyCount. The client cannot.
 
         if (typeof showToast === 'function') showToast('🗑️ Reply deleted');
         if (forumCurrentPost) forumLoadReplies(postId);
@@ -1828,8 +1827,14 @@ window.articleSubmitReply = async function(articleId) {
             replyData.parentAuthorName = window._articleReplyingTo.authorName;
         }
         var articleReplyRef = await db.collection('article_replies').add(replyData);
-        await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment', null, null, null, null, { commentId: articleReplyRef && articleReplyRef.id });
+        // replyCount is maintained by onArticleReplyCount. The article author
+        // is the only client who could write it, so this must not gate the XP.
+        if (typeof awardPoints === 'function') {
+            try {
+                var articleAward = awardPoints(5, '💬 Article comment', null, null, null, null, { commentId: articleReplyRef && articleReplyRef.id });
+                if (articleAward && typeof articleAward.catch === 'function') articleAward.catch(function () {});
+            } catch (awardErr) { /* the comment is already saved */ }
+        }
         try {
             var _aDoc = await db.collection('articles').doc(articleId).get();
             var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';

@@ -216,5 +216,69 @@ test('visit, prediction, and welcome still pay their old amounts when the server
     assert.strictEqual(grant(fresh(), { action: 'Welcome bonus!', pts: 5 }).awarded, 5);
 });
 
+test('forum copies of topic comments do not pay forum XP', function () {
+    const copiedPost = grant(fresh(), { action: '📝 Forum post', pts: 10, postId: 'mirror1' }, owned({ topicPost: 'root1' }));
+    assert.strictEqual(copiedPost.awarded, 0);
+    const copiedReply = grant(fresh(), { action: '💬 Forum reply', pts: 5, replyId: 'mirror-reply' }, owned({ topicLink: '#topic' }));
+    assert.strictEqual(copiedReply.awarded, 0);
+    const plain = grant(fresh(), { action: '📝 Forum post', pts: 10, postId: 'plain1' }, owned());
+    assert.strictEqual(plain.awarded, 10);
+    const plainReply = grant(fresh(), { action: '💬 Forum reply', pts: 5, replyId: 'plain-reply' }, owned());
+    assert.strictEqual(plainReply.awarded, 5);
+});
+
+test('beats comment markers do not collide on underscores and still honor the old id', function () {
+    const mem = fresh();
+    const first = grant(mem, {
+        action: 'Left a comment on Bitcoin Beats 💬', pts: 10, trackId: 'ab', commentId: 'c_d',
+    }, owned());
+    assert.strictEqual(first.awarded, 10);
+    assert.strictEqual(mem.globalClaims['beats_comment__ab__c_d'], true);
+    assert.strictEqual(mem.globalClaims['beats_comment_ab_c_d'], undefined);
+    const second = grant(mem, {
+        action: 'Left a comment on Bitcoin Beats 💬', pts: 10, trackId: 'ab_c', commentId: 'd',
+    }, owned());
+    assert.strictEqual(second.awarded, 10);
+    assert.strictEqual(mem.globalClaims['beats_comment__ab_c__d'], true);
+    const legacy = fresh();
+    legacy.globalClaims = { beats_comment_ab_c_d: true };
+    const blocked = grant(legacy, {
+        action: 'Left a comment on Bitcoin Beats 💬', pts: 10, trackId: 'ab_c', commentId: 'd',
+    }, owned());
+    assert.strictEqual(blocked.awarded, 0);
+    assert.strictEqual(blocked.success, false);
+});
+
+test('a capped story chapter still records its once claim', function () {
+    const mem = fresh();
+    mem.daily.u = { total: 1000 };
+    const capped = grant(mem, { action: '📖 Completed Chapter 1', pts: 15 });
+    assert.strictEqual(capped.awarded, 0);
+    assert.strictEqual(mem.claims['u/once_story_chapter_1'], true);
+    const retry = grant(mem, { action: '📖 Completed Chapter 1', pts: 15 });
+    assert.strictEqual(retry.awarded, 0);
+    assert.strictEqual(retry.success, false);
+    mem.daily.u.total = 0;
+    for (let n = 2; n <= 7; n++) {
+        grant(mem, { action: '📖 Completed Chapter ' + n, pts: 15 });
+    }
+    const finale = grant(mem, { action: "📖🎉 Completed Nacho's Story!", pts: 100 });
+    assert.strictEqual(finale.awarded, 100);
+});
+
+test('chat streak advances when the daily cap pays nothing', function () {
+    const mem = fresh();
+    mem.daily.u = { total: 1000 };
+    const capped = grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'cap1' }, owned(), '2026-10-26');
+    assert.strictEqual(capped.awarded, 0);
+    assert.strictEqual(mem.users.u.chatXpStreak, 1);
+    assert.strictEqual(mem.users.u.chatXpDay, '2026-10-26');
+    mem.daily.u.total = 0;
+    const next = grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'next1' }, owned(), '2026-10-27');
+    assert.strictEqual(next.awarded, 5);
+    assert.strictEqual(mem.users.u.chatXpStreak, 2);
+    assert.strictEqual(mem.users.u.chatXpDay, '2026-10-27');
+});
+
 console.log(passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

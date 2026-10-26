@@ -419,8 +419,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2395'"));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2375'));
-    assert.ok(!sw.includes('btc-archive-v2370'));    assert.ok(!sw.includes('btc-archive-v2377'));
+    assert.ok(!sw.includes('btc-archive-v2370'));
+assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
+    assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2372'));
@@ -796,7 +798,11 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: XP awards now require server-checked evidence, and profile saves only allow known non-reward fields.';    const previousLatest = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
+    const latest = 'Latest: XP awards now require server-checked evidence, and profile saves only allow known non-reward fields.';
+    const previousLatest = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
+    const sidebarNote = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    assert.ok(notes.includes(sidebarNote));
+    assert.ok(!notes.includes('Latest: ' + sidebarNote));
     const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
     assert.ok(notes.includes(gifts));
     assert.ok(!notes.includes('Latest: Opening gifts'));

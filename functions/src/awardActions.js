@@ -610,6 +610,19 @@ function applyAward(mem, uid, data, opts) {
             rememberDocClaims();
         }
     }
+    // A chapter finished at the daily cap is still consumed. Otherwise the
+    // finale can stay locked, and the same chapter can pay on a later day.
+    if (!unverified && grant.awarded === 0 && resolved.id === 'story_chapter') {
+        store.counts[countKey] = usedCount + 1;
+        claimKeys.forEach(function (key) { store.claims[key] = true; });
+    }
+    if (resolved.id === 'chat_message') {
+        const streakPlan = awardEvidence.nextChatStreak(user, day);
+        if (streakPlan.changed) {
+            user.chatXpStreak = streakPlan.streak;
+            user.chatXpDay = day;
+        }
+    }
     if (!unverified && resolved.id === 'anon_merge') {
         claimKeys.forEach(function (key) { store.claims[key] = true; });
         store.counts[countKey] = usedCount + 1;

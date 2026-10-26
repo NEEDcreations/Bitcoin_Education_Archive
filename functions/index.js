@@ -1041,6 +1041,37 @@ exports.onForumReplyBadgeCount = onDocumentCreated({
     return null;
 });
 
+const replyCounts = require('./src/replyCounts');
+
+exports.onForumReplyCount = onDocumentCreated({
+    document: 'forum_replies/{replyId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await replyCounts.onForumReplyCreated(db, event.data.data()); }
+    catch (e) { console.warn('[onForumReplyCount]', e && e.message); }
+    return null;
+});
+
+exports.onForumReplyCountDeleted = onDocumentDeleted({
+    document: 'forum_replies/{replyId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    try { await replyCounts.onForumReplyDeleted(db, event.data && event.data.data()); }
+    catch (e) { console.warn('[onForumReplyCountDeleted]', e && e.message); }
+    return null;
+});
+
+exports.onArticleReplyCount = onDocumentCreated({
+    document: 'article_replies/{replyId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try { await replyCounts.onArticleReplyCreated(db, event.data.data()); }
+    catch (e) { console.warn('[onArticleReplyCount]', e && e.message); }
+    return null;
+});
+
 exports.onBeatsUploadBadgeCount = onDocumentCreated({
     document: 'beats_tracks/{trackId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
@@ -2746,6 +2777,16 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 // ===== SERVER-SIDE POINTS AWARD (Fix #1, #2, #5) =====
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
+const beatsPlays = require('./src/beatsPlays');
+
+exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    return beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
+});
+
 exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
@@ -3377,7 +3418,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             }
 
             let chatStreakNow = null;
-            if (matchedAction === 'chat_message' && awarded > 0) {
+            if (matchedAction === 'chat_message') {
                 const streakPlan = awardEvidence.nextChatStreak(userData, offsetToday);
                 chatStreakNow = streakPlan.streak;
                 if (streakPlan.changed) {
@@ -3425,8 +3466,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
             const proofAction = matchedAction === 'flex_action' || matchedAction === 'lq_lesson' || matchedAction === 'anon_merge' || unverifiedGrant;
+            const keepOnce = matchedAction === 'story_chapter';
             let progress = null;
-            if (claimRef && (awarded > 0 || proofAction)) {
+            if (claimRef && (awarded > 0 || proofAction || keepOnce)) {
                 t.set(claimRef, {
                     action: matchedAction,
                     xp: awarded,
@@ -3450,7 +3492,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     }, { merge: true });
                 }
             }
-            if (awarded > 0 || badgeAwardRef || unverifiedGrant || matchedAction === 'anon_merge') {
+            if (awarded > 0 || badgeAwardRef || unverifiedGrant || matchedAction === 'anon_merge' || matchedAction === 'story_chapter') {
                 t.set(countRef, {
                     count: nextCount,
                     lastAt: admin.firestore.FieldValue.serverTimestamp(),
