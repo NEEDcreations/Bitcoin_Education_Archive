@@ -3341,8 +3341,15 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === 'j') { document.getElementById('main').scrollBy({ top: 300, behavior: 'smooth' }); return; }
         // K = scroll up
         if (key === 'k') { document.getElementById('main').scrollBy({ top: -300, behavior: 'smooth' }); return; }
-        // Space = page down (unless in modal)
-        if (key === ' ') { e.preventDefault(); document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }); return; }
+        // Space = page down, unless a button or link is focused so Space can activate it
+        if (key === ' ') {
+            var spaceTag = e.target && e.target.tagName;
+            var spaceRole = e.target && e.target.getAttribute && e.target.getAttribute('role');
+            if (spaceTag === 'BUTTON' || spaceTag === 'A' || spaceTag === 'SELECT' || spaceTag === 'SUMMARY' || spaceRole === 'button') return;
+            e.preventDefault();
+            document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+            return;
+        }
 
         // === Info ===
         // ? = show keyboard shortcuts help
