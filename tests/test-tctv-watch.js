@@ -416,7 +416,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2407'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2380'"));
+    assert.ok(!sw.includes('btc-archive-v2407'));
+    assert.ok(!sw.includes('btc-archive-v2379'));
     assert.ok(!sw.includes('btc-archive-v2399'));
     assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2377'));
@@ -800,16 +802,28 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const minerNote = "A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.";
-    assert.ok(notes.includes(minerNote));
-    assert.ok(!notes.includes('Latest: ' + minerNote));
-    const previousLatest = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    const favorName = 'A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.';
+    assert.ok(notes.includes(favorName));
+    assert.ok(!notes.includes('Latest: ' + favorName));
+    const certNote = 'Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.';
+    assert.ok(notes.includes(certNote));
+    assert.ok(!notes.includes('Latest: Passing'));
+    const sidebarNote = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    assert.ok(notes.includes(sidebarNote));
+    assert.ok(!notes.includes('Latest: ' + sidebarNote));
+    const inventoryNote = 'Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
+    assert.ok(notes.includes(inventoryNote));
+    assert.ok(!notes.includes('Latest: Inventory'));
+    const previousLatest = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
     const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
     assert.ok(notes.includes(gifts));
     assert.ok(!notes.includes('Latest: Opening gifts'));
     const invite = 'The Invite button now stays on the home screen as a small pill, so you can always invite a friend.';
     assert.ok(notes.includes(invite));
     assert.ok(!notes.includes('Latest: The Invite button'));
+    const sidebar = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    assert.ok(notes.includes(sidebar));
+    assert.ok(!notes.includes('Latest: Sidebar'));
     const favorLive = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
     const topics = 'On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
     assert.ok(notes.includes(topics));
@@ -851,10 +865,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    const certNote = 'Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.';
-    assert.ok(notes.includes(certNote));
-    assert.ok(!notes.includes('Latest: ' + certNote));
-    const latest = 'Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
+    const latest = 'Latest: Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
     assert.ok(notes.includes(faction));
