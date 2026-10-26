@@ -328,6 +328,29 @@ async function copyPlanned(opts) {
     return { objectCount: objectCount, bytes: bytes, failedGroups: failedGroups, checksums: checksums };
 }
 
+function priorCleanupStreak(detail) {
+    const match = /uploads cleanup skipped, streak (\d+)/.exec(detail || '');
+    return match ? Number(match[1]) : 0;
+}
+
+function cleanupSkipNote(priorStreak, skipped) {
+    if (!skipped) return { streak: 0, note: '', alert: false };
+    const streak = (Number(priorStreak) || 0) + 1;
+    return {
+        streak: streak,
+        note: 'uploads cleanup skipped, streak ' + streak,
+        alert: streak >= 3,
+    };
+}
+
+function noteCleanupSkip(summary, deleted, priorStreak) {
+    if (!deleted || !deleted.cleanupSkipped) return summary;
+    const skip = cleanupSkipNote(priorStreak, true);
+    summary.detail = (summary.detail ? summary.detail + '; ' : '') + skip.note;
+    if (skip.alert) console.error('[r2-backup] uploads cleanup skipped ' + skip.streak + ' nights in a row');
+    return summary;
+}
+
 function summarize(plan, copied) {
     const parts = (plan.missing || []).slice();
     const failed = copied && copied.failedGroups ? copied.failedGroups : [];
@@ -506,6 +529,7 @@ async function copyToday(opts) {
         summary.ok = false;
         summary.detail = (summary.detail ? summary.detail + '; ' : '') + 'could not delete objects older than 90 days';
     }
+    noteCleanupSkip(summary, deleted, opts.priorCleanupStreak);
     console.log('[r2-backup]', date, summary.ok ? 'ok' : 'failed', 'objects', summary.objectCount, 'bytes', summary.bytes, 'deleted', deleted.count);
     return summary;
 }
@@ -541,7 +565,11 @@ async function deleteOldObjects(made, today, encKey, flags) {
         } while (token);
         const dated = keysOlderThan(keys, today, DELETE_AFTER_DAYS);
         let uploadsDrop = [];
-        if (!skipUploads) {
+        let cleanupSkipped = false;
+        if (skipUploads) {
+            console.error('[r2-backup] manifest missing; skipping uploads cleanup');
+            cleanupSkipped = true;
+        } else {
             const cutoff = health.addUtcDays(today, -DELETE_AFTER_DAYS);
             const recent = [];
             for (let i = 0; i < keys.length; i++) {
@@ -550,31 +578,50 @@ async function deleteOldObjects(made, today, encKey, flags) {
             }
             if (!recent.length) {
                 console.error('[r2-backup] manifest missing; skipping uploads cleanup');
+                cleanupSkipped = true;
             } else {
                 let manifestProblem = false;
+                let readable = 0;
                 const referenced = [];
                 for (let i = 0; i < recent.length; i++) {
                     const key = recent[i];
+                    let obj;
                     try {
-                        const obj = await made.client.send(new made.GetObjectCommand({ Bucket: made.bucket, Key: key }));
+                        obj = await made.client.send(new made.GetObjectCommand({ Bucket: made.bucket, Key: key }));
+                    } catch (err) {
+                        if (notFound(err)) {
+                            console.error('[r2-backup] manifest vanished; continuing cleanup');
+                            continue;
+                        }
+                        console.error('[r2-backup] manifest unreadable; skipping uploads cleanup', safeDetail(err));
+                        manifestProblem = true;
+                        break;
+                    }
+                    try {
                         const plain = seal.decryptBuffer(await readBody(obj.Body), encKey, key);
                         const parsed = JSON.parse(plain.toString('utf8'));
                         const objects = parsed.objects || [];
                         for (let j = 0; j < objects.length; j++) {
                             if (objects[j] && objects[j].dest) referenced.push(objects[j].dest);
                         }
+                        readable++;
                     } catch (err) {
                         console.error('[r2-backup] manifest unreadable; skipping uploads cleanup', safeDetail(err));
                         manifestProblem = true;
                         break;
                     }
                 }
-                if (!manifestProblem) uploadsDrop = unreferencedUploads(keys, referenced);
+                if (manifestProblem || readable === 0) {
+                    if (!manifestProblem) console.error('[r2-backup] manifest missing; skipping uploads cleanup');
+                    cleanupSkipped = true;
+                } else {
+                    uploadsDrop = unreferencedUploads(keys, referenced);
+                }
             }
         }
         const drop = dated.concat(uploadsDrop);
         const batchError = await deleteBatches(made, drop);
-        return { count: batchError ? 0 : drop.length, error: !!batchError };
+        return { count: batchError ? 0 : drop.length, error: !!batchError, cleanupSkipped: cleanupSkipped };
     } catch (err) {
         console.error('[r2-backup] delete', safeDetail(err));
         return { count: 0, error: true };
@@ -627,6 +674,8 @@ module.exports = {
     unreferencedUploads,
     copyPlanned,
     summarize,
+    priorCleanupStreak,
+    noteCleanupSkip,
     deleteOldObjects,
     copyToday,
     runNightlyR2Copy,

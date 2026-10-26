@@ -201,6 +201,26 @@ test('sha256 values are written into the manifests and omitted when not computed
     assert.strictEqual(nightly.objects.some((row) => row.group === 'uploads'), false);
 });
 
+test('a cleanup pause is counted and the third night is logged', function () {
+    assert.strictEqual(r2.priorCleanupStreak('copied 1 objects, 2 bytes'), 0);
+    assert.strictEqual(r2.priorCleanupStreak('copied 1 objects, 2 bytes; uploads cleanup skipped, streak 2'), 2);
+    const summary = { ok: true, detail: 'copied 1 objects, 2 bytes' };
+    const logs = [];
+    const orig = console.error;
+    console.error = function () { logs.push(Array.prototype.join.call(arguments, ' ')); };
+    try {
+        r2.noteCleanupSkip(summary, { cleanupSkipped: true }, 2);
+    } finally {
+        console.error = orig;
+    }
+    assert.strictEqual(summary.ok, true);
+    assert.ok(summary.detail.indexOf('uploads cleanup skipped, streak 3') !== -1);
+    assert.ok(logs.join('\n').indexOf('uploads cleanup skipped 3 nights in a row') !== -1);
+    const quiet = { ok: true, detail: 'copied 1 objects, 2 bytes' };
+    r2.noteCleanupSkip(quiet, { cleanupSkipped: false }, 4);
+    assert.strictEqual(quiet.detail, 'copied 1 objects, 2 bytes');
+});
+
 test('objects older than 90 days are deleted and a 90 day old key is kept', function () {
     const today = '2026-10-24';
     const cutoff = health.addUtcDays(today, -90);
@@ -244,6 +264,7 @@ test('nightlyR2Copy is scheduled with the five secrets and the copy account', fu
     assert.ok(block.indexOf('r2SecretAccessKey') !== -1);
     assert.ok(block.indexOf('r2Bucket') !== -1);
     assert.ok(block.indexOf('backupEncryptionKey') !== -1);
+    assert.ok(block.indexOf('priorCleanupStreak') !== -1);
     assert.strictEqual(block.indexOf('authBackupKey'), -1);
     assert.strictEqual(block.indexOf('console.log'), -1);
     assert.strictEqual(block.indexOf('console.error'), -1);
@@ -314,6 +335,8 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
     assert.strictEqual(out.indexOf('APPLY:'), -1);
     assert.strictEqual(out.indexOf('OWNER:'), -1);
     assert.ok(out.indexOf('git checkout -q PASTE_COMMIT') !== -1);
+    assert.ok(out.indexOf('v=; while [ -z "$v" ]; do read -rsp "Paste $s then Enter: " v; echo; done') !== -1);
+    assert.ok(out.indexOf('uploads cleanup skipped 3 nights in a row') !== -1);
     assert.ok(out.indexOf('04:00 UTC') !== -1);
     assert.strictEqual(out.indexOf('cursor/nightly-backup-system-d6f0'), -1);
     const pasteOpen = out.indexOf('{\nP=bitcoin-education-archive');
@@ -762,6 +785,11 @@ test('bq-backup gets legacyBucketReader and objectAdmin on the uploads backup bu
                             };
                         }
                         if (cmd.kind === 'get') {
+                            if (bodies[cmd.input.Key] === 'vanished') {
+                                const gone = new Error('gone');
+                                gone.name = 'NoSuchKey';
+                                throw gone;
+                            }
                             if (!bodies[cmd.input.Key]) throw new Error('manifest missing');
                             return { Body: bodies[cmd.input.Key] };
                         }
@@ -783,6 +811,7 @@ test('bq-backup gets legacyBucketReader and objectAdmin on the uploads backup bu
         ], {}, false);
         const result = await r2.deleteOldObjects(client.made, today, key32(), {});
         assert.strictEqual(result.error, false);
+        assert.strictEqual(result.cleanupSkipped, true);
         assert.deepStrictEqual(client.deleted, [older + '/firestore/a']);
     });
 
@@ -813,6 +842,7 @@ test('bq-backup gets legacyBucketReader and objectAdmin on the uploads backup bu
             console.error = orig;
         }
         assert.strictEqual(result.error, false);
+        assert.strictEqual(result.cleanupSkipped, true);
         assert.deepStrictEqual(client.deleted, [older + '/auth/users.jsonl.gz.enc']);
         assert.ok(logs.join('\n').indexOf('manifest unreadable') !== -1);
         assert.strictEqual(logs.join('\n').indexOf(key.toString('base64')), -1);
@@ -837,7 +867,43 @@ test('bq-backup gets legacyBucketReader and objectAdmin on the uploads backup bu
         ], bodies, false);
         const result = await r2.deleteOldObjects(client.made, today, key, {});
         assert.strictEqual(result.error, false);
+        assert.strictEqual(result.cleanupSkipped, false);
         assert.deepStrictEqual(client.deleted, [older + '/firestore/a', 'uploads/beats/a.mp3#18']);
+    });
+
+    await testAsync('a vanished manifest is skipped and the others still drive cleanup', async function () {
+        const today = '2026-10-24';
+        const older = health.addUtcDays(health.addUtcDays(today, -90), -1);
+        const key = key32();
+        const kept = today + '/uploads-manifest.json';
+        const goneKey = health.addUtcDays(today, -1) + '/uploads-manifest.json';
+        const sealed = await seal.sealBuffer(Buffer.from(JSON.stringify({
+            date: today,
+            objects: [{ dest: 'uploads/beats/a.mp3#17' }],
+        })), key, kept);
+        const bodies = {};
+        bodies[kept] = sealed;
+        bodies[goneKey] = 'vanished';
+        const client = r2Client([
+            older + '/firestore/a',
+            'uploads/beats/a.mp3#17',
+            'uploads/beats/a.mp3#18',
+            goneKey,
+            kept,
+        ], bodies, false);
+        const logs = [];
+        const orig = console.error;
+        console.error = function () { logs.push(Array.prototype.join.call(arguments, ' ')); };
+        let result;
+        try {
+            result = await r2.deleteOldObjects(client.made, today, key, {});
+        } finally {
+            console.error = orig;
+        }
+        assert.strictEqual(result.error, false);
+        assert.strictEqual(result.cleanupSkipped, false);
+        assert.deepStrictEqual(client.deleted, [older + '/firestore/a', 'uploads/beats/a.mp3#18']);
+        assert.ok(logs.join('\n').indexOf('manifest vanished') !== -1);
     });
 
     await testAsync('a delete API error still fails the night', async function () {

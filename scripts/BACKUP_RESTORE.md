@@ -47,6 +47,15 @@ skips an object already in R2 leaves `sha256` off that row. Dated Firestore,
 auth, and config objects record the same hash in `YYYY-MM-DD/manifest.json`.
 The upload does not rewrite an object to attach the hash.
 
+Uploads cleanup uses every readable `uploads-manifest.json` from the last 90
+days. A manifest that has vanished is skipped on its own. After
+`BACKUP_ENCRYPTION_KEY` changes, manifests sealed with the previous key
+cannot be opened, so uploads cleanup pauses until those manifests age out
+or you re-seal them with the new key. Dated keys older than 90 days are
+still deleted during that pause. The pause does not fail the night. The r2
+detail counts it, and the third night in a row logs `uploads cleanup
+skipped 3 nights in a row`.
+
 1. Download with the bucket-scoped Object Read & Write token. Do not use a
    token that can administer the account.
 2. Decrypt one object. `--dest` is the R2 object key, because that key is

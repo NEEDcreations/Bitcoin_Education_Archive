@@ -8778,7 +8778,15 @@ exports.nightlyR2Copy = onSchedule(backupSchedule('0 4 * * *', {
     const date = new Date().toISOString().slice(0, 10);
     await r2Offsite.runNightlyR2Copy({
         date: date,
-        copy: function () {
+        copy: async function () {
+            let priorDetail = '';
+            try {
+                const prev = await admin.firestore().collection('backup_status').doc('latest').get();
+                const data = prev.exists ? prev.data() : null;
+                priorDetail = data && data.jobs && data.jobs.r2 && data.jobs.r2.detail ? data.jobs.r2.detail : '';
+            } catch (err) {
+                priorDetail = '';
+            }
             return r2Offsite.copyToday({
                 date: date,
                 accountId: r2AccountId.value(),
@@ -8786,6 +8794,7 @@ exports.nightlyR2Copy = onSchedule(backupSchedule('0 4 * * *', {
                 secretAccessKey: r2SecretAccessKey.value(),
                 bucket: r2Bucket.value(),
                 key: backupEncryptionKey.value(),
+                priorCleanupStreak: r2Offsite.priorCleanupStreak(priorDetail),
             });
         },
         write: function (event) {

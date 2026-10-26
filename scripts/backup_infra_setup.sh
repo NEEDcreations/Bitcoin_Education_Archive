@@ -259,7 +259,9 @@ per month.
 
 (b) ONE Cloud Shell paste, below. Run it as Phil, never on the deploy box.
 The paste is one braced block, so read -rsp cannot swallow the following
-lines when bracketed paste is off. Replace PASTE_COMMIT with the gh-pages
+lines when bracketed paste is off. Each of the three R2 prompts asks again
+when the value is empty, so a stray Enter cannot shift the next secret into
+the visible Press Enter prompt. Replace PASTE_COMMIT with the gh-pages
 merge commit before you run it. The paste prompts for the three R2 values
 with read -rsp so they are not echoed, sets R2_BUCKET to bq-backup-offsite
 without prompting, and generates AUTH_BACKUP_KEY and BACKUP_ENCRYPTION_KEY
@@ -272,7 +274,13 @@ A same-day retry skips an R2 key that is already present. sha256 values are
 written into the sealed manifests, not by overwriting objects. The 30 day
 bucket lock can block an overwrite of an object younger than 30 days.
 nightlyR2Copy starts at 04:00 UTC so the 05:00 health check sees a finished
-R2 run on a normal night.
+R2 run on a normal night. A vanished uploads manifest is skipped on its own
+and cleanup continues from the manifests that remain. After
+BACKUP_ENCRYPTION_KEY changes, manifests sealed with the old key cannot be
+opened, so uploads cleanup pauses until those manifests age out or are
+replaced. Dated keys older than 90 days are still deleted. The r2 detail
+counts that pause. On the third night in a row the function logs: uploads cleanup skipped 3 nights in a row.
+That pause does not by itself fail the night.
 
 Restore steps for Firestore, the uploads bucket, and a bulk R2 download are
 in scripts/BACKUP_RESTORE.md. Decrypt one object with
@@ -310,7 +318,7 @@ P=bitcoin-education-archive; gcloud config set project $P
 cd ~ && rm -rf bq && git clone -q https://github.com/NEEDcreations/Bitcoin_Education_Archive.git bq && cd bq && git fetch -q origin gh-pages && git checkout -q PASTE_COMMIT
 bash scripts/backup_infra_setup.sh --owner-apply
 mk(){ gcloud secrets describe "$1" >/dev/null 2>&1 || gcloud secrets create "$1" --replication-policy=automatic; }
-for s in R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do mk $s; read -rsp "Paste $s then Enter: " v; echo; printf '%s' "$v" | gcloud secrets versions add $s --data-file=-; unset v; done
+for s in R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do mk $s; v=; while [ -z "$v" ]; do read -rsp "Paste $s then Enter: " v; echo; done; printf '%s' "$v" | gcloud secrets versions add $s --data-file=-; unset v; done
 mk R2_BUCKET; printf '%s' bq-backup-offsite | gcloud secrets versions add R2_BUCKET --data-file=-
 for s in AUTH_BACKUP_KEY BACKUP_ENCRYPTION_KEY; do mk $s; gcloud secrets versions list $s --format='value(name)' | grep -q . || openssl rand -base64 32 | tr -d '\n' | gcloud secrets versions add $s --data-file=-; done
 echo; echo "Copy these 2 lines into your password manager NOW:"; for s in AUTH_BACKUP_KEY BACKUP_ENCRYPTION_KEY; do printf '%s = ' $s; gcloud secrets versions access latest --secret=$s; echo; done
