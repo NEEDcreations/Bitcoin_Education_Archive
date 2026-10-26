@@ -1,7 +1,7 @@
 // Shared "How to Earn XP" copy. Settings → Sats and the guide FAQ both use this.
 // Amounts match the server grant paths. Do not put a number here that those paths do not pay.
 (function () {
-    var CAP_LINE = 'One daily cap, from 5:00 UTC: full XP through 500, half through 900, then a quarter until 1,000. Extra is not saved. Exam XP uses this cap. Guest XP you already earned, up to 500, does not.';
+    var CAP_LINE = 'One daily cap, from 5:00 UTC: full XP through 500, half through 900, then a quarter until 1,000. Extra is not saved. Scholar and Protocol exams are not limited by this cap. Guest XP you already earned, up to 500, does not.';
 
     var SECTIONS = [
         {
@@ -27,8 +27,8 @@
                 'Daily five (quest, trivia, poll, say hi, and TV): <strong>100 XP</strong> and 1 orange ticket',
                 'Proof of Walk: <strong>50 XP per km</strong>, up to 42 km on that activity\'s date',
                 'Visit streak badges pay <strong>50, 150, 500, or 2,000 XP</strong>',
-                'Double XP hour doubles reading, visits, chat, forum, Beats, flex, lessons, story, a prediction you make, the channel quiz, the tip challenge, and sending keys',
-                'These stay at the amounts above: quests, trivia, polls, a correct prediction, TV, say hi, the daily five, walks, gifts, ciphers, badges, exams, the wheel, the starter quest, peer rewards, and topic and reply bonuses'
+                'Double XP hour doubles opening a topic, visits, chat, forum, Beats, flex, lessons, story, a prediction you make, the channel quiz, the tip challenge, and sending keys',
+                'These stay at the amounts above: quests, trivia, polls, a correct prediction, TV, say hi, the daily five, walks, gifts, ciphers, badges, exams, articles, the wheel, the starter quest, peer rewards, and topic and reply bonuses'
             ]
         },
         {
@@ -42,7 +42,7 @@
                 'Channel quiz, right answer: <strong>5 XP</strong> in a bubble, <strong>10 XP</strong> in chat',
                 'Learning lesson: <strong>50 XP</strong> once for each of the 8 lessons, plus a <strong>50 XP</strong> badge. Finish all eight: a <strong>150 XP</strong> badge',
                 'Nacho\'s Story: <strong>15 XP</strong> a chapter, once each (7 chapters). Finish the story: <strong>100 XP</strong>',
-                'Scholar exam or Protocol exam, passed: <strong>2,100 XP</strong>, once each. It counts toward the daily cap',
+                'Scholar exam or Protocol exam, passed: <strong>2,100 XP</strong>, once each, not limited by the daily cap',
                 'Starter quest: <strong>25 XP</strong> a step. The quiz step is <strong>50 XP</strong> and 2 orange tickets',
                 'Nacho\'s Trails: badges only. Those badges do not pay XP',
                 'Asking Nacho: an orange ticket, not XP'
@@ -104,7 +104,7 @@
                 'Open a cipher: usually <strong>50 to 250 XP</strong>, and up to 10 orange tickets. Some opens pay sats instead. 21 opens a day',
                 'When a peer opens a matching cipher with a key you sent, you both get that same prize',
                 'A peer uses your key: <strong>10 XP</strong> for you, up to 3 a day',
-                'Peer level-up: both friends get <strong>3,000, 21,000, 44,000, 50,000, or 100,000 XP</strong> on the books. Only what fits in today\'s cap is kept'
+                'Peer level-up: each friend gets XP up to whatever still fits in their own 1,000 daily cap. On a fresh day that is <strong>1,000 XP</strong>'
             ]
         },
         {
@@ -127,15 +127,20 @@
     ];
 
     function sectionHtml(section) {
-        return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
-            '<button onclick="event.stopPropagation();var c=document.getElementById(\'' + section.id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
-            '<span class="ea" style="color:var(--text-faint);font-size:0.7rem;">▶</span>' +
-            '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + section.title + '</span></button>' +
-            '<div id="' + section.id + '" style="display:none;padding:8px 12px 10px;font-size:0.76rem;color:var(--text-muted);line-height:1.7;">' + section.items.join('<br>') + '</div></div>';
+        var items = '';
+        for (var i = 0; i < section.items.length; i++) {
+            items += '<li style="margin:0 0 10px;">' + section.items[i] + '</li>';
+        }
+        return '<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
+            '<button onclick="event.stopPropagation();var c=document.getElementById(\'' + section.id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
+            '<span class="ea" style="color:var(--text-faint);font-size:14px;">▶</span>' +
+            '<span style="color:var(--text);font-size:15px;font-weight:700;text-align:left;">' + section.title + '</span></button>' +
+            '<div id="' + section.id + '" style="display:none;padding:12px 14px 4px;font-size:14px;color:var(--text-muted);line-height:1.45;">' +
+            '<ul style="margin:0;padding:0 0 0 18px;">' + items + '</ul></div></div>';
     }
 
     function renderEarnXpGuide() {
-        var html = '<div style="margin:0 0 10px;font-size:0.76rem;color:var(--text-muted);line-height:1.55;">' + CAP_LINE + '</div>';
+        var html = '<div style="margin:0 0 12px;font-size:14px;color:var(--text-muted);line-height:1.45;">' + CAP_LINE + '</div>';
         for (var i = 0; i < SECTIONS.length; i++) html += sectionHtml(SECTIONS[i]);
         return html;
     }

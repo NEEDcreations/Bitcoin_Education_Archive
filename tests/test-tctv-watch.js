@@ -798,6 +798,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
     const latest = 'Latest: Publishing an article awards 30 XP, once per article, up to 2 a day.';
     const previousLatest = 'Settings → Sats now lists the XP you can actually earn, including the daily cap.';
+    const minerName = "A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.";
+    assert.ok(notes.includes(minerName));
+    assert.ok(!notes.includes('Latest: ' + minerName));
     const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
     assert.ok(notes.includes(gifts));
     assert.ok(!notes.includes('Latest: Opening gifts'));
