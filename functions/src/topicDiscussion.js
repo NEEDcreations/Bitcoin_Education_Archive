@@ -334,16 +334,37 @@ function defaultFetch() {
     }
 }
 
+function bearerFrom(context) {
+    const req = context && context.rawRequest;
+    const headers = (req && req.headers) || {};
+    const raw = headers.authorization || headers.Authorization || '';
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    const text = String(value || '').trim();
+    if (!/^Bearer\s+\S+$/i.test(text)) return '';
+    return text;
+}
+
 async function defaultAskNacho(input) {
     const fetchImpl = defaultFetch();
+    const src = input || {};
+    const headers = { 'Content-Type': 'application/json' };
+    const authorization = String(src.authorization || '').trim();
+    if (/^Bearer\s+\S+$/i.test(authorization)) headers.Authorization = authorization;
+    const payload = {
+        question: String(src.question || '').slice(0, 500),
+        kbContext: String(src.grounding || '').slice(0, 1500),
+        mode: 'chat',
+    };
+    if (src.sectionLesson) payload.sectionLesson = String(src.sectionLesson).slice(0, 900);
+    if (Array.isArray(src.untrustedMessages) && src.untrustedMessages.length) {
+        payload.untrustedMessages = src.untrustedMessages.slice(0, 6).map(function(line) {
+            return String(line || '').slice(0, 220);
+        });
+    }
     const res = await fetchImpl(NACHO_AI_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            question: String(input.question || '').slice(0, 500),
-            kbContext: String(input.grounding || '').slice(0, 1500),
-            mode: 'chat',
-        }),
+        headers: headers,
+        body: JSON.stringify(payload),
         timeout: 12000,
     });
     if (!res || !res.ok) throw new Error('ai');
@@ -737,6 +758,7 @@ function createTopicDiscussion(deps) {
                 parentUid: who.uid,
                 question: planned.text,
                 title: displayTitle(meta, channelId),
+                authorization: bearerFrom(context),
             });
         }
 
@@ -970,6 +992,7 @@ async function writeNachoReply(opts) {
                 question: stripForModel(o.question),
                 grounding: groundingFor(o.channelId, o.meta, o.grounding),
                 channelTitle: o.title,
+                authorization: o.authorization || '',
             });
             answer = sanitizeNachoAnswer(result && result.answer);
             if (PUBLIC_REFUSAL_RE.test(answer)) answer = SECRET_NOTE;

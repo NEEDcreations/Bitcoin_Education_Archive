@@ -1094,6 +1094,7 @@ function forfeitRequired(user, withdrawals) {
 
 async function deleteTopicPosts(db, batcher, uid, documentIdField) {
     await deleteExactIfPresent(db, batcher, 'topic_discussion_limits', uid);
+    await deleteExactIfPresent(db, batcher, 'nacho_section_limits', uid);
     if (typeof db.collectionGroup !== 'function') return;
     const posts = await collectDocs(
         db.collectionGroup('posts').where('uid', '==', uid).orderBy('createdAt', 'desc'),

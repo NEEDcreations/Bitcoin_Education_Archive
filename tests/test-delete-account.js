@@ -1697,6 +1697,9 @@ function auth(uid, extras) {
         db.docs.set('articles/a1', { authorId: 'u1', title: 'essay', body: 'text', coverUrl: 'https://cdn.example/c.png' });
         db.docs.set('article_replies/ar1', { authorId: 'u2', articleId: 'a1', body: 'kept' });
         db.docs.set('topic_discussions/general/posts/tp1', { uid: 'u1', name: 'Alice', text: 'topic secret', parentId: '', createdAt: 10 });
+        db.docs.set('nacho_section_limits/u1', { summaryCount: 2, summaryDayKey: '2026-10-26' });
+        db.docs.set('nacho_section_global/daily', { dayKey: '2026-10-26', dayCount: 4 });
+        db.docs.set('nacho_section_ip/abc123', { dayKey: '2026-10-26', dayCount: 1, expireAt: new Date(1) });
         db.docs.set('topic_discussions/general/posts/tp2', { uid: 'u2', name: 'Bob', text: 'answer', parentId: 'tp1', createdAt: 11 });
         db.docs.set('cipher_shares/s1', { senderUid: 'u1', shareId: 's1', revealed: false });
         db.docs.set('cipher_shares/s2', { senderUid: 'u1', shareId: 's2', revealed: true });
@@ -1730,6 +1733,9 @@ function auth(uid, extras) {
         assert.strictEqual(topic.name, '[deleted]');
         assert.strictEqual(topic.text, '[deleted]');
         assert.ok(db.docs.has('topic_discussions/general/posts/tp2'));
+        assert.strictEqual(db.docs.has('nacho_section_limits/u1'), false);
+        assert.ok(db.docs.has('nacho_section_global/daily'));
+        assert.ok(db.docs.has('nacho_section_ip/abc123'));
         assert.strictEqual(db.docs.has('notifications/cshare_s1'), false);
         assert.ok(db.docs.has('notifications/cshare_s2'));
         assert.strictEqual(db.docs.has('cipher_shares/s1'), false);

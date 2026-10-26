@@ -8,3 +8,10 @@ binding = "AI"
 
 # BRAVE_API_KEY already exists on the live worker. Do not re-put it.
 # BRAVE_API_KEY
+#
+# /ai requires a Firebase ID token for project bitcoin-education-archive.
+# The worker checks it with Google's public tokeninfo endpoint. No new secret.
+# Per-uid limit is 10/minute in isolate memory, then the existing 20/minute IP cap.
+# Deploy from this directory when ready (this PR does not deploy):
+#   npx wrangler deploy
+# Redeploy askNachoAboutSection, postTopicComment, and deleteAccount in the same window.

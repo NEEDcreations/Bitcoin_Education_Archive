@@ -8977,7 +8977,15 @@ const nachoSectionApi = createNachoSection({
     admin: admin,
     HttpsError: functionsV1.https.HttpsError,
 });
-exports.askNachoAboutSection = functionsV1.runWith({ timeoutSeconds: 30, memory: '256MB' }).https.onCall(nachoSectionApi.askNachoAboutSection);
+// Binds REFERRAL_IP_HMAC_SECRET (already in Secret Manager; not a new secret).
+// Also redeploy postTopicComment so topic replies forward the caller's ID token,
+// and deleteAccount so it removes nacho_section_limits/{uid}.
+exports.askNachoAboutSection = functionsV1.runWith({
+    enforceAppCheck: true,
+    secrets: [referralIpSecret],
+    timeoutSeconds: 30,
+    memory: '256MB',
+}).https.onCall(nachoSectionApi.askNachoAboutSection);
 exports.reportTopicComment = functionsV1.https.onCall(topicDiscussion.reportTopicComment);
 exports.moderateTopicPost = functionsV1.https.onCall(topicDiscussion.moderateTopicPost);
 exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopicComment);
