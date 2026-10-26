@@ -392,7 +392,11 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
+    assert.ok(notes.includes('Latest: Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
+    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
+    assert.ok(!notes.includes('Latest: On a computer'));
+    assert.ok(notes.includes('A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
+    assert.ok(!notes.includes('Latest: A miner'));
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar topic names'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));

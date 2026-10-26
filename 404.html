@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2373" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2377" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -323,6 +323,9 @@
         .scroll-to-bottom { bottom: 240px; }
         #desktopSearchBtn { display: none !important; }
         @media (max-width: 900px) { .desktop-only-apps { display: none !important; } .desktop-only-learn { display: none !important; } }
+        #homeLearnMenu, #mobileLearnMenu { background: var(--bg-side, #0f172a) !important; background-color: var(--bg-side, #0f172a) !important; opacity: 1 !important; z-index: 10050 !important; isolation: isolate; animation: none !important; }
+        #homeLearnMenu { position: relative !important; }
+        #mobileLearnMenu { position: fixed !important; }
 
         /* Reading progress bar */
 
@@ -1727,18 +1730,8 @@
                         <button id="authBtn" onclick="showUsernamePrompt()" style="display:none;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">Create Free Account / Sign In</button>
 
                         <!-- Learn (standalone, between Settings and Explore Apps) -->
-                        <button id="homeLearnBtn" onclick="toggleSidebarMenu('homeLearnMenu')" class="desktop-only-learn" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🎓 Learn ▼</button>
-                        <div id="homeLearnMenu" class="desktop-only-learn" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:8px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
-                            
-                            
-                            <button onclick="go('one-stop-shop')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🟢</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Brand New to Bitcoin?<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">⭐ Start here</span></span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Zero jargon intro — start here if you've never owned BTC</span></span></button>
-                            <button onclick="go('learning-quests')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border:1px solid #10b981;color:#10b981;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">📖</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Learning Quests<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">8 topics ▸</span></span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Slideshow lessons with key stats, visuals &amp; a quiz — 8 topics</span></span></button>
-                            <button onclick="go('trails')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🦌🗺️</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Nacho's Trails: Guided Learning</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Structured paths through Bitcoin education — Meadow, Mountain &amp; Summit</span></span></button>
-                            <button id="nqQuestBtn" onclick="if(typeof showQuestHub==='function')showQuestHub()" style="padding:11px 12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border:1px solid #8b5cf6;color:#a78bfa;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🎯</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Daily Quests</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Daily quizzes, trivia &amp; polls — earn XP and climb the leaderboard</span></span></button>
-                            <button onclick="go('first-purchase')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;color:#22c55e;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🛒</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Your First Bitcoin Purchase</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Step-by-step guide to buying BTC safely from a trusted exchange</span></span></button>
-                            <button onclick="window._mbRouted=true;window._skipIRLRules=true;localStorage.setItem('btc_irl_rules_accepted','true');go('irl-sync');setTimeout(function(){var ro=document.getElementById('irlRulesOverlay');if(ro)ro.remove();var _t=0;var _i=setInterval(function(){var ro2=document.getElementById('irlRulesOverlay');if(ro2)ro2.remove();var el=document.getElementById('meetupBuilderSection');if(el){clearInterval(_i);el.scrollIntoView({behavior:'smooth',block:'start'});}if(++_t>30)clearInterval(_i);},300);},1500)" style="padding:11px 12px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06));border:1px solid #eab308;color:#eab308;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🔨</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Meetup Builder</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Create or find local Bitcoin meetups and events in your city</span></span></button>
-                            <button onclick="go('marketplace');setTimeout(function(){renderMarketplace({section:'merchants'})},500)" style="padding:11px 12px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">₿ </span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.7rem;font-weight:400;color:rgba(255,255,255,0.4);line-height:1.4;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button>
-                        </div>
+                        <button id="homeLearnBtn" onclick="if(window.openHomeLearnMenu)openHomeLearnMenu()" class="desktop-only-learn" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🎓 Learn ▼</button>
+                        <div id="homeLearnMenu" class="desktop-only-learn" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:8px;padding:15px;border:1px solid var(--border);border-radius:16px;"></div>
 
                         <!-- Explore Apps -->
                         <button id="homeAppsBtn" onclick="toggleSidebarMenu('homeAppsMenu')" class="desktop-only-apps" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
@@ -2116,17 +2109,17 @@
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
-    <script src="ranking.js?v=20261026_v2373" defer></script>
+    <script src="ranking.js?v=20261026_v2377" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2373" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2377" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2371" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261024_v2360" defer></script>
     <script src="onboarding.js?v=20261026_v2373" defer></script>
-    <script src="learning-quests.js?v=20261023_v2324" defer></script>
+    <script src="learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
     <script src="beats-censor.js?v=20261022_v2322"></script>
@@ -2143,15 +2136,15 @@
             'quests.js?v=20261026_v2381',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
-            'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
+            'scholar.js?v=20261026_v2377','beats.js?v=20261023_v2349',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261024_v2357','gifting.js?v=20261024_v2365','guide.js?v=20261023_v2349','modules.js?v=20261023_v2324',
+            'notifications.js?v=20261024_v2357','gifting.js?v=20261024_v2365','guide.js?v=20261023_v2349','modules.js?v=20261026_v2377',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
             'timechain-tv.js?v=20261024_v2353',
-            'learning-quests.js?v=20261023_v2324',
+            'learning-quests.js?v=20261026_v2377',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
         function _injectScript(src) {
@@ -2212,8 +2205,8 @@
             'pvp':           ['pvp.js?v=20261022_v2322'],
             'proof-of-play': ['pvp.js?v=20261022_v2322', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
-            'trails':        ['modules.js?v=20261023_v2324'],
-            'learning-quests': ['learning-quests.js?v=20261023_v2324'],
+            'trails':        ['modules.js?v=20261026_v2377'],
+            'learning-quests': ['learning-quests.js?v=20261026_v2377'],
             'quests':        ['quests.js?v=20261026_v2381'],
             'questhub':      ['quests.js?v=20261026_v2381'],
             'app':           ['quests.js?v=20261026_v2381'],
