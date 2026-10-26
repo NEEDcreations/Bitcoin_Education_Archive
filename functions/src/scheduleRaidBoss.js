@@ -29,3 +29,14 @@ exports.scheduleRaidBossCatchup = onSchedule({
     await engine.spawnOrAlert(db(), admin, new Date());
     return null;
 });
+
+// Hourly. A forum post or article deals damage only after it has survived 24 hours.
+exports.scheduleRaidForumCredit = onSchedule({
+    schedule: '15 * * * *',
+    timeZone: 'UTC',
+    region: 'us-central1',
+    timeoutSeconds: 300,
+}, async () => {
+    await engine.sweepForumDamage(db(), admin, new Date());
+    return null;
+});

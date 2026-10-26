@@ -3,12 +3,12 @@
  * Read-only counts for raid-boss goals. Last 30 days. No writes.
  * Prints a number or "unavailable". Does not print uids, emails, or documents.
  *
- * Goal formula used in functions/src/raidBossEngine.js:
- *   goal = Math.round(typicalMonth * 1.35)
- * November 2026 Chat-Charger is the exception: goal 335 (about 1.2–1.5× of
- * the 180–280 messages/month band; Phil asked for about 335).
- * Set the scheduled communityTarget from these counts before deploy.
- * A typical month is this 30-day count. Multiply by 1.35 and round.
+ * Spawn computes the goal. This script is the manual check and does not write.
+ * Formula raid-goal-v1, in functions/src/raidBossEngine.js:
+ *   goal = clamp(round(trailing 30-day count * 1.35), per-boss floor, per-boss ceiling)
+ * The static goal on the schedule is the fallback when the count fails.
+ * count() is an upper bound: daily caps, text quality, and self-dealing
+ * are not applied here. Per-user subcollections print "unavailable".
  *
  * Auth is Application Default Credentials. No key file is read from the repo.
  *
@@ -51,7 +51,7 @@ async function main() {
     const db = admin.firestore();
     const cutoff = admin.firestore.Timestamp.fromDate(new Date(Date.now() - WINDOW_MS));
     console.log('window_days: 30');
-    console.log('formula: Math.round(count * 1.35), except 2026-11 Chat-Charger = 335');
+    console.log('formula: clamp(round(count * 1.35), floor, ceiling); spawn writes the goal; this script does not');
 
     await countOf('global_chat_visible', async function () {
         const snap = await db.collection('global_chat').where('ts', '>=', cutoff).select('uid', 'text', 'isNachoAuto').get();

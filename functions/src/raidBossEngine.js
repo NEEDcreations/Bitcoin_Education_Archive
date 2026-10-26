@@ -1,24 +1,38 @@
 'use strict';
 
 // Monthly raid bosses. This module does not load firebase-admin.
-// Goals are round(typical month * 1.35), except November 2026 Chat-Charger,
-// which stays 335. Recalibrate from scripts/raid-boss-activity.js before deploy.
+// At spawn, goal = clamp(round(trailing 30-day count * 1.35), floor, ceiling).
+// The static goal is the fallback when that count fails. Formula raid-goal-v1.
+// scripts/raid-boss-activity.js is the read-only manual check. It does not write.
 // HP stays 1000. damageScale uses thousandths so the goal-th hit crosses 1000
 // and the hit before it stays under 1000.
+//
+// Count() cannot group by uid, and it cannot see text quality. The number is
+// an upper bound: same collection and equality filters as the damage path,
+// without the per-uid daily cap. The cap is documented on the boss doc.
 //
 // Not scheduled: TV-Titan (no watch-minute credit), Beats-Baron (uploads are
 // not listening), Lightning-Lancer (confirmTipSent is not wired to raid),
 // Ask Nacho (a ticket claim is not a verified conversation), GG reactions
 // (no trusted counter), Flex (client mash), and article XP from unmerged #128.
-// Published articles still count toward Forum-Forge through the live create trigger.
+// Published articles still count toward Forum-Forge after they survive 24 hours.
 
 const { rewardBlocked } = require('./cipherClaim');
 const { offsetDateKey } = require('./offsetDay');
+const { activityRemovedState } = require('./shoutout');
+const { forumActivityAwardable } = require('./topicForumMirror');
+const quality = require('./raidPostQuality');
 
 const TZ = 'America/New_York';
 const HP = 1000;
 const GOAL_FACTOR = 1.35;
-const REWARD_LINE = 'Rewards: Orange Tickets for damage, up to 10 a day, and Boss Slayer credit if we win. A win adds an extra Orange Ticket drawing for 21,000 sats.';
+const GOAL_FORMULA = 'raid-goal-v1';
+const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const FORUM_DELAY_MS = 24 * 60 * 60 * 1000;
+const ACCOUNT_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+const SETTLED_AT = new Date('2099-01-01T00:00:00.000Z');
+const GIVEAWAY_LINE = 'an extra Orange Ticket giveaway winner will be announced by the end of the week';
+const REWARD_LINE = 'Rewards: Orange Tickets for damage, up to 10 a day, and Boss Slayer credit if we win. A win means ' + GIVEAWAY_LINE + '.';
 const CDN = 'https://assets.bitcoineducation.quest/images/raid-bosses/';
 
 const PUBLIC_TELEGRAM = {
@@ -56,6 +70,8 @@ const SKIP_COPY = {
     monthIndex: 1, monthKey: 1, winners: 1, participants: 1, uid: 1, email: 1,
     username: 1, text: 1, dailyCap: 1, serverOnly: 1, minVisibleChars: 1,
     copiedFieldNames: 1, copiedFrom: 1, kind: 1, players: 1, typical: 1, goal: 1,
+    goalFloor: 1, goalCeiling: 1, goalCount: 1, goalSource: 1, goalFormula: 1,
+    goalFactor: 1, goalWindowDays: 1, goalApproximate: 1, goalFallback: 1,
 };
 
 const CARRY_RE = /(scale|damage|reward|prize|ticket|xp|community|hp|sats|unit)/i;
@@ -94,6 +110,8 @@ function boss(entry) {
         sources: entry.sources || [entry.metric],
         typical: entry.typical,
         goal: goal,
+        goalFloor: entry.goalFloor,
+        goalCeiling: entry.goalCeiling,
         dailyCap: entry.dailyCap,
         minVisibleChars: entry.minVisibleChars || 0,
         players: entry.players,
@@ -110,10 +128,12 @@ const SCHEDULE = [
         metric: 'chatMessages',
         typical: 230,
         goal: 335,
+        goalFloor: 250,
+        goalCeiling: 500,
         dailyCap: 10,
         minVisibleChars: 8,
         lore: 'Chat-Charger feeds on the room\'s voice. Empty pings bounce off. Real sentences land.',
-        detail: '335 real Global Chat messages take this boss down. Each person can land 10 a day, and a message needs at least 8 characters.',
+        detail: 'The server sets the goal from the last 30 days of chat. It will not sit under 250 or over 500. Each person can land 10 a day, and a message needs at least 8 characters. One person tops out at 300, so the ceiling cannot be soloed.',
         players: 'Post a Global Chat message of at least 8 visible characters. The server counts it. 10 a day each.',
     }),
     boss({
@@ -122,6 +142,8 @@ const SCHEDULE = [
         emoji: '🔐',
         metric: 'cipherPeerKey',
         typical: 40,
+        goalFloor: 20,
+        goalCeiling: 80,
         dailyCap: 2,
         lore: 'Cipher-Cracker hoards locked chests. Peer up, send a key to someone else, and open a chest that is not your own.',
         detail: 'Accepted peer requests and cipher shares you open for someone else count. A cipher you solve yourself, a raw key send, and a request between linked accounts do not. Two a day each.',
@@ -133,6 +155,8 @@ const SCHEDULE = [
         emoji: '⛏️',
         metric: 'favorHashes',
         typical: 800,
+        goalFloor: 600,
+        goalCeiling: 2000,
         dailyCap: 15,
         lore: 'Favor-Fiend sits on the hash pile. Every real Satoshi\'s Favor hash chips the throne.',
         detail: 'Each hash the server writes counts. Banned accounts already cannot hash. 15 a day each, so one miner cannot finish the month alone.',
@@ -146,10 +170,13 @@ const SCHEDULE = [
         metric: 'forumPosts',
         sources: ['forumPosts', 'articlesPublished'],
         typical: 5,
+        goal: 25,
+        goalFloor: 25,
+        goalCeiling: 80,
         dailyCap: 2,
-        lore: 'Forum-Forge cools unless the forum and the article desk stay busy. A handful of real posts is a real fight.',
-        detail: 'A forum post or a published article the server accepts is one hit. Mirrors and banned authors do not count. Two a day each.',
-        players: 'Publish a forum post or an article the server accepts. 2 a day, posts and articles together.',
+        lore: 'Forum-Forge cools unless the forum and the article desk stay busy. A real post is a real swing.',
+        detail: 'A forum post or a published article deals damage only after 24 hours if it is still visible. It needs about 300 characters, 40 words, and 25 different words, from an account at least 3 days old. A copy of your own recent post does not count. Two a day each. One person tops out at 60, so the ceiling of 80 cannot be soloed, and the goal will not sit under 25.',
+        players: 'Publish a forum post or an article that clears the quality bar, then wait 24 hours. 2 a day, posts and articles together.',
     }),
     boss({
         monthKey: '2027-03',
@@ -157,6 +184,8 @@ const SCHEDULE = [
         emoji: '👋',
         metric: 'sayHi',
         typical: 120,
+        goalFloor: 61,
+        goalCeiling: 300,
         dailyCap: 1,
         lore: 'Hello-Herald only hears a Say hi that the server already paid. One hello a day, from a real message.',
         detail: 'The claim has to come back ok. An already-claimed hello does not hit again.',
@@ -168,6 +197,9 @@ const SCHEDULE = [
         emoji: '🎯',
         metric: 'trifecta',
         typical: 40,
+        goal: 61,
+        goalFloor: 61,
+        goalCeiling: 120,
         dailyCap: 1,
         lore: 'Trifecta-Titan falls only when trivia, a quest, and the daily poll all land on the same day.',
         detail: 'The server writes the trifecta credit once that day. One a day each.',
@@ -180,6 +212,8 @@ const SCHEDULE = [
         image: art('trivia-tactician'),
         metric: 'triviaCorrect',
         typical: 130,
+        goalFloor: 80,
+        goalCeiling: 400,
         dailyCap: 1,
         lore: 'Trivia-Tactician blocks the door. One correct daily trivia answer, graded on the server, is a hit.',
         detail: 'A wrong answer, a repeat claim, or a banned account does not count.',
@@ -191,9 +225,12 @@ const SCHEDULE = [
         emoji: '🎓',
         metric: 'certPasses',
         typical: 2,
+        goal: 5,
+        goalFloor: 5,
+        goalCeiling: 16,
         dailyCap: 1,
         lore: 'Scholar-Slayer guards the exam hall. A passed Scholar or Protocol Expert certification is the only blade that bites.',
-        detail: 'The server grades the exam. A failed attempt, a ban, or an already-certified retake does not count. One pass a day.',
+        detail: 'The server grades the exam. One account can pass at most two certifications, and two people can pass four, so the goal will not sit under 5. Three people who each pass one can finish it. A failed attempt, a ban, or an already-certified retake does not count.',
         players: 'Pass the Scholar or Protocol Expert exam on the server. Not a retake, not a banned pass. 1 a day.',
     }),
     boss({
@@ -203,6 +240,8 @@ const SCHEDULE = [
         image: art('quiz-crusader'),
         metric: 'quizCompletions',
         typical: 90,
+        goalFloor: 100,
+        goalCeiling: 250,
         dailyCap: 3,
         lore: 'Quiz-Crusader drills the lesson. A quest the server marks passed deals one hit.',
         detail: 'One hit per passed quest, not per question. Three a day each.',
@@ -215,6 +254,8 @@ const SCHEDULE = [
         image: art('poll-patroller'),
         metric: 'pollVotes',
         typical: 140,
+        goalFloor: 80,
+        goalCeiling: 400,
         dailyCap: 1,
         lore: 'Poll-Patroller counts ballots, not refreshes. One server-recorded poll vote a day.',
         detail: 'A second vote the same day does not move the bar.',
@@ -226,6 +267,8 @@ const SCHEDULE = [
         emoji: '📺',
         metric: 'tctvWatchDays',
         typical: 100,
+        goalFloor: 70,
+        goalCeiling: 300,
         dailyCap: 1,
         lore: 'Watch-Warden replaced the old TV titan nobody could hit. Finish the daily Timechain TV watch and the warden feels it.',
         detail: 'The daily watch award is the hit. Raw minutes are not. One a day each.',
@@ -237,9 +280,12 @@ const SCHEDULE = [
         emoji: '🧭',
         metric: 'referralsPaid',
         typical: 4,
+        goal: 31,
+        goalFloor: 31,
+        goalCeiling: 60,
         dailyCap: 1,
         lore: 'Referral-Ranger counts a friend who actually reaches Maxi. Linked accounts and self-invites do not count.',
-        detail: 'The referrer gets the hit only after the server pays the referral. One a day.',
+        detail: 'The referrer gets the hit only after the server pays the referral. One a day, about 30 in a month, so the goal will not sit under 31 and one person cannot finish it. Two people can. A floor that also stopped the second person would sit above the referrals this community actually pays.',
         players: 'A friend you invited reaches Maxi and the server pays the referral. Not you, not a linked account. 1 a day.',
     }),
 ].map(function (entry, index) {
@@ -381,7 +427,7 @@ function weeklyText(bossDoc) {
     const data = bossDoc || {};
     const name = data.name || 'the raid boss';
     if (data.defeated) {
-        return '⚔️ Weekly raid: we took down ' + name + '. The victory stands. Rewards: Orange Tickets for the damage already dealt, up to 10 a day, and Boss Slayer credit for everyone who helped. An extra Orange Ticket drawing for 21,000 sats is coming. Open Quest Hub, then Raid.';
+        return '⚔️ Weekly raid: we took down ' + name + '. The victory stands. Rewards: Orange Tickets for the damage already dealt, up to 10 a day, and Boss Slayer credit for everyone who helped. An extra Orange Ticket giveaway winner will be announced by the end of the week. Open Quest Hub, then Raid.';
     }
     const target = Number(data.target) || HP;
     const current = Number(data.current) || 0;
@@ -433,7 +479,122 @@ function nachoMessage(admin, text) {
     };
 }
 
-function bossPayload(spec, key, start, end, admin, copiedNames, copiedFrom) {
+function clampGoal(count, spec) {
+    const floor = Math.floor(Number(spec.goalFloor));
+    const ceiling = Math.floor(Number(spec.goalCeiling));
+    let goal = Math.round(Number(count) * GOAL_FACTOR);
+    if (!Number.isFinite(goal)) goal = floor;
+    if (goal < floor) goal = floor;
+    if (goal > ceiling) goal = ceiling;
+    return goal;
+}
+
+function goalRecord(spec, count, source, approximate) {
+    const fallback = spec.goal;
+    const counted = source === 'count' && Number.isFinite(Number(count));
+    const goal = counted ? clampGoal(count, spec) : fallback;
+    return {
+        goal: goal,
+        goalCount: counted ? Math.round(Number(count)) : null,
+        goalSource: counted ? 'count' : 'fallback',
+        goalFormula: GOAL_FORMULA,
+        goalFloor: spec.goalFloor,
+        goalCeiling: spec.goalCeiling,
+        goalFactor: GOAL_FACTOR,
+        goalWindowDays: 30,
+        goalApproximate: String(approximate || '').slice(0, 280),
+        goalFallback: fallback,
+        damageScale: damageScaleForGoal(goal),
+    };
+}
+
+function spawnSummary(spec, key, record) {
+    const how = record.goalSource === 'count'
+        ? 'count ' + record.goalCount + ' × 1.35'
+        : 'fallback, count unavailable';
+    return 'Raid boss spawned for ' + key + ': ' + spec.name + '. Goal ' + record.goal
+        + ' (' + how + ', clamped ' + spec.goalFloor + '-' + spec.goalCeiling + '). Formula ' + GOAL_FORMULA + '.';
+}
+
+async function readCount(query) {
+    const snap = await query.count().get();
+    const data = snap && typeof snap.data === 'function' ? snap.data() : snap;
+    const n = Number(data && data.count);
+    if (!Number.isFinite(n) || n < 0) throw new Error('count');
+    return n;
+}
+
+async function countBossEvents(db, admin, spec, now) {
+    const when = now instanceof Date ? now : new Date(now);
+    const cutoff = admin.firestore.Timestamp.fromDate(new Date(when.getTime() - WINDOW_MS));
+    const metric = spec.metric;
+    if (metric === 'chatMessages') {
+        const n = await readCount(db.collection('global_chat').where('ts', '>=', cutoff));
+        return { count: n, approximate: 'global_chat ts>=30d upper bound; short messages and bots included; per-uid cap of 10 not applied' };
+    }
+    if (metric === 'cipherPeerKey') {
+        const peers = await readCount(db.collection('peer_requests').where('status', '==', 'accepted').where('acceptedAt', '>=', cutoff));
+        const shares = await readCount(db.collection('cipher_shares').where('paid', '==', true).where('createdAt', '>=', cutoff));
+        return { count: peers + shares, approximate: 'accepted peer requests plus paid cipher shares in 30d; self-dealing and the cap of 2 not applied' };
+    }
+    if (metric === 'favorHashes') {
+        const n = await readCount(db.collection('satoshiFavor').doc('current').collection('hashes').where('timestamp', '>=', cutoff));
+        return { count: n, approximate: 'favor hashes in 30d; per-uid cap of 15 not applied' };
+    }
+    if (metric === 'forumPosts') {
+        const posts = await readCount(db.collection('forum_posts').where('createdAt', '>=', cutoff));
+        const articles = await readCount(db.collection('articles').where('createdAt', '>=', cutoff));
+        return { count: posts + articles, approximate: 'forum posts plus articles created in 30d; quality, duplicates, account age, and the 24h wait are not in the count; cap of 2 not applied' };
+    }
+    if (metric === 'sayHi') {
+        return { failed: true, approximate: 'Say hi claims share daily_action_counts and count() cannot take a 30-day slice of only those docs, so the static goal is used' };
+    }
+    if (metric === 'trifecta') {
+        const n = await readCount(db.collection('satoshiFavor').doc('current').collection('contributors').where('source', '==', 'daily_all_three').where('timestamp', '>=', cutoff));
+        return { count: n, approximate: 'daily trifecta credits in 30d; cap of 1 not applied' };
+    }
+    if (metric === 'triviaCorrect') {
+        const n = await readCount(db.collectionGroup('daily_action_counts').where('correct', '==', true).where('at', '>=', cutoff));
+        return { count: n, approximate: 'correct trivia claims in 30d; bans and the cap of 1 not applied' };
+    }
+    if (metric === 'certPasses') {
+        const n = await readCount(db.collection('scholar_exam_keys').where('passed', '==', true).where('gradedAt', '>=', cutoff));
+        return { count: n, approximate: 'passed exams in 30d; retakes and bans not applied' };
+    }
+    if (metric === 'quizCompletions') {
+        const n = await readCount(db.collectionGroup('quest_passes').where('at', '>=', cutoff));
+        return { count: n, approximate: 'passed quests in 30d; cap of 3 not applied' };
+    }
+    if (metric === 'pollVotes') {
+        const n = await readCount(db.collectionGroup('votes').where('at', '>=', cutoff));
+        return { count: n, approximate: 'poll votes in 30d; cap of 1 not applied' };
+    }
+    if (metric === 'tctvWatchDays') {
+        const n = await readCount(db.collectionGroup('award_claims').where('action', '==', 'tctv_watch_ticket').where('at', '>=', cutoff));
+        return { count: n, approximate: 'Timechain TV watch days in 30d; cap of 1 not applied' };
+    }
+    if (metric === 'referralsPaid') {
+        const n = await readCount(db.collection('referrals').where('paidAt', '>=', cutoff));
+        return { count: n, approximate: 'paid referrals in 30d; linked accounts and the cap of 1 not applied' };
+    }
+    return { failed: true, approximate: 'no count for this boss; static goal used' };
+}
+
+async function calibrateGoal(db, admin, spec, now) {
+    try {
+        const found = await countBossEvents(db, admin, spec, now);
+        if (!found || found.failed || found.count == null) {
+            return goalRecord(spec, null, 'fallback', found && found.approximate);
+        }
+        return goalRecord(spec, found.count, 'count', found.approximate);
+    } catch (e) {
+        console.warn('[RAID SPAWN] goal count fallback');
+        return goalRecord(spec, null, 'fallback', 'count failed; static goal used. Per-uid daily caps are not inside count().');
+    }
+}
+
+function bossPayload(spec, key, start, end, admin, copiedNames, copiedFrom, record) {
+    const goal = record.goal;
     return {
         name: spec.name,
         description: spec.description,
@@ -443,8 +604,18 @@ function bossPayload(spec, key, start, end, admin, copiedNames, copiedFrom) {
         metric: spec.metric,
         sources: spec.sources.slice(),
         target: HP,
-        communityTarget: spec.goal,
-        damageScale: damageScaleForGoal(spec.goal),
+        communityTarget: goal,
+        damageScale: record.damageScale,
+        goal: goal,
+        goalCount: record.goalCount,
+        goalSource: record.goalSource,
+        goalFormula: record.goalFormula,
+        goalFloor: record.goalFloor,
+        goalCeiling: record.goalCeiling,
+        goalFactor: record.goalFactor,
+        goalWindowDays: record.goalWindowDays,
+        goalApproximate: record.goalApproximate,
+        goalFallback: record.goalFallback,
         dailyCap: spec.dailyCap,
         minVisibleChars: spec.minVisibleChars || 0,
         serverOnly: true,
@@ -522,18 +693,28 @@ async function runScheduledSpawn(db, admin, now) {
     const month = Number(parts[1]);
     const start = zonedTimeToUtc(year, month, 1, 13, 0, 0);
     const end = nextMonthStart(year, month);
+    const record = await calibrateGoal(db, admin, spec, when);
     const prev = await findPreviousBoss(db, admin, key, start);
     await postFinal(db, admin, prev);
     const carried = carryFields(prev && prev.data);
     console.log('[RAID SPAWN] copied fields: ' + (carried.names.length ? carried.names.join(', ') : '(none)'));
-    const payload = Object.assign({}, carried.fields, bossPayload(spec, key, start, end, admin, carried.names, prev && prev.id));
+    const payload = Object.assign({}, carried.fields, bossPayload(spec, key, start, end, admin, carried.names, prev && prev.id, record));
     const created = await db.runTransaction(async function (tx) {
         const fresh = await tx.get(ref);
         if (fresh.exists) return false;
         tx.set(ref, payload);
         return true;
     });
-    return { ok: true, created: created === true, id: key };
+    const summary = spawnSummary(spec, key, record);
+    return {
+        ok: true,
+        created: created === true,
+        id: key,
+        goal: record.goal,
+        goalCount: record.goalCount,
+        goalSource: record.goalSource,
+        summary: summary,
+    };
 }
 
 async function defaultTelegramSend(chatId, text, token) {
@@ -600,7 +781,12 @@ async function alertSpawnFailure(db, admin, monthKey, err, opts) {
 async function spawnOrAlert(db, admin, now, opts) {
     const when = now instanceof Date ? now : new Date(now || Date.now());
     try {
-        return await runScheduledSpawn(db, admin, when);
+        const result = await runScheduledSpawn(db, admin, when);
+        if (result && result.created && result.summary) {
+            try { await sendPhilDm(result.summary, opts); }
+            catch (dmErr) { console.warn('[RAID SPAWN] Phil DM skipped'); }
+        }
+        return result;
     } catch (e) {
         console.error('[RAID SPAWN]', e && e.message);
         try { await alertSpawnFailure(db, admin, monthKeyFromDate(when), e, opts); }
@@ -842,14 +1028,190 @@ async function noteTrusted(db, admin, opts) {
     }
 }
 
+function bornMs(user) {
+    if (!user) return 0;
+    const raw = user.created != null ? user.created : user.createdAt;
+    if (raw && typeof raw.seconds === 'number') return raw.seconds * 1000;
+    return timeMs(raw);
+}
+
+function postPlain(kind, data) {
+    const src = data || {};
+    if (kind === 'article') return [src.title, src.subtitle, src.body].filter(Boolean).join('\n');
+    return [src.title, src.body].filter(Boolean).join('\n');
+}
+
+function sourceLive(kind, snap) {
+    if (!snap || !snap.exists) return false;
+    const data = snap.data() || {};
+    if (activityRemovedState(data)) return false;
+    if (kind === 'article' && data.status !== 'published') return false;
+    return true;
+}
+
+async function authorGate(db, uid, nowMs) {
+    if (!uidOk(uid) || BOTS[uid]) return 'bot';
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) return 'guest';
+    const user = userSnap.data() || {};
+    if (user.anonymous === true) return 'guest';
+    let ledger = {};
+    try {
+        const ledgerSnap = await db.collection('faucet_ledger').doc(uid).get();
+        ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
+    } catch (e) {
+        return 'banned';
+    }
+    if (rewardBlocked(user, ledger)) return 'banned';
+    const born = bornMs(user);
+    if (!born || nowMs - born < ACCOUNT_AGE_MS) return 'young';
+    return '';
+}
+
+async function recentNormalized(db, admin, uid, kind, sourceId, now) {
+    const cutoffMs = now.getTime() - WINDOW_MS;
+    const texts = [];
+    async function pull(collectionName, sameKind) {
+        const snap = await db.collection(collectionName).where('authorId', '==', uid).limit(200).get();
+        snap.forEach(function (doc) {
+            if (sameKind && doc.id === sourceId) return;
+            const data = doc.data() || {};
+            if (activityRemovedState(data)) return;
+            const at = timeMs(data.createdAt);
+            if (at && at < cutoffMs) return;
+            texts.push(quality.normalizeForDup(postPlain(collectionName === 'articles' ? 'article' : 'forum', data)));
+        });
+    }
+    await pull('forum_posts', kind === 'forum');
+    await pull('articles', kind === 'article');
+    return texts;
+}
+
+function pendingId(kind, sourceId) {
+    return safeId(kind + '-' + sourceId);
+}
+
+async function queueForumDamage(db, admin, opts) {
+    const o = opts || {};
+    const kind = o.kind === 'article' ? 'article' : 'forum';
+    const sourceId = String(o.sourceId || '');
+    const uid = o.uid;
+    const now = o.now instanceof Date ? o.now : new Date(o.now || Date.now());
+    const data = o.data || {};
+    if (!pendingId(kind, sourceId)) return { queued: false, reason: 'missing' };
+    if (kind === 'forum' && !forumActivityAwardable(data)) return { queued: false, reason: 'mirror' };
+    if (activityRemovedState(data)) return { queued: false, reason: 'hidden' };
+    if (kind === 'article' && data.status !== 'published') return { queued: false, reason: 'hidden' };
+    const gate = await authorGate(db, uid, now.getTime());
+    if (gate) return { queued: false, reason: gate };
+    const verdict = quality.assessRaidQuality(postPlain(kind, data));
+    if (!verdict.ok) return { queued: false, reason: 'quality' };
+    let prior = [];
+    try {
+        prior = await recentNormalized(db, admin, uid, kind, sourceId, now);
+    } catch (e) {
+        console.warn('[RAID FORUM] duplicate check skipped');
+        return { queued: false, reason: 'duplicate' };
+    }
+    if (quality.isNearDuplicate(verdict.normalized, prior)) return { queued: false, reason: 'duplicate' };
+    const ref = db.collection('raid_forum_pending').doc(pendingId(kind, sourceId));
+    const existing = await ref.get();
+    if (existing.exists) return { queued: false, reason: 'queued' };
+    const ready = new Date(now.getTime() + FORUM_DELAY_MS);
+    await ref.set({
+        status: 'pending',
+        kind: kind,
+        sourceId: sourceId,
+        uid: uid,
+        metric: kind === 'article' ? 'articlesPublished' : 'forumPosts',
+        hash: verdict.hash,
+        readyAt: admin.firestore.Timestamp.fromDate(ready),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { queued: true, id: ref.id };
+}
+
+async function settlePending(ref, admin, status) {
+    await ref.set({
+        status: status,
+        readyAt: admin.firestore.Timestamp.fromDate(SETTLED_AT),
+        settledAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+}
+
+async function sweepForumDamage(db, admin, now) {
+    const when = now instanceof Date ? now : new Date(now || Date.now());
+    const ts = admin.firestore.Timestamp.fromDate(when);
+    let snap;
+    try {
+        snap = await db.collection('raid_forum_pending').where('readyAt', '<=', ts).limit(40).get();
+    } catch (e) {
+        console.warn('[RAID FORUM] sweep skipped');
+        return { checked: 0, credited: 0, skipped: 0 };
+    }
+    let credited = 0;
+    let skipped = 0;
+    const docs = [];
+    snap.forEach(function (doc) { docs.push(doc); });
+    for (let i = 0; i < docs.length; i++) {
+        const doc = docs[i];
+        const pending = doc.data() || {};
+        if (pending.status && pending.status !== 'pending') continue;
+        const kind = pending.kind === 'article' ? 'article' : 'forum';
+        const sourceId = String(pending.sourceId || '');
+        const uid = pending.uid;
+        const pendingRef = doc.ref || db.collection('raid_forum_pending').doc(doc.id);
+        const collectionName = kind === 'article' ? 'articles' : 'forum_posts';
+        let live = false;
+        let data = {};
+        try {
+            const source = await db.collection(collectionName).doc(sourceId).get();
+            live = sourceLive(kind, source);
+            data = source.exists ? (source.data() || {}) : {};
+        } catch (e) {
+            live = false;
+        }
+        if (!live) {
+            skipped += 1;
+            try { await settlePending(pendingRef, admin, 'skipped'); } catch (e) { /* next sweep retries */ }
+            continue;
+        }
+        const gate = await authorGate(db, uid, when.getTime());
+        const verdict = quality.assessRaidQuality(postPlain(kind, data));
+        if (gate || !verdict.ok) {
+            skipped += 1;
+            try { await settlePending(pendingRef, admin, 'skipped'); } catch (e) { /* next sweep retries */ }
+            continue;
+        }
+        const result = await noteTrusted(db, admin, {
+            metric: pending.metric,
+            uid: uid,
+            dedupeKey: kind + '-' + sourceId,
+            amount: 1,
+            now: when,
+        });
+        if (result && (result.status === 'ok' || result.status === 'dup')) {
+            if (result.status === 'ok') credited += 1;
+            try { await settlePending(pendingRef, admin, 'credited'); } catch (e) { /* dedupe stops a second hit */ }
+        }
+    }
+    return { checked: docs.length, credited: credited, skipped: skipped };
+}
+
 module.exports = {
     TZ: TZ,
     HP: HP,
     GOAL_FACTOR: GOAL_FACTOR,
+    GOAL_FORMULA: GOAL_FORMULA,
+    GIVEAWAY_LINE: GIVEAWAY_LINE,
     REWARD_LINE: REWARD_LINE,
     SCHEDULE: SCHEDULE,
     PUBLIC_TELEGRAM: PUBLIC_TELEGRAM,
     goalFromTypical: goalFromTypical,
+    clampGoal: clampGoal,
+    goalRecord: goalRecord,
+    spawnSummary: spawnSummary,
+    calibrateGoal: calibrateGoal,
     damageScaleForGoal: damageScaleForGoal,
     hitDamage: hitDamage,
     zonedParts: zonedParts,
@@ -871,5 +1233,7 @@ module.exports = {
     postWeekly: postWeekly,
     creditTrusted: creditTrusted,
     noteTrusted: noteTrusted,
+    queueForumDamage: queueForumDamage,
+    sweepForumDamage: sweepForumDamage,
     sendPhilDm: sendPhilDm,
 };

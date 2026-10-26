@@ -5751,7 +5751,7 @@ function _raidVictoryBanner(boss) {
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;margin-bottom:10px;">The community worked together and took it down! Great job everyone!</div>' +
             '<div style="padding:10px 14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;">' +
                 '<div style="font-size:0.78rem;font-weight:800;color:var(--accent);">\uD83C\uDFC6 Community reward unlocked!</div>' +
-                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">Extra orange ticket drawing for <strong style=\"color:var(--accent);\">21,000 sats</strong> - <strong>this Friday night!</strong></div>' +
+                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">An extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
             '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:12px;padding:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
             '<div id="raidDamageDealers" style="display:none;margin-top:8px;"></div>' +
@@ -5808,7 +5808,7 @@ function _renderRaidBossCard(container, boss) {
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:12px;">Get ready to team up and take it down!</div>' +
             '<div style="margin-top:14px;padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">\uD83C\uDFC6 Community Prize</div>' +
-                '<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">Defeat the boss = extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+                '<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">On a win, an extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
         '</div>';
         _startRaidCountdown('raidCountdownPlaceholder', startMs);
@@ -5844,7 +5844,7 @@ function _renderRaidBossCard(container, boss) {
             '<div style="color:var(--text-muted);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '')) + '</div>' +
             '<div style="margin-top:14px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;text-align:center;">' +
                 '<div style="font-size:0.85rem;font-weight:800;color:#22c55e;">\uD83C\uDF89 Community reward unlocked!</div>' +
-                '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">Extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+                '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">An extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
             '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#8b5cf6;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
             '<div id="raidDamageDealers" style="display:none;margin-top:12px;"></div>' +
@@ -5895,7 +5895,7 @@ function _renderRaidBossCard(container, boss) {
         // Prize note
         '<div style="padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">🏆 Community Prize</div>' +
-            '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">Defeat the boss and the community earns an <strong style="color:var(--accent);">extra orange ticket giveaway for 21,000 sats!</strong></div>' +
+            '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">On a win, an extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
         '</div>' +
         // Participants list with tabs
         '<div>' +
@@ -6148,12 +6148,12 @@ var RAID_GUIDANCE = {
     'certPasses':         { action: 'Pass the Scholar or Protocol Expert certification.', nav: 'learning-quests', unitLabel: 'certification passed', unitAmt: 1 },
     'tctvWatchDays':      { action: 'Finish the daily Timechain TV watch.', nav: 'tctv', unitLabel: 'Timechain TV watch day (1/day)', unitAmt: 1 },
     'referralsPaid':      { action: 'Invite a friend who reaches Maxi. Self-invites do not count.', nav: 'home', unitLabel: 'qualified referral', unitAmt: 1 },
-    'articlesPublished':  { action: 'Publish a forum post or an article. Up to 2 a day.', nav: 'forum', unitLabel: 'article published', unitAmt: 1 },
+    'articlesPublished':  { action: 'Publish an article that stays up 24 hours and clears the quality bar. Posts and articles share a cap of 2 a day.', nav: 'forum', unitLabel: 'article published (max 2/day)', unitAmt: 1 },
     'badgesEarned':       { action: 'Earn badges to deal damage! Find them in the Leaderboard 🏆', nav: 'badges', unitLabel: 'badge earned',          unitAmt: 1   },
     'streakUsers':        { action: 'Hit a 7-day daily visit streak to deal damage!',         nav: 'home',            unitLabel: '7-day streak milestone',     unitAmt: 1   },
     'uniqueTopicsVisited':{ action: "Visit learning topics you haven't read yet (up to 3/day count)!", nav: 'home',  unitLabel: 'new topic visited (max 3/day)', unitAmt: 1 },
     'tipsSent':           { action: 'Send Lightning tips to deal damage!',                    nav: 'home',            unitLabel: 'Lightning tip sent',         unitAmt: 1   },
-    'forumPosts':         { action: 'Publish a real forum post or article. The server counts it, up to 2 a day.', nav: 'forum', unitLabel: 'forum post or article (max 2/day)', unitAmt: 1 },
+    'forumPosts':         { action: 'Publish a forum post or article with about 300 characters, 40 words, and 25 different words. Damage lands after 24 hours if it is still up. 2 a day.', nav: 'forum', unitLabel: 'forum post or article (max 2/day)', unitAmt: 1 },
     'triviaCorrect':      { action: 'Answer trivia correctly in Quest Hub to deal damage!',   nav: 'quests',          unitLabel: 'correct trivia answer',      unitAmt: 1   },
     'totalTopicReads':    { action: 'Read learning topics to deal damage (up to 3/day count)!', nav: 'home',          unitLabel: 'topic read (max 3/day)',      unitAmt: 1   }
 };

@@ -51,6 +51,9 @@ function memoryDb() {
                 if (!prev) throw new Error('missing ' + keyOf(parts));
                 docs.set(keyOf(parts), Object.assign({}, prev, data));
             },
+            delete: async function () {
+                docs.delete(keyOf(parts));
+            },
             collection: function (name) { return col(parts.concat(name)); },
         };
     }
@@ -92,6 +95,10 @@ function memoryDb() {
                                 const lms = left && left.toDate ? left.toDate().getTime() : left;
                                 const rms = filter.value && filter.value.toDate ? filter.value.toDate().getTime() : filter.value;
                                 if (filter.op === '<') return lms < rms;
+                                if (filter.op === '<=') return lms <= rms;
+                                if (filter.op === '>') return lms > rms;
+                                if (filter.op === '>=') return lms >= rms;
+                                if (filter.op === '==') return left === filter.value;
                                 return false;
                             });
                         });
@@ -178,22 +185,38 @@ async function main() {
         assert.strictEqual(Math.round(engine.damageScaleForGoal(335) * 1000), 2986);
     });
 
-    await test('schedule is twelve months, November stays 335, others use 1.35', function () {
+    await test('schedule floors and fallbacks stop a solo and stay inside the ceiling', function () {
         assert.strictEqual(engine.SCHEDULE.length, 12);
-        assert.strictEqual(engine.SCHEDULE[0].name, 'Chat-Charger');
-        assert.strictEqual(engine.SCHEDULE[0].goal, 335);
-        assert.notStrictEqual(engine.SCHEDULE[0].goal, engine.goalFromTypical(230));
-        engine.SCHEDULE.slice(1).forEach(function (entry) {
-            assert.strictEqual(entry.goal, engine.goalFromTypical(entry.typical), entry.name);
-        });
-        const names = engine.SCHEDULE.map(function (entry) { return entry.name; });
-        assert.ok(names.indexOf('Cipher-Cracker') !== -1);
-        assert.ok(names.indexOf('TV-Titan') === -1);
-        assert.ok(names.indexOf('Beats-Baron') === -1);
-        assert.ok(names.indexOf('Lightning-Lancer') === -1);
+        const expect = {
+            'Chat-Charger': { goal: 335, floor: 250, ceiling: 500, cap: 10 },
+            'Cipher-Cracker': { goal: 54, floor: 20, ceiling: 80, cap: 2 },
+            'Favor-Fiend': { goal: 1080, floor: 600, ceiling: 2000, cap: 15 },
+            'Forum-Forge': { goal: 25, floor: 25, ceiling: 80, cap: 2 },
+            'Hello-Herald': { goal: 162, floor: 61, ceiling: 300, cap: 1 },
+            'Trifecta-Titan': { goal: 61, floor: 61, ceiling: 120, cap: 1 },
+            'Trivia-Tactician': { goal: 176, floor: 80, ceiling: 400, cap: 1 },
+            'Scholar-Slayer': { goal: 5, floor: 5, ceiling: 16, cap: 1 },
+            'Quiz-Crusader': { goal: 122, floor: 100, ceiling: 250, cap: 3 },
+            'Poll-Patroller': { goal: 189, floor: 80, ceiling: 400, cap: 1 },
+            'Watch-Warden': { goal: 135, floor: 70, ceiling: 300, cap: 1 },
+            'Referral-Ranger': { goal: 31, floor: 31, ceiling: 60, cap: 1 },
+        };
         engine.SCHEDULE.forEach(function (entry) {
+            const row = expect[entry.name];
+            assert.ok(row, entry.name);
+            assert.strictEqual(entry.goal, row.goal, entry.name);
+            assert.strictEqual(entry.goalFloor, row.floor, entry.name);
+            assert.strictEqual(entry.goalCeiling, row.ceiling, entry.name);
+            assert.strictEqual(entry.dailyCap, row.cap, entry.name);
+            assert.ok(entry.goal >= entry.goalFloor && entry.goal <= entry.goalCeiling, entry.name);
             assert.ok(engine.isServerOnlyMetric(entry.metric), entry.metric);
         });
+        assert.strictEqual(engine.SCHEDULE[0].goal, 335);
+        assert.notStrictEqual(engine.SCHEDULE[0].goal, engine.goalFromTypical(230));
+        assert.strictEqual(engine.clampGoal(0, engine.SCHEDULE[0]), 250);
+        assert.strictEqual(engine.clampGoal(248, engine.SCHEDULE[0]), 335);
+        assert.strictEqual(engine.clampGoal(1000, engine.SCHEDULE[0]), 500);
+        assert.ok(engine.SCHEDULE.map(function (entry) { return entry.name; }).indexOf('TV-Titan') === -1);
     });
 
     await test('final and weekly text are plain and include the required lines', function () {
@@ -210,8 +233,20 @@ async function main() {
         const won = engine.weeklyText({ name: 'Chat-Charger', defeated: true, current: 1000, target: 1000 });
         assert.ok(won.indexOf('we took down Chat-Charger') !== -1);
         assert.ok(won.indexOf('The victory stands') !== -1);
-        assert.ok(won.indexOf('21,000') !== -1);
+        assert.ok(won.toLowerCase().indexOf(engine.GIVEAWAY_LINE.toLowerCase()) !== -1);
         assert.ok(won.indexOf('**') === -1);
+        assert.strictEqual(down.indexOf('21,000'), -1);
+        assert.strictEqual(up.indexOf('21,000'), -1);
+        assert.strictEqual(week.indexOf('21,000'), -1);
+        assert.strictEqual(won.indexOf('21,000'), -1);
+        assert.strictEqual(down.indexOf('sats'), -1);
+        assert.strictEqual(week.indexOf('sats'), -1);
+        assert.strictEqual(won.indexOf('sats'), -1);
+        assert.strictEqual(engine.REWARD_LINE.indexOf('sats'), -1);
+        const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
+        const raidUi = quests.slice(quests.indexOf('function _raidVictoryBanner'), quests.indexOf('function _raidDmgRateHtml'));
+        assert.strictEqual(raidUi.indexOf('21,000'), -1);
+        assert.ok(raidUi.indexOf('an extra Orange Ticket giveaway winner will be announced by the end of the week') !== -1);
     });
 
     await test('spawn is idempotent, posts the final first, and copies scale fields', async function () {
@@ -236,6 +271,12 @@ async function main() {
         const boss = (await db.collection('raid_bosses').doc('2026-11').get()).data();
         assert.strictEqual(boss.name, 'Chat-Charger');
         assert.strictEqual(boss.communityTarget, 335);
+        assert.strictEqual(boss.goal, 335);
+        assert.strictEqual(boss.goalSource, 'fallback');
+        assert.strictEqual(boss.goalCount, null);
+        assert.strictEqual(boss.goalFormula, 'raid-goal-v1');
+        assert.strictEqual(boss.goalFloor, 250);
+        assert.strictEqual(boss.goalCeiling, 500);
         assert.strictEqual(boss.target, 1000);
         assert.strictEqual(boss.liveDamageMultiplier, 3);
         assert.strictEqual(boss.placeholder, false);
@@ -412,7 +453,199 @@ async function main() {
         const schedule = fs.readFileSync(path.join(root, 'functions/src/scheduleRaidBoss.js'), 'utf8');
         assert.ok(schedule.indexOf("schedule: '0 13 1 * *'") !== -1);
         assert.ok(schedule.indexOf("schedule: '0 * 1,2 * *'") !== -1);
+        assert.ok(schedule.indexOf("schedule: '15 * * * *'") !== -1);
+        assert.ok(schedule.indexOf('sweepForumDamage') !== -1);
         assert.ok(schedule.indexOf('placeholder: true') === -1);
+        assert.ok(index.indexOf('queueForumDamage') !== -1);
+        assert.ok(index.indexOf('scheduleRaidForumCredit') !== -1);
+        const engineSrc = fs.readFileSync(path.join(root, 'functions/src/raidBossEngine.js'), 'utf8');
+        assert.strictEqual(engineSrc.indexOf('21,000'), -1);
+    });
+
+    function withCounts(db, table) {
+        const orig = db.collection.bind(db);
+        function wrapQuery(q, key) {
+            q.count = function () {
+                return { get: async function () {
+                    if (!Object.prototype.hasOwnProperty.call(table, key)) throw new Error('no count');
+                    return { data: function () { return { count: table[key] }; } };
+                } };
+            };
+            const next = q.where ? q.where.bind(q) : null;
+            q.where = function () {
+                return wrapQuery(next ? next.apply(q, arguments) : q, key);
+            };
+            return q;
+        }
+        db.collection = function (name) {
+            const col = orig(name);
+            const origWhere = col.where.bind(col);
+            const origDoc = col.doc.bind(col);
+            col.where = function () { return wrapQuery(origWhere.apply(col, arguments), name); };
+            col.doc = function (id) {
+                const child = origDoc(id);
+                const nested = child.collection.bind(child);
+                child.collection = function (sub) {
+                    const subCol = nested(sub);
+                    const subWhere = subCol.where.bind(subCol);
+                    subCol.where = function () { return wrapQuery(subWhere.apply(subCol, arguments), name + '/' + sub); };
+                    return subCol;
+                };
+                return child;
+            };
+            return col;
+        };
+        db.collectionGroup = function () {
+            return { where: function () { throw new Error('group'); } };
+        };
+        return db;
+    }
+
+    await test('a counted goal is clamped and the Phil DM names it', async function () {
+        const db = withCounts(memoryDb(), { global_chat: 248 });
+        const admin = adminFor();
+        const sent = [];
+        const result = await engine.spawnOrAlert(db, admin, new Date('2026-11-01T18:00:00.000Z'), {
+            chatId: '4242',
+            token: 'test-token',
+            send: async function (chatId, text) {
+                sent.push({ chatId: chatId, text: text });
+                return true;
+            },
+        });
+        assert.strictEqual(result.created, true);
+        assert.strictEqual(result.goal, 335);
+        assert.strictEqual(result.goalSource, 'count');
+        const boss = (await db.collection('raid_bosses').doc('2026-11').get()).data();
+        assert.strictEqual(boss.goalCount, 248);
+        assert.strictEqual(boss.communityTarget, 335);
+        assert.strictEqual(boss.damageScale, engine.damageScaleForGoal(335));
+        assert.strictEqual(boss.goalFormula, 'raid-goal-v1');
+        assert.ok(boss.goalApproximate.indexOf('cap of 10') !== -1);
+        assert.strictEqual(sent.length, 1);
+        assert.strictEqual(sent[0].chatId, '4242');
+        assert.ok(sent[0].text.indexOf('Goal 335') !== -1);
+        assert.ok(sent[0].text.indexOf('count 248') !== -1);
+        assert.ok(sent[0].text.indexOf('raid-goal-v1') !== -1);
+        assert.strictEqual(sent[0].text.indexOf('@'), -1);
+        const chats = await db.collection('global_chat').get();
+        chats.forEach(function (doc) {
+            assert.ok(doc.data().text.indexOf('Goal 335') === -1);
+        });
+        const again = await engine.spawnOrAlert(db, admin, new Date('2026-11-01T19:00:00.000Z'), {
+            chatId: '4242',
+            token: 'test-token',
+            send: async function () { sent.push({ chatId: 'again' }); return true; },
+        });
+        assert.strictEqual(again.skipped, 'exists');
+        assert.strictEqual(sent.length, 1);
+
+        const quiet = withCounts(memoryDb(), { global_chat: 0 });
+        const low = await engine.runScheduledSpawn(quiet, admin, new Date('2026-11-01T18:00:00.000Z'));
+        assert.strictEqual(low.goal, 250);
+        assert.strictEqual(low.goalSource, 'count');
+
+        const publicDb = withCounts(memoryDb(), { global_chat: 248 });
+        let publicSent = false;
+        const made = await engine.spawnOrAlert(publicDb, admin, new Date('2026-11-01T18:00:00.000Z'), {
+            chatId: '-1003827558565',
+            token: 'test-token',
+            send: async function () { publicSent = true; return true; },
+        });
+        assert.strictEqual(made.created, true);
+        assert.strictEqual(publicSent, false);
+    });
+
+    function legitBody(stem) {
+        const name = stem || 'bitcoinword';
+        const words = [];
+        for (let i = 0; i < 30; i++) words.push(name + i);
+        while (words.join(' ').length < 320 || words.length < 45) words.push(name + (words.length % 30));
+        return words.join(' ');
+    }
+
+    await test('forum damage waits 24 hours and rejects spam, padding, and duplicates', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        await engine.runScheduledSpawn(db, admin, new Date('2027-02-01T18:00:00.000Z'));
+        const boss = (await db.collection('raid_bosses').doc('2027-02').get()).data();
+        assert.strictEqual(boss.name, 'Forum-Forge');
+        assert.strictEqual(boss.goal, 25);
+        assert.strictEqual(boss.dailyCap, 2);
+        const now = new Date('2027-02-10T18:00:00.000Z');
+        const born = ts(new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000));
+        await db.collection('users').doc('ada').set({ username: 'ada', created: born, anonymous: false });
+        const body = legitBody('bitcoinword');
+        const other = legitBody('satoshiword');
+        const third = legitBody('hiddenword');
+        const spam = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'spam1', uid: 'ada', now: now,
+            data: { title: 'Hi', body: 'too short to count', authorId: 'ada' },
+        });
+        assert.strictEqual(spam.queued, false);
+        assert.strictEqual(spam.reason, 'quality');
+        assert.strictEqual((await db.collection('raid_forum_pending').doc('forum-spam1').get()).exists, false);
+        const padding = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'pad1', uid: 'ada', now: now,
+            data: { title: 'Pad', body: 'word '.repeat(80), authorId: 'ada' },
+        });
+        assert.strictEqual(padding.reason, 'quality');
+        assert.strictEqual((await db.collection('raid_forum_pending').doc('forum-pad1').get()).exists, false);
+
+        await db.collection('forum_posts').doc('legit1').set({
+            title: 'A real note', body: body, authorId: 'ada', createdAt: ts(now),
+        });
+        const queued = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'legit1', uid: 'ada', now: now,
+            data: { title: 'A real note', body: body, authorId: 'ada' },
+        });
+        assert.strictEqual(queued.queued, true);
+        const pending = await db.collection('raid_forum_pending').doc('forum-legit1').get();
+        assert.strictEqual(pending.exists, true);
+        const early = await engine.sweepForumDamage(db, admin, new Date(now.getTime() + 60 * 60 * 1000));
+        assert.strictEqual(early.credited, 0);
+        const dup = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'dup1', uid: 'ada', now: now,
+            data: { title: 'A real note', body: body, authorId: 'ada' },
+        });
+        assert.strictEqual(dup.reason, 'duplicate');
+        assert.strictEqual((await db.collection('raid_forum_pending').doc('forum-dup1').get()).exists, false);
+
+        await db.collection('forum_posts').doc('gone1').set({
+            title: 'Another note', body: other, authorId: 'ada', createdAt: ts(now),
+        });
+        const gone = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'gone1', uid: 'ada', now: now,
+            data: { title: 'Another note', body: other, authorId: 'ada' },
+        });
+        assert.strictEqual(gone.queued, true);
+        await db.collection('forum_posts').doc('gone1').delete();
+        const sweptGone = await engine.sweepForumDamage(db, admin, new Date(now.getTime() + 25 * 60 * 60 * 1000));
+        assert.strictEqual(sweptGone.credited, 1);
+        assert.ok(sweptGone.skipped >= 1);
+        const hit = await db.collection('raid_bosses').doc('2027-02').collection('participants').doc('ada').get();
+        assert.strictEqual(hit.exists, true);
+        const again = await engine.sweepForumDamage(db, admin, new Date(now.getTime() + 26 * 60 * 60 * 1000));
+        assert.strictEqual(again.credited, 0);
+        const after = await db.collection('raid_bosses').doc('2027-02').collection('participants').doc('ada').get();
+        assert.strictEqual(after.data().contributed, hit.data().contributed);
+
+        await db.collection('forum_posts').doc('hide1').set({
+            title: 'Hidden later', body: third, authorId: 'ada', createdAt: ts(now),
+        });
+        const hidden = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'hide1', uid: 'ada', now: new Date(now.getTime() + 60 * 1000),
+            data: { title: 'Hidden later', body: third, authorId: 'ada' },
+        });
+        assert.strictEqual(hidden.queued, true);
+        await db.collection('forum_posts').doc('hide1').set({
+            title: 'Hidden later', body: third, authorId: 'ada', hidden: true, createdAt: ts(now),
+        });
+        const before = after.data().contributed;
+        const sweptHidden = await engine.sweepForumDamage(db, admin, new Date(now.getTime() + 30 * 60 * 60 * 1000));
+        assert.strictEqual(sweptHidden.credited, 0);
+        const still = await db.collection('raid_bosses').doc('2027-02').collection('participants').doc('ada').get();
+        assert.strictEqual(still.data().contributed, before);
     });
 
     if (failed) {

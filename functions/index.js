@@ -1028,11 +1028,11 @@ exports.onForumPostBadgeCount = onDocumentCreated({
     try {
         const recorded = await activityCounters.recordForumPost(db, admin, event.data.data());
         if (recorded && recorded.bumped && recorded.uid) {
-            await require('./src/raidBossEngine').noteTrusted(db, admin, {
-                metric: 'forumPosts',
+            await require('./src/raidBossEngine').queueForumDamage(db, admin, {
+                kind: 'forum',
+                sourceId: String(event.params.postId || ''),
                 uid: recorded.uid,
-                dedupeKey: 'forum-' + String(event.params.postId || ''),
-                amount: 1,
+                data: event.data.data(),
                 now: new Date(),
             });
         }
@@ -1069,11 +1069,11 @@ exports.onArticleBadgeCount = onDocumentCreated({
     try {
         const recorded = await activityCounters.recordArticle(db, admin, event.data.data());
         if (recorded && recorded.bumped && recorded.uid) {
-            await require('./src/raidBossEngine').noteTrusted(db, admin, {
-                metric: 'articlesPublished',
+            await require('./src/raidBossEngine').queueForumDamage(db, admin, {
+                kind: 'article',
+                sourceId: String(event.params.articleId || ''),
                 uid: recorded.uid,
-                dedupeKey: 'article-' + String(event.params.articleId || ''),
-                amount: 1,
+                data: event.data.data(),
                 now: new Date(),
             });
         }
@@ -6231,10 +6231,11 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
 });
 
 // ===== RAID BOSS =====
-const { scheduleRaidBoss, scheduleRaidBossCatchup } = require('./src/scheduleRaidBoss');
+const { scheduleRaidBoss, scheduleRaidBossCatchup, scheduleRaidForumCredit } = require('./src/scheduleRaidBoss');
 const { contributeRaid } = require('./src/contributeRaid');
 exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.scheduleRaidBossCatchup = scheduleRaidBossCatchup;
+exports.scheduleRaidForumCredit = scheduleRaidForumCredit;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====

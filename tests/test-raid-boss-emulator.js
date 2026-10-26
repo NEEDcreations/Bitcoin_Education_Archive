@@ -77,7 +77,10 @@ const db = admin.firestore();
     assert.strictEqual(second.skipped, 'exists');
     const boss = await db.collection('raid_bosses').doc('2026-11').get();
     assert.strictEqual(boss.data().name, 'Chat-Charger');
-    assert.strictEqual(boss.data().communityTarget, 335);
+    assert.strictEqual(boss.data().goalFormula, 'raid-goal-v1');
+    assert.strictEqual(boss.data().goalSource, 'count');
+    assert.strictEqual(boss.data().goalCount, 0);
+    assert.strictEqual(boss.data().communityTarget, 250);
     assert.strictEqual(boss.data().current, 0);
 
     const user = env.authenticatedContext('ada', { firebase: { sign_in_provider: 'password' } }).firestore();
@@ -87,6 +90,7 @@ const db = admin.firestore();
     await assertFails(setDoc(doc(user, 'raid_bosses', '2026-11', 'winners', 'ada'), { satsAwarded: 1000 }));
     await assertFails(setDoc(doc(user, 'raid_daily_caps', 'ada_2026-11-15_chatMessages'), { count: 1 }));
     await assertFails(setDoc(doc(user, 'raid_damage_events', '2026-11_chat-1'), { amount: 1 }));
+    await assertFails(setDoc(doc(user, 'raid_forum_pending', 'forum-1'), { status: 'pending' }));
 
     const fresh = await db.collection('raid_bosses').doc('2026-11').get();
     assert.strictEqual(fresh.data().current, 0);
