@@ -1545,6 +1545,8 @@ service cloud.firestore {
     // =============================================
     match /announcements/{msgId} {
       allow read: if true;
+      // badgeIds is server-only (badge GGs Admin SDK). Clients cannot create
+      // announcements, and an update may change reactions only.
       // [BUG-6 FIX] Client writes to announcements are permanently disabled.
       // Any authenticated user (including anonymous) could set isNachoAuto=true
       // and inject fake "official Nacho" announcements with arbitrary markdown links.
