@@ -4,15 +4,17 @@
 // Satoshi's Favor point. A second award of the same id does not add a second point.
 // Badge XP goes through applyDailyXp: full until 500, half until 900, quarter until 1,000, then 0.
 // The remainder is dropped. Nothing is saved for a later day.
-// A badge the profile already shows gets an award row with 0 XP and no pool point.
-// Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
+// A badge already stored in badges, visibleBadges, or donationBadges gets an
+// award row with 0 XP and no pool point. displayBadge, equippedBadge,
+// earnedHidden, and hiddenBadges are not proof. Favor for a real legacy row
+// is the backfill's job. Already-owned badges do not read the pool.
 
 const { applyDailyXp } = require('./applyDailyXp');
 const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
-const { profileHoldsBadge } = require('./badgeProfile');
+const { serverHoldsBadge, awardCountsForBonus } = require('./badgeProfile');
 
 const ALIASES = { country_set: 'global_citizen' };
 
@@ -97,7 +99,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (awardSnap.exists) {
             return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
-        if (profileHoldsBadge(user, badgeId)) {
+        if (serverHoldsBadge(user, badgeId)) {
             t.set(awardRef, legacyAward(adminSdk, badgeId, day));
             return {
                 granted: false,
@@ -125,7 +127,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (needsAwards) awardsSnap = await t.get(userRef.collection('badge_awards'));
         const awardSet = new Set();
         if (awardsSnap && typeof awardsSnap.forEach === 'function') {
-            awardsSnap.forEach(function (doc) { awardSet.add(doc.id); });
+            awardsSnap.forEach(function (doc) {
+                const data = typeof doc.data === 'function' ? (doc.data() || {}) : {};
+                if (!awardCountsForBonus(user, doc.id, data)) return;
+                awardSet.add(doc.id);
+            });
         }
         let scholarExamPassed = false;
         if (!verified && rule.source && rule.source.type === 'scholarExam') {

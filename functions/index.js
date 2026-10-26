@@ -7838,6 +7838,12 @@ exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_a
     const snap = event.data;
     if (!snap) return null;
     const data = snap.data() || {};
+    if (data.source === 'legacy') {
+        const { unbackedLegacyAward } = require('./src/badgeProfile');
+        const userSnap = await db.collection('users').doc(event.params.uid).get();
+        const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
+        if (unbackedLegacyAward(user, event.params.badgeId, data)) return null;
+    }
     try {
         await queueBadgeGg(db, admin, event.params.uid, event.params.badgeId, data, Date.now());
     } catch (e) {

@@ -1,7 +1,7 @@
 'use strict';
 
 const badgeRules = require('./badgeRules');
-const { profileHoldsBadge } = require('./badgeProfile');
+const { serverHoldsBadge, awardCountsForBonus } = require('./badgeProfile');
 
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
@@ -17,6 +17,22 @@ function idsFromSnap(snap) {
     }
     (snap.docs || []).forEach(function (doc) { if (doc && doc.id) ids.push(doc.id); });
     return ids;
+}
+
+function awardRowsFromSnap(snap) {
+    const rows = [];
+    const visit = function (doc) {
+        if (!doc || !doc.id) return;
+        const data = typeof doc.data === 'function' ? (doc.data() || {}) : {};
+        rows.push({ id: doc.id, source: data.source || '' });
+    };
+    if (!snap) return rows;
+    if (typeof snap.forEach === 'function') {
+        snap.forEach(visit);
+        return rows;
+    }
+    (snap.docs || []).forEach(visit);
+    return rows;
 }
 
 function denial(badgeId, reason, extra) {
@@ -64,7 +80,12 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
 
     const userRef = db.collection('users').doc(uid);
     const awardSnap = await userRef.collection('badge_awards').get();
-    const earned = new Set(idsFromSnap(awardSnap));
+    const awardRows = awardRowsFromSnap(awardSnap);
+    // earned is every award id, including an unbacked legacy row. That id is
+    // already recorded, so it is not granted again. countable is the subset
+    // milestones and set bonuses are allowed to see.
+    const earned = new Set();
+    awardRows.forEach(function (row) { earned.add(row.id); });
     const out = new Array(list.length);
     const pending = [];
     for (let i = 0; i < list.length; i++) {
@@ -84,6 +105,10 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
     const userSnap = await userRef.get();
     const userExists = !!(userSnap && userSnap.exists);
     const user = userExists ? (userSnap.data() || {}) : {};
+    const countable = new Set();
+    awardRows.forEach(function (row) {
+        if (awardCountsForBonus(user, row.id, { source: row.source })) countable.add(row.id);
+    });
 
     let needFlex = false;
     for (let i = 0; i < pending.length; i++) {
@@ -113,10 +138,10 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
             out[pending[i].index] = denial(badgeId, 'no_user');
             continue;
         }
-        const held = profileHoldsBadge(user, badgeId);
+        const held = serverHoldsBadge(user, badgeId);
         const ctx = {
-            awardSet: earned,
-            payingCount: badgeRules.countPaying(earned),
+            awardSet: countable,
+            payingCount: badgeRules.countPaying(countable),
             signedIn: options.signedIn !== false,
             flexClaims: options.flexClaims || null,
         };
@@ -129,6 +154,9 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
         out[pending[i].index] = result;
         if (result && (result.granted || result.reason === 'already' || result.reason === 'legacy')) {
             earned.add(badgeId);
+        }
+        if (result && (result.granted || (result.reason === 'legacy' && serverHoldsBadge(user, badgeId)))) {
+            countable.add(badgeId);
         }
     }
     return out;

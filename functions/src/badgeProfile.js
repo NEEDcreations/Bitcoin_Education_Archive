@@ -1,10 +1,13 @@
 'use strict';
 
 // Badges a profile already shows, including legacy arrays, maps, and single fields.
-// A later counter update must not pay those again.
+// Award proof is only the server-owned lists. displayBadge, equippedBadge,
+// earnedHidden, and hiddenBadges are not proof: a player can write the first
+// three, and hiddenBadges was client-writable on older rules.
 
 const LIST_FIELDS = ['badges', 'visibleBadges', 'hiddenBadges', 'earnedHidden', 'donationBadges'];
 const SINGLE_FIELDS = ['displayBadge', 'equippedBadge'];
+const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'donationBadges'];
 
 function cleanBadgeId(raw) {
     return String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 60);
@@ -52,11 +55,36 @@ function profileHoldsBadge(user, badgeId) {
     return profileBadgeIds(user).has(id);
 }
 
+function serverBadgeIds(user) {
+    return collectIds(user, SERVER_LIST_FIELDS, []);
+}
+
+function serverHoldsBadge(user, badgeId) {
+    const id = cleanBadgeId(badgeId);
+    if (!id) return false;
+    return serverBadgeIds(user).has(id);
+}
+
+// A source:legacy row counts toward milestones and set bonuses only when the
+// same id is in badges, visibleBadges, or donationBadges.
+function unbackedLegacyAward(user, badgeId, award) {
+    return !!(award && award.source === 'legacy' && !serverHoldsBadge(user, badgeId));
+}
+
+function awardCountsForBonus(user, badgeId, award) {
+    return !unbackedLegacyAward(user, badgeId, award);
+}
+
 module.exports = {
     LIST_FIELDS: LIST_FIELDS,
     SINGLE_FIELDS: SINGLE_FIELDS,
+    SERVER_LIST_FIELDS: SERVER_LIST_FIELDS,
     cleanBadgeId: cleanBadgeId,
     collectIds: collectIds,
     profileBadgeIds: profileBadgeIds,
     profileHoldsBadge: profileHoldsBadge,
+    serverBadgeIds: serverBadgeIds,
+    serverHoldsBadge: serverHoldsBadge,
+    unbackedLegacyAward: unbackedLegacyAward,
+    awardCountsForBonus: awardCountsForBonus,
 };

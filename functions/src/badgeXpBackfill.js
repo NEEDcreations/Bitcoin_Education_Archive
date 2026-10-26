@@ -11,6 +11,7 @@ const badgeRules = require('./badgeRules');
 const badgeXp = require('./badgeXpTable');
 const { rewardBlocked } = require('./cipherClaim');
 const { classifyHeld } = require('../../scripts/backfill-badge-favor');
+const { awardCountsForBonus } = require('./badgeProfile');
 const { planLevelFavor, levelNameForPoints } = require('./satoshiFavor');
 
 function legacyZero(award) {
@@ -69,7 +70,11 @@ function planUserBadges(input) {
     }
     const classified = classifyHeld({ user: user, awardIds: src.awardIds || [] });
     const awardById = src.awardById || {};
-    const awardSet = new Set(src.awardIds || []);
+    const awardSet = new Set();
+    (src.awardIds || []).forEach(function (id) {
+        if (!awardCountsForBonus(user, id, awardById[id])) return;
+        awardSet.add(id);
+    });
     const payingCount = badgeRules.countPaying(awardSet);
     const flexClaims = badgeRules.tallyFlexClaims(src.flexClaimIds || []);
     const markers = {};

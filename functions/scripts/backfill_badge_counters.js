@@ -50,7 +50,7 @@ const badgeRules = require('../src/badgeRules');
 const progress = require('../src/badgeProgress');
 const { familyFor } = require('../src/grantBadge');
 const { offsetDateKey } = require('../src/offsetDay');
-const { profileBadgeIds } = require('../src/badgeProfile');
+const { profileBadgeIds, awardCountsForBonus, serverHoldsBadge } = require('../src/badgeProfile');
 const { applyDailyXp } = require('../src/applyDailyXp');
 const badgeXpTable = require('../src/badgeXpTable');
 const rewardNotify = require('../src/rewardNotify');
@@ -176,13 +176,26 @@ function asSet(value) {
     return new Set(Object.keys(value));
 }
 
-function legacyDecision(user, awardIds, profileIds) {
+function legacyDecision(user, awardIds, profileIds, awardById) {
     const write = [];
     const skipped = [];
     const awards = asSet(awardIds);
     const profile = asSet(profileIds);
-    const held = new Set(awards);
-    profile.forEach(function (id) { held.add(id); });
+    const held = new Set();
+    awards.forEach(function (id) {
+        if (awardById && !awardCountsForBonus(user, id, awardById[id])) return;
+        held.add(id);
+    });
+    profile.forEach(function (id) {
+        if (!awardById) {
+            held.add(id);
+            return;
+        }
+        const award = awardById[id];
+        if (award && !awardCountsForBonus(user, id, award)) return;
+        if (!award && !serverHoldsBadge(user, id)) return;
+        held.add(id);
+    });
     BADGE_IDS.forEach(function (id) {
         if (awards.has(id)) return;
         if (!profile.has(id)) return;
@@ -329,7 +342,11 @@ function payBadgeIds(planBadges, legacyWrite, settled) {
 
 function settledUnpaid(awardById, merged, markerIds) {
     const out = [];
-    const held = new Set(Object.keys(awardById || {}));
+    const held = new Set();
+    Object.keys(awardById || {}).forEach(function (id) {
+        if (!awardCountsForBonus(merged, id, awardById[id])) return;
+        held.add(id);
+    });
     Object.keys(awardById || {}).forEach(function (id) {
         const row = awardById[id] || {};
         if (row.source !== 'counter_backfill' && row.source !== 'counter_backfill_legacy') return;
@@ -337,7 +354,7 @@ function settledUnpaid(awardById, merged, markerIds) {
         if (markerIds && markerIds[id]) return;
         const rule = badgeRules.ruleFor(id);
         if (!rule || rule.cosmetic || !((badgeRules.xpOf(id) || 0) > 0)) return;
-        if (!badgeRules.meets(rule, merged, { awardSet: held })) return;
+        if (!badgeRules.meets(rule, merged, { awardSet: held, payingCount: badgeRules.countPaying(held) })) return;
         out.push(id);
     });
     return out;
@@ -349,7 +366,7 @@ function raiseNumber(user, patch, field, next) {
     if (n > cur) patch[field] = n;
 }
 
-function planUser(user, tally, heldIds) {
+function planUser(user, tally, heldIds, countIds) {
     const src = user || {};
     const t = tally || {};
     const patch = {};
@@ -403,14 +420,16 @@ function planUser(user, tally, heldIds) {
 
     const merged = Object.assign({}, src, patch);
     const held = new Set(heldIds || []);
+    const counted = new Set(countIds || heldIds || []);
     const badges = [];
     BADGE_IDS.forEach(function (id) {
         if (held.has(id)) return;
         const rule = badgeRules.ruleFor(id);
         if (!rule || rule.cosmetic) return;
-        if (!badgeRules.meets(rule, merged, { awardSet: held })) return;
+        if (!badgeRules.meets(rule, merged, { awardSet: counted, payingCount: badgeRules.countPaying(counted) })) return;
         badges.push(id);
         held.add(id);
+        counted.add(id);
     });
     const fresh = badges.slice();
     Object.keys(badgeRules.SETS).forEach(function (setId) {
@@ -420,9 +439,10 @@ function planUser(user, tally, heldIds) {
         if (!unlockedNow && !NEW_SETS[setId]) return;
         const rule = badgeRules.ruleFor(setId);
         if (!rule || rule.cosmetic) return;
-        if (!badgeRules.meets(rule, merged, { awardSet: held })) return;
+        if (!badgeRules.meets(rule, merged, { awardSet: counted, payingCount: badgeRules.countPaying(counted) })) return;
         badges.push(setId);
         held.add(setId);
+        counted.add(setId);
     });
     let xp = 0;
     badges.forEach(function (id) { xp += badgeRules.xpOf(id) || 0; });
@@ -743,13 +763,20 @@ async function main() {
                 if (doc.id.indexOf(prefix) === 0) levelContributorIds.push(doc.id.slice(prefix.length));
             });
             const held = [];
-            Object.keys(awardIds).forEach(function (id) { held.push(id); });
+            const counted = [];
+            Object.keys(awardIds).forEach(function (id) {
+                held.push(id);
+                if (awardCountsForBonus(user, id, awardById[id])) counted.push(id);
+            });
             const profileIds = profileBadgeIds(user);
             profileIds.forEach(function (id) {
                 if (held.indexOf(id) === -1) held.push(id);
+                if (counted.indexOf(id) === -1 && serverHoldsBadge(user, id) && awardCountsForBonus(user, id, awardById[id])) {
+                    counted.push(id);
+                }
             });
-            const plan = planUser(user, tallyView(row), held);
-            const legacy = legacyDecision(Object.assign({}, user, plan.patch), awardIds, profileIds);
+            const plan = planUser(user, tallyView(row), held, counted);
+            const legacy = legacyDecision(Object.assign({}, user, plan.patch), awardIds, profileIds, awardById);
             const merged = Object.assign({}, user, plan.patch);
             const settled = settledUnpaid(awardById, merged, markerIds);
             const payItems = payItemsFor(plan.badges, legacy.write, settled, awardById);

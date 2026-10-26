@@ -616,10 +616,20 @@ queue.push(test('a profile badge is recorded with 0 XP and does not touch the po
     const fromMap = await awardBadge(mapDb, admin, 'u', 'say_hi_1', day);
     assert.strictEqual(fromMap.reason, 'legacy');
     assert.strictEqual(mapDb.docs['satoshiFavor/current'], undefined);
-    const fieldDb = memoryDb({ 'users/u': { peerCount: 1, displayBadge: 'peer_1' } });
+    const donationDb = memoryDb({ 'users/u': { points: 9, donationBadges: ['donor_100'] } });
+    const fromDonation = await awardBadge(donationDb, admin, 'u', 'donor_100', day);
+    assert.strictEqual(fromDonation.reason, 'legacy');
+    assert.strictEqual(donationDb.docs['users/u/badge_awards/donor_100'].source, 'legacy');
+    assert.strictEqual(donationDb.docs['users/u/badge_awards/donor_100'].xp, 0);
+    assert.strictEqual(donationDb.docs['users/u'].points, 9);
+    assert.strictEqual(donationDb.docs['satoshiFavor/current'], undefined);
+    const fieldDb = memoryDb({ 'users/u': { points: 7, displayBadge: 'peer_1' } });
     const fromField = await awardBadge(fieldDb, admin, 'u', 'peer_1', day);
-    assert.strictEqual(fromField.reason, 'legacy');
-    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'].xp, 0);
+    assert.strictEqual(fromField.reason, 'criteria');
+    assert.strictEqual(fromField.xp, 0);
+    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'], undefined);
+    assert.strictEqual(fieldDb.docs['users/u'].points, 7);
+    assert.strictEqual(fieldDb.docs['satoshiFavor/current'], undefined);
     const owned = memoryDb({
         'users/u': { sayHiDays: 1, points: 15 },
         'users/u/badge_awards/say_hi_1': { xp: 15, source: 'awardBadge' },
@@ -1205,6 +1215,199 @@ queue.push(test('grantFamily tallies flex claims once, skips earned ids, and doe
     assert.strictEqual(hi.docs['satoshiFavor/current'].points, 1);
     assert.strictEqual(hiStats.awardTx, 1);
     assert.strictEqual(hiStats.outside, 0);
+}));
+
+queue.push(test('client fields cannot plant legacy rows that pay milestones or set bonuses', async function () {
+    const day = { day: '2026-10-22', nowMs: 1700000000000 };
+    const badgeProfile = require('../functions/src/badgeProfile');
+    const { planUserBadges } = require('../functions/src/badgeXpBackfill');
+    const { grantIds } = require('../functions/src/badgeCredit');
+
+    assert.strictEqual(badgeProfile.serverHoldsBadge({
+        displayBadge: 'peer_1',
+        equippedBadge: 'say_hi_1',
+        earnedHidden: ['spin_1'],
+        hiddenBadges: ['quest_1'],
+    }, 'peer_1'), false);
+    assert.strictEqual(badgeProfile.serverHoldsBadge({ visibleBadges: ['peer_1'] }, 'peer_1'), true);
+    assert.strictEqual(badgeProfile.serverHoldsBadge({ badges: { donor_100: true } }, 'donor_100'), true);
+    assert.strictEqual(badgeProfile.serverHoldsBadge({ donationBadges: ['donor_100'] }, 'donor_100'), true);
+    assert.strictEqual(badgeProfile.unbackedLegacyAward({ displayBadge: 'peer_1' }, 'peer_1', { source: 'legacy' }), true);
+    assert.strictEqual(badgeProfile.unbackedLegacyAward({ visibleBadges: ['peer_1'] }, 'peer_1', { source: 'legacy' }), false);
+    assert.strictEqual(badgeProfile.awardCountsForBonus({}, 'say_hi_1', { source: 'awardBadge' }), true);
+
+    const plantedFields = [
+        { displayBadge: 'say_hi_1' },
+        { equippedBadge: 'peer_1' },
+        { earnedHidden: ['spin_1'] },
+        { hiddenBadges: ['quest_1'] },
+    ];
+    for (let i = 0; i < plantedFields.length; i++) {
+        const field = plantedFields[i];
+        const id = field.displayBadge || field.equippedBadge
+            || (field.earnedHidden && field.earnedHidden[0])
+            || (field.hiddenBadges && field.hiddenBadges[0]);
+        const db = memoryDb({ 'users/u': Object.assign({ points: 0 }, field) });
+        const direct = await awardBadge(db, admin, 'u', id, day);
+        assert.strictEqual(direct.granted, false, id);
+        assert.strictEqual(direct.xp, 0, id);
+        assert.notStrictEqual(direct.reason, 'legacy', id);
+        const viaFamily = await grantFamily(db, admin, 'u', [id], day);
+        assert.strictEqual(viaFamily[0].xp, 0, id);
+        assert.notStrictEqual(viaFamily[0].reason, 'legacy', id);
+        assert.strictEqual(db.docs['users/u'].points, 0, id);
+        assert.strictEqual(db.docs['users/u/badge_awards/' + id], undefined, id);
+        assert.strictEqual(db.docs['satoshiFavor/current'], undefined, id);
+    }
+
+    const fresh = memoryDb({ 'users/u': { sayHiDays: 1, points: 0 } });
+    const normal = await awardBadge(fresh, admin, 'u', 'say_hi_1', day);
+    assert.strictEqual(normal.granted, true);
+    assert.strictEqual(normal.xp, badgeRules.xpOf('say_hi_1'));
+    assert.strictEqual(fresh.docs['users/u/badge_awards/say_hi_1'].source, 'awardBadge');
+    assert.strictEqual(fresh.docs['users/u'].points, badgeRules.xpOf('say_hi_1'));
+    assert.strictEqual(fresh.docs['satoshiFavor/current'].points, 1);
+    const equipped = memoryDb({ 'users/u': { sayHiDays: 1, points: 0, displayBadge: 'say_hi_1', equippedBadge: 'say_hi_1' } });
+    const stillPays = await awardBadge(equipped, admin, 'u', 'say_hi_1', day);
+    assert.strictEqual(stillPays.granted, true);
+    assert.strictEqual(stillPays.xp, badgeRules.xpOf('say_hi_1'));
+    assert.notStrictEqual(equipped.docs['users/u/badge_awards/say_hi_1'].source, 'legacy');
+
+    const paying = badgeRules.verifiedIds().filter(function (id) {
+        const rule = badgeRules.ruleFor(id);
+        return rule && rule.xp > 0 && rule.source && rule.source.type !== 'awards' && rule.source.type !== 'set';
+    });
+    const setMembers = badgeRules.SETS.set_daily_five.slice();
+    const planted = paying.filter(function (id) {
+        return setMembers.indexOf(id) === -1;
+    }).slice(0, 60 - setMembers.length).concat(setMembers);
+    assert.ok(planted.length >= 60);
+    assert.ok(badgeRules.countPaying(planted) >= 50);
+    setMembers.forEach(function (id) { assert.ok(planted.indexOf(id) !== -1, id); });
+
+    function plantDocs(ids, userExtra) {
+        const docs = { 'users/u': Object.assign({ points: 0 }, userExtra || {}) };
+        ids.forEach(function (id) {
+            docs['users/u/badge_awards/' + id] = { badge: id, xp: 0, source: 'legacy', requestedXp: 0 };
+        });
+        return docs;
+    }
+
+    const attack = memoryDb(plantDocs(planted, {
+        displayBadge: 'hall_of_fame',
+        equippedBadge: 'set_daily_five',
+        earnedHidden: setMembers,
+    }));
+    const milestone = await awardBadge(attack, admin, 'u', 'hall_of_fame', day);
+    assert.strictEqual(milestone.granted, false);
+    assert.strictEqual(milestone.reason, 'criteria');
+    assert.strictEqual(milestone.xp, 0);
+    const setDirect = await awardBadge(attack, admin, 'u', 'set_daily_five', day);
+    assert.strictEqual(setDirect.granted, false);
+    assert.strictEqual(setDirect.reason, 'criteria');
+    assert.strictEqual(setDirect.xp, 0);
+    const family = await grantFamily(attack, admin, 'u', ['hall_of_fame', 'set_daily_five', planted[0]], day);
+    assert.strictEqual(family[0].reason, 'criteria');
+    assert.strictEqual(family[1].reason, 'criteria');
+    assert.strictEqual(family[2].reason, 'already');
+    assert.strictEqual(family[0].xp, 0);
+    assert.strictEqual(family[1].xp, 0);
+    assert.strictEqual(family[2].xp, 0);
+    assert.strictEqual(attack.docs['users/u'].points, 0);
+    assert.strictEqual(attack.docs['satoshiFavor/current'], undefined);
+    assert.strictEqual(attack.docs['users/u/badge_awards/hall_of_fame'], undefined);
+    assert.strictEqual(attack.docs['users/u/badge_awards/set_daily_five'], undefined);
+
+    const unbackedSet = memoryDb(plantDocs(setMembers, {}));
+    const wrapped = await grantIds(unbackedSet, admin, 'u', setMembers);
+    assert.ok(wrapped.every(function (row) { return row && row.reason === 'already' && row.xp === 0; }));
+    assert.strictEqual(unbackedSet.docs['users/u/badge_awards/set_daily_five'], undefined);
+    assert.strictEqual(unbackedSet.docs['users/u'].points, 0);
+    assert.strictEqual(unbackedSet.docs['satoshiFavor/current'], undefined);
+
+    const backedSet = memoryDb(plantDocs(setMembers, { visibleBadges: setMembers.slice() }));
+    await grantIds(backedSet, admin, 'u', setMembers);
+    assert.strictEqual(backedSet.docs['users/u/badge_awards/set_daily_five'].source !== 'legacy', true);
+    assert.strictEqual(backedSet.docs['users/u/badge_awards/set_daily_five'].xp, badgeRules.xpOf('set_daily_five'));
+    assert.strictEqual(backedSet.docs['users/u'].points, badgeRules.xpOf('set_daily_five'));
+    assert.strictEqual(backedSet.docs['satoshiFavor/current'].points, 1);
+
+    const sample = planted.filter(function (id) { return setMembers.indexOf(id) === -1; }).slice(0, 50);
+    const backedId = sample[49];
+    const normalIds = sample.slice(0, 49);
+    const backedDocs = plantDocs(normalIds.concat([backedId]), { visibleBadges: [backedId] });
+    normalIds.forEach(function (id) {
+        backedDocs['users/u/badge_awards/' + id] = { badge: id, xp: badgeRules.xpOf(id), source: 'awardBadge' };
+    });
+    const backedMilestone = memoryDb(backedDocs);
+    const unlocked = await awardBadge(backedMilestone, admin, 'u', 'hall_of_fame', day);
+    assert.strictEqual(unlocked.granted, true);
+    assert.strictEqual(unlocked.xp, badgeRules.xpOf('hall_of_fame'));
+    assert.strictEqual(backedMilestone.docs['users/u'].points, badgeRules.xpOf('hall_of_fame'));
+    assert.strictEqual(backedMilestone.docs['satoshiFavor/current'].points, 1);
+
+    const shortDocs = plantDocs(normalIds.concat([backedId]), {});
+    normalIds.forEach(function (id) {
+        shortDocs['users/u/badge_awards/' + id] = { badge: id, xp: badgeRules.xpOf(id), source: 'awardBadge' };
+    });
+    const short = memoryDb(shortDocs);
+    const missed = await grantFamily(short, admin, 'u', ['hall_of_fame'], day);
+    assert.strictEqual(missed[0].reason, 'criteria');
+    assert.strictEqual(missed[0].xp, 0);
+    assert.strictEqual(short.docs['users/u'].points, 0);
+    assert.strictEqual(short.docs['users/u/badge_awards/hall_of_fame'], undefined);
+    assert.strictEqual(short.docs['satoshiFavor/current'], undefined);
+
+    const fakeById = {};
+    const inert = planted.filter(function (id) {
+        const rule = badgeRules.ruleFor(id);
+        return !badgeRules.meets(rule, { points: 0 }, {
+            awardSet: new Set(),
+            payingCount: 0,
+            signedIn: true,
+            flexClaims: { byAction: {}, sum: 0 },
+        });
+    });
+    inert.forEach(function (id) { fakeById[id] = { xp: 0, source: 'legacy' }; });
+    const fakePlan = planUserBadges({
+        user: { points: 0, badges: ['hall_of_fame', 'set_sovereign'] },
+        awardIds: inert.concat(['hall_of_fame', 'set_sovereign']),
+        awardById: Object.assign({
+            hall_of_fame: { xp: 0, source: 'legacy' },
+            set_sovereign: { xp: 0, source: 'legacy' },
+        }, fakeById),
+    });
+    assert.ok(inert.length >= 50);
+    assert.strictEqual(fakePlan.xp, 0);
+    assert.ok(!fakePlan.topUps.some(function (row) {
+        return row.badgeId === 'hall_of_fame' || row.badgeId === 'set_sovereign' || row.topUp > 0;
+    }));
+
+    const sovereign = badgeRules.SETS.set_sovereign.slice();
+    const sovereignById = { set_sovereign: { xp: 0, source: 'legacy' } };
+    sovereign.forEach(function (id) { sovereignById[id] = { xp: 0, source: 'legacy' }; });
+    const sovereignIds = sovereign.concat(['set_sovereign']);
+    const closed = planUserBadges({
+        user: { points: 0, badges: ['set_sovereign'] },
+        awardIds: sovereignIds,
+        awardById: sovereignById,
+    });
+    assert.strictEqual(closed.xp, 0);
+    const open = planUserBadges({
+        user: { points: 0, badges: ['set_sovereign'], visibleBadges: sovereign.slice() },
+        awardIds: sovereignIds,
+        awardById: sovereignById,
+    });
+    const openRow = open.topUps.filter(function (row) { return row.badgeId === 'set_sovereign'; })[0];
+    assert.ok(openRow);
+    assert.strictEqual(openRow.topUp, badgeRules.xpOf('set_sovereign'));
+    assert.strictEqual(open.xp, badgeRules.xpOf('set_sovereign'));
+
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const triggerAt = index.indexOf('exports.onBadgeAwardCreated');
+    const trigger = index.slice(triggerAt, index.indexOf('exports.flushBadgeGgBursts'));
+    assert.ok(trigger.indexOf('unbackedLegacyAward') !== -1);
+    assert.ok(trigger.indexOf('unbackedLegacyAward') < trigger.indexOf('queueBadgeGg'));
 }));
 
 Promise.all(queue).then(function () {
