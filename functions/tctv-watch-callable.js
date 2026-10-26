@@ -13,6 +13,7 @@ const watch = require('./src/tctvWatch');
 const rewardNotify = require('./src/rewardNotify');
 const ticketGrants = require('./src/ticketGrants');
 const { rewardBlocked } = require('./src/cipherClaim');
+const claimReqs = require('./src/claimReqs');
 
 const db = admin.firestore();
 
@@ -153,6 +154,17 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             if (notice && notice.id && notice.data) {
                 rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), [notice]);
             }
+        }
+
+        const watchedSeconds = Math.max(
+            Number(view.seconds) || 0,
+            decision.state ? Number(decision.state.seconds) || 0 : 0,
+            Number(stored.seconds) || 0
+        );
+        if (claimReqs.tctvQualifies(watchedSeconds) && !claimReqs.stampMillis((user.claimReq || {}).tctvAt)) {
+            tx.update(userRef, {
+                'claimReq.tctvAt': admin.firestore.FieldValue.serverTimestamp(),
+            });
         }
 
         const showToast = view.showToast === true && (xpAwarded > 0 || ticketsOut > 0);

@@ -130,7 +130,8 @@ service cloud.firestore {
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
-        'providersHash', 'providerHashes'
+        'providersHash', 'providerHashes',
+        'claimReq'
       ];
     }
 
@@ -211,6 +212,8 @@ service cloud.firestore {
                         // Claim / withdrawal state
                         'pointsClaimed', 'pointsExchanged',
                         'lastSatsClaim', 'lastAwards', '_pendingClaim',
+                        // New-account claim proofs. Cloud Functions only.
+                        'claimReq',
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
                         'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
                         'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
@@ -617,6 +620,11 @@ service cloud.firestore {
 
     // Signup IP and other fraud signals. Admin SDK only.
     match /referral_signals/{signalId} {
+      allow read, write: if false;
+    }
+
+    // Referral-link visit log. HMAC only. Admin SDK only.
+    match /referral_visits/{docId} {
       allow read, write: if false;
     }
 

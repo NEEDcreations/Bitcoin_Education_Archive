@@ -43,6 +43,7 @@ function captureReferralCode() {
     if (ref && ref.length >= 6) {
         // Store it locally — we'll attach it to the user doc when they create an account
         localStorage.setItem('btc_referral_code', ref);
+        logReferralVisit(ref);
         // Clean URL without reload
         if (window.history && window.history.replaceState) {
             const clean = window.location.pathname + window.location.hash;
@@ -712,6 +713,20 @@ function copyInviteLink() {
     }
 }
 
+function logReferralVisit(code) {
+    var ref = String(code || '').trim();
+    if (!/^[A-Za-z0-9]{6,28}$/.test(ref)) return;
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    var fp = '';
+    try {
+        if (typeof _generateDeviceFingerprint === 'function') fp = _generateDeviceFingerprint();
+    } catch (e) {}
+    if (!fp || String(fp).length < 8) return;
+    try {
+        firebase.functions().httpsCallable('logReferralVisit')({ refCode: ref, fingerprint: fp }).catch(function() {});
+    } catch (e2) {}
+}
+
 function shareInviteLink() {
     var linkEl = document.getElementById('inviteLink');
     var link = (linkEl && linkEl.textContent) || getReferralLink();
@@ -740,6 +755,7 @@ if (typeof window !== 'undefined') {
     window.toggleInviteHow = toggleInviteHow;
     window.copyInviteLink = copyInviteLink;
     window.shareInviteLink = shareInviteLink;
+    window.logReferralVisit = logReferralVisit;
     window.inviteGuestSignup = inviteGuestSignup;
     window.refreshInviteCard = refreshInviteCard;
     function bindInviteAuth() {
