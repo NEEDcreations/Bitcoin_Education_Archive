@@ -267,6 +267,26 @@ async function main() {
     assert.strictEqual((await bannedRef.get()).data().points, 40);
     assert.strictEqual((await bannedRef.collection('cert_bonuses').doc('tech').get()).exists, false);
     assert.strictEqual((await bannedRef.collection('xp_ledger').doc('cert_bonus_tech').get()).exists, false);
+    const bannedExamData = (await bannedExam.get()).data();
+    assert.strictEqual(bannedExamData.bonusBlocked, 'banned');
+    assert.ok(bannedExamData.bonusBlockedAt, 'a withheld ban bonus stamps when it was blocked');
+    const certBonus = require('../functions/src/certBonus');
+    const banHistory = certBonus.banHistoryAfterUnban({
+        banned: true,
+        ban_reason: 'abuse',
+        bannedAt: new Date(Date.now() - 86400000).toISOString(),
+    }, Date.now() + 60000);
+    await bannedRef.update({
+        banned: admin.firestore.FieldValue.delete(),
+        ban_reason: admin.firestore.FieldValue.delete(),
+    });
+    await db.collection('faucet_ledger').doc(bannedUid).set({ banned: false, banHistory: banHistory });
+    const owed = await certBonus.creditExistingPass(db, admin, bannedUid, 'technical', Date.now());
+    assert.strictEqual(owed.pay, false);
+    assert.strictEqual(Number(owed.amount) || 0, 0);
+    assert.strictEqual(owed.reason, 'banned');
+    assert.strictEqual((await bannedRef.get()).data().points, 40);
+    assert.strictEqual((await bannedRef.collection('cert_bonuses').doc('tech').get()).exists, false);
 
     const fakeUid = 'fake-score-user';
     const fakeRef = db.collection('users').doc(fakeUid);

@@ -4545,13 +4545,19 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         }
 
         // pointsAwarded stays on the exam key so a later backfill can see it.
-        tx.update(examRef, {
+        // A ban that withholds the bonus is stamped so a later unban cannot collect it.
+        const examUpdate = {
             graded: true,
             score: score,
             passed: passed,
             pointsAwarded: pointsAwarded,
             gradedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        };
+        if (passed && scholarPlan.reason === 'banned') {
+            examUpdate.bonusBlocked = 'banned';
+            examUpdate.bonusBlockedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        tx.update(examRef, examUpdate);
         tx.update(userRef, update);
         if (scholarPlan.pay) {
             certBonus.writeMarkers(tx, admin, {
@@ -6120,6 +6126,12 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
         await logAdminAction(req, 'adminUnbanUser', { uid });
         // [VULN-7 FIX] Unban atomically in both user doc AND faucet_ledger.
         // Both must be cleared so a re-banned user can't exploit a stale ledger state.
+        // The closed window is appended before bannedAt is deleted.
+        const certBonus = require('./src/certBonus');
+        const faucetRef = db.collection('faucet_ledger').doc(uid);
+        const faucetSnap = await faucetRef.get();
+        const faucet = faucetSnap.exists ? (faucetSnap.data() || {}) : {};
+        const banHistory = certBonus.banHistoryAfterUnban(faucet, Date.now());
         const batch = db.batch();
         batch.update(db.collection('users').doc(uid), {
             withdrawals_disabled: false,
@@ -6131,10 +6143,11 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
             _pendingClaimAt: admin.firestore.FieldValue.delete(),
         });
         // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
-        batch.set(db.collection('faucet_ledger').doc(uid), {
+        batch.set(faucetRef, {
             banned: false,
             ban_reason: admin.firestore.FieldValue.delete(),
             bannedAt: admin.firestore.FieldValue.delete(),
+            banHistory: banHistory,
         }, { merge: true });
         await batch.commit();
         res.json({success: true, uid});

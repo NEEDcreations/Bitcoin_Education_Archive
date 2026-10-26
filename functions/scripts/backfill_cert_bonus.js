@@ -13,6 +13,8 @@
  * --apply re-reads the pass inside a transaction and writes the marker only
  * when the shortfall is greater than 0. A full prior credit, an unknown
  * credit, a current ban, and a ban that covered the pass are not marked.
+ * An exam key with bonusBlocked is ignored, so a pass taken while banned
+ * stays unpaid after an unban. Closed windows live on faucet_ledger.banHistory.
  * It does not change daily_points.
  *
  *   node functions/scripts/backfill_cert_bonus.js

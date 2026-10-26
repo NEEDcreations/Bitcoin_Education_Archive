@@ -152,6 +152,26 @@ function pushBanWindow(windows, startRaw, endRaw) {
     windows.push({ start: start, end: end });
 }
 
+function keyBlocksBonus(exam) {
+    return !!(exam && exam.bonusBlocked != null && exam.bonusBlocked !== '');
+}
+
+// Captures the open ban, then the caller clears bannedAt. A later backfill
+// reads this array. An already-clear ledger is left unchanged.
+function banHistoryAfterUnban(faucet, nowMs) {
+    const src = faucet || {};
+    const history = Array.isArray(src.banHistory)
+        ? src.banHistory.filter(function (row) { return row && typeof row === 'object'; })
+        : [];
+    const hadBan = src.banned === true || !!src.ban_reason || src.bannedAt != null;
+    if (!hadBan) return history;
+    history.push({
+        bannedAt: src.bannedAt == null ? null : src.bannedAt,
+        unbannedAt: nowMs,
+    });
+    return history;
+}
+
 function banWindows(user, faucet) {
     const windows = [];
     [user, faucet].forEach(function (doc) {
@@ -286,7 +306,9 @@ function examList(src) {
 // the difference. Unknown and already-settled rows pay nothing.
 function planBackfillRow(opts) {
     const src = opts || {};
-    const exams = examList(src);
+    const allExams = examList(src);
+    const blockedKeys = allExams.filter(keyBlocksBonus);
+    const exams = allExams.filter(function (exam) { return !keyBlocksBonus(exam); });
     const row = {
         uid: src.uid || '',
         type: src.type,
@@ -299,6 +321,13 @@ function planBackfillRow(opts) {
     if (!TYPES[src.type]) return row;
     const passed = exams.some(eligiblePass);
     if (!passed) {
+        if (blockedKeys.some(eligiblePass)) {
+            row.reason = 'banned';
+            row.credited = 0;
+            row.shortfall = 0;
+            row.amount = 0;
+            return row;
+        }
         row.reason = exams.some(function (exam) { return exam && exam.passed === true; }) ? 'unverified-score' : 'not-passed';
         return row;
     }
@@ -415,6 +444,8 @@ module.exports = {
     planBackfillRow: planBackfillRow,
     shouldApplyBackfill: shouldApplyBackfill,
     bannedAtPass: bannedAtPass,
+    banHistoryAfterUnban: banHistoryAfterUnban,
+    keyBlocksBonus: keyBlocksBonus,
     bonusUserFields: bonusUserFields,
     writeMarkers: writeMarkers,
     creditExistingPass: creditExistingPass,

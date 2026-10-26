@@ -206,6 +206,73 @@ test('backfill skips a current ban and a ban that covered the pass', function ()
     assert.ok(fn.indexOf('shouldApplyBackfill') !== -1);
 });
 
+test('a pass during a ban is owed 0 after the user is unbanned', function () {
+    const stamped = certBonus.planBackfillRow({
+        uid: 'bannedone',
+        type: 'properties',
+        exams: [{
+            passed: true,
+            score: 22,
+            pointsAwarded: 0,
+            gradedAt: '2026-10-24T12:00:00.000Z',
+            bonusBlocked: 'banned',
+        }],
+        banned: false,
+    });
+    assert.strictEqual(stamped.pay, false);
+    assert.strictEqual(stamped.amount, 0);
+    assert.strictEqual(stamped.shortfall, 0);
+    assert.strictEqual(stamped.reason, 'banned');
+    assert.strictEqual(certBonus.shouldApplyBackfill(stamped), false);
+
+    const exams = [{ passed: true, score: 23, pointsAwarded: 0, gradedAt: '2026-10-24T12:00:00.000Z' }];
+    const faucet = {
+        banHistory: [{ bannedAt: '2026-10-20T00:00:00.000Z', unbannedAt: '2026-10-26T00:00:00.000Z' }],
+    };
+    const viaHistory = certBonus.planBackfillRow({
+        uid: 'bannedone',
+        type: 'technical',
+        exams: exams,
+        banned: certBonus.bannedAtPass({}, faucet, exams),
+    });
+    assert.strictEqual(certBonus.bannedAtPass({}, faucet, exams), true);
+    assert.strictEqual(viaHistory.pay, false);
+    assert.strictEqual(viaHistory.reason, 'banned');
+    assert.strictEqual(viaHistory.shortfall, 0);
+    assert.strictEqual(certBonus.shouldApplyBackfill(viaHistory), false);
+
+    const history = certBonus.banHistoryAfterUnban({
+        banned: true,
+        bannedAt: '2026-10-20T00:00:00.000Z',
+        ban_reason: 'abuse',
+    }, '2026-10-26T00:00:00.000Z');
+    assert.strictEqual(history.length, 1);
+    assert.strictEqual(history[0].bannedAt, '2026-10-20T00:00:00.000Z');
+    assert.strictEqual(history[0].unbannedAt, '2026-10-26T00:00:00.000Z');
+    const clear = certBonus.banHistoryAfterUnban({ banned: false, banHistory: history }, '2026-11-01T00:00:00.000Z');
+    assert.strictEqual(clear.length, 1);
+    const later = certBonus.planBackfillRow({
+        uid: 'bannedone',
+        type: 'properties',
+        exams: [
+            { passed: true, score: 22, pointsAwarded: 0, bonusBlocked: 'banned', gradedAt: '2026-10-24T12:00:00.000Z' },
+            { passed: true, score: 24, pointsAwarded: 1000, gradedAt: '2026-10-26T12:00:00.000Z' },
+        ],
+        banned: false,
+    });
+    assert.strictEqual(later.pay, true);
+    assert.strictEqual(later.credited, 1000);
+    assert.strictEqual(later.shortfall, 1100);
+
+    const index = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    const scholar = index.slice(index.indexOf('exports.gradeScholarExam'), index.indexOf('exports.startQuest'));
+    assert.ok(scholar.indexOf("bonusBlocked = 'banned'") !== -1);
+    assert.ok(scholar.indexOf('bonusBlockedAt') !== -1);
+    const unban = index.slice(index.indexOf('exports.adminUnbanUser'), index.indexOf('exports.scheduleRaidBoss'));
+    assert.ok(unban.indexOf('banHistoryAfterUnban') !== -1);
+    assert.ok(unban.indexOf('banHistory') !== -1);
+});
+
 test('gradeScholarExam pays cert_bonus and does not taper it', function () {
     const index = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
     const scholar = index.slice(index.indexOf('exports.gradeScholarExam'), index.indexOf('exports.startQuest'));

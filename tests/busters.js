@@ -154,6 +154,30 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     scholarHits.forEach(function (hit) {
         assert.strictEqual(hit, scholarPin[1]);
     });
+    const quests = read('learning-quests.js');
+    assert.ok(quests.includes('window.SCHOLAR_SCRIPT'));
+    assert.ok(!quests.includes('scholar.js?v='));
+    const skipDirs = { tests: 1, node_modules: 1, '.git': 1, images: 1, assets: 1, data: 1 };
+    const found = [];
+    function walk(dir) {
+        fs.readdirSync(dir, { withFileTypes: true }).forEach(function (entry) {
+            if (skipDirs[entry.name]) return;
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                walk(full);
+                return;
+            }
+            if (!/\.(js|html)$/.test(entry.name)) return;
+            const text = fs.readFileSync(full, 'utf8');
+            const refs = text.match(/scholar\.js\?v=[^'"\s\\)]+/g) || [];
+            refs.forEach(function (ref) { found.push(full.slice(root.length + 1) + ' ' + ref); });
+        });
+    }
+    walk(root);
+    assert.ok(found.length >= 2, 'expected scholar.js pins in the site sources');
+    found.forEach(function (hit) {
+        assert.ok(hit.endsWith(scholarPin[1]), hit);
+    });
     assert.strictEqual((html.match(/modules\.js\?v=20261026_v2378/g) || []).length, 2);
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));

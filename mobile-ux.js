@@ -983,12 +983,6 @@ window.openHomeLearnMenu = function() {
     }
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
-    menu.style.position = 'relative';
-    menu.style.zIndex = '10050';
-    menu.style.background = 'var(--bg-side,#0f172a)';
-    menu.style.opacity = '1';
-    menu.style.isolation = 'isolate';
-    menu.style.animation = 'none';
     window.renderLearnMenu(menu, 'root');
     if (typeof playSound === 'function') playSound('pop');
 };
@@ -1002,11 +996,9 @@ window.toggleMobileLearnMenu = function() {
 
     var menu = document.createElement('div');
     menu.id = 'mobileLearnMenu';
-    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;z-index:10050;' +
-        'max-width:400px;margin:0 auto;' +
-        'background:var(--bg-side,#0f172a);background-color:var(--bg-side,#0f172a);border:1px solid var(--border);border-radius:20px;' +
-        'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
-        'opacity:1;isolation:isolate;animation:none;max-height:70vh;overflow:auto;';
+    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;' +
+        'max-width:400px;margin:0 auto;border:1px solid var(--border);border-radius:20px;' +
+        'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);max-height:70vh;overflow:auto;';
     document.body.appendChild(menu);
     window.renderLearnMenu(menu, 'root');
 
