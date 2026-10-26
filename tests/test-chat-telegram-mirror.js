@@ -917,6 +917,72 @@ test('separator allowlist, lookalikes, squeeze, and scam fold', function () {
     });
 });
 
+test('one unbroken allowlist word covers one copy, and bidi is stripped', function () {
+    const blocked = [
+        ['spicy-sep', 'spicy spic-y'],
+        ['spicy-dots', 'spicy s.pic.y'],
+        ['spiced-sep', 'spiced spic-ed'],
+        ['scunthorpe-sep', 'scunthorpe s-cunt-horpe'],
+        ['scunthorpe-spaced', 'scunthorpe s c u n t h o r p e'],
+        ['grape-sep', 'grape g-rape'],
+        ['grapes-sep', 'grapes g-rapes'],
+        ['grapevine-sep', 'grapevine g-rape-vine'],
+        ['magazine-sep', 'magazine maga-zine'],
+        ['trumpet-sep', 'trumpet trump-et'],
+        ['democratic-sep', 'democratic dem-ocratic'],
+        ['cocktail-sep', 'cocktail cock-tail'],
+        ['dickens-sep', 'dickens dick-ens'],
+        ['torpedo-sep', 'torpedo tor-pedo'],
+        ['raccoon-sep', 'raccoon rac-coon'],
+        ['tycoon-sep', 'tycoon ty-coon'],
+        ['suspicious-sep', 'suspicious sus-pic-ious'],
+        ['therapeutic-sep', 'therapeutic the-rapeutic'],
+        ['skin-thumb', 'fu\u{1F44D}\u{1F3FD}ck'],
+        ['skin-mod', 'fuc\u{1F3FB}k'],
+        ['bullet', 'f\u2022uck'],
+        ['middot', 'f\u00B7uck'],
+        ['hyphen-point', 'f\u2027uck'],
+    ];
+    blocked.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, false, row[0] + ' forwarded: ' + (decision.line || decision.reason));
+        assert.strictEqual(decision.reason, 'profanity', row[0]);
+    });
+    const allowed = [
+        ['spicy-twice', 'spicy spicy'],
+        ['grapes-and-grape', 'grapes and grape'],
+    ];
+    allowed.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, true, row[0] + ' blocked: ' + decision.reason);
+    });
+    const reversed = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: '\u202Ekcuf' }),
+    });
+    assert.strictEqual(reversed.forward, true);
+    assert.strictEqual(reversed.line, '[Global] Pat: kcuf');
+    assert.strictEqual(reversed.line.indexOf('\u202E'), -1);
+    const reversedName = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: '\u202Ekcuf', text: 'hello there' }),
+    });
+    assert.strictEqual(reversedName.forward, true);
+    assert.strictEqual(reversedName.name, 'kcuf');
+    assert.strictEqual(reversedName.line.indexOf('\u202E'), -1);
+    const slurName = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: '\u202Efuck', text: 'hello there' }),
+    });
+    assert.strictEqual(slurName.name, 'A player');
+    const splitName = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: 'spicy spic-y', text: 'hello there' }),
+    });
+    assert.strictEqual(splitName.forward, true);
+    assert.strictEqual(splitName.name, 'A player');
+});
+
 test('isolation refreshes the lease and stops on 429', async function () {
     const now = 1700000000000;
     const db = memoryDb({

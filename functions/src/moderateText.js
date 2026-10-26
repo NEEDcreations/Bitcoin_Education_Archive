@@ -6,9 +6,10 @@
 // inside a word, and a shorter term has to be a whole word.
 // Political terms are the old bridge list, unchanged. Singular and plural
 // democrat and republican stay blocked; democratic is an ordinary adjective.
-// An allowlist is applied only before the in-word search, and only when the
-// whole word appears unbroken before line-break joining, separator collapsing,
-// and spaced-letter collapsing. A standalone slur still matches as its own word.
+// An allowlist is applied only before the in-word search. Each unbroken
+// occurrence, counted before line-break joining, separator collapsing, and
+// spaced-letter collapsing, masks one copy of that word. A standalone slur
+// still matches as its own word.
 
 const PROFANITY = [
     'fuck', 'shit', 'bitch', 'asshole', 'damn', 'cunt',
@@ -170,10 +171,12 @@ function foldLookalikes(text) {
     }).join('');
 }
 
+// Counts, not a set. One unbroken "spicy" covers one matched copy, so
+// "spicy spic-y" still has a second "spicy" after the separator collapses.
 function unbrokenWords(text) {
-    const words = new Set();
+    const words = new Map();
     String(text || '').split(/[^\p{L}]+/u).forEach(function (word) {
-        if (word) words.add(word);
+        if (word) words.set(word, (words.get(word) || 0) + 1);
     });
     return words;
 }
@@ -211,7 +214,7 @@ function collapseSeparators(text) {
     let prev = '';
     while (s !== prev) {
         prev = s;
-        s = s.replace(/(\p{L})[-_.]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027]+(?=\p{L})/gu, '$1');
     }
     return s;
 }
@@ -241,7 +244,7 @@ function prepareStrict(text) {
     s = s.normalize('NFC');
     s = s.replace(/\p{Cf}/gu, '');
     s = s.replace(/[\u115F\u1160\u3164\uFFA0\u2800]/g, '');
-    s = s.replace(/(\p{L})[\p{Extended_Pictographic}\p{So}\u200D\uFE0F]+(?=\p{L})/gu, '$1');
+    s = s.replace(/(\p{L})[\p{Extended_Pictographic}\p{So}\u{1F3FB}-\u{1F3FF}\u200D\uFE0F]+(?=\p{L})/gu, '$1');
     s = foldLookalikes(s.toLowerCase());
     s = applyLeet(s);
     const unbroken = unbrokenWords(s);
@@ -267,7 +270,7 @@ function scamFold(text) {
 
 function allowlistedWord(word, unbroken) {
     const w = String(word || '');
-    if (!w || !unbroken || !unbroken.has(w)) return false;
+    if (!w || !unbroken || !(unbroken.get(w) > 0)) return false;
     if (ALLOW[w]) return true;
     for (let i = 0; i < ALLOW_SUFFIXES.length; i++) {
         const suffix = ALLOW_SUFFIXES[i];
@@ -279,8 +282,10 @@ function allowlistedWord(word, unbroken) {
 }
 
 function maskAllowlist(text, unbroken) {
+    const left = new Map(unbroken || []);
     return String(text || '').replace(/\p{L}+/gu, function (word) {
-        if (!allowlistedWord(word, unbroken)) return word;
+        if (!allowlistedWord(word, left)) return word;
+        left.set(word, left.get(word) - 1);
         return ' '.repeat(word.length);
     });
 }

@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2364" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2366" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -416,7 +416,7 @@
         .lb-level-row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--text-muted); font-size: 0.8rem; }
 
         /* Username Modal */
-        #usernameModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); z-index: 400000; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
+        #usernameModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); z-index: 2100008; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
         #usernameModal.open { display: block; }
         .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 24px; padding: 40px; max-width: 400px; width: 90%; text-align: center; margin: 20px auto; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
         @media (max-width: 900px) { .username-box { padding: 20px 16px; width: 95%; margin: 10px auto; } }
@@ -428,30 +428,41 @@
         .username-box button:hover { background: #ea580c; }
         .username-box .skip { color: var(--text-muted); font-size: 0.85rem; margin-top: 12px; cursor: pointer; display: block; }
         .username-box .skip:hover { color: var(--text-dim); }
-        /* TOS checkbox */
-        .tos-check-row { display:flex; align-items:flex-start; gap:10px; text-align:left; margin-bottom:14px; }
-        .tos-check-row input[type=checkbox] { flex-shrink:0; width:18px; height:18px; margin-top:2px; accent-color:#f7931a; cursor:pointer; }
-        .tos-check-row label { font-size:0.78rem; color:#94a3b8; line-height:1.5; cursor:pointer; }
-        .tos-check-row label a { color:#f7931a; text-decoration:underline; }
-        /* Existing-user TOS modal */
-        #tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:500000; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-        #tosModal.open { display:block; }
-        #tosModal .tos-box { background:rgba(15,23,42,0.95); border:1px solid rgba(247,147,26,0.3); border-radius:20px; padding:36px 28px; max-width:420px; width:92%; margin:40px auto; box-shadow:0 20px 60px rgba(0,0,0,0.7); }
+        /* Consent rows: the checkbox label is the tap target. Links sit outside it. */
+        .tos-check-row, .consent-row { display:flex; align-items:center; gap:12px; text-align:left; min-height:48px; margin:0 0 4px; }
+        .tos-check-row input[type=checkbox], .consent-row input[type=checkbox] { flex-shrink:0; width:24px; height:24px; margin:0; accent-color:#f7931a; cursor:pointer; }
+        .tos-check-row label, .consent-row label { align-self:stretch; display:flex; align-items:center; flex:1; min-height:48px; font-size:0.9rem; color:#cbd5e1; line-height:1.35; cursor:pointer; }
+        .consent-links { text-align:left; font-size:0.85rem; margin:0 0 8px 36px; line-height:1.4; }
+        .consent-links a { color:#f7931a; text-decoration:underline; }
+        .consent-hint { color:#f97316; font-size:0.85rem; font-weight:800; margin:0 0 8px; text-align:left; }
+        .consent-hint[hidden] { display:none !important; }
+        .consent-row.shake, .tos-check-row.shake { animation: consentShake 0.45s ease; }
+        @keyframes consentShake { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-6px); } 40% { transform:translateX(6px); } 60% { transform:translateX(-4px); } 80% { transform:translateX(4px); } }
+        #tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72); z-index:2100010; }
+        #tosModal.open { display:flex; align-items:flex-end; justify-content:center; }
+        #tosModal .tos-box { display:flex; flex-direction:column; background:rgba(15,23,42,0.98); border:1px solid rgba(247,147,26,0.3); border-radius:20px 20px 16px 16px; padding:20px 16px 16px; width:min(440px, calc(100% - 32px)); max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); margin:12px auto max(12px, env(safe-area-inset-bottom, 0px)); box-shadow:0 20px 60px rgba(0,0,0,0.7); overflow:hidden; box-sizing:border-box; }
+        #tosModal .tos-scroll { overflow:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; min-height:0; }
+        #tosModal .tos-footer { flex:0 0 auto; padding-top:10px; padding-bottom:max(0px, env(safe-area-inset-bottom, 0px)); }
         #tosModal h2 { color:#f7931a; font-size:1.3rem; margin-bottom:8px; text-align:center; }
-        #tosModal .tos-subtitle { color:#94a3b8; font-size:0.85rem; margin-bottom:20px; text-align:center; line-height:1.5; }
-        #tosModal .tos-links { background:rgba(247,147,26,0.06); border:1px solid rgba(247,147,26,0.15); border-radius:10px; padding:14px 16px; margin-bottom:18px; }
+        #tosModal .tos-subtitle { color:#94a3b8; font-size:0.85rem; margin-bottom:16px; text-align:center; line-height:1.5; }
+        #tosModal .tos-links { background:rgba(247,147,26,0.06); border:1px solid rgba(247,147,26,0.15); border-radius:10px; padding:14px 16px; margin-bottom:8px; }
         #tosModal .tos-links a { display:flex; align-items:center; gap:8px; color:#f7931a; font-size:0.9rem; font-weight:600; text-decoration:none; padding:6px 0; }
         #tosModal .tos-links a:hover { text-decoration:underline; }
         #tosModal .tos-links a + a { border-top:1px solid rgba(255,255,255,0.06); margin-top:4px; padding-top:10px; }
-        #tosModal .tos-accept-check { display:flex; align-items:flex-start; gap:10px; margin-bottom:18px; }
-        #tosModal .tos-accept-check input { flex-shrink:0; width:20px; height:20px; margin-top:2px; accent-color:#f7931a; cursor:pointer; }
-        #tosModal .tos-accept-check label { font-size:0.85rem; color:#cbd5e1; line-height:1.6; cursor:pointer; }
-        #tosModal .tos-accept-check label a { color:#f7931a; text-decoration:underline; }
-        #tosModal .tos-accept-btn { width:100%; padding:14px; background:#f7931a; border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; opacity:0.4; pointer-events:none; transition:opacity 0.2s; }
-        #tosModal .tos-accept-btn.ready { opacity:1; pointer-events:auto; }
-        #tosModal .tos-accept-btn.ready:hover { background:#ea580c; }
+        #tosModal .tos-accept-btn { width:100%; min-height:48px; padding:14px; background:#f7931a; border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; opacity:1; pointer-events:auto; }
+        #tosModal .tos-accept-btn:hover { background:#ea580c; }
         #tosModal .tos-signout { display:block; text-align:center; margin-top:12px; color:#475569; font-size:0.78rem; cursor:pointer; }
         #tosModal .tos-signout:hover { color:#94a3b8; }
+        @media (max-width: 480px) { #tosModal .tos-box { width:calc(100% - 32px); padding:20px 16px 16px; } }
+        body:has(#tosModal.open) .rank-toast,
+        body:has(#tosModal.open) #nachoQuestPill,
+        body:has(#tosModal.open) #btcIntroOverlay,
+        body:has(#tosModal.open) #guestPointsBanner,
+        body:has(#tosModal.open) #nwcSecAlert,
+        body:has(#tosModal.open) #usernameRepick,
+        body:has(#tosModal.open) #totpSignInOverlay,
+        body:has(#tosModal.open) #mfaSignInOverlay { display:none !important; }
+        body:has(#usernameModal.open) .rank-toast { display:none !important; }
 
         /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
         .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
@@ -761,13 +772,15 @@
         #todayCard:focus { outline: none; }
         #todayCard:focus-visible, #todayCard button:focus-visible { outline: 2px solid var(--accent, #f7931a); outline-offset: 2px; }
         #todayCard.today-highlight { box-shadow: 0 0 0 2px #f7931a, 0 0 28px rgba(247,147,26,0.45); }
-        #todayFavorStrip { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; width: 100%; box-sizing: border-box; padding: 14px 16px; background: linear-gradient(90deg, #f7931a, #e8720c); color: #1a1208; }
+        #todayFavorStrip { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; width: 100%; box-sizing: border-box; padding: 8px 14px; min-height: 44px; background: linear-gradient(90deg, #f7931a, #e8720c); color: #1a1208; cursor: pointer; overflow: hidden; }
+        #todayFavorStrip .today-favor-go { font-weight: 900; flex: 0 0 auto; font-size: 1.15rem; line-height: 1; }
         #todayFavorKicker { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-        #todayFavorTitle { font-size: 1.15rem; font-weight: 900; line-height: 1.1; }
-        #todayFavorPoints { font-size: 0.95rem; font-weight: 800; }
-        #todayFavorCountdown { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 0.95rem; background: rgba(0,0,0,0.18); border-radius: 8px; padding: 4px 8px; max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+        #todayFavorTitle { flex: 1 1 auto; min-width: 0; font-size: 0.95rem; font-weight: 900; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #todayFavorPoints { display: none !important; }
+        #todayFavorCountdown { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 0.9rem; background: transparent; border-radius: 0; padding: 0; white-space: nowrap; }
+        #todayFavorCountdown:not([hidden])::before { content: '⏱ '; }
         #todayFavorCountdown[hidden] { display: none !important; }
-        #todayEarnFavor { margin-left: auto; background: #1a1208; color: #f7931a; border: none; border-radius: 10px; font-weight: 800; font-size: 0.92rem; padding: 10px 16px; cursor: pointer; font-family: inherit; }
+        #todayEarnFavor { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
         #todayEarnFavor:hover { filter: brightness(1.08); }
         #todayFavorStrip.is-favor-active { position: relative; overflow: hidden; animation: todayFavorPulse 2s ease-in-out infinite; }
         #todayFavorStrip.is-favor-active > * { position: relative; z-index: 1; }
@@ -828,11 +841,9 @@
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteCard { display: none !important; }
         @media (max-width: 480px) {
             #em-quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-            #todayFavorStrip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
-            #todayFavorTitle { flex: 1 0 100%; font-size: 1.02rem; }
-            #todayFavorPoints { flex: 1 1 auto; min-width: 0; }
-            #todayFavorCountdown { flex: 1 1 12rem; min-width: min(100%, 12rem); max-width: 100%; margin-left: auto; font-size: 0.78rem; text-align: left; }
-            #todayEarnFavor { flex: 1 0 100%; width: 100%; margin-left: 0; }
+            #todayFavorStrip { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; }
+            #todayFavorTitle { flex: 1 1 auto; min-width: 0; font-size: 0.92rem; white-space: nowrap; }
+            #todayFavorCountdown { flex: 0 0 auto; margin-left: 0; font-size: 0.85rem; }
         }
 
         /* Mobile breakpoint */
@@ -845,9 +856,9 @@
             .sidebar-expand-btn { display: none !important; }
             .sidebar-collapse-btn { display: none !important; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(54px + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(76px + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
             .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 100; overflow: hidden; gap: 6px; }
-            .mobile-bar h2 { color: var(--accent); font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            .mobile-bar h2 { color: var(--accent); font-size: clamp(11px, 3.1vw, 0.85rem); font-weight: 900; text-transform: uppercase; letter-spacing: 0; line-height: 1.05; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
             .mobile-close { display: flex !important; }
@@ -915,7 +926,7 @@
             .invite-card { width: min(188px, calc(100vw - 16px)); }
             .home-stats { gap: 8px; }
             .home-stat-num { font-size: 1.1rem; }
-            .mobile-bar h2 { font-size: 0.75rem; }
+            .mobile-bar h2 { font-size: clamp(10px, 3.2vw, 0.72rem); letter-spacing: 0; line-height: 1.05; }
             .mobile-bar { padding: 10px 8px; gap: 4px; }
             #mobileUserInfo { max-width: 50px !important; font-size: 0.6rem !important; }
             .channel-logos .channel-logo-img { width: 54px; height: 54px; }
@@ -975,6 +986,60 @@
     #homeAppsMenu .apps-grid-btn .app-desc  { font-size:0.68rem;font-weight:400;color:rgba(255,255,255,0.45);line-height:1.35;white-space:normal;display:block; }
     #homeAppsMenu .apps-grid-btn.tier-locked { opacity:0.6;filter:grayscale(0.7);cursor:help; }
     #homeAppsMenu .apps-grid-btn.tier-locked .app-desc { color:rgba(255,255,255,0.45); }
+
+    /* Simpler home */
+    .mobile-bar .mobile-brand { min-width:0; flex:1 1 auto; overflow:hidden; display:flex; align-items:center; gap:8px; cursor:pointer; }
+    .mobile-bar .mobile-tools { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:0; }
+    .mobile-bar h2 { letter-spacing:0; font-size:clamp(11px, 3.1vw, 0.85rem); line-height:1.05; }
+    .mobile-bar h2 span { display:block; }
+    @media (max-width: 380px) { .mobile-bar h2 { font-size:clamp(10px, 3.2vw, 0.72rem); letter-spacing:0; } }
+    #homeWalletStrip { display:none; grid-template-columns:1fr 1fr 1.15fr; gap:8px; margin:0 0 12px; text-align:left; }
+    html.home-signed-in #homeWalletStrip, body.home-signed-in #homeWalletStrip { display:grid; }
+    .home-tile { background:#111827; border:1px solid #1e293b; border-radius:14px; padding:10px 10px 8px; color:#e2e8f0; text-align:left; cursor:pointer; font-family:inherit; min-height:84px; display:flex; flex-direction:column; gap:2px; }
+    .home-tile-kicker { font-size:0.62rem; font-weight:800; letter-spacing:0.06em; color:#94a3b8; }
+    .home-tile-value { font-size:1.35rem; font-weight:900; color:#f7931a; line-height:1.1; }
+    .home-tile-note { font-size:0.68rem; color:#94a3b8; }
+    .home-tile-claim { background:#f7931a; border-color:#f7931a; color:#1a1208; }
+    .home-tile-claim .home-tile-kicker, .home-tile-claim .home-tile-note { color:rgba(26,18,8,0.78); }
+    .home-tile-claim .home-tile-value { color:#fff; font-size:1.15rem; }
+    #homeGuestActions { margin:0 0 12px; }
+    html.home-signed-in #homeGuestActions, body.home-signed-in #homeGuestActions,
+    html.home-signed-in #homeHero, body.home-signed-in #homeHero { display:none !important; }
+    html:not(.home-signed-in) #authBtn { display:none !important; }
+    .home-guest-cta, .home-watch-intro { width:100%; border-radius:14px; font-family:inherit; cursor:pointer; touch-action:manipulation; }
+    .home-guest-cta { background:#f7931a; color:#fff; border:none; padding:14px 16px; font-weight:800; font-size:1rem; }
+    .home-watch-intro { margin-top:8px; background:transparent; border:1px solid #334155; color:#e2e8f0; padding:12px 16px; font-weight:700; }
+    #homeHero .donate-circle { display:none; }
+    #homeHero .home-logos { margin-bottom:12px; }
+    #homeHero .home-logos img { width:72px !important; height:72px !important; }
+    #homeHero .home-title { font-size:1.7rem; margin-bottom:8px; }
+    #homeHero .home-subtitle { font-size:1rem; margin-bottom:12px; }
+    #homeLearnCard { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:14px; text-align:left; margin:0 0 12px; }
+    .home-learn-kicker { font-size:0.68rem; font-weight:800; letter-spacing:0.08em; color:#93c5fd; }
+    .home-learn-title { font-size:1.25rem; font-weight:900; color:#fff; margin:4px 0; }
+    .home-learn-desc { color:#94a3b8; font-size:0.85rem; margin-bottom:12px; }
+    .home-learn-actions { display:flex; gap:8px; }
+    .home-learn-go, .home-learn-browse { flex:1; border-radius:12px; padding:12px; font-family:inherit; cursor:pointer; font-weight:800; touch-action:manipulation; }
+    .home-learn-go { background:#f7931a; color:#fff; border:none; }
+    .home-learn-browse { background:transparent; color:#e2e8f0; border:1px solid #334155; font-weight:700; }
+    #homeMoreToggle { width:100%; margin:0 0 12px; padding:12px 14px; background:transparent; border:1px dashed #334155; border-radius:12px; color:#94a3b8; font-weight:800; font-family:inherit; cursor:pointer; text-align:left; }
+    #homeMore[hidden] { display:none !important; }
+    .daily-xp-rates { margin:4px 0 0; font-size:0.68rem; color:#94a3b8; font-weight:700; text-align:left; }
+    #todayFoldLine { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; margin-top:10px; color:#94a3b8; font-size:0.78rem; font-weight:700; }
+    #todayFoldLine #todayMoreToggle { width:auto; margin:0; padding:4px 2px; background:none !important; border:none; color:#94a3b8; font-weight:700; font-size:0.78rem; }
+    #todayRaidLine { background:none; border:none; color:#94a3b8; font:inherit; font-weight:700; cursor:pointer; padding:4px 2px; }
+    #todayRaidLine::before { content:'· '; }
+    #todayRaidLine[hidden] { display:none !important; }
+    #raidBossHomeCard, #continueReading, #dailyChannel { display:none !important; }
+    #aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn, #fabMinimizeBtn, #fabExpandBtn, #mobileSearchBtn { display:none !important; }
+    @media (max-width: 900px) {
+        .home-page { padding:12px 12px calc(72px + env(safe-area-inset-bottom, 0px)); }
+        #chatOverlayBtn { right:calc(var(--fab-edge) + var(--fab-size) + var(--fab-space)) !important; }
+        #nacho-toggle { right:var(--fab-edge) !important; left:auto !important; bottom:var(--fab-bottom) !important; width:var(--fab-size) !important; height:var(--fab-size) !important; }
+    }
+    .whats-new-dot { width:8px; height:8px; border-radius:50%; background:#f7931a; display:inline-block; }
+    .whats-new-dot[hidden] { display:none !important; }
+    #bnavSettings .whats-new-dot { position:absolute; top:6px; right:18%; }
     </style>
     <!-- Google Sign-In (gsi/client) lazy-loaded on demand. Not integrity-pinned: Google replaces this file and does not send CORS headers, so a pinned hash blocks the button. -->
     <script>window._loadGSI=function(){if(window._gsiLoaded)return;window._gsiLoaded=true;var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;document.head.appendChild(s);};</script>
@@ -1072,15 +1137,15 @@
     </div>
     
     <div class="mobile-bar">
-        <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
+        <div class="mobile-brand" onclick="goHome()">
             <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><g transform="rotate(14,32,32)"><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></g></svg>
-            <h2 style="margin:0;line-height:1.2;">BITCOIN<br>EDUCATION ARCHIVE</h2>
+            <h2 style="margin:0;"><span>BITCOIN</span><span>EDUCATION</span><span>ARCHIVE</span></h2>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:1;min-width:0;">
+        <div class="mobile-tools">
             <span id="mobileUserInfo" style="font-size:0.65rem;color:var(--text-muted);cursor:pointer;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"></span>
             <div style="display:flex;align-items:center;gap:4px;">
                 <button onclick="toggleMenu()" style="background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">☰ Topics</button>
-                <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;flex-shrink:0;">🔍</button>
+                <button id="headerSearchBtn" type="button" aria-label="Search" onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:44px;height:44px;min-width:44px;min-height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;flex-shrink:0;">🔍</button>
                 <button onclick="toggleTheme()" id="mobileThemeBtn" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Light/Dark mode"><script>document.write(localStorage.getItem('theme')==='light'?'☀️':'🌙')</script></button>
             </div>
         </div>
@@ -1347,14 +1412,50 @@
         <!-- Home / Landing -->
         <div id="home" class="home-page">
             <div class="home-inner">
+                <div id="homeWalletStrip" class="home-wallet-strip">
+                    <button type="button" class="home-tile" id="homeSatsTile" onclick="openHomeSats()">
+                        <span class="home-tile-kicker">⚡ SATS</span>
+                        <span class="home-tile-value" id="homeSatsValue">—</span>
+                        <span class="home-tile-note">claimable</span>
+                    </button>
+                    <button type="button" class="home-tile" id="homeInvitesTile" onclick="openHomeInvites()">
+                        <span class="home-tile-kicker">👥 INVITES</span>
+                        <span class="home-tile-value" id="homeInvitesValue">—</span>
+                        <span class="home-tile-note" id="homeInvitesNote">reached Maxi</span>
+                    </button>
+                    <button type="button" class="home-tile home-tile-claim" id="homeWithdrawTile" onclick="openHomeWithdraw()">
+                        <span class="home-tile-kicker" id="homeWithdrawKicker">WITHDRAW</span>
+                        <span class="home-tile-value" id="homeWithdrawValue">Withdraw ›</span>
+                        <span class="home-tile-note" id="homeWithdrawNote">Set Lightning address</span>
+                    </button>
+                </div>
+                <div id="homeGuestActions">
+                    <button type="button" id="homeGuestCta" class="home-guest-cta" onclick="showUsernamePrompt()">Sign up free and earn sats</button>
+                    <button type="button" id="homeWatchIntro" class="home-watch-intro" onclick="watchIntroVideo()">Watch the intro</button>
+                </div>
+                <div id="homeHero">
                 <div class="home-logos">
                     <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
+                <div id="patchNotesHome">
                 <p style="margin:0 0 16px;font-size:0.78rem;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
                 <script>
                 (function () {
+                    window._applyWhatsNew = function (version) {
+                        var v = version || window._swVersion || '';
+                        var seen = '';
+                        try { seen = localStorage.getItem('btc_seen_patch') || ''; } catch (e) {}
+                        var on = !!(v && seen !== v);
+                        var dots = document.querySelectorAll('.whats-new-dot');
+                        for (var i = 0; i < dots.length; i++) dots[i].hidden = !on;
+                    };
+                    window._markPatchSeen = function () {
+                        if (!window._swVersion) return;
+                        try { localStorage.setItem('btc_seen_patch', window._swVersion); } catch (e) {}
+                        window._applyWhatsNew(window._swVersion);
+                    };
                     var link = document.getElementById('patchNotesLink');
                     if (!link) return;
                     var base = '📋 Patch Notes — Latest updates';
@@ -1365,10 +1466,15 @@
                         var match = String(text || '').match(/CACHE_NAME\s*=\s*'btc-archive-(v\d+)'/);
                         if (!match) return;
                         link.textContent = base + ' (' + match[1] + ')';
+                        window._swVersion = match[1];
+                        window._applyWhatsNew(match[1]);
                     }).catch(function () {});
                 })();
                 </script>
-                <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 145 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
+                </div>
+                <p class="home-subtitle">Learn Bitcoin and earn real sats.</p>
+                <span id="homeTopicCount" hidden>145 topics</span>
+                </div>
                 <!-- As Featured On -->
                 <div id="featuredOnSection" style="width:100%;margin:0 auto 24px;">
                 <div id="featuredOnFull" style="position:relative;width:100%;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:16px;box-sizing:border-box;">
@@ -1394,10 +1500,9 @@
                 <!-- Intro/Tutorial Video -->
                 <div id="introVideoSection" style="width:100%;max-width:640px;margin:0 auto 24px auto;">
                     <div id="introVideoFull" style="position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 4px 32px rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.25);">
-                        <video id="introVideo" controls playsinline preload="metadata" style="display:block;width:100%;max-height:360px;object-fit:contain;" onplay="var o=document.getElementById('introVideoOverlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}">
-                            <source src="https://assets.bitcoineducation.quest/videos/intro-tutorial.mp4" type="video/mp4">
+                        <video id="introVideo" controls playsinline preload="none" data-src="https://assets.bitcoineducation.quest/videos/intro-tutorial.mp4" style="display:block;width:100%;max-height:360px;object-fit:contain;" onplay="var o=document.getElementById('introVideoOverlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}">
                         </video>
-                        <div id="introVideoOverlay" onclick="var v=document.getElementById('introVideo');if(v){v.play();} this.style.opacity='0';this.style.pointerEvents='none';" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,0.52);cursor:pointer;transition:opacity 0.4s ease;">
+                        <div id="introVideoOverlay" onclick="if(window.ensureIntroVideo)window.ensureIntroVideo(true);else{var v=document.getElementById('introVideo');if(v)v.play();} this.style.opacity='0';this.style.pointerEvents='none';" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,0.52);cursor:pointer;transition:opacity 0.4s ease;">
                             <div style="font-size:1.9rem;font-weight:900;color:#fff;text-align:center;text-shadow:0 2px 20px rgba(0,0,0,0.9);letter-spacing:0.5px;line-height:1.25;padding:0 24px;">Introduction / Tutorial</div>
                             <div style="width:60px;height:60px;background:rgba(247,147,26,0.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 4px 24px rgba(247,147,26,0.55);padding-left:4px;">▶</div>
                         </div>
@@ -1443,10 +1548,11 @@
                 <script>if(localStorage.getItem('btc_guide_collapsed')==='1'){var _gf=document.getElementById('questGuideFull');var _gm=document.getElementById('questGuideMini');if(_gf)_gf.style.display='none';if(_gm)_gm.style.display='flex';}</script>
                 <div id="progressRings" style="margin-bottom:16px;"></div>
                 <section id="todayCard" aria-labelledby="todayCardTitle">
-                    <div id="todayFavorStrip">
+                    <div id="todayFavorStrip" role="button" tabindex="0" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">
                         <div id="todayFavorTitle">Satoshi's Favor</div>
                         <div id="todayFavorPoints">Earn Favor daily, payouts every epoch</div>
                         <div id="todayFavorCountdown" aria-live="polite" hidden></div>
+                        <span class="today-favor-go" aria-hidden="true">›</span>
                         <button type="button" id="todayEarnFavor" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">Earn Favor</button>
                     </div>
                     <div class="today-body">
@@ -1462,6 +1568,7 @@
                                 <div class="daily-xp-mark daily-xp-mark-half" title="900 half XP"></div>
                             </div>
                             <div class="daily-xp-scale"><span>0</span><span>500 full</span><span>900 half</span><span>1,000</span></div>
+                            <p class="daily-xp-rates">Full rate to 500 · Half rate to 900 · Quarter rate to 1,000</p>
                         </div>
                         <div id="em-quick-actions" role="group" aria-label="Daily checklist">
                             <button type="button" id="todayTrifectaBtn" class="today-tile" aria-expanded="false" aria-controls="todayTrifectaChooser" aria-label="Daily Trifecta, 0 of 3 done. Opens Quiz, Trivia, and Poll." onclick="if(window.toggleTodayTrifecta)window.toggleTodayTrifecta()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span class="today-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="today-ring-track" cx="18" cy="18" r="15"></circle><circle class="today-ring-val" cx="18" cy="18" r="15" stroke-dasharray="0 94.248"></circle></svg><span class="today-ring-icon">🎯</span></span><span>Daily Trifecta</span><span id="todayTrifectaCount">0/3</span></button>
@@ -1476,7 +1583,10 @@
                             <button type="button" id="todayTriviaBtn" onclick="if(window.openTodayQuest)window.openTodayQuest('trivia')">🧠 Trivia</button>
                             <button type="button" id="todayPollBtn" onclick="if(window.openTodayQuest)window.openTodayQuest('poll')">📊 Poll</button>
                         </div>
-                        <button type="button" id="todayMoreToggle" aria-expanded="false" aria-controls="todayMorePanel" onclick="if(window.toggleTodayMore)window.toggleTodayMore()"><span>More quests</span><span id="todayMoreDot" class="today-dot" hidden></span><span id="todayMoreChevron" aria-hidden="true">▼</span></button>
+                        <div id="todayFoldLine">
+                        <button type="button" id="todayMoreToggle" aria-expanded="false" aria-controls="todayMorePanel" onclick="if(window.toggleTodayMore)window.toggleTodayMore()"><span>More quests</span><span id="todayMoreDot" class="today-dot" hidden></span><span id="todayMoreChevron" aria-hidden="true">▾</span></button>
+                        <button type="button" id="todayRaidLine" onclick="if(window.openTodayQuest)window.openTodayQuest('raid')">⚔️ Raid</button>
+                        </div>
                         <div id="todayMorePanel" hidden>
                             <div role="group" aria-label="More quests">
                                 <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('raid')"><span aria-hidden="true">⚔️</span><span class="today-more-name">Raid</span><span class="today-more-cadence" id="todayCadenceRaid">Monthly</span><span id="todayDotRaid" class="today-dot" hidden></span></button>
@@ -1490,6 +1600,17 @@
                     </div>
                 </section>
                 <button type="button" id="todayInviteGuest" onclick="if(window.inviteGuestSignup)window.inviteGuestSignup()">Sign up to get your invite link</button>
+                <section id="homeLearnCard" aria-label="Continue learning">
+                    <div class="home-learn-kicker" id="homeLearnKicker">LEARN · CONTINUE</div>
+                    <div class="home-learn-title" id="homeLearnTitle">Learn Bitcoin</div>
+                    <div class="home-learn-desc" id="homeLearnDesc">Channel of the day</div>
+                    <div class="home-learn-actions">
+                        <button type="button" id="homeLearnContinue" class="home-learn-go" onclick="openHomeLearn()">Continue →</button>
+                        <button type="button" id="homeLearnBrowse" class="home-learn-browse" onclick="toggleMenu()">Browse topics</button>
+                    </div>
+                </section>
+                <button type="button" id="homeMoreToggle" aria-expanded="false" aria-controls="homeMore" onclick="toggleHomeMore()">More ▸</button>
+                <div id="homeMore" hidden></div>
                 <script>if(localStorage.getItem('btc_today_more_open')==='1'){var _tmp=document.getElementById('todayMorePanel');var _tmb=document.getElementById('todayMoreToggle');if(_tmp)_tmp.hidden=false;if(_tmb)_tmb.setAttribute('aria-expanded','true');}</script>
                 <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px;margin-bottom:10px;">
                         <!-- Create Account / Sign In -->
@@ -1546,7 +1667,7 @@
                     </div>
                 </div>
                 <script>if(localStorage.getItem('btc_country_users_collapsed')==='1'){var _cuf=document.getElementById('countryUsersFull');var _cum=document.getElementById('countryUsersMini');if(_cuf)_cuf.style.display='none';if(_cum)_cum.style.display='flex';}</script>
-                <div style="margin-top:20px;max-width:500px;margin-left:auto;margin-right:auto;">
+                <div id="homeAboutGrid" style="margin-top:20px;max-width:500px;margin-left:auto;margin-right:auto;">
                     <!-- 3x2 Grid -->
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <button onclick="var s=document.getElementById('sponsorPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📣 Sponsor <span>▼</span></button>
@@ -1652,6 +1773,17 @@
                         </a>
                     </div>
                 <p class="home-footer" style="order:9999;">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span><br><a href="https://603btc.com" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;color:var(--text-faint);text-decoration:none;margin-top:6px;display:inline-block;">⚡ Powered by 603BTC</a></p>
+                </div>
+                <script>
+                (function () {
+                    var more = document.getElementById('homeMore');
+                    if (!more) return;
+                    ['featuredOnSection','introVideoSection','dailySpinBanner','welcomeBanner','questGuideBanner','progressRings','patchNotesHome','dailyChallengeCard','raidBossHomeCard','charityDonateHome','dailyChannel','quoteOfDay','explorationMap','countryUsersSection','homeAboutGrid'].forEach(function (id) {
+                        var el = document.getElementById(id);
+                        if (el && el.parentNode !== more) more.appendChild(el);
+                    });
+                })();
+                </script>
             </div>
         </div>
         <div class="hero" id="hero"></div>
@@ -1661,19 +1793,25 @@
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <!-- TOS acceptance modal for existing users -->
     <div id="tosModal">
-        <div class="tos-box">
-            <h2>📜 Updated Terms & Privacy</h2>
-            <p class="tos-subtitle">We've updated our Terms of Service and Privacy Policy. Please review and accept to continue using Bitcoin Education Archive.</p>
-            <div class="tos-links">
-                <a href="/terms.html" target="_blank" rel="noopener">📄 Terms of Service <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
-                <a href="/privacy.html" target="_blank" rel="noopener">🔒 Privacy Policy <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
+        <div class="tos-box" role="dialog" aria-modal="true" aria-labelledby="tosModalTitle">
+            <div class="tos-scroll">
+                <h2 id="tosModalTitle">📜 Updated Terms & Privacy</h2>
+                <p class="tos-subtitle">We've updated our Terms of Service and Privacy Policy. Please review and accept to continue using Bitcoin Education Archive.</p>
+                <div class="tos-links">
+                    <a href="/terms.html" target="_blank" rel="noopener">📄 Terms of Service <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
+                    <a href="/privacy.html" target="_blank" rel="noopener">🔒 Privacy Policy <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
+                </div>
             </div>
-            <div class="tos-accept-check">
-                <input type="checkbox" id="tosModalCheck" onchange="var btn=document.getElementById('tosAcceptBtn');if(btn){btn.classList.toggle('ready',this.checked);}">
-                <label for="tosModalCheck">I have read and agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</label>
+            <div class="tos-footer">
+                <div class="consent-row" id="tosConsentRow">
+                    <input type="checkbox" id="tosModalCheck">
+                    <label for="tosModalCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
+                </div>
+                <div class="consent-links"><a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> · <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
+                <p id="tosNeedTick" class="consent-hint" hidden>Tick the box to agree first.</p>
+                <button id="tosAcceptBtn" class="tos-accept-btn" onclick="window._acceptTos&&window._acceptTos()">Accept &amp; Continue →</button>
+                <span class="tos-signout" onclick="if(typeof signOutUser==='function')signOutUser(true)">Sign out instead</span>
             </div>
-            <button id="tosAcceptBtn" class="tos-accept-btn" onclick="window._acceptTos&&window._acceptTos()">Accept &amp; Continue →</button>
-            <span class="tos-signout" onclick="if(typeof signOutUser==='function')signOutUser(true)">Sign out instead</span>
         </div>
     </div>
 
@@ -1749,11 +1887,13 @@
             </div>
             </details>
             <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
-            <div class="tos-check-row">
-                <input type="checkbox" id="signupTosCheck" onchange="var btn=document.querySelector('#usernameModal button[onclick=\'submitUsername()\']');if(btn){btn.style.opacity=this.checked?'1':'0.45';btn.style.pointerEvents=this.checked?'auto':'none';}">
-                <label for="signupTosCheck">I have read and agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</label>
+            <div class="tos-check-row" id="signupConsentRow">
+                <input type="checkbox" id="signupTosCheck">
+                <label for="signupTosCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
             </div>
-            <button onclick="submitUsername()" style="opacity:0.45;pointer-events:none;">Start Learning →</button>
+            <div class="consent-links"><a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
+            <p id="signupNeedTick" class="consent-hint" hidden>Tick the box to agree first.</p>
+            <button id="signupStartBtn" onclick="submitUsername()">Start Learning →</button>
             <div id="emailSignInSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;font-weight:600;">Already have an account? Get a sign-in link:</p>
                 <input type="email" id="returningEmailInput" placeholder="📧 Your email address" maxlength="100" aria-label="Email address for magic link sign-in" onkeydown="if(event.key==='Enter')sendReturningMagicLink()" style="font-size:16px;padding:14px 18px;width:100%;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:var(--text,#fff);font-family:inherit;outline:none;box-sizing:border-box;">
@@ -1805,16 +1945,16 @@
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
-    <script src="ranking.js?v=20261024_v2361" defer></script>
+    <script src="ranking.js?v=20261026_v2365" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2364" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2366" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2361" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
-    <script src="today-card.js?v=20261024_v2351" defer></script>
+    <script src="today-card.js?v=20261026_v2365" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261024_v2360" defer></script>
-    <script src="onboarding.js?v=20261024_v2358" defer></script>
+    <script src="onboarding.js?v=20261026_v2365" defer></script>
     <script src="learning-quests.js?v=20261023_v2324" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -1825,11 +1965,11 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261026_v2364',
-            'satoshi-favor.js?v=20261026_v2364'
+            'global-chat.js?v=20261026_v2366',
+            'satoshi-favor.js?v=20261026_v2366'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261026_v2364',
+            'quests.js?v=20261026_v2366',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
@@ -1892,10 +2032,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2364'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2364'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2364'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2364'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2366'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2366'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2366'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2366'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],
@@ -1903,9 +2043,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261023_v2324'],
             'learning-quests': ['learning-quests.js?v=20261023_v2324'],
-            'quests':        ['quests.js?v=20261026_v2364'],
-            'questhub':      ['quests.js?v=20261026_v2364'],
-            'app':           ['quests.js?v=20261026_v2364'],
+            'quests':        ['quests.js?v=20261026_v2366'],
+            'questhub':      ['quests.js?v=20261026_v2366'],
+            'app':           ['quests.js?v=20261026_v2366'],
             'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
             'tv':            ['timechain-tv.js?v=20261024_v2353']
         };

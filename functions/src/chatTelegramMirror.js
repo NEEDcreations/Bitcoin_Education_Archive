@@ -121,6 +121,11 @@ function attachmentNote(data) {
     return '[image]';
 }
 
+// RLO and the other bidi controls would show \u202Ekcuf as the reversed word.
+function stripBidi(text) {
+    return String(text || '').replace(/[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '');
+}
+
 function visibleBody(data, note) {
     const src = data || {};
     let text = src.caption && (src.isGif === true || src.imageUrl || src.gifUrl)
@@ -132,6 +137,7 @@ function visibleBody(data, note) {
     text = text.replace(/(\p{L})\[[^\]]{1,3}\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)(?=\p{L})/giu, '$1');
     text = text.replace(/\[([^\]]+)\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)/gi, '$1');
     text = text.replace(/[`]/g, '');
+    text = stripBidi(text);
     if (note && note !== '[image]' && collapseSpace(text) === note) text = '';
     if (note === '[image]' && /^https?:\/\//i.test(collapseSpace(text))) text = '';
     if (note === '[image]' && text.length > 80 && text.indexOf(' ') === -1) text = '';
@@ -178,7 +184,7 @@ function clipUnits(text, maxUnits) {
 function mirrorName(data) {
     const src = data || {};
     if (src.uid === 'nacho-bot') return '🦌 Nacho';
-    let name = stripContacts(neutralizePings(toTelegramText(src.name || src.username || '')));
+    let name = stripBidi(stripContacts(neutralizePings(toTelegramText(src.name || src.username || ''))));
     name = name.replace(/[<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
     if (!name || (src.uid && name === String(src.uid))) return 'Someone';
     if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(name)) return 'Someone';
