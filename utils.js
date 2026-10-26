@@ -141,9 +141,9 @@ function isPremium() {
 var SAT_LIFETIME_CAP = 15000;
 window.SAT_LIFETIME_CAP = SAT_LIFETIME_CAP;
 
-/** Get sat redemption cap based on tier */
+/** Lifetime sat cap. The server faucet is a flat 15,000 for every account. */
 function getSatCap() {
-    return isPremium() ? 21000 : SAT_LIFETIME_CAP;
+    return SAT_LIFETIME_CAP;
 }
 window.getSatCap = getSatCap;
 

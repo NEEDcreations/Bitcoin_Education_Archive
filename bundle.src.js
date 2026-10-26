@@ -141,9 +141,9 @@ function isPremium() {
 var SAT_LIFETIME_CAP = 15000;
 window.SAT_LIFETIME_CAP = SAT_LIFETIME_CAP;
 
-/** Get sat redemption cap based on tier */
+/** Lifetime sat cap. The server faucet is a flat 15,000 for every account. */
 function getSatCap() {
-    return isPremium() ? 21000 : SAT_LIFETIME_CAP;
+    return SAT_LIFETIME_CAP;
 }
 window.getSatCap = getSatCap;
 
@@ -2720,13 +2720,21 @@ window.awardTickets = async function() {
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
 
+function _invitePreviewOn() {
+    try {
+        var host = String(location.hostname || '');
+        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
+    } catch (e) { return false; }
+    return !!window._homePreviewUser;
+}
+
 function _inviteSignedIn() {
-    if (window._homePreviewUser) return true;
+    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
-    if (window._homePreviewUser) return 'preview';
+    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -2747,7 +2755,7 @@ function _inviteReadStored(uid) {
         if (local === 'off') return 'min';
         if (INVITE_STATES[local]) return local;
     } catch (e) {}
-    return 'open';
+    return 'min';
 }
 
 function _inviteWriteStored(state) {
@@ -4132,6 +4140,9 @@ function createNacho() {
             padding: 16px 20px 16px 18px;
             max-width: 300px;
             min-width: 160px;
+            max-height: 45vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             color: var(--text, #f8f8f8);
             font-size: 0.9rem;
             line-height: 1.55;
@@ -4207,7 +4218,7 @@ function createNacho() {
             padding: 2px 4px;
         }
         .nacho-x:hover { opacity: 1; }
-        #nacho-text { word-wrap: break-word; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
+        #nacho-text { word-wrap: break-word; max-height: none; overflow: visible; padding-right: 4px; }
 
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
@@ -4451,7 +4462,7 @@ function createNacho() {
                 max-width: none !important;
                 width: auto !important;
                 min-width: 0 !important;
-                max-height: 40vh;
+                max-height: 45vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 font-size: 0.85rem;
@@ -4467,7 +4478,7 @@ function createNacho() {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
             #nacho-avatar { width: 48px; height: 48px; }
             #nacho-bubble {
-                max-height: 38vh;
+                max-height: 45vh;
                 font-size: 0.82rem;
                 padding: 12px 14px;
             }
@@ -20279,12 +20290,20 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
 
-    function homeLearnTitle(id, raw) {
-        var slug = String(id || '').replace(/[_]+/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
-        if (slug) {
-            return slug.replace(/\b([a-z])/g, function(_, ch) { return ch.toUpperCase(); });
+    function homeLearnTitle(id) {
+        var wanted = "go('" + id + "'";
+        var nodes = document.querySelectorAll('.ch-btn');
+        for (var i = 0; i < nodes.length; i++) {
+            var oc = nodes[i].getAttribute('onclick') || '';
+            if (oc.indexOf(wanted) !== -1) {
+                var text = (nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) return text;
+            }
         }
-        return String(raw || '').replace(/^[^\w\s]+/u, '').trim();
+        if (typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].title) {
+            return String(CHANNELS[id].title).trim();
+        }
+        return '';
     }
     window.paintHomeLearnCard = function() {
         var title = document.getElementById('homeLearnTitle');
@@ -20293,23 +20312,34 @@ window.nachoQuizAnswer = function(btn, correct) {
         try { last = localStorage.getItem('btc_last_channel') || ''; } catch (e) {}
         var kicker = document.getElementById('homeLearnKicker');
         var desc = document.getElementById('homeLearnDesc');
-        if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
+        function paintChannel(id, daily) {
+            var name = homeLearnTitle(id);
             if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(last, CHANNELS[last].title) || last;
-            if (desc) desc.textContent = CHANNELS[last].cat || 'Continue reading';
-            window._homeLearnId = last;
+            title.textContent = name || 'Learn Bitcoin';
+            if (desc) desc.textContent = daily ? 'Channel of the day' : ((typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].cat) || 'Continue reading');
+            window._homeLearnId = name ? id : '';
+        }
+        if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
+            paintChannel(last, false);
             return;
         }
         var daily = window._channelOfTheDay;
         if (daily && typeof CHANNELS !== 'undefined' && CHANNELS[daily]) {
-            if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(daily, CHANNELS[daily].title) || daily;
-            if (desc) desc.textContent = 'Channel of the day';
-            window._homeLearnId = daily;
+            paintChannel(daily, true);
+            return;
         }
+        if (kicker) kicker.textContent = 'LEARN';
+        title.textContent = 'Learn Bitcoin';
+        if (desc) desc.textContent = 'Pick a topic and start reading';
+        window._homeLearnId = '';
     };
     window.openHomeLearn = function() {
-        if (window._homeLearnId && typeof go === 'function') go(window._homeLearnId);
+        if (window._homeLearnId && typeof go === 'function') {
+            go(window._homeLearnId);
+            return;
+        }
+        if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
+        else if (typeof toggleMenu === 'function') toggleMenu();
     };
     window.ensureIntroVideo = function(play) {
         var video = document.getElementById('introVideo');

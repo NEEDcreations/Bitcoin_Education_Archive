@@ -111,7 +111,7 @@ const POINTS = {
 const TOS_CURRENT_VERSION = '2026-10-23';
 window.TOS_CURRENT_VERSION = TOS_CURRENT_VERSION;
 
-// One lifetime cap. Prefer the shared helper (15000, or 21000 for premium).
+// One lifetime cap. The shared helper is 15,000 for every account.
 // The old fallback of 10000 hid claimable sats for anyone past 10k withdrawn.
 function lifetimeSatCap() {
     if (typeof getSatCap === 'function') return getSatCap();
@@ -3165,15 +3165,27 @@ async function loadUser(uid, prefetchedDoc) {
 // Track if button was ever set to "signed in" state - never downgrade once set
 var _authBtnSignedIn = false;
 
+function homePreviewAllowed() {
+    try {
+        var host = String(location.hostname || '');
+        return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+    } catch (e) { return false; }
+}
+function homePreviewUser() {
+    if (!homePreviewAllowed()) return null;
+    return window._homePreviewUser || null;
+}
+
 function homeSignedInNow() {
-    if (window._homePreviewUser) return true;
+    if (homePreviewUser()) return true;
     return !!_authBtnSignedIn;
 }
 
 // Strip numbers come only from server-maintained counters.
 function satsHomeSnapshot(user) {
     var u = user || {};
-    var preview = !!(window._homePreviewUser && u === window._homePreviewUser);
+    var previewUser = homePreviewUser();
+    var preview = !!(previewUser && u === previewUser);
     var math = (typeof window.claimableSats === 'function')
         ? window.claimableSats(u)
         : { balance: 0, lifetimeLeft: 0, claimable: 0, cap: lifetimeSatCap(), withdrawn: Number(u.satsWithdrawn) || 0 };
@@ -3228,6 +3240,7 @@ window.satsHomeSnapshot = satsHomeSnapshot;
 
 function paintHomeStrip(snap, invited, maxi) {
     var satsEl = document.getElementById('homeSatsValue');
+    var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
     var invEl = document.getElementById('homeInvitesValue');
     if (invEl) invEl.textContent = String(invited || 0);
@@ -3243,7 +3256,7 @@ function paintHomeStrip(snap, invited, maxi) {
         if (note) note.textContent = 'Set Lightning address';
     } else if (snap.canClaim) {
         if (kicker) kicker.textContent = 'WITHDRAW';
-        value.textContent = 'Claim ›';
+        value.textContent = 'Claim ' + claimNow.toLocaleString() + ' ›';
         var shortAddr = snap.address.length > 16 ? snap.address.slice(0, 10) + '…' : snap.address;
         if (note) note.textContent = 'to ⚡ ' + shortAddr;
     } else if (snap.onCooldown && snap.checksMet === snap.checksTotal) {
@@ -3266,12 +3279,13 @@ window.refreshHomeStrip = function() {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
         return;
     }
-    var user = window._homePreviewUser || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var previewUser = homePreviewUser();
+    var user = previewUser || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
     var snap = satsHomeSnapshot(user);
     var invited = Number(user.referralInvited) || 0;
     var maxi = Number(user.referralCount) || 0;
     paintHomeStrip(snap, invited, maxi);
-    if (!window._homePreviewUser && typeof getReferralStats === 'function') {
+    if (!previewUser && typeof getReferralStats === 'function') {
         getReferralStats().then(function(stats) {
             if (!stats) return;
             var gotInvited = (typeof stats.invited === 'number') ? stats.invited : invited;
@@ -3296,7 +3310,7 @@ function openHomeInvites() {
 window.openHomeInvites = openHomeInvites;
 
 function openHomeWithdraw() {
-    var user = window._homePreviewUser || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var user = homePreviewUser() || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
     var snap = satsHomeSnapshot(user);
     if (!snap.address) {
         if (typeof openWithdrawalAddress === 'function') openWithdrawalAddress({ mode: 'reset' });
@@ -3307,12 +3321,12 @@ function openHomeWithdraw() {
 window.openHomeWithdraw = openHomeWithdraw;
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (window._homePreviewUser) window.refreshHomeStrip();
+    if (homePreviewUser()) window.refreshHomeStrip();
 });
 
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
-    if (window._homePreviewUser) {
+    if (homePreviewUser()) {
         document.documentElement.classList.add('home-signed-in');
         document.body.classList.add('home-signed-in');
         if (btn) btn.style.display = 'none';

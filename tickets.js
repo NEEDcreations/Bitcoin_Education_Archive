@@ -236,13 +236,21 @@ window.awardTickets = async function() {
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
 
+function _invitePreviewOn() {
+    try {
+        var host = String(location.hostname || '');
+        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
+    } catch (e) { return false; }
+    return !!window._homePreviewUser;
+}
+
 function _inviteSignedIn() {
-    if (window._homePreviewUser) return true;
+    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
-    if (window._homePreviewUser) return 'preview';
+    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -263,7 +271,7 @@ function _inviteReadStored(uid) {
         if (local === 'off') return 'min';
         if (INVITE_STATES[local]) return local;
     } catch (e) {}
-    return 'open';
+    return 'min';
 }
 
 function _inviteWriteStored(state) {

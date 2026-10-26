@@ -350,7 +350,7 @@
                 }
             }
         }
-        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'em-quick-actions', 'todayCard', 'homeLearnCard'];
+        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'curatedStartSection', 'todayFavorStrip', 'todayCardTitle', 'homeLearnTitle', 'homeLearnKicker'];
         for (var a = 0; a < avoidIds.length; a++) {
             var block = document.getElementById(avoidIds[a]);
             if (!block) continue;
@@ -362,6 +362,30 @@
             var overlap = !(qb2.right < br.left || qb2.left > br.right || qb2.bottom < br.top || qb2.top > br.bottom);
             if (!overlap) continue;
             btn.style.top = Math.round(br.bottom + 8) + 'px';
+            btn.style.bottom = 'auto';
+        }
+        var heads = document.querySelectorAll('#home h1, #home h2, #home h3, #curatedStartSection, #todayFavorStrip, #homeLearnKicker, #homeLearnTitle');
+        for (var h = 0; h < heads.length; h++) {
+            var head = heads[h];
+            var hcs = window.getComputedStyle(head);
+            if (hcs.display === 'none' || hcs.visibility === 'hidden') continue;
+            var hr = head.getBoundingClientRect();
+            if (hr.width < 1 || hr.height < 1) continue;
+            var qb3 = btn.getBoundingClientRect();
+            var hover = !(qb3.right < hr.left || qb3.left > hr.right || qb3.bottom < hr.top || qb3.top > hr.bottom);
+            if (!hover) continue;
+            btn.style.top = Math.round(hr.bottom + 8) + 'px';
+            btn.style.bottom = 'auto';
+        }
+        var nav = document.getElementById('bottomNav');
+        var maxBottom = window.innerHeight - 8;
+        if (nav) {
+            var nr = nav.getBoundingClientRect();
+            if (nr.height > 8 && nr.top > 80) maxBottom = nr.top - 8;
+        }
+        var pb = btn.getBoundingClientRect();
+        if (pb.bottom > maxBottom) {
+            btn.style.top = Math.max(8, Math.round(maxBottom - pb.height)) + 'px';
             btn.style.bottom = 'auto';
         }
     }
@@ -699,7 +723,7 @@
     }
 
     function finishIntro() {
-        if (!localStorage.getItem('btc_experience_mode')) window.setExperienceMode('intermediate');
+        if (!localStorage.getItem('btc_experience_mode')) window.setExperienceMode('advanced');
         markIntroSeen();
         var overlay = document.getElementById('btcIntroOverlay');
         if (overlay) overlay.remove();
@@ -753,6 +777,8 @@
                 el.style.display = 'none';
             });
         });
+        // The home page already has one Learn card. Do not add a chip list above it.
+        if (document.getElementById('homeLearnCard')) return;
         var home = document.getElementById('home');
         var ids = CURATED[level] || [];
         if (!home || !ids.length || typeof CHANNELS === 'undefined') return;

@@ -34,7 +34,11 @@ test('lifetime cap matches the server faucet', () => {
     assert.strictEqual(api.SAT_LIFETIME_CAP, 15000);
     assert.strictEqual(api.SAT_LIFETIME_CAP, Number(cap[1]));
     assert.strictEqual(api.getSatCap(), 15000);
-    assert.strictEqual(loadClaimable(true).getSatCap(), 21000);
+    const premium = loadClaimable(true);
+    assert.strictEqual(premium.getSatCap(), 15000);
+    const rich = premium.claimableSats({ points: 300000, satsWithdrawn: 0 });
+    assert.strictEqual(rich.cap, 15000);
+    assert.strictEqual(rich.claimable, 15000);
 });
 
 test('users past 10k withdrawn still see claimable sats', () => {
@@ -58,16 +62,29 @@ test('ranking no longer falls back to a 10000 cap', () => {
     assert.ok(!ranking.includes('? 10000'));
     assert.ok(ranking.includes('function lifetimeSatCap'));
     assert.ok(ranking.includes('return 15000'));
+    assert.ok(ranking.includes('Math.min(Number(snap.claimable) || 0, 200'));
+    assert.ok(ranking.includes('function homePreviewAllowed'));
+    assert.ok(ranking.includes("host === 'localhost'"));
+    const app = read('app.js');
+    assert.ok(app.includes("querySelectorAll('.ch-btn')"));
+    assert.ok(app.includes('toggleMobileLearnMenu'));
+    assert.ok(!app.includes("return slug.replace"));
+    const src = read('onboarding.js.src');
+    assert.ok(src.includes("setExperienceMode('advanced')"));
+    assert.ok(!src.includes("setExperienceMode('intermediate')"));
+    assert.ok(src.includes('homeLearnCard'));
 });
 
 test('terms sheet blocks the page and the consent row is a real tap target', () => {
     const html = read('index.html');
     assert.ok(html.includes('z-index:2100010'));
-    assert.ok(html.includes('Tick the box to agree first'));
+    assert.ok(html.includes('Tick the box to agree first.'));
+    assert.ok(html.includes('align-self:stretch'));
     assert.ok(html.includes('min-height:48px'));
     assert.ok(html.includes('width:24px; height:24px'));
     assert.ok(html.includes('id="tosConsentRow"'));
     assert.ok(html.includes('id="signupConsentRow"'));
+    assert.ok(html.includes('id="headerSearchBtn"'));
     assert.ok(html.includes('max-height:calc(100dvh - 24px)'));
 });
 

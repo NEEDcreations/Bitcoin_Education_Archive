@@ -3185,12 +3185,20 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
 
-    function homeLearnTitle(id, raw) {
-        var slug = String(id || '').replace(/[_]+/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
-        if (slug) {
-            return slug.replace(/\b([a-z])/g, function(_, ch) { return ch.toUpperCase(); });
+    function homeLearnTitle(id) {
+        var wanted = "go('" + id + "'";
+        var nodes = document.querySelectorAll('.ch-btn');
+        for (var i = 0; i < nodes.length; i++) {
+            var oc = nodes[i].getAttribute('onclick') || '';
+            if (oc.indexOf(wanted) !== -1) {
+                var text = (nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) return text;
+            }
         }
-        return String(raw || '').replace(/^[^\w\s]+/u, '').trim();
+        if (typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].title) {
+            return String(CHANNELS[id].title).trim();
+        }
+        return '';
     }
     window.paintHomeLearnCard = function() {
         var title = document.getElementById('homeLearnTitle');
@@ -3199,23 +3207,34 @@ window.nachoQuizAnswer = function(btn, correct) {
         try { last = localStorage.getItem('btc_last_channel') || ''; } catch (e) {}
         var kicker = document.getElementById('homeLearnKicker');
         var desc = document.getElementById('homeLearnDesc');
-        if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
+        function paintChannel(id, daily) {
+            var name = homeLearnTitle(id);
             if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(last, CHANNELS[last].title) || last;
-            if (desc) desc.textContent = CHANNELS[last].cat || 'Continue reading';
-            window._homeLearnId = last;
+            title.textContent = name || 'Learn Bitcoin';
+            if (desc) desc.textContent = daily ? 'Channel of the day' : ((typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].cat) || 'Continue reading');
+            window._homeLearnId = name ? id : '';
+        }
+        if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
+            paintChannel(last, false);
             return;
         }
         var daily = window._channelOfTheDay;
         if (daily && typeof CHANNELS !== 'undefined' && CHANNELS[daily]) {
-            if (kicker) kicker.textContent = 'LEARN · CONTINUE';
-            title.textContent = homeLearnTitle(daily, CHANNELS[daily].title) || daily;
-            if (desc) desc.textContent = 'Channel of the day';
-            window._homeLearnId = daily;
+            paintChannel(daily, true);
+            return;
         }
+        if (kicker) kicker.textContent = 'LEARN';
+        title.textContent = 'Learn Bitcoin';
+        if (desc) desc.textContent = 'Pick a topic and start reading';
+        window._homeLearnId = '';
     };
     window.openHomeLearn = function() {
-        if (window._homeLearnId && typeof go === 'function') go(window._homeLearnId);
+        if (window._homeLearnId && typeof go === 'function') {
+            go(window._homeLearnId);
+            return;
+        }
+        if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
+        else if (typeof toggleMenu === 'function') toggleMenu();
     };
     window.ensureIntroVideo = function(play) {
         var video = document.getElementById('introVideo');
