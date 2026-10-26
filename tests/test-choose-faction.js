@@ -377,7 +377,11 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
+    assert.ok(notes.indexOf("Latest: Browse Topics search matches everyday words, plurals, and small typos, and suggests popular topics plus Ask Nacho when nothing matches.") > 0);
+    assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
+    assert.ok(notes.indexOf("Latest: A miner") === -1);
+    assert.ok(notes.indexOf("The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.") > 0);
+    assert.ok(notes.indexOf("Latest: The daily") === -1);
     assert.ok(notes.indexOf("Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.") > 0);
     assert.ok(notes.indexOf("Latest: Sidebar topic names") === -1);
     assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
@@ -386,8 +390,6 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf('Latest: The Invite button') === -1);
     assert.ok(notes.indexOf('Trivia and poll community totals now update the moment you answer and stay live while the results are open.') > 0);
     assert.ok(notes.indexOf('Latest: Trivia') === -1);
-    assert.ok(notes.indexOf('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.') > 0);
-    assert.ok(notes.indexOf('Latest: The daily XP bar') === -1);
     assert.ok(notes.indexOf('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.') > 0);
     assert.ok(notes.indexOf('Latest: On a computer') === -1);
     assert.ok(notes.indexOf('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.') > 0);

@@ -100,6 +100,8 @@
     var _topicsOpener = null;
     var _topicsScrollLock = null;
     var _topicsBrowserCache = null;
+    var _topicSearchPromise = null;
+    var TOPIC_SEARCH_VERSION = '20261026_v2406';
     var _topicsInerted = [];
     var _topicsPushed = false;
     var _topicsSwallowPop = false;
@@ -267,15 +269,166 @@
         return node;
     }
 
-    function renderTopicsBrowser(filter) {
-        var body = document.getElementById('topicsBrowserBody');
-        var live = document.getElementById('topicsBrowserLive');
-        if (!body) return;
-        _topicsMuting = true;
-        var q = String(filter || '').trim().toLowerCase();
-        body.textContent = '';
-        if (!_topicsBrowserCache) _topicsBrowserCache = readSidebarTopicGroups();
-        var groups = _topicsBrowserCache;
+    function topicSearchReady() {
+        return !!(window.TopicSearch && window.TOPIC_SEARCH_INDEX);
+    }
+
+    // The keyword index stays off the first load. One fetch when Browse Topics opens.
+    function ensureTopicSearchAssets() {
+        if (topicSearchReady()) return Promise.resolve(true);
+        if (_topicSearchPromise) return _topicSearchPromise;
+        _topicSearchPromise = new Promise(function (resolve) {
+            var left = 2;
+            function finish() {
+                left--;
+                if (left > 0) return;
+                var ok = topicSearchReady();
+                if (!ok) _topicSearchPromise = null;
+                resolve(ok);
+                if (ok && topicsBrowserIsOpen()) {
+                    var search = document.getElementById('topicsBrowserSearch');
+                    renderTopicsBrowser(search ? search.value : '');
+                }
+            }
+            function load(file) {
+                var elId = 'topic-search-src-' + file;
+                var existing = document.getElementById(elId);
+                if (existing) { finish(); return; }
+                var s = document.createElement('script');
+                s.id = elId;
+                s.src = file + '?v=' + TOPIC_SEARCH_VERSION;
+                s.async = true;
+                s.onload = finish;
+                s.onerror = function () {
+                    if (s.parentNode) s.parentNode.removeChild(s);
+                    finish();
+                };
+                document.head.appendChild(s);
+            }
+            load('topic-search.js');
+            load('topic-search-index.js');
+        });
+        return _topicSearchPromise;
+    }
+
+    function flattenTopicGroups(groups) {
+        var out = [];
+        var seen = {};
+        var g, t;
+        for (g = 0; g < groups.length; g++) {
+            var topics = groups[g].topics || [];
+            for (t = 0; t < topics.length; t++) {
+                if (!topics[t] || seen[topics[t].id]) continue;
+                seen[topics[t].id] = 1;
+                out.push(topics[t]);
+            }
+        }
+        return out;
+    }
+
+    function topicFromExtra(id, index) {
+        var extra = index && index.extras && index.extras[id];
+        if (!extra) return null;
+        return {
+            id: id,
+            emoji: extra.emoji || '',
+            title: extra.title || id,
+            desc: extra.desc || '',
+            visited: false,
+            locked: false,
+            isNew: false
+        };
+    }
+
+    function appendTopicCard(grid, topic) {
+        var card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'topic-card';
+        if (topic.visited) card.classList.add('is-visited');
+        if (topic.locked) card.classList.add('is-locked');
+        if (topic.isNew) card.classList.add('is-new');
+        card.setAttribute('data-topic-id', topic.id);
+        var top = document.createElement('span');
+        top.className = 'topic-card-top';
+        if (topic.emoji) {
+            var emoji = document.createElement('span');
+            emoji.className = 'topic-card-emoji';
+            emoji.setAttribute('aria-hidden', 'true');
+            emoji.textContent = presentKeycap(topic.emoji);
+            top.appendChild(emoji);
+        }
+        top.appendChild(topicCardStatus(topic));
+        card.appendChild(top);
+        var title = document.createElement('span');
+        title.className = 'topic-card-title';
+        title.textContent = topic.title;
+        card.appendChild(title);
+        if (topic.desc) {
+            var desc = document.createElement('span');
+            desc.className = 'topic-card-desc';
+            desc.textContent = topic.desc;
+            card.appendChild(desc);
+        }
+        card.addEventListener('click', (function (id) {
+            return function () {
+                closeTopicsBrowser({ fromHistory: true });
+                if (typeof window.go === 'function') window.go(id);
+            };
+        })(topic.id));
+        grid.appendChild(card);
+    }
+
+    function askNachoAboutTopicSearch(query) {
+        var text = String(query || '').trim();
+        closeTopicsBrowser();
+        setTimeout(function () {
+            if (typeof window.bqAskNacho === 'function') {
+                window.bqAskNacho(text);
+                return;
+            }
+            if (typeof window.showNachoInput === 'function') window.showNachoInput();
+            setTimeout(function () {
+                var inp = document.getElementById('nachoInput');
+                if (!inp) return;
+                inp.value = text;
+                if (text && typeof window.nachoAnswer === 'function') window.nachoAnswer();
+            }, 80);
+        }, 40);
+    }
+
+    function renderTopicSearchEmpty(body, q, groups) {
+        var empty = document.createElement('p');
+        empty.className = 'topics-browser-empty';
+        empty.textContent = 'No topics match that search.';
+        body.appendChild(empty);
+        var label = document.createElement('p');
+        label.className = 'topics-browser-suggest';
+        label.textContent = 'A few places to start';
+        body.appendChild(label);
+        var flat = flattenTopicGroups(groups);
+        var byId = {};
+        var i;
+        for (i = 0; i < flat.length; i++) byId[flat[i].id] = flat[i];
+        var popular = (window.TOPIC_SEARCH_INDEX && window.TOPIC_SEARCH_INDEX.popular) || ['one-stop-shop', 'money', 'faq-glossary', 'self-custody', 'mining', 'layer-2-lightning', 'whitepaper'];
+        var grid = document.createElement('div');
+        grid.className = 'topics-browser-grid';
+        for (i = 0; i < popular.length; i++) {
+            if (byId[popular[i]]) appendTopicCard(grid, byId[popular[i]]);
+        }
+        body.appendChild(grid);
+        var ask = document.createElement('button');
+        ask.type = 'button';
+        ask.className = 'topics-browser-ask';
+        ask.textContent = 'Ask Nacho';
+        ask.addEventListener('click', function () { askNachoAboutTopicSearch(q); });
+        body.appendChild(ask);
+        var note = document.createElement('p');
+        note.className = 'topics-browser-ask-note';
+        note.textContent = q ? ('Ask Nacho about “' + q + '”.') : 'Ask Nacho a Bitcoin question.';
+        body.appendChild(note);
+    }
+
+    function renderTopicGroupCards(body, groups, q) {
         var shown = 0;
         var g;
         for (g = 0; g < groups.length; g++) {
@@ -291,55 +444,77 @@
                 var topic = group.topics[t];
                 if (q && topic.find.indexOf(q) === -1) continue;
                 shown++;
-                var card = document.createElement('button');
-                card.type = 'button';
-                card.className = 'topic-card';
-                if (topic.visited) card.classList.add('is-visited');
-                if (topic.locked) card.classList.add('is-locked');
-                if (topic.isNew) card.classList.add('is-new');
-                card.setAttribute('data-topic-id', topic.id);
-                var top = document.createElement('span');
-                top.className = 'topic-card-top';
-                if (topic.emoji) {
-                    var emoji = document.createElement('span');
-                    emoji.className = 'topic-card-emoji';
-                    emoji.setAttribute('aria-hidden', 'true');
-                    emoji.textContent = presentKeycap(topic.emoji);
-                    top.appendChild(emoji);
-                }
-                top.appendChild(topicCardStatus(topic));
-                card.appendChild(top);
-                var title = document.createElement('span');
-                title.className = 'topic-card-title';
-                title.textContent = topic.title;
-                card.appendChild(title);
-                if (topic.desc) {
-                    var desc = document.createElement('span');
-                    desc.className = 'topic-card-desc';
-                    desc.textContent = topic.desc;
-                    card.appendChild(desc);
-                }
-                card.addEventListener('click', (function(id) {
-                    return function() {
-                        closeTopicsBrowser({ fromHistory: true });
-                        if (typeof window.go === 'function') window.go(id);
-                    };
-                })(topic.id));
-                grid.appendChild(card);
+                appendTopicCard(grid, topic);
             }
             if (!grid.childNodes.length) continue;
             section.appendChild(heading);
             section.appendChild(grid);
             body.appendChild(section);
         }
-        if (!shown) {
-            var empty = document.createElement('p');
-            empty.className = 'topics-browser-empty';
-            empty.textContent = 'No topics match that search.';
-            body.appendChild(empty);
+        return shown;
+    }
+
+    function renderTopicSearchResults(body, q, groups) {
+        var flat = flattenTopicGroups(groups);
+        var result = window.TopicSearch.search(q, flat, window.TOPIC_SEARCH_INDEX);
+        if (!result.matches.length) {
+            renderTopicSearchEmpty(body, q, groups);
+            return 0;
+        }
+        var byId = {};
+        var i;
+        for (i = 0; i < flat.length; i++) byId[flat[i].id] = flat[i];
+        var section = document.createElement('section');
+        section.className = 'topics-browser-section';
+        var heading = document.createElement('h3');
+        heading.textContent = 'Matches';
+        var grid = document.createElement('div');
+        grid.className = 'topics-browser-grid';
+        for (i = 0; i < result.matches.length; i++) {
+            var topic = byId[result.matches[i].id] || topicFromExtra(result.matches[i].id, window.TOPIC_SEARCH_INDEX);
+            if (!topic) continue;
+            appendTopicCard(grid, topic);
+        }
+        section.appendChild(heading);
+        section.appendChild(grid);
+        body.appendChild(section);
+        return grid.childNodes.length;
+    }
+
+    function renderTopicsBrowser(filter) {
+        var body = document.getElementById('topicsBrowserBody');
+        var live = document.getElementById('topicsBrowserLive');
+        if (!body) return;
+        _topicsMuting = true;
+        var q = String(filter || '').trim();
+        body.textContent = '';
+        if (!_topicsBrowserCache) _topicsBrowserCache = readSidebarTopicGroups();
+        var groups = _topicsBrowserCache;
+        var shown = 0;
+        var searching = false;
+        if (!q) {
+            shown = renderTopicGroupCards(body, groups, '');
+        } else if (topicSearchReady()) {
+            shown = renderTopicSearchResults(body, q, groups);
+        } else {
+            shown = renderTopicGroupCards(body, groups, q.toLowerCase());
+            if (!shown) {
+                searching = !!_topicSearchPromise;
+                if (searching) {
+                    var pending = document.createElement('p');
+                    pending.className = 'topics-browser-empty';
+                    pending.textContent = 'Searching topics…';
+                    body.appendChild(pending);
+                } else {
+                    renderTopicSearchEmpty(body, q, groups);
+                }
+            }
         }
         if (live) {
-            live.textContent = shown ? (shown + (shown === 1 ? ' topic' : ' topics')) : 'No topics match that search.';
+            if (shown) live.textContent = shown + (shown === 1 ? ' topic' : ' topics');
+            else if (searching) live.textContent = 'Searching topics…';
+            else if (q) live.textContent = 'No topics match that search.';
+            else live.textContent = '0 topics';
         }
         _topicsMuting = false;
     }
@@ -449,8 +624,8 @@
         search.type = 'search';
         search.id = 'topicsBrowserSearch';
         search.className = 'topics-browser-search';
-        search.placeholder = 'Filter topics';
-        search.setAttribute('aria-label', 'Filter topics by title, description, or id');
+        search.placeholder = 'Search topics';
+        search.setAttribute('aria-label', 'Search topics by name, idea, or synonym');
         search.setAttribute('aria-controls', 'topicsBrowserBody');
         search.autocomplete = 'off';
         search.autocorrect = 'off';
@@ -539,7 +714,6 @@
     }
 
     function openTopicsBrowser() {
-        if (isMobile()) return;
         var home = document.getElementById('home');
         _topicsHomeWasHidden = !!(home && home.classList.contains('hidden'));
         var dlg = ensureTopicsBrowser();
@@ -549,6 +723,7 @@
         _topicsBrowserCache = null;
         var search = document.getElementById('topicsBrowserSearch');
         if (search) search.value = '';
+        ensureTopicSearchAssets();
         renderTopicsBrowser('');
         dlg.hidden = false;
         setTopicsBackgroundInert(true);
@@ -584,11 +759,6 @@
             try { target.focus(); } catch (err) {}
         }
     }
-
-    window.addEventListener('resize', function() {
-        if (!isMobile()) return;
-        if (topicsBrowserIsOpen()) closeTopicsBrowser();
-    });
 
     window.addEventListener('hashchange', function() {
         if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });

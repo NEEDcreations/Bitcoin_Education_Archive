@@ -75,6 +75,7 @@ const TESTS = [
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
+    { name: 'Browse Topics Search', file: 'test-topic-search.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
     { name: 'Topic Forum Mirror', file: 'test-topic-forum-mirror.js' },
     { name: 'Topic Conversation XP', file: 'test-topic-conversation-xp.js' },
