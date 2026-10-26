@@ -525,7 +525,7 @@ function fence(label, text) {
     return "<<<" + DATA_MARK + " " + label + ">>>\n" + escapeFence(text) + "\n<<<END " + DATA_MARK + " " + label + ">>>";
 }
 
-function buildMessages(body, data, intents, notes) {
+export function buildMessages(body, data, intents, notes) {
     const messages = [{ role: "system", content: SYSTEM_PROMPT + (body.eli5 ? "\n\nELI5 MODE: use very simple words and a short analogy." : "") }];
     const history = Array.isArray(body.history) ? body.history.slice(-5) : [];
     history.forEach(function (h) {
@@ -538,8 +538,6 @@ function buildMessages(body, data, intents, notes) {
     if (note) parts.push(fence("NOTES", note));
     const live = (intents && intents.length) ? liveBlock(data, intents) : "";
     if (live) parts.push(fence("LIVE", live));
-    parts.push(fence("QUESTION", redactSecretText(String(body.question || "")).slice(0, 500)));
-    messages.push({ role: "user", content: parts.join("\n\n") });
     if (Array.isArray(body.untrustedMessages) && body.untrustedMessages.length) {
         const lines = body.untrustedMessages.slice(0, 6).map(function (line) {
             return redactSecretText(String(line || "")).replace(/<[^>]*>/g, " ").slice(0, 220);
@@ -551,6 +549,8 @@ function buildMessages(body, data, intents, notes) {
             });
         }
     }
+    parts.push(fence("QUESTION", redactSecretText(String(body.question || "")).slice(0, 500)));
+    messages.push({ role: "user", content: parts.join("\n\n") });
     return messages;
 }
 

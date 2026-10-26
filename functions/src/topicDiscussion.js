@@ -690,6 +690,7 @@ function createTopicDiscussion(deps) {
                     postId: planned.postId,
                     title: title,
                     text: planned.text,
+                    authorization: bearerFrom(context),
                 });
             } catch (err) {
                 console.warn('[topicDiscussion] summary patch failed');

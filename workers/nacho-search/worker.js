@@ -17,7 +17,7 @@ function allowRequest(ip, bucket, limit) {
   }
   recent.push(now);
   _rlBuckets.set(key, recent);
-  if (_rlBuckets.size > 4e3) _rlBuckets.clear();
+  trimBuckets(_rlBuckets, 4e3);
   return true;
 }
 __name(allowRequest, "allowRequest");
@@ -33,63 +33,188 @@ function allowUid(uid, limit) {
   }
   recent.push(now);
   _uidBuckets.set(key, recent);
-  if (_uidBuckets.size > 4e3) _uidBuckets.clear();
+  trimBuckets(_uidBuckets, 4e3);
   return true;
 }
 __name(allowUid, "allowUid");
 const FIREBASE_PROJECT_ID = "bitcoin-education-archive";
-const TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?id_token=";
-var _tokenCache = /* @__PURE__ */ new Map();
-function readJwtPayload(token) {
-  const parts = String(token || "").split(".");
-  if (parts.length !== 3) return null;
+const FIREBASE_ISS = "https://securetoken.google.com/" + FIREBASE_PROJECT_ID;
+const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
+const CLOCK_SKEW_SEC = 60;
+const UID_LIMIT = 10;
+const ANON_UID_LIMIT = 3;
+const SITE_DAILY_CAP = 400;
+let _tokenless = 0;
+let _jwksCache = { keys: null, until: 0 };
+function oldestStamp(value) {
+  if (Array.isArray(value) && value.length) {
+    let oldest = value[0];
+    for (let i = 1; i < value.length; i++) if (value[i] < oldest) oldest = value[i];
+    return oldest;
+  }
+  if (value && typeof value.exp === "number") return value.exp;
+  return 0;
+}
+function trimBuckets(map, max) {
+  const limit = max > 0 ? max : 4000;
+  if (!map || map.size <= limit) return map ? map.size : 0;
+  const rows = [];
+  map.forEach(function(value, key) {
+    rows.push({ key, oldest: oldestStamp(value) });
+  });
+  rows.sort(function(a, b) {
+    if (a.oldest !== b.oldest) return a.oldest - b.oldest;
+    return String(a.key) < String(b.key) ? -1 : 1;
+  });
+  for (let i = 0; i < rows.length && map.size > limit; i++) map.delete(rows[i].key);
+  return map.size;
+}
+__name(trimBuckets, "trimBuckets");
+function b64urlToBytes(part) {
+  const pad = part.length % 4 === 0 ? "" : "=".repeat(4 - (part.length % 4));
+  const bin = atob(String(part).replace(/-/g, "+").replace(/_/g, "/") + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 255;
+  return out;
+}
+function decodeJsonPart(part) {
   try {
-    const pad = parts[1].length % 4 === 0 ? "" : "=".repeat(4 - (parts[1].length % 4));
-    const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/") + pad);
-    return JSON.parse(json);
+    return JSON.parse(new TextDecoder().decode(b64urlToBytes(part)));
   } catch (e) {
     return null;
   }
 }
-__name(readJwtPayload, "readJwtPayload");
-async function verifyFirebaseToken(request) {
+function cacheTtlMs(res) {
+  const header = res && res.headers && typeof res.headers.get === "function" ? res.headers.get("Cache-Control") || "" : "";
+  const match = /max-age=(\d+)/i.exec(header);
+  if (!match) return 3600 * 1000;
+  return Math.min(86400, Number(match[1])) * 1000;
+}
+function resetJwksCache() {
+  _jwksCache = { keys: null, until: 0 };
+}
+async function loadJwks(opts) {
+  if (opts && opts.jwks && Array.isArray(opts.jwks.keys)) return opts.jwks;
+  const now = Date.now();
+  if (_jwksCache.keys && _jwksCache.until > now) return _jwksCache.keys;
+  const fetcher = opts && opts.fetchJwks || fetch;
+  const res = await fetcher(JWKS_URL);
+  if (!res || !res.ok) return null;
+  const body = await res.json();
+  if (!body || !Array.isArray(body.keys)) return null;
+  _jwksCache = { keys: body, until: now + cacheTtlMs(res) };
+  return body;
+}
+function claimsOk(payload, nowSec) {
+  if (!payload || typeof payload !== "object") return false;
+  const sub = String(payload.sub || "");
+  if (!/^[A-Za-z0-9:_-]{1,128}$/.test(sub)) return false;
+  const aud = payload.aud;
+  const audOk = aud === FIREBASE_PROJECT_ID || Array.isArray(aud) && aud.length === 1 && aud[0] === FIREBASE_PROJECT_ID;
+  if (!audOk) return false;
+  if (payload.iss !== FIREBASE_ISS) return false;
+  if (typeof payload.exp !== "number" || payload.exp <= nowSec - CLOCK_SKEW_SEC) return false;
+  if (typeof payload.iat !== "number" || payload.iat > nowSec + CLOCK_SKEW_SEC) return false;
+  if (typeof payload.auth_time !== "number" || !(payload.auth_time > 0) || payload.auth_time > nowSec + CLOCK_SKEW_SEC) return false;
+  return true;
+}
+async function verifyIdToken(token, opts) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return null;
+  const header = decodeJsonPart(parts[0]);
+  if (!header || header.alg !== "RS256" || !header.kid) return null;
+  const payload = decodeJsonPart(parts[1]);
+  const nowSec = Math.floor(((opts && opts.now) || Date.now()) / 1000);
+  if (!claimsOk(payload, nowSec)) return null;
+  let jwks;
+  try {
+    jwks = await loadJwks(opts || {});
+  } catch (e) {
+    return null;
+  }
+  if (!jwks || !Array.isArray(jwks.keys)) return null;
+  const jwk = jwks.keys.find((key) => key && key.kid === header.kid && key.kty === "RSA" && (!key.alg || key.alg === "RS256"));
+  if (!jwk || !jwk.n || !jwk.e) return null;
+  let key;
+  try {
+    key = await crypto.subtle.importKey("jwk", { kty: "RSA", n: jwk.n, e: jwk.e, alg: "RS256", ext: true }, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+  } catch (e) {
+    return null;
+  }
+  let sig;
+  try {
+    sig = b64urlToBytes(parts[2]);
+  } catch (e) {
+    return null;
+  }
+  let ok = false;
+  try {
+    ok = await crypto.subtle.verify({ name: "RSASSA-PKCS1-v1_5" }, key, sig, new TextEncoder().encode(parts[0] + "." + parts[1]));
+  } catch (e) {
+    return null;
+  }
+  if (!ok) return null;
+  const firebase = payload.firebase && typeof payload.firebase === "object" ? payload.firebase : {};
+  return { uid: String(payload.sub), anonymous: firebase.sign_in_provider === "anonymous" };
+}
+__name(verifyIdToken, "verifyIdToken");
+async function verifyFirebaseToken(request, opts) {
   const header = request.headers.get("Authorization") || "";
   const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
   if (!match) return null;
   const token = match[1];
   if (token.length < 20 || token.length > 8192) return null;
-  const payload = readJwtPayload(token);
-  if (!payload) return null;
-  const now = Math.floor(Date.now() / 1000);
-  const uid = String(payload.sub || payload.user_id || "");
-  if (!/^[A-Za-z0-9:_-]{1,128}$/.test(uid)) return null;
-  if (payload.aud !== FIREBASE_PROJECT_ID) return null;
-  if (payload.iss !== "https://securetoken.google.com/" + FIREBASE_PROJECT_ID) return null;
-  if (!payload.exp || payload.exp < now || (payload.iat && payload.iat > now + 300)) return null;
-  const cached = _tokenCache.get(token);
-  if (cached && cached.exp > now) return cached.uid;
-  let res;
-  try {
-    res = await fetch(TOKENINFO_URL + encodeURIComponent(token));
-  } catch (e) {
-    return null;
-  }
-  if (!res || !res.ok) return null;
-  let info;
-  try {
-    info = await res.json();
-  } catch (e) {
-    return null;
-  }
-  if (!info || info.aud !== FIREBASE_PROJECT_ID) return null;
-  if (info.iss !== "https://securetoken.google.com/" + FIREBASE_PROJECT_ID) return null;
-  const confirmed = String(info.user_id || info.sub || "");
-  if (confirmed !== uid) return null;
-  _tokenCache.set(token, { uid, exp: Math.min(payload.exp, now + 300) });
-  if (_tokenCache.size > 2e3) _tokenCache.clear();
-  return uid;
+  return verifyIdToken(token, opts);
 }
 __name(verifyFirebaseToken, "verifyFirebaseToken");
+function authMode(env) {
+  return String(env && env.AI_AUTH || "").trim().toLowerCase() === "enforce" ? "enforce" : "grace";
+}
+function readTokenlessCount() {
+  return _tokenless;
+}
+function noteTokenless() {
+  _tokenless += 1;
+  console.log("nacho /ai token-less " + _tokenless);
+}
+class AiDailyCap {
+  constructor(state) {
+    this.state = state;
+  }
+  async fetch(request) {
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (e) {
+      body = {};
+    }
+    const day = String(body && body.day || "");
+    const limit = Number(body && body.limit) > 0 ? Number(body.limit) : SITE_DAILY_CAP;
+    const stored = await this.state.storage.get("cap") || { day: "", count: 0 };
+    let count = stored.day === day ? Number(stored.count) || 0 : 0;
+    if (count >= limit) return Response.json({ ok: false, count });
+    count += 1;
+    await this.state.storage.put("cap", { day, count });
+    return Response.json({ ok: true, count });
+  }
+}
+async function takeSiteDaily(env, nowMs) {
+  if (!env || !env.AI_DAILY || typeof env.AI_DAILY.idFromName !== "function") return true;
+  try {
+    const day = new Date(nowMs).toISOString().slice(0, 10);
+    const stub = env.AI_DAILY.get(env.AI_DAILY.idFromName("site"));
+    const res = await stub.fetch("https://ai-daily/take", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ day, limit: SITE_DAILY_CAP })
+    });
+    const data = await res.json();
+    return !!(data && data.ok);
+  } catch (e) {
+    console.log("nacho daily cap skipped");
+    return true;
+  }
+}
 function stripUntrustedMarkers(text) {
   let cur = String(text || "");
   let guard = 0;
@@ -349,10 +474,23 @@ function sanitizeInput(text) {
 }
 __name(sanitizeInput, "sanitizeInput");
 async function handleAI(request, env, corsHeaders, ip) {
-  const uid = await verifyFirebaseToken(request);
-  if (!uid) return aiJson(corsHeaders, 401, { error: "Sign in required" });
-  if (!allowUid(uid, 10)) return aiJson(corsHeaders, 429, { error: "Slow down" });
   if (!allowRequest(ip || "0.0.0.0", "ai", 20)) return aiJson(corsHeaders, 429, { error: "Slow down" });
+  const header = request.headers.get("Authorization") || "";
+  const hasBearer = /^Bearer\s+\S+$/i.test(header.trim());
+  let uid = "";
+  let anonymous = false;
+  if (hasBearer) {
+    const verified = await verifyFirebaseToken(request);
+    if (!verified || !verified.uid) return aiJson(corsHeaders, 401, { error: "Sign in required" });
+    uid = verified.uid;
+    anonymous = verified.anonymous === true;
+    if (!allowUid(uid, anonymous ? ANON_UID_LIMIT : UID_LIMIT)) return aiJson(corsHeaders, 429, { error: "Slow down" });
+  } else if (authMode(env) === "enforce") {
+    return aiJson(corsHeaders, 401, { error: "Sign in required" });
+  } else {
+    noteTokenless();
+  }
+  if (!await takeSiteDaily(env, Date.now())) return aiJson(corsHeaders, 429, { error: "Nacho is resting, try tomorrow" });
   try {
     const body = await request.json();
     let question = stripUntrustedMarkers((body.question || "").trim());
@@ -433,7 +571,15 @@ __name(handleAI, "handleAI");
 export {
   nacho_ai_worker_default as default,
   allowUid,
+  allowRequest,
+  trimBuckets,
   stripUntrustedMarkers,
-  verifyFirebaseToken
+  verifyFirebaseToken,
+  verifyIdToken,
+  resetJwksCache,
+  readTokenlessCount,
+  AiDailyCap,
+  JWKS_URL,
+  SITE_DAILY_CAP
 };
 //# sourceMappingURL=nacho-ai-worker.js.map

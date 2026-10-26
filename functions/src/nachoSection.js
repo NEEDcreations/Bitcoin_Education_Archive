@@ -9,6 +9,7 @@
 const topicDiscussion = require('./topicDiscussion');
 const secretScan = require('./secretScan');
 const ipHmac = require('./ipHmac');
+const chatProfanity = require('./chatProfanity');
 
 const SUMMARY_GAP_MS = 20 * 1000;
 const SUMMARY_DAILY = 8;
@@ -24,6 +25,7 @@ const IP_TTL_MS = 48 * 60 * 60 * 1000;
 const GROUND_MAX = 1400;
 const MESSAGE_MAX = 180;
 const MESSAGE_COUNT = 6;
+const REPORT_HIDE = 3;
 const DATA_BEGIN = '<<<NACHO_SECTION_DATA>>>';
 const DATA_END = '<<<END_NACHO_SECTION_DATA>>>';
 const MSG_BEGIN = '<<<UNTRUSTED_CONVERSATION>>>';
@@ -65,13 +67,17 @@ function scrubOutbound(text) {
     return out.replace(/\s{2,}/g, ' ').trim();
 }
 
+function commentScam(text) {
+    return chatProfanity.classifyChatText(text) === 'scam';
+}
+
 function filterNachoOutput(answer, followUps) {
     const raw = String(answer || '');
-    if (OFFER_RE.test(raw)) return { answer: SAFE_OFFER, followUps: [], replaced: true };
+    if (OFFER_RE.test(raw) || commentScam(raw)) return { answer: SAFE_OFFER, followUps: [], replaced: true };
     const next = [];
     (Array.isArray(followUps) ? followUps : []).forEach(function(item) {
         const line = String(item || '');
-        if (OFFER_RE.test(line)) return;
+        if (OFFER_RE.test(line) || commentScam(line)) return;
         const scrubbed = scrubOutbound(line);
         if (scrubbed) next.push(scrubbed);
     });
@@ -231,6 +237,7 @@ function buildSectionGrounding(input) {
     const lines = [];
     (Array.isArray(src.messages) ? src.messages : []).slice(0, MESSAGE_COUNT).forEach(function(message, index) {
         if (!message) return;
+        if (commentScam(message.text || '')) return;
         const text = message.omitted ? '[omitted]' : fenceSafe(message.text || '').slice(0, MESSAGE_MAX);
         if (!text) return;
         if (messageUnsafe(text) && text !== '[omitted]') {
@@ -339,6 +346,24 @@ async function queryEqual(col, field, value, limitN) {
     return docsOf(snap).slice(0, limitN);
 }
 
+async function authorBanned(db, uid, cache) {
+    const key = String(uid || '');
+    if (!key) return false;
+    if (cache.has(key)) return cache.get(key);
+    let banned = false;
+    try {
+        const userSnap = await db.collection('users').doc(key).get();
+        const ledgerSnap = await db.collection('faucet_ledger').doc(key).get();
+        const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
+        const ledger = ledgerSnap && ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
+        banned = user.banned === true || ledger.banned === true;
+    } catch (err) {
+        banned = true;
+    }
+    cache.set(key, banned);
+    return banned;
+}
+
 async function loadMessages(db, channelId, index, hash, conversationId) {
     const col = db.collection('topic_discussions').doc(channelId).collection('posts');
     let root = null;
@@ -363,11 +388,22 @@ async function loadMessages(db, channelId, index, hash, conversationId) {
     }
     if (!root) return [];
     const replies = await queryEqual(col, 'parentId', root.id, 12);
-    const visible = replies.filter(function(row) { return publicPost(row.data); });
-    visible.sort(function(a, b) {
-        return (Number(a.data.createdAtMs) || 0) - (Number(b.data.createdAtMs) || 0);
+    const cache = new Map();
+    const pool = [{ id: root.id, data: root.data }].concat(replies.filter(function(row) {
+        return publicPost(row.data);
+    }));
+    const kept = [];
+    for (let i = 0; i < pool.length; i++) {
+        const data = pool[i].data || {};
+        if ((Number(data.reportCount) || 0) >= REPORT_HIDE) continue;
+        if (commentScam(data.text)) continue;
+        if (await authorBanned(db, data.uid, cache)) continue;
+        kept.push(pool[i]);
+    }
+    kept.sort(function(a, b) {
+        return (Number(b.data.createdAtMs) || 0) - (Number(a.data.createdAtMs) || 0);
     });
-    return [{ id: root.id, data: root.data }].concat(visible).slice(0, MESSAGE_COUNT).map(function(row) {
+    return kept.slice(0, MESSAGE_COUNT).map(function(row) {
         return viewMessage(row.data);
     });
 }
@@ -502,6 +538,22 @@ function createNachoSection(deps) {
             }
         } catch (err) {
             answer = topicDiscussion.UNSURE;
+            try {
+                await db.runTransaction(async function(tx) {
+                    const snap = await tx.get(limitRef);
+                    const src = snap.exists ? (snap.data() || {}) : {};
+                    const day = topicDiscussion.offsetDateKey(nowMs);
+                    if (kind === 'summary') {
+                        const count = src.summaryDayKey === day ? (Number(src.summaryCount) || 0) : 0;
+                        tx.set(limitRef, { summaryDayKey: day, summaryCount: Math.max(0, count - 1) }, { merge: true });
+                    } else {
+                        const count = src.followDayKey === day ? (Number(src.followCount) || 0) : 0;
+                        tx.set(limitRef, { followDayKey: day, followCount: Math.max(0, count - 1) }, { merge: true });
+                    }
+                });
+            } catch (refundErr) {
+                console.warn('[nachoSection] limit refund failed');
+            }
         }
         if (answer === topicDiscussion.SECRET_NOTE) {
             links = [];

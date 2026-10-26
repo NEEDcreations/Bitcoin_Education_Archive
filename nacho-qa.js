@@ -4833,13 +4833,23 @@ function nachoPaintSection(textEl, data) {
     }
     var more = document.createElement('button');
     more.type = 'button';
+    more.className = 'nacho-section-follow';
     more.textContent = 'Ask a follow-up';
     more.style.cssText = 'width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;';
     more.addEventListener('click', function(event) {
         if (event) { event.preventDefault(); event.stopPropagation(); }
         if (typeof showNachoInput === 'function') showNachoInput();
     });
-    textEl.appendChild(more);
+    var host = textEl.parentNode;
+    if (host) {
+        var oldFollow = host.querySelectorAll('.nacho-section-follow');
+        for (var fi = 0; fi < oldFollow.length; fi++) {
+            if (oldFollow[fi].parentNode === host) oldFollow[fi].parentNode.removeChild(oldFollow[fi]);
+        }
+        host.appendChild(more);
+    } else {
+        textEl.appendChild(more);
+    }
     window._nachoBusy = false;
     if (typeof setPose === 'function') setPose('brain');
 }

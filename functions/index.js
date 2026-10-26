@@ -8978,8 +8978,9 @@ const nachoSectionApi = createNachoSection({
     HttpsError: functionsV1.https.HttpsError,
 });
 // Binds REFERRAL_IP_HMAC_SECRET (already in Secret Manager; not a new secret).
-// Also redeploy postTopicComment so topic replies forward the caller's ID token,
-// and deleteAccount so it removes nacho_section_limits/{uid}.
+// Also redeploy postTopicComment so topic replies and the Pleb Talk forum
+// summary forward the caller's ID token, and deleteAccount so it removes
+// nacho_section_limits/{uid}. Worker deploy: npx wrangler@3 deploy --keep-vars.
 exports.askNachoAboutSection = functionsV1.runWith({
     enforceAppCheck: true,
     secrets: [referralIpSecret],

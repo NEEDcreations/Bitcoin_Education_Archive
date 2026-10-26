@@ -31,6 +31,9 @@ const SCAM_PATTERNS = [
     /guaranteed.*return/i,
     /invest.*guaranteed/i,
     /free bitcoin.*send/i,
+    /send\s+\d+\s+sats?\s+to\s+verify/i,
+    /admin\s+will\s+dm\s+you/i,
+    /\b[a-z0-9][a-z0-9-]{1,62}\s+dot\s+(?:com|net|org|xyz|io|co|app|gg|me|info|biz|site|online|live|link)\b/i,
 ];
 
 function normalizeChatText(text) {
