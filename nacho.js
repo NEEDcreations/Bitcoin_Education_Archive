@@ -183,7 +183,7 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Set up your profile in Settings → Account! Add a bio, website, Twitter, Nostr, and Lightning address! 📝" },
     { pose: 'eyes', text: "💡 Tip: Click any user on the leaderboard to see their profile — including their bio and social links! 👀" },
     // Scholar
-    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards 2,100 points — that's 21 million in sats! The magic number! 🎓" },
+    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards +2,100 XP, not limited by the daily cap. That's the 21 million number. 🎓" },
     // Nacho Closet
     { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
     { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
@@ -1398,16 +1398,9 @@ window._nachoDispatch = function(key) {
             if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
             break;
         case 'scholar':
-            if (typeof startScholarQuest === 'function') {
-                startScholarQuest();
-            } else {
-                // scholar.js not yet loaded — inject it then call
-                if (typeof showToast === 'function') showToast('⏳ Loading exam\u2026 one moment!');
-                var _s = document.createElement('script');
-                _s.src = 'scholar.js?v=20260809_1846';
-                _s.onload = function() { if (typeof startScholarQuest === 'function') startScholarQuest(); };
-                document.body.appendChild(_s);
-            }
+            if (typeof window.openCertification === 'function') window.openCertification('properties');
+            else if (typeof startScholarQuest === 'function') startScholarQuest('properties');
+            else if (typeof showToast === 'function') showToast('⏳ Loading exam… one moment!');
             break;
         case 'flashcards':
             // Open the Learning Quests hub which contains the flashcard launcher

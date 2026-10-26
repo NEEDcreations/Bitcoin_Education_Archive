@@ -49,6 +49,7 @@ const TESTS = [
     { name: 'Timechain TV Daily Watch', file: 'test-tctv-watch.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
+    { name: 'Profile stacking', file: 'test-profile-stack.js' },
     { name: 'Push Notifications', file: 'test-push.js' },
     { name: 'Push Opt-in Migration', file: 'test-push-optin-migration.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
@@ -88,6 +89,7 @@ const TESTS = [
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Username repick', file: 'test-username-repick.js' },
+    { name: 'Favor display name', file: 'test-favor-display-name.js' },
     { name: 'Username spaces', file: 'test-username-spaces.js' },
     { name: 'Email link and guest merge', file: 'test-email-link.js' },
     { name: 'Two-factor auth', file: 'test-totp.js' },
@@ -97,6 +99,7 @@ const TESTS = [
     { name: 'SF chat rules', file: 'rules/sf-chat-rules.js' },
     { name: 'Username repick rules', file: 'rules/username-repick-rules.js' },
     { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },
+    { name: 'Certification bonus', file: 'test-cert-bonus.js' },
     { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
 ];
 

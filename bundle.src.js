@@ -3929,7 +3929,7 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Set up your profile in Settings → Account! Add a bio, website, Twitter, Nostr, and Lightning address! 📝" },
     { pose: 'eyes', text: "💡 Tip: Click any user on the leaderboard to see their profile — including their bio and social links! 👀" },
     // Scholar
-    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards 2,100 points — that's 21 million in sats! The magic number! 🎓" },
+    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards +2,100 XP, not limited by the daily cap. That's the 21 million number. 🎓" },
     // Nacho Closet
     { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
     { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
@@ -5144,16 +5144,9 @@ window._nachoDispatch = function(key) {
             if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
             break;
         case 'scholar':
-            if (typeof startScholarQuest === 'function') {
-                startScholarQuest();
-            } else {
-                // scholar.js not yet loaded — inject it then call
-                if (typeof showToast === 'function') showToast('⏳ Loading exam\u2026 one moment!');
-                var _s = document.createElement('script');
-                _s.src = 'scholar.js?v=20260809_1846';
-                _s.onload = function() { if (typeof startScholarQuest === 'function') startScholarQuest(); };
-                document.body.appendChild(_s);
-            }
+            if (typeof window.openCertification === 'function') window.openCertification('properties');
+            else if (typeof startScholarQuest === 'function') startScholarQuest('properties');
+            else if (typeof showToast === 'function') showToast('⏳ Loading exam… one moment!');
             break;
         case 'flashcards':
             // Open the Learning Quests hub which contains the flashcard launcher
@@ -12997,7 +12990,7 @@ const HIDDEN_BADGES = [
         "⚡ A pleb just completed a Lightning Network quest — 50 XP earned!",
         "🗺️ Someone just finished all 10 steps of the Bitcoin Journey!",
         "🎮 A Bitcoiner just aced a quiz in Nacho Mode — 10/10!",
-        "📚 A new user just explored their first 3 topics — features unlocking!",
+        "📚 A new user just explored their first 3 topics!",
         "🧠 Someone just asked Nacho 100 questions — Bitcoin Scholar status!",
         "🎯 A pleb just scored 5/5 on a Conversation Quest!",
         "📖 Someone just read through the entire Timechain channel!",
@@ -14223,8 +14216,8 @@ function initBottomNav() {
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
-            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
-            '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
+            '<button type="button" onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps" aria-expanded="false" aria-controls="appsMenu"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
+            '<button type="button" onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" aria-expanded="false" aria-controls="mobileLearnMenu" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
             '<button onclick="if(typeof toggleNotifOverlay===\'function\')toggleNotifOverlay()" class="bnav-btn" id="bnavNotif" style="position:relative;"><span class="bnav-icon">🔔</span><span class="bnav-label">Alerts</span><span id="bnavNotifBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings" style="position:relative;"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span><span class="whats-new-dot" hidden></span></button>' +
         '</div>';
@@ -14960,9 +14953,11 @@ window.dismissIOSA2HS = function() {
 };
 
 // ---- Mobile Learn + Explore Apps ----
-// Sheets read window.BQ_LEARN_MENU and window.BQ_EXPLORE_APPS from
-// features.registry.js. Desktop #homeLearnMenu and #homeAppsMenu stay markup.
+// Phone sheets and desktop #homeLearnMenu / #homeAppsMenu both render
+// window.BQ_LEARN_MENU and window.BQ_EXPLORE_APPS from features.registry.js.
+// Wallet taps wait until wallet-router.js has patched go().
 var MOBILE_SHEET_Z = '2100020';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2377';
 
 function ensureMobileSheetStyle() {
     if (document.getElementById('mobileSheetStyle')) return;
@@ -14975,7 +14970,6 @@ function ensureMobileSheetStyle() {
         '#aiToolsPanel{bottom:var(--bnav-h,72px)!important;}' +
         '#btcDashOverlay{padding-bottom:calc(var(--above-fab,160px) + 16px)!important;}' +
         '#mobileLearnMenu button,#appsMenu button{min-height:44px;}' +
-        'body.ticker-visible #mobileLearnMenu,body.ticker-visible #appsMenu{top:calc(262px + 56px + env(safe-area-inset-top, 0px))!important;}' +
         '}' +
         '@media(max-width:360px){' +
         '#appsMenu > div{grid-template-columns:1fr!important;}' +
@@ -15050,18 +15044,45 @@ function appendHiddenAppsHint(parent, mode) {
 }
 
 function mobileSheetBox() {
-    // Top clears the Invite pill (186px, or 262px when the ticker is open).
-    // Bottom clears the chat button and the bottom bar via --above-fab.
+    // Bottom stays above the chat button and the bottom bar (--above-fab).
+    // The sheet grows up to 70vh so a short phone shows more than a fixed top gap allows.
     return 'position:fixed;left:8px;right:8px;' +
-        'top:calc(186px + 56px + env(safe-area-inset-top, 0px));' +
-        'bottom:var(--above-fab,160px);' +
+        'top:max(8px, calc(100dvh - var(--above-fab, 160px) - 70vh));' +
+        'bottom:var(--above-fab, 160px);' +
+        'max-height:70vh;' +
         'max-width:420px;margin:0 auto;z-index:' + MOBILE_SHEET_Z + ';' +
         'overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;' +
         'background:var(--bg-side,#0f172a);border:1px solid var(--border);border-radius:20px;' +
         'padding:14px 14px 16px;box-shadow:0 16px 48px rgba(0,0,0,0.55);';
 }
 
+function sheetFocusables(menu) {
+    var nodes = menu.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    var out = [];
+    var i;
+    for (i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (el.disabled || el.getAttribute('aria-hidden') === 'true') continue;
+        out.push(el);
+    }
+    return out;
+}
+
+function dismissSheet(menu, opts) {
+    if (!menu || !menu.isConnected) return;
+    var skipFocus = opts && opts.skipFocus;
+    var sel = menu.getAttribute('data-return-focus');
+    if (menu._detachDismiss) menu._detachDismiss();
+    menu.remove();
+    var returnBtn = sel && document.querySelector(sel);
+    if (returnBtn) returnBtn.setAttribute('aria-expanded', 'false');
+    if (skipFocus) return;
+    if (document.getElementById('mobileLearnMenu') || document.getElementById('appsMenu')) return;
+    if (returnBtn && returnBtn.focus) returnBtn.focus();
+}
+
 function bindSheetDismiss(menu, toggleSelector) {
+    menu.setAttribute('data-return-focus', toggleSelector);
     function detach() {
         document.removeEventListener('click', onDoc);
         document.removeEventListener('keydown', onKey);
@@ -15070,14 +15091,36 @@ function bindSheetDismiss(menu, toggleSelector) {
         if (!menu.isConnected) { detach(); return; }
         if (menu.contains(e.target)) return;
         if (toggleSelector && e.target.closest && e.target.closest(toggleSelector)) return;
-        menu.remove();
-        detach();
+        dismissSheet(menu);
     }
     function onKey(e) {
-        if (e.key !== 'Escape' || !menu.isConnected) return;
-        menu.remove();
-        detach();
+        if (!menu.isConnected) { detach(); return; }
+        if (e.key === 'Tab') {
+            var items = sheetFocusables(menu);
+            if (!items.length) { e.preventDefault(); return; }
+            var first = items[0];
+            var last = items[items.length - 1];
+            var active = document.activeElement;
+            if (items.indexOf(active) === -1) {
+                e.preventDefault();
+                (e.shiftKey ? last : first).focus();
+                return;
+            }
+            if (e.shiftKey && active === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                first.focus();
+            }
+            return;
+        }
+        if (e.key !== 'Escape') return;
+        if (window._bqEscapeTop && window._bqEscapeTop !== 'sheet') return;
+        e.preventDefault();
+        dismissSheet(menu);
     }
+    menu._detachDismiss = detach;
     setTimeout(function() {
         if (!menu.isConnected) return;
         document.addEventListener('click', onDoc);
@@ -15088,9 +15131,9 @@ function bindSheetDismiss(menu, toggleSelector) {
 
 function closeMobileSheets() {
     var learn = document.getElementById('mobileLearnMenu');
-    if (learn) learn.remove();
+    if (learn) dismissSheet(learn);
     var apps = document.getElementById('appsMenu');
-    if (apps) apps.remove();
+    if (apps) dismissSheet(apps);
 }
 
 function loadScriptOnce(src, done) {
@@ -15127,7 +15170,14 @@ window.openCertification = function(type) {
         return true;
     }
     if (start()) return;
-    loadScriptOnce('scholar.js?v=20261023_v2330');
+    var src = window.SCHOLAR_SCRIPT || 'scholar.js';
+    var existing = document.querySelector('script[src="' + src + '"]') || document.querySelector('script[src^="scholar.js"]');
+    if (existing) {
+        existing.addEventListener('load', function() { start(); });
+        pollUntil(start, 50);
+        return;
+    }
+    loadScriptOnce(src, start);
     pollUntil(start, 50);
 };
 
@@ -15184,9 +15234,39 @@ function openProofOfPlay() {
     }, 30);
 }
 
+function walletRouteReady() {
+    return window._bqWalletRouteReady === true && typeof window.go === 'function' && typeof window.renderLightning === 'function';
+}
+
+var _walletTapQueued = false;
+function flushWalletTap() {
+    if (!_walletTapQueued || !walletRouteReady()) return;
+    _walletTapQueued = false;
+    window.go('wallet');
+}
+
+function openWalletWhenReady() {
+    if (walletRouteReady()) {
+        window.go('wallet');
+        return;
+    }
+    if (_walletTapQueued) return;
+    _walletTapQueued = true;
+    if (typeof window._loadDeferred === 'function') window._loadDeferred();
+    loadScriptOnce('lightning.js?v=20261023_v2323');
+    loadScriptOnce('lightning-tips.js?v=20261022_v2279');
+    loadScriptOnce('wallet-router.js?v=20261026_v2402', flushWalletTap);
+    pollUntil(function() {
+        if (!walletRouteReady()) return false;
+        flushWalletTap();
+        return true;
+    }, 80);
+}
+
 function runSurfaceAction(item) {
     if (!item) return;
-    if (item.kind === 'go' && typeof go === 'function') go(item.arg);
+    if (item.kind === 'go' && item.arg === 'wallet') openWalletWhenReady();
+    else if (item.kind === 'go' && typeof go === 'function') go(item.arg);
     else if (item.kind === 'hub') openDailyQuests();
     else if (item.kind === 'cert') window.openCertification(item.arg);
     else if (item.kind === 'meetup') window.openMeetupBuilder();
@@ -15273,7 +15353,7 @@ window.renderMobileLearnMenu = function(menu, view) {
     closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.textContent = '✕';
     closeBtn.style.cssText = 'min-width:44px;min-height:44px;background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;font-family:inherit;';
-    closeBtn.addEventListener('click', function() { menu.remove(); });
+    closeBtn.addEventListener('click', function() { dismissSheet(menu); });
     header.appendChild(closeBtn);
     menu.appendChild(header);
 
@@ -15319,9 +15399,9 @@ window.renderMobileLearnMenu = function(menu, view) {
 
 window.toggleMobileLearnMenu = function() {
     var existing = document.getElementById('mobileLearnMenu');
-    if (existing) { existing.remove(); return; }
+    if (existing) { dismissSheet(existing); return; }
     var appsMenu = document.getElementById('appsMenu');
-    if (appsMenu) appsMenu.remove();
+    if (appsMenu) dismissSheet(appsMenu, { skipFocus: true });
 
     ensureMobileSheetStyle();
     var menu = document.createElement('div');
@@ -15335,13 +15415,15 @@ window.toggleMobileLearnMenu = function() {
     var closeBtn = menu.querySelector('[aria-label="Close"]');
     if (closeBtn && closeBtn.focus) closeBtn.focus();
     bindSheetDismiss(menu, '#bnavLearn');
+    var learnBtn = document.getElementById('bnavLearn');
+    if (learnBtn) learnBtn.setAttribute('aria-expanded', 'true');
 };
 
 window.openMobileExploreApps = function() {
     var existing = document.getElementById('appsMenu');
-    if (existing) { existing.remove(); return; }
+    if (existing) { dismissSheet(existing); return; }
     var learn = document.getElementById('mobileLearnMenu');
-    if (learn) learn.remove();
+    if (learn) dismissSheet(learn, { skipFocus: true });
     ensureMobileSheetStyle();
 
     var menu = document.createElement('div');
@@ -15362,7 +15444,7 @@ window.openMobileExploreApps = function() {
     closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.textContent = '✕';
     closeBtn.style.cssText = 'min-width:44px;min-height:44px;background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;font-family:inherit;';
-    closeBtn.addEventListener('click', function() { menu.remove(); });
+    closeBtn.addEventListener('click', function() { dismissSheet(menu); });
     header.appendChild(title);
     header.appendChild(closeBtn);
     menu.appendChild(header);
@@ -15409,6 +15491,8 @@ window.openMobileExploreApps = function() {
     document.body.appendChild(menu);
     if (closeBtn.focus) closeBtn.focus();
     bindSheetDismiss(menu, '#bnavApps');
+    var appsBtn = document.getElementById('bnavApps');
+    if (appsBtn) appsBtn.setAttribute('aria-expanded', 'true');
     if (typeof playSound === 'function') playSound('pop');
 };
 
@@ -15427,6 +15511,7 @@ function menuIsOpen(el) {
 function closeDesktopMenu(menu, toggleId) {
     if (!menu) return;
     menu.style.display = 'none';
+    if (menu.id === 'homeLearnMenu') menu.setAttribute('data-learn-view', 'root');
     var toggle = document.getElementById(toggleId);
     if (toggle) {
         toggle.setAttribute('aria-expanded', 'false');
@@ -15532,15 +15617,89 @@ window.renderDesktopAppsMenu = function() {
 
 window.renderDesktopHomeMenus = function() {
     var learn = document.getElementById('homeLearnMenu');
-    var view = learn && learn.getAttribute('data-learn-view');
-    window.renderDesktopLearnMenu(view === 'quests' ? 'quests' : 'root');
+    var keepQuests = learn && menuIsOpen(learn) && learn.getAttribute('data-learn-view') === 'quests';
+    if (learn && !keepQuests) learn.setAttribute('data-learn-view', 'root');
+    window.renderDesktopLearnMenu(keepQuests ? 'quests' : 'root');
     window.renderDesktopAppsMenu();
 };
+
+function appHandledOverlayOpen() {
+    function openClass(id) {
+        var el = document.getElementById(id);
+        return !!(el && el.classList.contains('open'));
+    }
+    if (openClass('usernameModal') || openClass('tosModal') || openClass('questModal') || openClass('lb')) return true;
+    var topics = document.getElementById('topicsBrowser');
+    if (topics && topics.isConnected && !topics.hidden) return true;
+    var search = document.getElementById('searchOverlay');
+    if (search && (search.getAttribute('data-open') === '1' || (search.style.display && search.style.display !== 'none'))) return true;
+    var ids = ['nachoStoryOverlay', 'spinModal', 'donateModal', 'kbHelpModal', 'pvpOverlay', 'nachoModeScreen', 'tipOverlay'];
+    var i;
+    for (i = 0; i < ids.length; i++) {
+        if (document.getElementById(ids[i])) return true;
+    }
+    if (document.body.classList.contains('fab-tools-open')) return true;
+    return false;
+}
+
+function overlayAboveMenus() {
+    if (appHandledOverlayOpen()) return true;
+    if (document.getElementById('questHubOverlay') || document.getElementById('btcDashOverlay')) return true;
+    if (window._aiToolsOpen && document.getElementById('aiToolsPanel')) return true;
+    var board = document.getElementById('leaderboard');
+    return !!(board && board.classList.contains('open') && !board.classList.contains('minimized'));
+}
+
+function closeUnmanagedOverlay() {
+    var questHub = document.getElementById('questHubOverlay');
+    if (questHub) {
+        if (typeof window._closeQuestScreen === 'function') window._closeQuestScreen();
+        else questHub.remove();
+        return true;
+    }
+    if (window._aiToolsOpen && document.getElementById('aiToolsPanel') && typeof window.toggleAITools === 'function') {
+        window.toggleAITools();
+        return true;
+    }
+    if (document.getElementById('btcDashOverlay')) {
+        if (typeof window.closeDashboard === 'function') window.closeDashboard();
+        else document.getElementById('btcDashOverlay').remove();
+        return true;
+    }
+    var board = document.getElementById('leaderboard');
+    if (board && board.classList.contains('open') && !board.classList.contains('minimized')) {
+        if (typeof window.toggleLeaderboard === 'function') window.toggleLeaderboard();
+        else board.classList.remove('open');
+        return true;
+    }
+    return false;
+}
 
 if (!window._desktopMenuKeys) {
     window._desktopMenuKeys = true;
     document.addEventListener('keydown', function(e) {
-        if (e.key !== 'Escape' || desktopModalOpen()) return;
+        if (e.key !== 'Escape') return;
+        if (overlayAboveMenus()) {
+            window._bqEscapeTop = 'overlay';
+            if (!appHandledOverlayOpen() && closeUnmanagedOverlay()) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+            return;
+        }
+        var learnSheet = document.getElementById('mobileLearnMenu');
+        var appsSheet = document.getElementById('appsMenu');
+        if (learnSheet || appsSheet) {
+            window._bqEscapeTop = 'sheet';
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            dismissSheet(learnSheet || appsSheet);
+            return;
+        }
+        window._bqEscapeTop = 'menu';
+    }, true);
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' || window._bqEscapeTop !== 'menu' || desktopModalOpen()) return;
         var learn = document.getElementById('homeLearnMenu');
         var apps = document.getElementById('homeAppsMenu');
         if (menuIsOpen(learn)) {
@@ -20616,12 +20775,7 @@ document.addEventListener('btcProfileSaved', function() {
 
     window.nachoLearningPath = function() {
         var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
-        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _a = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
-        var isFull = true;
-        var isCommunity = true;
-        var isExplorer = true;
 
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
@@ -20629,17 +20783,11 @@ document.addEventListener('btcProfileSaved', function() {
         var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">🗺️ Your Bitcoin Journey</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '% concepts mastered</div>';
 
-        // All apps unlocked info
-        html += '<div style="background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;padding:12px;margin-bottom:16px;font-size:0.8rem;line-height:1.4;">' +
-            '<div style="font-weight:800;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">✅ All Features Unlocked</div>' +
-            '<p style="margin:0;color:var(--text);">Every app and feature is available to you. Explore freely! 🦌</p>' +
-            '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
-                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>🗣️ Pleb Talk</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>🤝 IRL Sync</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>⚡ Lightning Mart</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (_a && !_a.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
-            '</div>' +
-        '</div>';
+        if (!_a || _a.isAnonymous) {
+            html += '<div style="background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;padding:12px;margin-bottom:16px;font-size:0.8rem;line-height:1.4;">' +
+                '<div style="font-weight:800;color:var(--accent);">Sign in to keep your profile and progress.</div>' +
+            '</div>';
+        }
 
         // Progress bar
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;height:8px;margin-bottom:12px;overflow:hidden;">' +
@@ -21540,13 +21688,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var hero = document.getElementById('hero');
         if (hero) hero.style.display = 'none';
 
-        // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
-        var isAdmin = window._isAdminClaim === true;
-        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        var isNewUser = !isAdmin && (visits < 2 && exploredCount < 3);
-        
-        // Hide distracting gamification for absolute beginners to focus on core education
+        // Show the home actions. Visited-topic counts do not hide apps.
         var spinBtn = document.querySelector('[onclick*="showSpinWheel"]');
         var predictBtn = document.querySelector('[onclick*="showPricePrediction"]');
         var storyBtn = document.querySelector('[onclick*="showNachoStory"]');
@@ -21875,6 +22017,10 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close PVP overlay
             var pvp = document.getElementById('pvpOverlay');
             if (pvp) { if (typeof exitPVPMode === 'function') exitPVPMode(); return; }
+            // Close a tip or Nacho before any menu under them.
+            var tip = document.getElementById('tipOverlay');
+            if (tip) { tip.remove(); return; }
+            if (document.getElementById('nachoModeScreen') && window._nachoMode && typeof exitNachoMode === 'function') { exitNachoMode(); return; }
             // Close apps menu
             var am = document.getElementById('appsMenu');
             if (am && am.style.display === 'block') { am.style.display = 'none'; return; }
@@ -22095,30 +22241,12 @@ window.nachoQuizAnswer = function(btn, correct) {
     // Cache loaded channel data
     const channelCache = {};
 
-    // PROGRESSIVE SIDEBAR UPDATE
+    // Keep sidebar categories expanded or collapsed from their own toggle.
+    // Visited-topic counts do not lock Pleb Talk, IRL Sync, or Lightning Mart.
     function updateSidebarTiers() {
-        const exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        const visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        
-        // Admin Bypass Logic — safely handle auth not being ready yet
-        var _auth = (typeof auth !== 'undefined') ? auth : null;
-        var _cu = _auth && _auth.currentUser;
-        const isAdmin = window._isAdminClaim === true;
-
-        // Experienced onboarding users bypass all gating
-        var _obProfile = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
-        var _isAdvanced = _obProfile && (_obProfile.level === 'advanced' || _obProfile.level === 'full');
-
-        // Tier Logic — all apps unlocked for everyone (progressive unlock removed)
-        const isFull = true;
-        const isCommunity = true;
-        const isExplorer = true;
-
         const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
         const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
 
-        // All categories always visible — no tier gating on channel access
-        // Users can explore everything; the "Next Goal" banner encourages progression
         toggleLabels.forEach(function(label) {
             var group = label.nextElementSibling;
             if (!group || !group.classList.contains('cat-group')) return;
@@ -22152,7 +22280,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Sidebar Action Buttons (exclude buttons inside appsMenu — those have their own formatting)
         sidebarButtons.forEach(btn => {
             if (btn.closest('#appsMenu') || btn.closest('#homeAppsMenu') || btn.closest('#guideOverlay') || btn.closest('#questHubOverlay')) return;
-            const txt = btn.getAttribute('data-name') || btn.textContent.replace('🔒 ', '').trim();
+            const txt = btn.getAttribute('data-name') || btn.textContent.trim();
             if (!btn.getAttribute('data-name')) btn.setAttribute('data-name', txt);
             
             const origOnclick = btn.getAttribute('data-onclick') || btn.getAttribute('onclick');
@@ -22169,79 +22297,6 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         });
 
-        // Gate tiered app buttons on home page
-        // Pure CSS-class approach — never mutate innerHTML so span styles stay intact
-        const tieredBtns = document.querySelectorAll('[data-tier]');
-        tieredBtns.forEach(btn => {
-            const tier = btn.getAttribute('data-tier');
-            const name = btn.getAttribute('data-unlock-name') || (btn.querySelector('.app-title') || btn).textContent.trim();
-            // Save original onclick string once
-            if (!btn.getAttribute('data-onclick')) {
-                var _oc = btn.getAttribute('onclick');
-                if (_oc) btn.setAttribute('data-onclick', _oc);
-            }
-            // Save original title-span text once (so we can restore 🔒 prefix removal)
-            var _titleSpan = btn.querySelector('.app-title');
-            if (_titleSpan && !btn.getAttribute('data-orig-title')) {
-                btn.setAttribute('data-orig-title', _titleSpan.textContent);
-            }
-
-            let unlocked = false;
-            let reqMsg = '';
-            if (tier === 'explorer') {
-                unlocked = isExplorer;
-                reqMsg = '🔒 Visit ' + Math.max(0, 3 - exploredCount) + ' more channel' + (3 - exploredCount === 1 ? '' : 's') + ' to unlock ' + name + '!';
-            } else if (tier === 'community') {
-                unlocked = isCommunity;
-                reqMsg = '🔒 Explore ' + Math.max(0, 5 - exploredCount) + ' more channel' + (5 - exploredCount === 1 ? '' : 's') + ' to unlock ' + name + '!';
-            } else if (tier === 'full') {
-                unlocked = isFull;
-                reqMsg = '🔒 Explore ' + Math.max(0, 10 - exploredCount) + ' more channel' + (10 - exploredCount === 1 ? '' : 's') + ' or sign in to unlock ' + name + '!';
-            }
-
-            if (!unlocked) {
-                btn.classList.add('tier-locked');
-                btn.title = reqMsg;
-                btn.setAttribute('data-tooltip', reqMsg);
-                // Prefix title span with lock icon (text only, no HTML change)
-                if (_titleSpan) {
-                    var _orig = btn.getAttribute('data-orig-title') || _titleSpan.textContent;
-                    _titleSpan.textContent = '🔒 ' + _orig.replace(/^🔒\s*/, '');
-                }
-                btn.onclick = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (typeof showToast === 'function') showToast(reqMsg);
-                };
-            } else {
-                btn.classList.remove('tier-locked');
-                btn.title = '';
-                btn.style.opacity = '';
-                btn.style.filter = '';
-                btn.style.cursor = '';
-                // Restore original title text (remove lock prefix)
-                if (_titleSpan && btn.getAttribute('data-orig-title')) {
-                    _titleSpan.textContent = btn.getAttribute('data-orig-title');
-                }
-                var action = btn.getAttribute('data-onclick');
-                if (action) btn.onclick = _safeAction(action);
-            }
-        });
-
-        // Unlock celebrations — fire once per tier
-        var prevTier = localStorage.getItem('btc_unlocked_tier') || 'none';
-        var tiers = ['none', 'explorer', 'community', 'full'];
-        var curTier = isFull ? 'full' : isCommunity ? 'community' : isExplorer ? 'explorer' : 'none';
-        var prevIdx = tiers.indexOf(prevTier);
-        var curIdx = tiers.indexOf(curTier);
-        if (curIdx > prevIdx) {
-            localStorage.setItem('btc_unlocked_tier', curTier);
-            // Close any stale apps menu so next open reflects new tier
-            var _staleMenu = document.getElementById('appsMenu');
-            if (_staleMenu) _staleMenu.remove();
-            // Tier unlock toasts removed — all apps are open to all users
-        }
-        
         // Remove any leftover milestone banner
         var milestoneEl = document.getElementById('sidebarMilestone');
         if (milestoneEl) milestoneEl.remove();
@@ -22445,19 +22500,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
         }
-
-        // PROGRESSIVE DISCLOSURE TIER SYSTEM
-        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        
-        // Admin Bypass Logic
-        var isAdmin = window._isAdminClaim === true;
-
-        var isFull = true;
-        var isExplorer = true;
-
-        // Forum and Marketplace are ALWAYS viewable — actions (post, list) require sign-in
-        // No more page-level lockdown
 
         // Learning Quests: fixed overlay — render on top of current page, don't wipe home
         if (id === 'learning-quests') {
@@ -23436,11 +23478,22 @@ window.nachoQuizAnswer = function(btn, correct) {
         var menu = document.getElementById(id);
         if (!menu) return;
         var isVisible = menu.style.display === 'flex' || menu.style.display === 'grid' || menu.style.display === 'block';
-        
+        var toggleIds = { homeLearnMenu: 'homeLearnBtn', homeAppsMenu: 'homeAppsBtn' };
+        var toggle = toggleIds[id] ? document.getElementById(toggleIds[id]) : null;
+
         // Use inline-style directly to track state for simplicity in this build
         if (isVisible) {
             menu.style.display = 'none';
+            if (id === 'homeLearnMenu') {
+                menu.setAttribute('data-learn-view', 'root');
+                if (typeof window.renderDesktopLearnMenu === 'function') window.renderDesktopLearnMenu('root');
+            }
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
         } else {
+            if (id === 'homeLearnMenu') {
+                menu.setAttribute('data-learn-view', 'root');
+                if (typeof window.renderDesktopLearnMenu === 'function') window.renderDesktopLearnMenu('root');
+            }
             if (id.includes('Flash')) {
                 menu.style.display = 'flex';
             } else if (id.includes('homeAppsMenu')) {
@@ -23449,6 +23502,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 menu.style.display = 'flex';
                 menu.style.flexDirection = 'column';
             }
+            if (toggle) toggle.setAttribute('aria-expanded', 'true');
             if (typeof playSound === 'function') playSound('pop');
         }
     };

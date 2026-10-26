@@ -396,6 +396,8 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar'));
     assert.ok(!notes.includes('Latest: The phone Learn'));
+    assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
+    assert.ok(!notes.includes('Latest: A miner'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
     assert.ok(!notes.includes('Latest: Opening gifts'));
     assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));

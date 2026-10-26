@@ -1722,11 +1722,11 @@
                 color: '#a78bfa', bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))',
                 modes: LEARN_ALL, kind: 'hub' },
             { id: 'scholar', emoji: '🎓', title: 'Bitcoin Scholar',
-                desc: 'Certification on Bitcoin properties and economics.',
+                desc: 'Certification on Bitcoin properties and economics. +2,100 XP, not limited by the daily cap.',
                 color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.04))',
                 modes: LEARN_ALL, kind: 'cert', arg: 'properties' },
             { id: 'protocol', emoji: '🛠️', title: 'Bitcoin Protocol Expert',
-                desc: 'Certification on Bitcoin technical mechanics.',
+                desc: 'Certification on Bitcoin technical mechanics. +2,100 XP, not limited by the daily cap.',
                 color: '#3b82f6', bg: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(59,130,246,0.05))',
                 modes: LEARN_ALL, kind: 'cert', arg: 'technical' }
         ]
