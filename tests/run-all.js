@@ -60,6 +60,7 @@ const TESTS = [
     { name: 'User SF points', file: 'test-user-sf-points.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
     { name: 'Shared daily XP cap', file: 'test-daily-xp-cap.js' },
+    { name: 'Today earnings matches the meter', file: 'test-daily-xp-earnings.js' },
     { name: 'Proof of Walk daily cap', file: 'test-proof-of-walk.js' },
     { name: 'XP bank payout dry run', file: 'test-xp-bank-payout.js' },
     { name: 'Server ticket grants', file: 'test-ticket-grants.js' },

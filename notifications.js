@@ -970,8 +970,7 @@ function _getUnreadPointsCount() {
         local = _visibleLocalRewards().filter(function(e) { return !e.read; }).length;
     } catch (e) {}
     try {
-        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-        return log.filter(function(e) { return !e.read; }).length + local;
+        return _pointsLog().filter(function(e) { return !e.read; }).length + local;
     } catch(e) { return local; }
 }
 
@@ -1003,33 +1002,112 @@ function _updatePointsBadge() {
 // Mark all local points as read
 function _markAllPointsRead() {
     try {
-        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-        log.forEach(function(e) { e.read = true; });
+        var uid = _pointsUid();
+        var log = _pointsLogAll();
+        log.forEach(function(e) { if (e && uid && e.uid === uid) e.read = true; });
         localStorage.setItem('btc_points_log', JSON.stringify(log));
     } catch(e) {}
     _updatePointsBadge();
+}
+
+// Today's earnings reads the same cache as the Today meter. The lines below
+// are this user's history only. They are not the total, and this tab never writes the counter.
+function _pointsUid() {
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) return auth.currentUser.uid || '';
+    } catch (e) {}
+    return '';
+}
+
+function _pointsLogAll() {
+    try { return JSON.parse(localStorage.getItem('btc_points_log') || '[]'); } catch (e) { return []; }
+}
+
+function _pointsLog() {
+    var uid = _pointsUid();
+    if (!uid) return [];
+    return _pointsLogAll().filter(function (e) { return e && e.uid === uid; });
+}
+
+window._clearPointsHistory = function () {
+    var uid = _pointsUid();
+    var keep = _pointsLogAll().filter(function (e) { return uid && e && e.uid !== uid; });
+    try {
+        if (!keep.length) localStorage.removeItem('btc_points_log');
+        else localStorage.setItem('btc_points_log', JSON.stringify(keep));
+    } catch (e) {}
+    _renderPointsTab();
+};
+
+function _earningsFigures() {
+    var log = _pointsLog();
+    if (typeof window._dailyXpFigures === 'function') return window._dailyXpFigures(window._serverDailyXp, log);
+    return {
+        signedIn: false,
+        loaded: false,
+        used: 0,
+        earningsAmount: "Sign in to see today's XP",
+        meterLine: "Sign in to see today's XP",
+        note: ''
+    };
+}
+
+function _earningsHeaderHtml(figs) {
+    var noteStyle = 'font-size:0.65rem;color:var(--text-faint);font-weight:600;margin-top:4px;line-height:1.35;';
+    var noteHtml = figs.note
+        ? '<div id="todayEarningsNote" style="' + noteStyle + '">' + figs.note + '</div>'
+        : '<div id="todayEarningsNote" hidden style="' + noteStyle + '"></div>';
+    return '<div id="todayEarningsRow" style="padding:10px 16px;background:rgba(247,147,26,0.06);border-bottom:1px solid var(--border);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">' +
+            '<span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;">Today\'s earnings</span>' +
+            '<span id="todayEarningsAmount" style="font-size:0.85rem;font-weight:800;color:var(--accent);text-align:right;line-height:1.35;">' + figs.earningsAmount + '</span>' +
+        '</div>' + noteHtml + '</div>';
+}
+
+window._paintTodayEarnings = function () {
+    var amount = document.getElementById('todayEarningsAmount');
+    if (!amount) return;
+    var figs = _earningsFigures();
+    amount.textContent = figs.earningsAmount;
+    var note = document.getElementById('todayEarningsNote');
+    if (!note) return;
+    if (figs.note) {
+        note.hidden = false;
+        note.textContent = figs.note;
+    } else {
+        note.hidden = true;
+        note.textContent = '';
+    }
+};
+
+function _bindDailyXp() {
+    if (window._dailyXpBound || typeof window._subscribeDailyXp !== 'function') return;
+    window._dailyXpBound = true;
+    window._subscribeDailyXp(function () {
+        if (typeof window._paintTodayEarnings === 'function') window._paintTodayEarnings();
+    });
 }
 
 // Render the points log tab
 function _renderPointsTab() {
     var body = document.getElementById('notifPanelBody');
     if (!body) return;
-    var log;
-    try { log = JSON.parse(localStorage.getItem('btc_points_log') || '[]'); } catch(e) { log = []; }
-    if (log.length === 0) {
-        body.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">⭐</div><div style="color:var(--text-muted);font-size:0.85rem;">No XP earned yet!</div><div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Explore channels, answer quizzes, and chat with Nacho to earn XP.</div></div>';
+    _bindDailyXp();
+    if (typeof window._ensureDailyXp === 'function') window._ensureDailyXp();
+    var log = _pointsLog();
+    var figs = _earningsFigures();
+    if (log.length === 0 && !figs.signedIn) {
+        body.innerHTML = _earningsHeaderHtml(figs) + '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">⭐</div><div style="color:var(--text-muted);font-size:0.85rem;">No XP earned yet!</div><div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Explore channels, answer quizzes, and chat with Nacho to earn XP.</div></div>';
         return;
     }
     // Mark all as read when viewing
-    _markAllPointsRead();
-    // Render most recent first
-    var html = '';
-    // Today total
-    var today = new Date().toDateString();
-    var todayTotal = 0;
-    log.forEach(function(e) { if (new Date(e.ts).toDateString() === today) todayTotal += e.pts; });
-    if (todayTotal > 0) {
-        html += '<div style="padding:10px 16px;background:rgba(247,147,26,0.06);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;">Today\'s earnings</span><span style="font-size:0.85rem;font-weight:800;color:var(--accent);">+' + todayTotal + ' XP</span></div>';
+    if (log.length) _markAllPointsRead();
+    // Render most recent first. The header is the server daily total, not the sum of these lines.
+    var html = _earningsHeaderHtml(figs);
+    if (!log.length) {
+        html += '<div style="text-align:center;padding:28px 20px;"><div style="font-size:2rem;margin-bottom:8px;">⭐</div><div style="color:var(--text-muted);font-size:0.85rem;">No XP lines yet</div></div>';
+        body.innerHTML = html;
+        return;
     }
     for (var i = log.length - 1; i >= 0; i--) {
         var e = log[i];
@@ -1044,7 +1122,7 @@ function _renderPointsTab() {
             '</div>' +
         '</div>';
     }
-    html += '<div style="text-align:center;padding:12px;"><button onclick="if(confirm(\'Clear XP history?\')){{localStorage.removeItem(\'btc_points_log\');_renderPointsTab()}}" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">Clear history</button></div>';
+    html += '<div style="text-align:center;padding:12px;"><button onclick="if(confirm(\'Clear XP history?\')){if(window._clearPointsHistory)window._clearPointsHistory()}" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">Clear history</button></div>';
     body.innerHTML = html;
 }
 

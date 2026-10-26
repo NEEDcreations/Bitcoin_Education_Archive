@@ -4082,6 +4082,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         }
 
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
+        var _awardSentAt = Date.now();
+        var _awardDay = new Date(_awardSentAt - 5 * 3600000).toISOString().slice(0, 10);
+        try {
+            if (typeof window.getDailyKey === 'function') _awardDay = window.getDailyKey();
+        } catch (awardDayErr) {}
         var payload = { pts: pts, action: reason || '', reason: reason || '' };
         if (channelId) payload.channelId = channelId;
         if (tickets) payload.tickets = tickets;
@@ -4118,16 +4123,28 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
             }
-            if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
-                window._serverDailyXp = {
+            if (result.data.dailyXp != null) {
+                var awardSnap = {
                     signedIn: true,
+                    source: 'award',
+                    sentAt: _awardSentAt,
+                    day: _awardDay,
                     dailyXp: result.data.dailyXp,
                     dailyCap: result.data.dailyCap || 1000,
                     fullUntil: result.data.fullUntil || 500,
                     halfUntil: result.data.halfUntil || 900,
                     pastCap: result.data.pastCap === true
                 };
-                window._paintDailyXpMeter(window._serverDailyXp);
+                if (typeof window._paintDailyXpMeter === 'function') {
+                    window._paintDailyXpMeter(awardSnap);
+                } else {
+                    var prevDaily = window._serverDailyXp;
+                    var incomingXp = Math.round(Number(result.data.dailyXp) || 0);
+                    var prevXp = prevDaily && prevDaily.loaded ? Math.round(Number(prevDaily.dailyXp) || 0) : -1;
+                    if (!(prevDaily && prevDaily.day === _awardDay && prevXp > incomingXp)) {
+                        window._serverDailyXp = awardSnap;
+                    }
+                }
             }
             if (result.data.capped || result.data.pastCap) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
@@ -4173,7 +4190,11 @@ window.notifySelfPoints = function(pts, reason) {
     if (!pts || pts < 1) return;
     if (!reason || reason === '') return;
     var ts = Date.now();
-    var entry = { pts: pts, reason: reason, ts: ts, read: false };
+    var uid = '';
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) uid = auth.currentUser.uid || '';
+    } catch (eUid) {}
+    var entry = { pts: pts, reason: reason, ts: ts, read: false, uid: uid };
     try {
         var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
         log.push(entry);
@@ -4192,8 +4213,12 @@ window._correctLastPointsNotif = function(ts, actualPts) {
     try {
         var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
         // Walk backwards — the entry we want is almost always the last one
+        var correctUid = '';
+        try {
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) correctUid = auth.currentUser.uid || '';
+        } catch (eUid2) {}
         for (var i = log.length - 1; i >= Math.max(0, log.length - 5); i--) {
-            if (log[i].ts === ts) {
+            if (log[i].ts === ts && (!correctUid || !log[i].uid || log[i].uid === correctUid)) {
                 if (actualPts === 0) {
                     log.splice(i, 1); // remove entirely if nothing was awarded
                 } else {
@@ -8170,7 +8195,7 @@ function accountDeleteRowHtml(user) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261024_v2357';
+            s.src = 'notifications.js?v=20261026_v2397';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -9939,7 +9964,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261024_v2357';
+    s.src = 'notifications.js?v=20261026_v2397';
     s.onload = run;
     document.body.appendChild(s);
 };
