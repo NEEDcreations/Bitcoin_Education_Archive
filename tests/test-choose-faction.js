@@ -378,6 +378,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf("Latest: Publishing an article awards 30 XP, once per article, up to 2 a day.") > 0);
+    assert.ok(notes.indexOf("Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.") > 0);
+    assert.ok(notes.indexOf("Latest: Inventory explains") === -1);
     assert.ok(notes.indexOf("Settings → Sats now lists the XP you can actually earn, including the daily cap.") > 0);
     assert.ok(notes.indexOf("Latest: Settings → Sats") === -1);
     assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);

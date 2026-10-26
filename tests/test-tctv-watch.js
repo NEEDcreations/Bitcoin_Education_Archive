@@ -417,6 +417,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2401'"));
+    assert.ok(!sw.includes('btc-archive-v2378'));
+    assert.ok(!sw.includes('btc-archive-v2399'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
@@ -798,6 +800,8 @@ test('playback with no server clock asks the server to start it and does not inv
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
     const latest = 'Latest: Publishing an article awards 30 XP, once per article, up to 2 a day.';
+    assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(!notes.includes('Latest: Inventory explains'));
     const previousLatest = 'Settings → Sats now lists the XP you can actually earn, including the daily cap.';
     const minerName = "A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.";
     assert.ok(notes.includes(minerName));
