@@ -1,8 +1,8 @@
-// Cache-buster pin. This ship branch is btc-archive-v2371.
+// Cache-buster pin. This ship branch is btc-archive-v2401.
 // timechain-tv.js stays 20261024_v2353.
-// bundle.min.js is 20261026_v2370. global-chat.js stays 20261026_v2369.
+// bundle.min.js is 20261026_v2401. global-chat.js stays 20261026_v2369.
 // quests.js and satoshi-favor.js stay 20261026_v2368.
-// ranking.js stays 20261026_v2367. onboarding.js stays 20261026_v2365.
+// earn-xp-guide.js and ranking.js and guide.js are 20261026_v2401. onboarding.js stays 20261026_v2365.
 // today-card.js is 20261026_v2371.
 // features.registry.js is 20261024_v2368.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
@@ -33,7 +33,7 @@ function test(name, fn) {
 
 test('service worker cache is v2371', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2371'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2401'"));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2368'));
@@ -69,7 +69,8 @@ test('service worker cache is v2371', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2370/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2401/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2368'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2365'));
@@ -112,9 +113,12 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261026_v2367'));
+    assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2401'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2401'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2367'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2401') < html.indexOf('ranking.js?v=20261026_v2401'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2401'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -245,7 +249,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
-    assert.ok(html.includes('guide.js?v=20261023_v2349'));
+    assert.ok(html.includes('guide.js?v=20261026_v2401'));
+    assert.ok(!html.includes('guide.js?v=20261023_v2349'));
     assert.ok(!html.includes('guide.js?v=20261023_v2339'));
     assert.ok(html.includes('patches.js?v=20261024_v2360'));
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
@@ -253,7 +258,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2371');
+    assert.ok(swVersion && swVersion[1] === 'v2401');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -290,7 +295,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
+    assert.ok(notes.includes('Latest: Settings → Sats now lists the XP you can actually earn, including the daily cap.'));
+    assert.ok(notes.includes('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
+    assert.ok(!notes.includes('Latest: The daily XP bar'));
     assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
     assert.ok(!notes.includes('Latest: On a computer'));
     assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
