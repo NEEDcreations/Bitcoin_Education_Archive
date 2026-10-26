@@ -2,7 +2,8 @@
 
 // Hosts already linked from topic lessons. The scam domain rule skips these
 // so a normal comment can say "bitcoin dot org". Telegram and shorteners
-// stay off the list. Matching also accepts a subdomain of a listed host.
+// stay off the list. A listed host still allows its subdomains, except
+// medium.com and google.com (exact hosts only) and forms.gle (never).
 const SCAM_ALLOW_HOSTS = new Set([
     '100millionsatoshis.world',
     '1ml.com',
@@ -412,7 +413,6 @@ const SCAM_ALLOW_HOSTS = new Set([
     'forbes.com',
     'fork.lol',
     'forkdrop.io',
-    'forms.gle',
     'foundationdevices.com',
     'fountain.fm',
     'fourweekmba.com',
@@ -950,11 +950,24 @@ const SCAM_ALLOW_HOSTS = new Set([
     'zxing.org',
 ]);
 
+// User-content platforms. An exact listed host (docs.google.com,
+// breedlove22.medium.com) is fine. A random subdomain is not, and forms.gle
+// is a shortener, so it is never treated as known-good.
+const SCAM_EXACT_ONLY_PARENTS = { 'medium.com': 1, 'google.com': 1, 'forms.gle': 1 };
+
 function scamHostAllowed(host) {
     let h = String(host || '').toLowerCase().replace(/\.+$/, '').replace(/^www\./, '');
+    if (!h || h === 'forms.gle' || h.slice(-10) === '.forms.gle') return false;
+    // medium.com and google.com only match the exact host that a topic links.
+    // evil.medium.com and evil.docs.google.com do not climb up to the apex.
+    if (h === 'medium.com' || h.slice(-11) === '.medium.com' || h === 'google.com' || h.slice(-11) === '.google.com') {
+        return SCAM_ALLOW_HOSTS.has(h);
+    }
+    if (SCAM_ALLOW_HOSTS.has(h)) return true;
     while (h.indexOf('.') !== -1) {
-        if (SCAM_ALLOW_HOSTS.has(h)) return true;
         h = h.slice(h.indexOf('.') + 1);
+        if (SCAM_EXACT_ONLY_PARENTS[h]) return false;
+        if (SCAM_ALLOW_HOSTS.has(h)) return true;
     }
     return false;
 }

@@ -35,6 +35,8 @@ new_sqlite_classes = ["AiDailyCap"]
 # is rejected on accounts that do not already have a KV namespace.
 # The 400/day cap is taken only when the model runs. Token-less and
 # anonymous calls share 25% of it. Signed-in calls can use the rest.
+# One signed-in account is also capped at 40/day so it cannot spend the
+# whole site pool. 400 and 25% stay as constants until Phil says otherwise.
 # Deploy from this directory when ready (this PR does not deploy):
 #   npx wrangler@3 deploy --keep-vars
 # --keep-vars keeps BRAVE_API_KEY and AI_AUTH. Do not re-put BRAVE_API_KEY.

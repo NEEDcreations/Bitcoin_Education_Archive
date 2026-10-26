@@ -883,6 +883,118 @@ function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
         }
     });
 
+    await test('one signed-in account cannot spend the whole daily cap', async function() {
+        const { pathToFileURL } = require('url');
+        const crypto = require('crypto');
+        const worker = await import(pathToFileURL(path.join(root, 'workers/nacho-search/worker.js')).href);
+        assert.strictEqual(worker.SITE_DAILY_CAP, 400);
+        assert.strictEqual(worker.GUEST_DAILY_SHARE, 0.25);
+        assert.strictEqual(worker.UID_DAILY_CAP, 40);
+        const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+        const jwk = publicKey.export({ format: 'jwk' });
+        jwk.kid = 'uid-cap-key';
+        jwk.alg = 'RS256';
+        jwk.use = 'sig';
+        const live = Math.floor(Date.now() / 1000);
+        function sign(sub) {
+            const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'uid-cap-key' })).toString('base64url');
+            const payload = Buffer.from(JSON.stringify({
+                iss: 'https://securetoken.google.com/bitcoin-education-archive',
+                aud: 'bitcoin-education-archive',
+                sub: sub,
+                iat: live - 10,
+                exp: live + 3600,
+                auth_time: live - 20,
+                firebase: { sign_in_provider: 'password' },
+            })).toString('base64url');
+            const data = header + '.' + payload;
+            const sig = crypto.sign('RSA-SHA256', Buffer.from(data), privateKey).toString('base64url');
+            return data + '.' + sig;
+        }
+        const day = new Date().toISOString().slice(0, 10);
+        const mem = new Map();
+        const cap = new worker.AiDailyCap({ storage: {
+            get: async function(key) { return mem.get(key); },
+            put: async function(key, value) { mem.set(key, value); },
+        } });
+        function take(body) {
+            return cap.fetch(new Request('https://ai-daily/take', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            })).then(function(res) { return res.json(); });
+        }
+        const base = { day: day, limit: 400, guestLimit: 100, uidLimit: 40 };
+        for (let i = 0; i < 40; i++) {
+            const row = await take(Object.assign({ tier: 'signed', uid: 'alice' }, base));
+            assert.strictEqual(row.ok, true, 'alice ' + i);
+        }
+        const blockedUid = await take(Object.assign({ tier: 'signed', uid: 'alice' }, base));
+        assert.strictEqual(blockedUid.ok, false);
+        assert.strictEqual(mem.get('cap').count, 40);
+        assert.strictEqual(mem.get('cap').uids.alice, 40);
+        const bob = await take(Object.assign({ tier: 'signed', uid: 'bob' }, base));
+        assert.strictEqual(bob.ok, true);
+        assert.strictEqual(mem.get('cap').uids.bob, 1);
+        const guest = await take(Object.assign({ tier: 'guest', uid: 'alice' }, base));
+        assert.strictEqual(guest.ok, true);
+        assert.strictEqual(mem.get('cap').uids.alice, 40);
+        assert.strictEqual(mem.get('cap').guest, 1);
+        mem.set('cap', { day: '1999-01-01', count: 400, guest: 100, uids: { alice: 40 } });
+        const rolled = await take(Object.assign({ tier: 'signed', uid: 'alice' }, base));
+        assert.strictEqual(rolled.ok, true);
+        assert.strictEqual(mem.get('cap').day, day);
+        assert.strictEqual(mem.get('cap').uids.alice, 1);
+
+        const wired = new Map();
+        wired.set('cap', { day: day, count: 10, guest: 0, uids: { 'uid-alice': 40 } });
+        const wiredCap = new worker.AiDailyCap({ storage: {
+            get: async function(key) { return wired.get(key); },
+            put: async function(key, value) { wired.set(key, value); },
+        } });
+        const env = {
+            AI: { run: async function() { return { response: 'Miners change a nonce until the hash is small enough.' }; } },
+            AI_DAILY: {
+                idFromName: function() { return 'site'; },
+                get: function() { return { fetch: function(url, init) { return wiredCap.fetch(new Request(url, init)); } }; },
+            },
+        };
+        function call(ip, token) {
+            const headers = { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip };
+            if (token) headers.Authorization = 'Bearer ' + token;
+            return worker.default.fetch(new Request('https://nacho.test/ai', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ question: 'What is a nonce in a block header?' }),
+            }), env);
+        }
+        const realFetch = global.fetch;
+        global.fetch = async function(url) {
+            if (String(url).indexOf('securetoken@system.gserviceaccount.com') !== -1) {
+                return {
+                    ok: true,
+                    headers: { get: function() { return 'public, max-age=60'; } },
+                    json: async function() { return { keys: [jwk] }; },
+                };
+            }
+            return { ok: false, status: 599, headers: { get: function() { return ''; } }, json: async function() { return {}; }, text: async function() { return ''; } };
+        };
+        try {
+            worker.resetJwksCache();
+            const alice = await call('203.0.113.110', sign('uid-alice'));
+            assert.strictEqual(alice.status, 429);
+            assert.strictEqual(wired.get('cap').uids['uid-alice'], 40);
+            assert.strictEqual(wired.get('cap').count, 10);
+            const other = await call('203.0.113.111', sign('uid-bob'));
+            assert.strictEqual(other.status, 200);
+            assert.strictEqual(wired.get('cap').uids['uid-bob'], 1);
+            assert.strictEqual(wired.get('cap').count, 11);
+        } finally {
+            global.fetch = realFetch;
+            worker.resetJwksCache();
+        }
+    });
+
     await test('scam comments are left out and scam answers are replaced', async function() {
         const chat = require('../functions/src/chatProfanity');
         ['send 1000 sats to verify', 'admin will DM you', 'bit-quest dot xyz'].forEach(function(phrase) {

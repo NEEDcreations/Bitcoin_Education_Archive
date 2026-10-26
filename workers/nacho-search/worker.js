@@ -50,6 +50,7 @@ const UID_LIMIT = 10;
 const ANON_UID_LIMIT = 3;
 const SITE_DAILY_CAP = 400;
 const GUEST_DAILY_SHARE = 0.25;
+const UID_DAILY_CAP = 40;
 const OPEN_IP_LIMIT = 20;
 const SIGNED_IP_LIMIT = 120;
 const _authCounts = { valid: 0, invalid: 0, missing: 0 };
@@ -220,19 +221,25 @@ class AiDailyCap {
     const day = String(body && body.day || "");
     const limit = Number(body && body.limit) > 0 ? Number(body.limit) : SITE_DAILY_CAP;
     const guestLimit = Number(body && body.guestLimit) > 0 ? Number(body.guestLimit) : Math.floor(limit * GUEST_DAILY_SHARE);
+    const uidLimit = Number(body && body.uidLimit) > 0 ? Number(body.uidLimit) : UID_DAILY_CAP;
     const tier = body && body.tier === "signed" ? "signed" : "guest";
-    const stored = await this.state.storage.get("cap") || { day: "", count: 0, guest: 0 };
+    const uid = tier === "signed" ? String(body && body.uid || "").slice(0, 128) : "";
+    const stored = await this.state.storage.get("cap") || { day: "", count: 0, guest: 0, uids: {} };
     let count = stored.day === day ? Number(stored.count) || 0 : 0;
     let guest = stored.day === day ? Number(stored.guest) || 0 : 0;
-    if (count >= limit) return Response.json({ ok: false, count, guest });
-    if (tier !== "signed" && guest >= guestLimit) return Response.json({ ok: false, count, guest });
+    const uids = stored.day === day && stored.uids && typeof stored.uids === "object" ? Object.assign({}, stored.uids) : {};
+    const uidCount = uid ? Number(uids[uid]) || 0 : 0;
+    if (count >= limit) return Response.json({ ok: false, count, guest, uidCount });
+    if (tier !== "signed" && guest >= guestLimit) return Response.json({ ok: false, count, guest, uidCount });
+    if (uid && uidCount >= uidLimit) return Response.json({ ok: false, count, guest, uidCount });
     count += 1;
     if (tier !== "signed") guest += 1;
-    await this.state.storage.put("cap", { day, count, guest });
-    return Response.json({ ok: true, count, guest });
+    if (uid) uids[uid] = uidCount + 1;
+    await this.state.storage.put("cap", { day, count, guest, uids });
+    return Response.json({ ok: true, count, guest, uidCount: uid ? uids[uid] : 0 });
   }
 }
-async function takeSiteDaily(env, nowMs, tier) {
+async function takeSiteDaily(env, nowMs, tier, uid) {
   if (!env || !env.AI_DAILY || typeof env.AI_DAILY.idFromName !== "function") return true;
   try {
     const day = new Date(nowMs).toISOString().slice(0, 10);
@@ -244,7 +251,9 @@ async function takeSiteDaily(env, nowMs, tier) {
         day,
         limit: SITE_DAILY_CAP,
         guestLimit: Math.floor(SITE_DAILY_CAP * GUEST_DAILY_SHARE),
-        tier: tier === "signed" ? "signed" : "guest"
+        uidLimit: UID_DAILY_CAP,
+        tier: tier === "signed" ? "signed" : "guest",
+        uid: tier === "signed" ? String(uid || "") : ""
       })
     });
     const data = await res.json();
@@ -597,7 +606,7 @@ async function handleAI(request, env, corsHeaders, ip) {
     }, {
       data,
       aiRun: async (model, payload) => {
-        if (!await takeSiteDaily(env, Date.now(), dailyTier)) {
+        if (!await takeSiteDaily(env, Date.now(), dailyTier, uid)) {
           const err = new Error("daily-cap");
           err.dailyCap = true;
           throw err;
@@ -641,6 +650,7 @@ export {
   JWKS_URL,
   SITE_DAILY_CAP,
   GUEST_DAILY_SHARE,
+  UID_DAILY_CAP,
   SIGNED_IP_LIMIT
 };
 //# sourceMappingURL=nacho-ai-worker.js.map

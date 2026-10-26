@@ -68,6 +68,7 @@ const TESTS = [
     { name: 'Nacho live answers', file: 'nacho-quality.js' },
     { name: 'Chat scam regression', file: 'test-chat-scam-regression.js' },
     { name: 'Scam fuzz', file: 'test-scam-fuzz.js' },
+    { name: 'Scam review v4', file: 'test-scam-review-v4.js' },
     { name: 'KB question routing', file: 'test-kb-routing.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
