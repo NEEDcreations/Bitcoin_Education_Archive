@@ -22611,6 +22611,25 @@ window.nachoQuizAnswer = function(btn, correct) {
                 appResults.push({ key: page.id, title: page.title, cat: '⚡ App', match: page.desc, action: page.action });
             }
         }
+        if (window.EARN_XP_SECTIONS && q.length >= 3) {
+            var earnHits = 0;
+            for (var ei = 0; ei < window.EARN_XP_SECTIONS.length && earnHits < 3; ei++) {
+                var earnSection = window.EARN_XP_SECTIONS[ei];
+                var earnTitle = String(earnSection.title || '').toLowerCase();
+                var earnBody = (earnSection.items || []).join('\n').replace(/<[^>]+>/g, '').toLowerCase();
+                var titleHit = earnTitle.indexOf(q) !== -1;
+                var bodyHit = q.length >= 4 && earnBody.indexOf(q) !== -1;
+                if (!titleHit && !bodyHit) continue;
+                earnHits++;
+                appResults.push({
+                    key: '_' + earnSection.id,
+                    title: earnSection.title + ' (' + earnSection.items.length + ')',
+                    cat: '⚡ How to Earn XP',
+                    match: 'Settings → Sats',
+                    action: "if(window.openEarnXpSection)window.openEarnXpSection('" + earnSection.id + "')"
+                });
+            }
+        }
 
         // Search channel titles from index
         let results = [];

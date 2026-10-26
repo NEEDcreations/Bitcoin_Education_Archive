@@ -7237,11 +7237,11 @@ function accountDeleteRowHtml(user) {
 
         // Earning guide (collapsible)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;">';
-        html += '<button onclick="event.stopPropagation();var c=document.getElementById(\'earnXPContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
-        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn XP</span>';
-        html += '<span class="earn-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>';
+        html += '<button type="button" id="earnXPToggle" aria-expanded="false" aria-controls="earnXPContent" onclick="event.stopPropagation();toggleEarnXpPanel(this)" style="width:100%;min-height:44px;padding:0 16px;box-sizing:border-box;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);text-align:left;">🎯 How to Earn XP</span>';
+        html += '<span class="earn-xp-chevron" aria-hidden="true"></span>';
         html += '</button>';
-        html += '<div id="earnXPContent" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        html += '<div id="earnXPContent" role="region" aria-labelledby="earnXPToggle" hidden onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         html += (typeof window.renderEarnXpGuide === 'function') ? window.renderEarnXpGuide() : '';
         html += '</div></div>';
 
@@ -8076,6 +8076,7 @@ function accountDeleteRowHtml(user) {
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
+    if (settingsTab === 'sats' && typeof window.syncEarnXpDisclosures === 'function') window.syncEarnXpDisclosures();
     if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
     if (settingsTab === 'account') mountAccountGoogleLinkButton();
     var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';

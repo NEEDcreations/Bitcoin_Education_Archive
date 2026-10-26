@@ -126,26 +126,206 @@
         }
     ];
 
-    function sectionHtml(section) {
+    function escapeText(value) {
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function plainSectionText(section) {
+        return (section.title + '\n' + section.items.join('\n')).replace(/<[^>]+>/g, '').toLowerCase();
+    }
+
+    function resolveSectionId(value) {
+        var raw = String(value || '').replace(/^#/, '').trim().toLowerCase();
+        if (!raw) return '';
+        var i;
+        for (i = 0; i < SECTIONS.length; i++) {
+            if (SECTIONS[i].id === raw) return SECTIONS[i].id;
+        }
+        if (raw.length < 3) return '';
+        for (i = 0; i < SECTIONS.length; i++) {
+            if (plainSectionText(SECTIONS[i]).indexOf(raw) !== -1) return SECTIONS[i].id;
+        }
+        return '';
+    }
+
+    function linkedSectionId() {
+        if (typeof window._earnXpOpenId === 'string' && window._earnXpOpenId) {
+            var pending = resolveSectionId(window._earnXpOpenId);
+            if (pending) return pending;
+        }
+        var hash = '';
+        try { hash = (window.location && window.location.hash) || ''; } catch (e) {}
+        return resolveSectionId(hash);
+    }
+
+    function sectionStartsOpen(section, index) {
+        var linked = linkedSectionId();
+        if (linked) return section.id === linked;
+        return index === 0;
+    }
+
+    function domId(prefix, id) {
+        return (prefix || '') + id;
+    }
+
+    function sectionHtml(section, index, prefix) {
+        var open = sectionStartsOpen(section, index);
         var items = '';
         for (var i = 0; i < section.items.length; i++) {
             items += '<li style="margin:0 0 10px;">' + section.items[i] + '</li>';
         }
-        return '<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
-            '<button onclick="event.stopPropagation();var c=document.getElementById(\'' + section.id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
-            '<span class="ea" style="color:var(--text-faint);font-size:14px;">▶</span>' +
-            '<span style="color:var(--text);font-size:15px;font-weight:700;text-align:left;">' + section.title + '</span></button>' +
-            '<div id="' + section.id + '" style="display:none;padding:12px 14px 4px;font-size:14px;color:var(--text-muted);line-height:1.45;">' +
+        var label = escapeText(section.title) + ' (' + section.items.length + ')';
+        var id = domId(prefix, section.id);
+        var buttonId = id + '_btn';
+        return '<div class="earn-xp-section" data-earn-section="' + section.id + '" style="margin:0 0 10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;text-align:left;">' +
+            '<h3 style="margin:0;font:inherit;font-weight:inherit;">' +
+            '<button type="button" id="' + buttonId + '" class="earn-xp-toggle" aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + id + '" style="width:100%;min-height:44px;height:auto;padding:0 14px;box-sizing:border-box;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;color:var(--text);">' +
+            '<span class="earn-xp-chevron" aria-hidden="true"></span>' +
+            '<span style="color:var(--text);font-size:15px;font-weight:700;text-align:left;line-height:1.3;">' + label + '</span></button></h3>' +
+            '<div id="' + id + '" class="earn-xp-panel" role="region" aria-labelledby="' + buttonId + '"' + (open ? '' : ' hidden') + ' style="padding:12px 14px 4px;font-size:14px;color:var(--text-muted);line-height:1.45;">' +
             '<ul style="margin:0;padding:0 0 0 18px;">' + items + '</ul></div></div>';
     }
 
-    function renderEarnXpGuide() {
-        var html = '<div style="margin:0 0 12px;font-size:14px;color:var(--text-muted);line-height:1.45;">' + CAP_LINE + '</div>';
-        for (var i = 0; i < SECTIONS.length; i++) html += sectionHtml(SECTIONS[i]);
+    function setSectionOpen(id, open) {
+        var btn = document.getElementById(id + '_btn');
+        var panel = document.getElementById(id);
+        if (!btn || !panel) return false;
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) panel.removeAttribute('hidden');
+        else panel.setAttribute('hidden', '');
+        return true;
+    }
+
+    function toggleEarnXpSection(btn) {
+        if (!btn || !btn.getAttribute) return;
+        var id = btn.getAttribute('aria-controls');
+        if (!id) return;
+        var open = btn.getAttribute('aria-expanded') === 'true';
+        setSectionOpen(id, !open);
+    }
+
+    function expandEarnXpPanel() {
+        var panel = document.getElementById('earnXPContent');
+        var btn = document.getElementById('earnXPToggle');
+        if (panel) {
+            panel.hidden = false;
+            panel.style.display = 'block';
+        }
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+    }
+
+    function toggleEarnXpPanel(btn) {
+        var panel = document.getElementById('earnXPContent');
+        if (!panel || !btn) return;
+        var open = btn.getAttribute('aria-expanded') === 'true';
+        var next = !open;
+        btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+        if (next) {
+            panel.hidden = false;
+            panel.style.display = 'block';
+        } else {
+            panel.hidden = true;
+            panel.style.display = 'none';
+        }
+    }
+
+    function openEarnXpSection(idOrQuery) {
+        var id = resolveSectionId(idOrQuery);
+        if (!id) return false;
+        window._earnXpOpenId = id;
+        var opened = false;
+        try {
+            var modal = document.getElementById('usernameModal');
+            if (modal) modal.classList.add('open');
+            if (!document.getElementById(id) && typeof window.showSettingsPage === 'function') {
+                window.showSettingsPage('sats');
+            }
+            expandEarnXpPanel();
+            opened = setSectionOpen(id, true);
+            var panel = document.getElementById(id);
+            if (panel && panel.scrollIntoView) {
+                try { panel.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+            }
+        } finally {
+            window._earnXpOpenId = '';
+        }
+        return opened;
+    }
+
+    function syncEarnXpDisclosures() {
+        var id = linkedSectionId();
+        if (!id) return false;
+        expandEarnXpPanel();
+        var opened = setSectionOpen(id, true);
+        var panel = document.getElementById(id);
+        if (panel && panel.scrollIntoView) {
+            try { panel.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+        }
+        return opened;
+    }
+
+    function renderEarnXpGuide(prefix) {
+        if (prefix && !/^[A-Za-z0-9_-]+$/.test(prefix)) prefix = '';
+        ensureEarnXpStyles();
+        var html = '<div style="margin:0 0 12px;font-size:14px;color:var(--text-muted);line-height:1.45;text-align:left;">' + CAP_LINE + '</div>';
+        for (var i = 0; i < SECTIONS.length; i++) html += sectionHtml(SECTIONS[i], i, prefix || '');
         return html;
+    }
+
+    function ensureEarnXpStyles() {
+        if (typeof document === 'undefined' || !document.getElementById || document.getElementById('earnXpDisclosureStyle')) return;
+        var style = document.createElement('style');
+        style.id = 'earnXpDisclosureStyle';
+        style.textContent = '' +
+            '.earn-xp-chevron{flex:0 0 16px;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-faint);}' +
+            '.earn-xp-chevron:before{content:"";display:block;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transform-origin:center;}' +
+            '[aria-expanded="true"] > .earn-xp-chevron:before{transform:rotate(45deg);}' +
+            '.earn-xp-panel[hidden]{display:none !important;}' +
+            '.earn-xp-toggle:focus{outline:none;}' +
+            '.earn-xp-toggle:focus-visible{outline:2px solid var(--accent,#f7931a);outline-offset:-2px;}' +
+            '#earnXPToggle:focus{outline:none;}' +
+            '#earnXPToggle:focus-visible{outline:2px solid var(--accent,#f7931a);outline-offset:-2px;}';
+        (document.head || document.documentElement).appendChild(style);
+    }
+
+    function onEarnXpClick(event) {
+        var btn = event.target && event.target.closest ? event.target.closest('.earn-xp-toggle') : null;
+        if (!btn) return;
+        if (btn._earnXpFromKey) {
+            btn._earnXpFromKey = false;
+            return;
+        }
+        event.stopPropagation();
+        toggleEarnXpSection(btn);
+    }
+
+    function onEarnXpKey(event) {
+        var btn = event.target && event.target.closest ? event.target.closest('.earn-xp-toggle') : null;
+        if (!btn) return;
+        if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+        event.preventDefault();
+        event.stopPropagation();
+        btn._earnXpFromKey = true;
+        toggleEarnXpSection(btn);
+        setTimeout(function () { btn._earnXpFromKey = false; }, 0);
+    }
+
+    if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('click', onEarnXpClick);
+        document.addEventListener('keydown', onEarnXpKey);
+        window.addEventListener('hashchange', function () {
+            var id = resolveSectionId((window.location && window.location.hash) || '');
+            if (id) openEarnXpSection(id);
+        });
+        ensureEarnXpStyles();
     }
 
     window.EARN_XP_CAP_LINE = CAP_LINE;
     window.EARN_XP_SECTIONS = SECTIONS;
     window.renderEarnXpGuide = renderEarnXpGuide;
+    window.toggleEarnXpSection = toggleEarnXpSection;
+    window.toggleEarnXpPanel = toggleEarnXpPanel;
+    window.openEarnXpSection = openEarnXpSection;
+    window.syncEarnXpDisclosures = syncEarnXpDisclosures;
+    window.earnXpSectionStartsOpen = sectionStartsOpen;
 })();
