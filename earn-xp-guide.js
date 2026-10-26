@@ -148,6 +148,15 @@
         return '';
     }
 
+    function sectionIdFromHash(hash) {
+        var raw = String(hash || '').replace(/^#/, '').trim().toLowerCase();
+        var i;
+        for (i = 0; i < SECTIONS.length; i++) {
+            if (SECTIONS[i].id === raw) return SECTIONS[i].id;
+        }
+        return '';
+    }
+
     function linkedSectionId() {
         if (typeof window._earnXpOpenId === 'string' && window._earnXpOpenId) {
             var pending = resolveSectionId(window._earnXpOpenId);
@@ -155,7 +164,7 @@
         }
         var hash = '';
         try { hash = (window.location && window.location.hash) || ''; } catch (e) {}
-        return resolveSectionId(hash);
+        return sectionIdFromHash(hash);
     }
 
     function sectionStartsOpen(section, index) {
@@ -311,13 +320,20 @@
     }
 
     if (typeof document !== 'undefined' && document.addEventListener) {
-        document.addEventListener('click', onEarnXpClick);
+        // Capture: Settings stops clicks inside #earnXPContent, so a bubbling
+        // listener never sees a tap on a section header.
+        document.addEventListener('click', onEarnXpClick, true);
         document.addEventListener('keydown', onEarnXpKey);
         window.addEventListener('hashchange', function () {
-            var id = resolveSectionId((window.location && window.location.hash) || '');
+            var id = sectionIdFromHash((window.location && window.location.hash) || '');
             if (id) openEarnXpSection(id);
         });
         ensureEarnXpStyles();
+        // A #ep_* link is already in the URL on first paint, so hashchange never fires.
+        setTimeout(function () {
+            var id = sectionIdFromHash((window.location && window.location.hash) || '');
+            if (id) openEarnXpSection(id);
+        }, 0);
     }
 
     window.EARN_XP_CAP_LINE = CAP_LINE;

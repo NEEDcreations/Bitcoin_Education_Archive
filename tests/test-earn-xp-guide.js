@@ -23,7 +23,10 @@ function loadGuide(location) {
             if (id === 'earnXpDisclosureStyle') return { id: id };
             return els[id] || null;
         },
-        addEventListener: function (type, fn) { listeners[type] = fn; },
+        addEventListener: function (type, fn, capture) {
+            listeners[type] = fn;
+            if (capture === true) listeners[type + ':capture'] = true;
+        },
         createElement: function () { return { id: '', textContent: '' }; },
         head: { appendChild: function () {} },
         documentElement: { appendChild: function () {} }
@@ -119,6 +122,11 @@ test('a deep link or search opens that section', function () {
     for (let i = 0; i < sections.length; i++) {
         if (sections[i].controls !== 'ep_daily') assert.strictEqual(sections[i].open, false);
     }
+    const otherHash = loadGuide({ hash: '#lightning', search: '' });
+    const other = sectionsIn(otherHash.renderEarnXpGuide());
+    assert.strictEqual(other[0].open, true);
+    assert.strictEqual(other[0].controls, 'ep_read');
+    for (let i = 1; i < other.length; i++) assert.strictEqual(other[i].open, false);
     assert.strictEqual(linked.openEarnXpSection('publish an article'), false);
     linked._els.ep_social = fakeControl('ep_social', false).panel;
     linked._els.ep_social_btn = fakeControl('ep_social', false).btn;
@@ -142,6 +150,7 @@ test('Enter and Space toggle a section without a second click', function () {
         stopPropagation: function () {},
         prevented: false
     };
+    assert.strictEqual(guide._listeners['click:capture'], true);
     guide._listeners.keydown(event);
     assert.strictEqual(event.prevented, true);
     assert.strictEqual(made.btn.getAttribute('aria-expanded'), 'true');
