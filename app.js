@@ -99,6 +99,32 @@
     // the sidebar DOM. Titles and descriptions come from that DOM plus CHANNELS.
     var _topicsOpener = null;
     var _topicsScrollLock = null;
+    var _topicsBrowserCache = null;
+    var _topicsInerted = [];
+    var _topicsPushed = false;
+    var _topicsSwallowPop = false;
+    var _topicsMuting = false;
+    var _topicsHomeWasHidden = false;
+    var _topicsSegmenter = null;
+    var _topicsSegmenterReady = false;
+
+    function topicsSegmenter() {
+        if (_topicsSegmenterReady) return _topicsSegmenter;
+        _topicsSegmenterReady = true;
+        try {
+            if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+                _topicsSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+            }
+        } catch (e) {}
+        return _topicsSegmenter;
+    }
+
+    // Keycap sequences in the sidebar sometimes omit U+FE0F. Insert it only
+    // for the glyph we draw so the title text stays unchanged.
+    function presentKeycap(emoji) {
+        if (!emoji || emoji.indexOf('\u20E3') === -1) return emoji;
+        return String(emoji).replace(/\uFE0F?\u20E3/g, '\uFE0F\u20E3');
+    }
 
     function isEmojiGrapheme(g) {
         if (!g || g === '#' || g === '✓' || g === '\u2713') return false;
@@ -115,8 +141,8 @@
         var s = String(text || '').replace(/\s+/g, ' ').trim();
         if (!s) return { emoji: '', rest: '' };
         var parts = [];
-        if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
-            var seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+        var seg = topicsSegmenter();
+        if (seg) {
             var item;
             for (item of seg.segment(s)) parts.push(item.segment);
         } else {
@@ -195,6 +221,7 @@
                     emoji: emoji,
                     title: title,
                     desc: desc,
+                    find: (title + '\n' + id + '\n' + desc).toLowerCase(),
                     visited: state.visited,
                     locked: state.locked,
                     isNew: state.isNew
@@ -244,9 +271,11 @@
         var body = document.getElementById('topicsBrowserBody');
         var live = document.getElementById('topicsBrowserLive');
         if (!body) return;
+        _topicsMuting = true;
         var q = String(filter || '').trim().toLowerCase();
         body.textContent = '';
-        var groups = readSidebarTopicGroups();
+        if (!_topicsBrowserCache) _topicsBrowserCache = readSidebarTopicGroups();
+        var groups = _topicsBrowserCache;
         var shown = 0;
         var g;
         for (g = 0; g < groups.length; g++) {
@@ -260,7 +289,7 @@
             var t;
             for (t = 0; t < group.topics.length; t++) {
                 var topic = group.topics[t];
-                if (q && topic.title.toLowerCase().indexOf(q) === -1) continue;
+                if (q && topic.find.indexOf(q) === -1) continue;
                 shown++;
                 var card = document.createElement('button');
                 card.type = 'button';
@@ -275,7 +304,7 @@
                     var emoji = document.createElement('span');
                     emoji.className = 'topic-card-emoji';
                     emoji.setAttribute('aria-hidden', 'true');
-                    emoji.textContent = topic.emoji;
+                    emoji.textContent = presentKeycap(topic.emoji);
                     top.appendChild(emoji);
                 }
                 top.appendChild(topicCardStatus(topic));
@@ -292,7 +321,7 @@
                 }
                 card.addEventListener('click', (function(id) {
                     return function() {
-                        closeTopicsBrowser();
+                        closeTopicsBrowser({ fromHistory: true });
                         if (typeof window.go === 'function') window.go(id);
                     };
                 })(topic.id));
@@ -312,6 +341,7 @@
         if (live) {
             live.textContent = shown ? (shown + (shown === 1 ? ' topic' : ' topics')) : 'No topics match that search.';
         }
+        _topicsMuting = false;
     }
 
     function topicsBrowserFocusables(dlg) {
@@ -358,12 +388,20 @@
     }
 
     function setTopicsBackgroundInert(on) {
-        var nodes = [document.getElementById('sidebar'), document.getElementById('main'), document.querySelector('.mobile-bar')];
         var i;
+        if (!on) {
+            for (i = 0; i < _topicsInerted.length; i++) {
+                if (_topicsInerted[i]) _topicsInerted[i].removeAttribute('inert');
+            }
+            _topicsInerted = [];
+            return;
+        }
+        var nodes = [document.getElementById('sidebar'), document.getElementById('main'), document.querySelector('.mobile-bar')];
+        _topicsInerted = [];
         for (i = 0; i < nodes.length; i++) {
-            if (!nodes[i]) continue;
-            if (on) nodes[i].setAttribute('inert', '');
-            else nodes[i].removeAttribute('inert');
+            if (!nodes[i] || nodes[i].hasAttribute('inert')) continue;
+            nodes[i].setAttribute('inert', '');
+            _topicsInerted.push(nodes[i]);
         }
     }
 
@@ -412,7 +450,7 @@
         search.id = 'topicsBrowserSearch';
         search.className = 'topics-browser-search';
         search.placeholder = 'Filter topics';
-        search.setAttribute('aria-label', 'Filter topics by title');
+        search.setAttribute('aria-label', 'Filter topics by title, description, or id');
         search.setAttribute('aria-controls', 'topicsBrowserBody');
         search.autocomplete = 'off';
         search.autocorrect = 'off';
@@ -445,29 +483,102 @@
         return dlg;
     }
 
+    function topicsBrowserIsOpen() {
+        var dlg = document.getElementById('topicsBrowser');
+        return !!(dlg && !dlg.hidden);
+    }
+
+    function topicsElementShown(el) {
+        if (!el || el.hidden) return false;
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    function topicsForeignSurface() {
+        var home = document.getElementById('home');
+        if (home && home.classList.contains('hidden') && !_topicsHomeWasHidden) return true;
+        var search = document.getElementById('searchOverlay');
+        if (search && search.getAttribute('data-open') === '1' && topicsElementShown(search)) return true;
+        var ids = ['usernameModal', 'questModal', 'leaderboard', 'tosModal', 'questHubOverlay', 'guideOverlay', 'onboardingOverlay', 'pvpNameOverlay', 'pvpOverlay', 'tipOverlay', 'donateModal', 'lnAuthModal', 'nostrAuthOverlay', 'spinModal', 'nachoModeScreen', 'lb'];
+        var i;
+        for (i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el || !topicsElementShown(el)) continue;
+            if (el.classList.contains('open') || el.getAttribute('data-open') === '1' || ids[i] === 'lb' || el.id.indexOf('Overlay') !== -1 || el.id.indexOf('Modal') !== -1 || el.id === 'nachoModeScreen' || el.id === 'spinModal') return true;
+        }
+        var dialogs = document.querySelectorAll('[role="dialog"]');
+        for (i = 0; i < dialogs.length; i++) {
+            var d = dialogs[i];
+            if (!d || d.id === 'topicsBrowser' || (d.closest && d.closest('#topicsBrowser'))) continue;
+            if (topicsElementShown(d)) return true;
+        }
+        return false;
+    }
+
+    function topicsYieldIfCovered() {
+        if (_topicsMuting || !topicsBrowserIsOpen()) return;
+        if (topicsForeignSurface()) closeTopicsBrowser({ fromHistory: true });
+    }
+
+    function ensureTopicsYieldWatch() {
+        if (window._topicsYieldWatch) return;
+        var queued = false;
+        window._topicsYieldWatch = new MutationObserver(function() {
+            if (queued || _topicsMuting || !topicsBrowserIsOpen()) return;
+            queued = true;
+            Promise.resolve().then(function() {
+                queued = false;
+                topicsYieldIfCovered();
+            });
+        });
+        window._topicsYieldWatch.observe(document.body, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'hidden', 'data-open']
+        });
+    }
+
     function openTopicsBrowser() {
         if (isMobile()) return;
+        var home = document.getElementById('home');
+        _topicsHomeWasHidden = !!(home && home.classList.contains('hidden'));
         var dlg = ensureTopicsBrowser();
+        ensureTopicsYieldWatch();
         var opener = document.activeElement;
         _topicsOpener = (opener && opener !== document.body && typeof opener.focus === 'function') ? opener : document.getElementById('homeLearnBrowse');
+        _topicsBrowserCache = null;
         var search = document.getElementById('topicsBrowserSearch');
         if (search) search.value = '';
         renderTopicsBrowser('');
         dlg.hidden = false;
         setTopicsBackgroundInert(true);
         lockTopicsScroll();
+        if (!_topicsPushed) {
+            try {
+                history.pushState({ topicsBrowser: true }, '', window.location.href);
+                _topicsPushed = true;
+            } catch (err) {}
+        }
         var focusTarget = search || document.getElementById('topicsBrowserClose');
         if (focusTarget) focusTarget.focus();
     }
 
-    function closeTopicsBrowser() {
+    function closeTopicsBrowser(opts) {
+        opts = opts || {};
         var dlg = document.getElementById('topicsBrowser');
         if (!dlg || dlg.hidden) return;
         dlg.hidden = true;
         setTopicsBackgroundInert(false);
         unlockTopicsScroll();
+        _topicsBrowserCache = null;
         var back = _topicsOpener;
         _topicsOpener = null;
+        var pushed = _topicsPushed;
+        _topicsPushed = false;
+        if (pushed && !opts.fromHistory) {
+            _topicsSwallowPop = true;
+            try { history.back(); } catch (err) { _topicsSwallowPop = false; }
+        }
         var target = (back && document.contains(back)) ? back : document.getElementById('homeLearnBrowse');
         if (target && typeof target.focus === 'function') {
             try { target.focus(); } catch (err) {}
@@ -476,9 +587,21 @@
 
     window.addEventListener('resize', function() {
         if (!isMobile()) return;
-        var dlg = document.getElementById('topicsBrowser');
-        if (dlg && !dlg.hidden) closeTopicsBrowser();
+        if (topicsBrowserIsOpen()) closeTopicsBrowser();
     });
+
+    window.addEventListener('hashchange', function() {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
+    });
+
+    window.addEventListener('popstate', function(e) {
+        if (!_topicsPushed && !_topicsSwallowPop) return;
+        var open = topicsBrowserIsOpen();
+        _topicsSwallowPop = false;
+        _topicsPushed = false;
+        if (open) closeTopicsBrowser({ fromHistory: true });
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }, true);
 
     function toggleSidebarCollapse() {
         var sidebar = document.getElementById('sidebar');
@@ -3430,6 +3553,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         window.currentPage = 'home';
         window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
@@ -4316,6 +4440,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         if (id === 'questhub' || id === 'raid' || id === 'raid-hub') {
             if (typeof window.openRaidHub === 'function') window.openRaidHub();
             else if (typeof showQuestHub === 'function') {
