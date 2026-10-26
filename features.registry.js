@@ -450,7 +450,7 @@
         R({ id: 'xp', title: 'XP and points', group: 'Rewards', term: 'overflow', priority: 50,
             kw: 'xp points experience overflow daily cap earn points',
             desc: 'XP (points) is how you rank up. Full XP through 500 a day, half through 900, then a quarter until the 1,000 daily cap. Each tier rounds down.',
-            how: 'Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, the 500 full-rate mark, the 900 half-rate mark, and the 1,000 cap.',
+            how: 'Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, with 500, 900, and 1,000 above the bar and Full rate, Half rate, and Quarter rate underneath.',
             follow: 'Want a Double XP charge from the Nook?',
             hash: 'app/xp', aliases: ['xp', 'points'], kind: 'settings', arg: 'sats' }),
         R({ id: 'badges', title: 'Badges', group: 'Rewards', term: 'badges', priority: 55,

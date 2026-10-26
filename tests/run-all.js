@@ -39,6 +39,8 @@ const TESTS = [
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
+    { name: 'Trivia tally transaction', file: 'test-answer-trivia.js' },
+    { name: 'Community result totals', file: 'test-community-results.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Leave', file: 'test-tctv-leave.js' },
