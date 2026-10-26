@@ -12,6 +12,17 @@
 // Do not log the secret, a URL query string, or a response body. Telegram
 // errors and misconfigured URLs can echo tokens.
 
+const { unwrapProfileSpans, moderateText } = require('./moderateText');
+
+// Only an @ that starts a word. n@igger stays intact so a later strip cannot
+// spell the slur into the public group. Shoutout payloads use this on the
+// Telegram copy; the in-app string is left alone.
+function stripLeadingMentions(value) {
+    return String(value == null ? '' : value)
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/(^|[^\p{L}\p{N}_])[\uFF20@]+(?=[A-Za-z0-9_])/gu, '$1');
+}
+
 const DEFAULT_BRIDGE_URL = 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
 const DEFAULT_TIMEOUT_MS = 5000;
 // Normal chat posts can carry a photo. They keep a long timeout so moving
@@ -50,8 +61,7 @@ function defaultFetchImpl() {
 // the composer also understands HTML chips, @[name](uid), and [label](#route).
 // Telegram only needs the visible name.
 function toTelegramText(text) {
-    let out = String(text || '');
-    out = out.replace(/<span\b[^>]*\bdata-profile-uid\s*=\s*["'][^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, '$1');
+    let out = unwrapProfileSpans(text);
     out = out.replace(/<[^>]*>/g, '');
     out = out.replace(/@\[([^\]]+)\]\([^)]*\)/g, '@$1');
     // Activity shoutouts deep-link in chat. Telegram needs a tappable URL.
@@ -70,7 +80,7 @@ function toTelegramText(text) {
 function buildNachoBridgePayload(text) {
     return {
         user: NACHO_BRIDGE_USER,
-        text: toTelegramText(text),
+        text: stripLeadingMentions(toTelegramText(text)),
         source: 'server',
         uid: NACHO_BRIDGE_UID,
     };
@@ -234,7 +244,14 @@ async function mirrorShoutoutOnce(options) {
         if (!data) return { mirrored: false, reason: 'missing' };
         if (!shouldMirrorShoutout(data)) return { mirrored: false, reason: 'already_mirrored' };
 
-        const payload = buildNachoBridgePayload(opts.text != null ? opts.text : (data.text || ''));
+        const outgoing = opts.text != null ? opts.text : (data.text || '');
+        const payload = buildNachoBridgePayload(outgoing);
+        const verdict = moderateText(outgoing, { strict: true });
+        const sentVerdict = moderateText(payload.text, { strict: true });
+        if (!verdict.clean || !sentVerdict.clean) {
+            const reason = !verdict.clean ? verdict.reason : sentVerdict.reason;
+            return { mirrored: false, reason: String(reason || '').indexOf('scam') !== -1 ? 'scam' : 'profanity' };
+        }
         let result;
         try {
             result = await post(payload);
@@ -308,6 +325,7 @@ module.exports = {
     NACHO_BRIDGE_UID: NACHO_BRIDGE_UID,
     redactForLog: redactForLog,
     toTelegramText: toTelegramText,
+    stripLeadingMentions: stripLeadingMentions,
     buildNachoBridgePayload: buildNachoBridgePayload,
     buildWebBridgePayload: buildWebBridgePayload,
     shouldMirrorShoutout: shouldMirrorShoutout,

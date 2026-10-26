@@ -102,7 +102,8 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261026_v2371') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2390') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2371') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2375') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2365') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261024_v2368') === -1);
@@ -145,10 +146,13 @@ test('Say hi stays labeled Say hi, and an active Favor banner can pulse', functi
     assert.ok(chat.indexOf('Said hi') === -1);
     assert.ok(html.indexOf('todayFavorPulse 2s') > 0);
     assert.ok(html.indexOf('todayFavorShimmer 2s') > 0);
-    assert.ok(html.indexOf('todayEarnPulse 2s') > 0);
+    assert.ok(html.indexOf('todayEarnPulse') === -1);
+    assert.ok(html.indexOf('#todayEarnFavor') === -1);
     assert.ok(html.indexOf('prefers-reduced-motion: reduce') > 0);
-    assert.ok(html.indexOf('#todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after, #todayEarnFavor.is-favor-active { animation: none;') > 0);
+    assert.ok(html.indexOf('#todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after { animation: none;') > 0);
     assert.ok(card.indexOf("Satoshi's Favor is LIVE") > 0);
+    assert.strictEqual(card.indexOf("getElementById('todayEarnFavor')"), -1);
+    assert.strictEqual(card.indexOf('getElementById("todayEarnFavor")'), -1);
     const notes = read('patch-notes.html');
     assert.ok(notes.indexOf('Flex counts as done after 5 in a day.') > 0);
     assert.ok(notes.indexOf('Say hi!') > 0);

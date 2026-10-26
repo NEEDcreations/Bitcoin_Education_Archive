@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2377" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2390" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -431,10 +431,10 @@
         .username-box button:hover { background: #ea580c; }
         .username-box .skip { color: var(--text-muted); font-size: 0.85rem; margin-top: 12px; cursor: pointer; display: block; }
         .username-box .skip:hover { color: var(--text-dim); }
-        /* Consent rows: the checkbox label is the tap target. Links sit outside it. */
-        .tos-check-row, .consent-row { display:flex; align-items:center; gap:12px; text-align:left; min-height:48px; margin:0 0 4px; }
+        /* Consent rows: the checkbox sits inside its label. Links sit outside it. */
+        .tos-check-row, .consent-row { display:flex; align-items:center; gap:12px; text-align:left; min-height:48px; margin:0 0 4px; cursor:pointer; }
         .tos-check-row input[type=checkbox], .consent-row input[type=checkbox] { flex-shrink:0; width:24px; height:24px; margin:0; accent-color:#f7931a; cursor:pointer; }
-        .tos-check-row label, .consent-row label { align-self:stretch; display:flex; align-items:center; flex:1; min-height:48px; font-size:0.9rem; color:#cbd5e1; line-height:1.35; cursor:pointer; }
+        .tos-check-row > span, .consent-row > span { align-self:stretch; display:flex; align-items:center; flex:1; min-height:48px; font-size:0.9rem; color:#cbd5e1; line-height:1.35; cursor:pointer; }
         .consent-links { text-align:left; font-size:0.85rem; margin:0 0 8px 36px; line-height:1.4; }
         .consent-links a { color:#f7931a; text-decoration:underline; }
         .consent-hint { color:#f97316; font-size:0.85rem; font-weight:800; margin:0 0 8px; text-align:left; }
@@ -825,20 +825,15 @@
         #todayFavorCountdown { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 0.9rem; background: transparent; border-radius: 0; padding: 0; white-space: nowrap; }
         #todayFavorCountdown:not([hidden])::before { content: '⏱ '; }
         #todayFavorCountdown[hidden] { display: none !important; }
-        #todayEarnFavor { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
-        #todayEarnFavor:hover { filter: brightness(1.08); }
         #todayFavorStrip.is-favor-active { position: relative; overflow: hidden; animation: todayFavorPulse 2s ease-in-out infinite; }
         #todayFavorStrip.is-favor-active > * { position: relative; z-index: 1; }
         #todayFavorStrip.is-favor-active::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(110deg, transparent 32%, rgba(255,255,255,0.22) 50%, transparent 68%); transform: translateX(-130%); animation: todayFavorShimmer 2s ease-in-out infinite; }
-        #todayEarnFavor.is-favor-active { animation: todayEarnPulse 2s ease-in-out infinite; }
         @keyframes todayFavorPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 150, 0); transform: scale(1); } 50% { box-shadow: 0 0 22px 4px rgba(255, 220, 160, 0.55); transform: scale(1.012); } }
         @keyframes todayFavorShimmer { 0%, 100% { transform: translateX(-130%); } 55% { transform: translateX(130%); } }
-        @keyframes todayEarnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); box-shadow: 0 0 12px rgba(255, 220, 160, 0.45); } }
         @media (prefers-reduced-motion: reduce) {
-            #todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after, #todayEarnFavor.is-favor-active { animation: none; }
+            #todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after { animation: none; }
             #todayFavorStrip.is-favor-active { box-shadow: 0 0 18px 2px rgba(255, 220, 160, 0.5); transform: none; }
             #todayFavorStrip.is-favor-active::after { display: none; }
-            #todayEarnFavor.is-favor-active { transform: none; box-shadow: 0 0 10px rgba(255, 220, 160, 0.4); }
         }
         .today-body { padding: 12px 12px 14px; }
         .today-check-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 2px 8px; }
@@ -1660,12 +1655,11 @@
                 <script>if(localStorage.getItem('btc_guide_collapsed')==='1'){var _gf=document.getElementById('questGuideFull');var _gm=document.getElementById('questGuideMini');if(_gf)_gf.style.display='none';if(_gm)_gm.style.display='flex';}</script>
                 <div id="progressRings" style="margin-bottom:16px;"></div>
                 <section id="todayCard" aria-labelledby="todayCardTitle">
-                    <div id="todayFavorStrip" role="button" tabindex="0" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">
+                    <div id="todayFavorStrip" role="button" tabindex="0" onclick="if(window.todayEarnFavor)window.todayEarnFavor()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();if(window.todayEarnFavor)window.todayEarnFavor();}">
                         <div id="todayFavorTitle">Satoshi's Favor</div>
                         <div id="todayFavorPoints">Earn Favor daily, payouts every epoch</div>
                         <div id="todayFavorCountdown" aria-live="polite" hidden></div>
                         <span class="today-favor-go" aria-hidden="true">›</span>
-                        <button type="button" id="todayEarnFavor" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">Earn Favor</button>
                     </div>
                     <div class="today-body">
                         <div class="today-check-head">
@@ -1909,10 +1903,10 @@
                 </div>
             </div>
             <div class="tos-footer">
-                <div class="consent-row" id="tosConsentRow">
+                <label class="consent-row" id="tosConsentRow">
                     <input type="checkbox" id="tosModalCheck">
-                    <label for="tosModalCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
-                </div>
+                    <span>I have read and agree to the Terms of Service and Privacy Policy.</span>
+                </label>
                 <div class="consent-links"><a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> · <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
                 <p id="tosNeedTick" class="consent-hint" hidden>Tick the box to agree first.</p>
                 <button id="tosAcceptBtn" class="tos-accept-btn" onclick="window._acceptTos&&window._acceptTos()">Accept &amp; Continue →</button>
@@ -2051,10 +2045,10 @@
             </div>
             </details>
             <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
-            <div class="tos-check-row" id="signupConsentRow">
+            <label class="tos-check-row" id="signupConsentRow">
                 <input type="checkbox" id="signupTosCheck">
-                <label for="signupTosCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
-            </div>
+                <span>I have read and agree to the Terms of Service and Privacy Policy.</span>
+            </label>
             <div class="consent-links"><a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
             <p id="signupNeedTick" class="consent-hint" hidden>Tick the box to agree first.</p>
             <button id="signupStartBtn" onclick="submitUsername()">Start Learning →</button>
@@ -2112,10 +2106,10 @@
     <script src="ranking.js?v=20261026_v2377" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2377" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2390" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
-    <script src="today-card.js?v=20261026_v2371" defer></script>
+    <script src="today-card.js?v=20261026_v2390" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261024_v2360" defer></script>
     <script src="onboarding.js?v=20261026_v2373" defer></script>

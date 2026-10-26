@@ -18,6 +18,7 @@ const {
     buildNachoBridgePayload,
     shouldMirrorShoutout,
 } = require('./src/telegramBridge');
+const { moderateText } = require('./src/moderateText');
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'bitcoin-education-archive';
 
@@ -34,6 +35,14 @@ function parseArgs(argv) {
         else throw new Error('Unexpected argument: ' + arg);
     }
     return { apply: apply, id: id };
+}
+
+function filterResult(text, payloadText) {
+    const verdict = moderateText(text || '', { strict: true });
+    const sent = moderateText(payloadText || '', { strict: true });
+    if (verdict.clean && sent.clean) return 'clean';
+    const reason = !verdict.clean ? verdict.reason : sent.reason;
+    return String(reason || '').indexOf('scam') !== -1 ? 'scam' : 'profanity';
 }
 
 function isShoutoutDoc(id, data) {
@@ -92,6 +101,8 @@ async function main() {
     console.log('[mirror-shoutout] project=' + PROJECT_ID + ' mode=' + (parsed.apply ? 'apply' : 'dry-run') + ' id=' + parsed.id);
     console.log('[mirror-shoutout] telegram user=' + payload.user + ' source=' + payload.source + ' uid=' + payload.uid);
     console.log('[mirror-shoutout] text=' + payload.text);
+    const filter = filterResult(data.text || '', payload.text);
+    console.log('[mirror-shoutout] filter=' + filter);
     if (!shouldMirrorShoutout(data)) {
         console.log('[mirror-shoutout] already mirrored (telegramMsgId or telegramMirrored). Nothing to do.');
         process.exit(0);
@@ -130,4 +141,5 @@ if (require.main === module) {
 module.exports = {
     parseArgs: parseArgs,
     isShoutoutDoc: isShoutoutDoc,
+    filterResult: filterResult,
 };

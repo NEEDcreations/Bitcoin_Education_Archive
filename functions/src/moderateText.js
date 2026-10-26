@@ -35,22 +35,42 @@ const BRIDGE_TERMS = [
 const ALLOWLIST = [
     'magazine', 'suspicious', 'suspicion', 'spicy', 'spice', 'despicable',
     'conspicuous', 'auspicious', 'hospice', 'cocktail', 'cockpit', 'cocky',
-    'peacock', 'hancock', 'hitchcock', 'dickens', 'dickinson', 'grape',
-    'grapefruit', 'drape', 'scrape', 'skyscraper', 'parapet', 'trapeze',
+    'peacock', 'hancock', 'hitchcock', 'dickens', 'dickinson', 'dickson',
+    'grape', 'grapefruit', 'drape', 'scrape', 'skyscraper', 'parapet', 'trapeze',
     'therapeutic', 'trumpet', 'torpedo', 'raccoon', 'cocoon', 'tycoon',
-    'democratic', 'grapevine', 'scunthorpe',
+    'democratic', 'grapevine', 'scunthorpe', 'pedometer', 'shitake',
+    'magali', 'cockrell', 'shitij',
 ];
 
 const ALLOW = {};
 ALLOWLIST.forEach(function (word) { ALLOW[word] = true; });
 
+// Surnames that contain a term. They are spared only when the whole input
+// is a display name, or when that token is the display name on an outgoing
+// line. A message body that uses the same spelling still matches.
+const NAME_ALLOW = { raper: true };
+
+// Joined fragments are checked against this set only. A hit has to be the
+// whole joined word, or the start of it when the first piece is a prefix
+// of that word. A slur buried in the middle (grapeand, menudelete) is not.
+const SLUR_EXACT = Object.create(null);
+const COMPACT_PHRASE = Object.create(null);
+const SLUR_WORDS = [];
+BRIDGE_TERMS.forEach(function (term) {
+    const compact = term.replace(/\s+/g, '');
+    SLUR_EXACT[compact] = true;
+    if (term.indexOf(' ') !== -1) COMPACT_PHRASE[compact] = true;
+    if (term.indexOf(' ') === -1) SLUR_WORDS.push(term);
+});
+
 const SCAM_PATTERNS = [
-    /send me \d+(?:[.,]\d+)? btc/i,
+    /send me \d+(?:[.,]\d+)? btc(?:to)?\b/i,
     /double your bitcoin/i,
     /guaranteed.*return/i,
     /invest.*guaranteed/i,
     /free bitcoin.*send/i,
-    /send\s+(?:me\s+)?(?:\d+(?:[.,]\d+)?\s*)?(?:sats|btc|bitcoin)\b[^.\n]{0,48}\bbc1/i,
+    // Same break class as chatTelegramMirror.flattenLines. "btcto" is "btc".
+    /send\s+(?:me\s+)?(?:\d+(?:[.,]\d+)?\s*)?(?:sats|btc(?:to)?|bitcoin)\b[^.\r\n\u000B\u000C\u0085\u2028\u2029]{0,48}\bbc1/i,
 ];
 
 const REASON_PROFANITY = 'Content contains inappropriate language';
@@ -66,7 +86,8 @@ const LOOKALIKE = {
     '\u0441': 'c', // Cyrillic es
     '\u0443': 'y', // Cyrillic u
     '\u0445': 'x', // Cyrillic ha
-    '\u0456': 'i', // Cyrillic i
+    '\u0456': 'i', // Cyrillic i. Capital І (U+0406) lowercases to this.
+    '\u0251': 'a', // Latin alpha
     '\u0455': 's', // Cyrillic dze
     '\u0501': 'd', // Cyrillic komi de
     '\u043a': 'k', // Cyrillic ka
@@ -76,11 +97,24 @@ const LOOKALIKE = {
     '\u0432': 'b', // Cyrillic ve
     '\u043d': 'h', // Cyrillic en
     '\u0433': 'r', // Cyrillic ge
+    '\u0446': 'u', // Cyrillic tse, the u shape
+    '\u0192': 'f', // Latin f with hook
+    '\u057d': 'u', // Armenian seh
+    '\u0584': 'f', // Armenian keh
+    '\u0581': 'g', // Armenian co
+    '\u0570': 'h', // Armenian ho
+    '\u0578': 'n', // Armenian vo
+    '\u057c': 'n', // Armenian ra
+    '\u0585': 'o', // Armenian oh
+    '\u0563': 'q', // Armenian gim
+    '\u0566': 'q', // Armenian za
+    '\u0561': 'w', // Armenian ayb
+    '\u04cf': 'i', // lowercase palochka. U+04C0 lowercases to this. Live also reads it as l.
+    '\u03b3': 'y', // Greek gamma
     '\u0458': 'j', // Cyrillic je
     '\u051b': 'q', // Cyrillic qa
     '\u051d': 'w', // Cyrillic we
     '\u0475': 'v', // Cyrillic izhitsa
-    '\u04cf': 'l', // Cyrillic palochka
     '\u03b1': 'a', // Greek alpha
     '\u03b2': 'b', // Greek beta
     '\u03b5': 'e', // Greek epsilon
@@ -134,13 +168,83 @@ function stripTags(text) {
     return s;
 }
 
+// Profile chips unwrap in one forward scan. The old span regex was
+// nested and super-linear on a long "<span" with no closing bracket.
+function unwrapProfileSpans(text) {
+    const src = String(text || '');
+    if (src.indexOf('<') === -1) return src;
+    const lower = src.toLowerCase();
+    let out = '';
+    let i = 0;
+    while (i < src.length) {
+        const start = lower.indexOf('<span', i);
+        if (start < 0) {
+            out += src.slice(i);
+            break;
+        }
+        const boundary = src.charAt(start + 5);
+        if (boundary && !/[\s>/]/.test(boundary)) {
+            out += src.slice(i, start + 5);
+            i = start + 5;
+            continue;
+        }
+        const gt = src.indexOf('>', start + 5);
+        if (gt < 0) {
+            out += src.slice(i);
+            break;
+        }
+        if (!profileUidAttr(lower.slice(start, gt))) {
+            out += src.slice(i, start + 5);
+            i = start + 5;
+            continue;
+        }
+        const close = lower.indexOf('</span>', gt + 1);
+        if (close < 0) {
+            out += src.slice(i);
+            break;
+        }
+        out += src.slice(i, start);
+        out += src.slice(gt + 1, close);
+        i = close + 7;
+    }
+    return out;
+}
+
+function profileUidAttr(openLower) {
+    const key = 'data-profile-uid';
+    let from = 0;
+    while (from < openLower.length) {
+        const at = openLower.indexOf(key, from);
+        if (at < 0) return false;
+        const prev = at > 0 ? openLower.charAt(at - 1) : '';
+        if (prev && /[a-z0-9_]/.test(prev)) {
+            from = at + 1;
+            continue;
+        }
+        let j = at + key.length;
+        while (j < openLower.length && /\s/.test(openLower.charAt(j))) j++;
+        if (openLower.charAt(j) !== '=') {
+            from = at + 1;
+            continue;
+        }
+        j++;
+        while (j < openLower.length && /\s/.test(openLower.charAt(j))) j++;
+        const quote = openLower.charAt(j);
+        if (quote !== '"' && quote !== "'") {
+            from = at + 1;
+            continue;
+        }
+        return openLower.indexOf(quote, j + 1) !== -1;
+    }
+    return false;
+}
+
 // Same visible-text cleanup the mirror applies before Telegram sees a line:
 // HTML tags, %%tokens%%, markdown links, and invisible characters.
 // A short link spliced between letters is dropped so fu[x](url)ck matches
 // the surrounding word. Any other link is its display text.
 function sanitizeOutgoing(text) {
-    let out = String(text || '');
-    out = out.replace(/<span\b[^>]*\bdata-profile-uid\s*=\s*["'][^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, '$1');
+    let out = unwrapProfileSpans(text);
     out = stripTags(out);
     out = out.replace(/%%[A-Za-z0-9_]+%%/g, '');
     out = out.replace(/(\p{L})\[[^\]]{1,3}\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)(?=\p{L})/giu, '$1');
@@ -196,8 +300,10 @@ function squeezeVariants(text) {
 
 // fu\nck joins. hello\nworld stays two words. Leftover breaks become spaces
 // so "f \n u \n c \n k" is the same shape as "f u c k".
+// The break set matches chatTelegramMirror.flattenLines:
+// [\r\n\u000B\u000C\u0085\u2028\u2029]
 function joinShortLineBreaks(text) {
-    let s = String(text || '').replace(/[^\S\r\n]*[\r\n]+[^\S\r\n]*/g, '\n');
+    let s = String(text || '').replace(/[^\S\r\n\u000B\u000C\u0085\u2028\u2029]*[\r\n\u000B\u000C\u0085\u2028\u2029]+[^\S\r\n\u000B\u000C\u0085\u2028\u2029]*/g, '\n');
     let prev = '';
     while (s !== prev) {
         prev = s;
@@ -209,7 +315,30 @@ function joinShortLineBreaks(text) {
     return s.replace(/\n/g, ' ');
 }
 
-function collapseSeparators(text) {
+// A one-letter fragment always joins (f,uck, n@igger). A two-letter
+// fragment joins only when the other side is also short (fu,ck, sh,it),
+// so taco,on and menu,delete stay two words.
+function joinShortFragment(left, right) {
+    const a = String(left || '').length;
+    const b = String(right || '').length;
+    const short = a < b ? a : b;
+    const long = a > b ? a : b;
+    if (short === 1) return true;
+    return short === 2 && long <= 3;
+}
+
+// Mid-word @ is hiding letters, not the leet letter "a". A short fragment
+// is glued back (n@igger). A long pair stays split so drama@gain is not "maga".
+function unfoldMidWordAt(text) {
+    return String(text || '').replace(/(^|[^\p{L}])(\p{L}+)[\uFF20@]+(\p{L}+)/gu, function (_m, lead, left, right) {
+        if (joinShortFragment(left, right)) return lead + left + right;
+        return lead + left + ' ' + right;
+    });
+}
+
+// Exact copy of gh-pages collapseSeparators, used by the legacy form only,
+// so the legacy form is byte-for-byte live and the PR can never be weaker.
+function collapseSeparatorsLive(text) {
     let s = String(text || '');
     let prev = '';
     while (s !== prev) {
@@ -217,6 +346,33 @@ function collapseSeparators(text) {
         s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
     }
     return s;
+}
+
+// En and em dashes stay in place here. The legacy form still collapses
+// them, matching live. A real split slur is caught later as its own word.
+function collapseSeparators(text) {
+    let s = String(text || '');
+    let prev = '';
+    while (s !== prev) {
+        prev = s;
+        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027\u2010-\u2012\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(^|[^\p{L}])(\p{L}+)[,:;]+(\p{L}+)(?!\p{L})/gu, function (whole, lead, left, right) {
+            if (joinShortFragment(left, right)) return lead + left + right;
+            return whole;
+        });
+    }
+    return s;
+}
+
+// n,i,g,g,e,r is one run of single letters. Pairwise joins stop at nigg,er.
+// A space can sit in one of those gaps ("f-~u.c k"). A run of only spaces
+// stays for collapseSpacedLetters, which already joins "f u c k".
+function collapseSingleLetterRuns(text) {
+    return String(text || '').replace(/(^|[^\p{L}])\p{L}(?:[,:;.\-_*~|/+\\@\uFF20\u2010-\u2015\u2212\s]+\p{L}){2,}(?!\p{L})/gu, function (whole, lead) {
+        const body = whole.slice(String(lead || '').length);
+        if (!/[^ \t\n\r\p{L}]/u.test(body)) return whole;
+        return lead + body.replace(/[^\p{L}]/gu, '');
+    });
 }
 
 // "phuck" and "ph uck" fold toward "fuck". "phone" becomes "fone".
@@ -238,22 +394,55 @@ function collapseSpacedLetters(text) {
 // Format characters (soft hyphen, zero-width) are removed after that.
 // Blank fillers and emoji between letters are removed before the
 // unbroken-word snapshot, which is taken after leet and before any join.
-function prepareStrict(text) {
-    let s = String(text || '').normalize('NFKC').normalize('NFKD');
+function foldBase(text) {
+    const raw = String(text || '');
+    if (/^[\u0000-\u007f]*$/.test(raw)) return raw.toLowerCase();
+    let s = raw.normalize('NFKC').normalize('NFKD');
+    // A keycap is a digit plus marks. Marks are stripped below, so keep one pictograph.
+    s = s.replace(/[0-9#*]\uFE0F?\u20E3/g, '\u2764');
     s = s.replace(/[\p{M}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     s = s.replace(/\p{Cf}/gu, '');
     s = s.replace(/[\u115F\u1160\u3164\uFFA0\u2800]/g, '');
     s = s.replace(/(\p{L})[\p{Extended_Pictographic}\p{So}\u{1F3FB}-\u{1F3FF}\u200D\uFE0F]+(?=\p{L})/gu, '$1');
-    s = foldLookalikes(s.toLowerCase());
+    return foldLookalikes(s.toLowerCase());
+}
+
+// The map reads palochka as i. Live reads the same letter as l, so a line
+// that only spells a slur in the l shape is checked again.
+function foldedBases(text) {
+    const primary = foldBase(text);
+    const raw = String(text || '');
+    if (raw.indexOf('\u04C0') === -1 && raw.indexOf('\u04CF') === -1) return [primary];
+    const asL = foldBase(raw.replace(/\u04C0|\u04CF/g, 'l'));
+    if (asL === primary) return [primary];
+    return [primary, asL];
+}
+
+// pr: mid-word @ joins a short disguise and splits a long pair.
+// legacy: live's path, so @ stays and leet reads it as "a".
+// at: a run of @ or ＠ is one "a", so @@ still reads as a single letter.
+function prepareFromBase(base, mode) {
+    let s = String(base || '');
+    if (mode === 'at') s = s.replace(/[\uFF20@]+/g, 'a');
+    if (mode === 'pr') s = unfoldMidWordAt(s);
     s = applyLeet(s);
     const unbroken = unbrokenWords(s);
     s = joinShortLineBreaks(s);
-    s = collapseSeparators(s);
+    if (mode === 'legacy') {
+        s = collapseSeparatorsLive(s);
+    } else {
+        s = collapseSingleLetterRuns(s);
+        s = collapseSeparators(s);
+    }
     s = foldPh(s);
     s = collapseSpacedLetters(s);
     s = s.replace(/\s+/g, ' ').trim();
     return { text: s, unbroken: unbroken };
+}
+
+function prepareStrict(text) {
+    return prepareFromBase(foldBase(text), 'pr');
 }
 
 function normalizeStrictText(text) {
@@ -262,15 +451,18 @@ function normalizeStrictText(text) {
 
 // Same fold as profanity, without leet, so "0.01" and "bc1" survive.
 function scamFold(text) {
-    let s = String(text || '').normalize('NFKC').normalize('NFKD');
+    const raw = String(text || '');
+    if (/^[\u0000-\u007f]*$/.test(raw)) return raw.toLowerCase();
+    let s = raw.normalize('NFKC').normalize('NFKD');
     s = s.replace(/[\p{M}\p{Cf}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     return foldLookalikes(s.toLowerCase());
 }
 
-function allowlistedWord(word, unbroken) {
+function allowlistedSpelling(word, nameTokens) {
     const w = String(word || '');
-    if (!w || !unbroken || !(unbroken.get(w) > 0)) return false;
+    if (!w) return false;
+    if (nameTokens && NAME_ALLOW[w] && (nameTokens === true || nameTokens.has(w))) return true;
     if (ALLOW[w]) return true;
     for (let i = 0; i < ALLOW_SUFFIXES.length; i++) {
         const suffix = ALLOW_SUFFIXES[i];
@@ -281,10 +473,211 @@ function allowlistedWord(word, unbroken) {
     return false;
 }
 
-function maskAllowlist(text, unbroken) {
+// A fragment that is itself a term still counts when the pieces would
+// spell an allowlisted word (g-rape, maga-zine). The whole allowlisted
+// word does not.
+// Exactly one doubled letter, and no triple. "fuuck" → "fuck".
+// Empty when the word is not that shape.
+function singleDoubleReduced(word) {
+    const w = String(word || '');
+    if (!w || /(\p{L})\1{2}/u.test(w)) return '';
+    const doubles = w.match(/(\p{L})\1/gu);
+    if (!doubles || doubles.length !== 1) return '';
+    return w.replace(/(\p{L})\1/u, '$1');
+}
+
+function fragmentIsSlur(word, nameTokens) {
+    const w = String(word || '');
+    if (!w) return false;
+    if (SLUR_EXACT[w]) return true;
+    if (allowlistedSpelling(w, nameTokens)) return false;
+    const reduced = singleDoubleReduced(w);
+    if (reduced && allowlistedSpelling(reduced, nameTokens)) return false;
+    for (let i = 0; i < SLUR_WORDS.length; i++) {
+        const bad = SLUR_WORDS[i];
+        if (bad.length >= 4 && w.indexOf(bad) !== -1) return true;
+    }
+    return false;
+}
+
+function joinedFragmentSlur(joined, first, nameTokens) {
+    if (!joined || allowlistedSpelling(joined, nameTokens)) return false;
+    if (SLUR_EXACT[joined]) return true;
+    const head = String(first || '');
+    for (let i = 0; i < SLUR_WORDS.length; i++) {
+        const bad = SLUR_WORDS[i];
+        if (bad.length < 3 || joined.length <= bad.length) continue;
+        if (joined.indexOf(bad) !== 0) continue;
+        if (head.length < bad.length && bad.indexOf(head) === 0) return true;
+    }
+    return false;
+}
+
+// One emoji cluster: a pictograph with optional skin tone, a flag, a ZWJ
+// sequence, or a keycap. Spaces around it are not part of the cluster.
+const EMOJI_CLUSTER = /^(?:(?:\p{Regional_Indicator}{2})|(?:[0-9#*]\uFE0F?\u20E3)|(?:\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\uFE0F|\u20E3)?(?:\u200D?\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\uFE0F)?)*))$/u;
+
+function isEmojiGap(gap) {
+    const wrapped = /^\s+(.+?)\s+$/u.exec(gap);
+    if (!wrapped) return false;
+    return EMOJI_CLUSTER.test(wrapped[1]);
+}
+
+// A single symbol, a doubled separator or double space, a short mix of
+// those ("f ~uck"), or one emoji with spaces around it. Checked before
+// leet, so "|" and "+" stay separators.
+function slurGap(gap) {
+    if (gap.length === 1 && !/[\p{L}\p{N}]/u.test(gap)) return true;
+    if (/^(.)\1+$/u.test(gap) && gap.length >= 2 && !/[\p{L}\p{N}]/u.test(gap)) return true;
+    if (isEmojiGap(gap)) return true;
+    if (gap.length >= 2 && gap.length <= 4 && /[^\s]/u.test(gap) && !/[\p{L}\p{N}]/u.test(gap)) return true;
+    return false;
+}
+
+function fragmentSlur(text, nameTokens) {
+    const src = String(text || '');
+    const runs = [];
+    const re = /\p{L}+/gu;
+    let match;
+    while ((match = re.exec(src))) {
+        runs.push({ start: match.index, end: match.index + match[0].length, word: match[0] });
+    }
+    for (let i = 0; i < runs.length; i++) {
+        if (fragmentIsSlur(runs[i].word, nameTokens)) return true;
+        for (let n = 2; n <= 3; n++) {
+            const last = i + n - 1;
+            if (last >= runs.length) break;
+            let joined = runs[i].word;
+            let ok = true;
+            for (let k = 1; k < n; k++) {
+                const gap = src.slice(runs[i + k - 1].end, runs[i + k].start);
+                if (!slurGap(gap)) {
+                    ok = false;
+                    break;
+                }
+                joined += runs[i + k].word;
+            }
+            if (ok && joinedFragmentSlur(joined, runs[i].word, nameTokens)) return true;
+        }
+    }
+    return atSeparatedSlur(src, runs, nameTokens);
+}
+
+// @ or ＠ between the letters of one token. Exact slur or compact phrase
+// only, unless every piece is a single letter (then the slur list applies).
+function atSeparatedSlur(src, runs, nameTokens) {
+    let i = 0;
+    while (i < runs.length) {
+        let j = i;
+        while (j + 1 < runs.length) {
+            const gap = src.slice(runs[j].end, runs[j + 1].start);
+            if (!/^[\uFF20@]+$/u.test(gap)) break;
+            j++;
+        }
+        if (j > i) {
+            let joined = '';
+            let singles = true;
+            for (let k = i; k <= j; k++) {
+                joined += runs[k].word;
+                if (runs[k].word.length !== 1) singles = false;
+            }
+            if (SLUR_EXACT[joined] || COMPACT_PHRASE[joined]) return true;
+            if (singles && j - i >= 2 && fragmentIsSlur(joined, nameTokens)) return true;
+        }
+        i = j + 1;
+    }
+    return false;
+}
+
+// One doubled letter, and no other. "fuuck" becomes "fuck". Three of a
+// kind stay with squeezeVariants. The reduced word has to be the term
+// itself, so an allowlisted spelling is not opened up.
+function dropSingleDouble(text) {
+    return String(text || '').replace(/\p{L}+/gu, function (word) {
+        return singleDoubleReduced(word) || word;
+    });
+}
+
+// A doubled letter inside an allowlisted spelling (pedomeeter, graape)
+// is masked before the in-word search. The reduced word is still checked
+// as an exact term, so fuuck still matches.
+function maskDoubledAllowlist(text, nameTokens) {
+    return String(text || '').replace(/\p{L}+/gu, function (word) {
+        const reduced = singleDoubleReduced(word);
+        if (reduced && allowlistedSpelling(reduced, nameTokens)) return ' '.repeat(word.length);
+        return word;
+    });
+}
+
+// Starts of runs of exactly two identical letters. A triple stays with
+// squeezeVariants. "puussy" collapses the extra u, or the extra s, once each.
+function doublePairStarts(word) {
+    const chars = Array.from(word);
+    const starts = [];
+    let i = 0;
+    let unit = 0;
+    while (i < chars.length) {
+        let j = i + 1;
+        while (j < chars.length && chars[j] === chars[i]) j++;
+        if (j - i === 2) starts.push(unit);
+        unit += j - i;
+        i = j;
+    }
+    return starts;
+}
+
+function exactCollapsedDoubleHit(text) {
+    if (exactTermHit(dropSingleDouble(text))) return true;
+    const re = /\p{L}+/gu;
+    let match;
+    while ((match = re.exec(text))) {
+        const word = match[0];
+        const starts = doublePairStarts(word);
+        if (starts.length < 2) continue;
+        for (let i = 0; i < starts.length; i++) {
+            const at = starts[i];
+            const reduced = word.slice(0, at) + word.slice(at + 1);
+            if (SLUR_EXACT[reduced]) return true;
+        }
+    }
+    return false;
+}
+
+function exactTermHit(text) {
+    const raw = String(text || '');
+    if (!raw) return false;
+    const words = raw.split(/\s+/).filter(Boolean);
+    for (let i = 0; i < BRIDGE_TERMS.length; i++) {
+        const bad = BRIDGE_TERMS[i];
+        if (bad.indexOf(' ') !== -1) {
+            if (raw.indexOf(bad) !== -1) return true;
+            continue;
+        }
+        for (let w = 0; w < words.length; w++) {
+            if (words[w] === bad) return true;
+        }
+    }
+    return false;
+}
+
+function allowlistedWord(word, unbroken, nameTokens) {
+    const w = String(word || '');
+    if (!w || !unbroken || !(unbroken.get(w) > 0)) return false;
+    if (nameTokens && NAME_ALLOW[w] && (nameTokens === true || nameTokens.has(w))) return true;
+    if (ALLOW[w]) return true;
+    for (let i = 0; i < ALLOW_SUFFIXES.length; i++) {
+        const suffix = ALLOW_SUFFIXES[i];
+        if (w.length <= suffix.length + 2) continue;
+        if (w.slice(-suffix.length) !== suffix) continue;
+        if (ALLOW[w.slice(0, -suffix.length)]) return true;
+    }
+    return false;
+}
+
+function maskAllowlist(text, unbroken, nameTokens) {
     const left = new Map(unbroken || []);
     return String(text || '').replace(/\p{L}+/gu, function (word) {
-        if (!allowlistedWord(word, left)) return word;
+        if (!allowlistedWord(word, left, nameTokens)) return word;
         left.set(word, left.get(word) - 1);
         return ' '.repeat(word.length);
     });
@@ -315,7 +708,7 @@ function starWindow(text, term) {
     return false;
 }
 
-function bridgeHit(normalized, unbroken) {
+function bridgeHit(normalized, unbroken, nameTokens) {
     const text = String(normalized || '');
     if (!text) return false;
     const words = text.split(/\s+/).filter(Boolean);
@@ -329,7 +722,7 @@ function bridgeHit(normalized, unbroken) {
             if (words[w] === bad) return true;
         }
     }
-    const masked = maskAllowlist(text, unbroken);
+    const masked = maskAllowlist(text, unbroken, nameTokens);
     const bare = masked.replace(/\*/g, '');
     const starred = masked.replace(/\s*\*\s*/g, '*');
     const compact = bare.replace(/\s+/g, '');
@@ -345,21 +738,67 @@ function bridgeHit(normalized, unbroken) {
     return false;
 }
 
+// A question about a bc1 or bc1q address, with no amount, is not a payment ask.
+function plainBc1Question(text) {
+    const raw = String(text || '');
+    if (!/\bbc1q?\b/i.test(raw)) return false;
+    const question = /\?/.test(raw) || /^\s*(how|what|why|when|where|who|which|can|could|do|does|did|is|are|should|would|explain)\b/i.test(raw);
+    if (!question) return false;
+    if (/\b(?:double[ds]?|doubling|2x|x2|triple|giveaways?|airdrops?|free|win|winners?|prizes?|bonus|rewards?|promo|guarantee[ds]?|profit|returns?|invest(?:ment)?|dm|pm|inbox|whats ?app|telegram|asap|urgent|now|hurry|first \d+)\b/i.test(raw)) return false;
+    if (/\b\d+(?:[.,]\d+)?\s*(?:sats|btc(?:to)?|bitcoin)\b/i.test(raw)) return false;
+    if (/\bsend\s+(?:me\s+)?\d/i.test(raw)) return false;
+    return true;
+}
+
 function scamHit(text) {
     const raw = String(text || '');
+    const skipBc1 = plainBc1Question(raw);
     for (let i = 0; i < SCAM_PATTERNS.length; i++) {
+        if (skipBc1 && SCAM_PATTERNS[i].source.indexOf('bc1') !== -1) continue;
         if (SCAM_PATTERNS[i].test(raw)) return true;
     }
     return false;
 }
 
-function moderateStrict(raw) {
-    const sanitized = sanitizeOutgoing(raw).trim();
-    if (!sanitized) return { clean: true, reason: '' };
-    const prepared = prepareStrict(sanitized);
+function formHits(prepared, nameTokens) {
     const variants = squeezeVariants(prepared.text);
     for (let i = 0; i < variants.length; i++) {
-        if (bridgeHit(variants[i], prepared.unbroken)) return { clean: false, reason: REASON_PROFANITY };
+        const variant = variants[i];
+        if (exactCollapsedDoubleHit(variant)) return true;
+        if (bridgeHit(maskDoubledAllowlist(variant, nameTokens), prepared.unbroken, nameTokens)) return true;
+    }
+    return false;
+}
+
+function nameTokenSet(displayName) {
+    if (displayName === true) return true;
+    if (!displayName) return null;
+    const tokens = foldBase(String(displayName)).split(/[^\p{L}]+/u).filter(Boolean);
+    return new Set(tokens);
+}
+
+// pr and legacy diverge on separator characters. at diverges only when @ is present.
+// A line with neither is the same text in every form, so one pass is enough.
+const MODE_SPLIT = /[-_.,:;*~|/\\+\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]/;
+function modesFor(base) {
+    const hasAt = /[\uFF20@]/.test(base);
+    if (!hasAt && !MODE_SPLIT.test(base)) return ['pr'];
+    if (!hasAt) return ['pr', 'legacy'];
+    return ['pr', 'legacy', 'at'];
+}
+
+function moderateStrict(raw, displayName) {
+    const sanitized = sanitizeOutgoing(raw).trim();
+    if (!sanitized) return { clean: true, reason: '' };
+    const nameTokens = nameTokenSet(displayName);
+    const bases = foldedBases(sanitized);
+    for (let b = 0; b < bases.length; b++) {
+        const base = bases[b];
+        if (fragmentSlur(base, nameTokens)) return { clean: false, reason: REASON_PROFANITY };
+        const modes = modesFor(base);
+        for (let i = 0; i < modes.length; i++) {
+            if (formHits(prepareFromBase(base, modes[i]), nameTokens)) return { clean: false, reason: REASON_PROFANITY };
+        }
     }
     if (scamHit(sanitized) || scamHit(scamFold(sanitized))) return { clean: false, reason: REASON_SCAM };
     return { clean: true, reason: '' };
@@ -368,7 +807,7 @@ function moderateStrict(raw) {
 function moderateText(text, options) {
     const raw = String(text || '').trim();
     if (!raw) return { clean: true, reason: '' };
-    if (options && options.strict) return moderateStrict(raw);
+    if (options && options.strict) return moderateStrict(raw, options.displayName);
     const normalized = normalizeModerateText(raw);
     for (let i = 0; i < PROFANITY.length; i++) {
         const regex = new RegExp('\\b' + PROFANITY[i] + '\\b', 'i');
@@ -385,5 +824,6 @@ module.exports = {
     ALLOWLIST: ALLOWLIST,
     SCAM_PATTERNS: SCAM_PATTERNS,
     sanitizeOutgoing: sanitizeOutgoing,
+    unwrapProfileSpans: unwrapProfileSpans,
     normalizeStrictText: normalizeStrictText,
 };

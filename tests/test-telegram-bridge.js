@@ -64,11 +64,12 @@ test('a shoutout is mirrored once, as Nacho, and stamped for reactions', async f
     assert.strictEqual(posts.length, 1);
     assert.deepStrictEqual(posts[0], {
         user: '🦌 Nacho',
-        text: '🎉 Shoutout to @phil! They just unlocked a rare Nacho Shoutout. Go send phil a peer request! 🤝',
+        text: '🎉 Shoutout to phil! They just unlocked a rare Nacho Shoutout. Go send phil a peer request! 🤝',
         source: 'server',
         uid: 'nacho',
     });
-    assert.ok(posts[0].text.indexOf('@phil') !== -1);
+    assert.strictEqual(posts[0].text.indexOf('@phil'), -1);
+    assert.ok(posts[0].text.indexOf('to phil!') !== -1);
     assert.ok(posts[0].text.indexOf('<') === -1);
     assert.ok(posts[0].text.indexOf('uid_phil') === -1);
     const saved = db.docs.shoutout_gift_abc;
@@ -247,7 +248,48 @@ test('a hung bridge times out and the plain shoutout text is left intact', async
     assert.strictEqual(result.error, 'timeout');
     assert.ok(Date.now() - started < 2000);
     assert.strictEqual(bridge.toTelegramText(shoutoutText('phil')), shoutoutText('phil'));
+    const posted = bridge.buildNachoBridgePayload('📝 @phil just posted in PlebTalk');
+    assert.strictEqual(posted.text, '📝 phil just posted in PlebTalk');
+    assert.strictEqual(bridge.buildNachoBridgePayload('meet n@oon').text, 'meet n@oon');
     assert.strictEqual(bridge.WEB_BRIDGE_TIMEOUT_MS, 60000);
+});
+
+test('force backfill re-runs the strict filter before posting', async function() {
+    const hidden = ['f', '@', 'g'].join('');
+    let posts = 0;
+    const blocked = await bridge.mirrorShoutoutOnce({
+        db: {},
+        force: true,
+        docId: 'shoutout_gift_bad',
+        text: 'note ' + hidden,
+        getDoc: async function() { return { uid: 'nacho-bot', text: 'note ' + hidden }; },
+        updateDoc: async function() { throw new Error('should not stamp'); },
+        post: async function() {
+            posts++;
+            return { ok: true, telegramMsgId: '1', chatId: '2' };
+        },
+    });
+    assert.strictEqual(blocked.mirrored, false);
+    assert.strictEqual(blocked.reason, 'profanity');
+    assert.strictEqual(posts, 0);
+    const saved = {};
+    const clean = await bridge.mirrorShoutoutOnce({
+        db: {},
+        force: true,
+        docId: 'shoutout_gift_ok',
+        text: 'Shoutout to phil',
+        getDoc: async function() { return { uid: 'nacho-bot', text: 'Shoutout to phil' }; },
+        updateDoc: async function(id, patch) { saved.patch = patch; },
+        post: async function() {
+            posts++;
+            return { ok: true, telegramMsgId: '9', chatId: '2' };
+        },
+    });
+    assert.strictEqual(clean.mirrored, true);
+    assert.strictEqual(saved.patch.telegramMsgId, '9');
+    assert.strictEqual(posts, 1);
+    const src = fs.readFileSync(path.join(__dirname, '../functions/mirror-shoutout.js'), 'utf8');
+    assert.ok(src.indexOf('force: true') !== -1);
 });
 
 test('a caller with db defers to the chat mirror', async function() {
@@ -355,6 +397,11 @@ test('the backfill script is dry-run unless --apply and only accepts shoutouts',
     assert.ok(src.indexOf('ADMIN_TOKEN') !== -1);
     assert.ok(src.indexOf('--apply') !== -1);
     assert.ok(src.indexOf('dry-run') !== -1);
+    assert.ok(src.indexOf('filter=') !== -1);
+    assert.strictEqual(cli.filterResult('Shoutout to phil', 'Shoutout to phil'), 'clean');
+    const hidden = ['f', '@', 'u', '@', 'c', '@', 'k'].join('');
+    assert.strictEqual(cli.filterResult('note ' + hidden, 'note ' + hidden), 'profanity');
+    assert.strictEqual(cli.filterResult('send 0.01 btc to bc1qxyz', 'send 0.01 btc to bc1qxyz'), 'scam');
 });
 
 Promise.all(queue).then(function() {

@@ -220,7 +220,6 @@
     function paintFavor() {
         var strip = document.getElementById('todayFavorStrip');
         var title = document.getElementById('todayFavorTitle');
-        var earn = document.getElementById('todayEarnFavor');
         var pointsEl = document.getElementById('todayFavorPoints');
         var cd = document.getElementById('todayFavorCountdown');
         if (!title || !cd) return;
@@ -228,7 +227,6 @@
         // info.active is isFavorEffectivelyActive(): the countdown is running.
         var active = !!(info && info.active);
         if (strip) strip.classList.toggle('is-favor-active', active);
-        if (earn) earn.classList.toggle('is-favor-active', active);
         if (pointsEl) pointsEl.textContent = '';
         if (active) {
             title.textContent = "Satoshi's Favor is LIVE";

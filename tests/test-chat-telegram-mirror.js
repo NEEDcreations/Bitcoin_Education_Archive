@@ -640,7 +640,7 @@ test('already mirrored docs and Nacho twins are not queued twice', async functio
     assert.strictEqual(epochCopy.reason, 'duplicate');
 });
 
-test('favor telegram copies drop a leading @ and other chat keeps it', function () {
+test('telegram copies drop a leading @', function () {
     const block = '⛏️ BLOCK FOUND! ⚡\n\n@SatoshiFan solved a block with hash 842 (target: < 20,000) 🎉\n\n👑 Congratulations! Will you be next? ⛏️';
     const decision = mirror.decideMirror({
         collection: 'global_chat',
@@ -669,7 +669,8 @@ test('favor telegram copies drop a leading @ and other chat keeps it', function 
         collection: 'global_chat',
         data: msg({ text: 'nice hash @SatoshiFan' }),
     });
-    assert.ok(chat.line.indexOf('@SatoshiFan') !== -1);
+    assert.ok(chat.line.indexOf('nice hash SatoshiFan') !== -1);
+    assert.strictEqual(chat.line.indexOf('@'), -1);
 });
 
 test('a ban at send time and a deleted single message are handled', async function () {
@@ -1369,6 +1370,403 @@ test('a fully filtered batch does not spend a group slot', async function () {
     assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__c'].status, 'sent');
     assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__d'].status, 'skipped');
     assert.strictEqual(db.docs['telegram_mirror_state/group'].sentAtMs.length, 1);
+});
+
+test('mirrored text drops @handles so Telegram does not ping them', function () {
+    const rows = [
+        'hey @satoshi_user',
+        '@@Other_Name',
+        'ping @\u200Bhidden_name please',
+        'fullwidth \uFF20satoshi_user',
+    ];
+    rows.forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, true, text + ' ' + decision.reason);
+        assert.ok(!/@[A-Za-z0-9_]/.test(decision.line), decision.line);
+        assert.ok(!/\uFF20/.test(decision.line), decision.line);
+        assert.strictEqual(decision.line.indexOf('\u200B'), -1, decision.line);
+    });
+    const named = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: '@satoshi_user', text: 'hello there' }),
+    });
+    assert.strictEqual(named.forward, true, named.reason);
+    assert.strictEqual(named.name.indexOf('@'), -1, named.name);
+    assert.ok(!/@[A-Za-z0-9_]/.test(named.line), named.line);
+    assert.ok(named.line.indexOf('satoshi_user') !== -1, named.line);
+    const chip = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'hi <span data-profile-uid="uid_phil">@phil</span>' }),
+    });
+    assert.strictEqual(chip.forward, true, chip.reason);
+    assert.strictEqual(chip.line.indexOf('@phil'), -1, chip.line);
+    assert.strictEqual(chip.line.indexOf('uid_phil'), -1, chip.line);
+    assert.ok(chip.line.indexOf('phil') !== -1, chip.line);
+});
+
+test('profile span unwrap stays linear on a long unclosed tag', function () {
+    const mod = require('../functions/src/moderateText');
+    const bridge = require('../functions/src/telegramBridge');
+    const long = '<span ' + 'a'.repeat(200000);
+    const started = Date.now();
+    const sanitized = mod.sanitizeOutgoing(long);
+    const telegram = bridge.toTelegramText(long);
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 500, 'span scan took ' + elapsed + 'ms');
+    assert.ok(sanitized.length > 200000);
+    assert.ok(telegram.length > 200000);
+    const chip = '<span class="mention" data-profile-uid="uid_phil">@phil</span>';
+    assert.strictEqual(mod.sanitizeOutgoing(chip), '@phil');
+    assert.strictEqual(mod.unwrapProfileSpans('<SPAN DATA-PROFILE-UID=\'uid_phil\'>@phil</SPAN>'), '@phil');
+    assert.strictEqual(bridge.toTelegramText('Shoutout to ' + chip + '!'), 'Shoutout to @phil!');
+    const klass = '[^>]*\\bdata-profile-uid';
+    const modSrc = fs.readFileSync(path.join(root, 'functions/src/moderateText.js'), 'utf8');
+    const bridgeSrc = fs.readFileSync(path.join(root, 'functions/src/telegramBridge.js'), 'utf8');
+    assert.strictEqual(modSrc.includes(klass), false);
+    assert.strictEqual(bridgeSrc.includes(klass), false);
+});
+
+test('split slurs joined by an em or en dash are dropped', function () {
+    ['nig\u2014ger', 'nig\u2013ger', 'fuc\u2014king', 'hit\u2014ler', 'f\u2013uck', 'f\u2014uck'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', text);
+        assert.ok(!decision.line || decision.line.indexOf(text.replace(/[\u2013\u2014]/g, '')) === -1);
+    });
+});
+
+test('comma colon and semicolon join only a short fragment', function () {
+    ['menu,delete', 'drama,gain', 'taco,on', 'bit,its', 'grape,fruit', 'menu:delete', 'drama;gain'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, true, text + ' blocked: ' + decision.reason);
+    });
+    ['f,uck', 'f:uck', 'f;uck', 'fu,ck', 'sh,it', 'fuc,k'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', text);
+    });
+});
+
+test('a mid-word @ is not spelled out into the group', function () {
+    const spelled = {
+        'n@igger': 'nigger',
+        'sh@it': 'shit',
+        'f@uck': 'fuck',
+        'c@unt': 'cunt',
+        'p@orn': 'porn',
+        'bit@ch': 'bitch',
+        'sh\uFF20it': 'shit',
+    };
+    Object.keys(spelled).forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded: ' + (decision.line || decision.reason));
+        assert.strictEqual(decision.reason, 'profanity', text);
+        assert.ok(!decision.line || decision.line.indexOf(spelled[text]) === -1, text);
+    });
+    const noon = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'meet n@oon tomorrow' }),
+    });
+    assert.strictEqual(noon.forward, true, noon.reason);
+    assert.ok(noon.line.indexOf('n@oon') !== -1, noon.line);
+    assert.strictEqual(noon.line.indexOf('noon'), -1, noon.line);
+});
+
+test('filter line breaks match the mirror splitter', function () {
+    ['\r', '\n', '\u000B', '\u000C', '\u0085', '\u2028', '\u2029'].forEach(function (br) {
+        const decision = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ text: 'fu' + br + 'ck' }),
+        });
+        const label = 'U+' + br.codePointAt(0).toString(16);
+        assert.strictEqual(decision.forward, false, label + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', label);
+    });
+    const hello = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'hello\u2028world' }),
+    });
+    assert.strictEqual(hello.forward, true, hello.reason);
+    assert.strictEqual(hello.line.indexOf('\u2028'), -1);
+    const klass = '[\\r\\n\\u000B\\u000C\\u0085\\u2028\\u2029]';
+    const mirrorSrc = fs.readFileSync(path.join(root, 'functions/src/chatTelegramMirror.js'), 'utf8');
+    const modSrc = fs.readFileSync(path.join(root, 'functions/src/moderateText.js'), 'utf8');
+    assert.ok(mirrorSrc.includes(klass), 'splitter break class');
+    assert.ok(modSrc.includes(klass), 'filter break class');
+});
+
+test('btcto is caught and a plain comma amount still forwards', function () {
+    const mod = require('../functions/src/moderateText');
+    ['send 0.01 btcto to bc1qxyz', 'send me 2 btcto', 'please send me 5 btcto today'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text);
+        assert.strictEqual(decision.reason, 'scam', text);
+        assert.strictEqual(mod.moderateText(text).clean, false, text);
+    });
+    const toy = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: 'send me 2 btctoy' }) });
+    assert.strictEqual(toy.forward, true, toy.reason);
+    const comma = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: 'send 0,01 BTC' }) });
+    assert.strictEqual(comma.forward, true, comma.reason);
+    assert.strictEqual(mod.moderateText('send 0,01 BTC').clean, true);
+});
+
+test('punctuation inserted in a slur is still profanity', function () {
+    ['f:uck', 'f,uck', 'f;uck'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', text);
+    });
+});
+
+function mask(parts) {
+    return parts.join('');
+}
+
+test('masked @, letter runs, and short splits are blocked in bodies and names', function () {
+    const blocked = [
+        ['at-a', ['f', '@', 'g']],
+        ['at-n', ['n', '@', 'zi']],
+        ['at-r', ['r', '@', 'pe']],
+        ['at-ret', ['ret', '@', 'rd']],
+        ['at-hent', ['hent', '@', 'i']],
+        ['at-star', ['n', '*', 'gg', '@', 'er']],
+        ['fw-a', ['f', '\uFF20', 'g']],
+        ['fw-n', ['n', '\uFF20', 'zi']],
+        ['fw-ret', ['ret', '\uFF20', 'rd']],
+        ['fw-hent', ['hent', '\uFF20', 'i']],
+        ['fw-star', ['n', '*', 'gg', '\uFF20', 'er']],
+        ['at-double', ['f', '@@', 'g']],
+        ['at-double-a', ['fa', '@@', 'g']],
+        ['at-triple', ['f', '@@@', 'g']],
+        ['at-double-n', ['n', '@@', 'zi']],
+        ['at-woven', ['f', '@', 'a', '@', 'g']],
+        ['at-woven-m', ['m', '@', 'a', '@', 'g', '@', 'a']],
+        ['run-comma', ['n', ',', 'i', ',', 'g', ',', 'g', ',', 'e', ',', 'r']],
+        ['run-semi', ['r', ';', 'e', ';', 't', ';', 'a', ';', 'r', ';', 'd']],
+        ['run-colon', ['h', ':', 'i', ':', 't', ':', 'l', ':', 'e', ':', 'r']],
+        ['run-suicide', ['s', ',', 'u', ',', 'i', ',', 'c', ',', 'i', ',', 'd', ',', 'e']],
+        ['run-terror', ['t', ',', 'e', ',', 'r', ',', 'r', ',', 'o', ',', 'r', ',', 'i', ',', 's', ',', 't']],
+        ['split-slash', ['f', '/', 'uck']],
+        ['split-space', ['fu', ' ', 'ck']],
+        ['split-pipe', ['f', '|', 'uck']],
+        ['split-tilde', ['n', '~', 'igger']],
+        ['split-plus', ['n', '+', 'igger']],
+        ['split-at', ['nig', '@', 'ger']],
+        ['split-at-fa', ['fa', '@', 'ggot']],
+        ['split-at-hit', ['hit', '@', 'ler']],
+        ['split-comma', ['nig', ',', 'ger']],
+    ];
+    blocked.forEach(function (row) {
+        const text = mask(row[1]);
+        const body = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(body.forward, false, row[0] + ' body forwarded');
+        assert.strictEqual(body.reason, 'profanity', row[0] + ' body');
+        const named = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ name: text, text: 'hello there' }),
+        });
+        assert.strictEqual(named.forward, true, row[0] + ' name stopped the line');
+        assert.strictEqual(named.name, 'A player', row[0] + ' name');
+        assert.strictEqual(named.line.indexOf(text), -1, row[0] + ' name leaked');
+    });
+    const allowed = [
+        ['space-pair', 'bit its'],
+        ['mention', 'hello @bob'],
+        ['menu', 'menu,delete'],
+        ['bc1-words', 'bc1 address'],
+        ['bc1q', 'bc1q'],
+        ['pedometer', 'pedometer'],
+        ['shitake', 'Shitake'],
+        ['dickson', 'Dickson'],
+        ['magali', 'Magali'],
+        ['cockrell', 'Cockrell'],
+        ['shitij', 'Shitij'],
+        ['double-space-pair', 'bit  its'],
+        ['double-comma-menu', 'menu,,delete'],
+        ['ask-bc1', 'how do I send bitcoin to a bc1 address?'],
+        ['ask-bc1-sats', 'how do I send sats to a bc1q wallet?'],
+        ['ask-bc1q', 'what is a bc1q address?'],
+        ['ask-bc1-what', 'what is a bc1 address?'],
+        ['ask-bc1q-short', 'what is bc1q?'],
+        ['ask-bc1-plain', 'can I send sats to a bc1q wallet?'],
+        ['ask-bc1-can', 'can I send bitcoin to bc1q?'],
+        ['double-grape', 'graape'],
+        ['double-pedometer', 'pedomeeter'],
+    ];
+    allowed.forEach(function (row) {
+        const body = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(body.forward, true, row[0] + ' body blocked: ' + body.reason);
+        const named = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ name: row[1], text: 'hello there' }),
+        });
+        assert.strictEqual(named.forward, true, row[0] + ' name blocked: ' + named.reason);
+        const expectedName = (row[1] === 'hello @bob' ? 'hello bob' : row[1]).replace(/[ \t]{2,}/g, ' ').trim().slice(0, 40);
+        assert.strictEqual(named.name, expectedName, row[0] + ' name changed');
+    });
+    const mod = require('../functions/src/moderateText');
+    const surname = ['Ra', 'per'].join('');
+    const surnameBody = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: surname }) });
+    assert.strictEqual(surnameBody.forward, false, 'surname spelling in a message');
+    assert.strictEqual(surnameBody.reason, 'profanity');
+    const surnameName = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: surname, text: 'hello there' }),
+    });
+    assert.strictEqual(surnameName.forward, true, surnameName.reason);
+    assert.strictEqual(surnameName.name, surname);
+    assert.ok(!mod.ALLOWLIST || mod.ALLOWLIST.indexOf(surname.toLowerCase()) === -1);
+});
+
+test('separator classes live still blocks stay blocked, and the shared misses too', function () {
+    const mod = require('../functions/src/moderateText');
+    const blocked = [
+        ['em-pair', ['nig', '\u2014', 'ger']],
+        ['en-pair', ['nig', '\u2013', 'ger']],
+        ['em-double', ['nig', '\u2014\u2014', 'ger']],
+        ['dash-double', ['fu', '--', 'ck']],
+        ['phrase-comma', ['k', ',', 'i', ',', 'l', ',', 'l', ' ', 'y', ',', 'o', ',', 'u', ',', 'r', ',', 's', ',', 'e', ',', 'l', ',', 'f']],
+        ['phrase-comma-gap', ['k', ',', 'i', ',', 'l', ',', 'l', ',', ' ', 'y', ',', 'o', ',', 'u', ',', 'r', ',', 's', ',', 'e', ',', 'l', ',', 'f']],
+        ['phrase-colon', ['w', ':', 'h', ':', 'i', ':', 't', ':', 'e', ' ', 'p', ':', 'o', ':', 'w', ':', 'e', ':', 'r']],
+        ['phrase-slash', ['k', '/', 'i', '/', 'l', '/', 'l', ' ', 'y', '/', 'o', '/', 'u', '/', 'r', '/', 's', '/', 'e', '/', 'l', '/', 'f']],
+        ['phrase-tilde', ['k', '~', 'i', '~', 'l', '~', 'l', ' ', 'y', '~', 'o', '~', 'u', '~', 'r', '~', 's', '~', 'e', '~', 'l', '~', 'f']],
+        ['phrase-semi', ['k', ';', 'i', ';', 'l', ';', 'l', ' ', 'y', ';', 'o', ';', 'u', ';', 'r', ';', 's', ';', 'e', ';', 'l', ';', 'f']],
+        ['space-colon', ['n', ' :', 'i', ' :', 'g', ' :', 'g', ' :', 'e', ' :', 'r']],
+        ['mixed-sep', ['n', ':', 'i', ',', 'g', ';', 'g', '/', 'e', '~', 'r']],
+        ['slash-run', ['f', '/', 'u', '/', 'c', '/', 'k']],
+        ['double-space', ['fu', '  ', 'ck']],
+        ['double-slash', ['f', '//', 'uck']],
+        ['double-tilde', ['n', '~~', 'igger']],
+        ['at-each', ['f', '@', 'u', '@', 'c', '@', 'k']],
+        ['at-each-wide', ['n', '\uFF20', 'i', '\uFF20', 'g', '\uFF20', 'g', '\uFF20', 'e', '\uFF20', 'r']],
+        ['one-double', ['f', 'uu', 'ck']],
+        ['emoji-gap', ['fu', ' \uD83D\uDCA9 ', 'ck']],
+        ['em-grape', ['grape', '\u2014', 'and']],
+        ['em-drama', ['drama', '\u2014', 'game']],
+        ['hook-f', ['\u0192', 'uck']],
+        ['cyr-u', ['f', '\u0446', 'ck']],
+        ['cyr-e', ['rap', '\u0435']],
+        ['cyr-a', ['r', '\u0430', 'pe']],
+        ['cyr-o', ['p', '\u043e', 'rn']],
+        ['cyr-r', ['nigge', '\u0433']],
+        ['arm-u', ['f', '\u057d', 'ck']],
+        ['palochka', ['n', '\u04c0', 'gger']],
+        ['greek-y', ['onl', '\u03b3', 'fans']],
+        ['greek-a', ['n', '\u03b1', 'zi']],
+        ['greek-o', ['p', '\u03bf', 'rn']],
+        ['upper-hook', ['\u0191', 'uck']],
+        ['upper-cyr', ['f', '\u0426', 'ck']],
+        ['upper-arm', ['f', '\u054D', 'ck']],
+        ['upper-gamma', ['onl', '\u0393', 'fans']],
+    ];
+    blocked.forEach(function (row) {
+        const text = mask(row[1]);
+        const verdict = mod.moderateText(text, { strict: true });
+        assert.strictEqual(verdict.clean, false, row[0] + ' passed');
+        assert.ok(String(verdict.reason).indexOf('inappropriate') !== -1, row[0] + ' ' + verdict.reason);
+        const body = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(body.forward, false, row[0] + ' body');
+        assert.strictEqual(body.reason, 'profanity', row[0]);
+        const named = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ name: text, text: 'hello there' }),
+        });
+        assert.strictEqual(named.forward, true, row[0] + ' name stopped the line');
+        assert.strictEqual(named.name, 'A player', row[0] + ' name');
+    });
+    ['bit  its', 'menu,,delete', 'hello @bob', 'pedometer', 'grape and', 'graape', 'pedomeeter', 'hello \uD83D\uDCA9 world', 'bit \uD83D\uDCA9 its', 'grape \uD83D\uDCA9 and', 'how do I send bitcoin to a bc1 address?', 'how do I send sats to a bc1q wallet?', 'can I send bitcoin to bc1q?', 'what is a bc1 address?', 'what is bc1q?'].forEach(function (text) {
+        const verdict = mod.moderateText(text, { strict: true });
+        assert.strictEqual(verdict.clean, true, text + ' ' + verdict.reason);
+    });
+    const paid = mod.moderateText('how do I send 0.01 btc to a bc1 address?', { strict: true });
+    assert.strictEqual(paid.clean, false, 'amount question passed');
+    assert.ok(String(paid.reason).indexOf('scam') !== -1, paid.reason);
+    const samples = [];
+    const started = process.hrtime.bigint();
+    for (let i = 0; i < 40; i++) mod.moderateText('hello from the archive ' + i, { strict: true });
+    for (let i = 0; i < 200; i++) {
+        const t0 = process.hrtime.bigint();
+        mod.moderateText('a normal note about block height 840000 and bc1 addresses ' + (i % 7), { strict: true });
+        samples.push(Number(process.hrtime.bigint() - t0) / 1e6);
+    }
+    samples.sort(function (a, b) { return a - b; });
+    const p99 = samples[Math.floor(samples.length * 0.99)];
+    assert.ok(p99 < 0.5, 'p99 ' + p99 + ' ms');
+    assert.ok(Number(process.hrtime.bigint() - started) > 0);
+});
+
+test('scam questions stay blocked and plain bc1 questions still forward', function () {
+    const blocked = [
+        'pls send sats to bc1q for a giveaway?',
+        'should I send bitcoin to bc1 to double it?',
+        'is the airdrop send sats to bc1q?',
+        'can I send btc to bc1q for free?',
+        'do I send sats to bc1q to win?',
+        'please send bitcoin to bc1 and dm me?',
+        'send sats to bc1q asap?',
+        'how do I send sats to bc1q now?',
+    ];
+    blocked.forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text);
+        assert.strictEqual(decision.reason, 'scam', text + ' ' + decision.reason);
+    });
+    [
+        'how do I send bitcoin to a bc1 address?',
+        'how do I send sats to a bc1q wallet?',
+        'can I send bitcoin to bc1q?',
+    ].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, true, text + ' ' + decision.reason);
+    });
+});
+
+test('mixed gaps, extra doubles, emoji clusters, and leet surnames', function () {
+    const mod = require('../functions/src/moderateText');
+    const blocked = [
+        ['mix-tilde', ['f', ' ~', 'uck']],
+        ['mix-tilde-pad', ['f', '~ ', 'uck']],
+        ['two-doubles', ['p', 'uu', 'ssy']],
+        ['skin', ['fu', ' \uD83D\uDC4D\uD83C\uDFFB ', 'ck']],
+        ['flag', ['fu', ' \uD83C\uDDFA\uD83C\uDDF8 ', 'ck']],
+        ['zwj', ['fu', ' \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67 ', 'ck']],
+        ['keycap', ['fu', ' 1\uFE0F\u20E3 ', 'ck']],
+        ['arm-f', ['\u0584', 'uck']],
+        ['arm-w', ['\u0561', 'ho', 're']],
+        ['pal-i', ['n', '\u04CF', 'gger']],
+        ['pal-l', ['\u04CF', 'ynch']],
+        ['every-gap', ['f', '-~', 'u', '.', 'c', ' ', 'k']],
+        ['latin-alpha', ['f', '\u0251', 'g']],
+        ['cyr-i', ['n', '\u0406', 'gger']],
+    ];
+    blocked.forEach(function (row) {
+        const text = mask(row[1]);
+        const verdict = mod.moderateText(text, { strict: true });
+        assert.strictEqual(verdict.clean, false, row[0] + ' passed');
+        const body = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(body.forward, false, row[0] + ' body');
+    });
+    ['committee', 'successful', 'balloon', 'graape', 'pedomeeter', 'hello \uD83D\uDC4D\uD83C\uDFFB world', 'i a m fine', 'a b c', 'bit its', 'menu,delete'].forEach(function (text) {
+        const verdict = mod.moderateText(text, { strict: true });
+        assert.strictEqual(verdict.clean, true, text + ' ' + verdict.reason);
+    });
+    const leetName = ['R', '4', 'per'].join('');
+    const leetBody = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: leetName }) });
+    assert.strictEqual(leetBody.forward, false, 'leet surname body');
+    assert.strictEqual(leetBody.reason, 'profanity');
+    const leet = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: leetName, text: 'hello there' }),
+    });
+    assert.strictEqual(leet.forward, true, leet.reason);
+    assert.strictEqual(leet.name, 'A player');
+    const plainName = ['Ra', 'per'].join('');
+    const plain = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: plainName, text: 'hello there' }),
+    });
+    assert.strictEqual(plain.forward, true, plain.reason);
+    assert.strictEqual(plain.name, plainName);
 });
 
 Promise.all(queue).then(function () {

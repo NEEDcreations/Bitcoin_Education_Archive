@@ -12,7 +12,7 @@
 // The token is never logged. Images are a public https link or "[image]";
 // nothing is re-uploaded.
 
-const { toTelegramText, redactForLog } = require('./telegramBridge');
+const { toTelegramText, redactForLog, stripLeadingMentions } = require('./telegramBridge');
 const { moderationBlock } = require('./topicDiscussion');
 const { moderateText } = require('./moderateText');
 
@@ -260,8 +260,8 @@ function messageSkipReason(data, collection) {
     return '';
 }
 
-function contentSkipReason(body) {
-    const result = moderateText(body, { strict: true });
+function contentSkipReason(body, displayName) {
+    const result = moderateText(body, { strict: true, displayName: displayName });
     if (result.clean) return '';
     if (result.reason === 'Content contains potential scam patterns') return 'scam';
     return 'profanity';
@@ -272,7 +272,7 @@ function contentSkipReason(body) {
 function publicMirrorName(data) {
     const name = mirrorName(data);
     if (!name || name === '🦌 Nacho' || name === 'Someone' || name === 'A player') return name;
-    const hit = moderateText(name, { strict: true });
+    const hit = moderateText(name, { strict: true, displayName: name });
     if (!hit.clean) return 'A player';
     return name;
 }
@@ -336,9 +336,14 @@ function decideMirror(input) {
     const flatBody = collapseSpace(flattenLines(body));
     const contentReason = contentSkipReason(body) || contentSkipReason(flatBody);
     if (contentReason) return { forward: false, reason: contentReason };
-    const name = publicMirrorName(data);
-    const flat = isFavorMirrorPost(data) ? dropFavorNameAt(flatBody) : flatBody;
-    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + flat;
+    // Favor posts name the miner. Drop that leading @ first, then strip @
+    // from every Telegram copy and filter the text that would actually be sent.
+    const named = isFavorMirrorPost(data) ? dropFavorNameAt(flatBody) : flatBody;
+    const name = stripLeadingMentions(publicMirrorName(data));
+    const sent = stripLeadingMentions(named);
+    const outgoingReason = contentSkipReason(sent) || contentSkipReason(name + ' ' + sent, name);
+    if (outgoingReason) return { forward: false, reason: outgoingReason };
+    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + sent;
     return { forward: true, reason: '', line: escapeHtml(line), name: name };
 }
 
