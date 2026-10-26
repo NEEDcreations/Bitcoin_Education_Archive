@@ -225,13 +225,21 @@ function messageSkipReason(data, collection) {
     return '';
 }
 
-function contentSkipReason(data) {
-    const src = data || {};
-    const blob = [src.text, src.caption].filter(Boolean).join('\n');
-    const result = moderateText(blob);
+function contentSkipReason(body) {
+    const result = moderateText(body, { strict: true });
     if (result.clean) return '';
     if (result.reason === 'Content contains potential scam patterns') return 'scam';
     return 'profanity';
+}
+
+// The name Telegram would show. A username that fails the same strict
+// filter is replaced. Nacho's own label is not a player username.
+function publicMirrorName(data) {
+    const name = mirrorName(data);
+    if (!name || name === '🦌 Nacho' || name === 'Someone' || name === 'A player') return name;
+    const hit = moderateText(name, { strict: true });
+    if (!hit.clean) return 'A player';
+    return name;
 }
 
 function rateLimitedUid(uid) {
@@ -285,12 +293,12 @@ function decideMirror(input) {
     if (messageReason) return { forward: false, reason: messageReason };
     const userReason = userSkipReason(opts.user, opts.nowMs || Date.now());
     if (userReason) return { forward: false, reason: userReason };
-    const contentReason = contentSkipReason(data);
-    if (contentReason) return { forward: false, reason: contentReason };
     const note = attachmentNote(data);
     const body = visibleBody(data, note);
     if (!body) return { forward: false, reason: 'empty' };
-    const name = mirrorName(data);
+    const contentReason = contentSkipReason(body);
+    if (contentReason) return { forward: false, reason: contentReason };
+    const name = publicMirrorName(data);
     const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + body;
     return { forward: true, reason: '', line: escapeHtml(line), name: name };
 }
@@ -404,8 +412,10 @@ async function sendTelegramText(text, options) {
         return { ok: false, error: 'rate_limit', status: 429, retryAfter: Number(retryAfter) || 0, retry: true };
     }
     if (!resp || !resp.ok || !json || json.ok === false) {
-        const retry = status === 0 || status >= 500;
-        return { ok: false, error: 'http', status: status, retry: retry };
+        const description = json && json.description ? String(json.description).slice(0, 180) : '';
+        const chatLevel = status === 401 || status === 403 || (status === 400 && /chat not found/i.test(description));
+        const retry = chatLevel || status === 0 || status >= 500;
+        return { ok: false, error: 'http', status: status, description: description, chatLevel: chatLevel, retry: retry };
     }
     const messageId = json.result && json.result.message_id;
     const resultChat = json.result && json.result.chat && json.result.chat.id;
@@ -516,7 +526,10 @@ async function readDue(db, nowMs) {
 }
 
 async function readExpiredSending(db, nowMs) {
+    const cutoff = nowMs - SENDING_LEASE_MS;
     let query = db.collection(QUEUE).where('status', '==', 'sending');
+    if (typeof query.where === 'function') query = query.where('sendingAt', '<', cutoff);
+    if (typeof query.orderBy === 'function') query = query.orderBy('sendingAt', 'asc');
     if (typeof query.limit === 'function') query = query.limit(10);
     const snap = await query.get();
     return queryRows(snap).filter(function (item) { return itemDue(item, nowMs); });
@@ -550,23 +563,82 @@ async function patchDocs(db, patches) {
     });
 }
 
+function leaseStamp(options) {
+    const opts = options || {};
+    if (typeof opts.clock === 'function') {
+        const n = Number(opts.clock());
+        if (Number.isFinite(n)) return n;
+    }
+    return Date.now();
+}
+
+function groupWait(recent, nowMs) {
+    const oldest = recent.reduce(function (min, ts) { return Math.min(min, Number(ts)); }, nowMs);
+    return oldest + WINDOW_MS;
+}
+
+async function reserveSendSlot(db, nowMs) {
+    const stateRef = db.collection(STATE).doc(STATE_ID);
+    let outcome = { ok: true, waitUntil: 0 };
+    await db.runTransaction(async function (tx) {
+        outcome = { ok: true, waitUntil: 0 };
+        const stateSnap = await tx.get(stateRef);
+        const prev = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : {};
+        const recent = recentSends(prev.sentAtMs, nowMs);
+        if (recent.length >= MAX_SENDS_PER_MINUTE) {
+            outcome = { ok: false, waitUntil: groupWait(recent, nowMs) };
+            return;
+        }
+        recent.push(nowMs);
+        tx.set(stateRef, Object.assign({
+            sentAtMs: recent.slice(-MAX_SENDS_PER_MINUTE),
+        }, retentionFields(nowMs)));
+    });
+    return outcome;
+}
+
+async function touchLease(db, items, stamp) {
+    if (!items || !items.length) return;
+    await patchDocs(db, items.map(function (item) {
+        return {
+            ref: db.collection(QUEUE).doc(item.id),
+            patch: { status: 'sending', sendingAt: stamp },
+        };
+    }));
+}
+
 async function claimSending(db, plan, nowMs) {
     const refs = plan.items.map(function (item) { return db.collection(QUEUE).doc(item.id); });
+    const stateRef = db.collection(STATE).doc(STATE_ID);
+    let outcome = { ok: true, waitUntil: 0 };
     await db.runTransaction(async function (tx) {
+        outcome = { ok: true, waitUntil: 0 };
         const snaps = [];
         for (let i = 0; i < refs.length; i++) snaps.push(await tx.get(refs[i]));
+        const stateSnap = await tx.get(stateRef);
         for (let i = 0; i < snaps.length; i++) {
             const data = snaps[i] && snaps[i].exists ? (snaps[i].data() || {}) : null;
             if (!data || !itemDue(Object.assign({ id: plan.ids[i] }, data), nowMs)) {
                 throw new Error('conflict');
             }
         }
+        const prev = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : {};
+        const recent = recentSends(prev.sentAtMs, nowMs);
+        if (recent.length >= MAX_SENDS_PER_MINUTE) {
+            outcome = { ok: false, waitUntil: groupWait(recent, nowMs) };
+            return;
+        }
+        recent.push(nowMs);
+        tx.set(stateRef, Object.assign({
+            sentAtMs: recent.slice(-MAX_SENDS_PER_MINUTE),
+        }, retentionFields(nowMs)));
         for (let i = 0; i < refs.length; i++) {
             const patch = { status: 'sending', sendingAt: nowMs };
             if (typeof tx.update === 'function') tx.update(refs[i], patch);
             else tx.set(refs[i], mergePatch(snaps[i].data() || {}, patch));
         }
     });
+    return outcome;
 }
 
 async function dropBlocked(db, plan, nowMs) {
@@ -584,15 +656,15 @@ async function dropBlocked(db, plan, nowMs) {
             continue;
         }
         const data = snap.data() || {};
-        const reason = messageSkipReason(data, item.collection) || contentSkipReason(data);
-        if (reason) {
-            drop.push(item);
-            continue;
-        }
         const user = await loadMirrorUser(db, data);
-        const userReason = userSkipReason(user, nowMs);
-        if (userReason) drop.push(item);
-        else keep.push(item);
+        const decision = decideMirror({
+            collection: item.collection,
+            data: data,
+            user: user,
+            nowMs: nowMs,
+        });
+        if (!decision.forward) drop.push(item);
+        else keep.push(Object.assign({}, item, { line: clipLine(decision.line) }));
     }
     if (drop.length) {
         await patchDocs(db, drop.map(function (item) {
@@ -609,7 +681,16 @@ async function dropBlocked(db, plan, nowMs) {
     };
 }
 
+function isChatLevel(result) {
+    if (!result) return false;
+    const status = Number(result.status) || 0;
+    if (status === 401 || status === 403) return true;
+    if (status === 400 && /chat not found/i.test(String(result.description || ''))) return true;
+    return false;
+}
+
 function isPermanentHttp(result) {
+    if (isChatLevel(result)) return false;
     const status = Number(result && result.status) || 0;
     return status >= 400 && status < 500 && status !== 429;
 }
@@ -619,6 +700,7 @@ function attemptCount(item) {
 }
 
 function shouldFailItem(item, result) {
+    if (isChatLevel(result)) return attemptCount(item) >= MAX_ATTEMPTS;
     if (isPermanentHttp(result)) return true;
     return attemptCount(item) >= MAX_ATTEMPTS;
 }
@@ -663,8 +745,8 @@ async function stampSent(db, items, result, nowMs) {
             else tx.set(patches[i].ref, mergePatch(snaps[i].data() || {}, patches[i].patch));
         }
         const prev = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : {};
+        // The slot was reserved in claimSending. Refresh the TTL only.
         const sentAtMs = recentSends(prev.sentAtMs, nowMs);
-        sentAtMs.push(nowMs);
         const nextState = Object.assign({
             sentAtMs: sentAtMs.slice(-MAX_SENDS_PER_MINUTE),
         }, retentionFields(nowMs));
@@ -726,32 +808,62 @@ async function sendOneBatch(db, nowMs, options) {
     const state = await readState(db);
     const plan = planBatch(pending.concat(sending), state.sentAtMs, nowMs);
     if (!plan.items.length) return { sent: 0, waitUntil: plan.waitUntil || 0 };
+    let claimed;
     try {
-        await claimSending(db, plan, nowMs);
+        claimed = await claimSending(db, plan, nowMs);
     } catch (err) {
         return { sent: 0, reason: 'conflict' };
+    }
+    if (!claimed || claimed.ok === false) {
+        return { sent: 0, waitUntil: claimed && claimed.waitUntil ? claimed.waitUntil : 0 };
     }
     const live = await dropBlocked(db, plan, nowMs);
     if (!live.items.length) return { sent: 0, reason: 'blocked' };
     const secret = opts.token != null ? opts.token : (opts.env && opts.env.TG_BOT_TOKEN);
     const result = await sendTelegramText(live.text, opts);
-    safeMirrorLog(opts.log, secret, 'mirror ' + (result.ok ? 'sent' : (result.error || 'retry')));
+    const label = result.ok ? 'sent' : (isChatLevel(result) ? ('hold ' + result.status) : (result.error || 'retry'));
+    safeMirrorLog(opts.log, secret, 'mirror ' + label);
     if (result.ok) {
         await stampSent(db, live.items, result, nowMs);
         return { sent: 1, telegramMsgId: result.telegramMsgId, count: live.items.length };
     }
+    if (isChatLevel(result)) {
+        const held = await settleItems(db, live.items, result, nowMs);
+        return { sent: 0, reason: 'hold', waitUntil: held.wait ? nowMs + held.wait : 0 };
+    }
     if (live.items.length > 1 && isPermanentHttp(result)) {
         let sent = 0;
         for (let i = 0; i < live.items.length; i++) {
-            const item = live.items[i];
+            const rest = live.items.slice(i);
+            await touchLease(db, rest, leaseStamp(opts));
+            if (i > 0) {
+                const slot = await reserveSendSlot(db, nowMs);
+                if (!slot.ok) {
+                    const waitMs = Math.max(0, (slot.waitUntil || nowMs) - nowMs);
+                    await holdForRetry(db, rest, { retryAfter: Math.ceil(waitMs / 1000) }, nowMs);
+                    return { sent: sent, isolated: true, reason: 'group_rate', waitUntil: slot.waitUntil || 0 };
+                }
+            }
+            const item = rest[0];
             const one = await sendTelegramText(item.line, opts);
-            safeMirrorLog(opts.log, secret, 'mirror line ' + (one.ok ? 'sent' : (one.error || 'retry')));
             if (one.ok) {
+                safeMirrorLog(opts.log, secret, 'mirror line sent');
                 await stampSent(db, [item], one, nowMs);
                 sent += 1;
-            } else {
-                await settleItems(db, [item], one, nowMs);
+                continue;
             }
+            if (isChatLevel(one) || Number(one.status) === 429) {
+                safeMirrorLog(opts.log, secret, 'mirror hold ' + (Number(one.status) || 0));
+                const held = await settleItems(db, rest, one, nowMs);
+                return {
+                    sent: sent,
+                    isolated: true,
+                    reason: 'hold',
+                    waitUntil: held.wait ? nowMs + held.wait : 0,
+                };
+            }
+            safeMirrorLog(opts.log, secret, 'mirror line ' + (one.error || 'retry'));
+            await settleItems(db, [item], one, nowMs);
         }
         return { sent: sent, isolated: true, count: live.items.length };
     }
