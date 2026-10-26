@@ -3411,7 +3411,7 @@ function showDJBar(d) {
     bar.innerHTML =
         // Row 1: DJ label
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
-            '<div style="font-size:0.72rem;color:#6366f1;font-weight:700;">' + djLabel + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
+            '<div style="font-size:0.72rem;color:#818cf8;font-weight:700;">' + djLabel + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
         '</div>' +
         // Row 2: Cover art + track info
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
