@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // answerTrivia tallies the same bank slot it graded. The Firestore
 // transaction is mocked: a first claim increments once, and a repeat,
-// a ban, an unmatched choice, or an optionId/text mismatch does not.
+// a ban, an unmatched choice, an optionId/text mismatch, two optionIds,
+// or a non-string optionId does not pick a second slot. A wrong day or
+// wrong question is rejected before any claim or tally write.
 'use strict';
 
 const assert = require('assert');
@@ -153,6 +155,13 @@ function assertNotCounted() {
     assert.strictEqual(tallyWrites().length, 0);
 }
 
+function assertNoAnswerWrites() {
+    state.writes.forEach(function (write) {
+        assert.ok(write.path.indexOf('rate_limits/') === 0, 'unexpected write ' + write.path);
+    });
+    assertNotCounted();
+}
+
 test('gradeTrivia counts a valid optionId and drops a mismatch', function () {
     const now = Date.now();
     const dayKey = reward.offsetDateKey(now);
@@ -238,6 +247,78 @@ test('an optionId and text that disagree do not count', async function () {
     assert.strictEqual(result.correct, false);
     assert.strictEqual(result.statsRecorded, false);
     assert.strictEqual(result.awarded, 0);
+    assertNotCounted();
+});
+
+test('two different optionIds do not count', async function () {
+    const pack = todayPayload(null);
+    const options = pack.question.options;
+    const otherText = options.find(function (option) { return option !== options[0]; });
+    const firstId = reward.optionId(options[0]);
+    const secondId = reward.optionId(otherText);
+    assert.ok(otherText);
+    assert.notStrictEqual(firstId, secondId);
+    reset({ 'users/twoids': { points: 100000 } });
+    const result = await answerTrivia.run(Object.assign({}, pack.data, {
+        chosen: { optionId: firstId },
+        optionId: secondId,
+    }), context('twoids'));
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.correct, false);
+    assert.strictEqual(result.statsRecorded, false);
+    assert.strictEqual(result.awarded, 0);
+    assertNotCounted();
+});
+
+test('a wrong day or wrong question writes no claim or tally', async function () {
+    const pack = todayPayload(null);
+    const correctText = pack.question.options[pack.question.answer];
+    reset({ 'users/wrongday': { points: 100000 } });
+    const wrongDay = await answerTrivia.run(Object.assign({}, pack.data, {
+        chosen: correctText,
+        dayKey: '1999-01-01',
+    }), context('wrongday'));
+    assert.strictEqual(wrongDay.success, false);
+    assert.strictEqual(wrongDay.correct, false);
+    assert.strictEqual(wrongDay.awarded, 0);
+    assert.strictEqual(wrongDay.reason, 'wrong-day');
+    assertNoAnswerWrites();
+
+    reset({ 'users/wrongq': { points: 100000 } });
+    const wrongQuestion = await answerTrivia.run(Object.assign({}, pack.data, {
+        chosen: correctText,
+        questionIndex: -1,
+        q: 'not today\'s question',
+    }), context('wrongq'));
+    assert.strictEqual(wrongQuestion.success, false);
+    assert.strictEqual(wrongQuestion.correct, false);
+    assert.strictEqual(wrongQuestion.awarded, 0);
+    assert.strictEqual(wrongQuestion.reason, 'wrong-question');
+    assertNoAnswerWrites();
+});
+
+test('a non-string optionId does not choose a slot', async function () {
+    const pack = todayPayload(null);
+    const correctText = pack.question.options[pack.question.answer];
+    const numericSlot = (pack.question.answer + 1) % pack.question.options.length;
+    assert.notStrictEqual(numericSlot, pack.question.answer);
+    reset({ 'users/numid': { points: 100000 } });
+    const counted = await answerTrivia.run(Object.assign({}, pack.data, {
+        chosen: { text: correctText, optionId: numericSlot },
+    }), context('numid'));
+    assert.strictEqual(counted.success, true);
+    assert.strictEqual(counted.correct, true);
+    assert.strictEqual(counted.statsRecorded, true);
+    assertCountedOnce(pack, pack.question.answer);
+
+    reset({ 'users/numonly': { points: 100000 } });
+    const ignored = await answerTrivia.run(Object.assign({}, pack.data, {
+        chosen: { optionId: numericSlot },
+    }), context('numonly'));
+    assert.strictEqual(ignored.success, true);
+    assert.strictEqual(ignored.correct, false);
+    assert.strictEqual(ignored.statsRecorded, false);
+    assert.strictEqual(ignored.awarded, 0);
     assertNotCounted();
 });
 
