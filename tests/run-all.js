@@ -26,6 +26,7 @@ const TESTS = [
     { name: 'Earn XP guide', file: 'test-earn-xp-guide.js' },
     { name: 'Badge engine', file: 'test-badge-engine.js' },
     { name: 'SF live announce', file: 'test-sf-announce.js' },
+    { name: 'GGs badge tooltips', file: 'test-gg-badge-tags.js' },
     { name: 'New badge sources', file: 'test-new-badges.js' },
     { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },

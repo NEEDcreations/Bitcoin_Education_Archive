@@ -394,8 +394,12 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: A More tools button") === -1);
     assert.ok(notes.indexOf("Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.") > 0);
     assert.ok(notes.indexOf("Latest: Sidebar topic names") === -1);
+    assert.ok(notes.indexOf('Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.') > 0);
+    assert.ok(notes.indexOf('Latest: Badge tooltips') === -1);
     assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
     assert.ok(notes.indexOf('Latest: Opening gifts') === -1);
+    assert.ok(notes.indexOf('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.') > 0);
+    assert.ok(notes.indexOf('Latest: Sidebar') === -1);
     assert.ok(notes.indexOf('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.') > 0);
     assert.ok(notes.indexOf('Latest: The Invite button') === -1);
     assert.ok(notes.indexOf('Trivia and poll community totals now update the moment you answer and stay live while the results are open.') > 0);
