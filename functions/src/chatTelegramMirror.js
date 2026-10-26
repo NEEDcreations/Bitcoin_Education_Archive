@@ -216,14 +216,24 @@ function isPrivate(data) {
     return false;
 }
 
+function isFavorMirrorPost(data) {
+    const text = String((data && data.text) || '');
+    if (text.indexOf('⛏️ BLOCK FOUND!') === 0) return true;
+    if (/^⛏️ EPOCH #\d+ COMPLETE!/.test(text)) return true;
+    return false;
+}
+
 function isNachoTwin(collection, data) {
     if (collection !== 'announcements') return false;
     const src = data || {};
     if (src.uid !== 'nacho-bot') return false;
-    const text = String(src.text || '');
-    if (text.indexOf('⛏️ BLOCK FOUND!') === 0) return true;
-    if (/^⛏️ EPOCH #\d+ COMPLETE!/.test(text)) return true;
-    return false;
+    return isFavorMirrorPost(src);
+}
+
+// In-app Favor lines keep @Name. Telegram treats that as an account link,
+// so the mirror copy of these posts drops only that leading @.
+function dropFavorNameAt(text) {
+    return String(text || '').replace(/(^|\s)@([A-Za-z0-9_\-.]{3,20})(?![A-Za-z0-9_\-.])/g, '$1$2');
 }
 
 function removedForTelegram(data) {
@@ -323,12 +333,14 @@ function decideMirror(input) {
     if (!body) return { forward: false, reason: 'empty' };
     // Filtered with its line breaks (fu\nck is one word) and without them
     // (send 0.01 btc\nto bc1q is one phrase), then sent as one line.
-    const flat = collapseSpace(flattenLines(body));
-    const contentReason = contentSkipReason(body) || contentSkipReason(flat);
+    const flatBody = collapseSpace(flattenLines(body));
+    const contentReason = contentSkipReason(body) || contentSkipReason(flatBody);
     if (contentReason) return { forward: false, reason: contentReason };
-    // Leading @ only. Then filter the text that would actually be sent.
+    // Favor posts name the miner. Drop that leading @ first, then strip @
+    // from every Telegram copy and filter the text that would actually be sent.
+    const named = isFavorMirrorPost(data) ? dropFavorNameAt(flatBody) : flatBody;
     const name = stripLeadingMentions(publicMirrorName(data));
-    const sent = stripLeadingMentions(flat);
+    const sent = stripLeadingMentions(named);
     const outgoingReason = contentSkipReason(sent) || contentSkipReason(name + ' ' + sent, name);
     if (outgoingReason) return { forward: false, reason: outgoingReason };
     const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + sent;

@@ -86,7 +86,8 @@ const LOOKALIKE = {
     '\u0441': 'c', // Cyrillic es
     '\u0443': 'y', // Cyrillic u
     '\u0445': 'x', // Cyrillic ha
-    '\u0456': 'i', // Cyrillic i
+    '\u0456': 'i', // Cyrillic i. Capital І (U+0406) lowercases to this.
+    '\u0251': 'a', // Latin alpha
     '\u0455': 's', // Cyrillic dze
     '\u0501': 'd', // Cyrillic komi de
     '\u043a': 'k', // Cyrillic ka
@@ -364,9 +365,13 @@ function collapseSeparators(text) {
 }
 
 // n,i,g,g,e,r is one run of single letters. Pairwise joins stop at nigg,er.
+// A space can sit in one of those gaps ("f-~u.c k"). A run of only spaces
+// stays for collapseSpacedLetters, which already joins "f u c k".
 function collapseSingleLetterRuns(text) {
-    return String(text || '').replace(/(^|[^\p{L}])\p{L}(?:[,:;.\-_*~|/+\\@\uFF20\u2010-\u2015\u2212]+\p{L}){2,}(?!\p{L})/gu, function (whole, lead) {
-        return lead + whole.slice(String(lead || '').length).replace(/[^\p{L}]/gu, '');
+    return String(text || '').replace(/(^|[^\p{L}])\p{L}(?:[,:;.\-_*~|/+\\@\uFF20\u2010-\u2015\u2212\s]+\p{L}){2,}(?!\p{L})/gu, function (whole, lead) {
+        const body = whole.slice(String(lead || '').length);
+        if (!/[^ \t\n\r\p{L}]/u.test(body)) return whole;
+        return lead + body.replace(/[^\p{L}]/gu, '');
     });
 }
 

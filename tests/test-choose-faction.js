@@ -386,6 +386,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: On a computer") === -1);
     assert.ok(notes.indexOf("A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
     assert.ok(notes.indexOf("Latest: A More tools button") === -1);
+    assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
+    assert.ok(notes.indexOf("Latest: A miner") === -1);
     assert.ok(notes.indexOf("Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") > 0);
     assert.ok(notes.indexOf("Latest: Nacho") === -1);
     assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);

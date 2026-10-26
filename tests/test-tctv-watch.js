@@ -806,6 +806,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const sidebar = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
     assert.ok(notes.includes(sidebar));
     assert.ok(!notes.includes('Latest: Sidebar'));
+    assert.ok(notes.includes('A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
+    assert.ok(!notes.includes('Latest: A miner'));
     const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
     assert.ok(notes.includes(gifts));
     assert.ok(!notes.includes('Latest: Opening gifts'));
