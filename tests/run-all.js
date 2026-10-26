@@ -16,6 +16,7 @@ execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
+    { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
@@ -27,6 +28,7 @@ const TESTS = [
     { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
+    { name: 'Gift open popup', file: 'test-gift-open.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
     { name: 'Cipher share rewards', file: 'test-cipher-share.js' },

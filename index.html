@@ -641,6 +641,9 @@
         .invite-how-btn { margin-top: 8px; padding: 0; border: none; background: none; color: var(--accent); font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: inherit; }
         .invite-how { margin-top: 6px; }
         .invite-pill, .invite-guest { border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.85rem; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; }
+        .invite-pill { white-space: nowrap; }
+        #inviteGuestPill { position: fixed; z-index: 180; white-space: nowrap; }
+        #inviteGuestPill[hidden] { display: none !important; }
         .invite-guest { font-size: 0.75rem; max-width: 220px; text-align: left; line-height: 1.3; }
         .invite-card[data-state="open"] .invite-pill,
         .invite-card[data-state="open"] .invite-guest,
@@ -659,7 +662,8 @@
            lightning logo and above the Bitcoin Quest title. The ticker shifts
            that band down by 76px. Desktop: right edge around the vertical middle.
            The Quest pill (onboarding.js) uses the left side of the same band. */
-        .invite-card[data-state="min"] {
+        .invite-card[data-state="min"],
+        #inviteGuestPill:not([hidden]) {
             top: calc(186px + env(safe-area-inset-top, 0px));
             right: max(12px, env(safe-area-inset-right, 0px));
             left: auto;
@@ -671,21 +675,30 @@
             z-index: 180;
             transform: none;
         }
-        body.ticker-visible .invite-card[data-state="min"] {
+        body.ticker-visible .invite-card[data-state="min"],
+        body.ticker-visible #inviteGuestPill:not([hidden]) {
             top: calc(262px + env(safe-area-inset-top, 0px));
         }
         @media (min-width: 901px) {
             .invite-card[data-state="min"],
-            body.ticker-visible .invite-card[data-state="min"] {
+            body.ticker-visible .invite-card[data-state="min"],
+            #inviteGuestPill:not([hidden]),
+            body.ticker-visible #inviteGuestPill:not([hidden]) {
                 top: clamp(calc(160px + env(safe-area-inset-top, 0px)), calc(50dvh - 22px), calc(100dvh - 340px - env(safe-area-inset-bottom, 0px)));
             }
         }
-        body:has(#searchOverlay[data-open="1"]) .invite-card { display: none !important; }
+        body:has(#searchOverlay[data-open="1"]) .invite-card,
+        body:has(#searchOverlay[data-open="1"]) #inviteGuestPill { display: none !important; }
         body:has(#usernameModal.open) .invite-card[data-state="min"],
         body:has(#questModal.open) .invite-card[data-state="min"],
         body:has(#tosModal.open) .invite-card[data-state="min"],
         body:has(#leaderboard.open) .invite-card[data-state="min"],
-        body:has(#lb.open) .invite-card[data-state="min"] {
+        body:has(#lb.open) .invite-card[data-state="min"],
+        body:has(#usernameModal.open) #inviteGuestPill,
+        body:has(#questModal.open) #inviteGuestPill,
+        body:has(#tosModal.open) #inviteGuestPill,
+        body:has(#leaderboard.open) #inviteGuestPill,
+        body:has(#lb.open) #inviteGuestPill {
             visibility: hidden;
             pointer-events: none;
         }
@@ -863,6 +876,7 @@
         #todayInviteGuest { display: none; margin: 0 auto 16px; border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.75rem; line-height: 1.3; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; max-width: 100%; }
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #todayInviteGuest { display: inline-flex; align-self: center; }
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteCard { display: none !important; }
+        body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteGuestPill { display: none !important; }
         @media (max-width: 480px) {
             #em-quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             #todayFavorStrip { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; }
@@ -907,6 +921,12 @@
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
             .invite-card { top: calc(62px + env(safe-area-inset-top, 0px)); right: 8px; width: min(220px, calc(100vw - 20px)); }
+            .invite-card[data-state="min"],
+            #inviteGuestPill:not([hidden]) {
+                top: calc(186px + env(safe-area-inset-top, 0px));
+                right: max(12px, env(safe-area-inset-right, 0px));
+                width: auto;
+            }
             .home-stats { grid-template-columns: repeat(3, auto); gap: 14px 20px; }
             .home-stat-num { font-size: 1.3rem; }
             .home-stat-label { font-size: 0.7rem; }
@@ -1279,85 +1299,85 @@
             </div>
             <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Properties Layer 1 <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" onclick="go('whitepaper',this)">📄 whitepaper</button>
-            <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant</button>
-            <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable</button>
-            <button class="ch-btn" onclick="go('secure',this)">™ secure-fungible</button>
-            <button class="ch-btn" onclick="go('money',this)">💰 money-deflationary</button>
-            <button class="ch-btn" onclick="go('peaceful',this)">☮ peaceful-neutral</button>
-            <button class="ch-btn" onclick="go('dominant',this)">🏆 dominant-recognizable</button>
-            <button class="ch-btn" onclick="go('organic',this)">🌳 organic-empowering</button>
-            <button class="ch-btn" onclick="go('supranational',this)">🕊 supranational-lindy</button>
-            <button class="ch-btn" onclick="go('programmable',this)">🤖 programable-interoperable</button>
-            <button class="ch-btn" onclick="go('use-cases',this)">✔ use-cases</button>
+            <button class="ch-btn" onclick="go('whitepaper',this)">📄 Whitepaper</button>
+            <button class="ch-btn" onclick="go('decentralized',this)">👪 Decentralized, Censorship-Resistant</button>
+            <button class="ch-btn" onclick="go('scarce',this)">🍀 Scarce, Unforgeable</button>
+            <button class="ch-btn" onclick="go('secure',this)">™ Secure, Fungible</button>
+            <button class="ch-btn" onclick="go('money',this)">💰 Money, Deflationary</button>
+            <button class="ch-btn" onclick="go('peaceful',this)">☮ Peaceful, Neutral</button>
+            <button class="ch-btn" onclick="go('dominant',this)">🏆 Dominant, Recognizable</button>
+            <button class="ch-btn" onclick="go('organic',this)">🌳 Organic, Empowering</button>
+            <button class="ch-btn" onclick="go('supranational',this)">🕊 Supranational, Lindy</button>
+            <button class="ch-btn" onclick="go('programmable',this)">🤖 Programmable, Interoperable</button>
+            <button class="ch-btn" onclick="go('use-cases',this)">✔ Use Cases</button>
 
             </div>
             <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Experienced Topics <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" onclick="go('maximalism',this)">💯 maximalism</button>
-            <button class="ch-btn" onclick="go('problems-of-money',this)">📉 problems-of-money</button>
-            <button class="ch-btn" onclick="go('self-custody',this)">🔑 self-custody-security</button>
-            <button class="ch-btn" onclick="go('privacy-nonkyc',this)">🤫 privacy-nonkyc</button>
-            <button class="ch-btn" onclick="go('nodes',this)">💻 nodes</button>
-            <button class="ch-btn" onclick="go('mining',this)">🌋 mining</button>
-            <button class="ch-btn" onclick="go('pow-vs-pos',this)">💪 pow-vs-pos</button>
-            <button class="ch-btn" onclick="go('energy',this)">💡 energy</button>
-            <button class="ch-btn" onclick="go('difficulty-adjustment',this)">😤 difficulty-adjustment</button>
-            <button class="ch-btn" onclick="go('layer-2-lightning',this)">⚡ layer-2-lightning</button>
-            <button class="ch-btn" onclick="go('fedi-ark',this)">🛡 fedi-ark</button>
-            <button class="ch-btn" onclick="go('chaumian-mints',this)">💸 chaumian-mints-ecash</button>
-            <button class="ch-btn" onclick="go('ctv-covenants',this)">📜 ctv-bip119-covenants</button>
-            <button class="ch-btn" onclick="go('extension-blocks',this)">🚧 extension-blocks</button>
-            <button class="ch-btn" onclick="go('op-codes',this)">👨‍💻 op-codes-simplicity</button>
-            <button class="ch-btn" onclick="go('bitvm',this)">🖥 bitvm</button>
-            <button class="ch-btn" onclick="go('layer-3-sidechains',this)">📱 layer-3-sidechains</button>
-            <button class="ch-btn" onclick="go('stablecoins',this)">🪙 stablecoins</button>
-            <button class="ch-btn" onclick="go('smart-contracts',this)">📱 smart-contracts</button>
-            <button class="ch-btn" onclick="go('blockchain-timechain',this)">⛓ blockchain-timechain</button>
-            <button class="ch-btn" onclick="go('regulation',this)">🏛 regulation-policy</button>
-            <button class="ch-btn" onclick="go('cryptography',this)">🔒 cryptography-cypherpunks</button>
-            <button class="ch-btn" onclick="go('core-source-code',this)">💾 core-source-code</button>
-            <button class="ch-btn" onclick="go('developers',this)">🖥 developers</button>
-            <button class="ch-btn" onclick="go('investment-strategy',this)">🤑 investment-strategy</button>
-            <button class="ch-btn" onclick="go('evidence-against-alts',this)">⚠ evidence-against-alts</button>
-            <button class="ch-btn" onclick="go('consensus',this)">🌐 consensus</button>
+            <button class="ch-btn" onclick="go('maximalism',this)">💯 Maximalism</button>
+            <button class="ch-btn" onclick="go('problems-of-money',this)">📉 Problems of Money</button>
+            <button class="ch-btn" onclick="go('self-custody',this)">🔑 Self-Custody &amp; Security</button>
+            <button class="ch-btn" onclick="go('privacy-nonkyc',this)">🤫 Privacy &amp; Non-KYC</button>
+            <button class="ch-btn" onclick="go('nodes',this)">💻 Nodes</button>
+            <button class="ch-btn" onclick="go('mining',this)">🌋 Mining</button>
+            <button class="ch-btn" onclick="go('pow-vs-pos',this)">💪 PoW vs PoS</button>
+            <button class="ch-btn" onclick="go('energy',this)">💡 Energy</button>
+            <button class="ch-btn" onclick="go('difficulty-adjustment',this)">😤 Difficulty Adjustment</button>
+            <button class="ch-btn" onclick="go('layer-2-lightning',this)">⚡ Lightning (Layer 2)</button>
+            <button class="ch-btn" onclick="go('fedi-ark',this)">🛡 Fedi &amp; Ark (Layer 2)</button>
+            <button class="ch-btn" onclick="go('chaumian-mints',this)">💸 Chaumian Mints &amp; Ecash</button>
+            <button class="ch-btn" onclick="go('ctv-covenants',this)">📜 CTV (BIP-119) &amp; Covenants</button>
+            <button class="ch-btn" onclick="go('extension-blocks',this)">🚧 Extension Blocks</button>
+            <button class="ch-btn" onclick="go('op-codes',this)">👨‍💻 Opcodes &amp; Simplicity</button>
+            <button class="ch-btn" onclick="go('bitvm',this)">🖥 BitVM</button>
+            <button class="ch-btn" onclick="go('layer-3-sidechains',this)">📱 Sidechains (Layer 3)</button>
+            <button class="ch-btn" onclick="go('stablecoins',this)">🪙 Stablecoins</button>
+            <button class="ch-btn" onclick="go('smart-contracts',this)">📱 Smart Contracts</button>
+            <button class="ch-btn" onclick="go('blockchain-timechain',this)">⛓ Blockchain (Timechain)</button>
+            <button class="ch-btn" onclick="go('regulation',this)">🏛 Regulation &amp; Policy</button>
+            <button class="ch-btn" onclick="go('cryptography',this)">🔒 Cryptography &amp; Cypherpunks</button>
+            <button class="ch-btn" onclick="go('core-source-code',this)">💾 Bitcoin Core Source Code</button>
+            <button class="ch-btn" onclick="go('developers',this)">🖥 Developers</button>
+            <button class="ch-btn" onclick="go('investment-strategy',this)">🤑 Investment Strategy</button>
+            <button class="ch-btn" onclick="go('evidence-against-alts',this)">⚠ Evidence Against Altcoins</button>
+            <button class="ch-btn" onclick="go('consensus',this)">🤝 Consensus</button>
 
             </div>
             <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Resources <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" onclick="go('one-stop-shop',this)">🛑 one-stop-shop</button>
-            <button class="ch-btn" onclick="go('faq-glossary',this)">❓ faq-glossary</button>
-            <button class="ch-btn" onclick="go('nostr',this)">💜 nostr</button>
-            <button class="ch-btn" onclick="go('misconceptions-fud',this)">🤡 misconceptions-fud</button>
-            <button class="ch-btn" onclick="go('books',this)">📚 books</button>
-            <button class="ch-btn" onclick="go('videos',this)">📺 videos</button>
-            <button class="ch-btn" onclick="go('podcasts',this)">🔊 podcasts</button>
-            <button class="ch-btn" onclick="go('articles-threads',this)">📃 articles-threads</button>
-            <button class="ch-btn" onclick="go('informational-sites',this)">📃 informational-sites</button>
-            <button class="ch-btn" onclick="go('curriculum',this)">🎓 curriculum</button>
-            <button class="ch-btn" onclick="go('research-theses',this)">✍ research-theses</button>
-            <button class="ch-btn" onclick="go('games',this)">🎮 games</button>
-            <button class="ch-btn" onclick="go('music',this)">🎵 music</button>
-            <button class="ch-btn" onclick="go('movies-tv',this)">🎬 movies-tv</button>
-            <button class="ch-btn" onclick="go('hardware',this)">💻 hardware</button>
-            <button class="ch-btn" onclick="go('poems-stories',this)">📒 poems-stories</button>
-            <button class="ch-btn" onclick="go('apps-tools',this)">🍎 apps-tools</button>
-            <button class="ch-btn" onclick="go('projects-diy',this)">🔧 projects-diy</button>
-            <button class="ch-btn" onclick="go('art-inspiration',this)">🤩 art-inspiration</button>
-            <button class="ch-btn" onclick="go('graphics',this)">🎨 graphics</button>
-            <button class="ch-btn" onclick="go('charts',this)">📊 charts</button>
-            <button class="ch-btn" onclick="go('swag-merch',this)">👕 swag-merch</button>
-            <button class="ch-btn" onclick="go('jobs-earn',this)">👷 jobs-earn</button>
-            <button class="ch-btn" onclick="go('social-media',this)">👍 social-media</button>
-            <button class="ch-btn" onclick="go('fun-facts',this)">🎉 fun-facts</button>
-            <button class="ch-btn" onclick="go('news-adoption',this)">📰 news-adoption</button>
-            <button class="ch-btn" onclick="go('history',this)">📆 history</button>
-            <button class="ch-btn" onclick="go('international',this)">🌍 international</button>
-            <button class="ch-btn" onclick="go('satoshi-nakamoto',this)">🦸 satoshi-nakamoto</button>
-            <button class="ch-btn" onclick="go('giga-chad',this)">👑 giga-chad</button>
-            <button class="ch-btn" onclick="go('health',this)">🥩 health</button>
-            <button class="ch-btn" onclick="go('web5',this)">5⃣ web5</button>
-            <button class="ch-btn" onclick="go('memes-funny',this)">😂 memes-funny</button>
+            <button class="ch-btn" onclick="go('one-stop-shop',this)">🛑 One-Stop Shop</button>
+            <button class="ch-btn" onclick="go('faq-glossary',this)">❓ FAQ &amp; Glossary</button>
+            <button class="ch-btn" onclick="go('nostr',this)">💜 Nostr</button>
+            <button class="ch-btn" onclick="go('misconceptions-fud',this)">🤡 Misconceptions &amp; FUD</button>
+            <button class="ch-btn" onclick="go('books',this)">📚 Books</button>
+            <button class="ch-btn" onclick="go('videos',this)">📺 Videos</button>
+            <button class="ch-btn" onclick="go('podcasts',this)">🔊 Podcasts</button>
+            <button class="ch-btn" onclick="go('articles-threads',this)">📃 Articles &amp; Threads</button>
+            <button class="ch-btn" onclick="go('informational-sites',this)">📃 Informational Sites</button>
+            <button class="ch-btn" onclick="go('curriculum',this)">🎓 Curriculum</button>
+            <button class="ch-btn" onclick="go('research-theses',this)">✍ Research &amp; Theses</button>
+            <button class="ch-btn" onclick="go('games',this)">🎮 Games</button>
+            <button class="ch-btn" onclick="go('music',this)">🎵 Music</button>
+            <button class="ch-btn" onclick="go('movies-tv',this)">🎬 Movies &amp; TV</button>
+            <button class="ch-btn" onclick="go('hardware',this)">💻 Hardware</button>
+            <button class="ch-btn" onclick="go('poems-stories',this)">📒 Poems &amp; Stories</button>
+            <button class="ch-btn" onclick="go('apps-tools',this)">🍎 Apps &amp; Tools</button>
+            <button class="ch-btn" onclick="go('projects-diy',this)">🔧 DIY Projects</button>
+            <button class="ch-btn" onclick="go('art-inspiration',this)">🤩 Art &amp; Inspiration</button>
+            <button class="ch-btn" onclick="go('graphics',this)">🎨 Graphics</button>
+            <button class="ch-btn" onclick="go('charts',this)">📊 Charts</button>
+            <button class="ch-btn" onclick="go('swag-merch',this)">👕 Swag &amp; Merch</button>
+            <button class="ch-btn" onclick="go('jobs-earn',this)">👷 Jobs &amp; Earning Bitcoin</button>
+            <button class="ch-btn" onclick="go('social-media',this)">👍 Social Media</button>
+            <button class="ch-btn" onclick="go('fun-facts',this)">🎉 Fun Facts</button>
+            <button class="ch-btn" onclick="go('news-adoption',this)">📰 News &amp; Adoption</button>
+            <button class="ch-btn" onclick="go('history',this)">📆 History</button>
+            <button class="ch-btn" onclick="go('international',this)">🌍 International</button>
+            <button class="ch-btn" onclick="go('satoshi-nakamoto',this)">🦸 Satoshi Nakamoto</button>
+            <button class="ch-btn" onclick="go('giga-chad',this)">👑 Giga Chad</button>
+            <button class="ch-btn" onclick="go('health',this)">🥩 Health</button>
+            <button class="ch-btn" onclick="go('web5',this)">5️⃣ Web5</button>
+            <button class="ch-btn" onclick="go('memes-funny',this)">😂 Memes &amp; Humor</button>
 
             </div>
             <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Additional Info <span class="cat-arrow">▶</span></div>
@@ -1368,12 +1388,11 @@
             <button class="ch-btn" onclick="go('bip119',this)">🚧 BIP119</button>
             <button class="ch-btn" onclick="go('bitcoin_exam',this)">🎓 Bitcoin Exam</button>
             <button class="ch-btn" onclick="go('bitcoin_vs_real_estate',this)">🏠 Bitcoin vs Real Estate</button>
-            <button class="ch-btn" onclick="go('block_time-block-size',this)">⏰ Block Time-Block-Size</button>
+            <button class="ch-btn" onclick="go('block_time-block-size',this)">⏰ Block Time &amp; Block Size</button>
             <button class="ch-btn" onclick="go('burn_bitcoin',this)">🔥 Burn Bitcoin</button>
             <button class="ch-btn" onclick="go('byzantine_generals__problem',this)">⚔ Byzantine Generals</button>
-            <button class="ch-btn" onclick="go('chaumian_e-cash_and_blind_signatures',this)">💲 Chaumian E-cash</button>
-            <button class="ch-btn" onclick="go('coin_mixing_coinjoin_coin_control_utxo',this)">🌀 Coin Mixing/Coinjoin</button>
-            <button class="ch-btn" onclick="go('consensus',this)">🤝 Consensus</button>
+            <button class="ch-btn" onclick="go('chaumian_e-cash_and_blind_signatures',this)">💲 Chaumian Ecash</button>
+            <button class="ch-btn" onclick="go('coin_mixing_coinjoin_coin_control_utxo',this)">🌀 Coin Mixing &amp; CoinJoin</button>
             <button class="ch-btn" onclick="go('cyles',this)">🚲 Cycles</button>
             <button class="ch-btn" onclick="go('derivation_path',this)">↕ Derivation Path</button>
             <button class="ch-btn" onclick="go('discrete_log_contracts__dlcs',this)">📝 DLCs</button>
@@ -1399,18 +1418,18 @@
             <button class="ch-btn" onclick="go('math',this)">➕ Math</button>
             <button class="ch-btn" onclick="go('mathematics',this)">➕ Mathematics</button>
             <button class="ch-btn" onclick="go('mev',this)">⛏ MEV</button>
-            <button class="ch-btn" onclick="go('0_mining__hashing',this)">0⃣ Mining (Hashing)</button>
+            <button class="ch-btn" onclick="go('0_mining__hashing',this)">0️⃣ Mining (Hashing)</button>
             <button class="ch-btn" onclick="go('network_effects',this)">🌐 Network Effects</button>
             <button class="ch-btn" onclick="go('open_source',this)">⭕ Open Source</button>
             <button class="ch-btn" onclick="go('oracle',this)">🔮 Oracle</button>
             <button class="ch-btn" onclick="go('orange-pilling',this)">🟠 Orange-Pilling</button>
             <button class="ch-btn" onclick="go('ordinals',this)">🔢 Ordinals</button>
             <button class="ch-btn" onclick="go('ordinals__nfts_on_bitcoin__and_block_spa',this)">🔢 Ordinals & Block Space</button>
-            <button class="ch-btn" onclick="go('peace_and_anti-war',this)">☮ Peace and Anti-War</button>
+            <button class="ch-btn" onclick="go('peace_and_anti-war',this)">☮ Peace &amp; Anti-War</button>
             <button class="ch-btn" onclick="go('philosophy',this)">🍎 Philosophy</button>
             <button class="ch-btn" onclick="go('politics',this)">🏛 Politics</button>
             <button class="ch-btn" onclick="go('predictions',this)">🔮 Predictions</button>
-            <button class="ch-btn" onclick="go('public_key_vs_private_key',this)">🗝 Public vs Private Key</button>
+            <button class="ch-btn" onclick="go('public_key_vs_private_key',this)">🗝 Public vs Private Keys</button>
             <button class="ch-btn" onclick="go('rbf',this)">↔ RBF</button>
             <button class="ch-btn" onclick="go('risks__threats__attack_vectors__weaknes',this)">⚔ Risks & Threats</button>
             <button class="ch-btn" onclick="go('rollups',this)">🥐 Rollups</button>
@@ -1419,9 +1438,8 @@
             <button class="ch-btn" onclick="go('sidechains',this)">♻ Sidechains</button>
             <button class="ch-btn" onclick="go('soft_vs_hard_forks',this)">🍴 Soft vs Hard Forks</button>
             <button class="ch-btn" onclick="go('softwar',this)">📖 Softwar</button>
-            <button class="ch-btn" onclick="go('2__solved_technical_problems',this)">2⃣ Solved Problems</button>
+            <button class="ch-btn" onclick="go('2__solved_technical_problems',this)">2️⃣ Solved Technical Problems</button>
             <button class="ch-btn" onclick="go('simplified_payment_verification__spv',this)">✔ SPV</button>
-            <button class="ch-btn" onclick="go('stablecoins',this)">🪙 Stablecoins</button>
             <button class="ch-btn" onclick="go('stratum_v2',this)">🟩 Stratum V2</button>
             <button class="ch-btn" onclick="go('submarine_swap',this)">⛵ Submarine Swap</button>
             <button class="ch-btn" onclick="go('swaps',this)">↔ Swaps</button>
@@ -1441,7 +1459,7 @@
             </div>
             <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Referral Links <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
+            <button class="ch-btn" onclick="go('referral-links',this)">🔗 Free BTC Referral Links</button>
             </div>
             <div style="margin:14px 8px 12px;text-align:center;">
                 <button id="randomToggleBtn" onclick="toggleRandomPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">🎲 Random <span id="randomToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
@@ -2092,7 +2110,7 @@
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
-    <script src="ranking.js?v=20261026_v2367" defer></script>
+    <script src="ranking.js?v=20261026_v2373" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261026_v2390" defer fetchpriority="high"></script>
@@ -2101,7 +2119,7 @@
     <script src="today-card.js?v=20261026_v2390" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261024_v2360" defer></script>
-    <script src="onboarding.js?v=20261026_v2365" defer></script>
+    <script src="onboarding.js?v=20261026_v2373" defer></script>
     <script src="learning-quests.js?v=20261023_v2324" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2121,7 +2139,7 @@
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261024_v2357','gifting.js?v=20261024_v2358','guide.js?v=20261023_v2349','modules.js?v=20261023_v2324',
+            'notifications.js?v=20261024_v2357','gifting.js?v=20261024_v2365','guide.js?v=20261023_v2349','modules.js?v=20261023_v2324',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
@@ -2298,9 +2316,10 @@ if ('serviceWorker' in navigator) {
             <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.</p>
         </div>
     </div>
-    <button type="button" class="invite-pill" id="invitePill" onclick="expandInviteCard()">🎟️ Invite</button>
+    <button type="button" class="invite-pill" id="invitePill" aria-label="Invite friends" onclick="expandInviteCard()">🎟️ Invite</button>
     <button type="button" class="invite-guest" id="inviteGuest" onclick="inviteGuestSignup()">Sign up to get your invite link</button>
 </div>
+<button type="button" class="invite-pill" id="inviteGuestPill" hidden aria-label="Invite friends" onclick="inviteGuestSignup()">🎟️ Invite friends</button>
 </body>
 </html>
 <!-- v1771873982 -->
