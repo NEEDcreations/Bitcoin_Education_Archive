@@ -384,6 +384,12 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf('Latest: Satoshi') === -1);
     assert.ok(notes.indexOf('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.') > 0);
     assert.ok(notes.indexOf('Latest: Passing the Bitcoin Scholar') === -1);
+    assert.ok(notes.indexOf("Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.") > 0);
+    assert.ok(notes.indexOf('Latest: Inventory') === -1);
+    assert.ok(notes.indexOf("Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.") > 0);
+    assert.ok(notes.indexOf("Latest: Passing the Bitcoin Scholar") === -1);
+    assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
+    assert.ok(notes.indexOf("Latest: A miner's public name") === -1);
     assert.ok(notes.indexOf("On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.") > 0);
     assert.ok(notes.indexOf("Latest: On a computer") === -1);
     assert.ok(notes.indexOf("A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);

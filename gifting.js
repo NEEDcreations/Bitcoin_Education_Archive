@@ -108,7 +108,19 @@ function _injectGiftingCSS() {
         '@media (max-width:700px){.gifting-overlay{padding:12px;}.gifting-modal{padding:16px 12px;border-radius:16px;}.gift-actions{flex-direction:column;}.gift-actions button{width:100%;flex:1 1 auto;}}',
         '.kc-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:2px 0 10px;flex-wrap:wrap;}',
         '.kc-intro p{flex:1;min-width:160px;margin:0;}',
-        '@media (max-width:520px){.kc-card{flex-wrap:wrap;}.kc-card .cipher-open-btn,.kc-card .key-send-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}}'
+        '.kc-key-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:14px 0 8px;}',
+        '.kc-key-title{font-size:0.72rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;line-height:1.35;max-width:100%;}',
+        '.kc-key-note{flex:1 1 12rem;min-width:min(100%,12rem);font-size:0.75rem;font-weight:600;line-height:1.35;letter-spacing:0;text-transform:none;color:var(--text-muted,#94a3b8);overflow-wrap:anywhere;}',
+        '.kc-key-help{margin:0 0 12px;border:1px solid var(--border,#333);border-radius:12px;background:var(--bg-side,#0f172a);}',
+        '.kc-key-help summary{cursor:pointer;font-size:0.82rem;font-weight:800;padding:10px 12px;color:var(--heading,#fff);}',
+        '.kc-key-help summary:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}',
+        '.kc-key-help ol{margin:0;padding:0 12px 12px 28px;font-size:0.78rem;line-height:1.45;color:var(--text,#e2e8f0);}',
+        '.kc-key-help li{margin:0 0 8px;}',
+        '.kc-help-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}',
+        '.kc-help-link{min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link,#60a5fa);border-radius:8px;color:var(--link,#60a5fa);font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;}',
+        '.kc-send-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 1 auto;max-width:100%;}',
+        '.kc-send-hint{margin:0;font-size:0.75rem;line-height:1.35;color:var(--text-muted,#94a3b8);text-align:right;max-width:12rem;overflow-wrap:anywhere;}',
+        '@media (max-width:520px){.kc-card{flex-wrap:wrap;}.kc-card .cipher-open-btn,.kc-card .key-send-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}.kc-send-wrap{width:100%;align-items:stretch;}.kc-send-hint{max-width:none;text-align:left;}}'
     ].join('');
     document.head.appendChild(s);
 }
@@ -1192,6 +1204,154 @@ function _lockedCipherNote(parent, label) {
     return note;
 }
 
+function _restorePanelZ(id) {
+    var panel = document.getElementById(id);
+    if (!panel || !panel.style) return;
+    // Chat's default z-index lives on the element. Leaderboard's default lives in CSS.
+    panel.style.zIndex = id === 'chatOverlay' ? '250000' : '';
+}
+
+function _closeCoversForPeople() {
+    var settings = document.getElementById('usernameModal');
+    if (settings && settings.classList.contains('open')) settings.classList.remove('open');
+    if (typeof window._closeQuestScreen === 'function') window._closeQuestScreen();
+    else {
+        var hub = document.getElementById('questHubOverlay');
+        if (hub && hub.parentNode) hub.parentNode.removeChild(hub);
+    }
+}
+
+function _liftProfileAbovePanels() {
+    function lift() {
+        var modal = document.getElementById('userProfileModal');
+        if (modal) modal.style.zIndex = '530000';
+    }
+    lift();
+    setTimeout(lift, 40);
+    setTimeout(lift, 400);
+}
+
+function _installPeopleStacking() {
+    if (typeof window.showUserProfile === 'function' && !window.showUserProfile._liftsAbovePanels) {
+        var origProfile = window.showUserProfile;
+        var wrappedProfile = function() {
+            var result = origProfile.apply(this, arguments);
+            _liftProfileAbovePanels();
+            return result;
+        };
+        wrappedProfile._liftsAbovePanels = true;
+        window.showUserProfile = wrappedProfile;
+    }
+    if (typeof window.toggleChatOverlay === 'function' && !window.toggleChatOverlay._resetsPanelZ) {
+        var origChat = window.toggleChatOverlay;
+        var wrappedChat = function() {
+            var wasOpen = !!window._chatOverlayOpen;
+            var result = origChat.apply(this, arguments);
+            if (wasOpen) _restorePanelZ('chatOverlay');
+            return result;
+        };
+        wrappedChat._resetsPanelZ = true;
+        window.toggleChatOverlay = wrappedChat;
+    }
+    if (typeof window.toggleLeaderboard === 'function' && !window.toggleLeaderboard._resetsPanelZ) {
+        var origLb = window.toggleLeaderboard;
+        var wrappedLb = function() {
+            var panel = document.getElementById('leaderboard');
+            var wasOpen = !!(panel && panel.classList.contains('open') && !panel.classList.contains('minimized'));
+            var result = origLb.apply(this, arguments);
+            if (wasOpen) _restorePanelZ('leaderboard');
+            return result;
+        };
+        wrappedLb._resetsPanelZ = true;
+        window.toggleLeaderboard = wrappedLb;
+    }
+}
+
+function _openChatForKeys() {
+    _installPeopleStacking();
+    _closeCoversForPeople();
+    _restorePanelZ('chatOverlay');
+    if (typeof toggleChatOverlay === 'function') {
+        if (!window._chatOverlayOpen) toggleChatOverlay();
+        _restorePanelZ('chatOverlay');
+        return;
+    }
+    if (typeof window.openGlobalChatForCipher === 'function') {
+        window.openGlobalChatForCipher();
+        _restorePanelZ('chatOverlay');
+        setTimeout(function() { _restorePanelZ('chatOverlay'); }, 0);
+        setTimeout(function() { _restorePanelZ('chatOverlay'); }, 350);
+    }
+}
+
+function _openLeaderboardForKeys() {
+    _installPeopleStacking();
+    _closeCoversForPeople();
+    if (typeof toggleLeaderboard === 'function') {
+        var panel = document.getElementById('leaderboard');
+        var showing = panel && panel.classList.contains('open') && !panel.classList.contains('minimized');
+        if (!showing) toggleLeaderboard();
+    }
+    _restorePanelZ('leaderboard');
+}
+
+function _peopleLink(label, opener) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'kc-help-link';
+    btn.textContent = label;
+    btn.onclick = opener;
+    return btn;
+}
+
+function _keySendExplainer() {
+    var details = document.createElement('details');
+    details.className = 'kc-key-help';
+    details.id = 'keySendHelp';
+    var summary = document.createElement('summary');
+    summary.textContent = 'How does sending keys work?';
+    details.appendChild(summary);
+    var list = document.createElement('ol');
+    function addText(text) {
+        var li = document.createElement('li');
+        li.textContent = text;
+        list.appendChild(li);
+    }
+    addText('Keys come from daily wheel gifts.');
+    addText('You can only send keys to peers. The server turns down a send to anyone who is not already your peer.');
+    var where = document.createElement('li');
+    var whereText = document.createElement('div');
+    whereText.textContent = 'Open Global Chat or the leaderboard and tap a name. Their profile card has an Add Peer button, and that button sends the peer request. Settings → Account → Peers lists the requests you already have, and you can accept them there.';
+    var actions = document.createElement('div');
+    actions.className = 'kc-help-actions';
+    actions.appendChild(_peopleLink('Open Global Chat', _openChatForKeys));
+    actions.appendChild(_peopleLink('Open Leaderboard', _openLeaderboardForKeys));
+    where.appendChild(whereText);
+    where.appendChild(actions);
+    list.appendChild(where);
+    addText('Once they accept, Send keys can deliver keys to them.');
+    addText('If that peer opens a cipher with your key, you both win the same prize when both accounts are eligible. Each send is 1 to 3 keys, once per peer per day. The server stores that send on the UTC date and blocks another send until 5:00 UTC on the next UTC date.');
+    details.appendChild(list);
+    return details;
+}
+
+async function _readPeerCount() {
+    if (window._myPeers && typeof window._myPeers.size === 'number') return window._myPeers.size;
+    if (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.peers)) return currentUser.peers.length;
+    try {
+        if (_isSignedIn() && typeof db !== 'undefined' && db) {
+            var snap = await db.collection('users').doc(_getUid()).get();
+            if (snap.exists) {
+                var peers = snap.data().peers;
+                var list = Array.isArray(peers) ? peers : [];
+                window._myPeers = new Set(list);
+                return list.length;
+            }
+        }
+    } catch (e) { /* hint is display-only; the server still checks peers */ }
+    return null;
+}
+
 function _copy(parent, title, explain) {
     var mid = document.createElement('div');
     mid.style.cssText = 'flex:1;min-width:0;';
@@ -1216,8 +1376,10 @@ window.renderKeysAndCiphersPanel = async function(container) {
         el.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.8rem;">Sign in to see keys and locked ciphers.</div>';
         return;
     }
-    var data = await _loadHoldings();
-    var satsOff = await _readSatsDisabled();
+    var loaded = await Promise.all([_loadHoldings(), _readSatsDisabled(), _readPeerCount()]);
+    var data = loaded[0];
+    var satsOff = loaded[1];
+    var peerCount = loaded[2];
     el.innerHTML = '';
     if (satsOff) _satsOffNote(el);
 
@@ -1293,10 +1455,17 @@ window.renderKeysAndCiphersPanel = async function(container) {
     });
 
     var keyHead = document.createElement('div');
-    keyHead.className = 'kc-accent';
-    keyHead.style.cssText = 'font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;margin:14px 0 8px;';
-    keyHead.textContent = 'Your keys — send to peers';
+    keyHead.className = 'kc-key-head';
+    var keyTitle = document.createElement('div');
+    keyTitle.className = 'kc-accent kc-key-title';
+    keyTitle.textContent = 'Your keys — send to peers';
+    var keyNote = document.createElement('div');
+    keyNote.className = 'kc-key-note';
+    keyNote.textContent = '(You need to send Peer Requests first)!';
+    keyHead.appendChild(keyTitle);
+    keyHead.appendChild(keyNote);
     el.appendChild(keyHead);
+    el.appendChild(_keySendExplainer());
 
     var ownLabels = Object.keys(ownGroups).sort();
     if (!ownLabels.length) {
@@ -1320,7 +1489,18 @@ window.renderKeysAndCiphersPanel = async function(container) {
         send.className = 'key-send-btn';
         var ids = group.slice(0, 3).map(function(k) { return k.id; });
         send.onclick = function() { window.showPeerPickerForKeys(ids); };
-        card.appendChild(send);
+        var sendWrap = document.createElement('div');
+        sendWrap.className = 'kc-send-wrap';
+        sendWrap.appendChild(send);
+        if (peerCount === 0) {
+            var noPeer = document.createElement('p');
+            noPeer.className = 'kc-send-hint';
+            noPeer.id = 'keySendPeerHint-' + String(label).replace(/[^A-Za-z0-9_-]/g, '');
+            noPeer.textContent = 'No peers yet. Open "How does sending keys work?" above.';
+            send.setAttribute('aria-describedby', noPeer.id);
+            sendWrap.appendChild(noPeer);
+        }
+        card.appendChild(sendWrap);
     });
     var hint = document.createElement('div');
     hint.style.cssText = 'font-size:0.72rem;color:var(--text-dim);margin:2px 0 8px;';
@@ -1672,9 +1852,21 @@ window.showPeerPickerForKeys = async function(keyIds) {
     sheet.appendChild(sub);
     if (!peers.length) {
         var none = document.createElement('div');
-        none.style.cssText = 'font-size:0.85rem;color:#cbd5e1;margin-bottom:10px;';
-        none.textContent = 'You have no peers yet. Add one from Settings → Account → Peers, then come back.';
+        none.style.cssText = 'font-size:0.85rem;color:#cbd5e1;margin-bottom:10px;line-height:1.4;';
+        none.textContent = 'You have no peers yet. Open Global Chat or the leaderboard, tap a name, and press Add Peer on their profile.';
+        var noneActions = document.createElement('div');
+        noneActions.className = 'kc-help-actions';
+        noneActions.style.marginBottom = '10px';
+        noneActions.appendChild(_peopleLink('Open Global Chat', function() {
+            overlay.remove();
+            _openChatForKeys();
+        }));
+        noneActions.appendChild(_peopleLink('Open Leaderboard', function() {
+            overlay.remove();
+            _openLeaderboardForKeys();
+        }));
         sheet.appendChild(none);
+        sheet.appendChild(noneActions);
     }
     peers.forEach(function(p) {
         var b = document.createElement('button');
@@ -2033,6 +2225,7 @@ function _boot() {
     }, 500);
 }
 _boot();
+_installPeopleStacking();
 
 console.log('[gifting] keys/ciphers loaded');
 })();

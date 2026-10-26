@@ -4920,11 +4920,16 @@ function expandLeaderboard(e) {
     if (btn) btn.remove();
 }
 
+function _resetLeaderboardZ(lb) {
+    if (lb && lb.style) lb.style.zIndex = '';
+}
+
 function minimizeLeaderboard() {
     const lb = document.getElementById('leaderboard');
     const fab = document.getElementById('lbFloatBtn');
     lb.classList.remove('open');
     lb.classList.remove('minimized');
+    _resetLeaderboardZ(lb);
     if (fab) fab.style.display = 'flex';
 }
 
@@ -4933,6 +4938,7 @@ function hideLeaderboard() {
     const fab = document.getElementById('lbFloatBtn');
     lb.classList.remove('open');
     lb.classList.remove('minimized');
+    _resetLeaderboardZ(lb);
     if (fab) fab.style.display = 'flex';
 }
 
@@ -5106,9 +5112,10 @@ function _lbOutsideClose(e) {
     // Don't close if a profile modal is open (clicking in the modal shouldn't close the LB behind it)
     var profileModal = document.getElementById('userProfileModal');
     if (profileModal) return;
-    // Close it
+    // Close it and drop any z-index raised so a profile can sit above the panel.
     lb.classList.remove('open');
     lb.classList.remove('minimized');
+    _resetLeaderboardZ(lb);
     if (fab) fab.style.display = 'flex';
 }
 document.addEventListener('mousedown', _lbOutsideClose, true);
@@ -5438,6 +5445,7 @@ async function toggleLeaderboard() {
     if (lb.classList.contains('open') && !lb.classList.contains('minimized')) {
         lb.classList.remove('open');
         lb.classList.remove('minimized');
+        _resetLeaderboardZ(lb);
         if (fab) fab.style.display = 'flex';
         return;
     }

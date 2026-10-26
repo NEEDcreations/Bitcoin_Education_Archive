@@ -400,6 +400,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
     assert.ok(html.includes('ranking.js?v=20261026_v2395'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2400'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2377'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
@@ -419,7 +421,12 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('ranking.js?v=20261023_v2333'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
-    assert.ok(html.includes('gifting.js?v=20261024_v2365'));
+    assert.ok(html.includes('gifting.js?v=20261026_v2395'));
+    assert.ok(!html.includes('gifting.js?v=20261026_v2378'));
+    assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
+    assert.ok(!html.includes('gifting.js?v=20261026_v2399'));
+    assert.ok(!html.includes('gifting.js?v=20261024_v2365'));
+    assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2254'));
     assert.ok(html.includes('notifications.js?v=20261024_v2357'));
@@ -463,7 +470,9 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2271'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
     assert.ok(html.includes('global-chat.js?v=20261026_v2395'));
-assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2400'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2381'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2380'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
@@ -535,12 +544,17 @@ assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2395'"));
     assert.ok(!sw.includes('btc-archive-v2371'));
+    assert.ok(!sw.includes('btc-archive-v2399'));
+    assert.ok(!sw.includes('btc-archive-v2377'));
+    assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2370'));
 assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2374'));
+    assert.ok(!sw.includes('btc-archive-v2371'));
+    assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2371'));
@@ -625,6 +639,170 @@ assert.ok(!sw.includes('btc-archive-v2377'));
     assert.strictEqual(sw.includes('btc-archive-v2240'), false);
     const bundle = read('bundle.min.js');
     assert.ok(bundle.includes('data-peer-busy'), 'bundle.min.js was not rebuilt from messaging.js');
+}));
+
+queue.push(test('inventory explains sending keys and only hints when there are no peers', async function() {
+    const src = read('gifting.js');
+    assert.ok(src.includes("'(You need to send Peer Requests first)!'"));
+    assert.ok(src.includes("'How does sending keys work?'"));
+    assert.ok(src.includes("createElement('details')"));
+    assert.ok(src.includes('Add Peer'));
+    assert.ok(src.includes('you can accept them there'));
+    assert.ok(!src.includes('only lists requests'));
+    assert.ok(src.includes('.kc-key-note{flex:1 1 12rem;min-width:min(100%,12rem);font-size:0.75rem;'));
+    assert.ok(src.includes('.kc-send-hint{margin:0;font-size:0.75rem;'));
+    assert.ok(!src.includes("panel.style.zIndex = '460000'"));
+    assert.ok(src.includes('openGlobalChatForCipher'));
+    assert.ok(src.includes('No peers yet. Open "How does sending keys work?" above.'));
+    assert.ok(src.includes('until 5:00 UTC on the next UTC date'));
+    assert.ok(src.includes('1 to 3 keys'));
+    const sendAt = src.indexOf('send.onclick = function() { window.showPeerPickerForKeys(ids); }');
+    const hintAt = src.indexOf('if (peerCount === 0)');
+    assert.ok(sendAt > 0 && hintAt > sendAt);
+    const hintBlock = src.slice(hintAt, hintAt + 600);
+    assert.strictEqual(hintBlock.includes('disabled'), false);
+
+    async function render(peerList, labels) {
+        const nodes = [];
+        function create(tag) {
+            const node = {
+                tagName: String(tag).toUpperCase(),
+                children: [],
+                style: {},
+                className: '',
+                id: '',
+                textContent: '',
+                type: '',
+                disabled: false,
+                open: false,
+                onclick: null,
+                attributes: {},
+                parentNode: null,
+                appendChild: function(child) { child.parentNode = node; node.children.push(child); return child; },
+                remove: function() {},
+                setAttribute: function(k, v) { node.attributes[k] = String(v); },
+                getAttribute: function(k) { return node.attributes[k]; },
+                addEventListener: function() {},
+                focus: function() {},
+            };
+            Object.defineProperty(node, 'innerHTML', {
+                configurable: true,
+                get: function() { return node._html || ''; },
+                set: function(v) { node._html = String(v); if (v === '') node.children.length = 0; },
+            });
+            nodes.push(node);
+            return node;
+        }
+        const document = {
+            createElement: create,
+            head: create('head'),
+            body: create('body'),
+            getElementById: function(id) {
+                for (let i = 0; i < nodes.length; i++) if (nodes[i].id === id) return nodes[i];
+                return null;
+            },
+            querySelectorAll: function() { return []; },
+        };
+        function docs(rows) {
+            return {
+                docs: rows.map(function(row) {
+                    return { id: row.id, data: function() { const copy = Object.assign({}, row); delete copy.id; return copy; } };
+                }),
+                empty: rows.length === 0,
+                size: rows.length,
+                forEach: function() {},
+            };
+        }
+        function query(name, filters) {
+            const q = {
+                where: function(field, op, value) { return query(name, filters.concat([{ field: field, value: value }])); },
+                limit: function() { return q; },
+                get: function() {
+                    const status = (filters.find(function(f) { return f.field === 'status'; }) || {}).value;
+                    if (name === 'keys' && status === 'inventory') {
+                        return Promise.resolve(docs(labels.map(function(label, i) { return { id: 'k' + i, label: label }; })));
+                    }
+                    return Promise.resolve(docs([]));
+                },
+            };
+            return q;
+        }
+        const sandbox = {
+            console: console,
+            document: document,
+            setInterval: function() { return 0; },
+            clearInterval: function() {},
+            setTimeout: function() { return 0; },
+            auth: { currentUser: { uid: 'me', isAnonymous: false } },
+            db: {
+                collection: function(name) {
+                    return {
+                        doc: function() {
+                            return {
+                                get: function() {
+                                    return Promise.resolve({
+                                        exists: true,
+                                        data: function() { return { peers: peerList, satsDisabled: false }; },
+                                    });
+                                },
+                            };
+                        },
+                        where: function(field, op, value) { return query(name, [{ field: field, value: value }]); },
+                    };
+                },
+            },
+        };
+        sandbox.window = sandbox;
+        vm.createContext(sandbox);
+        vm.runInContext(read('gifting.js'), sandbox);
+        const host = document.createElement('div');
+        await sandbox.renderKeysAndCiphersPanel(host);
+        return host;
+    }
+    function walk(node, visit) {
+        visit(node);
+        (node.children || []).forEach(function(child) { walk(child, visit); });
+    }
+    function texts(node) {
+        const out = [];
+        walk(node, function(n) { if (n.textContent) out.push(n.textContent); });
+        return out.join('\n');
+    }
+    const zero = await render([], ['3A', '3A', '7F', '<img src=x onerror=alert(1)>']);
+    const zeroText = texts(zero);
+    assert.ok(zeroText.includes('(You need to send Peer Requests first)!'));
+    assert.ok(zeroText.includes('How does sending keys work?'));
+    assert.ok(zeroText.includes('Add Peer'));
+    assert.ok(zeroText.includes('Open Global Chat'));
+    assert.ok(zeroText.includes('Open Leaderboard'));
+    assert.ok(zeroText.includes('No peers yet. Open "How does sending keys work?" above.'));
+    assert.ok(zeroText.includes('<img src=x onerror=alert(1)>'));
+    assert.ok(!zeroText.includes('innerHTML'));
+    let details = null;
+    let sends = 0;
+    walk(zero, function(n) {
+        if (n.tagName === 'DETAILS') details = n;
+        if (n.className === 'key-send-btn') {
+            sends++;
+            assert.strictEqual(n.disabled, false);
+            assert.strictEqual(typeof n.onclick, 'function');
+            assert.ok(n.attributes['aria-describedby']);
+        }
+        if (n.tagName === 'IMG') assert.fail('key label was parsed as HTML');
+    });
+    assert.ok(details);
+    assert.strictEqual(details.open, false);
+    assert.strictEqual(sends, 3);
+
+    const some = await render(['peer-1'], ['F6']);
+    const someText = texts(some);
+    assert.ok(!someText.includes('No peers yet'));
+    walk(some, function(n) {
+        if (n.className === 'key-send-btn') {
+            assert.strictEqual(n.disabled, false);
+            assert.strictEqual(n.attributes['aria-describedby'], undefined);
+        }
+    });
 }));
 
 Promise.all(queue).then(function() {
