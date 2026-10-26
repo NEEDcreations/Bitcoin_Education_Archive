@@ -14939,6 +14939,7 @@ function ensureMobileSheetStyle() {
         '#aiToolsPanel{bottom:var(--bnav-h,72px)!important;}' +
         '#btcDashOverlay{padding-bottom:calc(var(--above-fab,160px) + 16px)!important;}' +
         '#mobileLearnMenu button,#appsMenu button{min-height:44px;}' +
+        'body.ticker-visible #mobileLearnMenu,body.ticker-visible #appsMenu{top:calc(262px + 56px + env(safe-area-inset-top, 0px))!important;}' +
         '}' +
         '@media(max-width:360px){' +
         '#appsMenu > div{grid-template-columns:1fr!important;}' +
@@ -14959,9 +14960,12 @@ function mobileExperienceMode() {
 }
 
 function mobileSheetBox() {
-    return 'position:fixed;left:8px;right:8px;bottom:var(--above-fab,160px);' +
+    // Top clears the Invite pill (186px, or 262px when the ticker is open).
+    // Bottom clears the chat button and the bottom bar via --above-fab.
+    return 'position:fixed;left:8px;right:8px;' +
+        'top:calc(186px + 56px + env(safe-area-inset-top, 0px));' +
+        'bottom:var(--above-fab,160px);' +
         'max-width:420px;margin:0 auto;z-index:' + MOBILE_SHEET_Z + ';' +
-        'max-height:calc(100dvh - var(--above-fab,160px) - 200px);' +
         'overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;' +
         'background:var(--bg-side,#0f172a);border:1px solid var(--border);border-radius:20px;' +
         'padding:14px 14px 16px;box-shadow:0 16px 48px rgba(0,0,0,0.55);';
