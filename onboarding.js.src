@@ -289,6 +289,11 @@
         if (modal && modal.classList.contains('open')) return true;
         if (document.getElementById('mfaSignInOverlay')) return true;
         if (document.getElementById('totpSignInOverlay')) return true;
+        var tos = document.getElementById('tosModal');
+        if (tos && tos.classList.contains('open')) return true;
+        if (document.getElementById('btcIntroOverlay')) return true;
+        var repick = document.getElementById('usernameRepick');
+        if (repick && window.getComputedStyle(repick).display !== 'none') return true;
         return false;
     }
 
@@ -334,15 +339,33 @@
         }
         var invite = document.getElementById('invitePill');
         var card = document.getElementById('inviteCard');
-        if (!invite || !card || card.getAttribute('data-show') !== '1' || card.getAttribute('data-state') !== 'min') return;
-        var ib = invite.getBoundingClientRect();
-        var qb = btn.getBoundingClientRect();
-        if (ib.width < 1 || ib.height < 1) return;
-        var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
-        if (!stacked) return;
-        btn.style.top = Math.round(ib.bottom + 12) + 'px';
-        btn.style.bottom = 'auto';
+        if (invite && card && card.getAttribute('data-show') === '1' && card.getAttribute('data-state') === 'min') {
+            var ib = invite.getBoundingClientRect();
+            var qb = btn.getBoundingClientRect();
+            if (ib.width >= 1 && ib.height >= 1) {
+                var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
+                if (stacked) {
+                    btn.style.top = Math.round(ib.bottom + 12) + 'px';
+                    btn.style.bottom = 'auto';
+                }
+            }
+        }
+        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'em-quick-actions'];
+        for (var a = 0; a < avoidIds.length; a++) {
+            var block = document.getElementById(avoidIds[a]);
+            if (!block) continue;
+            var bcs = window.getComputedStyle(block);
+            if (bcs.display === 'none' || bcs.visibility === 'hidden') continue;
+            var br = block.getBoundingClientRect();
+            if (br.width < 1 || br.height < 1) continue;
+            var qb2 = btn.getBoundingClientRect();
+            var overlap = !(qb2.right < br.left || qb2.left > br.right || qb2.bottom < br.top || qb2.top > br.bottom);
+            if (!overlap) continue;
+            btn.style.top = Math.round(br.bottom + 8) + 'px';
+            btn.style.bottom = 'auto';
+        }
     }
+    window._placeNachoQuestPill = placeNachoQuestPill;
 
     window._showNachoQuestPill = function () {
         if (window.isNachoQuestDone() || !window.isNachoQuestActive()) return;
@@ -676,7 +699,7 @@
     }
 
     function finishIntro() {
-        if (!localStorage.getItem('btc_experience_mode')) window.setExperienceMode('advanced');
+        if (!localStorage.getItem('btc_experience_mode')) window.setExperienceMode('intermediate');
         markIntroSeen();
         var overlay = document.getElementById('btcIntroOverlay');
         if (overlay) overlay.remove();
@@ -714,7 +737,7 @@
         var level = window.getUserSimplificationLevel();
         var hide = {
             beginner: ['#dailySpinBanner', '#progressRings', '#dailyChallengeCard', '#quoteOfDay', '#explorationMap', '#donateSection', '#homeAppsBtn', '#homeAppsMenu', '#desktopDMBtn', '#rankBar', '#activity-ticker', '#continueReading'],
-            intermediate: ['#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker']
+            intermediate: ['#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker', '#featuredOnSection', '#introVideoSection', '#countryUsersSection', '#quoteOfDay']
         };
         document.querySelectorAll('[data-simplified-hidden]').forEach(function (el) {
             el.style.display = '';
@@ -724,6 +747,7 @@
         if (old) old.remove();
         if (level === 'full') return;
         (hide[level] || []).forEach(function (sel) {
+            if (sel === '#introVideoSection' && window._forceIntroVideo) return;
             document.querySelectorAll(sel).forEach(function (el) {
                 el.setAttribute('data-simplified-hidden', '1');
                 el.style.display = 'none';
@@ -759,9 +783,13 @@
             btn.addEventListener('click', function () { if (typeof go === 'function') go(id); });
             box.appendChild(btn);
         });
-        var sub = home.querySelector('.home-subtitle');
-        if (sub && sub.parentNode) sub.parentNode.insertBefore(box, sub.nextSibling);
-        else home.insertBefore(box, home.firstChild);
+        var learn = document.getElementById('homeLearnCard');
+        if (learn && learn.parentNode) learn.parentNode.insertBefore(box, learn);
+        else {
+            var sub = home.querySelector('.home-subtitle');
+            if (sub && sub.parentNode) sub.parentNode.insertBefore(box, sub.nextSibling);
+            else home.insertBefore(box, home.firstChild);
+        }
     };
     window.checkProgressiveReveal = function () {};
 

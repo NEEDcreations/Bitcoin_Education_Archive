@@ -960,8 +960,8 @@ function createNacho() {
         }
         #nacho-toggle:hover { opacity: 1; transform: scale(1.1); box-shadow: 0 4px 20px rgba(247,147,26,0.4), 0 0 0 4px rgba(247,147,26,0.25); }
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
-        @media (max-width: 900px) { #nacho-toggle { bottom: calc(50vh - 30px); left: 12px; width: 46px; height: 46px; font-size: 1.3rem; } }
-        @media (max-width: 480px) { #nacho-toggle { bottom: calc(50vh - 40px); left: 10px; width: 44px; height: 44px; font-size: 1.2rem; } }
+        @media (max-width: 900px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: var(--fab-size, 48px); height: var(--fab-size, 48px); font-size: 1.3rem; } }
+        @media (max-width: 480px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: 44px; height: 44px; font-size: 1.2rem; } }
     `;
     document.head.appendChild(style);
 
@@ -1094,7 +1094,7 @@ function createNacho() {
 
     const toggle = document.createElement('div');
     toggle.id = 'nacho-toggle';
-    toggle.innerHTML = '🦌';
+    toggle.innerHTML = '<img src="/nacho-deer.svg" alt="" width="32" height="32" style="width:70%;height:70%;object-fit:contain;pointer-events:none;">';
     toggle.title = 'Bring back Nacho';
     toggle.setAttribute('role', 'button');
     toggle.setAttribute('aria-label', 'Bring Nacho back');

@@ -415,7 +415,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2362'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2371'"));
     assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));
     assert.ok(!sw.includes('btc-archive-v2359'));
@@ -778,7 +778,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.';
+    const latest = 'Latest: The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.';
     const deleted = 'You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.';
     const topicLinks = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const share = 'The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.';

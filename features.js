@@ -829,6 +829,8 @@ window.updatePredictionLabel = function() {
 
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
+    var more = document.getElementById('homeMore');
+    if (more && more.hidden) return;
     var el = document.getElementById('explorationMap');
     if (!el) return;
     if (typeof CHANNELS === 'undefined') return;
