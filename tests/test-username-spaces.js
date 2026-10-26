@@ -511,6 +511,7 @@ queue.push(test('migration suffix, and skips for already migrated, renamed, or t
     assert.ok(script.indexOf('email') === -1);
     assert.strictEqual(script.indexOf('e.message'), -1);
     assert.ok(script.includes('--plan'));
+    assert.ok(script.includes('--sha256'));
     assert.ok(script.includes("where('username', '==', row.next)"));
     const copies = await migrate.patchLiveCopies(live.db, row);
     assert.strictEqual(copies.listings, 1);
@@ -520,6 +521,7 @@ queue.push(test('migration suffix, and skips for already migrated, renamed, or t
     assert.strictEqual(live.store['global_chat/oldmsg'].name, 'chill guy');
 
     live.store['marketplace/active1'].sellerName = 'chill guy';
+    live.store['users/usera00001'] = { username: 'chill_guy' };
     live.store['username_migrations/usera00001'] = {
         to: 'chill_guy', toLower: 'chill_guy',
         patches: { listings: 'error', dms: 'ok', sf: 'ok' },
@@ -534,27 +536,63 @@ queue.push(test('migration suffix, and skips for already migrated, renamed, or t
     const skipped = await migrate.resumePatches(live.db, row);
     assert.strictEqual(skipped.listings, 0);
     assert.strictEqual(live.store['marketplace/active1'].sellerName, 'chill guy');
+    live.store['users/usera00001'].username = 'picked_later';
+    live.store['username_migrations/usera00001'].patches.listings = 'error';
+    const renamedAway = await migrate.resumePatches(live.db, row);
+    assert.strictEqual(renamedAway.skipped, true);
+    assert.strictEqual(renamedAway.listings, 0);
+    assert.strictEqual(live.store['marketplace/active1'].sellerName, 'chill guy');
+    assert.strictEqual(live.store['username_migrations/usera00001'].patches.listings, 'error');
 
     const built = migrate.planFromRows([
         { id: 'usera00001', data: { username: 'chill guy', username_lower: 'chill guy' } },
         { id: 'userb00001', data: { username: 'chill guy', username_lower: 'chill guy' } },
     ], [], [], [], now);
     const doc = migrate.planDocument(built.counts, built.profileOnly, built.plan);
-    const loaded = migrate.loadReviewedPlan(JSON.parse(JSON.stringify(doc)));
+    const loaded = migrate.loadReviewedPlan(JSON.parse(JSON.stringify(doc)), doc.sha256);
     assert.strictEqual(loaded[0].next, 'chill_guy');
     assert.strictEqual(loaded[1].next, 'chill_guy2');
     const tampered = JSON.parse(JSON.stringify(doc));
     tampered.plan[1].next = 'chill_guy9';
     let hashErr = null;
-    try { migrate.loadReviewedPlan(tampered); } catch (e) { hashErr = e; }
+    try { migrate.loadReviewedPlan(tampered, doc.sha256); } catch (e) { hashErr = e; }
     assert.ok(hashErr);
     assert.strictEqual(hashErr.code, 'plan-hash');
     assert.strictEqual(loaded[1].next, 'chill_guy2');
+    let flagMiss = null;
+    try { migrate.loadReviewedPlan(JSON.parse(JSON.stringify(doc)), 'ab'.repeat(32)); } catch (e) { flagMiss = e; }
+    assert.ok(flagMiss);
+    assert.strictEqual(flagMiss.code, 'plan-hash');
+    const upper = migrate.loadReviewedPlan(JSON.parse(JSON.stringify(doc)), doc.sha256.toUpperCase());
+    assert.strictEqual(upper[0].next, 'chill_guy');
+    function refuse(mutate) {
+        const bad = JSON.parse(JSON.stringify(doc));
+        mutate(bad);
+        bad.sha256 = migrate.planSha256(bad.counts, bad.profileOnly, bad.plan);
+        let err = null;
+        try { migrate.loadReviewedPlan(bad, bad.sha256); } catch (e) { err = e; }
+        assert.strictEqual(err && err.code, 'invalid-plan');
+    }
+    refuse(function (bad) { bad.plan[0].next = 'ab'; bad.plan[0].nextLower = 'ab'; });
+    refuse(function (bad) { bad.plan[0].nextLower = 'CHILL_GUY'; });
+    refuse(function (bad) { bad.plan[0].oldLower = 'other'; });
+    refuse(function (bad) { bad.plan[0].old = 'chill_guy'; bad.plan[0].oldLower = 'chill_guy'; });
+    refuse(function (bad) { bad.plan[1].next = 'chill_guy'; bad.plan[1].nextLower = 'chill_guy'; });
     let missing = null;
     try { migrate.assertApplyPlan(['node', 'migrate-username-spaces.js', '--apply']); } catch (e) { missing = e; }
     assert.ok(missing);
     assert.strictEqual(missing.code, 'plan-required');
-    assert.strictEqual(migrate.assertApplyPlan(['node', 'migrate-username-spaces.js', '--apply', '--plan', 'reviewed.json']), 'reviewed.json');
+    let noSha = null;
+    try { migrate.assertApplyPlan(['node', 'migrate-username-spaces.js', '--apply', '--plan', 'reviewed.json']); } catch (e) { noSha = e; }
+    assert.ok(noSha);
+    assert.strictEqual(noSha.code, 'sha-required');
+    let badSha = null;
+    try { migrate.assertApplyPlan(['node', 'migrate-username-spaces.js', '--apply', '--plan', 'reviewed.json', '--sha256', 'not-a-hash']); } catch (e) { badSha = e; }
+    assert.ok(badSha);
+    assert.strictEqual(badSha.code, 'sha-required');
+    const args = migrate.assertApplyPlan(['node', 'migrate-username-spaces.js', '--apply', '--plan', 'reviewed.json', '--sha256', doc.sha256.toUpperCase()]);
+    assert.strictEqual(args.plan, 'reviewed.json');
+    assert.strictEqual(args.sha256, doc.sha256);
     assert.strictEqual(migrate.noticeFor('Ahmed_ahmedibnhack', { sanitized: true }),
         'Usernames can no longer contain spaces or special characters, so yours is now @Ahmed_ahmedibnhack. Want a different one? You get one free change in Settings → Advanced → Change Username.');
 }));

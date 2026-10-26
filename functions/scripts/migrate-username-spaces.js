@@ -10,16 +10,18 @@
 // "chill_guy23"...), shortening the base so the result stays <= MAX_LEN.
 //
 //   node functions/scripts/migrate-username-spaces.js            (dry run, default)
-//   node functions/scripts/migrate-username-spaces.js --apply --plan FILE
-//   ... --apply --plan FILE --notify   also writes one in-app notification
+//   node functions/scripts/migrate-username-spaces.js --apply --plan FILE --sha256 HEX
+//   ... --apply --plan FILE --sha256 HEX --notify   also writes one notification
 //   ... --out DIR          where the full (uid-bearing) plan/backup is written (mode 600)
 //
 // The dry run writes plan-*.json (mode 600) plus a sha256 of {counts, profileOnly,
-// plan}. --apply refuses to run without --plan FILE, and it refuses when that
-// hash does not match. It renames only those rows, to exactly those target
-// names. It never recomputes a suffix. A target that was taken since the review
-// is skipped and reported. A user who already has a matching marker is left
-// as-is, and any live-copy patch that did not finish is retried.
+// plan}. --apply refuses to run without --plan FILE and without --sha256 HEX
+// equal to that computed hash. It then checks every row again and refuses the
+// whole run if any row fails. It renames only those rows, to exactly those
+// target names. It never recomputes a suffix. A target that was taken since
+// the review is skipped and reported. A user who already has a matching marker
+// is left as-is. A live-copy patch that did not finish is retried only while
+// their current username is still the planned name.
 //
 // Apply is transactional per user. A user whose current name is no longer the
 // planned old name is skipped. The transaction re-checks the old name and the
@@ -127,7 +129,32 @@ function planDocument(counts, profileOnly, plan) {
     };
 }
 
-function loadReviewedPlan(doc) {
+function planRowProblem(row, seen) {
+    const oldName = row && row.old;
+    const next = row && row.next;
+    if (typeof oldName !== 'string' || !HAS_WS.test(oldName)) return 'old-space';
+    if (typeof next !== 'string') return 'target';
+    if (row.oldLower !== oldName.toLowerCase() || row.nextLower !== next.toLowerCase()) return 'lower';
+    const verdict = names.assessUsername(next);
+    if (!verdict.ok || verdict.username !== next) return 'target';
+    if (seen.has(row.nextLower)) return 'duplicate';
+    seen.add(row.nextLower);
+    return '';
+}
+
+function validateApplyRows(plan) {
+    const seen = new Set();
+    for (let i = 0; i < plan.length; i++) {
+        const problem = planRowProblem(plan[i], seen);
+        if (problem) {
+            const err = new Error('plan row failed ' + problem);
+            err.code = 'invalid-plan';
+            throw err;
+        }
+    }
+}
+
+function loadReviewedPlan(doc, expectedSha) {
     if (!doc || typeof doc.sha256 !== 'string' || !doc.counts || !Array.isArray(doc.plan)) {
         const err = new Error('plan file is incomplete');
         err.code = 'invalid-plan';
@@ -139,25 +166,48 @@ function loadReviewedPlan(doc) {
         err.code = 'plan-hash';
         throw err;
     }
+    if (typeof expectedSha === 'string') {
+        const want = expectedSha.toLowerCase();
+        if (want !== got) {
+            const err = new Error('plan hash mismatch');
+            err.code = 'plan-hash';
+            throw err;
+        }
+    }
     if (doc.plan.some(function (row) { return row && row.invalid; })) {
         const err = new Error('invalid names in plan');
         err.code = 'invalid-plan';
         throw err;
     }
+    validateApplyRows(doc.plan);
     return doc.plan;
+}
+
+function flagValue(argv, flag) {
+    const i = (argv || []).indexOf(flag);
+    if (i === -1) return '';
+    const value = argv[i + 1];
+    if (!value || String(value).charAt(0) === '-') return '';
+    return String(value);
 }
 
 function assertApplyPlan(argv) {
     const list = argv || [];
     const apply = list.indexOf('--apply') !== -1;
-    const i = list.indexOf('--plan');
-    const file = i !== -1 ? list[i + 1] : '';
-    if (apply && (!file || String(file).charAt(0) === '-')) {
+    const file = flagValue(list, '--plan');
+    const sha = flagValue(list, '--sha256');
+    if (!apply) return { plan: file || null, sha256: sha ? sha.toLowerCase() : null };
+    if (!file) {
         const err = new Error('--apply requires --plan FILE');
         err.code = 'plan-required';
         throw err;
     }
-    return file || null;
+    if (!/^[0-9a-fA-F]{64}$/.test(sha)) {
+        const err = new Error('--apply requires --sha256 HEX');
+        err.code = 'sha-required';
+        throw err;
+    }
+    return { plan: file, sha256: sha.toLowerCase() };
 }
 
 function errCode(e) {
@@ -389,6 +439,12 @@ async function patchLiveCopies(db, row, only) {
 const PATCH_KEYS = ['listings', 'dms', 'sf'];
 
 async function resumePatches(db, row) {
+    const userSnap = await db.collection('users').doc(row.uid).get();
+    const currentName = userSnap.exists ? (userSnap.data() || {}).username : '';
+    // A later rename means the failed live copies are no longer this plan's job.
+    if (currentName !== row.next) {
+        return { listings: 0, dms: 0, sf: 0, status: {}, skipped: true };
+    }
     const markRef = db.collection('username_migrations').doc(row.uid);
     const mark = await markRef.get();
     const prev = (mark.exists && (mark.data() || {}).patches) || {};
@@ -427,34 +483,47 @@ function printRows(plan) {
 async function main() {
     const apply = process.argv.includes('--apply');
     const notify = process.argv.includes('--notify');
-    const planPath = assertApplyPlan(process.argv);
+    const args = assertApplyPlan(process.argv);
+    const planPath = args.plan;
     const outDir = argValue('--out') || path.join(process.cwd(), 'username-spaces-private');
+    if (apply) {
+        // Hash and row checks happen before any Firestore connection or write.
+        const reviewedDoc = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+        const reviewed = loadReviewedPlan(reviewedDoc, args.sha256);
+        if (!admin.apps.length) admin.initializeApp();
+        const db = admin.firestore();
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const summary = {
+            mode: 'apply',
+            rows: reviewed.length,
+            sanitized: reviewed.filter(r => r.sanitized).length,
+        };
+        console.log(JSON.stringify(summary));
+        printRows(reviewed);
+        await applyReviewed(db, reviewed, { notify: notify, outDir: outDir, stamp: stamp });
+        return;
+    }
     if (!admin.apps.length) admin.initializeApp();
     const db = admin.firestore();
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    if (!apply) {
-        const { plan, counts, profileOnly } = await buildPlan(db);
-        const doc = planDocument(counts, profileOnly, plan);
-        writePrivate(outDir, 'plan-' + stamp + '.json', JSON.stringify(doc, null, 2));
-        const summary = {
-            mode: 'dry-run', ...counts,
-            collisions: plan.filter(r => r.collided).length,
-            invalid: plan.filter(r => r.invalid).length,
-            sanitized: plan.filter(r => r.sanitized).length,
-            sha256: doc.sha256,
-        };
-        console.log(JSON.stringify(summary));
-        printRows(plan);
-        return;
-    }
-    const reviewed = loadReviewedPlan(JSON.parse(fs.readFileSync(planPath, 'utf8')));
+    const { plan, counts, profileOnly } = await buildPlan(db);
+    const doc = planDocument(counts, profileOnly, plan);
+    writePrivate(outDir, 'plan-' + stamp + '.json', JSON.stringify(doc, null, 2));
     const summary = {
-        mode: 'apply',
-        rows: reviewed.length,
-        sanitized: reviewed.filter(r => r.sanitized).length,
+        mode: 'dry-run', ...counts,
+        collisions: plan.filter(r => r.collided).length,
+        invalid: plan.filter(r => r.invalid).length,
+        sanitized: plan.filter(r => r.sanitized).length,
+        sha256: doc.sha256,
     };
     console.log(JSON.stringify(summary));
-    printRows(reviewed);
+    printRows(plan);
+}
+
+async function applyReviewed(db, reviewed, opts) {
+    const outDir = opts.outDir;
+    const stamp = opts.stamp;
+    const notify = opts.notify;
     // Backup of the old values, written before any write. Names stay the reviewed ones.
     const backup = [];
     for (const r of reviewed) {
