@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Mobile Learn and Explore Apps share the catalogs in features.registry.js.
-// Desktop #homeLearnMenu and #homeAppsMenu stay the live markup.
+// Desktop and phone Learn / Explore Apps both render BQ_LEARN_MENU and BQ_EXPLORE_APPS.
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
@@ -27,10 +27,6 @@ function ids(list, mode) {
     }).map(function (item) { return item.id; });
 }
 
-function plainTitle(text) {
-    return text.replace(/^\s*\S+\s+/, '').trim();
-}
-
 test('Learn root order matches the phone menu Phil asked for', function () {
     assert.deepStrictEqual(ids(reg.BQ_LEARN_MENU.root, 'advanced'), [
         'brand-new', 'quests', 'first-purchase', 'meetup', 'spend'
@@ -45,7 +41,7 @@ test('Quests hub holds lessons, trails, daily quests, and both certifications', 
         'learning-quests', 'trails', 'daily-quests', 'scholar', 'protocol'
     ]);
     assert.deepStrictEqual(reg.BQ_LEARN_MENU.quests.map(function (item) { return item.title; }), [
-        'Learning Quests', "Nacho's trails", 'Daily quests', 'Bitcoin Scholar', 'Bitcoin Protocol Expert'
+        'Learning Quests', "Nacho's Trails", 'Daily Quests', 'Bitcoin Scholar', 'Bitcoin Protocol Expert'
     ]);
     assert.strictEqual(reg.BQ_LEARN_MENU.quests[3].arg, 'properties');
     assert.strictEqual(reg.BQ_LEARN_MENU.quests[4].arg, 'technical');
@@ -63,24 +59,40 @@ test('beginner mode hides daily quests, meetup, spend, and the same six apps', f
     });
 });
 
-test('Explore Apps titles match the desktop grid, plus Wallet', function () {
-    const start = html.indexOf('id="homeAppsMenu"');
-    const end = html.indexOf('id="continueReading"');
-    const menu = html.slice(start, end);
-    const desktop = [];
-    const re = /class="app-title">([^<]+)</g;
-    let match;
-    while ((match = re.exec(menu))) desktop.push(plainTitle(match[1]));
-    const shared = reg.BQ_EXPLORE_APPS.filter(function (item) { return item.id !== 'wallet'; }).map(function (item) { return item.title; });
-    assert.deepStrictEqual(shared, desktop);
-    assert.ok(desktop.indexOf('AI Tools') !== -1);
-    assert.ok(desktop.indexOf('Metrics') !== -1);
-    assert.ok(desktop.indexOf('Leaderboard') !== -1);
-    assert.strictEqual(reg.BQ_EXPLORE_APPS[reg.BQ_EXPLORE_APPS.length - 1].id, 'wallet');
-    assert.strictEqual(reg.BQ_EXPLORE_APPS[reg.BQ_EXPLORE_APPS.length - 1].wide, true);
+test('phone and desktop menus both render the same registry lists', function () {
+    assert.ok(ux.includes('window.renderDesktopLearnMenu'));
+    assert.ok(ux.includes('window.renderDesktopAppsMenu'));
+    assert.ok(ux.includes('window.renderMobileLearnMenu'));
+    assert.ok(ux.includes('window.BQ_LEARN_MENU'));
+    assert.ok(ux.includes('window.BQ_EXPLORE_APPS'));
+    assert.ok(read('features.registry.js').includes('win.renderDesktopHomeMenus'));
+    assert.ok(read('ux-patches.js').includes('window.renderDesktopHomeMenus()'));
+    const learnStart = html.indexOf('id="homeLearnMenu"');
+    const learnEnd = html.indexOf('id="homeAppsBtn"');
+    const learn = html.slice(learnStart, learnEnd);
+    assert.ok(!learn.includes("go('learning-quests')"));
+    assert.ok(!learn.includes('showQuestHub'));
+    assert.ok(!learn.includes('Nacho\'s Trails: Guided Learning'));
+    const appsStart = html.indexOf('id="homeAppsMenu"');
+    const appsEnd = html.indexOf('id="continueReading"');
+    const apps = html.slice(appsStart, appsEnd);
+    assert.ok(apps.includes('data-apps-grid="1"'));
+    assert.ok(!apps.includes('class="app-title"'));
+    assert.ok(ux.includes("btn.setAttribute('data-wallet-nav', '1')"));
+    assert.ok(ux.includes("e.key !== 'Escape'"));
+    assert.ok(ux.includes('desktopModalOpen'));
+    const rootIds = reg.BQ_LEARN_MENU.root.map(function (item) { return item.id; });
+    const questIds = reg.BQ_LEARN_MENU.quests.map(function (item) { return item.id; });
+    assert.deepStrictEqual(rootIds, ['brand-new', 'quests', 'first-purchase', 'meetup', 'spend']);
+    assert.deepStrictEqual(questIds, ['learning-quests', 'trails', 'daily-quests', 'scholar', 'protocol']);
+    assert.deepStrictEqual(reg.BQ_EXPLORE_APPS.map(function (item) { return item.title; }), [
+        'Nacho Mode', 'Proof of Play', 'Pleb Talk', 'Lightning Mart', 'IRL Sync', 'Bitcoin Beats',
+        'Timechain TV', 'Proof of Walk', 'AI Tools', 'Metrics', 'Leaderboard', 'Wallet'
+    ]);
+    assert.strictEqual(html, read('404.html'));
 });
 
-test('mobile sheets render the shared catalogs and sit above Settings', function () {
+test('mobile sheets sit above Settings and skip the old scattered quest buttons', function () {
     assert.ok(ux.includes('window.BQ_LEARN_MENU'));
     assert.ok(ux.includes('window.BQ_EXPLORE_APPS'));
     assert.ok(ux.includes('2100020'));
@@ -93,21 +105,6 @@ test('mobile sheets render the shared catalogs and sit above Settings', function
     assert.ok(app.includes('window.openMobileExploreApps'));
     assert.ok(!app.includes('function appBtn'));
     assert.ok(!app.includes('z-index:100001'));
-});
-
-test('desktop Learn menu is still the flat list', function () {
-    const start = html.indexOf('id="homeLearnMenu"');
-    const end = html.indexOf('id="homeAppsBtn"');
-    const menu = html.slice(start, end);
-    assert.ok(menu.includes("go('learning-quests')"));
-    assert.ok(menu.includes("go('trails')"));
-    assert.ok(menu.includes('Daily Quests'));
-    assert.ok(menu.includes('showQuestHub'));
-    assert.ok(menu.includes('Meetup Builder'));
-    assert.ok(menu.includes('Spend Bitcoin'));
-    assert.ok(!menu.includes('Bitcoin Scholar'));
-    assert.ok(!menu.includes('Bitcoin Protocol Expert'));
-    assert.strictEqual(html, read('404.html'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

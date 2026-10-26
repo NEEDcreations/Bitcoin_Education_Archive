@@ -1712,11 +1712,11 @@
                 desc: 'Slideshow lessons with key stats, graphics, and a quiz.',
                 color: '#10b981', bg: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06))',
                 modes: LEARN_MODES, kind: 'go', arg: 'learning-quests' },
-            { id: 'trails', emoji: '🦌', title: "Nacho's trails",
+            { id: 'trails', emoji: '🦌', title: "Nacho's Trails",
                 desc: 'Guided learning paths — Meadow, Mountain, and Summit.',
                 color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05))',
                 modes: LEARN_MODES, kind: 'go', arg: 'trails' },
-            { id: 'daily-quests', emoji: '🎯', title: 'Daily quests',
+            { id: 'daily-quests', emoji: '🎯', title: 'Daily Quests',
                 desc: 'Daily quizzes, trivia, and polls.',
                 color: '#a78bfa', bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))',
                 modes: LEARN_LATER, kind: 'hub' },
@@ -1746,6 +1746,7 @@
     ];
     win.BQ_LEARN_MENU = BQ_LEARN_MENU;
     win.BQ_EXPLORE_APPS = BQ_EXPLORE_APPS;
+    if (typeof win.renderDesktopHomeMenus === 'function') win.renderDesktopHomeMenus();
 
     var api = {
         FEATURES: FEATURES,

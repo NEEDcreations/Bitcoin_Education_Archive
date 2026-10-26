@@ -15321,6 +15321,154 @@ window.openMobileExploreApps = function() {
     if (typeof playSound === 'function') playSound('pop');
 };
 
+function desktopModalOpen() {
+    var settings = document.getElementById('usernameModal');
+    var terms = document.getElementById('tosModal');
+    return (settings && settings.classList.contains('open')) || (terms && terms.classList.contains('open'));
+}
+
+function menuIsOpen(el) {
+    if (!el) return false;
+    var display = el.style.display;
+    return display && display !== 'none';
+}
+
+function closeDesktopMenu(menu, toggleId) {
+    if (!menu) return;
+    menu.style.display = 'none';
+    var toggle = document.getElementById(toggleId);
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+        if (toggle.focus) toggle.focus();
+    }
+}
+
+window.renderDesktopLearnMenu = function(view) {
+    var menu = document.getElementById('homeLearnMenu');
+    if (!menu || !window.BQ_LEARN_MENU) return;
+    var which = view === 'quests' ? 'quests' : 'root';
+    menu.setAttribute('data-learn-view', which);
+    menu.setAttribute('data-registry-menu', 'learn');
+    menu.setAttribute('role', 'group');
+    menu.setAttribute('aria-label', which === 'quests' ? 'Quests' : 'Learn');
+    var toggle = document.getElementById('homeLearnBtn');
+    if (toggle) toggle.setAttribute('aria-controls', 'homeLearnMenu');
+    while (menu.firstChild) menu.removeChild(menu.firstChild);
+    if (which === 'quests') {
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.setAttribute('data-learn-id', 'back');
+        back.textContent = '← Back';
+        back.setAttribute('aria-label', 'Back to Learn');
+        back.style.cssText = 'min-height:44px;padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;';
+        back.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            window.renderDesktopLearnMenu('root');
+            var quests = menu.querySelector('[data-learn-id="quests"]');
+            if (quests && quests.focus) quests.focus();
+        });
+        menu.appendChild(back);
+    }
+    learnItems(which).forEach(function(item) {
+        var btn = learnButton(item);
+        btn.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (item.kind === 'quests') {
+                window.renderDesktopLearnMenu('quests');
+                var backBtn = menu.querySelector('[data-learn-id="back"]');
+                if (backBtn && backBtn.focus) backBtn.focus();
+                return;
+            }
+            closeDesktopMenu(menu, 'homeLearnBtn');
+            runSurfaceAction(item);
+        });
+        menu.appendChild(btn);
+    });
+};
+
+window.renderDesktopAppsMenu = function() {
+    var menu = document.getElementById('homeAppsMenu');
+    if (!menu || !window.BQ_EXPLORE_APPS) return;
+    menu.setAttribute('data-registry-menu', 'apps');
+    menu.setAttribute('role', 'group');
+    menu.setAttribute('aria-label', 'Explore Apps');
+    var toggle = document.getElementById('homeAppsBtn');
+    if (toggle) toggle.setAttribute('aria-controls', 'homeAppsMenu');
+    var grid = menu.querySelector('[data-apps-grid]');
+    if (!grid) {
+        grid = document.createElement('div');
+        grid.setAttribute('data-apps-grid', '1');
+        grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+        menu.appendChild(grid);
+    }
+    while (grid.firstChild) grid.removeChild(grid.firstChild);
+    var mode = mobileExperienceMode();
+    window.BQ_EXPLORE_APPS.forEach(function(item) {
+        if (item.modes && item.modes.indexOf(mode) === -1) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'apps-grid-btn';
+        btn.setAttribute('data-app-id', item.id);
+        if (item.id === 'nacho') btn.id = 'nqNachoBtn';
+        if (item.wide) btn.style.gridColumn = '1 / -1';
+        if (item.id === 'wallet') {
+            btn.setAttribute('data-wallet-nav', '1');
+            btn.style.cssText = 'padding:12px 5px;min-height:44px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;grid-column:1 / -1;touch-action:manipulation;font-family:inherit;';
+            btn.textContent = (item.emoji ? item.emoji + ' ' : '') + item.title;
+        } else {
+            btn.setAttribute('data-app-modes', (item.modes || []).join(' '));
+            var name = document.createElement('span');
+            name.className = 'app-title';
+            name.textContent = (item.emoji ? item.emoji + ' ' : '') + item.title;
+            var desc = document.createElement('span');
+            desc.className = 'app-desc';
+            desc.textContent = item.desc || '';
+            btn.appendChild(name);
+            btn.appendChild(desc);
+        }
+        btn.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeDesktopMenu(menu, 'homeAppsBtn');
+            runSurfaceAction(item);
+        });
+        grid.appendChild(btn);
+    });
+};
+
+window.renderDesktopHomeMenus = function() {
+    var learn = document.getElementById('homeLearnMenu');
+    var view = learn && learn.getAttribute('data-learn-view');
+    window.renderDesktopLearnMenu(view === 'quests' ? 'quests' : 'root');
+    window.renderDesktopAppsMenu();
+};
+
+if (!window._desktopMenuKeys) {
+    window._desktopMenuKeys = true;
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' || desktopModalOpen()) return;
+        var learn = document.getElementById('homeLearnMenu');
+        var apps = document.getElementById('homeAppsMenu');
+        if (menuIsOpen(learn)) {
+            e.preventDefault();
+            if (learn.getAttribute('data-learn-view') === 'quests') {
+                window.renderDesktopLearnMenu('root');
+                var quests = learn.querySelector('[data-learn-id="quests"]');
+                if (quests && quests.focus) quests.focus();
+                return;
+            }
+            closeDesktopMenu(learn, 'homeLearnBtn');
+            return;
+        }
+        if (menuIsOpen(apps)) {
+            e.preventDefault();
+            closeDesktopMenu(apps, 'homeAppsBtn');
+        }
+    });
+}
+
 window.toggleMobileFlashcards = function() {
     var grid = document.getElementById('mLearnFlashGrid');
     var btn = document.getElementById('mLearnFlashBtn');
@@ -27589,6 +27737,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 // =====================================================================
 (function() {
     function applyDesktopMenuModes() {
+        if (typeof window.renderDesktopHomeMenus === 'function' && window.BQ_LEARN_MENU && window.BQ_EXPLORE_APPS) {
+            window.renderDesktopHomeMenus();
+            return;
+        }
         var mode = null;
         try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
         if (!mode || mode === 'advanced') {

@@ -1751,6 +1751,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 // =====================================================================
 (function() {
     function applyDesktopMenuModes() {
+        if (typeof window.renderDesktopHomeMenus === 'function' && window.BQ_LEARN_MENU && window.BQ_EXPLORE_APPS) {
+            window.renderDesktopHomeMenus();
+            return;
+        }
         var mode = null;
         try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
         if (!mode || mode === 'advanced') {
