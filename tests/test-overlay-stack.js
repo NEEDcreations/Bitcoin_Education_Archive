@@ -27,6 +27,8 @@ assert.ok(utils.includes('window.nextOverlayZ = nextOverlayZ'));
 const ranking = read('ranking.js');
 assert.ok(ranking.includes('Sending your sats…'));
 assert.ok(ranking.includes('Still sending… this can take a moment'));
+assert.ok(ranking.includes("We couldn't confirm — check your balance before trying again"));
+assert.ok(ranking.includes('var SATS_CLAIM_GIVE_UP_MS = 60000;'));
 assert.ok(ranking.includes('⚡ Sent '));
 assert.ok(ranking.includes('var paidAmount = result.data.amount;'));
 assert.ok(!ranking.includes('result.data.amount || 0'));
@@ -41,10 +43,14 @@ const htmlPath = path.join(os.tmpdir(), 'overlay-stack-test.html');
 const prelude = `
 window.setInterval = function() { return 0; };
 window.clearInterval = function() {};
+window.__lateTimers = [];
 var __realSetTimeout = window.setTimeout.bind(window);
 window.setTimeout = function(fn, ms) {
     ms = Number(ms) || 0;
-    if (ms >= 20000) { window.__slowFn = fn; return 1; }
+    if (ms >= 20000) {
+        window.__lateTimers.push({ ms: ms, fn: fn, ran: false });
+        return window.__lateTimers.length;
+    }
     if (ms >= 400) return 0;
     return __realSetTimeout(fn, ms);
 };
@@ -63,7 +69,9 @@ window.firebase = {
             return function(payload) {
                 window.__claimCalls = (window.__claimCalls || 0) + 1;
                 window.__lastClaimPayload = payload;
-                if (window.__claimMode === 'hang') return new Promise(function() {});
+                if (window.__claimMode === 'hang') {
+                    return new Promise(function(resolve) { window.__hangResolve = resolve; });
+                }
                 if (window.__claimMode === 'fail') return Promise.resolve({ data: { success: false, error: window.__failMsg } });
                 return Promise.resolve({ data: { success: true, amount: 200 } });
             };
@@ -111,22 +119,55 @@ async function __runOverlayTests() {
             metadata: { creationTime: '2020-01-01T00:00:00.000Z' }
         }
     };
+    function __userData() {
+        return window.__userDoc || {
+            points: 6000,
+            pointsClaimed: 2000,
+            pointsDonated: 0,
+            pointsExchanged: 0,
+            satsWithdrawn: 200,
+            pendingOverflow: 0
+        };
+    }
     db = {
         collection: function() {
             return { doc: function() { return { get: function() {
-                return Promise.resolve({ data: function() {
-                    return {
-                        points: 6000,
-                        pointsClaimed: 2000,
-                        pointsDonated: 0,
-                        pointsExchanged: 0,
-                        satsWithdrawn: 200,
-                        pendingOverflow: 0
-                    };
-                } });
+                window.__userReads = (window.__userReads || 0) + 1;
+                if (window.__userReadMode === 'fail') return Promise.reject(new Error('offline'));
+                var data = __userData();
+                var snap = { data: function() { return data; } };
+                if (window.__holdReads > 0) {
+                    window.__holdReads--;
+                    return new Promise(function(resolve) { window.__releaseRead = function() { resolve(snap); }; });
+                }
+                return Promise.resolve(snap);
             } }; } };
         }
     };
+    function __flush() {
+        var chain = Promise.resolve();
+        for (var i = 0; i < 12; i++) chain = chain.then(function() { return Promise.resolve(); });
+        return chain;
+    }
+    function __fire(ms) {
+        var list = window.__lateTimers || [];
+        for (var i = list.length - 1; i >= 0; i--) {
+            if (list[i].ms === ms && !list[i].ran) {
+                list[i].ran = true;
+                list[i].fn();
+                return true;
+            }
+        }
+        return false;
+    }
+    function __seedClaim() {
+        initSatsClaim();
+        var ts = document.getElementById('satsClaimTurnstile');
+        var token = document.createElement('input');
+        token.setAttribute('name', 'cf-turnstile-response');
+        token.value = 'tok';
+        ts.appendChild(token);
+    }
     showSettingsPage('sats');
     var settings = document.getElementById('usernameModal');
     check('settings-open', settings && settings.classList.contains('open'));
@@ -195,11 +236,111 @@ async function __runOverlayTests() {
     check('sending-live', (document.getElementById('satsClaimStatus').textContent || '').indexOf('Sending your sats') !== -1);
     check('sending-disabled', sendBtn && sendBtn.disabled === true);
     check('hang-one-call', window.__claimCalls === 1);
-    if (typeof window.__slowFn === 'function') window.__slowFn();
+    check('slow-armed', __fire(20000));
     sendBtn = document.getElementById('satsClaimBtn');
     check('slow-copy', sendBtn && (sendBtn.textContent || '').indexOf('Still sending') !== -1);
     check('slow-stays-disabled', sendBtn && sendBtn.disabled === true);
     check('slow-no-second-call', window.__claimCalls === 1);
+    window.__holdReads = 1;
+    check('giveup-armed', __fire(60000));
+    var errBox = document.getElementById('satsClaimError');
+    sendBtn = document.getElementById('satsClaimBtn');
+    check('unconfirmed-copy', errBox && errBox.textContent.indexOf("couldn't confirm") !== -1);
+    check('held-until-read', sendBtn && sendBtn.disabled === true && window._satsClaimInProgress === true);
+    submitSatsClaim();
+    check('no-second-while-held', window.__claimCalls === 1);
+    window.__hangResolve({ data: { success: true, amount: 200 } });
+    await __flush();
+    var lateCeleb = document.getElementById('satsCelebration');
+    check('late-success-amount', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 200 sats!') !== -1);
+    check('late-success-one-call', window.__claimCalls === 1);
+    if (typeof window.__releaseRead === 'function') window.__releaseRead();
+    await __flush();
+    check('read-cannot-reenable', window.__claimCalls === 1 && !!document.getElementById('satsCelebration'));
+    if (lateCeleb) lateCeleb.remove();
+    void hanging;
+
+    window.__userReadMode = '';
+    window.__holdReads = 0;
+    window.__claimMode = 'hang';
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    check('retry-send-armed', __fire(60000));
+    await __flush();
+    sendBtn = document.getElementById('satsClaimBtn');
+    errBox = document.getElementById('satsClaimError');
+    check('unchanged-message', errBox && errBox.textContent.indexOf('check your balance before trying again') !== -1);
+    check('reenabled-after-unchanged-read', sendBtn && sendBtn.disabled === false && window._satsClaimInProgress === false);
+    check('unchanged-one-call', window.__claimCalls === 1);
+    if (typeof window.__hangResolve === 'function') window.__hangResolve({ data: { success: true, amount: 80 } });
+    await __flush();
+    lateCeleb = document.getElementById('satsCelebration');
+    check('slow-resolve-after-reenable', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 80 sats!') !== -1);
+    check('slow-resolve-still-one-call', window.__claimCalls === 1);
+    if (lateCeleb) lateCeleb.remove();
+    void hanging;
+
+    window.__userDoc = {
+        points: 6000,
+        pointsClaimed: 2000,
+        pointsDonated: 0,
+        pointsExchanged: 0,
+        satsWithdrawn: 350,
+        pendingOverflow: 0
+    };
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    check('landed-armed', __fire(60000));
+    await __flush();
+    lateCeleb = document.getElementById('satsCelebration');
+    check('timeout-server-amount', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 150 sats!') !== -1);
+    check('timeout-server-no-resend', window.__claimCalls === 1);
+    check('timeout-server-balance', currentUser.satsWithdrawn === 350);
+    if (lateCeleb) lateCeleb.remove();
+    void hanging;
+
+    window.__userDoc = {
+        points: 6000,
+        pointsClaimed: 2000,
+        pointsDonated: 0,
+        pointsExchanged: 0,
+        satsWithdrawn: 350,
+        pendingOverflow: 0,
+        lastSatsClaim: { seconds: Math.floor(Date.now() / 1000) }
+    };
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    check('stamp-armed', __fire(60000));
+    await __flush();
+    sendBtn = document.getElementById('satsClaimBtn');
+    check('stamp-stays-locked', sendBtn && sendBtn.disabled === true && window._satsClaimInProgress === true && !document.getElementById('satsCelebration'));
+    submitSatsClaim();
+    check('stamp-no-resend', window.__claimCalls === 1);
+    var stampOverlay = document.getElementById('satsClaimOverlay');
+    if (stampOverlay) stampOverlay.remove();
+    window._satsClaimInProgress = false;
+    void hanging;
+
+    window.__userDoc = null;
+    window.__userReadMode = 'fail';
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    check('failread-armed', __fire(60000));
+    await __flush();
+    sendBtn = document.getElementById('satsClaimBtn');
+    errBox = document.getElementById('satsClaimError');
+    check('failread-message', errBox && errBox.textContent.indexOf("couldn't confirm") !== -1);
+    check('failread-stays-disabled', sendBtn && sendBtn.disabled === true && window._satsClaimInProgress === true);
+    submitSatsClaim();
+    check('failread-no-resend', window.__claimCalls === 1);
     void hanging;
 
     var hangOverlay = document.getElementById('satsClaimOverlay');
