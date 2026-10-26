@@ -29,18 +29,18 @@ function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
 }
 
-// A 16+ hex string is a uid hash or digest, not a public username.
-function isHashLikeName(value) {
-  return /^[a-f0-9]{16,}$/i.test(String(value == null ? '' : value).trim());
-}
+// Same allowlist as a username: letters, digits, underscore, hyphen, or dot, 3–20.
+// Newlines and other control characters fail the check. Placeholder labels are not names.
+const SOLVER_NAME_RE = /^[A-Za-z0-9_\-.]{3,20}$/;
 
 function cleanSolverName(value) {
-  const name = String(value == null ? '' : value).trim();
-  if (!name) return '';
+  const raw = String(value == null ? '' : value);
+  if (/[\u0000-\u001F\u007F]/.test(raw)) return '';
+  const name = raw.trim();
+  if (!SOLVER_NAME_RE.test(name)) return '';
   const lower = name.toLowerCase();
   if (lower === 'anonymous' || lower === 'anon') return '';
-  if (isHashLikeName(name)) return '';
-  return name.slice(0, 40);
+  return name;
 }
 
 // The callable payload is not a name. Public profile first, then the users-doc
@@ -50,11 +50,12 @@ function resolveSolverName(userName, profileName) {
 }
 
 function favorChatHandle(name, maxLen) {
-  const clean = cleanSolverName(name).replace(/[<>"'&]/g, '');
-  const safe = clean.substring(0, maxLen || 40);
-  return safe ? '@' + safe : 'a miner';
+  const clean = cleanSolverName(name);
+  if (!clean) return 'a miner';
+  return '@' + clean.substring(0, maxLen || 20);
 }
 
+// World-readable top-hashes row. Never copy uid or any other id onto it.
 function shapeTopHashEntry(entry) {
   const row = entry || {};
   const shaped = {
@@ -63,8 +64,14 @@ function shapeTopHashEntry(entry) {
   };
   if (row.timestamp != null) shaped.timestamp = row.timestamp;
   if (row.difficultyTarget != null) shaped.difficultyTarget = row.difficultyTarget;
-  if (row.uid) shaped.uid = row.uid;
   return shaped;
+}
+
+function rememberOwnTopHash(uid, value) {
+  if (!uid || value == null) return Promise.resolve();
+  return db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid).set({
+    topHashValues: admin.firestore.FieldValue.arrayUnion(value),
+  }, { merge: true });
 }
 
 // Difficulty history (ordered oldest first):
@@ -420,9 +427,9 @@ exports.resetExpiredFavorWith = resetExpiredFavorWith;
 exports.favorSourceAllowed = favorSourceAllowed;
 exports.resolveSolverName = resolveSolverName;
 exports.cleanSolverName = cleanSolverName;
-exports.isHashLikeName = isHashLikeName;
 exports.favorChatHandle = favorChatHandle;
 exports.shapeTopHashEntry = shapeTopHashEntry;
+exports.SOLVER_NAME_RE = SOLVER_NAME_RE;
 
 // Valid level names per source tier (server-side whitelist)
 const LEVEL_TIERS = {
@@ -1083,7 +1090,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       }
     }
     if (!prev || value < prev.value) {
-      await pbRef.set({ uid, value, username: username || null, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+      await pbRef.set({ uid, value, username: username || null, timestamp: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
       // Also denormalize onto user doc so the hasher leaderboard can show it without extra fetches
       try {
         await db.collection('users').doc(uid).update({ sfBestHash: value });
@@ -1095,35 +1102,35 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     console.warn('[FAVOR] Personal best update failed:', e.message);
   }
 
-  // Update community top 50 lowest hashes (all-time leaderboard).
-  // uid stays on each row so a blank name can be matched to the public profile.
+  // Public top-hashes doc. Rows stay free of uid. The miner's own values
+  // are recorded on the personal-best doc only that miner can read.
   const lbRef = db.collection('satoshiFavor').doc('topHashes');
   try {
     const lbDoc = await lbRef.get();
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
-    
+
     // Allow multiple entries per user — top 50 hashes all-time regardless of who mined them
     const qualifies = entries.length < 50 || value < entries[entries.length - 1].value;
+    const hadIdentity = entries.some((e) => e && (e.uid != null || e.uidHash != null));
 
-    if (qualifies) {
-      const nowTs = admin.firestore.Timestamp.now();
-      entries.push(shapeTopHashEntry({
-        uid,
-        username,
-        value,
-        timestamp: nowTs,
-        difficultyTarget: DIFFICULTY_TARGET,
-      }));
-      entries.sort((a, b) => a.value - b.value);
-      entries = entries.slice(0, 50);
-      // Normalise entries: backfill difficultyTarget for legacy entries that lack it.
-      // Placeholder and hash-like names become null. uid is kept when the row has one.
+    if (qualifies || hadIdentity) {
+      if (qualifies) {
+        const nowTs = admin.firestore.Timestamp.now();
+        entries.push(shapeTopHashEntry({
+          username,
+          value,
+          timestamp: nowTs,
+          difficultyTarget: DIFFICULTY_TARGET,
+        }));
+        entries.sort((a, b) => a.value - b.value);
+        entries = entries.slice(0, 50);
+      }
+      // Backfill difficultyTarget. Drop placeholder names and any legacy uid.
       entries = entries.map(e => {
         const ts = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now();
         const target = e.difficultyTarget != null ? e.difficultyTarget : difficultyAtTime(ts.toMillis());
         return shapeTopHashEntry({
-          uid: e.uid,
           username: e.username,
           value: e.value,
           timestamp: ts,
@@ -1131,6 +1138,9 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
         });
       });
       await lbRef.set({ entries });
+      if (qualifies && entries.some((e) => e && e.value === value)) {
+        await rememberOwnTopHash(uid, value);
+      }
     }
   } catch (e) {
     console.error('[FAVOR] Top hashes update failed:', e.message, e.stack);
@@ -1327,6 +1337,7 @@ exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
   // Process each hash
   let added = 0;
   let skipped = 0;
+  const owned = [];
   // Allow multiple entries per user — top 50 hashes all-time
   for (const hash of hashes) {
     const { username, value } = hash;
@@ -1338,18 +1349,17 @@ exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
     }
 
     entries.push(shapeTopHashEntry({
-      uid: hash.uid,
       username,
       value,
       timestamp: admin.firestore.Timestamp.now(),
       difficultyTarget: hash.difficultyTarget,
     }));
     added++;
+    owned.push({ uid: hash.uid, value });
   }
 
-  // Strip serverTimestamp sentinels from any legacy entries. Keep uid.
+  // Strip serverTimestamp sentinels and any legacy uid from the public doc.
   entries = entries.map(e => shapeTopHashEntry({
-    uid: e.uid,
     username: e.username,
     value: e.value,
     timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now(),
@@ -1360,6 +1370,15 @@ exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
   entries.sort((a, b) => a.value - b.value);
   entries = entries.slice(0, 50);
   await lbRef.set({ entries });
+  const kept = new Set(entries.map((e) => e.value));
+  for (let i = 0; i < owned.length; i++) {
+    if (!kept.has(owned[i].value)) continue;
+    try {
+      await rememberOwnTopHash(owned[i].uid, owned[i].value);
+    } catch (e) {
+      console.warn('[FAVOR-SYNC] private top hash note failed:', e.message);
+    }
+  }
 
   console.log(`[FAVOR-SYNC] Added ${added}, skipped ${skipped}. Total entries now: ${entries.length}`);
 

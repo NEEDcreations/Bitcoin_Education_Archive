@@ -331,7 +331,8 @@ queue.push(test('Satoshi\'s Favor fills a blank solver name from the public prof
     assert.strictEqual(resolveSolverName('QuestFan', 'Other'), 'Other');
     assert.strictEqual(resolveSolverName('QuestFan', 'Anonymous'), 'QuestFan');
     assert.strictEqual(resolveSolverName('0123456789abcdef', 'SatoshiFan'), 'SatoshiFan');
-    assert.strictEqual(resolveSolverName('0123456789abcdef', ''), null);
+    assert.strictEqual(resolveSolverName('0123456789abcdef', ''), '0123456789abcdef');
+    assert.strictEqual(resolveSolverName('a'.repeat(64), ''), null);
     const favor = fs.readFileSync(path.join(root, 'functions/src/satoshiFavor.js'), 'utf8');
     const start = favor.indexOf('// Get username');
     const end = favor.indexOf('const rigNum');
