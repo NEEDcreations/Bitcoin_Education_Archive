@@ -880,8 +880,9 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(forumPostIsTopicMirror({ origin: 'topic', topicChannel: 'mining', topicPost: 'root1', noAward: true }), true);
         assert.strictEqual(forumPostIsTopicMirror({ title: 'An ordinary Pleb Talk post', authorId: 'ada' }), false);
         const replyFn = forumSrc.slice(forumSrc.indexOf('window.forumSubmitReply'), forumSrc.indexOf('window.forumVotePost'));
-        const awardAt = replyFn.indexOf("awardPoints(5, '💬 Forum reply')");
+        const awardAt = replyFn.indexOf("awardPoints(5, '💬 Forum reply'");
         assert.ok(awardAt > replyFn.indexOf('forumPostIsTopicMirror(forumCurrentPost)'));
+        assert.ok(replyFn.indexOf('replyId:') > awardAt);
         assert.ok(replyFn.indexOf('forumReplies: firebase.firestore.FieldValue.increment(1)') > replyFn.indexOf('skipForumReplyAward'));
         assert.ok(replyFn.includes('if (!skipForumReplyAward)'));
     });

@@ -33,7 +33,9 @@ del.createDeleteAccountHandlers = function(opts) {
                 const claimed = Number(user.pointsClaimed) || 0;
                 const donated = Number(user.pointsDonated) || 0;
                 const exchanged = Number(user.pointsExchanged) || 0;
-                const balance = direct > 0 ? direct : Math.floor((points - claimed - donated - exchanged) / 10);
+                let unclaimable = Number(user.unclaimableXp) || 0;
+                if (unclaimable < 0) unclaimable = 0;
+                const balance = direct > 0 ? direct : Math.floor(Math.max(0, points - claimed - donated - exchanged - unclaimable) / 10);
                 if (balance > 0) body.acknowledgeForfeit = true;
             } catch (e) {}
         }
@@ -526,6 +528,12 @@ function auth(uid, extras) {
     execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'deleteAccount.js')], { stdio: 'pipe' });
     execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'secondFactor.js')], { stdio: 'pipe' });
     execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'rateLimitSalt.js')], { stdio: 'pipe' });
+
+    test('sats balance leaves out unverified XP', function() {
+        assert.strictEqual(del.satsBalanceOf({ points: 1000, unclaimableXp: 100 }), 90);
+        assert.strictEqual(del.satsBalanceOf({ points: 50, pointsClaimed: 0, unclaimableXp: 100 }), 0);
+        assert.strictEqual(del.satsBalanceOf({ points: 200, pointsDonated: 50, pointsExchanged: 50, unclaimableXp: 20 }), 8);
+    });
 
     test('owner needs a recent sign-in, and only an admin can name another uid', function() {
         const now = 1000 + del.REAUTH_MAX_AGE_SEC;

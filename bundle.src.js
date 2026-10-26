@@ -148,17 +148,21 @@ function getSatCap() {
 window.getSatCap = getSatCap;
 
 // Claimable sats from server-maintained counters only.
-// floor(max(0, points - pointsClaimed - pointsDonated - pointsExchanged) / 10),
+// floor(max(0, points - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp) / 10),
 // then limited by satsWithdrawn against the lifetime cap.
+// unclaimableXp is activity the server could not verify. It stays on points for the
+// profile total and is left out of sats, donations, and ticket exchange.
 function claimableSats(user, cap) {
     var u = user || {};
     var points = Number(u.points) || 0;
     var claimed = Number(u.pointsClaimed) || 0;
     var donated = Number(u.pointsDonated) || 0;
     var exchanged = Number(u.pointsExchanged) || 0;
+    var unclaimable = Number(u.unclaimableXp) || 0;
     var withdrawn = Number(u.satsWithdrawn) || 0;
     if (withdrawn < 0) withdrawn = 0;
-    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    if (unclaimable < 0) unclaimable = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged - unclaimable) / 10);
     var limit = (typeof cap === 'number' && isFinite(cap)) ? cap : SAT_LIFETIME_CAP;
     if (cap == null && typeof getSatCap === 'function') limit = getSatCap();
     var lifetimeLeft = Math.max(0, limit - withdrawn);
@@ -5645,7 +5649,7 @@ window.nachoOnChannel = function(channelId) {
         var opts = q.options || [];
         for (var qi = 0; qi < opts.length; qi++) {
             var isRight = qi === q.answer;
-            quizHtml += '<button onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+            quizHtml += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[qi]) + '" onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
         }
         forceShowBubble(quizHtml, 'brain');
         var _quizBubble = document.getElementById('nacho-bubble');
@@ -5689,7 +5693,13 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
         result.textContent = '✅ Correct! +5 pts';
         container.appendChild(result);
         // awardPoints() fires its own toast on CF success — don't double-toast here.
-        if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
+        var _quizQ = '';
+        var _quizA = '';
+        try {
+            _quizQ = decodeURIComponent(btn.getAttribute('data-q') || '');
+            _quizA = decodeURIComponent(btn.getAttribute('data-a') || '');
+        } catch (e) {}
+        if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _quizQ, quizChoice: _quizA || btn.textContent });
         if (typeof haptic === 'function') haptic('success');
     } else {
         btn.style.background = '#ef4444';
@@ -7917,7 +7927,7 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_count', (postCount + 1).toString());
         localStorage.setItem('btc_forum_post_date', today);
 
-        if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
+        if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post', null, null, null, null, { postId: postRef.id });
         if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');
         // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
@@ -8013,7 +8023,7 @@ window.forumSubmitReply = async function(postId) {
             replyData.parentAuthorName = replyingTo.authorName || '';
         }
 
-        await db.collection('forum_replies').add(replyData);
+        var replyRef = await db.collection('forum_replies').add(replyData);
 
         // Increment reply count
         await db.collection('forum_posts').doc(postId).update({
@@ -8021,7 +8031,7 @@ window.forumSubmitReply = async function(postId) {
         });
 
         var skipForumReplyAward = forumPostIsTopicMirror(forumCurrentPost);
-        if (!skipForumReplyAward && typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        if (!skipForumReplyAward && typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply', null, null, null, null, { replyId: replyRef && replyRef.id });
         // Combo tracking. A mirrored topic reply already earns conversation XP.
         if (!skipForumReplyAward && typeof window._trackCombo === 'function') window._trackCombo('forum');
         if (!skipForumReplyAward) {
@@ -8988,9 +8998,9 @@ window.articleSubmitReply = async function(articleId) {
             replyData.parentReplyId = window._articleReplyingTo.replyId;
             replyData.parentAuthorName = window._articleReplyingTo.authorName;
         }
-        await db.collection('article_replies').add(replyData);
+        var articleReplyRef = await db.collection('article_replies').add(replyData);
         await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
+        if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment', null, null, null, null, { commentId: articleReplyRef && articleReplyRef.id });
         try {
             var _aDoc = await db.collection('articles').doc(articleId).get();
             var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
@@ -13130,7 +13140,7 @@ const HIDDEN_BADGES = [
 
         try {
             const db = firebase.firestore();
-            await db.collection('channel_feedback').add({
+            const feedbackRef = await db.collection('channel_feedback').add({
                 channelId: channelId,
                 rating: rating,
                 uid: (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'anon'),
@@ -13138,7 +13148,7 @@ const HIDDEN_BADGES = [
             });
             
             // Give a small point bonus for feedback
-            if (typeof awardPoints === 'function') awardPoints(5, 'Feedback bonus');
+            if (typeof awardPoints === 'function') awardPoints(5, 'Feedback bonus', null, null, null, null, { feedbackId: feedbackRef && feedbackRef.id });
         } catch(e) { console.log("Feedback save skipped:", e); }
     };
 
@@ -13258,14 +13268,15 @@ window.showNachoStory = function(chapterOverride) {
         awardedChapters.push(chIdx);
         localStorage.setItem('btc_nacho_story_awarded', JSON.stringify(awardedChapters));
         var _chPts = (chIdx === CHAPTERS.length - 1) ? 50 : 15; // Last chapter = 50pts, others = 15pts
-        awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
+        var _chapterGrant = awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
         if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' XP — Chapter ' + (chIdx + 1) + ' complete!');
 
         // Check if ALL 7 chapters are now completed
         if (awardedChapters.length === CHAPTERS.length) {
             setTimeout(function() {
-                // Big completion bonus
-                awardPoints(100, '📖🎉 Completed Nacho\'s Story!');
+                var _finishStory = function() { awardPoints(100, '📖🎉 Completed Nacho\'s Story!'); };
+                if (_chapterGrant && _chapterGrant.then) _chapterGrant.then(_finishStory, _finishStory);
+                else _finishStory();
                 // Award 25 orange tickets
                 if (typeof awardOrangeTickets === 'function') {
                     awardOrangeTickets(25, '📖 Nacho\'s Story Complete!');
@@ -13502,10 +13513,14 @@ window._savePrediction = function(direction) {
     var prediction = { direction: direction, price: price, time: Date.now(), resolved: false };
     localStorage.setItem('btc_price_prediction', JSON.stringify(prediction));
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
-    if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
     if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
     (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pred_made_'+dk,'1'); })();
-    _syncPredictionToFirestore(prediction);
+    var _predSaved = _syncPredictionToFirestore(prediction);
+    if (_predSaved && _predSaved.then) {
+        _predSaved.then(function(saved) {
+            if (saved && typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
+        });
+    }
     _myPredStatsCache = null;
 };
 
@@ -13530,14 +13545,15 @@ function _syncPredictionToFirestore(prediction) {
         if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
         if (typeof db === 'undefined' || typeof firebase === 'undefined') return;
         var uid = auth.currentUser.uid;
-        db.collection('active_predictions').doc(uid).set({
+        return db.collection('active_predictions').doc(uid).set({
             uid: uid,
             direction: prediction.direction,
             price: prediction.price,
             time: firebase.firestore.FieldValue.serverTimestamp(),
             resolved: false
-        }).catch(function() {
+        }).then(function() { return true; }).catch(function() {
             if (typeof showToast === 'function') showToast('Could not save that prediction. If one is still open, wait for the server to score it.');
+            return false;
         });
     } catch (e) {}
 }
@@ -20172,7 +20188,7 @@ window.nachoQuizMe = function(topic) {
     var opts = q.options || [];
     for (var i = 0; i < opts.length; i++) {
         var isCorrect = opts[i] === q.answer;
-        html += '<button ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
     }
     html += '</div>';
     
@@ -20202,7 +20218,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         btn.style.opacity = '1';
         // awardPoints() fires its own toast on CF success — don't double-toast here.
         // If CF fails (network/cap), awardPoints() surfaces that too.
-        if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!');
+        var _nqQ = '';
+        var _nqA = '';
+        try {
+            _nqQ = decodeURIComponent(btn.getAttribute('data-q') || '');
+            _nqA = decodeURIComponent(btn.getAttribute('data-a') || '');
+        } catch (e) {}
+        if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _nqQ, quizChoice: _nqA || btn.textContent });
         var resultDiv = document.createElement('div');
         resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
         resultDiv.textContent = '✅ Correct! +10 XP';

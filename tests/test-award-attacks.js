@@ -31,8 +31,8 @@ function fresh(over) {
     };
 }
 
-function grant(mem, data, day) {
-    return awardActions.applyAward(mem, 'u', data, { day: day || '2026-10-22' });
+function grant(mem, data, day, proof) {
+    return awardActions.applyAward(mem, 'u', data, { day: day || '2026-10-22', proof: proof });
 }
 
 test('ticket spam grants nothing', function () {
@@ -63,7 +63,7 @@ test('legit beats upload still pays xp and zero tickets', function () {
     const mem = fresh();
     const spoof = grant(mem, { action: '🎫 Beat uploaded', pts: 50, tickets: 10 });
     assert.strictEqual(spoof.awarded, 0);
-    const real = grant(mem, { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50 });
+    const real = grant(mem, { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 50, trackId: 'track1' }, null, { docOwner: 'u', createdAt: Date.now() });
     assert.strictEqual(real.awarded, 50);
     assert.strictEqual(real.tickets, 0);
     assert.strictEqual(mem.users.u.orangeTickets, 0);
@@ -81,10 +81,12 @@ test('unknown actions are rejected', function () {
 
 test('replayed trivia, channel, and flex pay once', function () {
     const mem = fresh();
-    const first = grant(mem, { action: '🧠 Trivia Quest correct!', pts: 50 });
-    const second = grant(mem, { action: '🧠 Trivia Quest correct!', pts: 50 });
-    assert.strictEqual(first.awarded, 50);
+    const first = grant(mem, { action: '📖 Completed Chapter 1', pts: 15 });
+    const second = grant(mem, { action: '📖 Completed Chapter 1', pts: 15 });
+    assert.strictEqual(first.awarded, 15);
     assert.strictEqual(second.awarded, 0);
+    const trivia = grant(mem, { action: '🧠 Trivia Quest correct!', pts: 50 });
+    assert.strictEqual(trivia.awarded, 0);
     const attempt = grant(mem, { action: '🧠 Trivia Quest attempt', pts: 10 });
     assert.strictEqual(attempt.awarded, 0);
 
@@ -107,7 +109,7 @@ test('replayed trivia, channel, and flex pay once', function () {
 test('cap overflow is dropped and not banked', function () {
     const mem = fresh({ pendingOverflow: 15, points: 10 });
     mem.daily.u = { total: 990, triviaQuiz: 0 };
-    const partial = grant(mem, { action: '🧠 Trivia Quest correct!', pts: 50 });
+    const partial = grant(mem, { action: '📖 Learning Quest: What is Bitcoin? lesson', pts: 50, actionKey: 'lq_lesson' });
     assert.strictEqual(partial.awarded, 10);
     assert.strictEqual(partial.dropped, 40);
     assert.strictEqual(partial.overflowAdded, 0);
@@ -126,16 +128,19 @@ test('cap overflow is dropped and not banked', function () {
     assert.strictEqual(later.awarded, 5);
 });
 
-test('trivia and chat share the one daily counter', function () {
+test('quiz and chat share the one daily counter', function () {
+    const banks = require(path.join(__dirname, '..', 'functions/reward-banks.json'));
+    const firstQ = banks.quests._general[0];
+    const secondQ = banks.quests._general[1];
     const mem = fresh();
     mem.daily.u = { total: 990 };
-    const quiz = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
+    const quiz = grant(mem, { action: '🎮 Quiz correct!', pts: 10, quizQuestion: firstQ.q, quizChoice: firstQ.a });
     assert.strictEqual(quiz.awarded, 2);
     assert.strictEqual(mem.daily.u.total, 992);
-    const chat = grant(mem, { action: '💬 Global Chat', pts: 5 });
+    const chat = grant(mem, { action: '💬 Global Chat', pts: 5, messageId: 'msg1' }, null, { docOwner: 'u', createdAt: Date.now() });
     assert.strictEqual(chat.awarded, 1);
     assert.strictEqual(mem.daily.u.total, 993);
-    const more = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
+    const more = grant(mem, { action: '🎮 Quiz correct!', pts: 10, quizQuestion: secondQ.q, quizChoice: secondQ.a });
     assert.strictEqual(more.awarded, 2);
     assert.strictEqual(mem.daily.u.total, 995);
 });
@@ -156,14 +161,15 @@ test('planGrant tapers on the shared counter and drops the rest', function () {
 
 test('banned users receive 0 and can earn after the ban clears', function () {
     const mem = fresh({ ban_reason: 'spam', points: 40, orangeTickets: 2 });
-    const blocked = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
+    const quiz = require(path.join(__dirname, '..', 'functions/reward-banks.json')).quests._general[0];
+    const blocked = grant(mem, { action: '🎮 Quiz correct!', pts: 10, quizQuestion: quiz.q, quizChoice: quiz.a });
     assert.strictEqual(blocked.success, true);
     assert.strictEqual(blocked.banned, true);
     assert.strictEqual(blocked.awarded, 0);
     assert.strictEqual(mem.users.u.points, 40);
     assert.strictEqual(Object.keys(mem.claims).length, 0);
     mem.users.u.ban_reason = '';
-    const after = grant(mem, { action: '🎮 Quiz correct!', pts: 10 });
+    const after = grant(mem, { action: '🎮 Quiz correct!', pts: 10, quizQuestion: quiz.q, quizChoice: quiz.a });
     assert.strictEqual(after.awarded, 10);
     assert.strictEqual(mem.users.u.orangeTickets, 2);
 });
@@ -173,8 +179,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: '🎮 Quiz correct!', pts: 5 }, 5],
         [{ action: '🎮 Quiz correct!', pts: 10 }, 10],
         [{ action: '🎮 Quiz correct!', pts: 20 }, 10],
-        [{ action: '🧠 Trivia Quest attempt', pts: 10 }, 10],
-        [{ action: '📊 Poll Quest vote', pts: 50 }, 50],
         [{ action: '📝 Forum post', pts: 10 }, 10],
         [{ action: '💬 Forum reply', pts: 5 }, 5],
         [{ action: '💬 Article comment', pts: 5 }, 5],
@@ -187,10 +191,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: '🗺️ 50% Explored', pts: 100 }, 100],
         [{ action: '🗺️ 75% Explored', pts: 200 }, 200],
         [{ action: '🗺️ 100% Explored', pts: 500 }, 500],
-        [{ action: 'Daily Spin', pts: 25 }, 25],
-        [{ action: 'Daily Spin', pts: 50 }, 50],
-        [{ action: 'Daily Spin', pts: 100 }, 50],
-        [{ action: 'Daily Spin', pts: 200 }, 50],
         [{ action: '💬 Global Chat', pts: 5 }, 5],
         [{ action: '🔥 3-day chat streak!', pts: 10 }, 10],
         [{ action: '🔥 3-day chat streak!', pts: 20 }, 20],
@@ -201,8 +201,8 @@ test('legit client phrases keep today amounts', function () {
         [{ action: '✅ Daily visit', pts: 5 }, 5],
         [{ action: '✅ Daily visit (12-day streak!)', pts: 105 }, 5],
         [{ action: 'Explorer bonus! 10 topics 🎉', pts: 50 }, 50],
-        [{ action: '🔗 Anonymous progress merged', pts: 80 }, 80],
-        [{ action: '🔗 Anonymous progress merged', pts: 900 }, 500],
+        [{ action: '🔗 Anonymous progress merged', pts: 80 }, 0],
+        [{ action: '🔗 Anonymous progress merged', pts: 900 }, 0],
         [{ action: 'Listened to a full track on Bitcoin Beats 🎵', pts: 10 }, 10],
         [{ action: 'Left a comment on Bitcoin Beats 💬', pts: 10 }, 10],
         [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 25 }, 25],
@@ -230,6 +230,13 @@ test('legit client phrases keep today amounts', function () {
         { actionKey: 'pvp_win_ticket', action: 'ticket', pts: 0 },
         { action: 'free pvp xp please', pts: 50 },
         { actionKey: 'pvp_victory', action: 'daily visit', pts: 50 },
+        { action: '🧠 Trivia Quest correct!', pts: 50 },
+        { action: '🧠 Trivia Quest attempt', pts: 10 },
+        { action: '📊 Poll Quest vote', pts: 50 },
+        { action: 'Daily Spin', pts: 25 },
+        { action: 'Daily Spin', pts: 50 },
+        { action: 'Daily Spin', pts: 100 },
+        { action: 'Daily Spin', pts: 200 },
     ].forEach(function (row) {
         const resolved = awardActions.resolveAction(row);
         assert.strictEqual(resolved.ok, false, JSON.stringify(row));
@@ -256,6 +263,8 @@ test('legit client phrases keep today amounts', function () {
     });
     const badSpin = awardActions.resolveAction({ action: 'Daily Spin', pts: 40 });
     assert.strictEqual(badSpin.ok, false);
+    const spun = awardActions.resolveAction({ action: 'Daily Spin', pts: 25 });
+    assert.strictEqual(spun.ok, false);
     const tctv = awardActions.resolveAction({ action: 'tctv_watch_10m', pts: 10 });
     assert.strictEqual(tctv.ok, false);
     assert.strictEqual(tctv.awarded, 0);

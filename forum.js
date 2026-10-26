@@ -756,7 +756,7 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_count', (postCount + 1).toString());
         localStorage.setItem('btc_forum_post_date', today);
 
-        if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
+        if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post', null, null, null, null, { postId: postRef.id });
         if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');
         // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
@@ -852,7 +852,7 @@ window.forumSubmitReply = async function(postId) {
             replyData.parentAuthorName = replyingTo.authorName || '';
         }
 
-        await db.collection('forum_replies').add(replyData);
+        var replyRef = await db.collection('forum_replies').add(replyData);
 
         // Increment reply count
         await db.collection('forum_posts').doc(postId).update({
@@ -860,7 +860,7 @@ window.forumSubmitReply = async function(postId) {
         });
 
         var skipForumReplyAward = forumPostIsTopicMirror(forumCurrentPost);
-        if (!skipForumReplyAward && typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        if (!skipForumReplyAward && typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply', null, null, null, null, { replyId: replyRef && replyRef.id });
         // Combo tracking. A mirrored topic reply already earns conversation XP.
         if (!skipForumReplyAward && typeof window._trackCombo === 'function') window._trackCombo('forum');
         if (!skipForumReplyAward) {
@@ -1827,9 +1827,9 @@ window.articleSubmitReply = async function(articleId) {
             replyData.parentReplyId = window._articleReplyingTo.replyId;
             replyData.parentAuthorName = window._articleReplyingTo.authorName;
         }
-        await db.collection('article_replies').add(replyData);
+        var articleReplyRef = await db.collection('article_replies').add(replyData);
         await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
+        if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment', null, null, null, null, { commentId: articleReplyRef && articleReplyRef.id });
         try {
             var _aDoc = await db.collection('articles').doc(articleId).get();
             var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';

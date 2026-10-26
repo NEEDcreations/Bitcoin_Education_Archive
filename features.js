@@ -215,7 +215,7 @@ const HIDDEN_BADGES = [
 
         try {
             const db = firebase.firestore();
-            await db.collection('channel_feedback').add({
+            const feedbackRef = await db.collection('channel_feedback').add({
                 channelId: channelId,
                 rating: rating,
                 uid: (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'anon'),
@@ -223,7 +223,7 @@ const HIDDEN_BADGES = [
             });
             
             // Give a small point bonus for feedback
-            if (typeof awardPoints === 'function') awardPoints(5, 'Feedback bonus');
+            if (typeof awardPoints === 'function') awardPoints(5, 'Feedback bonus', null, null, null, null, { feedbackId: feedbackRef && feedbackRef.id });
         } catch(e) { console.log("Feedback save skipped:", e); }
     };
 
@@ -343,14 +343,15 @@ window.showNachoStory = function(chapterOverride) {
         awardedChapters.push(chIdx);
         localStorage.setItem('btc_nacho_story_awarded', JSON.stringify(awardedChapters));
         var _chPts = (chIdx === CHAPTERS.length - 1) ? 50 : 15; // Last chapter = 50pts, others = 15pts
-        awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
+        var _chapterGrant = awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
         if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' XP — Chapter ' + (chIdx + 1) + ' complete!');
 
         // Check if ALL 7 chapters are now completed
         if (awardedChapters.length === CHAPTERS.length) {
             setTimeout(function() {
-                // Big completion bonus
-                awardPoints(100, '📖🎉 Completed Nacho\'s Story!');
+                var _finishStory = function() { awardPoints(100, '📖🎉 Completed Nacho\'s Story!'); };
+                if (_chapterGrant && _chapterGrant.then) _chapterGrant.then(_finishStory, _finishStory);
+                else _finishStory();
                 // Award 25 orange tickets
                 if (typeof awardOrangeTickets === 'function') {
                     awardOrangeTickets(25, '📖 Nacho\'s Story Complete!');
@@ -587,10 +588,14 @@ window._savePrediction = function(direction) {
     var prediction = { direction: direction, price: price, time: Date.now(), resolved: false };
     localStorage.setItem('btc_price_prediction', JSON.stringify(prediction));
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
-    if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
     if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
     (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pred_made_'+dk,'1'); })();
-    _syncPredictionToFirestore(prediction);
+    var _predSaved = _syncPredictionToFirestore(prediction);
+    if (_predSaved && _predSaved.then) {
+        _predSaved.then(function(saved) {
+            if (saved && typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
+        });
+    }
     _myPredStatsCache = null;
 };
 
@@ -615,14 +620,15 @@ function _syncPredictionToFirestore(prediction) {
         if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
         if (typeof db === 'undefined' || typeof firebase === 'undefined') return;
         var uid = auth.currentUser.uid;
-        db.collection('active_predictions').doc(uid).set({
+        return db.collection('active_predictions').doc(uid).set({
             uid: uid,
             direction: prediction.direction,
             price: prediction.price,
             time: firebase.firestore.FieldValue.serverTimestamp(),
             resolved: false
-        }).catch(function() {
+        }).then(function() { return true; }).catch(function() {
             if (typeof showToast === 'function') showToast('Could not save that prediction. If one is still open, wait for the server to score it.');
+            return false;
         });
     } catch (e) {}
 }

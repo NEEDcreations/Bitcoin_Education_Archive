@@ -3812,7 +3812,7 @@ function _renderNookShop() {
     if (!el) return;
     var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
     var tickets = u.orangeTickets || 0;
-    var pts = u.points || 0;
+    var pts = Math.max(0, _spendableXp(u));
     var ownedCosmetics = u.ownedCosmetics || [];
 
     function buyBtn(itemId, cost, qty, label, extraStyle) {
@@ -4445,6 +4445,13 @@ function _renderCharityTab(body) {
     }, function() { _recentReady = true; _maybeRender(); });
 }
 
+function _spendableXp(user) {
+    var u = user || {};
+    var unclaimable = Number(u.unclaimableXp) || 0;
+    if (unclaimable < 0) unclaimable = 0;
+    return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
+}
+
 function _renderCharityTabInner(body) {
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
@@ -4453,7 +4460,8 @@ function _renderCharityTabInner(body) {
     var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
     var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
     var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
-    var available = Math.max(0, pts - claimed - donated - exchanged);
+    var unclaimable = typeof currentUser !== 'undefined' && currentUser ? Math.max(0, Number(currentUser.unclaimableXp) || 0) : 0;
+    var available = Math.max(0, pts - claimed - donated - exchanged - unclaimable);
 
     var stats = _charityStats || { totalDonated: 0, factionTotals: {} };
     var totalDonated = stats.totalDonated || 0;
@@ -4603,11 +4611,8 @@ function _renderCharityTabInner(body) {
     function _patchCharityDonateSection() {
         var donateSection = document.getElementById('charityDonateSection');
         if (!donateSection) return;
-        var pts = typeof currentUser !== 'undefined' && currentUser ? (currentUser.points || 0) : 0;
-        var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
+        var available = Math.max(0, _spendableXp(typeof currentUser !== 'undefined' ? currentUser : null));
         var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
-        var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
-        var available = Math.max(0, pts - claimed - donated - exchanged);
         // Available XP line
         var avEl = donateSection.querySelector('[data-charity-avail]');
         if (avEl) avEl.textContent = available.toLocaleString() + ' XP';
@@ -4639,7 +4644,7 @@ function _renderCharityTabInner(body) {
         var inp = document.getElementById('charityAmtInput');
         var amt = parseInt(inp ? inp.value : '') || 0;
         if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
-        var avail = Math.max(0, (typeof currentUser !== 'undefined' && currentUser ? (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0) : 0));
+        var avail = Math.max(0, _spendableXp(typeof currentUser !== 'undefined' ? currentUser : null));
         if (amt > avail) { if (typeof showToast === 'function') showToast('Not enough available XP. You have ' + avail.toLocaleString() + ' pts available.'); return; }
         var anon = document.getElementById('charityAnonToggle') ? document.getElementById('charityAnonToggle').checked : false;
         var btn = document.querySelector('[onclick="window._submitCharityDonation()"]');

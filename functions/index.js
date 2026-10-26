@@ -152,6 +152,7 @@ const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
+const awardEvidence = require('./src/awardEvidence');
 const ticketGrants = require('./src/ticketGrants');
 const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets');
 const doubleXp = require('./src/doubleXp');
@@ -1726,7 +1727,7 @@ exports.claimSats = functionsV1.runWith({
             }
 
             const userPoints = user.points || 0;
-            const availablePoints = userPoints - (user.pointsClaimed || 0) - (user.pointsDonated || 0) - (user.pointsExchanged || 0);
+            const availablePoints = awardEvidence.claimablePoints(user);
             const satsBalance = Math.floor(availablePoints / FAUCET.POINTS_PER_SAT);
             if (satsBalance < amount) {
                 deny('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
@@ -3087,6 +3088,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 
     let pts = resolved.xp;
     let matchedAction = resolved.id;
+    let evidenceTrackIds = null;
     let badgeKnown = false;
     if (resolved.badge) {
         const badgeResult = await awardBadge(db, admin, uid, badgeId, {
@@ -3123,24 +3125,35 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         };
     }
 
+    const prechecked = awardEvidence.precheck(resolved, data);
+    if (!prechecked.ok) {
+        return { success: false, error: prechecked.error || 'Evidence required', awarded: 0, tickets: 0 };
+    }
+    if (prechecked.target) resolved.target = prechecked.target;
+    if (prechecked.onceId) resolved.onceId = true;
+    if (prechecked.xp != null) pts = prechecked.xp;
+    evidenceTrackIds = prechecked.trackIds || null;
+
     const absMax = badgeKnown ? 100000 : 2200;
     if (pts < 0 || pts > absMax) {
         return { success: false, error: 'Invalid points amount', awarded: 0, tickets: 0 };
     }
-    if (pts === 0) {
+    if (pts === 0 && matchedAction !== 'anon_merge') {
         return { success: false, error: 'Nothing to award', awarded: 0, tickets: 0 };
+    }
+
+    let anonAnonymous = false;
+    if (matchedAction === 'anon_merge') {
+        const anonCheck = await awardEvidence.anonAuth(admin, data && data.anonUid);
+        if (!anonCheck.ok) {
+            return { success: false, error: anonCheck.error || 'Anonymous account was not verified', awarded: 0, tickets: 0 };
+        }
+        anonAnonymous = true;
     }
 
     const reason = action;
     const DAILY_CAP = awardActions.DAILY_CAP;
     const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
-    if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
-        const triviaGrade = require('./src/triviaBank').grade(offsetToday, data && data.triviaChoice);
-        if (matchedAction === 'trivia_correct' && !triviaGrade.correct) {
-            matchedAction = 'trivia_attempt';
-            pts = 10;
-        }
-    }
     const userRef = db.collection('users').doc(uid);
     const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
     const rewardGroup = rewardNotify.groupForAction(matchedAction);
@@ -3221,12 +3234,31 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (resolved.requiresDoubleXp && !doubleXp.isActive(userData, Date.now())) {
                 throw new Error('DOUBLE_XP_REQUIRED');
             }
+            const evidencePlan = awardEvidence.planReads(db, userRef, uid, resolved, data);
+            const evidenceSnaps = {};
+            if (evidencePlan.length) {
+                const loadedEvidence = await Promise.all(evidencePlan.map(function (item) { return t.get(item.ref); }));
+                evidencePlan.forEach(function (item, index) { evidenceSnaps[item.key] = loadedEvidence[index]; });
+            }
+            const verdict = awardEvidence.confirm(resolved, data, {
+                uid: uid,
+                day: offsetToday,
+                user: userData,
+                snaps: evidenceSnaps,
+                anonAnonymous: anonAnonymous,
+            });
+            if (!verdict.ok) throw new Error('EVIDENCE:' + (verdict.error || 'Evidence required'));
+            if (verdict.xp != null) pts = verdict.xp;
+            const unverifiedGrant = !!(verdict.unverified || resolved.unverified);
+            const claimTargets = verdict.claimTargets || null;
             // Double XP covers daily-capped activity only. Badges, the scholar
             // exam, and onboarding are not multiplied. A client amount that is
             // already the doubled allowlist value is not multiplied again.
+            // Guest points moved onto this account are not doubled either.
             const actionLower = String(reason || '').toLowerCase();
             const skipDouble = matchedAction === 'badge_earned'
                 || matchedAction === 'scholar_cert'
+                || matchedAction === 'anon_merge'
                 || actionLower.indexOf('nacho quest') !== -1
                 || actionLower.indexOf('onboarding') !== -1
                 || resolved.requiresDoubleXp;
@@ -3285,20 +3317,49 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 : userRef.collection('award_claims').doc(awardActions.claimId(resolved, offsetToday, nextCount));
             const claimDoc = claimRef ? await t.get(claimRef) : null;
             if (claimDoc && claimDoc.exists) throw new Error('ALREADY_CLAIMED');
+            const extraClaimRefs = [];
+            if (claimTargets && claimTargets.length) {
+                for (let ti = 0; ti < claimTargets.length; ti++) {
+                    const marked = Object.assign({}, resolved, { target: claimTargets[ti], onceId: true, dedupGroup: 'beats_upload' });
+                    const extraRef = userRef.collection('award_claims').doc(awardActions.claimId(marked, offsetToday, nextCount));
+                    if (claimRef && extraRef.id === claimRef.id) continue;
+                    const extraDoc = await t.get(extraRef);
+                    if (extraDoc.exists) throw new Error('ALREADY_CLAIMED');
+                    extraClaimRefs.push(extraRef);
+                }
+            }
 
             const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            const grant = awardActions.planGrant({
-                xp: pts,
-                dailyUsed: dailyUsed,
-                dailyCap: DAILY_CAP,
-            });
+            const unverifiedUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().unverified || 0) : 0;
+            let grant;
+            if (unverifiedGrant) {
+                const tapered = awardActions.planGrant({ xp: Math.max(0, pts), dailyUsed: dailyUsed, dailyCap: DAILY_CAP });
+                const room = Math.max(0, awardEvidence.UNVERIFIED_DAILY_CAP - unverifiedUsed);
+                const awardedU = Math.min(tapered.awarded, room);
+                grant = {
+                    awarded: awardedU,
+                    dropped: Math.max(0, pts) - awardedU,
+                    capped: awardedU < Math.max(0, pts),
+                    pastCap: unverifiedUsed >= awardEvidence.UNVERIFIED_DAILY_CAP || tapered.pastCap,
+                    dailyXp: dailyUsed,
+                    dailyCap: tapered.dailyCap,
+                    fullUntil: tapered.fullUntil,
+                    halfUntil: tapered.halfUntil,
+                };
+            } else {
+                grant = awardActions.planGrant({
+                    xp: pts,
+                    dailyUsed: dailyUsed,
+                    dailyCap: DAILY_CAP,
+                });
+            }
             const awarded = grant.awarded;
             const capped = grant.capped;
             const dropped = grant.dropped;
 
             const userUpdate = {};
             let flexMeta = null;
-            if (matchedAction === 'flex_action' && awarded > 0) {
+            if (matchedAction === 'flex_action' && (awarded > 0 || unverifiedGrant)) {
                 flexMeta = awardActions.nextFlexFullDays(userData, offsetToday, nextCount);
                 if (flexMeta.incremented) {
                     userUpdate.flexFullDays = admin.firestore.FieldValue.increment(1);
@@ -3306,15 +3367,23 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 }
             }
             let channelTracked = false;
-            if (channelId && VALID_CHANNEL_IDS.has(channelId)) {
+            if (matchedAction === 'channel_read' && channelId && VALID_CHANNEL_IDS.has(channelId)) {
                 userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
                 const currentList = Array.isArray(userData.visitedChannelsList) ? userData.visitedChannelsList : [];
                 if (currentList.indexOf(channelId) === -1) {
                     userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
                 }
                 channelTracked = true;
-            } else if (channelId) {
-                console.warn('[awardPoints] channelId rejected — not in catalog:', channelId, 'uid:', uid);
+            }
+
+            let chatStreakNow = null;
+            if (matchedAction === 'chat_message' && awarded > 0) {
+                const streakPlan = awardEvidence.nextChatStreak(userData, offsetToday);
+                chatStreakNow = streakPlan.streak;
+                if (streakPlan.changed) {
+                    userUpdate.chatXpStreak = streakPlan.streak;
+                    userUpdate.chatXpDay = offsetToday;
+                }
             }
 
             const totalPointsOut = awarded;
@@ -3322,7 +3391,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 userUpdate.points = admin.firestore.FieldValue.increment(totalPointsOut);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
                 userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
-                userUpdate.activeDayKeys = referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now());
+                if (unverifiedGrant) {
+                    userUpdate.unclaimableXp = admin.firestore.FieldValue.increment(awarded);
+                } else {
+                    userUpdate.activeDayKeys = referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now());
+                }
             }
 
             const rankPrevById = await rewardNotify.readRankPrev(t, db, uid, userData.points || 0, totalPointsOut);
@@ -3351,7 +3424,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: action });
                 userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
-            const proofAction = matchedAction === 'flex_action' || matchedAction === 'trivia_correct' || matchedAction === 'lq_lesson';
+            const proofAction = matchedAction === 'flex_action' || matchedAction === 'lq_lesson' || matchedAction === 'anon_merge' || unverifiedGrant;
             let progress = null;
             if (claimRef && (awarded > 0 || proofAction)) {
                 t.set(claimRef, {
@@ -3359,6 +3432,14 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     xp: awarded,
                     day: offsetToday,
                     at: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                extraClaimRefs.forEach(function (extraRef) {
+                    t.set(extraRef, {
+                        action: matchedAction,
+                        xp: awarded,
+                        day: offsetToday,
+                        at: admin.firestore.FieldValue.serverTimestamp(),
+                    });
                 });
                 progress = progressBadges.progressSpec(userData, matchedAction, resolved, offsetToday);
                 progressBadges.applySpec(userUpdate, admin, progress);
@@ -3369,7 +3450,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     }, { merge: true });
                 }
             }
-            if (awarded > 0 || badgeAwardRef) {
+            if (awarded > 0 || badgeAwardRef || unverifiedGrant || matchedAction === 'anon_merge') {
                 t.set(countRef, {
                     count: nextCount,
                     lastAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -3379,6 +3460,26 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.update(userRef, userUpdate);
             }
             if (awarded > 0) {
+                const markerList = awardEvidence.markerIds(
+                    matchedAction,
+                    claimTargets && claimTargets.length ? claimTargets : [resolved.target],
+                    data
+                );
+                for (let mi = 0; mi < markerList.length; mi++) {
+                    t.set(db.collection('award_doc_claims').doc(markerList[mi]), {
+                        action: matchedAction,
+                        uid: uid,
+                        at: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                }
+            }
+            if (awarded > 0 && unverifiedGrant) {
+                t.set(dailyPtsRef, {
+                    unverified: unverifiedUsed + awarded,
+                    total: dailyUsed + awarded,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+            } else if (awarded > 0) {
                 t.set(dailyPtsRef, {
                     total: dailyUsed + awarded,
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
@@ -3416,6 +3517,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 capped: capped,
                 dropped: dropped,
                 dailyUsed: dailyUsed + awarded,
+                chatStreak: chatStreakNow,
                 overflowAdded: 0,
                 overflowRedeemed: 0,
                 pendingOverflow: userData.pendingOverflow || 0,
@@ -3460,6 +3562,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         if (e.message === 'ALREADY_CLAIMED' || (e.message && e.message.startsWith('ALREADY_CLAIMED'))) {
             return { success: false, error: 'Already claimed', awarded: 0, tickets: 0, dailyActionCapped: true };
         }
+        if (e.message && e.message.indexOf('EVIDENCE:') === 0) {
+            return { success: false, error: e.message.substring('EVIDENCE:'.length), awarded: 0, tickets: 0 };
+        }
         console.error('[AWARD_POINTS_TRANS_ERR]', e);
         return { success: false, error: 'Internal error', awarded: 0, tickets: 0 };
     }
@@ -3476,17 +3581,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         try { await grantFamily(db, admin, uid, familyFor('orangeTickets')); }
         catch (ticketBadgeErr) { console.warn('[awardPoints] ticket badges', ticketBadgeErr && ticketBadgeErr.message); }
     }
-    if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
-        try {
-            const favorApi = require('./src/satoshiFavor');
-            await dailyFive.maybeCompleteTrifecta({
-                db: db, admin: admin, uid: uid, day: offsetToday, creditDailyAllThree: favorApi.creditDailyAllThree,
-            });
-        } catch (followErr) {
-            console.warn('[awardPoints] trifecta follow-up skipped', followErr && followErr.message);
-        }
-    }
-
     return {
         success: true,
         awarded: transactionResult.awarded,
@@ -3508,6 +3602,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         flexCount: transactionResult.flexCount,
         flexDayComplete: !!transactionResult.flexDayComplete,
         flexFullDays: transactionResult.flexFullDays,
+        chatStreak: transactionResult.chatStreak || 0,
     };
 });
 
@@ -6196,10 +6291,8 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         const u = userDoc.data();
 
         const points = u.points || 0;
-        const pointsClaimed = u.pointsClaimed || 0;
         const pointsDonated = u.pointsDonated || 0;
-        const pointsExchanged = u.pointsExchanged || 0;
-        const available = points - pointsClaimed - pointsDonated - pointsExchanged;
+        const available = awardEvidence.claimablePoints(u);
 
         // Faction required - donations must be attributed to a side
         if (!u.faction || (u.faction !== 'cyber_hornets' && u.faction !== 'honey_badgers')) {
@@ -7446,12 +7539,9 @@ exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) 
 
         const pointsCost = tickets * POINTS_PER_TICKET;
         const currentPoints = userData.points || 0;
-        const _ptsClaimed = userData.pointsClaimed || 0;
-        const _ptsDonated = userData.pointsDonated || 0;
-        const _ptsExchanged = userData.pointsExchanged || 0;
-        // Available = total earned minus all three spend paths (sats claim, donation, ticket exchange).
+        // Available = total earned minus claim, donation, ticket exchange, and unverified XP.
         // points (total earned) is NEVER decremented — only offset counters change.
-        const availableForExchange = currentPoints - _ptsClaimed - _ptsDonated - _ptsExchanged;
+        const availableForExchange = awardEvidence.claimablePoints(userData);
 
         if (availableForExchange < pointsCost) {
             throw new functionsV1.https.HttpsError('failed-precondition',

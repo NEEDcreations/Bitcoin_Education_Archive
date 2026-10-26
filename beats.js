@@ -1201,14 +1201,15 @@ function _uploadCoverThenTracks(storage, files, titles, artist, genre, coverFile
     }
 }
 
-function _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx, total) {
+function _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx, total, ids) {
+    ids = ids || [];
     if (idx >= total) {
         // All done
         document.getElementById('beatsUpBar').style.width = '100%';
         document.getElementById('beatsUpStatus').textContent = '✅ All ' + total + ' track' + (total > 1 ? 's' : '') + ' uploaded!';
         showToast('🎵 ' + total + ' track' + (total > 1 ? 's' : '') + ' uploaded!');var _bu2=parseInt(localStorage.getItem('btc_beats_uploads')||'0')+total;localStorage.setItem('btc_beats_uploads',_bu2.toString());
         sessionStorage.setItem('_ch_beats_upload', '1');
-        if (typeof awardPoints === 'function') awardPoints(25 * total, 'Uploaded ' + total + ' track' + (total > 1 ? 's' : '') + ' to Bitcoin Beats!');
+        if (typeof awardPoints === 'function') awardPoints(25 * total, 'Uploaded ' + total + ' track' + (total > 1 ? 's' : '') + ' to Bitcoin Beats!', null, null, null, null, { trackIds: (ids || []).join(',') });
         // Tickets already awarded per-track by _onUploadSuccess — no bulk multiplier needed
         setTimeout(function() {
             var overlay = document.getElementById('beatsUploadOverlay');
@@ -1240,12 +1241,13 @@ function _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl
             function(err) {
                 document.getElementById('beatsUpStatus').textContent = '❌ Failed: ' + title + ' — ' + (err.message || 'error');
                 // Continue with next track
-                setTimeout(function() { _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total); }, 500);
+                setTimeout(function() { _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total, ids); }, 500);
             },
             function() {
                 uploadTask.snapshot.ref.getDownloadURL().then(function(audioUrl) {
-                    _saveBulkTrackDoc(title, artist, genre, audioUrl, coverUrl, bulkType, albumTitle, albumYear, albumId, idx, total, function() {
-                        _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total);
+                    _saveBulkTrackDoc(title, artist, genre, audioUrl, coverUrl, bulkType, albumTitle, albumYear, albumId, idx, total, function(ref) {
+                        if (ref && ref.id) ids.push(ref.id);
+                        _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total, ids);
                     });
                 });
             }
@@ -1254,7 +1256,7 @@ function _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl
         // Firestore-only fallback for small files
         if (file.size > 700 * 1024) {
             document.getElementById('beatsUpStatus').textContent = '⚠️ Skipping ' + title + ' (too large for current storage)';
-            setTimeout(function() { _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total); }, 500);
+            setTimeout(function() { _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total, ids); }, 500);
             return;
         }
         var reader = new FileReader();
@@ -1273,14 +1275,15 @@ function _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (albumId) { trackData.albumId = albumId; trackData.albumTitle = albumTitle; trackData.albumType = bulkType; trackData.trackNumber = idx + 1; if (albumYear) trackData.albumYear = parseInt(albumYear); }
-            db.collection('beats_tracks').add(trackData).then(function() {
-                _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total);
+            db.collection('beats_tracks').add(trackData).then(function(ref) {
+                if (ref && ref.id) ids.push(ref.id);
+                _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total, ids);
             }).catch(function() {
-                _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total);
+                _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total, ids);
             });
         };
         reader.onerror = function() {
-            _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total);
+            _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl, bulkType, albumTitle, albumYear, albumId, btn, idx + 1, total, ids);
         };
         reader.readAsDataURL(file);
     }
@@ -1313,7 +1316,7 @@ function _saveBulkTrackDoc(title, artist, genre, audioUrl, coverUrl, bulkType, a
             trackData.albumTotalTracks = totalTracks;
             if (albumYear) trackData.albumYear = parseInt(albumYear);
         }
-        db.collection('beats_tracks').add(trackData).then(callback).catch(callback);
+        db.collection('beats_tracks').add(trackData).then(function(ref) { callback(ref); }).catch(function() { callback(null); });
     }
     tempAudio.onloadedmetadata = function() { if (!gotMeta) { gotMeta = true; save(Math.round(tempAudio.duration || 0)); } };
     tempAudio.onerror = function() { if (!gotMeta) { gotMeta = true; save(0); } };
@@ -1468,8 +1471,8 @@ function _saveTrackToFirestore(title, artist, genre, audioUrl, coverUrl, btn) {
         };
         if (coverUrl) trackData.coverUrl = coverUrl;
 
-        db.collection('beats_tracks').add(trackData).then(function() {
-            _onUploadSuccess(btn);
+        db.collection('beats_tracks').add(trackData).then(function(ref) {
+            _onUploadSuccess(btn, ref && ref.id);
         }).catch(function(err) {
             console.error('Upload error:', err);
             showToast('Upload failed: ' + (err.message || 'Unknown error'));
@@ -1482,12 +1485,12 @@ function _saveTrackToFirestore(title, artist, genre, audioUrl, coverUrl, btn) {
     setTimeout(function() { if (!gotMeta) { gotMeta = true; saveDoc(0); } }, 5000);
 }
 
-function _onUploadSuccess(btn) {
+function _onUploadSuccess(btn, trackId) {
     document.getElementById('beatsUpBar').style.width = '100%';
     document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
     showToast('🎵 Track uploaded!');var _bu=parseInt(localStorage.getItem('btc_beats_uploads')||'0')+1;localStorage.setItem('btc_beats_uploads',_bu.toString());
     sessionStorage.setItem('_ch_beats_upload', '1');
-    if (typeof awardPoints === 'function') awardPoints(50, 'Uploaded a track to Bitcoin Beats! 🎵');if(typeof awardTickets==='function')awardTickets(10,'Beat uploaded');
+    if (typeof awardPoints === 'function') awardPoints(50, 'Uploaded a track to Bitcoin Beats! 🎵', null, null, null, null, { trackId: trackId });if(typeof awardTickets==='function')awardTickets(10,'Beat uploaded');
     setTimeout(function() {
         var overlay = document.getElementById('beatsUploadOverlay');
         if (overlay) overlay.remove();
@@ -2516,7 +2519,7 @@ window.beatsPostComment = function(trackId) {
         authorId: auth.currentUser.uid,
         authorName: authorName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function() {
+    }).then(function(ref) {
         input.value = '';
         input.disabled = false;
         beatsLoadComments(trackId);
@@ -2529,7 +2532,7 @@ window.beatsPostComment = function(trackId) {
             // Cap at 3 comment XP rewards per day to prevent farming
             if (_bcCount < 3) {
                 localStorage.setItem(_bcCapKey, String(_bcCount + 1));
-                awardPoints(10, 'Left a comment on Bitcoin Beats 💬');
+                awardPoints(10, 'Left a comment on Bitcoin Beats 💬', null, null, null, null, { trackId: trackId, commentId: ref && ref.id });
                 sessionStorage.setItem('_ch_beats_comment', '1');
             }
         }

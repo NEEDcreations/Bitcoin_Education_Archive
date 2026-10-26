@@ -101,9 +101,40 @@ service cloud.firestore {
     // stays out of this function: registerReferral owns it, and folding the
     // deny into one long && chain re-checks every helper and hits the
     // 1000-expression limit.
+    // Client updates may only touch these keys. Anything else, including a
+    // new reward field, is denied. pendingLeaderboardReward is listed so the
+    // owner can delete a server-written reward; profileUpdateBlocked still
+    // rejects setting one.
+    function profileClientFields() {
+      return [
+        'profilePic', 'displayName', 'country', 'bio',
+        'website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail',
+        'lightning', 'lightningAddress', 'lnAddress',
+        'nachoNickname', 'ghostMode', 'artistProfile',
+        'lastLogin', 'lastActive', 'lastSeen', 'isOnline',
+        'newsletterOptIn', 'newsletterOptInDate', 'celebratedState',
+        'tosVersion', 'tosAcceptedAt', 'signupSource',
+        'inviteCard', 'notificationPrefs', 'notifPrompt', 'beatsShowUncensored',
+        'blockedUsers', 'favorites', 'bookmarks',
+        'displayBadge', 'equippedBadge', 'pinnedBadgeId', 'chatFlairEmoji',
+        'activeTitle', 'earnedTitles',
+        'lqProgress', 'trailProgress', 'trailsPassed',
+        'nachoStoryProgress', 'nachoStoryDate', 'nachoStoryDays',
+        'nachoStoryComplete', 'nachoStoryCompletedAt',
+        'spinCount', 'completedQuests', 'questsCompletedToday',
+        'marketSaved', 'nachoMilestones', 'nachoInteractions', 'nachoQuestions',
+        'sfWindowStreak',
+        'explorationMilestone_25', 'explorationMilestone_50',
+        'explorationMilestone_75', 'explorationMilestone_100',
+        'pendingLeaderboardReward',
+        'experienceMode', 'pvpAlertsMuted', 'pvpPushEnabled', 'pvpPushShard'
+      ];
+    }
+
     function userProfileServerOnlyKeys() {
       return [
         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
         'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
         'marketListings', 'marketMessages', 'marketSold',
         'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
@@ -200,6 +231,7 @@ service cloud.firestore {
           || changed.hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+                        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
                         'orangeTickets', 'tickets',
                         // Timechain TV daily watch (tctvWatchHeartbeat only)
@@ -300,7 +332,8 @@ service cloud.firestore {
 
       function profileShapeOk() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
-        return (!changed.hasAny(['username'])
+        return changed.hasOnly(profileClientFields())
+          && (!changed.hasAny(['username'])
             || !('username' in request.resource.data)
             || (request.resource.data.username is string
                 && request.resource.data.username.size() >= 3
@@ -338,7 +371,22 @@ service cloud.firestore {
             || request.resource.data.beatsShowUncensored == false)
           && (!changed.hasAny(['lightning', 'lightningAddress', 'lnAddress']) || (true && lightningLockOk()))
           && (!changed.hasAny(['notificationPrefs']) || notificationPrefsOk())
-          && (!changed.hasAny(['notifPrompt']) || notifPromptOk());
+          && (!changed.hasAny(['notifPrompt']) || notifPromptOk())
+          && (!changed.hasAny(['experienceMode'])
+            || request.resource.data.experienceMode == 'beginner'
+            || request.resource.data.experienceMode == 'intermediate'
+            || request.resource.data.experienceMode == 'advanced')
+          && (!changed.hasAny(['pvpAlertsMuted'])
+            || request.resource.data.pvpAlertsMuted == true
+            || request.resource.data.pvpAlertsMuted == false)
+          && (!changed.hasAny(['pvpPushEnabled'])
+            || request.resource.data.pvpPushEnabled == true
+            || request.resource.data.pvpPushEnabled == false)
+          && (!changed.hasAny(['pvpPushShard'])
+            || !('pvpPushShard' in request.resource.data)
+            || (request.resource.data.pvpPushShard is int
+                && request.resource.data.pvpPushShard >= 0
+                && request.resource.data.pvpPushShard <= 9));
       }
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
@@ -767,6 +815,17 @@ service cloud.firestore {
         || ('topicPost' in resource.data)
         || ('topicLink' in resource.data);
     }
+    // Author identity and the creation time stay put. A client cannot hand a
+    // paid document to another account or refresh it back inside the 24h window.
+    function evidenceAuthorFrozen() {
+      return request.resource.data.get('authorId', null) == resource.data.get('authorId', null)
+        && request.resource.data.get('authorUid', null) == resource.data.get('authorUid', null)
+        && request.resource.data.get('author', null) == resource.data.get('author', null)
+        && request.resource.data.get('authorName', null) == resource.data.get('authorName', null)
+        && request.resource.data.get('uid', null) == resource.data.get('uid', null)
+        && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
+        && request.resource.data.get('ts', null) == resource.data.get('ts', null);
+    }
     function forumAuthorMayUpdate(maxBody) {
       return resource.data.authorId == request.auth.uid
         && (
@@ -794,6 +853,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       isAdmin()
                       || (
@@ -836,6 +896,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       isAdmin()
                       || (
@@ -1286,6 +1347,7 @@ service cloud.firestore {
                         || (request.resource.data.releaseDate is string
                             && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       // Author can update their own track (with coverUrl + XSS validation)
                       (resource.data.authorId == request.auth.uid
@@ -1387,6 +1449,7 @@ service cloud.firestore {
                     && request.resource.data.body is string
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       // Author can edit their own article
                       resource.data.authorId == request.auth.uid
@@ -1436,6 +1499,7 @@ service cloud.firestore {
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 2000;
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                             && (!(request.auth.uid in resource.data.get('voters', [])))
@@ -1745,6 +1809,11 @@ service cloud.firestore {
     // Faucet lifetime ledger — server-only, immune to client account deletion.
     // Tracks satsWithdrawn + lastSatsClaim keyed by UID. Even if the user deletes
     // their /users/{uid} doc, this ledger persists (Fix C-NEW-6).
+    // One award per source document, across every account. Admin SDK only.
+    match /award_doc_claims/{claimId} {
+      allow read, write: if false;
+    }
+
     match /faucet_ledger/{docId} {
       allow read, write: if false; // Cloud Function admin SDK only
     }
