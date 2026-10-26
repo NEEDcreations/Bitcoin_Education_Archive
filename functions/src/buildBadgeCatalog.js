@@ -183,6 +183,19 @@ const extra = {
     set_raffle: { name: 'Raffle Regular Set', emoji: '🎟️', desc: 'Completed the Raffle Regular collection', xp: 500, category: 'Collections' },
 };
 
+const collectionBonus = require('./collectionBonus');
+collectionBonus.writeSetsFile();
+collectionBonus.collections().forEach(function (col) {
+    extra[col.bonusId] = {
+        name: col.bonusName,
+        emoji: col.bonusEmoji,
+        desc: col.bonusDesc,
+        xp: col.bonusPts,
+        category: 'Collections',
+        hidden: true,
+    };
+});
+
 const badges = {};
 Object.keys(serverXp).forEach(function (id) {
     const meta = client[id] || {};
@@ -218,7 +231,7 @@ Object.keys(extra).forEach(function (id) {
         emoji: extra[id].emoji,
         desc: extra[id].desc,
         xp: extra[id].xp,
-        hidden: false,
+        hidden: extra[id].hidden === true,
         category: extra[id].category,
     };
 });
@@ -239,8 +252,15 @@ const doc = {
 const jsonPath = path.join(__dirname, 'badges.catalog.json');
 fs.writeFileSync(jsonPath, JSON.stringify(doc));
 
+const catalogJsonPath = require.resolve('./badges.catalog.json');
+const rulesPath = require.resolve('./badgeRules');
+delete require.cache[catalogJsonPath];
+delete require.cache[rulesPath];
+const freshRules = require('./badgeRules');
+
 const clientBadges = {};
 Object.keys(badges).forEach(function (id) {
+    const rule = freshRules.ruleFor(id);
     clientBadges[id] = {
         name: badges[id].name,
         emoji: badges[id].emoji,
@@ -248,8 +268,18 @@ Object.keys(badges).forEach(function (id) {
         xp: badges[id].xp,
         category: badges[id].category || '',
         hidden: badges[id].hidden === true,
+        serverAward: !!(rule && !rule.cosmetic),
     };
 });
-const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\n';
+const collectionPay = {};
+collectionBonus.collections().forEach(function (col) {
+    collectionPay[col.id] = {
+        bonusPts: col.bonusPts,
+        legacy: (col.legacyBonuses || []).map(function (row) {
+            return { id: row.id, pts: row.pts };
+        }),
+    };
+});
+const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\nwindow.BADGE_COLLECTION_PAY=' + JSON.stringify(collectionPay) + ';\n';
 fs.writeFileSync(path.join(root, 'badges.catalog.js'), clientJs);
 console.log('badges', Object.keys(badges).length, 'channels', channelCount);

@@ -616,10 +616,12 @@ queue.push(test('a profile badge is recorded with 0 XP and does not touch the po
     const fromMap = await awardBadge(mapDb, admin, 'u', 'say_hi_1', day);
     assert.strictEqual(fromMap.reason, 'legacy');
     assert.strictEqual(mapDb.docs['satoshiFavor/current'], undefined);
-    const fieldDb = memoryDb({ 'users/u': { peerCount: 1, displayBadge: 'peer_1' } });
+    const fieldDb = memoryDb({ 'users/u': { peerCount: 0, displayBadge: 'peer_1', equippedBadge: 'peer_1', earnedHidden: ['peer_1'] } });
     const fromField = await awardBadge(fieldDb, admin, 'u', 'peer_1', day);
-    assert.strictEqual(fromField.reason, 'legacy');
-    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'].xp, 0);
+    assert.notStrictEqual(fromField.reason, 'legacy');
+    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'], undefined);
+    assert.strictEqual(fieldDb.docs['users/u'].points || 0, 0);
+    assert.strictEqual(fieldDb.docs['satoshiFavor/current'], undefined);
     const owned = memoryDb({
         'users/u': { sayHiDays: 1, points: 15 },
         'users/u/badge_awards/say_hi_1': { xp: 15, source: 'awardBadge' },
@@ -823,7 +825,30 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     const sheetOnly = tableIds.filter(function (id) { return catalogIds.indexOf(id) === -1; });
     const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1; });
     assert.deepStrictEqual(sheetOnly, ['anon', 'flex_']);
-    assert.deepStrictEqual(catalogOnly, []);
+    // Merged collection bonuses stay out of badge-xp.json so the sheet cannot
+    // replace the remainder amount. The server pays from collection-sets.json.
+    assert.deepStrictEqual(catalogOnly, [
+        'col_arena_bonus', 'col_builder_bonus', 'col_community_bonus', 'col_daily_habits_bonus',
+        'col_entertainment_bonus', 'col_fitness_bonus', 'col_foresight_bonus', 'col_learning_bonus',
+        'col_lightning_bonus', 'col_mining_bonus', 'col_profile_bonus',
+    ]);
+    const serverBonus = {
+        col_arena_bonus: 1150,
+        col_builder_bonus: 650,
+        col_community_bonus: 800,
+        col_daily_habits_bonus: 4150,
+        col_entertainment_bonus: 150,
+        col_fitness_bonus: 0,
+        col_foresight_bonus: 1000,
+        col_learning_bonus: 300,
+        col_lightning_bonus: 150,
+        col_mining_bonus: 500,
+        col_profile_bonus: 300,
+    };
+    catalogOnly.forEach(function (id) {
+        assert.strictEqual(catalog.badges[id].hidden, true, id);
+        assert.strictEqual(catalog.badges[id].xp, serverBonus[id], id);
+    });
     assert.strictEqual(table.badges.flex_.xp, 0);
     assert.strictEqual(table.badges.anon.xp, 0);
     tableIds.forEach(function (id) {

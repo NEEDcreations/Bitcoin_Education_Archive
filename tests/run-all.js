@@ -25,6 +25,7 @@ const TESTS = [
     { name: 'SF live announce', file: 'test-sf-announce.js' },
     { name: 'New badge sources', file: 'test-new-badges.js' },
     { name: 'Badge search', file: 'test-badge-search.js' },
+    { name: 'Collection bonus remainder', file: 'test-collection-bonus.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },

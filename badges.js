@@ -1127,7 +1127,7 @@ function playBadgeSound() {
 function getBadgeHTML() {
     // Categorize badges
     var _used = {};
-    function _cat(list, filter) { var r = list.filter(function(b) { return !_used[b.id] && filter(b); }); r.forEach(function(b) { _used[b.id] = true; }); return r; }
+    function _cat(list, filter) { var r = list.filter(function(b) { return !_used[b.id] && !b.collectionBonus && filter(b); }); r.forEach(function(b) { _used[b.id] = true; }); return r; }
     const categories = {
         '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm'),
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_') || b.id === 'experienced_pro'),
@@ -1191,7 +1191,7 @@ function getBadgeHTML() {
         '</style>';
 
     // Badge count summary
-    var _totalEarnable = BADGE_DEFS.filter(function(b) { try { return b.check.toString().trim() !== '() => false'; } catch(e) { return true; } }).length;
+    var _totalEarnable = BADGE_DEFS.filter(function(b) { if (b.collectionBonus) return false; try { return b.check.toString().trim() !== '() => false'; } catch(e) { return true; } }).length;
     var _hiddenEarnable = typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.filter(function(b) { return b.hidden; }).length : 0;
     var _hiddenEarned = (JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]')).length;
     var _earnedCount = earnedBadges.size;
@@ -1406,41 +1406,218 @@ var BADGE_SETS = [
     { id:'set_raffle', name:'Raffle Regular', emoji:'🎟️', color:'#f7931a', badgeIds:['raffle_entered','raffle_10','raffle_50','raffle_250','raffle_1000','raffle_winner'], bonusId:'set_raffle', bonusPts:500, bonusEmoji:'🎟️', bonusName:'Raffle Regular Set', bonusDesc:'Completed the Raffle Regular collection' }
 ];
 
+// Eleven collections. collectionId is not parsed as a badge id.
+// serverBonusPts is the sum of server-paid XP for the old sets, not the
+// client display pts. Fun and Fitness paid 0, so its bonus stays 0.
+var BADGE_COLLECTION_GROUPS = [
+    { collectionId: 'col_learning', name: 'Learning', emoji: '📚', color: '#3b82f6', setIds: ['set_scholar', 'set_scholar_daily', 'set_explorer', 'set_trails'], serverBonusPts: 300 },
+    { collectionId: 'col_daily_habits', name: 'Daily Habits', emoji: '🎯', color: '#f7931a', setIds: ['set_daily', 'set_daily_five', 'set_trifecta', 'set_streak', 'set_spin'], serverBonusPts: 4150 },
+    { collectionId: 'col_mining', name: 'Mining', emoji: '⛏️', color: '#f7931a', setIds: ['set_miner', 'set_favor'], serverBonusPts: 500 },
+    { collectionId: 'col_foresight', name: 'Foresight and Luck', emoji: '🔮', color: '#a78bfa', setIds: ['set_oracle', 'set_raffle'], serverBonusPts: 1000 },
+    { collectionId: 'col_arena', name: 'Arena', emoji: '⚔️', color: '#ec4899', setIds: ['set_pvp', 'set_gladiator', 'set_codebreaker'], serverBonusPts: 1150 },
+    { collectionId: 'col_community', name: 'Community', emoji: '💬', color: '#8b5cf6', setIds: ['set_social', 'set_voice', 'set_network', 'set_irl'], serverBonusPts: 800 },
+    { collectionId: 'col_lightning', name: 'Lightning and Giving', emoji: '⚡', color: '#eab308', setIds: ['set_lightning', 'set_generous'], serverBonusPts: 150 },
+    { collectionId: 'col_builder', name: 'Builder and Market', emoji: '🏗️', color: '#22c55e', setIds: ['set_builder', 'set_trader'], serverBonusPts: 650 },
+    { collectionId: 'col_entertainment', name: 'Entertainment', emoji: '🎵', color: '#f472b6', setIds: ['set_beats', 'set_tctv', 'set_tv'], serverBonusPts: 150 },
+    { collectionId: 'col_profile', name: 'Profile and Setup', emoji: '👤', color: '#6366f1', setIds: ['set_profile', 'set_newcomer', 'set_sovereign'], serverBonusPts: 300 },
+    { collectionId: 'col_fitness', name: 'Fun and Fitness', emoji: '🚶', color: '#84cc16', setIds: ['set_fun', 'set_pow'], serverBonusPts: 0 }
+];
+
+function _shortCollectionSetName(name) {
+    return String(name || '').replace(/^The /, '').replace(/ Set$/, '');
+}
+
+function _buildBadgeCollections() {
+    var byId = {};
+    (BADGE_SETS || []).forEach(function(set) { if (set && set.id) byId[set.id] = set; });
+    return BADGE_COLLECTION_GROUPS.map(function(group) {
+        var badgeIds = [];
+        var seen = {};
+        var bonusPts = Math.max(0, Math.floor(Number(group.serverBonusPts) || 0));
+        var includes = [];
+        (group.setIds || []).forEach(function(setId) {
+            var set = byId[setId];
+            if (!set) return;
+            includes.push(_shortCollectionSetName(set.name));
+            (set.badgeIds || []).forEach(function(badgeId) {
+                if (seen[badgeId]) return;
+                seen[badgeId] = true;
+                badgeIds.push(badgeId);
+            });
+        });
+        return {
+            collectionId: group.collectionId,
+            id: group.collectionId,
+            name: group.name,
+            emoji: group.emoji,
+            color: group.color,
+            setIds: (group.setIds || []).slice(),
+            includes: includes,
+            badgeIds: badgeIds,
+            bonusId: group.collectionId + '_bonus',
+            bonusPts: bonusPts,
+            bonusEmoji: group.emoji,
+            bonusName: group.name,
+            bonusDesc: 'Completed the ' + group.name + ' collection'
+        };
+    });
+}
+
+var BADGE_COLLECTIONS = _buildBadgeCollections();
+BADGE_COLLECTIONS.forEach(function(col) {
+    BADGE_DEFS.push({
+        id: col.bonusId,
+        name: col.bonusName,
+        emoji: col.bonusEmoji,
+        desc: col.bonusDesc,
+        pts: col.bonusPts,
+        hidden: true,
+        collectionBonus: true,
+        check: function() { return false; }
+    });
+});
+
+function _collectionBonusCopy(pts) {
+    return '+' + pts + ' XP bonus (not limited by the daily cap)';
+}
+
+// Same subtraction as the server remainder: full bonus minus server-paid
+// old set bonuses this account already holds, floored at 0. The pay table
+// is generated from the server catalog. The server still decides the payment.
+function _collectionRemainder(col, earned) {
+    var table = (typeof window !== 'undefined' && window.BADGE_COLLECTION_PAY) ? window.BADGE_COLLECTION_PAY : null;
+    var pay = table && col ? table[col.id] : null;
+    if (!pay) return 0;
+    var total = Math.max(0, Math.floor(Number(pay.bonusPts) || 0));
+    var already = 0;
+    (pay.legacy || []).forEach(function(row) {
+        if (!row || !earned || typeof earned.has !== 'function' || !earned.has(row.id)) return;
+        var pts = Number(row.pts);
+        if (pts > 0) already += pts;
+    });
+    return Math.max(0, total - already);
+}
+
+// Required members are the ones the server can award. Cosmetic members are
+// optional extras. A collection with no server-award member (Fun and Fitness)
+// still requires every badge.
+function _collectionMemberLists(col) {
+    var ids = (col && col.badgeIds) ? col.badgeIds.slice() : [];
+    var required = [];
+    var optional = [];
+    var catalog = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : {};
+    var sawServerAward = false;
+    ids.forEach(function(id) {
+        if (catalog[id] && catalog[id].serverAward === true) {
+            sawServerAward = true;
+            required.push(id);
+        } else optional.push(id);
+    });
+    if (!sawServerAward) return { required: ids, optional: [] };
+    return { required: required, optional: optional };
+}
+
+window._badgeCollectionProgress = function(earned) {
+    var held = earned;
+    if (!held) {
+        try { held = (typeof window.getEarnedBadges === 'function') ? window.getEarnedBadges() : null; } catch (e) { held = null; }
+    }
+    if (!held) {
+        held = new Set();
+        try { JSON.parse(localStorage.getItem('btc_badges') || '[]').forEach(function(id) { held.add(id); }); } catch (e2) {}
+    }
+    return (BADGE_COLLECTIONS || []).map(function(col) {
+        var lists = _collectionMemberLists(col);
+        var count = 0;
+        lists.required.forEach(function(id) { if (held.has(id)) count += 1; });
+        var total = lists.required.length;
+        return {
+            id: col.id,
+            name: col.name,
+            emoji: col.emoji,
+            color: col.color,
+            earned: count,
+            total: total,
+            pct: total ? Math.round((count / total) * 100) : 0,
+            bonusPts: _collectionRemainder(col, held),
+            bonusId: col.bonusId,
+            bonusEarned: held.has(col.bonusId),
+            complete: total > 0 && count >= total
+        };
+    });
+};
+
 function _renderBadgeSets(earnedBadges) {
-    var sets = (BADGE_SETS || []).filter(Boolean);
-    if (!sets.length) return '';
-    var totalSets = sets.length;
-    var completedSets = sets.filter(function(s) { return s.badgeIds.every(function(id) { return earnedBadges.has(id); }); }).length;
-    var colId = 'badgeSetsPanel_' + Math.random().toString(36).substr(2,5);
-    var html = '<div style="margin-top:24px;">';
-    // Collapsible header button
-    html += '<button onclick="var p=document.getElementById(\'' + colId + '\');var open=p.style.display!==\'none\';p.style.display=open?\'none\':\'block\';this.querySelector(\'.bc-arrow\').textContent=open?\'▼\':\'▲\'" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0 2px 10px;cursor:pointer;font-family:inherit;">';
+    var cols = (BADGE_COLLECTIONS || []).filter(Boolean);
+    if (!cols.length) return '';
+    var completed = cols.filter(function(col) {
+        var lists = _collectionMemberLists(col);
+        return lists.required.length && lists.required.every(function(id) { return earnedBadges.has(id); });
+    }).length;
+    var colId = 'badgeSetsPanel_' + Math.random().toString(36).substr(2, 5);
+    var html = '<style>' +
+        '.bc-wrap{margin-top:24px;max-width:100%;}' +
+        '.bc-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:none;border:none;padding:0 2px 10px;cursor:pointer;font-family:inherit;}' +
+        '.bc-panel{display:none;}' +
+        '.bc-card{box-sizing:border-box;max-width:100%;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px;overflow:hidden;}' +
+        '.bc-head{display:flex;align-items:flex-start;gap:8px;min-width:0;margin-bottom:8px;}' +
+        '.bc-emoji{font-size:1.35rem;line-height:1;flex-shrink:0;}' +
+        '.bc-copy{flex:1;min-width:0;}' +
+        '.bc-title{font-size:0.86rem;font-weight:800;color:var(--heading);line-height:1.25;overflow-wrap:anywhere;}' +
+        '.bc-sub{font-size:0.66rem;color:var(--text-muted);line-height:1.35;overflow-wrap:anywhere;}' +
+        '.bc-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}' +
+        '.bc-chip{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px;width:52px;max-width:100%;cursor:pointer;}' +
+        '.bc-chip .bc-name{font-size:0.52rem;text-align:center;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;max-width:100%;}' +
+        '.bc-bar{background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;margin-bottom:6px;}' +
+        '.bc-bar > div{height:100%;border-radius:6px;}' +
+        '.bc-bonus{font-size:0.68rem;line-height:1.35;overflow-wrap:anywhere;}' +
+        '.bc-flag{font-size:0.48rem;line-height:1;color:var(--text-faint);letter-spacing:0.2px;text-transform:uppercase;}' +
+        '.bc-dist{margin-bottom:14px;}' +
+        '.bc-dist-title{font-size:0.68rem;font-weight:800;color:var(--heading);letter-spacing:0.4px;text-transform:uppercase;margin-bottom:8px;}' +
+        '.bc-dist-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;min-width:0;}' +
+        '.bc-dist-emoji{width:1.2rem;flex-shrink:0;text-align:center;}' +
+        '.bc-dist-main{flex:1;min-width:0;}' +
+        '.bc-dist-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;}' +
+        '.bc-dist-name{font-size:0.72rem;font-weight:700;color:var(--heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}' +
+        '.bc-dist-count{font-size:0.66rem;color:var(--text-muted);flex-shrink:0;}' +
+        '@media (max-width:420px){.bc-card{padding:10px;}.bc-chip{width:46px;}.bc-title{font-size:0.8rem;}}' +
+        '</style>';
+    html += '<div class="bc-wrap">';
+    html += '<button class="bc-toggle" onclick="var p=document.getElementById(\'' + colId + '\');var open=p.style.display!==\'none\';p.style.display=open?\'none\':\'block\';this.querySelector(\'.bc-arrow\').textContent=open?\'▼\':\'▲\'">';
     html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;">🏅 Badge Collections</div>';
-    html += '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.68rem;color:var(--text-muted);">' + completedSets + '/' + totalSets + ' sets</span><span class="bc-arrow" style="font-size:0.7rem;color:var(--text-faint);">▼</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><span style="font-size:0.68rem;color:var(--text-muted);">' + completed + '/' + cols.length + '</span><span class="bc-arrow" style="font-size:0.7rem;color:var(--text-faint);">▼</span></div>';
     html += '</button>';
-    html += '<div id="' + colId + '" style="display:none;">';
-
-    sets.forEach(function(set) {
-        var earned = set.badgeIds.filter(function(id) { return earnedBadges.has(id); });
-        var total = set.badgeIds.length;
-        var pct = Math.round((earned.length / total) * 100);
-        var complete = earned.length >= total;
-        var bonusEarned = earnedBadges.has(set.bonusId);
-
-        html += '<div style="background:var(--card-bg);border:1px solid ' + (complete ? set.color + '55' : 'var(--border)') + ';border-radius:14px;padding:14px;margin-bottom:10px;' + (complete ? 'box-shadow:0 0 12px ' + set.color + '22;' : '') + '">';
-        // Header row
-        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
-        html += '<span style="font-size:1.5rem;">' + set.emoji + '</span>';
-        html += '<div style="flex:1;"><div style="font-size:0.88rem;font-weight:800;color:var(--heading);">' + set.name + '</div>';
-        html += '<div style="font-size:0.68rem;color:var(--text-muted);">' + earned.length + '/' + total + ' badges earned</div></div>';
-        if (complete && bonusEarned) {
-            html += '<div style="font-size:1.1rem;filter:drop-shadow(0 0 6px gold);">' + set.bonusEmoji + '</div>';
-        }
+    html += '<div id="' + colId + '" class="bc-panel">';
+    cols.forEach(function(col) {
+        var lists = _collectionMemberLists(col);
+        var earnedReq = lists.required.filter(function(id) { return earnedBadges.has(id); });
+        var optionalHeld = lists.optional.filter(function(id) { return earnedBadges.has(id); }).length;
+        var total = lists.required.length;
+        var pct = total ? Math.round((earnedReq.length / total) * 100) : 0;
+        var complete = total > 0 && earnedReq.length >= total;
+        var bonusEarned = earnedBadges.has(col.bonusId);
+        var bonusCopy = _collectionBonusCopy(_collectionRemainder(col, earnedBadges));
+        html += '<div class="bc-card" style="border-color:' + (complete ? col.color + '55' : 'var(--border)') + ';' + (complete ? 'box-shadow:0 0 12px ' + col.color + '22;' : '') + '">';
+        html += '<div class="bc-head">';
+        html += '<span class="bc-emoji">' + col.emoji + '</span>';
+        html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + '</div>';
+        html += '<div class="bc-sub">' + earnedReq.length + '/' + total;
+        if (lists.optional.length) html += ' · ' + optionalHeld + '/' + lists.optional.length + ' optional';
+        html += ' · ' + escapeHtml((col.includes || []).join(' · ')) + '</div></div>';
+        if (complete && bonusEarned) html += '<div style="font-size:1.1rem;filter:drop-shadow(0 0 6px gold);flex-shrink:0;">' + col.bonusEmoji + '</div>';
         html += '</div>';
-        // Badge grid with names + tooltip on press/hover
-        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
-        set.badgeIds.forEach(function(bid) {
+        if (bonusEarned) {
+            html += '<div class="bc-bonus" style="color:#22c55e;font-weight:700;">' + col.bonusEmoji + ' ' + escapeHtml(col.bonusName) + ' — bonus earned · ' + bonusCopy + '</div>';
+        } else if (complete) {
+            html += '<div class="bc-bonus" style="color:' + col.color + ';font-weight:700;">Complete. The server awards ' + bonusCopy + '.</div>';
+        } else {
+            html += '<div class="bc-bonus" style="color:var(--text-faint);">Complete to unlock ' + col.bonusEmoji + ' ' + escapeHtml(col.bonusName) + ' · ' + bonusCopy + '</div>';
+        }
+        html += '<div class="bc-bar"><div style="width:' + pct + '%;background:' + col.color + ';"></div></div>';
+        html += '<div class="bc-badges">';
+        col.badgeIds.forEach(function(bid) {
             var bEarned = earnedBadges.has(bid);
+            var extra = lists.optional.indexOf(bid) !== -1;
             var bDef = BADGE_DEFS.find(function(b) { return b.id === bid; });
             if (!bDef && window.BADGE_CATALOG && window.BADGE_CATALOG[bid]) {
                 bDef = { emoji: window.BADGE_CATALOG[bid].emoji || '🏅', name: window.BADGE_CATALOG[bid].name || bid, desc: window.BADGE_CATALOG[bid].desc || '' };
@@ -1448,104 +1625,41 @@ function _renderBadgeSets(earnedBadges) {
             var emoji = bDef ? bDef.emoji : '🔘';
             var name = bDef ? bDef.name : bid;
             var desc = bDef ? bDef.desc : '';
-            // Use shared _showBadgeSetTip: position:fixed opaque tooltip, no overflow/z-index clipping
             var tipHtml = (bEarned ? '<span style=\"color:#22c55e;font-weight:700;\">\u2705 Earned</span><br>' : '<span style=\"color:#aaa;\">\uD83D\uDD12 Locked</span><br>') +
                 '<strong>' + escapeHtml(name) + '</strong>' +
+                (extra ? '<br><span style=\"color:#aaa;font-size:0.63rem;\">Optional extra</span>' : '') +
                 (desc ? ('<br><span style=\"color:#aaa;font-size:0.63rem;\">' + escapeHtml(desc) + '</span>') : '');
-            html += '<div class=\"badge-set-item\" data-set-tip=\"' + tipHtml.replace(/\"/g,'&quot;') + '\" ';
-            html += 'style=\"display:flex;flex-direction:column;align-items:center;gap:2px;width:52px;' + (bEarned ? '' : 'opacity:0.4;') + 'cursor:pointer;\"';
-            html += ' onclick=\"window._showBadgeSetTip(event,this)\"';
-            html += ' onmouseenter=\"window._showBadgeSetTip(event,this)\"';
-            html += ' onmouseleave=\"window._hideBadgeSetTip()\">';
-            html += '<span style=\"font-size:1.3rem;' + (bEarned ? 'filter:drop-shadow(0 0 4px ' + set.color + '88);' : 'filter:grayscale(1);') + '\">' + emoji + '</span>';
-            html += '<span style=\"font-size:0.55rem;color:' + (bEarned ? 'var(--text)' : 'var(--text-faint)') + ';text-align:center;line-height:1.2;word-break:break-word;\">' + name + '</span>';
+            html += '<div class="bc-chip badge-set-item' + (extra ? ' bc-extra' : '') + '" data-set-tip="' + tipHtml.replace(/\"/g, '&quot;') + '"';
+            html += ' style="' + (bEarned ? '' : 'opacity:0.4;') + '"';
+            html += ' onclick="window._showBadgeSetTip(event,this)"';
+            html += ' onmouseenter="window._showBadgeSetTip(event,this)"';
+            html += ' onmouseleave="window._hideBadgeSetTip()">';
+            html += '<span style="font-size:1.25rem;' + (bEarned ? 'filter:drop-shadow(0 0 4px ' + col.color + '88);' : 'filter:grayscale(1);') + '">' + emoji + '</span>';
+            html += '<span class="bc-name" style="color:' + (bEarned ? 'var(--text)' : 'var(--text-faint)') + ';">' + escapeHtml(name) + '</span>';
+            if (extra) html += '<span class="bc-flag">extra</span>';
             html += '</div>';
         });
         html += '</div>';
-        // Progress bar
-        html += '<div style="background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;margin-bottom:6px;">';
-        html += '<div style="background:' + set.color + ';height:100%;width:' + pct + '%;border-radius:6px;transition:width 0.4s;"></div></div>';
-        // Bonus banner
-        if (complete && bonusEarned) {
-            html += '<div style="font-size:0.72rem;color:#22c55e;font-weight:700;">' + set.bonusEmoji + ' ' + set.bonusName + ' — Bonus badge earned! +' + set.bonusPts + ' XP</div>';
-        } else if (complete && !bonusEarned) {
-            html += '<div style="font-size:0.72rem;color:' + set.color + ';font-weight:700;cursor:pointer;" onclick="_claimSetBonus(\'' + set.id + '\')">🎊 Set Complete! Click to claim ' + set.bonusEmoji + ' ' + set.bonusName + ' (+' + set.bonusPts + ' XP)</div>';
-        } else {
-            html += '<div style="font-size:0.68rem;color:var(--text-faint);">Complete to unlock: ' + set.bonusEmoji + ' ' + set.bonusName + '</div>';
-        }
         html += '</div>';
     });
-    html += '</div>'; // close collapsible panel
-
-    // ---- Community Badge Distribution (collapsed by default) ----
+    html += '</div>';
     html += '<div style="margin-top:12px;">';
-    html += '<button onclick="window._toggleBadgeDist(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0 2px 10px;cursor:pointer;font-family:inherit;">';
+    html += '<button class="bc-toggle" onclick="window._toggleBadgeDist(this)">';
     html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;">📊 Community Badge Distribution</div>';
-    html += '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.68rem;color:var(--text-muted);">How rare is yours?</span><span class="bcd-arrow" style="font-size:0.7rem;color:var(--text-faint);">▼</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><span style="font-size:0.68rem;color:var(--text-muted);">How rare is yours?</span><span class="bcd-arrow" style="font-size:0.7rem;color:var(--text-faint);">▼</span></div>';
     html += '</button>';
     html += '<div id="badgeDistPanel" style="display:none;">';
     html += '<div id="badgeDistContent"><div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.82rem;">Loading distribution...</div></div>';
     html += '</div></div>';
-
-    html += '</div>'; // close outer wrapper
+    html += '</div>';
     return html;
 }
 
-window._claimSetBonus = function(setId) {
-    var set = BADGE_SETS.find(function(s) { return s.id === setId; });
-    if (!set) return;
-    var badgeKey = 'btc_badge_earned_' + set.bonusId;
-    if (localStorage.getItem(badgeKey)) {
-        if (typeof showToast === 'function') showToast('🏅 ' + set.bonusName + ' already earned!');
-        return;
-    }
-    // Verify all badges in set are earned
-    var eb = window._earnedBadgesSet || new Set();
-    try { eb = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
-    var allEarned = set.badgeIds.every(function(bid) { return eb.has(bid); });
-    if (!allEarned) {
-        if (typeof showToast === 'function') showToast('❌ Not all badges in use ' + set.name + ' are earned yet');
-        return;
-    }
-    localStorage.setItem(badgeKey, '1');
-    // Also add to earnedBadges so it's not re-awarded on the next checkBadges() tick
-    if (typeof earnedBadges !== 'undefined') earnedBadges.add(set.bonusId);
-    if (typeof awardPoints === 'function') {
-        var _setRef = set; // closure capture
-        awardPoints(set.bonusPts, '🎖️ Badge: ' + set.bonusName, null, null, null, set.bonusId)
-            .then(function(result) {
-                var data = result && result.data;
-                var _alreadyAwarded = data &&
-                    (data.badgeDuplicate === true || data.error === 'Badge already awarded');
-                var serverRejected = data && data.success === false && !_alreadyAwarded;
-                if (serverRejected) {
-                    try { localStorage.removeItem(badgeKey); } catch(e) {}
-                    if (typeof earnedBadges !== 'undefined') earnedBadges.delete(_setRef.bonusId);
-                }
-            }).catch(function() {
-                // Network error — roll back so it can retry next session
-                try { localStorage.removeItem(badgeKey); } catch(e) {}
-                if (typeof earnedBadges !== 'undefined') earnedBadges.delete(_setRef.bonusId);
-            });
-    }
-    if (typeof showBadgeToast === 'function') showBadgeToast({ id: set.bonusId, emoji: set.bonusEmoji, name: set.bonusName, pts: set.bonusPts });
-    else if (typeof showToast === 'function') showToast('🎉 SET COMPLETE! ' + set.bonusEmoji + ' ' + set.bonusName + ' earned! +' + set.bonusPts + ' XP');
-};
+// Old set bonuses stay on accounts that already have them. The server
+// awards a merged collection bonus. The client does not pay either.
+window._claimSetBonus = function() {};
 
-// Check badge set completion after any badge is earned
-window._checkBadgeSets = function() {
-    var sets = (BADGE_SETS || []).filter(Boolean);
-    var held = (typeof window.getEarnedBadges === 'function') ? window.getEarnedBadges() : null;
-    if (!held) return;
-    sets.forEach(function(set) {
-        var bonusKey = 'btc_badge_earned_' + set.bonusId;
-        if (localStorage.getItem(bonusKey)) return; // already earned
-        var allEarned = set.badgeIds.every(function(bid) { return held.has(bid); });
-        if (allEarned) {
-            window._claimSetBonus(set.id);
-        }
-    });
-};
+window._checkBadgeSets = function() {};
 
 // ============================================================
 // Community Badge Distribution
@@ -1705,6 +1819,20 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
     if (typeof window.getEarnedBadges === 'function') userEarned = window.getEarnedBadges();
 
     var html = '';
+    if (typeof window._badgeCollectionProgress === 'function') {
+        html += '<div class="bc-dist">';
+        html += '<div class="bc-dist-title">Your collections</div>';
+        window._badgeCollectionProgress(userEarned).forEach(function(row) {
+            html += '<div class="bc-dist-row">';
+            html += '<span class="bc-dist-emoji">' + row.emoji + '</span>';
+            html += '<div class="bc-dist-main">';
+            html += '<div class="bc-dist-line"><span class="bc-dist-name">' + (typeof escapeHtml === 'function' ? escapeHtml(row.name) : row.name) + '</span>';
+            html += '<span class="bc-dist-count">' + row.earned + '/' + row.total + '</span></div>';
+            html += '<div class="bc-bar"><div style="width:' + row.pct + '%;background:' + row.color + ';"></div></div>';
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
     // Summary strip
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">';
     var tierColors = { Unclaimed:'#94a3b8', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Common:'#4ade80' };
@@ -1924,10 +2052,10 @@ window._badgeSearchRecords = function() {
     var seen = {};
     var collections = {};
     window._badgeSearchCollections = collections;
-    (BADGE_SETS || []).filter(Boolean).forEach(function(set) {
-        (set.badgeIds || []).forEach(function(id) {
+    (BADGE_COLLECTIONS || []).forEach(function(col) {
+        (col.badgeIds || []).forEach(function(id) {
             if (!collections[id]) collections[id] = [];
-            collections[id].push(set.name);
+            if (collections[id].indexOf(col.name) === -1) collections[id].push(col.name);
         });
     });
     function add(b) {

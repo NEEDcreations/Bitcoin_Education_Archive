@@ -1,7 +1,7 @@
 'use strict';
 
 const badgeRules = require('./badgeRules');
-const { profileHoldsBadge } = require('./badgeProfile');
+const { serverHoldsBadge } = require('./badgeProfile');
 
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
@@ -113,7 +113,7 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
             out[pending[i].index] = denial(badgeId, 'no_user');
             continue;
         }
-        const held = profileHoldsBadge(user, badgeId);
+        const held = serverHoldsBadge(user, badgeId);
         const ctx = {
             awardSet: earned,
             payingCount: badgeRules.countPaying(earned),
