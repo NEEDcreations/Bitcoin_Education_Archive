@@ -201,24 +201,27 @@ test('sha256 values are written into the manifests and omitted when not computed
     assert.strictEqual(nightly.objects.some((row) => row.group === 'uploads'), false);
 });
 
-test('a cleanup pause is counted and the third night is logged', function () {
-    assert.strictEqual(r2.priorCleanupStreak('copied 1 objects, 2 bytes'), 0);
-    assert.strictEqual(r2.priorCleanupStreak('copied 1 objects, 2 bytes; uploads cleanup skipped, streak 2'), 2);
-    const summary = { ok: true, detail: 'copied 1 objects, 2 bytes' };
-    const logs = [];
-    const orig = console.error;
-    console.error = function () { logs.push(Array.prototype.join.call(arguments, ' ')); };
-    try {
-        r2.noteCleanupSkip(summary, { cleanupSkipped: true }, 2);
-    } finally {
-        console.error = orig;
-    }
-    assert.strictEqual(summary.ok, true);
-    assert.ok(summary.detail.indexOf('uploads cleanup skipped, streak 3') !== -1);
-    assert.ok(logs.join('\n').indexOf('uploads cleanup skipped 3 nights in a row') !== -1);
-    const quiet = { ok: true, detail: 'copied 1 objects, 2 bytes' };
-    r2.noteCleanupSkip(quiet, { cleanupSkipped: false }, 4);
-    assert.strictEqual(quiet.detail, 'copied 1 objects, 2 bytes');
+test('a cleanup skip streak counts consecutive dates only', function () {
+    assert.deepStrictEqual(r2.nextSkipStreak(null, '2026-10-20', true), {
+        skipStreak: 1,
+        lastSkipDate: '2026-10-20',
+    });
+    assert.deepStrictEqual(
+        r2.nextSkipStreak({ skipStreak: 1, lastSkipDate: '2026-10-20' }, '2026-10-21', true),
+        { skipStreak: 2, lastSkipDate: '2026-10-21' }
+    );
+    assert.deepStrictEqual(
+        r2.nextSkipStreak({ skipStreak: 2, lastSkipDate: '2026-10-21' }, '2026-10-21', true),
+        { skipStreak: 2, lastSkipDate: '2026-10-21' }
+    );
+    assert.deepStrictEqual(
+        r2.nextSkipStreak({ skipStreak: 2, lastSkipDate: '2026-10-19' }, '2026-10-21', true),
+        { skipStreak: 1, lastSkipDate: '2026-10-21' }
+    );
+    assert.deepStrictEqual(
+        r2.nextSkipStreak({ skipStreak: 4, lastSkipDate: '2026-10-21' }, '2026-10-22', false),
+        { skipStreak: 0, lastSkipDate: null }
+    );
 });
 
 test('objects older than 90 days are deleted and a 90 day old key is kept', function () {
@@ -264,7 +267,9 @@ test('nightlyR2Copy is scheduled with the five secrets and the copy account', fu
     assert.ok(block.indexOf('r2SecretAccessKey') !== -1);
     assert.ok(block.indexOf('r2Bucket') !== -1);
     assert.ok(block.indexOf('backupEncryptionKey') !== -1);
-    assert.ok(block.indexOf('priorCleanupStreak') !== -1);
+    assert.ok(block.indexOf("doc('r2_cleanup')") !== -1);
+    assert.strictEqual(block.indexOf('priorCleanupStreak'), -1);
+    assert.strictEqual(block.indexOf('jobs.r2'), -1);
     assert.strictEqual(block.indexOf('authBackupKey'), -1);
     assert.strictEqual(block.indexOf('console.log'), -1);
     assert.strictEqual(block.indexOf('console.error'), -1);
@@ -276,7 +281,13 @@ test('nightlyR2Copy is scheduled with the five secrets and the copy account', fu
     assert.strictEqual(offsite.indexOf('CopyObjectCommand'), -1);
     assert.strictEqual(offsite.indexOf('MetadataDirective'), -1);
     assert.ok(offsite.indexOf('COPY_BUDGET_MS') !== -1);
+    assert.ok(offsite.indexOf('nextSkipStreak') !== -1);
+    assert.strictEqual(offsite.indexOf('priorCleanupStreak'), -1);
     assert.strictEqual(status.JOB_NAMES.join(','), 'firestore,auth,uploads,config');
+    const nightly = fs.readFileSync(path.join(__dirname, '..', 'functions/src/nightlyBackup.js'), 'utf8');
+    assert.ok(nightly.indexOf("doc('r2_cleanup')") !== -1);
+    assert.ok(nightly.indexOf('cleanupAlert') !== -1);
+    assert.strictEqual(nightly.indexOf('api.telegram.org'), -1);
 });
 
 test('the setup steps name the bucket, the lock, the token, and the secrets', function () {
@@ -337,6 +348,7 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
     assert.ok(out.indexOf('git checkout -q PASTE_COMMIT') !== -1);
     assert.ok(out.indexOf('v=; while [ -z "$v" ]; do read -rsp "Paste $s then Enter: " v; echo; done') !== -1);
     assert.ok(out.indexOf('uploads cleanup skipped 3 nights in a row') !== -1);
+    assert.ok(out.indexOf('backup_status/r2_cleanup') !== -1);
     assert.ok(out.indexOf('04:00 UTC') !== -1);
     assert.strictEqual(out.indexOf('cursor/nightly-backup-system-d6f0'), -1);
     const pasteOpen = out.indexOf('{\nP=bitcoin-education-archive');
@@ -993,6 +1005,115 @@ test('bq-backup gets legacyBucketReader and objectAdmin on the uploads backup bu
             assert.strictEqual(rejections.length, 0);
         } finally {
             process.off('unhandledRejection', onRejection);
+        }
+    });
+
+    await testAsync('the cleanup skip streak survives the nightly latest rebuild', async function () {
+        const store = fakeDb();
+        const logs = [];
+        const orig = console.error;
+        console.error = function () {
+            logs.push(Array.prototype.join.call(arguments, ' '));
+        };
+        function cleanupDoc() {
+            return store.docs['backup_status/r2_cleanup'] || null;
+        }
+        async function readCleanup() {
+            const data = cleanupDoc();
+            return data ? JSON.parse(JSON.stringify(data)) : null;
+        }
+        async function writeCleanup(state) {
+            store.docs['backup_status/r2_cleanup'] = {
+                skipStreak: state.skipStreak,
+                lastSkipDate: state.lastSkipDate,
+            };
+        }
+        function runCopy(date, skipped) {
+            return r2.runNightlyR2Copy({
+                date: date,
+                copy: async function () {
+                    return {
+                        ok: true,
+                        cleanupSkipped: skipped,
+                        objectCount: 1,
+                        bytes: 2,
+                        detail: 'copied 1 objects, 2 bytes',
+                        date: date,
+                    };
+                },
+                readCleanup: readCleanup,
+                writeCleanup: writeCleanup,
+                write: function (event) {
+                    return status.writeBackupResult(store.db, adminStub, event);
+                },
+            });
+        }
+        try {
+            let date = '2026-10-20';
+            for (let n = 1; n <= 5; n++) {
+                const fireAt = date + 'T02:05:00.000Z';
+                const before = cleanupDoc() ? JSON.parse(JSON.stringify(cleanupDoc())) : null;
+                await status.writeBackupResults(store.db, adminStub, [{
+                    job: 'firestore',
+                    date: date,
+                    ok: true,
+                    finishedAt: fireAt,
+                    detail: 'firestore ok',
+                }], fireAt);
+                const rebuilt = store.docs['backup_status/latest'];
+                assert.ok(!rebuilt.jobs.r2, '02:00 rebuild dropped r2 on ' + date);
+                assert.deepStrictEqual(cleanupDoc(), before);
+                const mark = logs.length;
+                await runCopy(date, true);
+                assert.deepStrictEqual(cleanupDoc(), { skipStreak: n, lastSkipDate: date });
+                const latest = store.docs['backup_status/latest'];
+                assert.strictEqual(latest.jobs.r2.ok, true);
+                assert.ok(latest.jobs.r2.detail.indexOf('uploads cleanup skipped, streak ' + n) !== -1);
+                const fresh = logs.slice(mark).join('\n');
+                if (n < 3) assert.strictEqual(fresh.indexOf('nights in a row'), -1, 'night ' + n);
+                else assert.ok(fresh.indexOf('uploads cleanup skipped ' + n + ' nights in a row') !== -1, 'night ' + n);
+                if (n < 5) date = health.addUtcDays(date, 1);
+            }
+            assert.strictEqual(cleanupDoc().skipStreak, 5);
+            await runCopy(date, true);
+            assert.deepStrictEqual(cleanupDoc(), { skipStreak: 5, lastSkipDate: date });
+
+            const finishedAt = date + 'T05:00:00.000Z';
+            await status.writeBackupResults(store.db, adminStub, verifiedEvents(date, finishedAt), finishedAt, {
+                r2Required: true,
+                cleanupAlert: true,
+            });
+            const alerted = store.docs['backup_status/latest'];
+            assert.strictEqual(alerted.ok, false);
+            assert.strictEqual(alerted.detail, 'uploads cleanup skipped 3 nights in a row');
+            assert.strictEqual(alerted.jobs.r2.ok, true);
+            assert.deepStrictEqual(Object.keys(alerted).sort(), ['date', 'detail', 'jobs', 'ok', 'updatedAt', 'verifiedAt']);
+            assert.deepStrictEqual(cleanupDoc(), { skipStreak: 5, lastSkipDate: date });
+            const verdict = status.checkerVerdict(alerted, date + 'T05:01:00.000Z');
+            assert.strictEqual(verdict.ok, false);
+            assert.strictEqual(verdict.detail, 'uploads cleanup skipped 3 nights in a row');
+
+            const broken = status.nextLatest(alerted, {
+                job: 'auth',
+                date: date,
+                ok: false,
+                finishedAt: finishedAt,
+                verifiedAt: finishedAt,
+                detail: 'auth export missing',
+            }, finishedAt, { r2Required: true, cleanupAlert: true });
+            assert.strictEqual(broken.ok, false);
+            assert.ok(broken.detail.indexOf('failed: auth') === 0);
+            assert.ok(broken.detail.indexOf('uploads cleanup skipped 3 nights in a row') !== -1);
+            assert.strictEqual(broken.jobs.r2.ok, true);
+            assert.deepStrictEqual(Object.keys(broken).sort(), ['date', 'detail', 'jobs', 'ok', 'updatedAt', 'verifiedAt']);
+
+            await runCopy(date, false);
+            assert.deepStrictEqual(cleanupDoc(), { skipStreak: 0, lastSkipDate: null });
+            const cleared = store.docs['backup_status/latest'];
+            assert.strictEqual(cleared.jobs.r2.ok, true);
+            assert.strictEqual(cleared.jobs.r2.detail.indexOf('uploads cleanup skipped'), -1);
+        } finally {
+            console.error = orig;
         }
     });
 

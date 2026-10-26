@@ -8,7 +8,9 @@
 // auth, and config objects record sha256 in date/manifest.json. Objects are
 // not rewritten to attach a checksum. Dated keys still expire after 90 days.
 // A failed run is recorded as job "r2" on backup_status/latest, which makes
-// latest.ok false. That is the existing failure alert. No email or chat.
+// latest.ok false. That is the existing failure alert. A skipped uploads
+// cleanup does not fail the copy. Its streak lives on backup_status/r2_cleanup
+// so the 02:00 rebuild of latest cannot clear it. No email or chat.
 
 const crypto = require('crypto');
 const health = require('./backupHealth');
@@ -328,27 +330,18 @@ async function copyPlanned(opts) {
     return { objectCount: objectCount, bytes: bytes, failedGroups: failedGroups, checksums: checksums };
 }
 
-function priorCleanupStreak(detail) {
-    const match = /uploads cleanup skipped, streak (\d+)/.exec(detail || '');
-    return match ? Number(match[1]) : 0;
-}
-
-function cleanupSkipNote(priorStreak, skipped) {
-    if (!skipped) return { streak: 0, note: '', alert: false };
-    const streak = (Number(priorStreak) || 0) + 1;
-    return {
-        streak: streak,
-        note: 'uploads cleanup skipped, streak ' + streak,
-        alert: streak >= 3,
-    };
-}
-
-function noteCleanupSkip(summary, deleted, priorStreak) {
-    if (!deleted || !deleted.cleanupSkipped) return summary;
-    const skip = cleanupSkipNote(priorStreak, true);
-    summary.detail = (summary.detail ? summary.detail + '; ' : '') + skip.note;
-    if (skip.alert) console.error('[r2-backup] uploads cleanup skipped ' + skip.streak + ' nights in a row');
-    return summary;
+// The streak is consecutive UTC dates. A same-day retry does not increment.
+// A gap, or a night that does not skip, starts over. latest.jobs.r2 is the
+// wrong place to read this: the 02:00 job rebuilds latest and drops r2.
+function nextSkipStreak(previous, date, skipped) {
+    const prior = previous && Number(previous.skipStreak) > 0 ? Number(previous.skipStreak) : 0;
+    const last = previous && previous.lastSkipDate ? String(previous.lastSkipDate) : '';
+    if (!skipped) return { skipStreak: 0, lastSkipDate: null };
+    if (last === date) return { skipStreak: prior > 0 ? prior : 1, lastSkipDate: date };
+    if (last && last === health.addUtcDays(date, -1) && prior > 0) {
+        return { skipStreak: prior + 1, lastSkipDate: date };
+    }
+    return { skipStreak: 1, lastSkipDate: date };
 }
 
 function summarize(plan, copied) {
@@ -529,7 +522,9 @@ async function copyToday(opts) {
         summary.ok = false;
         summary.detail = (summary.detail ? summary.detail + '; ' : '') + 'could not delete objects older than 90 days';
     }
-    noteCleanupSkip(summary, deleted, opts.priorCleanupStreak);
+    if (deleted && Object.prototype.hasOwnProperty.call(deleted, 'cleanupSkipped')) {
+        summary.cleanupSkipped = deleted.cleanupSkipped === true;
+    }
     console.log('[r2-backup]', date, summary.ok ? 'ok' : 'failed', 'objects', summary.objectCount, 'bytes', summary.bytes, 'deleted', deleted.count);
     return summary;
 }
@@ -637,17 +632,47 @@ async function accessToken() {
 
 async function runNightlyR2Copy(deps) {
     const startedAt = new Date().toISOString();
+    const date = deps.date;
+    let previous = null;
+    if (typeof deps.readCleanup === 'function') {
+        try {
+            previous = await deps.readCleanup();
+        } catch (err) {
+            previous = null;
+        }
+    }
     let result;
     try {
         result = await deps.copy();
     } catch (err) {
         console.error('[r2-backup] failed', safeDetail(err));
-        result = { ok: false, objectCount: 0, bytes: 0, detail: 'r2 copy failed', date: deps.date };
+        result = { ok: false, objectCount: 0, bytes: 0, detail: 'r2 copy failed', date: date };
+    }
+    if (!result) result = { ok: false, objectCount: 0, bytes: 0, detail: 'r2 copy failed', date: date };
+    if (typeof result.cleanupSkipped === 'boolean') {
+        const stored = nextSkipStreak(previous, result.date || date, result.cleanupSkipped);
+        if (typeof deps.writeCleanup === 'function') {
+            try {
+                await deps.writeCleanup({
+                    skipStreak: stored.skipStreak,
+                    lastSkipDate: stored.lastSkipDate,
+                });
+            } catch (err) {
+                console.error('[r2-backup] cleanup streak', safeDetail(err));
+            }
+        }
+        if (result.cleanupSkipped) {
+            const note = 'uploads cleanup skipped, streak ' + stored.skipStreak;
+            result.detail = (result.detail ? result.detail + '; ' : '') + note;
+            if (stored.skipStreak >= 3) {
+                console.error('[r2-backup] uploads cleanup skipped ' + stored.skipStreak + ' nights in a row');
+            }
+        }
     }
     const finishedAt = new Date().toISOString();
     await deps.write({
         job: 'r2',
-        date: result.date || deps.date,
+        date: result.date || date,
         ok: result.ok === true,
         startedAt: startedAt,
         finishedAt: finishedAt,
@@ -674,8 +699,7 @@ module.exports = {
     unreferencedUploads,
     copyPlanned,
     summarize,
-    priorCleanupStreak,
-    noteCleanupSkip,
+    nextSkipStreak,
     deleteOldObjects,
     copyToday,
     runNightlyR2Copy,

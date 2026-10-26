@@ -8778,15 +8778,21 @@ exports.nightlyR2Copy = onSchedule(backupSchedule('0 4 * * *', {
     const date = new Date().toISOString().slice(0, 10);
     await r2Offsite.runNightlyR2Copy({
         date: date,
-        copy: async function () {
-            let priorDetail = '';
+        readCleanup: async function () {
             try {
-                const prev = await admin.firestore().collection('backup_status').doc('latest').get();
-                const data = prev.exists ? prev.data() : null;
-                priorDetail = data && data.jobs && data.jobs.r2 && data.jobs.r2.detail ? data.jobs.r2.detail : '';
+                const snap = await admin.firestore().collection('backup_status').doc('r2_cleanup').get();
+                return snap.exists ? snap.data() : null;
             } catch (err) {
-                priorDetail = '';
+                return null;
             }
+        },
+        writeCleanup: function (state) {
+            return admin.firestore().collection('backup_status').doc('r2_cleanup').set({
+                skipStreak: state.skipStreak,
+                lastSkipDate: state.lastSkipDate,
+            });
+        },
+        copy: function () {
             return r2Offsite.copyToday({
                 date: date,
                 accountId: r2AccountId.value(),
@@ -8794,7 +8800,6 @@ exports.nightlyR2Copy = onSchedule(backupSchedule('0 4 * * *', {
                 secretAccessKey: r2SecretAccessKey.value(),
                 bucket: r2Bucket.value(),
                 key: backupEncryptionKey.value(),
-                priorCleanupStreak: r2Offsite.priorCleanupStreak(priorDetail),
             });
         },
         write: function (event) {

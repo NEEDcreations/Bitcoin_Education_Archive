@@ -127,7 +127,15 @@ function nextLatest(previous, event, nowIso, options) {
     const verifiedAt = isR2
         ? (event.verifiedAt || (sameDay ? (previous.verifiedAt || null) : null))
         : (event.verifiedAt || null);
-    const detail = statusDetail(date, failed, verifiedAt, nowIso);
+    let detail = statusDetail(date, failed, verifiedAt, nowIso);
+    // A long uploads-cleanup pause is an alert, not an r2 job failure.
+    // jobs.r2.ok stays as the copy wrote it. latest.ok becomes false so the
+    // external checker DMs Phil in private chat.
+    if (options && options.cleanupAlert) {
+        const pause = 'uploads cleanup skipped 3 nights in a row';
+        if (detail === 'all checks passed') detail = pause;
+        else if (detail.indexOf(pause) === -1) detail += '; ' + pause;
+    }
     return {
         ok: detail === 'all checks passed',
         date: date,

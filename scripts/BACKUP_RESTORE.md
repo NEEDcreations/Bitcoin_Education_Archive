@@ -52,9 +52,13 @@ days. A manifest that has vanished is skipped on its own. After
 `BACKUP_ENCRYPTION_KEY` changes, manifests sealed with the previous key
 cannot be opened, so uploads cleanup pauses until those manifests age out
 or you re-seal them with the new key. Dated keys older than 90 days are
-still deleted during that pause. The pause does not fail the night. The r2
-detail counts it, and the third night in a row logs `uploads cleanup
-skipped 3 nights in a row`.
+still deleted during that pause. The pause does not fail the r2 copy.
+The skip streak is `backup_status/r2_cleanup` with `skipStreak` and
+`lastSkipDate`. The 02:00 rebuild of `backup_status/latest` does not clear
+it. On the third night in a row the 05:00 health check sets `latest.ok`
+false. The detail is `uploads cleanup skipped 3 nights in a row`. The
+external checker then DMs Phil in private chat. The r2 job stays ok. The
+alert is not sent to the public Telegram group.
 
 1. Download with the bucket-scoped Object Read & Write token. Do not use a
    token that can administer the account.

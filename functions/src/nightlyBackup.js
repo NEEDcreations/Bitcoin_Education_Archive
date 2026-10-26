@@ -941,8 +941,21 @@ async function checkBackupHealth() {
             runId: 'verify-' + job + '-' + stamp,
         });
     }
+    let cleanupAlert = false;
     try {
-        await backupStatus.writeBackupResults(admin.firestore(), admin, events, finishedAt, { r2Required: true });
+        const snap = await admin.firestore().collection('backup_status').doc('r2_cleanup').get();
+        const data = snap.exists ? snap.data() : null;
+        const streak = data ? Number(data.skipStreak) : 0;
+        cleanupAlert = streak >= 3 && data.lastSkipDate === date;
+    } catch (e) {
+        console.error('[backup-health] cleanup streak unread', shortError(e));
+        cleanupAlert = false;
+    }
+    try {
+        await backupStatus.writeBackupResults(admin.firestore(), admin, events, finishedAt, {
+            r2Required: true,
+            cleanupAlert: cleanupAlert,
+        });
     } catch (e) {
         console.error('[backup-status] health write failed', shortError(e));
         throw new Error('backup status write failed');

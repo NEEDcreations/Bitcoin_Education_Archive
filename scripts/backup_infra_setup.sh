@@ -278,9 +278,13 @@ R2 run on a normal night. A vanished uploads manifest is skipped on its own
 and cleanup continues from the manifests that remain. After
 BACKUP_ENCRYPTION_KEY changes, manifests sealed with the old key cannot be
 opened, so uploads cleanup pauses until those manifests age out or are
-replaced. Dated keys older than 90 days are still deleted. The r2 detail
-counts that pause. On the third night in a row the function logs: uploads cleanup skipped 3 nights in a row.
-That pause does not by itself fail the night.
+replaced. Dated keys older than 90 days are still deleted. The skip streak
+is backup_status/r2_cleanup, fields skipStreak and lastSkipDate. Clients
+cannot read it. The 02:00 rebuild of backup_status/latest does not clear it.
+The r2 copy stays ok. On the third night in a row the 05:00 health check
+sets latest.ok false. The detail is: uploads cleanup skipped 3 nights in a row.
+The external checker then DMs Phil in private chat. That pause does not by
+itself fail the night, and it is never sent to the public Telegram group.
 
 Restore steps for Firestore, the uploads bucket, and a bulk R2 download are
 in scripts/BACKUP_RESTORE.md. Decrypt one object with
@@ -906,6 +910,8 @@ Permission: Object Read & Write, this bucket only. Bucket lock rule: Age,
 
 An external checker reads backup_status/latest with the Admin SDK after
 05:00 UTC. Alert when latest.ok is not true, and when latest.updatedAt is
-older than 26 hours. These scripts do not send email or chat messages.
+older than 26 hours. A third night of skipped uploads cleanup sets
+latest.ok false there. The streak is backup_status/r2_cleanup. The r2 copy
+job stays ok. These scripts do not send email or chat messages.
 
 EOF
