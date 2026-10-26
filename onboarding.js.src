@@ -416,8 +416,8 @@
                     if (or.height < 8 || or.top < window.innerHeight * 0.45) continue;
                     if (or.top - 8 < limit) limit = or.top - 8;
                 }
-                if (below + qb.height <= limit) btn.style.top = below + 'px';
-                else btn.style.top = Math.max(8, above) + 'px';
+                if (phone || below + qb.height > limit) btn.style.top = Math.max(8, above) + 'px';
+                else btn.style.top = below + 'px';
                 btn.style.bottom = 'auto';
             }
         }
@@ -434,6 +434,44 @@
             btn.style.bottom = 'auto';
         }
         clearOfTodayCard();
+        // Phones keep the quest pill on the Invite row, left side, the same
+        // band used at 320. Never drop it onto the Today card or the Learn card.
+        if (phone) {
+            var anchor = null;
+            var inviteCard = document.getElementById('inviteCard');
+            if (inviteCard && inviteCard.getAttribute('data-show') === '1' && inviteCard.getAttribute('data-state') === 'min') {
+                anchor = document.getElementById('invitePill');
+            }
+            var guestPill = document.getElementById('inviteGuestPill');
+            if ((!anchor || anchor.getBoundingClientRect().height < 1) && guestPill && !guestPill.hasAttribute('hidden')) {
+                anchor = guestPill;
+            }
+            if (anchor) {
+                var ar = anchor.getBoundingClientRect();
+                if (ar.height > 1) {
+                    btn.style.top = Math.round(ar.top) + 'px';
+                    btn.style.bottom = 'auto';
+                    btn.style.left = 'max(12px, env(safe-area-inset-left, 0px))';
+                    btn.style.right = 'auto';
+                }
+            }
+            var cardIds = ['todayCard', 'dailyXpMeter', 'dailyXpMeterText', 'dailyXpMeterFill', 'homeLearnCard', 'homeLearnKicker', 'homeLearnTitle', 'homeLearnContinue', 'homeLearnDesc'];
+            var c;
+            for (c = 0; c < cardIds.length; c++) {
+                var cardEl = document.getElementById(cardIds[c]);
+                if (!cardEl) continue;
+                var cardCs = window.getComputedStyle(cardEl);
+                if (cardCs.display === 'none' || cardCs.visibility === 'hidden') continue;
+                var cardBox = cardEl.getBoundingClientRect();
+                var questBox = btn.getBoundingClientRect();
+                if (cardBox.width < 1 || cardBox.height < 1) continue;
+                if (questBox.right < cardBox.left || questBox.left > cardBox.right || questBox.bottom < cardBox.top || questBox.top > cardBox.bottom) continue;
+                btn.style.top = Math.max(8, Math.round(cardBox.top - 8 - questBox.height)) + 'px';
+                btn.style.bottom = 'auto';
+                btn.style.left = 'max(12px, env(safe-area-inset-left, 0px))';
+                btn.style.right = 'auto';
+            }
+        }
     }
     window._placeNachoQuestPill = placeNachoQuestPill;
 

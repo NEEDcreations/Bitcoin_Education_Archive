@@ -273,6 +273,8 @@ test('the client quest list matches the server modes', function () {
     assert.ok(src.includes('todayCard'));
     assert.ok(src.includes('dailyXpMeter'));
     assert.ok(src.includes('dailyXpMeterText'));
+    assert.ok(src.includes('homeLearnCard'));
+    assert.ok(src.includes("inviteCard.getAttribute('data-state') === 'min'"));
 });
 
 test('guest merge never writes daily action counts and usernames survive a missing app check', function () {
