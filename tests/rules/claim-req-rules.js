@@ -103,6 +103,31 @@ const parts = emu.split(':');
         await expect('visit rate limit docs are server-only', function () {
             return setDoc(doc(user, 'rate_limits', 'refvisit_ip_abc'), { count: 1 });
         }, false);
+        const admin = require(path.join(root, 'functions', 'node_modules', 'firebase-admin'));
+        if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-claimreq' });
+        const claimReqs = require(path.join(root, 'functions', 'src', 'claimReqs'));
+        const adb = admin.firestore();
+        const claimant = 'claimantUid';
+        await adb.collection('users').doc(claimant).set({
+            claimReq: { chatAt: 1, chatMsgId: 'live1', chatMsgIds: ['live1'] },
+        });
+        await adb.collection('global_chat').doc('live1').set({ uid: 'someone-else', text: 'hey there' });
+        const foreign = await adb.collection('global_chat').doc('live1').get();
+        const foreignMet = claimReqs.chatRequirementMet({
+            uid: claimant,
+            claimReq: { chatMsgId: 'live1', chatMsgIds: ['live1'] },
+        }, [{ id: 'live1', exists: foreign.exists, data: foreign.data() }]);
+        if (foreignMet) throw new Error('a message from another uid counted');
+        console.log('DENY   chat uid is not the claimant  ✓');
+        await adb.collection('global_chat').doc('live1').set({ uid: claimant, text: 'hey there' });
+        const own = await adb.collection('global_chat').doc('live1').get();
+        const ownMet = claimReqs.chatRequirementMet({
+            uid: claimant,
+            claimReq: { chatMsgId: 'live1', chatMsgIds: ['live1'] },
+        }, [{ id: 'live1', exists: own.exists, data: own.data() }]);
+        if (!ownMet) throw new Error('the claimant message did not count');
+        if (own.data().uid !== claimant) throw new Error('re-read uid drifted');
+        console.log('ALLOW  chat uid is the claimant  ✓');
     } finally {
         await env.cleanup();
     }

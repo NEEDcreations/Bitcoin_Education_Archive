@@ -65,6 +65,26 @@ function networkMaterial(ip) {
     return String(keys.exactId || '');
 }
 
+function networkVersion(ip) {
+    const keys = faucetGuard.networkKeys(ip);
+    return keys && (keys.version === 4 || keys.version === 6) ? keys.version : 0;
+}
+
+function familyRecords(value) {
+    const raw = Array.isArray(value) ? value : String(value || '').split(/[,\s]+/);
+    const out = [];
+    raw.forEach(function (item) {
+        const text = String(item || '').trim();
+        if (!text || /^[a-f0-9]{64}$/i.test(text)) return;
+        const version = networkVersion(text);
+        const material = networkMaterial(text);
+        const mac = material ? hmacOrEmpty(material) : '';
+        if (!mac) return;
+        out.push({ version: version, hmac: mac });
+    });
+    return out;
+}
+
 function ipMaterials(value) {
     const raw = Array.isArray(value) ? value : String(value || '').split(/[,\s]+/);
     const hmacs = [];
@@ -166,6 +186,9 @@ function handleLogReferralVisit(deps, data, context) {
                     .slice(0, 40);
                 const already = claimReqs.stampMillis((user.claimReq || {}).referralAt) > 0;
                 const counted = decision.count === true && !already;
+                // expireAt is the field a Firestore TTL policy can delete on.
+                // Creating that policy is a production config change and is
+                // not done here. Account deletion removes these rows too.
                 t.set(db.collection('referral_visits').doc(visitId), {
                     code: code,
                     ownerUid: ownerUid,
@@ -173,11 +196,18 @@ function handleLogReferralVisit(deps, data, context) {
                     ipHmac: visitIpHmac,
                     counted: counted,
                     at: deps.serverTimestamp(),
+                    expireAt: new Date(now + claimReqs.VISIT_TTL_MS),
                 }, { merge: true });
                 const patch = {};
                 if (decision.remember === true) {
+                    const records = familyRecords(user.known_ips);
+                    const currentVersion = networkVersion(rawIp);
+                    if (currentVersion) records.push({ version: currentVersion, hmac: visitIpHmac });
+                    const families = claimReqs.rememberFamilyHmacs(user.claimReq, records);
                     patch['claimReq.deviceHmacs'] = claimReqs.nextKnownHmacs(known.deviceHmacs, visitDeviceHmac);
-                    patch['claimReq.ipHmacs'] = claimReqs.nextKnownHmacs(known.ipHmacs, visitIpHmac);
+                    patch['claimReq.v4Hmacs'] = families.v4;
+                    patch['claimReq.v6Hmacs'] = families.v6;
+                    patch['claimReq.ipHmacs'] = claimReqs.nextKnownHmacs(known.ipHmacs.concat(families.v4, families.v6), visitIpHmac);
                 }
                 if (counted) patch['claimReq.referralAt'] = deps.serverTimestamp();
                 if (Object.keys(patch).length) t.update(userRef, patch);

@@ -401,6 +401,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html, html404);
     assert.ok(html.includes('ranking.js?v=20261026_v2400'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
@@ -433,6 +435,9 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2368'));
+    assert.ok(!html.includes('bundle.min.js?v=20261024_v2370'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
@@ -511,7 +516,9 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2341/g) || []).length, 0);
     assert.ok(!html.includes('quests.js?v=20261023_v2334'));
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
-    assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
+    assert.strictEqual((html.match(/learning-quests\.js\?v=20261026_v2377/g) || []).length, 3);
+    assert.ok(!html.includes('learning-quests.js?v=20261026_v2380'));
+    assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2279/g) || []).length, 0);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
     assert.ok(html.includes('lightning-tips.js?v=20261022_v2279'));
@@ -539,7 +546,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!sw.includes('btc-archive-v2366'));
     assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2364'));
-    assert.ok(!sw.includes('btc-archive-v2363'));
+    assert.ok(!sw.includes('btc-archive-v2372'));
+    assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2362'));
     assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));

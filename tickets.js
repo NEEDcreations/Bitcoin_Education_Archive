@@ -694,6 +694,7 @@ function copyInviteLink() {
     var btn = document.getElementById('inviteCopy');
     var text = (linkEl && linkEl.textContent) || getReferralLink();
     if (!text) return;
+    logReferralVisit(getReferralCode());
     function mark() {
         if (!btn) return;
         btn.textContent = 'Copied!';
@@ -731,6 +732,7 @@ function shareInviteLink() {
     var linkEl = document.getElementById('inviteLink');
     var link = (linkEl && linkEl.textContent) || getReferralLink();
     if (!link || !navigator.share) return;
+    logReferralVisit(getReferralCode());
     navigator.share({
         title: 'Bitcoin Quest',
         text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',

@@ -667,7 +667,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2366'));
     assert.ok(!swText.includes('btc-archive-v2365'));
     assert.ok(!swText.includes('btc-archive-v2364'));
-    assert.ok(!swText.includes('btc-archive-v2363'));
+    assert.ok(!swText.includes('btc-archive-v2372'));
+    assert.ok(!swText.includes('btc-archive-v2368'));
     assert.ok(!swText.includes('btc-archive-v2362'));
     assert.ok(!swText.includes('btc-archive-v2361'));
     assert.ok(!swText.includes('btc-archive-v2360'));

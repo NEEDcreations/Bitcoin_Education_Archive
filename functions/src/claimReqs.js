@@ -8,11 +8,16 @@
 // Stamps live on users/{uid}.claimReq and are written only by Cloud
 // Functions. chatAt plus chatMsgId: a global chat message the server
 // filter accepted. Claim time re-reads that message. tctvAt: the watch
-// meter has recorded at least 30 seconds. referralAt: the referral link
-// was opened from a different device and a different network than the
-// ones already known for that player. IPv6 networks are the /64.
+// meter has recorded one watch-credit block. That block is
+// tctvWatch.CREDIT_SECONDS, because the first heartbeat only starts the
+// clock and the next one is the first credit. referralAt: the referral
+// link was opened from a different device and a different network than
+// the ones already known for that player. IPv6 networks are the /64.
+// When the player has both an IPv4 and an IPv6 baseline, either one is
+// the same household.
 
 const { classifyChatText } = require('./chatProfanity');
+const tctvWatch = require('./tctvWatch');
 const {
     meaningfulLength,
     extractSayHiText,
@@ -23,8 +28,9 @@ const {
 const CLAIM_REQS_START_ISO = '2026-10-26T21:00:00.000Z';
 const CLAIM_REQS_START = Date.parse(CLAIM_REQS_START_ISO);
 const MIN_CHAT_CHARS = 3;
-const MIN_TCTV_SECONDS = 30;
+const MIN_TCTV_SECONDS = tctvWatch.CREDIT_SECONDS;
 const VISIT_GAP_MS = 2000;
+const VISIT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const VISIT_HOUR_MS = 60 * 60 * 1000;
 const VISIT_IP_MAX = 20;
 const VISIT_CODE_MAX = 40;
@@ -33,7 +39,7 @@ const CHAT_MSG_CAP = 5;
 
 const ITEM_LABEL = {
     chat: 'send 1 chat message',
-    tctv: 'watch Timechain TV for 30 seconds',
+    tctv: 'watch Timechain TV for ' + MIN_TCTV_SECONDS + ' seconds',
     referral: 'get one visit on your referral link from another device and network',
 };
 
@@ -153,16 +159,17 @@ function nextChatMsgIds(req, msgId) {
     return ids;
 }
 
-// A stored id counts only when that global_chat doc is still there and the
-// same filter still accepts it. A deleted, hidden, or moderated message does
-// not. A stamp with no surviving id does not.
+// A stored id counts only when that global_chat doc is still there, its uid
+// is the claimant, and the same filter still accepts it. A deleted, hidden,
+// or moderated message does not. A stamp with no surviving id does not.
 function chatRequirementMet(user, rows) {
     const ids = chatMsgIdsOf(claimReqOf(user));
-    if (!ids.length) return false;
+    if (!ids.length || !user || !user.uid) return false;
     const list = Array.isArray(rows) ? rows : [];
     return ids.some(function (id) {
         const row = list.filter(function (item) { return item && item.id === id; })[0];
-        if (!row || row.exists !== true) return false;
+        if (!row || row.exists !== true || !row.data) return false;
+        if (row.data.uid !== user.uid) return false;
         return chatQualifies(row.data);
     });
 }
@@ -199,6 +206,8 @@ function collectOwnerHmacs(user, extras) {
         deviceHmacs: nextKnownHmacs(normalizeHmacList(req.deviceHmacs).concat(normalizeHmacList(src.deviceHmacs)), null).slice(0, KNOWN_CAP),
         ipHmacs: nextKnownHmacs(
             normalizeHmacList(req.ipHmacs)
+                .concat(normalizeHmacList(req.v4Hmacs))
+                .concat(normalizeHmacList(req.v6Hmacs))
                 .concat(normalizeHmacList(src.ipHmacs))
                 .concat(normalizeHmacList(user && user.ipHashes))
                 .concat(normalizeHmacList(user && user.ipHash ? [user.ipHash] : [])),
@@ -207,10 +216,33 @@ function collectOwnerHmacs(user, extras) {
     };
 }
 
+// Keeps the IPv4 and IPv6 network HMACs the owner has already shown.
+// A later visit is the same household when it matches either family.
+function rememberFamilyHmacs(existing, records) {
+    const src = existing && typeof existing === 'object' ? existing : {};
+    const v4 = normalizeHmacList(src.v4Hmacs || src.v4);
+    const v6 = normalizeHmacList(src.v6Hmacs || src.v6);
+    (Array.isArray(records) ? records : []).forEach(function (rec) {
+        const hmac = String(rec && rec.hmac || '').trim().toLowerCase();
+        if (!HMAC_RE.test(hmac)) return;
+        const list = rec.version === 6 ? v6 : (rec.version === 4 ? v4 : null);
+        if (!list || list.indexOf(hmac) !== -1) return;
+        list.push(hmac);
+    });
+    const v4capped = v4.slice(-KNOWN_CAP);
+    const v6capped = v6.slice(-KNOWN_CAP);
+    return {
+        v4: v4capped,
+        v6: v6capped,
+        ipHmacs: nextKnownHmacs(v4capped.concat(v6capped), null),
+    };
+}
+
 // count is true only when the visit device and the visit IP are both
 // outside the player's known sets, and both sets already have a baseline.
-// The player's own signed-in call never counts. It only records the device
-// and IP HMACs so a later self-visit can be recognized.
+// The IP set is every stored network, so an IPv4 baseline and an IPv6
+// baseline both count as this household. The player's own signed-in call
+// never counts. It only records the device and network HMACs.
 function assessReferralVisit(input) {
     const src = input || {};
     const visitDevice = String(src.visitDeviceHmac || '').trim().toLowerCase();
@@ -261,6 +293,7 @@ module.exports = {
     CLAIM_REQS_START: CLAIM_REQS_START,
     MIN_CHAT_CHARS: MIN_CHAT_CHARS,
     MIN_TCTV_SECONDS: MIN_TCTV_SECONDS,
+    VISIT_TTL_MS: VISIT_TTL_MS,
     VISIT_GAP_MS: VISIT_GAP_MS,
     VISIT_HOUR_MS: VISIT_HOUR_MS,
     VISIT_IP_MAX: VISIT_IP_MAX,
@@ -281,6 +314,7 @@ module.exports = {
     normalizeHmacList: normalizeHmacList,
     nextKnownHmacs: nextKnownHmacs,
     collectOwnerHmacs: collectOwnerHmacs,
+    rememberFamilyHmacs: rememberFamilyHmacs,
     assessReferralVisit: assessReferralVisit,
     visitRateDecision: visitRateDecision,
 };

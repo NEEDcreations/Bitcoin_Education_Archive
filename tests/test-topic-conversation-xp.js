@@ -202,9 +202,16 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: New accounts send one chat message, watch 30 seconds of Timechain TV, and get a referral-link visit from another device and network before claiming sats.'));
+    assert.ok(notes.includes('Latest: New accounts send one chat message, watch 60 seconds of Timechain TV, and get a referral-link visit from another device and network before claiming sats.'));
     assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
     assert.ok(!notes.includes('Latest: On a computer'));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
+    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
+    assert.ok(!notes.includes('Latest: Satoshi'));
+    assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
+    assert.ok(!notes.includes('Latest: A More tools button'));
+    assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
     assert.ok(notes.includes('A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
     assert.ok(!notes.includes('Latest: A miner'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
@@ -234,7 +241,6 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(!notes.includes('Latest: Global chat messages'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
-    assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
     assert.ok(!notes.includes('Latest: Usernames'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));

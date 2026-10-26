@@ -338,6 +338,7 @@
     </table>
     <p>We do <strong>not</strong> use a third-party analytics product, advertising network, or tracking pixel. Thumbs up or down on a Nacho answer can be stored on our servers as feedback. We do not sell that feedback. We do <strong>not</strong> collect your real name, precise location, or browsing history outside the Site. The financial details we store are the ones you type in, such as a Lightning address for withdrawals and giveaways. A withdrawal address stays on the account. A one-time reset marker records that a fresh address was saved, and a later change is a support request to info.603btc@gmail.com. We do not receive your wallet seed or private keys.</p>
     <p><strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once at referral signup. The referral IP is not stored in raw form. The server keeps an HMAC of it in a server-only record with a 90-day expiry. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
+    <p>When someone opens a referral link, we save a visit record for the person who owns that link. The record stores the referral code, a keyed hash of the device, and a keyed hash of the network. It does not store the IP address itself. Each visit record is kept for 30 days. Deleting the account deletes that person's visit records.</p>
 
     <h2>2. How We Use Your Data</h2>
     <ul>
@@ -587,7 +588,7 @@
         <li>Rate limiting on sign-in attempts and message sending (30 messages/hour)</li>
         <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
         <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
-        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked; atomic transactions)</li>
+        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked; atomic transactions). A certification completion bonus of 2,100 XP is credited once per certification outside that daily counter</li>
         <li>Device fingerprinting and IP-based multi-account detection for faucet claims, referral signup, and the peer-key and peer-request checks that decide badge and XP credit. Those checks compare fingerprint, IP, email, and Lightning address the same way tips do. Server-written badge counters (gifts opened, keys used, shop purchases, raffle tickets bought, topic comments, and the rest of the badge ladders) live on the account profile and are not writable from the browser</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
         <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>

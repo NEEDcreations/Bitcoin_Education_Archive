@@ -1,5 +1,5 @@
 // Cache-buster pin. This ship branch is btc-archive-v2400.
-// Live gh-pages was v2376. timechain-tv.js stays 20261024_v2353.
+// Live gh-pages is v2377. timechain-tv.js stays 20261024_v2353.
 // bundle.min.js and ranking.js are 20261026_v2400.
 // onboarding.js stays 20261026_v2373.
 // global-chat.js and quests.js are 20261026_v2381.
@@ -11,8 +11,8 @@
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349.
-// scholar.js stays 20261023_v2330. tctv-watch.js stays 20261023_v2340.
-// learning-quests.js and modules.js stay 20261023_v2324.
+// tctv-watch.js stays 20261023_v2340.
+// learning-quests.js is 20261026_v2377.
 // lightning.js stays 20261023_v2323.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
@@ -79,7 +79,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2365'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2368'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2365'));
+    assert.ok(!html.includes('bundle.min.js?v=20261024_v2370'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
@@ -145,7 +147,47 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
-    assert.ok(html.includes('scholar.js?v=20261023_v2330'));
+    assert.ok(html.includes('scholar.js?v=20261026_v2377'));
+    assert.ok(!html.includes('scholar.js?v=20261026_v2379'));
+    assert.ok(!html.includes('scholar.js?v=20261026_v2378'));
+    assert.ok(!html.includes('scholar.js?v=20261024_v2370'));
+    assert.ok(!html.includes('scholar.js?v=20261023_v2330'));
+    const ux = read('mobile-ux.js');
+    const scholarPin = ux.match(/window\.SCHOLAR_SCRIPT\s*=\s*'([^']+)'/);
+    assert.ok(scholarPin, 'window.SCHOLAR_SCRIPT is set');
+    assert.strictEqual(scholarPin[1], 'scholar.js?v=20261026_v2377');
+    const scholarHits = html.match(/scholar\.js\?v=[^'"\s]+/g) || [];
+    assert.ok(scholarHits.length >= 1);
+    scholarHits.forEach(function (hit) {
+        assert.strictEqual(hit, scholarPin[1]);
+    });
+    const quests = read('learning-quests.js');
+    assert.ok(quests.includes('window.SCHOLAR_SCRIPT'));
+    assert.ok(!quests.includes('scholar.js?v='));
+    const skipDirs = { tests: 1, node_modules: 1, '.git': 1, images: 1, assets: 1, data: 1 };
+    const found = [];
+    function walk(dir) {
+        fs.readdirSync(dir, { withFileTypes: true }).forEach(function (entry) {
+            if (skipDirs[entry.name]) return;
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                walk(full);
+                return;
+            }
+            if (!/\.(js|html)$/.test(entry.name)) return;
+            const text = fs.readFileSync(full, 'utf8');
+            const refs = text.match(/scholar\.js\?v=[^'"\s\\)]+/g) || [];
+            refs.forEach(function (ref) { found.push(full.slice(root.length + 1) + ' ' + ref); });
+        });
+    }
+    walk(root);
+    assert.ok(found.length >= 2, 'expected scholar.js pins in the site sources');
+    found.forEach(function (hit) {
+        assert.ok(hit.endsWith(scholarPin[1]), hit);
+    });
+    assert.strictEqual((html.match(/modules\.js\?v=20261026_v2377/g) || []).length, 2);
+    assert.ok(!html.includes('modules.js?v=20261024_v2370'));
+    assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(html.includes('global-chat.js?v=20261026_v2381'));
     assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2381/g) || []).length, 5);
@@ -258,7 +300,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2326/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 0);
-    assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
+    assert.strictEqual((html.match(/learning-quests\.js\?v=20261026_v2377/g) || []).length, 3);
+    assert.ok(!html.includes('learning-quests.js?v=20261026_v2380'));
+    assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
     assert.ok(html.includes('guide.js?v=20261023_v2349'));
@@ -311,7 +355,15 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: New accounts send one chat message, watch 30 seconds of Timechain TV, and get a referral-link visit from another device and network before claiming sats.'));
+    assert.ok(notes.includes('Latest: New accounts send one chat message, watch 60 seconds of Timechain TV, and get a referral-link visit from another device and network before claiming sats.'));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
+    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
+    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
+    assert.ok(!notes.includes('Latest: On a computer'));
+    assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
     assert.ok(notes.includes('A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
     assert.ok(!notes.includes('Latest: A miner'));
     assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
@@ -405,6 +457,24 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(notes.includes('The minimized Invite pill sits on the right edge, midway down the screen, clear of the header, the ticker, and the buttons along the bottom.'));
     assert.ok(notes.includes('The homepage topics ring counts the channels you have opened, and the archive lists 145 topics.'));
     assert.ok(!notes.includes('Latest: The homepage topics ring'));
+});
+
+test('learn menu has five roots and a quests subview', () => {
+    const ux = read('mobile-ux.js');
+    const html = read('index.html');
+    ['Brand new to Bitcoin', 'Quests', 'First Bitcoin purchase', 'Meetup builder', 'Spend Bitcoin'].forEach(function(label) {
+        assert.ok(ux.includes("title: '" + label + "'"), label);
+    });
+    ["Learning Quests", "Nacho's trails", 'Daily quests', 'Bitcoin Scholar certification', 'Bitcoin Protocol Expert certification'].forEach(function(label) {
+        assert.ok(ux.includes(label), label);
+    });
+    assert.ok(ux.includes('window.openCertification'));
+    assert.ok(ux.includes('window.renderLearnMenu'));
+    assert.ok(ux.includes('Browse all 145 topics'));
+    assert.ok(ux.includes("'+2,100 XP, not limited by the daily cap'"));
+    assert.ok(html.includes('openHomeLearnMenu'));
+    assert.ok(!html.includes('onclick="go(\'learning-quests\')"'));
+    assert.ok(!html.includes('id="nqQuestBtn"'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

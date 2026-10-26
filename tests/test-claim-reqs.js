@@ -40,7 +40,10 @@ test('start instant is the deploy constant', () => {
     assert.strictEqual(claimReqs.CLAIM_REQS_START_ISO, '2026-10-26T21:00:00.000Z');
     assert.strictEqual(START, Date.parse('2026-10-26T21:00:00.000Z'));
     assert.strictEqual(claimReqs.MIN_CHAT_CHARS, 3);
-    assert.strictEqual(claimReqs.MIN_TCTV_SECONDS, 30);
+    const watchCredit = require(path.join(root, 'functions', 'src', 'tctvWatch'));
+    assert.strictEqual(claimReqs.MIN_TCTV_SECONDS, watchCredit.CREDIT_SECONDS);
+    assert.strictEqual(claimReqs.MIN_TCTV_SECONDS, 60);
+    assert.strictEqual(claimReqs.VISIT_TTL_MS, 30 * 24 * 60 * 60 * 1000);
 });
 
 test('exempt only when Auth creation is strictly before the start', () => {
@@ -71,7 +74,7 @@ test('the claim error names only the missing items', () => {
     assert.ok(!chatOnly.includes('Timechain'));
     assert.ok(!chatOnly.includes('referral'));
     const tvOnly = claimReqs.missingError(['tctv']);
-    assert.ok(tvOnly.includes('watch Timechain TV for 30 seconds'));
+    assert.ok(tvOnly.includes('watch Timechain TV for 60 seconds'));
     assert.ok(!tvOnly.includes('chat message'));
     const refOnly = claimReqs.missingError(['referral']);
     assert.ok(refOnly.includes('another device and network'));
@@ -105,7 +108,7 @@ test('chat counts only a short real message the filter would keep', () => {
 
 test('a deleted or hidden chat message does not satisfy the requirement', () => {
     const kept = { uid: 'abc', text: 'hey' };
-    const stamped = { claimReq: { chatAt: START, chatMsgId: 'msgOne', chatMsgIds: ['msgOne'] } };
+    const stamped = { uid: 'abc', claimReq: { chatAt: START, chatMsgId: 'msgOne', chatMsgIds: ['msgOne'] } };
     assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: false, data: null }]), false);
     assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: { uid: 'abc', text: 'hey', deleted: true } }]), false);
     assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: { uid: 'abc', text: 'hey', hidden: true } }]), false);
@@ -114,7 +117,7 @@ test('a deleted or hidden chat message does not satisfy the requirement', () => 
     assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: kept }]), true);
     const ids = claimReqs.nextChatMsgIds({ chatMsgIds: ['msgOne'] }, 'msgTwo');
     assert.deepStrictEqual(ids, ['msgOne', 'msgTwo']);
-    const replaced = { claimReq: { chatAt: START, chatMsgId: 'msgTwo', chatMsgIds: ids } };
+    const replaced = { uid: 'abc', claimReq: { chatAt: START, chatMsgId: 'msgTwo', chatMsgIds: ids } };
     assert.strictEqual(claimReqs.chatRequirementMet(replaced, [
         { id: 'msgOne', exists: false, data: null },
         { id: 'msgTwo', exists: true, data: kept },
@@ -123,11 +126,21 @@ test('a deleted or hidden chat message does not satisfy the requirement', () => 
     assert.deepStrictEqual(capped, ['b2', 'c3', 'd4', 'e5', 'f6']);
 });
 
-test('Timechain TV counts at 30 recorded seconds', () => {
-    assert.strictEqual(claimReqs.tctvQualifies(29), false);
-    assert.strictEqual(claimReqs.tctvQualifies(29.9), false);
-    assert.strictEqual(claimReqs.tctvQualifies(30), true);
-    assert.strictEqual(claimReqs.tctvQualifies('30'), true);
+test('a chat message counts only when its uid is the claimant', () => {
+    const stamped = { uid: 'abc', claimReq: { chatAt: START, chatMsgId: 'msgOne', chatMsgIds: ['msgOne'] } };
+    const kept = { uid: 'abc', text: 'hey' };
+    assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: kept }]), true);
+    assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: { uid: 'other', text: 'hey' } }]), false);
+    assert.strictEqual(claimReqs.chatRequirementMet({ claimReq: stamped.claimReq }, [{ id: 'msgOne', exists: true, data: kept }]), false);
+});
+
+test('Timechain TV counts at one watch-credit block', () => {
+    const watchCredit = require(path.join(root, 'functions', 'src', 'tctvWatch'));
+    assert.strictEqual(claimReqs.tctvQualifies(watchCredit.CREDIT_SECONDS - 1), false);
+    assert.strictEqual(claimReqs.tctvQualifies(59.9), false);
+    assert.strictEqual(claimReqs.tctvQualifies(watchCredit.CREDIT_SECONDS), true);
+    assert.strictEqual(claimReqs.tctvQualifies('60'), true);
+    assert.strictEqual(claimReqs.tctvQualifies(30), false);
     assert.strictEqual(claimReqs.tctvQualifies(0), false);
     assert.strictEqual(claimReqs.tctvQualifies(null), false);
 });
@@ -226,6 +239,31 @@ test('IPv6 visits on the same /64 are the same network', () => {
     assert.ok(!visitSrc.includes('hmacOrEmpty(rawIp)'));
 });
 
+test('a second device on the other address family does not count when both baselines are stored', () => {
+    const v4 = visitMod.ipMaterials(['203.0.113.10'])[0];
+    const v6 = visitMod.ipMaterials(['2001:db8:1:2::9'])[0];
+    assert.notStrictEqual(v4, v6);
+    const stored = claimReqs.rememberFamilyHmacs({ v4Hmacs: [v4] }, [
+        { version: 6, hmac: v6 },
+    ]);
+    assert.deepStrictEqual(stored.v4, [v4]);
+    assert.deepStrictEqual(stored.v6, [v6]);
+    const known = claimReqs.collectOwnerHmacs({
+        claimReq: { v4Hmacs: stored.v4, v6Hmacs: stored.v6, deviceHmacs: [HEX.devA] },
+    }, {});
+    assert.ok(known.ipHmacs.indexOf(v4) !== -1);
+    assert.ok(known.ipHmacs.indexOf(v6) !== -1);
+    const onV4 = visit({ visitIpHmac: v4, ownerIpHmacs: known.ipHmacs });
+    const onV6 = visit({ visitIpHmac: v6, ownerIpHmacs: known.ipHmacs });
+    assert.strictEqual(onV4.count, false);
+    assert.strictEqual(onV4.reason, 'same-ip');
+    assert.strictEqual(onV6.count, false);
+    assert.strictEqual(onV6.reason, 'same-ip');
+    const onlyV6 = visit({ visitIpHmac: v4, ownerIpHmacs: [v6] });
+    assert.strictEqual(onlyV6.count, true);
+    assert.strictEqual(onlyV6.reason, 'counted');
+});
+
 test('claimSats decides from Auth creation time and returns the missing list', () => {
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     const early = index.indexOf('const authCreatedMs = creationDate.getTime()');
@@ -250,6 +288,9 @@ test('claimSats decides from Auth creation time and returns the missing list', (
     assert.ok(chatBlock.includes("'claimReq.chatMsgIds'"));
     assert.ok(index.includes('claimChatStillLive'));
     assert.ok(index.includes('claimReqs.chatRequirementMet'));
+    assert.ok(index.includes('claimChatStillLive(earlyUser, function (ref) { return ref.get(); }, uid)'));
+    assert.ok(index.includes('claimChatStillLive(user, function (ref) { return t.get(ref); }, uid)'));
+    assert.ok(index.includes('row.data.uid !== user.uid') || fs.readFileSync(path.join(root, 'functions', 'src', 'claimReqs.js'), 'utf8').includes('row.data.uid !== user.uid'));
     assert.strictEqual((index.match(/assessReward\s*\(/g) || []).length, 1);
     assert.ok(index.includes('exports.logReferralVisit'));
     assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 5);
@@ -266,6 +307,15 @@ test('watch heartbeat and the visit callable stamp server-side only', () => {
     assert.ok(visit.includes("'claimReq.referralAt'"));
     assert.ok(visit.includes('refvisit_ip_'));
     assert.ok(visit.includes('refvisit_code_'));
+    assert.ok(visit.includes('expireAt: new Date(now + claimReqs.VISIT_TTL_MS)'));
+    assert.ok(visit.includes('claimReq.v4Hmacs'));
+    assert.ok(visit.includes('claimReq.v6Hmacs'));
+    assert.ok(visit.includes('familyRecords(user.known_ips)'));
+    const deletion = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+    assert.ok(deletion.includes("['referral_visits', 'ownerUid', '==', []]"));
+    const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
+    assert.ok(privacy.includes('Each visit record is kept for 30 days.'));
+    assert.ok(privacy.includes("Deleting the account deletes that person's visit records."));
     assert.ok(!visit.includes('rawIp:'));
     assert.ok(!visit.includes('console.log'));
     assert.ok(!visit.includes('console.warn'));
@@ -306,6 +356,15 @@ test('the Requirements card shows the three rows, Go, and Share', () => {
     assert.ok(ranking.includes("go: 'openClaimTv()'"));
     assert.ok(ranking.includes("go: 'shareClaimReferral()'"));
     assert.ok(ranking.includes("goLabel: 'Share'"));
+    assert.ok(ranking.includes('var CLAIM_TCTV_SECONDS = 60'));
+    assert.ok(ranking.includes("Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds"));
+    assert.ok(ranking.includes('class="claim-req-go"'));
+    assert.ok(ranking.includes('width:auto;min-width:44px'));
+    assert.ok(ranking.includes('white-space:nowrap'));
+    assert.ok(ranking.includes('if (window._chatOverlayOpen) return;'));
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    assert.ok(html.includes('.username-box button.claim-req-go { width: auto; min-width: 44px; max-width: 88px; white-space: nowrap;'));
+    assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(ranking.includes('if (!claimExempt)'));
     const note = '🔒 VPNs must be off to claim sats.';
     const noteAt = ranking.indexOf(note);
@@ -317,6 +376,10 @@ test('the Requirements card shows the three rows, Go, and Share', () => {
     assert.ok(ranking.includes("err.name === 'AbortError'"));
     const tickets = fs.readFileSync(path.join(root, 'tickets.js'), 'utf8');
     assert.ok(tickets.includes('function logReferralVisit(code)'));
+    const copyBody = tickets.slice(tickets.indexOf('function copyInviteLink'), tickets.indexOf('function shareInviteLink'));
+    const shareBody = tickets.slice(tickets.indexOf('function shareInviteLink'), tickets.indexOf('function inviteGuestSignup'));
+    assert.ok(copyBody.includes('logReferralVisit(getReferralCode())'));
+    assert.ok(shareBody.includes('logReferralVisit(getReferralCode())'));
     assert.ok(tickets.includes("httpsCallable('logReferralVisit')"));
     assert.ok(tickets.includes('window.logReferralVisit = logReferralVisit'));
     const capture = tickets.slice(tickets.indexOf('function captureReferralCode'), tickets.indexOf('function awardDailyTicket'));

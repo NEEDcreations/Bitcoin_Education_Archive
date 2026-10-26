@@ -485,6 +485,7 @@ test('show/open/enter navigation openers are in the registry', function () {
         'showCipherShareReveal', 'showPostSpinGiftModal', 'showQuestFinalResults', 'showReactPicker', 'showSignInOnly',
         'showSignInPrompt', 'showSkeletonLoader', 'showSpinReward', 'showToast', 'showTrendingTopics',
         'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername',
+        'openCertification',
         'openNow',
         'openWithdrawalAddress', 'showWithdrawalAddressReadonly',
         'showUsernameRepickPrompt',

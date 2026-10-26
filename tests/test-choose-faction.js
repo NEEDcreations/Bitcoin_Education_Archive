@@ -377,7 +377,12 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: New accounts send one chat message, watch 30 seconds of Timechain TV, and get a referral-link visit from another device and network before claiming sats.") > 0);
+    assert.ok(notes.indexOf("Latest: New accounts send one chat message, watch 60 seconds of Timechain TV, and get a referral-link visit from another device and network before claiming sats.") > 0);
+    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
+    assert.ok(notes.indexOf('Latest: Satoshi') === -1);
+    assert.ok(notes.indexOf('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.') > 0);
+    assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
     assert.ok(notes.indexOf("On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.") > 0);
     assert.ok(notes.indexOf("Latest: On a computer") === -1);
     assert.ok(notes.indexOf("A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
@@ -405,7 +410,6 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") === -1);
     assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
     assert.ok(notes.indexOf("Latest: The home page is simpler") === -1);
-    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
     assert.ok(notes.indexOf("Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.") > 0);
     assert.ok(notes.indexOf("Latest: Global chat messages") === -1);

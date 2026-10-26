@@ -1482,8 +1482,9 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
 
 // A chat stamp counts only when one of the stored global_chat ids still
 // exists and still passes the server filter. reader is doc.get or t.get.
-async function claimChatStillLive(userData, reader) {
-    const ids = claimReqs.chatMsgIdsOf(userData && userData.claimReq);
+async function claimChatStillLive(userData, reader, claimantUid) {
+    const user = Object.assign({}, userData || {}, { uid: String(claimantUid || '') });
+    const ids = claimReqs.chatMsgIdsOf(user.claimReq);
     if (!ids.length) return false;
     const rows = [];
     for (let ci = 0; ci < ids.length; ci++) {
@@ -1494,7 +1495,7 @@ async function claimChatStillLive(userData, reader) {
             data: msgSnap && msgSnap.exists ? msgSnap.data() : null,
         });
     }
-    return claimReqs.chatRequirementMet(userData, rows);
+    return claimReqs.chatRequirementMet(user, rows);
 }
 
 // ===== SATS FAUCET - claimSats Cloud Function =====
@@ -1584,7 +1585,7 @@ exports.claimSats = functionsV1.runWith({
         const earlyUser = userPreSnap.exists ? userPreSnap.data() : {};
         const earlyMissing = claimReqs.missingItems(earlyUser, authCreatedMs);
         if (!claimReqs.isExempt(authCreatedMs) && earlyMissing.indexOf('chat') === -1) {
-            const chatLive = await claimChatStillLive(earlyUser, function (ref) { return ref.get(); });
+            const chatLive = await claimChatStillLive(earlyUser, function (ref) { return ref.get(); }, uid);
             if (!chatLive) earlyMissing.push('chat');
         }
         if (earlyMissing.length) {
@@ -1753,7 +1754,7 @@ exports.claimSats = functionsV1.runWith({
             const claimCreatedMs = new Date(userRecord.metadata.creationTime).getTime();
             const claimMissing = claimReqs.missingItems(user, claimCreatedMs);
             if (!claimReqs.isExempt(claimCreatedMs) && claimMissing.indexOf('chat') === -1) {
-                const chatLive = await claimChatStillLive(user, function (ref) { return t.get(ref); });
+                const chatLive = await claimChatStillLive(user, function (ref) { return t.get(ref); }, uid);
                 if (!chatLive) claimMissing.push('chat');
             }
             if (claimMissing.length) deny(claimReqs.missingError(claimMissing));
@@ -4537,12 +4538,14 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         // gradeScholarExam is the only writer of certPassed_*, certPassedAt_*,
         // and lastExamAttempt_*.
         const userRef = db.collection('users').doc(uid);
-        const scholarDay = getOffsetDateKey();
-        const dailyRef = userRef.collection('daily_points').doc(scholarDay);
+        const certBonus = require('./src/certBonus');
+        const bonusMarkerRef = certBonus.markerRef(userRef, type);
+        const bonusLedgerRef = certBonus.ledgerRef(userRef, type);
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const userDoc = await tx.get(userRef);
-        const dailyDoc = await tx.get(dailyRef);
         const ledgerDoc = await tx.get(ledgerRef);
+        const bonusMarkerSnap = await tx.get(bonusMarkerRef);
+        const bonusLedgerSnap = await tx.get(bonusLedgerRef);
         const userData = userDoc.exists ? userDoc.data() : {};
         const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
         const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, examId);
@@ -4567,7 +4570,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
                 }
                 tx.update(userRef, repair);
             }
-            return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified' };
+            return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified', already: true };
         }
         // Block rapid retakes same day (daily cooldown)
         if (lastAttempt === today) {
@@ -4585,16 +4588,17 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const passed = score >= 20;
         const scholarLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
         const scholarBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || scholarLedger.banned === true;
-        const scholarUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
-        const scholarPlan = (passed && !scholarBlocked)
-            ? require('./src/dailyXp').planDailyXp(scholarUsed, 2100)
-            : { awarded: 0 };
-        const scholarRankPrev = scholarPlan.awarded > 0
-            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.awarded)
+        // 2,100 is paid in full and is not added to the day's capped total.
+        // The marker and the cert_bonus ledger row make a second credit a no-op.
+        const scholarPlan = certBonus.planCertBonus({
+            type: type,
+            passed: passed,
+            banned: scholarBlocked,
+            alreadyPaid: certBonus.alreadyPaid(bonusMarkerSnap, bonusLedgerSnap),
+        });
+        const scholarRankPrev = scholarPlan.pay
+            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.amount)
             : {};
-
-        // Mark exam as graded
-        tx.update(examRef, { graded: true, score, passed, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
 
         // Save attempt date (rate-limits to one attempt per UTC day)
         const attemptField = 'lastExamAttempt_' + keyPrefix;
@@ -4603,22 +4607,35 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         let pointsAwarded = 0;
         if (passed) {
-            // Once per cert type. The 2,100 XP still shares the daily 500 / 900 / 1,000 taper.
-            pointsAwarded = scholarPlan.awarded;
-            if (pointsAwarded > 0) {
-                update.points = admin.firestore.FieldValue.increment(pointsAwarded);
-                update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
-            }
+            pointsAwarded = scholarPlan.pay ? scholarPlan.amount : 0;
+            Object.assign(update, certBonus.bonusUserFields(admin, scholarPlan));
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
 
+        // pointsAwarded stays on the exam key so a later backfill can see it.
+        // A ban that withholds the bonus is stamped so a later unban cannot collect it.
+        const examUpdate = {
+            graded: true,
+            score: score,
+            passed: passed,
+            pointsAwarded: pointsAwarded,
+            gradedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (passed && scholarPlan.reason === 'banned') {
+            examUpdate.bonusBlocked = 'banned';
+            examUpdate.bonusBlockedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        tx.update(examRef, examUpdate);
         tx.update(userRef, update);
-        if (pointsAwarded > 0) {
-            tx.set(dailyRef, {
-                total: scholarUsed + pointsAwarded,
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
+        if (scholarPlan.pay) {
+            certBonus.writeMarkers(tx, admin, {
+                uid: uid,
+                type: type,
+                markerRef: bonusMarkerRef,
+                ledgerRef: bonusLedgerRef,
+                day: getOffsetDateKey(),
+            }, scholarPlan, Date.now());
         }
         if (passed && pointsAwarded > 0) {
             try {
@@ -4637,7 +4654,14 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             }
         }
 
-        return { score, passed, type, pointsAwarded };
+        return {
+            score: score,
+            passed: passed,
+            type: type,
+            pointsAwarded: pointsAwarded,
+            already: scholarPlan.reason === 'already',
+            capExempt: scholarPlan.pay === true,
+        };
     });
 
     if (result.passed && result.type !== 'technical') {
@@ -4650,7 +4674,9 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         passed: result.passed,
         type: result.type,
         pointsAwarded: result.pointsAwarded || 0,
-        blocked: result.blocked || null
+        blocked: result.blocked || null,
+        already: result.already === true,
+        capExempt: result.capExempt === true
     };
 });
 
@@ -6190,23 +6216,32 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
         await logAdminAction(req, 'adminUnbanUser', { uid });
         // [VULN-7 FIX] Unban atomically in both user doc AND faucet_ledger.
         // Both must be cleared so a re-banned user can't exploit a stale ledger state.
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            withdrawals_disabled: false,
-            satsDisabled: false,
-            flagged: false,
-            flag_reason: admin.firestore.FieldValue.delete(),
-            ban_reason: admin.firestore.FieldValue.delete(),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete(),
+        // The closed window is appended in the same transaction as the clear,
+        // so a concurrent ban or unban cannot drop the history entry.
+        const certBonus = require('./src/certBonus');
+        const faucetRef = db.collection('faucet_ledger').doc(uid);
+        const userRef = db.collection('users').doc(uid);
+        await db.runTransaction(async (tx) => {
+            const faucetSnap = await tx.get(faucetRef);
+            const faucet = faucetSnap.exists ? (faucetSnap.data() || {}) : {};
+            const banHistory = certBonus.banHistoryAfterUnban(faucet, Date.now());
+            tx.update(userRef, {
+                withdrawals_disabled: false,
+                satsDisabled: false,
+                flagged: false,
+                flag_reason: admin.firestore.FieldValue.delete(),
+                ban_reason: admin.firestore.FieldValue.delete(),
+                _pendingClaim: admin.firestore.FieldValue.delete(),
+                _pendingClaimAt: admin.firestore.FieldValue.delete(),
+            });
+            // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
+            tx.set(faucetRef, {
+                banned: false,
+                ban_reason: admin.firestore.FieldValue.delete(),
+                bannedAt: admin.firestore.FieldValue.delete(),
+                banHistory: banHistory,
+            }, { merge: true });
         });
-        // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
-        batch.set(db.collection('faucet_ledger').doc(uid), {
-            banned: false,
-            ban_reason: admin.firestore.FieldValue.delete(),
-            bannedAt: admin.firestore.FieldValue.delete(),
-        }, { merge: true });
-        await batch.commit();
         res.json({success: true, uid});
     } catch(e) { console.error('[adminUnbanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
