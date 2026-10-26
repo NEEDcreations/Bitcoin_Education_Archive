@@ -5476,85 +5476,13 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     window.toggleAppsMenu = function(e) {
         if (e) e.stopPropagation();
-        // Remove existing menu so it rebuilds with current tier state
-        var oldMenu = document.getElementById('appsMenu');
-        if (oldMenu && oldMenu.style.display === 'block') { oldMenu.style.display = 'none'; return; }
-        if (oldMenu) oldMenu.remove();
-
-        // Check tier status
-        var _exploredN = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        var _vis = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        var _aAuth = (typeof auth !== 'undefined') ? auth : null;
-        var _aCu = _aAuth && _aAuth.currentUser;
-        var _isAdmin = window._isAdminClaim === true;
-        var _obP = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
-        var _isAdv = _obP && (_obP.level === 'advanced' || _obP.level === 'full');
-        var _isFull = _isAdv || _isAdmin || (_aCu && !_aCu.isAnonymous) || (_vis >= 10 || _exploredN >= 10);
-        var _isCommunity = _isFull || (_vis >= 5 || _exploredN >= 5);
-        var _isExplorer = _isCommunity || (_vis >= 3 || _exploredN >= 3);
-
-        var btnBase = 'padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;';
-        var btnLocked = btnBase + 'opacity:0.65;filter:grayscale(0.8);cursor:help;';
-
-        var _appTooltips = {
-            'Nacho Mode': 'AI Bitcoin tutor — ask anything, take quizzes, learn by chatting',
-            'Proof of Play': 'Bitcoin gaming hub — Arcade, trivia & PVP battles',
-            'Pleb Talk': 'Community forum — discuss Bitcoin topics with fellow stackers',
-            'Lightning Mart': 'Peer-to-peer marketplace — buy & sell goods for sats',
-            'IRL Sync': 'Find or host local Bitcoin meetups near you',
-            'Bitcoin Beats': 'Community music player — Bitcoin-themed tracks & beats',
-            'Timechain TV': '21 channels of Bitcoin video — free-to-air, always on',
-            'Proof of Walk': 'Earn XP for real-world steps — connect Strava to stack sats (temporarily disabled)'
-        };
-        function appBtn(emoji, label, action, locked, lockMsg) {
-            var tip = _appTooltips[label] || label;
-if (locked) {
-                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnLocked + '" class="app-menu-item">' +
-                    '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">🔒 ' + label + '</span><span style="font-size:0.67rem;font-weight:400;color:rgba(255,255,255,0.65);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
-            }
-            return '<button onclick="var _m=document.getElementById(\'appsMenu\');if(_m)_m.style.display=\'none\';' + action + '" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnBase + '" class="app-menu-item">' +
-                '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">' + label + '</span><span style="font-size:0.67rem;font-weight:400;color:rgba(255,255,255,0.4);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
+        // Mobile Explore Apps is built from features.registry.js BQ_EXPLORE_APPS.
+        if (typeof window.openMobileExploreApps === 'function') {
+            window.openMobileExploreApps();
+            return;
         }
-
-        var beatsLock = false;
-        var forumLock = !_isExplorer;
-        var irlLock = !_isCommunity;
-        var marketLock = !_isFull;
-        var beatsMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more topics to unlock Bitcoin Beats!';
-        var forumMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more topics to unlock Pleb Talk!';
-        var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more topics to unlock IRL Sync!';
-        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more topics or sign in to unlock Lightning Mart!';
-
-        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
-            '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-                (function() {
-                    var _em = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
-                    var _all = [
-                        appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false),
-                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
-                        _em !== 'beginner' ? appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) : '',
-                        _em !== 'beginner' ? appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) : '',
-                        _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
-                        _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
-                        appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
-                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : '',
-                        appBtn('🤖', 'AI Tools', "if(typeof toggleAITools==='function')toggleAITools()", false),
-                        appBtn('📊', 'Metrics', "if(typeof toggleDashboard==='function')toggleDashboard()", false),
-                        appBtn('🏆', 'Leaderboard', "if(typeof toggleLeaderboard==='function')toggleLeaderboard()", false)
-                    ];
-                    return _all.join('');
-                })() +
-            '</div></div>';
-        document.body.insertAdjacentHTML('beforeend', html);
-        var menu = document.getElementById('appsMenu');
-        document.addEventListener('click', function closeApps(clickEv) {
-            if (menu.style.display === 'block' && !menu.contains(clickEv.target)) {
-                menu.style.display = 'none';
-            }
-        });
-        menu.style.display = 'block';
-        if (typeof playSound === 'function') playSound('pop');
+        var oldMenu = document.getElementById('appsMenu');
+        if (oldMenu) oldMenu.remove();
     };
 
     window.showProofOfWalk = function() {

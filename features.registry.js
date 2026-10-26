@@ -1680,9 +1680,78 @@
         try { win.showSettingsPage = wrapped; } catch (e) {}
     }
 
+    // Shared Learn + Explore Apps catalogs. Mobile sheets render these.
+    // Desktop home menus stay markup; tests check the Explore list cannot drift.
+    var LEARN_MODES = ['beginner', 'intermediate', 'advanced'];
+    var LEARN_LATER = ['intermediate', 'advanced'];
+    var BQ_LEARN_MENU = {
+        root: [
+            { id: 'brand-new', emoji: '🟢', title: 'Brand new to Bitcoin', hint: 'Start here',
+                desc: 'A zero-jargon intro if you have never owned BTC.',
+                color: '#3b82f6', bg: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08))',
+                modes: LEARN_MODES, kind: 'go', arg: 'one-stop-shop', browse: true },
+            { id: 'quests', emoji: '🗺️', title: 'Quests',
+                desc: 'Lessons, trails, daily quests, and both certifications.',
+                color: '#10b981', bg: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06))',
+                modes: LEARN_MODES, kind: 'quests' },
+            { id: 'first-purchase', emoji: '🛒', title: 'First Bitcoin purchase',
+                desc: 'A step-by-step guide to buying BTC from a trusted exchange.',
+                color: '#22c55e', bg: 'linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06))',
+                modes: LEARN_MODES, kind: 'go', arg: 'first-purchase' },
+            { id: 'meetup', emoji: '🔨', title: 'Meetup builder',
+                desc: 'Create or find a local Bitcoin meetup.',
+                color: '#eab308', bg: 'linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06))',
+                modes: LEARN_LATER, kind: 'meetup' },
+            { id: 'spend', emoji: '₿', title: 'Spend Bitcoin',
+                desc: 'Find merchants who accept sats.',
+                color: '#ef4444', bg: 'linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08))',
+                modes: LEARN_LATER, kind: 'spend' }
+        ],
+        quests: [
+            { id: 'learning-quests', emoji: '📖', title: 'Learning Quests', hint: '8 topics',
+                desc: 'Slideshow lessons with key stats, graphics, and a quiz.',
+                color: '#10b981', bg: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06))',
+                modes: LEARN_MODES, kind: 'go', arg: 'learning-quests' },
+            { id: 'trails', emoji: '🦌', title: "Nacho's trails",
+                desc: 'Guided learning paths — Meadow, Mountain, and Summit.',
+                color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05))',
+                modes: LEARN_MODES, kind: 'go', arg: 'trails' },
+            { id: 'daily-quests', emoji: '🎯', title: 'Daily quests',
+                desc: 'Daily quizzes, trivia, and polls.',
+                color: '#a78bfa', bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))',
+                modes: LEARN_LATER, kind: 'hub' },
+            { id: 'scholar', emoji: '🎓', title: 'Bitcoin Scholar',
+                desc: 'Certification on Bitcoin properties and economics.',
+                color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.04))',
+                modes: LEARN_MODES, kind: 'cert', arg: 'properties' },
+            { id: 'protocol', emoji: '🛠️', title: 'Bitcoin Protocol Expert',
+                desc: 'Certification on Bitcoin technical mechanics.',
+                color: '#3b82f6', bg: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(59,130,246,0.05))',
+                modes: LEARN_MODES, kind: 'cert', arg: 'technical' }
+        ]
+    };
+    var BQ_EXPLORE_APPS = [
+        { id: 'nacho', emoji: '🦌', title: 'Nacho Mode', desc: 'AI Bitcoin tutor — ask anything, take quizzes, learn by chatting', modes: LEARN_MODES, kind: 'fn', arg: 'enterNachoMode' },
+        { id: 'pop', emoji: '🕹️', title: 'Proof of Play', desc: 'Bitcoin gaming hub — Arcade, trivia & PVP battles', modes: LEARN_LATER, kind: 'pop' },
+        { id: 'forum', emoji: '🗣️', title: 'Pleb Talk', desc: 'Community forum — discuss Bitcoin topics with fellow stackers', modes: LEARN_LATER, kind: 'go', arg: 'forum' },
+        { id: 'market', emoji: '⚡', title: 'Lightning Mart', desc: 'Peer-to-peer marketplace — buy & sell goods for sats', modes: LEARN_LATER, kind: 'go', arg: 'marketplace' },
+        { id: 'irl', emoji: '🤝', title: 'IRL Sync', desc: 'Find or host local Bitcoin meetups near you', modes: LEARN_LATER, kind: 'go', arg: 'irl-sync' },
+        { id: 'beats', emoji: '🎵', title: 'Bitcoin Beats', desc: 'Community music player — Bitcoin-themed tracks & beats', modes: LEARN_LATER, kind: 'go', arg: 'bitcoin-beats' },
+        { id: 'tv', emoji: '📺', title: 'Timechain TV', desc: '21 channels of Bitcoin video — free-to-air, always on', modes: LEARN_MODES, kind: 'go', arg: 'timechain-tv' },
+        { id: 'pow', emoji: '👟', title: 'Proof of Walk', desc: 'Earn XP for real-world steps — connect Strava to stack sats', modes: LEARN_LATER, kind: 'fn', arg: 'showProofOfWalk' },
+        { id: 'ai', emoji: '🤖', title: 'AI Tools', desc: 'Bitcoin AI helpers and tools', modes: LEARN_MODES, kind: 'fn', arg: 'toggleAITools' },
+        { id: 'metrics', emoji: '📊', title: 'Metrics', desc: 'Live Bitcoin dashboard and stats', modes: LEARN_MODES, kind: 'fn', arg: 'toggleDashboard' },
+        { id: 'lb', emoji: '🏆', title: 'Leaderboard', desc: 'Top players, XP and rankings', modes: LEARN_MODES, kind: 'fn', arg: 'toggleLeaderboard' },
+        { id: 'wallet', emoji: '⚡', title: 'Wallet', desc: 'Connect a Lightning wallet to send and receive sats', modes: LEARN_MODES, kind: 'go', arg: 'wallet', wide: true }
+    ];
+    win.BQ_LEARN_MENU = BQ_LEARN_MENU;
+    win.BQ_EXPLORE_APPS = BQ_EXPLORE_APPS;
+
     var api = {
         FEATURES: FEATURES,
         BY_ID: BY_ID,
+        BQ_LEARN_MENU: BQ_LEARN_MENU,
+        BQ_EXPLORE_APPS: BQ_EXPLORE_APPS,
         searchFeatures: searchFeatures,
         resolveNachoFeature: resolveNachoFeature,
         featureByHash: featureByHash,
