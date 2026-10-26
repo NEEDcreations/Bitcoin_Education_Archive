@@ -20,25 +20,29 @@ const { serverHoldsBadge, hiddenOnlyBadge, progressAwardIds } = require('./badge
 const ALIASES = { country_set: 'global_citizen' };
 
 // Hidden-only badges (hiddenBadges, no server list, no award row) were paid
-// from the old XP table. 'delta' pays catalog XP minus that old amount and
-// still writes one Favor point. 'full' pays the catalog amount and Favor.
-// 'zero' pays no XP and no Favor. Phil confirms the live value.
+// from the old XP table. The mode chooses XP only. 'delta' pays catalog XP
+// minus that old amount, so explorer_* cannot be paid twice. 'full' pays the
+// catalog amount. 'zero' pays no XP and records the catalog amount as already
+// settled. Favor is HIDDEN_ONLY_GRANT_FAVOR, independent of the mode.
+// Phil confirms both live values.
 const HIDDEN_ONLY_GRANT_MODE = 'delta';
+const HIDDEN_ONLY_GRANT_FAVOR = true;
 
-function hiddenOnlyGrantPlan(badgeId, catalogXp, mode) {
+function hiddenOnlyGrantPlan(badgeId, catalogXp, mode, favor) {
     const selected = mode || HIDDEN_ONLY_GRANT_MODE;
     const catalog = Math.max(0, Number(catalogXp) || 0);
     const old = badgeXp.oldXpOf(badgeId);
     const recorded = old == null ? 0 : old;
+    const grantFavor = favor === undefined ? HIDDEN_ONLY_GRANT_FAVOR === true : favor === true;
     if (selected === 'zero') {
-        return { xp: 0, favor: false, priorXp: catalog, mode: 'zero' };
+        return { xp: 0, favor: grantFavor, priorXp: catalog, mode: 'zero' };
     }
     if (selected === 'full') {
-        return { xp: catalog, favor: true, priorXp: 0, mode: 'full' };
+        return { xp: catalog, favor: grantFavor, priorXp: 0, mode: 'full' };
     }
     return {
         xp: Math.max(0, catalog - recorded),
-        favor: true,
+        favor: grantFavor,
         priorXp: recorded,
         mode: 'delta',
     };
@@ -222,7 +226,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 
         let favor = false;
         let favorPoint = false;
-        const grantFavor = !hiddenPlan || hiddenPlan.favor === true;
+        const grantFavor = hiddenPlan ? HIDDEN_ONLY_GRANT_FAVOR === true : true;
         if (grantFavor && !contributorSnap.exists) {
             const stateData = stateSnap.exists ? (stateSnap.data() || {}) : {
                 points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,
@@ -309,5 +313,6 @@ module.exports = {
     awardBadge: awardBadge,
     cleanId: cleanId,
     HIDDEN_ONLY_GRANT_MODE: HIDDEN_ONLY_GRANT_MODE,
+    HIDDEN_ONLY_GRANT_FAVOR: HIDDEN_ONLY_GRANT_FAVOR,
     hiddenOnlyGrantPlan: hiddenOnlyGrantPlan,
 };

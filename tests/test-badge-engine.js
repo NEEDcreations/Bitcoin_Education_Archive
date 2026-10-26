@@ -1429,11 +1429,12 @@ queue.push(test('unbacked legacy counts only after server criteria, and hidden-o
     const { grantIds } = require('../functions/src/badgeCredit');
     const backfill = require('../scripts/backfill-badge-favor');
     const counters = require('../functions/scripts/backfill_badge_counters');
-    const { HIDDEN_ONLY_GRANT_MODE, hiddenOnlyGrantPlan } = require('../functions/src/awardBadge');
+    const { HIDDEN_ONLY_GRANT_MODE, HIDDEN_ONLY_GRANT_FAVOR, hiddenOnlyGrantPlan } = require('../functions/src/awardBadge');
 
     assert.strictEqual(badgeProfile.serverHoldsBadge({ visibleBadges: ['country_set'] }, 'global_citizen'), true);
     assert.strictEqual(badgeProfile.serverHoldsBadge({ badges: ['global_citizen'] }, 'country_set'), true);
     assert.strictEqual(HIDDEN_ONLY_GRANT_MODE, 'delta');
+    assert.strictEqual(HIDDEN_ONLY_GRANT_FAVOR, true);
     const explorer10 = hiddenOnlyGrantPlan('explorer_10', badgeRules.xpOf('explorer_10'), 'delta');
     assert.strictEqual(explorer10.xp, 0);
     assert.strictEqual(explorer10.favor, true);
@@ -1444,7 +1445,13 @@ queue.push(test('unbacked legacy counts only after server criteria, and hidden-o
     assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'full').xp, 50);
     assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'full').favor, true);
     assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'zero').xp, 0);
-    assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'zero').favor, false);
+    assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'zero').favor, true);
+    assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'zero').priorXp, 50);
+    const favorOff = hiddenOnlyGrantPlan('explorer_25', 50, 'zero', false);
+    assert.strictEqual(favorOff.xp, 0);
+    assert.strictEqual(favorOff.favor, false);
+    assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'full', false).xp, 50);
+    assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50, 'full', false).favor, false);
 
     const classified = backfill.classifyHeld({
         user: { displayBadge: 'say_hi_1', visibleBadges: ['peer_1', 'country_set'] },
