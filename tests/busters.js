@@ -1,15 +1,16 @@
 // Cache-buster pin. The service worker placeholder stays btc-archive-v2381.
 // bundle.min.js and nacho-qa.js are 20261026_v2381.
 // global-chat.js and quests.js are 20261026_v2381.
-// ranking.js and onboarding.js are 20261026_v2373.
+// ranking.js, modules.js, scholar.js, and learning-quests.js are 20261026_v2377.
+// onboarding.js stays 20261026_v2373.
 // satoshi-favor.js stays 20261026_v2368. today-card.js stays 20261026_v2371.
 // features.registry.js stays 20261024_v2368. patches.js stays 20261024_v2360.
 // gifting.js is 20261024_v2365. timechain-tv.js stays 20261024_v2353.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349.
-// scholar.js stays 20261023_v2330. tctv-watch.js stays 20261023_v2340.
-// learning-quests.js and modules.js stay 20261023_v2324.
+// tctv-watch.js stays 20261023_v2340.
+// learning-quests.js is 20261026_v2377.
 // lightning.js stays 20261023_v2323.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
@@ -32,8 +33,7 @@ function test(name, fn) {
 test('service worker cache is v2381', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2381'"));
-    assert.ok(!sw.includes('btc-archive-v2377'));
-    assert.ok(!sw.includes('btc-archive-v2376'));
+    assert.ok(!sw.includes('btc-archive-v2377'));    assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2373'));
@@ -61,8 +61,7 @@ test('service worker cache is v2381', () => {
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2377', 'v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
-        assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
+    ['v2377', 'v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {        assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
 
@@ -71,11 +70,12 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual(html, read('404.html'));
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2381/g) || []).length, 2);
     assert.ok(html.includes('bundle.min.js?v=20261026_v2381'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2373'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2373'));    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2368'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2365'));
+    assert.ok(!html.includes('bundle.min.js?v=20261024_v2370'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
@@ -115,10 +115,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261026_v2373'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2377'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2373'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2377'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -141,7 +141,47 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
-    assert.ok(html.includes('scholar.js?v=20261023_v2330'));
+    assert.ok(html.includes('scholar.js?v=20261026_v2377'));
+    assert.ok(!html.includes('scholar.js?v=20261026_v2379'));
+    assert.ok(!html.includes('scholar.js?v=20261026_v2378'));
+    assert.ok(!html.includes('scholar.js?v=20261024_v2370'));
+    assert.ok(!html.includes('scholar.js?v=20261023_v2330'));
+    const ux = read('mobile-ux.js');
+    const scholarPin = ux.match(/window\.SCHOLAR_SCRIPT\s*=\s*'([^']+)'/);
+    assert.ok(scholarPin, 'window.SCHOLAR_SCRIPT is set');
+    assert.strictEqual(scholarPin[1], 'scholar.js?v=20261026_v2377');
+    const scholarHits = html.match(/scholar\.js\?v=[^'"\s]+/g) || [];
+    assert.ok(scholarHits.length >= 1);
+    scholarHits.forEach(function (hit) {
+        assert.strictEqual(hit, scholarPin[1]);
+    });
+    const quests = read('learning-quests.js');
+    assert.ok(quests.includes('window.SCHOLAR_SCRIPT'));
+    assert.ok(!quests.includes('scholar.js?v='));
+    const skipDirs = { tests: 1, node_modules: 1, '.git': 1, images: 1, assets: 1, data: 1 };
+    const found = [];
+    function walk(dir) {
+        fs.readdirSync(dir, { withFileTypes: true }).forEach(function (entry) {
+            if (skipDirs[entry.name]) return;
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                walk(full);
+                return;
+            }
+            if (!/\.(js|html)$/.test(entry.name)) return;
+            const text = fs.readFileSync(full, 'utf8');
+            const refs = text.match(/scholar\.js\?v=[^'"\s\\)]+/g) || [];
+            refs.forEach(function (ref) { found.push(full.slice(root.length + 1) + ' ' + ref); });
+        });
+    }
+    walk(root);
+    assert.ok(found.length >= 2, 'expected scholar.js pins in the site sources');
+    found.forEach(function (hit) {
+        assert.ok(hit.endsWith(scholarPin[1]), hit);
+    });
+    assert.strictEqual((html.match(/modules\.js\?v=20261026_v2377/g) || []).length, 2);
+    assert.ok(!html.includes('modules.js?v=20261024_v2370'));
+    assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(html.includes('global-chat.js?v=20261026_v2381'));
     assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2381/g) || []).length, 5);
@@ -255,7 +295,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2326/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 0);
-    assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
+    assert.strictEqual((html.match(/learning-quests\.js\?v=20261026_v2377/g) || []).length, 3);
+    assert.ok(html.includes('learning-quests.js?v=20261026_v2377'));
+    assert.ok(!html.includes('learning-quests.js?v=20261026_v2380'));
+    assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
     assert.ok(html.includes('guide.js?v=20261023_v2349'));
@@ -266,8 +309,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2381');
-});
+    assert.ok(swVersion && swVersion[1] === 'v2381');});
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
     const bundle = read('bundle.min.js');
@@ -309,9 +351,10 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: A Nacho button next to each topic conversation asks Nacho privately about that section, with a short summary and follow-up questions.'));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
+    assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
     assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
-    assert.ok(!notes.includes("Latest: A miner's public name"));
-    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes("Latest: A miner's public name"));    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar topic names'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
     assert.ok(!notes.includes('Latest: Opening gifts'));
@@ -398,6 +441,24 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(notes.includes('The minimized Invite pill sits on the right edge, midway down the screen, clear of the header, the ticker, and the buttons along the bottom.'));
     assert.ok(notes.includes('The homepage topics ring counts the channels you have opened, and the archive lists 145 topics.'));
     assert.ok(!notes.includes('Latest: The homepage topics ring'));
+});
+
+test('learn menu has five roots and a quests subview', () => {
+    const ux = read('mobile-ux.js');
+    const html = read('index.html');
+    ['Brand new to Bitcoin', 'Quests', 'First Bitcoin purchase', 'Meetup builder', 'Spend Bitcoin'].forEach(function(label) {
+        assert.ok(ux.includes("title: '" + label + "'"), label);
+    });
+    ["Learning Quests", "Nacho's trails", 'Daily quests', 'Bitcoin Scholar certification', 'Bitcoin Protocol Expert certification'].forEach(function(label) {
+        assert.ok(ux.includes(label), label);
+    });
+    assert.ok(ux.includes('window.openCertification'));
+    assert.ok(ux.includes('window.renderLearnMenu'));
+    assert.ok(ux.includes('Browse all 145 topics'));
+    assert.ok(ux.includes("'+2,100 XP, not limited by the daily cap'"));
+    assert.ok(html.includes('openHomeLearnMenu'));
+    assert.ok(!html.includes('onclick="go(\'learning-quests\')"'));
+    assert.ok(!html.includes('id="nqQuestBtn"'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -94,6 +94,8 @@ const USER_SUBCOLLECTIONS = [
     'proof_of_walk_stats',
     'shop_purchases',
     'notifications',
+    'cert_bonuses',
+    'xp_ledger',
 ];
 
 // Dedupe rows. Removed only after the Auth user is deleted, with the caps.
