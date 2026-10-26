@@ -62,6 +62,17 @@ async function maybeCompleteTrifecta(opts) {
             'daily_triple_1', 'daily_triple_7', 'daily_triple_30', 'daily_triple_90', 'daily_triple_365',
             'sf_trifecta_10', 'sf_trifecta_50', 'sf_trifecta_100',
         ], { day: o.day });
+        try {
+            await require('./raidBossEngine').noteTrusted(o.db, o.admin, {
+                metric: 'trifecta',
+                uid: o.uid,
+                dedupeKey: 'trifecta-' + o.day,
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (raidErr) {
+            console.warn('[trifecta] raid', raidErr && raidErr.message);
+        }
     }
     return { ok: !!(credited && (credited.created || credited.already)), credited: credited, proofs: proofs };
 }

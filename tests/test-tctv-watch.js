@@ -416,7 +416,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2378'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2411'"));
+    assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2399'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
@@ -853,7 +854,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const certNote = 'Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.';
     assert.ok(notes.includes(certNote));
     assert.ok(!notes.includes('Latest: ' + certNote));
-    const latest = 'Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
+    const latest = 'Latest: Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
     assert.ok(notes.includes(faction));

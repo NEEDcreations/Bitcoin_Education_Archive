@@ -112,6 +112,13 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
     throw new functionsV1.https.HttpsError('invalid-argument', 'metric is required and must be a string.');
   }
 
+  // Scheduled bosses are counted from trusted triggers. A client call must
+  // not write a participant, a cap, or HP for those metrics.
+  const raidEngine = require('./raidBossEngine');
+  if (raidEngine.isServerOnlyMetric(metric)) {
+    throw new functionsV1.https.HttpsError('permission-denied', 'This raid metric is counted on the server.');
+  }
+
   const metricRules = METRIC_RULES[metric];
   if (!metricRules) {
     throw new functionsV1.https.HttpsError('invalid-argument', `Unknown metric: ${metric}`);

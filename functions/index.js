@@ -1025,7 +1025,18 @@ exports.onForumPostBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
-    try { await activityCounters.recordForumPost(db, admin, event.data.data()); }
+    try {
+        const recorded = await activityCounters.recordForumPost(db, admin, event.data.data());
+        if (recorded && recorded.bumped && recorded.uid) {
+            await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                metric: 'forumPosts',
+                uid: recorded.uid,
+                dedupeKey: 'forum-' + String(event.params.postId || ''),
+                amount: 1,
+                now: new Date(),
+            });
+        }
+    }
     catch (e) { console.warn('[onForumPostBadgeCount]', e && e.message); }
     return null;
 });
@@ -1055,7 +1066,18 @@ exports.onArticleBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
-    try { await activityCounters.recordArticle(db, admin, event.data.data()); }
+    try {
+        const recorded = await activityCounters.recordArticle(db, admin, event.data.data());
+        if (recorded && recorded.bumped && recorded.uid) {
+            await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                metric: 'articlesPublished',
+                uid: recorded.uid,
+                dedupeKey: 'article-' + String(event.params.articleId || ''),
+                amount: 1,
+                now: new Date(),
+            });
+        }
+    }
     catch (e) { console.warn('[onArticleBadgeCount]', e && e.message); }
     return null;
 });
@@ -1069,6 +1091,13 @@ exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
             db: db, admin: admin, uid: uid, day: day, creditDailyAllThree: require('./src/satoshiFavor').creditDailyAllThree,
         });
         await dailyFive.maybeCompleteDailyFive({ db: db, admin: admin, uid: uid, day: day });
+        await require('./src/raidBossEngine').noteTrusted(db, admin, {
+            metric: 'pollVotes',
+            uid: uid,
+            dedupeKey: 'poll-' + uid + '-' + day,
+            amount: 1,
+            now: new Date(),
+        });
     },
 }));
 
@@ -2700,6 +2729,28 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             await grantFamily(db, admin, targetUid, familyFor('peerCount'));
             await require('./src/badgeCredit').creditPeerAcceptXp(db, admin, uid, targetUid);
         } catch (peerBadgeErr) { console.warn('[managePeer] peer badges', peerBadgeErr && peerBadgeErr.message); }
+
+        try {
+            const { samePerson } = require('./src/badgeProgress');
+            const { rewardBlocked } = require('./src/cipherClaim');
+            const accepterSnap = await userRef.get();
+            const otherSnap = await targetRef.get();
+            const accepter = Object.assign({}, accepterSnap.exists ? accepterSnap.data() : {}, { uid: uid });
+            const other = Object.assign({}, otherSnap.exists ? otherSnap.data() : {}, { uid: targetUid });
+            const ledgerA = await db.collection('faucet_ledger').doc(uid).get();
+            const ledgerB = await db.collection('faucet_ledger').doc(targetUid).get();
+            const bannedPair = rewardBlocked(accepter, ledgerA.exists ? ledgerA.data() : {})
+                || rewardBlocked(other, ledgerB.exists ? ledgerB.data() : {});
+            if (!samePerson(accepter, other) && !bannedPair) {
+                await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                    metric: 'cipherPeerKey',
+                    uid: uid,
+                    dedupeKey: 'peer-' + revReqId,
+                    amount: 1,
+                    now: new Date(),
+                });
+            }
+        } catch (peerRaidErr) { console.warn('[managePeer] raid', peerRaidErr && peerRaidErr.message); }
 
         return { success: true };
     }
@@ -4592,12 +4643,24 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             pointsAwarded: pointsAwarded,
             already: scholarPlan.reason === 'already',
             capExempt: scholarPlan.pay === true,
+            raidCredit: passed === true && !scholarBlocked,
         };
     });
 
     if (result.passed && result.type !== 'technical') {
         try { await grantFamily(db, admin, uid, ['scholar']); }
         catch (scholarBadgeErr) { console.warn('[SCHOLAR] badge', scholarBadgeErr && scholarBadgeErr.message); }
+    }
+    if (result.raidCredit) {
+        try {
+            await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                metric: 'certPasses',
+                uid: uid,
+                dedupeKey: 'cert-' + String(result.type || 'exam'),
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (scholarRaidErr) { console.warn('[SCHOLAR] raid', scholarRaidErr && scholarRaidErr.message); }
     }
     return {
         success: true,
@@ -4705,6 +4768,17 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
             }, { merge: true });
         } catch (e) { console.error('[onChatMessageCreated] failed:', e); }
         const mentioned = data.mentionUid;
+        try {
+            await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                metric: 'chatMessages',
+                uid: data.uid,
+                dedupeKey: 'chat-' + String(_context.params.msgId || ''),
+                amount: 1,
+                text: data.text || '',
+                isNachoAuto: data.isNachoAuto === true,
+                now: new Date(),
+            });
+        } catch (raidChatErr) { console.warn('[onChatMessageCreated] raid', raidChatErr && raidChatErr.message); }
         if (mentioned && mentioned !== data.uid && /^[A-Za-z0-9_-]{4,128}$/.test(String(mentioned))) {
             try {
                 await sendUserPush(mentioned, 'mentions', {
@@ -6157,9 +6231,10 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
 });
 
 // ===== RAID BOSS =====
-const { scheduleRaidBoss } = require('./src/scheduleRaidBoss');
+const { scheduleRaidBoss, scheduleRaidBossCatchup } = require('./src/scheduleRaidBoss');
 const { contributeRaid } = require('./src/contributeRaid');
 exports.scheduleRaidBoss = scheduleRaidBoss;
+exports.scheduleRaidBossCatchup = scheduleRaidBossCatchup;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
@@ -7990,69 +8065,15 @@ exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
     }
 });
 
-// ===== WEEKLY RAID BOSS ANNOUNCEMENT =====
-// Fires Sunday 7 PM ET (11 PM UTC / 23:00 UTC)
-// Posts a boss status update to global_chat (visible to all users)
-// with a deep link to the Quest Hub Raid section
+// Sunday 7 PM America/New_York. One post per Eastern week, including after a win.
 exports.raidBossWeeklyAnnouncement = onSchedule(
-  { schedule: '0 23 * * 0', timeZone: 'UTC', region: 'us-central1' },
-  async (event) => {
-    const now = admin.firestore.Timestamp.now();
-    const nowMs = now.toDate().getTime();
-
-    // Find active boss
-    const bossQuery = await db.collection('raid_bosses')
-      .orderBy('startTime', 'desc')
-      .limit(5)
-      .get();
-
-    let activeBoss = null;
-    bossQuery.forEach((doc) => {
-      if (activeBoss) return;
-      const d = doc.data();
-      if (d.defeated || d.placeholder) return;
-      const startMs = d.startTime ? d.startTime.toDate().getTime() : 0;
-      const endMs = d.endTime ? d.endTime.toDate().getTime() : 0;
-      if (startMs <= nowMs && endMs > nowMs) {
-        activeBoss = d;
-      }
-    });
-
-    if (!activeBoss) {
-      console.log('[RAID ANNOUNCE] No active boss found — skipping announcement.');
-      return null;
+  { schedule: '0 19 * * 0', timeZone: 'America/New_York', region: 'us-central1' },
+  async () => {
+    try {
+      await require('./src/raidBossEngine').postWeekly(db, admin, new Date());
+    } catch (e) {
+      console.error('[RAID ANNOUNCE]', e && e.message);
     }
-
-    const current = activeBoss.current || 0;
-    const target = activeBoss.target || 0;
-    const name = activeBoss.name || 'Raid Boss';
-    const pct = target > 0 ? Math.round((current / target) * 100) : 0;
-    const hp = Math.max(0, target - current);
-    const defeated = activeBoss.defeated || false;
-
-    const hpPct = target > 0 ? Math.round((hp / target) * 100) : 0;
-    let text;
-    if (defeated) {
-      text = `⚔️ BOSS DEFEATED! The community took down **${name}** — amazing work everyone! 🏆 Check the [Quest Hub → Raid](#questhub) for results.`;
-    } else if (pct === 0) {
-      text = `⚔️ **${name}** is waiting! Boss has ${hp}/${target} HP remaining — we haven't dealt any damage yet. Every action counts! 👉 [Quest Hub → Raid](#questhub)`;
-    } else if (pct >= 75) {
-      text = `⚔️ ALMOST THERE! **${name}** has only ${hpPct}% health remaining — only ${hp} HP left! Push through and claim the community prize! 🔥👉 [Quest Hub → Raid](#questhub)`;
-    } else if (pct >= 50) {
-      text = `⚔️ Halfway there! **${name}** is at ${hpPct}% health remaining (${hp} HP left). Keep it up! 💪 [Quest Hub → Raid](#questhub)`;
-    } else {
-      text = `⚔️ Weekly Raid Update: **${name}** — ${hpPct}% health remaining (${hp}/${target} HP). Deal more damage — [Quest Hub → Raid](#questhub) 🗡️`;
-    }
-
-    await db.collection('global_chat').add({
-      uid: 'nacho-bot',
-      name: '🦌 Nacho',
-      text: text,
-      isNachoAuto: false,
-      ts: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    console.log(`[RAID ANNOUNCE] Posted to global_chat: "${text}"`);
     return null;
   }
 );

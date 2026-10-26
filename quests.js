@@ -5782,6 +5782,12 @@ function _getRaidBossImage(boss) {
     return boss.image || RAID_BOSS_IMAGES[boss.name] || '';
 }
 
+function _raidSafeEmoji(boss) {
+    var raw = boss && typeof boss.emoji === 'string' ? boss.emoji : '';
+    if (!raw || raw.length > 8 || /[<>&]/.test(raw)) return '\uD83D\uDC79';
+    return raw;
+}
+
 function _renderRaidBossCard(container, boss) {
     var now = Date.now();
     var startMs = boss.startTime ? (boss.startTime.toMillis ? boss.startTime.toMillis() : boss.startTime) : 0;
@@ -5792,7 +5798,7 @@ function _renderRaidBossCard(container, boss) {
     if (boss.placeholder) {
         var startDate = startMs ? new Date(startMs) : null;
         var dateStr = startDate ? startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Soon';
-        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">\u2694\uFE0F</div>';
+        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">' + _raidSafeEmoji(boss) + '</div>';
         container.innerHTML = '<div style="padding:20px 0;">' +
             upcomingImgHtml +
             '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss')) + '</div>' +
@@ -5856,7 +5862,7 @@ function _renderRaidBossCard(container, boss) {
     var hpPct = Math.max(0, 100 - pct);
     var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
     var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
-    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">\uD83D\uDC79</div>';
+    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">' + _raidSafeEmoji(boss) + '</div>';
 
     container.innerHTML = '<div style="padding:12px 0;">' +
         // Boss header
@@ -6134,12 +6140,20 @@ var RAID_GUIDANCE = {
     'flashcardCompletions':{ action: 'Complete flashcard sets to deal damage!',               nav: 'learning-quests', unitLabel: 'flashcard set completed',    unitAmt: 1   },
     'totalXP':            { action: 'Earn XP from any activity to deal damage!',              nav: 'home',            unitLabel: '100 XP earned',              unitAmt: 100 },
     'pollVotes':          { action: 'Vote in the daily Quest Hub poll to deal damage!',       nav: 'quests',          unitLabel: 'poll vote',                  unitAmt: 1   },
-    'chatMessages':       { action: 'Send messages in Global Chat (up to 3/day count)!',      nav: 'chat',            unitLabel: 'chat message (max 3/day)',    unitAmt: 1   },
+    'chatMessages':       { action: 'Send a real Global Chat message. The server counts it, up to 10 a day, and it needs at least 8 characters.', nav: 'chat', unitLabel: 'chat message (max 10/day)', unitAmt: 1 },
+    'cipherPeerKey':      { action: 'Accept a peer request or open someone else\'s cipher share. Linked accounts do not count. Up to 2 a day.', nav: 'home', unitLabel: 'peer accept or cipher open (max 2/day)', unitAmt: 1 },
+    'favorHashes':        { action: 'Hash for Satoshi\'s Favor. Each real hash counts, up to 15 a day.', nav: 'quests', unitLabel: 'Satoshi\'s Favor hash (max 15/day)', unitAmt: 1 },
+    'sayHi':              { action: 'Say hi in Global Chat. The server counts one hello a day.', nav: 'chat', unitLabel: 'Say hi (1/day)', unitAmt: 1 },
+    'trifecta':           { action: 'Finish trivia, a quest, and the daily poll on the same day.', nav: 'quests', unitLabel: 'daily trifecta (1/day)', unitAmt: 1 },
+    'certPasses':         { action: 'Pass the Scholar or Protocol Expert certification.', nav: 'learning-quests', unitLabel: 'certification passed', unitAmt: 1 },
+    'tctvWatchDays':      { action: 'Finish the daily Timechain TV watch.', nav: 'tctv', unitLabel: 'Timechain TV watch day (1/day)', unitAmt: 1 },
+    'referralsPaid':      { action: 'Invite a friend who reaches Maxi. Self-invites do not count.', nav: 'home', unitLabel: 'qualified referral', unitAmt: 1 },
+    'articlesPublished':  { action: 'Publish a forum post or an article. Up to 2 a day.', nav: 'forum', unitLabel: 'article published', unitAmt: 1 },
     'badgesEarned':       { action: 'Earn badges to deal damage! Find them in the Leaderboard 🏆', nav: 'badges', unitLabel: 'badge earned',          unitAmt: 1   },
     'streakUsers':        { action: 'Hit a 7-day daily visit streak to deal damage!',         nav: 'home',            unitLabel: '7-day streak milestone',     unitAmt: 1   },
     'uniqueTopicsVisited':{ action: "Visit learning topics you haven't read yet (up to 3/day count)!", nav: 'home',  unitLabel: 'new topic visited (max 3/day)', unitAmt: 1 },
     'tipsSent':           { action: 'Send Lightning tips to deal damage!',                    nav: 'home',            unitLabel: 'Lightning tip sent',         unitAmt: 1   },
-    'forumPosts':         { action: 'Create forum posts to deal damage!',                     nav: 'forum',           unitLabel: 'forum post created',         unitAmt: 1   },
+    'forumPosts':         { action: 'Publish a real forum post or article. The server counts it, up to 2 a day.', nav: 'forum', unitLabel: 'forum post or article (max 2/day)', unitAmt: 1 },
     'triviaCorrect':      { action: 'Answer trivia correctly in Quest Hub to deal damage!',   nav: 'quests',          unitLabel: 'correct trivia answer',      unitAmt: 1   },
     'totalTopicReads':    { action: 'Read learning topics to deal damage (up to 3/day count)!', nav: 'home',          unitLabel: 'topic read (max 3/day)',      unitAmt: 1   }
 };
@@ -6419,17 +6433,17 @@ window._raidContribute = function(metric, amount, detail) {
 
 // Hook: quiz quest completion
 window._raidOnQuizComplete = function() {
-    window._raidContribute('quizCompletions', 1);
+    // Quiz-Crusader damage is counted on the server when a quest is passed.
 };
 
 // Hook: trivia correct answer
 window._raidOnTriviaCorrect = function() {
-    window._raidContribute('triviaCorrect', 1);
+    // Trivia-Tactician damage is counted on the server from the graded answer.
 };
 
 // Hook: poll vote
 window._raidOnPollVote = function() {
-    window._raidContribute('pollVotes', 1);
+    // Poll-Patroller damage is counted on the server from the recorded vote.
 };
 
 // Hook: flashcard set completion
@@ -6452,7 +6466,7 @@ window._raidOnXPEarned = function(amount) {
 
 // Hook: chat message sent
 window._raidOnChatMessage = function() {
-    window._raidContribute('chatMessages', 1);
+    // Chat-Charger damage is counted on the server from the chat message.
 };
 
 // Hook: badge earned
@@ -6473,7 +6487,7 @@ window._raidOnStreakMilestone = function() {
 
 // Hook: forum post created
 window._raidOnForumPost = function() {
-    window._raidContribute('forumPosts', 1);
+    // Forum-Forge damage is counted on the server when the post is accepted.
 };
 
 // Hook: channel/topic visit (contributes to multiple boss metrics)
