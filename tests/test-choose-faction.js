@@ -377,7 +377,9 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf('Latest: Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
+    assert.ok(notes.indexOf("Latest: Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.") > 0);
+    assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
+    assert.ok(notes.indexOf('Latest: Opening gifts') === -1);
     assert.ok(notes.indexOf('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.') > 0);
     assert.ok(notes.indexOf('Latest: The Invite button') === -1);
     assert.ok(notes.indexOf('Trivia and poll community totals now update the moment you answer and stay live while the results are open.') > 0);

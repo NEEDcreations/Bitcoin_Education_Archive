@@ -416,10 +416,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2374'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2375'"));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
-    assert.ok(!sw.includes('btc-archive-v2375'));
+    assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2371'));
@@ -794,7 +794,11 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
+    const latest = 'Latest: Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    const previousLatest = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
+    const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
+    assert.ok(notes.includes(gifts));
+    assert.ok(!notes.includes('Latest: Opening gifts'));
     const invite = 'The Invite button now stays on the home screen as a small pill, so you can always invite a friend.';
     assert.ok(notes.includes(invite));
     assert.ok(!notes.includes('Latest: The Invite button'));
@@ -830,6 +834,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(previousLatest));
+    assert.ok(!notes.includes('Latest: ' + previousLatest));
     assert.ok(notes.includes(favor));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor'));
     assert.ok(!notes.includes('Latest: Satoshi'));
