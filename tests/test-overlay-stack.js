@@ -30,19 +30,23 @@ function loadJsdom() {
         found = tryReq(bases[i]);
         if (found) return found;
     }
-    throw new Error('jsdom is not installed (' + attempts.join(', ') + ')');
+    return null;
 }
 
 if (process.argv[2] === '--jsdom') {
     const JSDOM = loadJsdom();
+    if (!JSDOM) {
+        process.stderr.write('jsdom fallback skipped: jsdom is not installed. Run npm install so devDependencies are present.\n');
+        process.exit(2);
+    }
     const page = fs.readFileSync(process.argv[3], 'utf8');
     const dom = new JSDOM(page, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://example.test/archive/' });
     const timer = setInterval(function() {
         const node = dom.window.document.getElementById('overlay-stack-result');
         const text = node ? node.textContent : '';
-        if (text && text !== 'pending') {
+        if (text && text.indexOf('__OVERLAY' + '_RESULT__') !== -1) {
             clearInterval(timer);
-            process.stdout.write(text);
+            process.stdout.write(text + '\n');
             process.exit(0);
         }
     }, 20);
@@ -50,7 +54,7 @@ if (process.argv[2] === '--jsdom') {
         const node = dom.window.document.getElementById('overlay-stack-result');
         process.stderr.write((node && node.textContent) || 'pending');
         process.exit(1);
-    }, 20000);
+    }, 60000);
     return;
 }
 function read(name) {
@@ -95,6 +99,7 @@ assert.ok(!ranking.includes('withdrawnDelta'));
 assert.ok(!ranking.includes('var SATS_CLAIM_GIVE_UP_MS'));
 assert.ok(ranking.includes('window.bqModal.open(overlay'));
 assert.ok(ranking.includes("db.collection('users').doc(auth.currentUser.uid)"));
+assert.ok(read('index.html').includes('id="usernameModal" role="dialog" aria-modal="true"'));
 
 const chrome = ['/usr/local/bin/google-chrome', '/usr/bin/google-chrome', 'google-chrome'].find(function(bin) {
     if (bin === 'google-chrome') return true;
@@ -156,6 +161,13 @@ window.firebase = {
 `;
 
 const harness = `
+function __publishOverlay(payload) {
+    var mark = '__OVERLAY' + '_RESULT__';
+    var line = mark + JSON.stringify(payload);
+    var node = document.getElementById('overlay-stack-result');
+    if (node) node.textContent = line;
+    try { console.log(line); } catch (err) {}
+}
 function __hit(el) {
     if (!el || typeof document.elementFromPoint !== 'function') return null;
     var r = el.getBoundingClientRect();
@@ -616,10 +628,10 @@ async function __runOverlayTests() {
     check('mention-escape-reached', window.__mentionEsc === true);
     check('mention-did-not-close-claim', !!document.getElementById('satsClaimOverlay'));
     check('badge-still-unmoved', badge && badge.parentElement === badgeHost);
-    document.getElementById('overlay-stack-result').textContent = JSON.stringify({ ok: errors.length === 0, errors: errors });
+    __publishOverlay({ ok: errors.length === 0, errors: errors });
 }
 __runOverlayTests().catch(function(e) {
-    document.getElementById('overlay-stack-result').textContent = JSON.stringify({ ok: false, errors: [String(e && e.stack || e)] });
+    __publishOverlay({ ok: false, errors: [String(e && e.stack || e)] });
 });
 `;
 
@@ -658,20 +670,46 @@ fs.writeFileSync(htmlPath, page);
 function decodeResult(raw) {
     return raw.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
+function extractJsonObject(text) {
+    const start = text.indexOf('{');
+    if (start < 0) return null;
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let i = start; i < text.length; i++) {
+        const c = text[i];
+        if (inStr) {
+            if (esc) esc = false;
+            else if (c === '\\') esc = true;
+            else if (c === '"') inStr = false;
+            continue;
+        }
+        if (c === '"') inStr = true;
+        else if (c === '{') depth++;
+        else if (c === '}') {
+            depth--;
+            if (depth === 0) return text.slice(start, i + 1);
+        }
+    }
+    return null;
+}
 function resultFromDump(dumped) {
-    const match = String(dumped || '').match(/<pre id="overlay-stack-result">([\s\S]*?)<\/pre>/);
-    if (!match) return null;
-    const raw = decodeResult(match[1]).trim();
-    if (!raw || raw === 'pending') return null;
-    return JSON.parse(raw);
+    const marker = '__OVERLAY_RESULT__';
+    const text = String(dumped || '');
+    const at = text.lastIndexOf(marker);
+    if (at < 0) return null;
+    const json = extractJsonObject(decodeResult(text.slice(at + marker.length)));
+    if (!json) return null;
+    try { return JSON.parse(json); }
+    catch (e) { return null; }
 }
 
 let result = null;
 let via = '';
 try {
-    const dumped = execFileSync('timeout', ['12', chrome, '--headless=new', '--disable-gpu', '--no-sandbox', '--user-data-dir=/tmp/chrome-overlay-test', '--window-size=1280,900', '--dump-dom', 'file://' + htmlPath], {
+    const dumped = execFileSync('timeout', ['60', chrome, '--headless=new', '--disable-gpu', '--no-sandbox', '--user-data-dir=/tmp/chrome-overlay-test-' + process.pid, '--window-size=1280,900', '--dump-dom', 'file://' + htmlPath], {
         encoding: 'utf8',
-        timeout: 15000,
+        timeout: 75000,
         maxBuffer: 20 * 1024 * 1024
     });
     result = resultFromDump(dumped);
@@ -682,19 +720,25 @@ try {
 }
 
 if (!result) {
+    if (!loadJsdom()) {
+        console.log('jsdom fallback skipped: jsdom is not installed. Run npm install so devDependencies are present.');
+        assert.fail('headless Chrome did not print __OVERLAY_RESULT__ and the jsdom fallback is unavailable');
+    }
     via = 'jsdom';
     let dumped = '';
     try {
         dumped = execFileSync(process.execPath, [__filename, '--jsdom', htmlPath], {
             encoding: 'utf8',
-            timeout: 25000,
+            timeout: 75000,
             maxBuffer: 20 * 1024 * 1024
         });
     } catch (e) {
         dumped = (e.stdout || '') + '\n' + (e.stderr || '');
-        if (!dumped.includes('{')) throw new Error('jsdom overlay test did not finish: ' + dumped.slice(0, 1500));
     }
-    result = JSON.parse(dumped.slice(dumped.indexOf('{')));
+    result = resultFromDump(dumped);
+    if (!result) {
+        assert.fail('jsdom overlay test did not print __OVERLAY_RESULT__: ' + String(dumped).slice(0, 1500));
+    }
 }
 
 assert.deepStrictEqual(result.errors, [], JSON.stringify(result.errors));

@@ -1,5 +1,6 @@
 .env
 functions/.env
+node_modules/
 test.sh
 scripts/*
 !scripts/migrate-push-optin.js

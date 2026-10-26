@@ -2017,7 +2017,7 @@
     <div id="leaderboard"></div>
     <div id="badgeFloatTip"></div>
 
-    <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
+    <div id="usernameModal" role="dialog" aria-modal="true" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
             <p>Pick a username to start earning XP as you explore the archive!</p>

@@ -380,6 +380,9 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: A window opened from a button sits in front of Settings and behind Terms, a sats claim says Sent only after the server records a new paid amount, and toasts stay visible above those windows.") > 0);
     assert.ok(notes.indexOf("Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.") > 0);
     assert.ok(notes.indexOf("Latest: Sidebar") === -1);
+    assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
+    assert.ok(!notes.includes("Latest: A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
+    assert.ok(notes.indexOf("Latest: Sidebar topic names") === -1);
     assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
     assert.ok(notes.indexOf('Latest: Opening gifts') === -1);
     assert.ok(notes.indexOf('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.') > 0);
