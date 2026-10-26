@@ -829,6 +829,8 @@ window.updatePredictionLabel = function() {
 
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
+    var more = document.getElementById('homeMore');
+    if (more && more.hidden) return;
     var el = document.getElementById('explorationMap');
     if (!el) return;
     if (typeof CHANNELS === 'undefined') return;
@@ -1061,15 +1063,6 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
                 .then(function(result) {
                 })
                 .catch(function() {});
-            // GG chat for significant hidden badge milestones
-            var _gcMajorHidden = ['trail_meadow', 'trail_mountain', 'trail_summit', 'lq_graduate'];
-            if (_gcMajorHidden.indexOf(badgeId) !== -1 && typeof window.nachoGlobalAnnounce === 'function') {
-                var _gcUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_gcUser) {
-                    var _gcBadgeEmoji = badgeId === 'trail_meadow' ? '🌿' : badgeId === 'trail_mountain' ? '⛰️' : badgeId === 'trail_summit' ? '🏔️' : '📖';
-                    window.nachoGlobalAnnounce('🏅 @' + _gcUser + ' just completed ' + (toastMsg || badgeId) + '! ' + _gcBadgeEmoji + '🎉');
-                }
-            }
         }
     }
 };
@@ -1079,31 +1072,27 @@ window.awardOrangeTickets = function() {
     return { success: false, awarded: 0, tickets: 0 };
 };
 
-// setFloatingElementsVisible — show/hide floating buttons when sidebar opens
-// Respects fabMinimized state: FAB group buttons stay hidden if user minimized them
+// setFloatingElementsVisible — show/hide floating buttons when the sidebar opens.
+// The More tools toggle hides wherever chat hides. AI Tools, Metrics, and
+// Leaderboard stay collapsed unless that toggle is open. Experience-mode
+// hides (data-em-hidden) are left alone.
 window.setFloatingElementsVisible = function(visible) {
-    var fabMinimized = localStorage.getItem('fabMinimized') === '1';
-    // FAB group — respect user's minimize preference
-    var fabGroupIds = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
-    // Regular floating elements — always follow sidebar show/hide
-    var regularIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom'];
-    regularIds.concat(fabGroupIds).forEach(function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        if (!visible) {
-            el.style.display = 'none';
-        } else if (fabGroupIds.indexOf(id) !== -1) {
-            // Only show FAB group buttons if not minimized
-            el.style.display = fabMinimized ? 'none' : '';
-        } else {
-            el.style.display = '';
-        }
-    });
-    // Keep expand button in sync
-    if (visible) {
+    var showIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','fabExpandBtn'];
+    var toolIds = ['aiToolsBtn','dashboardFloatBtn','lbFloatBtn'];
+    var minBtn = document.getElementById('fabMinimizeBtn');
+    if (minBtn) minBtn.style.setProperty('display', 'none', 'important');
+    if (!visible) {
+        document.body.classList.remove('fab-tools-open');
         var exp = document.getElementById('fabExpandBtn');
-        if (exp) exp.style.display = fabMinimized ? 'flex' : 'none';
+        if (exp) exp.setAttribute('aria-expanded', 'false');
     }
+    showIds.concat(toolIds).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el || el.hasAttribute('data-em-hidden')) return;
+        if (!visible) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+    });
+    if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
 };
 
 // ========== CELEBRATION SYSTEM ==========

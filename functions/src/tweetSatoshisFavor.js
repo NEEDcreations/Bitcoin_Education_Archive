@@ -119,7 +119,7 @@ exports.tweetSatoshisFavor = onDocumentWritten({
     const HASH_MAX = 100000000; // 100 million — matches satoshi-favor.js
     const target = after.difficultyTarget || 10000;
     const odds = Math.round(HASH_MAX / target).toLocaleString();
-    const durationMin = 90; // matches FAVOR_DURATION_MINUTES in satoshiFavor.js
+    const durationMin = 60; // matches FAVOR_DURATION_MINUTES in satoshiFavor.js
 
     const tweetText =
       `⚡ Satoshi's Favor is LIVE on bitcoineducation.quest!\n\n` +

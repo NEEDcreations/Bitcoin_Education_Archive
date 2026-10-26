@@ -487,7 +487,8 @@ test('show/open/enter navigation openers are in the registry', function () {
         'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername',
         'openNow',
         'openWithdrawalAddress', 'showWithdrawalAddressReadonly',
-        'showUsernameRepickPrompt'
+        'showUsernameRepickPrompt',
+        'openHomeSats', 'openHomeInvites', 'openHomeWithdraw', 'openHomeLearn', 'openTopicsBrowser'
     ]);
     const regSrc = fs.readFileSync(path.join(root, 'features.registry.js'), 'utf8');
     const missing = [];

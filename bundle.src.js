@@ -136,10 +136,41 @@ function isPremium() {
     return typeof currentUser !== 'undefined' && currentUser && currentUser.premium && currentUser.premium.active === true;
 }
 
-/** Get sat redemption cap based on tier */
+// Server faucet cap (functions/index.js FAUCET.MAX_LIFETIME_PER_USER_SATS).
+// Exposed on window so ranking.js still sees it after the bundle is minified.
+var SAT_LIFETIME_CAP = 15000;
+window.SAT_LIFETIME_CAP = SAT_LIFETIME_CAP;
+
+/** Lifetime sat cap. The server faucet is a flat 15,000 for every account. */
 function getSatCap() {
-    return isPremium() ? 21000 : 15000;
+    return SAT_LIFETIME_CAP;
 }
+window.getSatCap = getSatCap;
+
+// Claimable sats from server-maintained counters only.
+// floor(max(0, points - pointsClaimed - pointsDonated - pointsExchanged) / 10),
+// then limited by satsWithdrawn against the lifetime cap.
+function claimableSats(user, cap) {
+    var u = user || {};
+    var points = Number(u.points) || 0;
+    var claimed = Number(u.pointsClaimed) || 0;
+    var donated = Number(u.pointsDonated) || 0;
+    var exchanged = Number(u.pointsExchanged) || 0;
+    var withdrawn = Number(u.satsWithdrawn) || 0;
+    if (withdrawn < 0) withdrawn = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    var limit = (typeof cap === 'number' && isFinite(cap)) ? cap : SAT_LIFETIME_CAP;
+    if (cap == null && typeof getSatCap === 'function') limit = getSatCap();
+    var lifetimeLeft = Math.max(0, limit - withdrawn);
+    return {
+        balance: balance,
+        lifetimeLeft: lifetimeLeft,
+        claimable: Math.min(balance, lifetimeLeft),
+        cap: limit,
+        withdrawn: withdrawn
+    };
+}
+window.claimableSats = claimableSats;
 
 /** Premium tier constants */
 // ---- Faction Username Styling ----
@@ -1458,13 +1489,7 @@ function showBadgeToast(badge) {
 
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-    // Announce major badge earns in GG chat
-    if (typeof window.nachoGlobalAnnounce === 'function') {
-        var _gcBadgeUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-        if (_gcBadgeUser) {
-            window.nachoGlobalAnnounce('🏅 @' + _gcBadgeUser + ' just earned the ' + badge.emoji + ' ' + badge.name + ' badge! 🎉');
-        }
-    }
+    // GGs posts for badge earns are written by the server, grouped per player.
 }
 
 function copyBadgeLink(emoji, name) {
@@ -2689,11 +2714,21 @@ window.awardTickets = async function() {
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
 
+function _invitePreviewOn() {
+    try {
+        var host = String(location.hostname || '');
+        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
+    } catch (e) { return false; }
+    return !!window._homePreviewUser;
+}
+
 function _inviteSignedIn() {
+    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
+    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -2707,12 +2742,14 @@ function _inviteReadStored(uid) {
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
         fromUser = String(currentUser.inviteCard);
     }
+    if (fromUser === 'off') return 'min';
     if (INVITE_STATES[fromUser]) return fromUser;
     try {
         var local = localStorage.getItem(_inviteStorageKey(uid));
+        if (local === 'off') return 'min';
         if (INVITE_STATES[local]) return local;
     } catch (e) {}
-    return 'open';
+    return 'min';
 }
 
 function _inviteWriteStored(state) {
@@ -2816,7 +2853,44 @@ function _applyInviteState(state) {
     if (!card) return;
     card.setAttribute('data-state', state);
     card.setAttribute('data-show', state === 'off' ? '0' : '1');
+    placeInvitePill();
 }
+
+function placeInvitePill() {
+    var card = document.getElementById('inviteCard');
+    var today = document.getElementById('todayCard');
+    if (!card) return;
+    var state = card.getAttribute('data-state');
+    var shown = card.getAttribute('data-show') === '1' && state !== 'off';
+    if (!shown) {
+        card.style.top = '';
+        if (today) today.style.marginTop = '';
+        return;
+    }
+    var anchorBottom = 0;
+    ['homeWalletStrip', 'homeGuestActions', 'homeHero'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var cs = window.getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return;
+        var rect = el.getBoundingClientRect();
+        if (rect.height > 1 && rect.bottom > anchorBottom) anchorBottom = rect.bottom;
+    });
+    var top = 8;
+    var bar = document.querySelector('.mobile-bar');
+    if (bar && window.innerWidth <= 900 && window.getComputedStyle(bar).display !== 'none') {
+        top = Math.round(bar.getBoundingClientRect().bottom + 8);
+    }
+    if (anchorBottom > 1) top = Math.max(top, Math.round(anchorBottom + 8));
+    card.style.top = top + 'px';
+    if (today && (state === 'min' || state === 'guest')) {
+        var pillH = card.getBoundingClientRect().height || 40;
+        today.style.marginTop = Math.round(pillH + 12) + 'px';
+    } else if (today) {
+        today.style.marginTop = '';
+    }
+}
+window.placeInvitePill = placeInvitePill;
 
 function refreshInviteCard() {
     var card = document.getElementById('inviteCard');
@@ -2884,8 +2958,7 @@ function dismissInviteCard() {
         _applyInviteState('off');
         return;
     }
-    _inviteWriteStored('off');
-    _applyInviteState('off');
+    minimizeInviteCard();
 }
 
 function toggleInviteHow() {
@@ -2981,6 +3054,12 @@ if (typeof window !== 'undefined') {
         }, 1000);
     }
     refreshInviteCard();
+    if (!window._invitePillWatch) {
+        window._invitePillWatch = true;
+        window.addEventListener('resize', function() { placeInvitePill(); });
+        var inviteMain = document.getElementById('main');
+        if (inviteMain) inviteMain.addEventListener('scroll', function() { placeInvitePill(); }, { passive: true });
+    }
 }
 // Phase 10: Loyalty & Learning Boosts 🎓
 
@@ -4055,6 +4134,9 @@ function createNacho() {
             padding: 16px 20px 16px 18px;
             max-width: 300px;
             min-width: 160px;
+            max-height: 45vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             color: var(--text, #f8f8f8);
             font-size: 0.9rem;
             line-height: 1.55;
@@ -4130,7 +4212,7 @@ function createNacho() {
             padding: 2px 4px;
         }
         .nacho-x:hover { opacity: 1; }
-        #nacho-text { word-wrap: break-word; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
+        #nacho-text { word-wrap: break-word; max-height: none; overflow: visible; padding-right: 4px; }
 
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
@@ -4374,7 +4456,7 @@ function createNacho() {
                 max-width: none !important;
                 width: auto !important;
                 min-width: 0 !important;
-                max-height: 40vh;
+                max-height: 45vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 font-size: 0.85rem;
@@ -4390,7 +4472,7 @@ function createNacho() {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
             #nacho-avatar { width: 48px; height: 48px; }
             #nacho-bubble {
-                max-height: 38vh;
+                max-height: 45vh;
                 font-size: 0.82rem;
                 padding: 12px 14px;
             }
@@ -4412,8 +4494,8 @@ function createNacho() {
         }
         #nacho-toggle:hover { opacity: 1; transform: scale(1.1); box-shadow: 0 4px 20px rgba(247,147,26,0.4), 0 0 0 4px rgba(247,147,26,0.25); }
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
-        @media (max-width: 900px) { #nacho-toggle { bottom: calc(50vh - 30px); left: 12px; width: 46px; height: 46px; font-size: 1.3rem; } }
-        @media (max-width: 480px) { #nacho-toggle { bottom: calc(50vh - 40px); left: 10px; width: 44px; height: 44px; font-size: 1.2rem; } }
+        @media (max-width: 900px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: var(--fab-size, 48px); height: var(--fab-size, 48px); font-size: 1.3rem; } }
+        @media (max-width: 480px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: 44px; height: 44px; font-size: 1.2rem; } }
     `;
     document.head.appendChild(style);
 
@@ -4546,7 +4628,7 @@ function createNacho() {
 
     const toggle = document.createElement('div');
     toggle.id = 'nacho-toggle';
-    toggle.innerHTML = '🦌';
+    toggle.innerHTML = '<img src="/nacho-deer.svg" alt="" width="32" height="32" style="width:70%;height:70%;object-fit:contain;pointer-events:none;">';
     toggle.title = 'Bring back Nacho';
     toggle.setAttribute('role', 'button');
     toggle.setAttribute('aria-label', 'Bring Nacho back');
@@ -10198,6 +10280,63 @@ window.showCreateListing = function() {
     document.body.appendChild(div.firstChild);
 };
 
+/* stale-username-retry */
+function isStaleUsernameDenial(err) {
+    var code = String((err && err.code) || '');
+    return code === 'permission-denied' || code.indexOf('permission-denied') !== -1;
+}
+function readServerUsername() {
+    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        return Promise.reject(new Error('no profile'));
+    }
+    return Promise.resolve().then(function() {
+        return db.collection('users').doc(auth.currentUser.uid).get({ source: 'server' });
+    }).then(function(doc) {
+        var data = doc && doc.exists ? (doc.data() || {}) : {};
+        return typeof data.username === 'string' ? data.username : '';
+    });
+}
+function rememberServerUsername(name) {
+    if (!name) return;
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = name;
+    try { localStorage.setItem('btc_username', name); } catch (e) {}
+    try {
+        var cached = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (cached && cached.data) {
+            cached.data.username = name;
+            localStorage.setItem('btc_profile_cache', JSON.stringify(cached));
+        }
+    } catch (e2) {}
+}
+function sendWithFreshUsername(write, sentName, onSuccess, onFail) {
+    function attempt(name, retried) {
+        return Promise.resolve().then(function() {
+            return write(name);
+        }).then(function(result) {
+            if (onSuccess) onSuccess(result);
+            return result;
+        }).catch(function(err) {
+            if (retried || !isStaleUsernameDenial(err)) {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            }
+            return readServerUsername().then(function(fresh) {
+                if (!fresh || fresh === name) {
+                    if (onFail) onFail(err);
+                    return Promise.reject(err);
+                }
+                rememberServerUsername(fresh);
+                return attempt(fresh, true);
+            }, function() {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            });
+        });
+    }
+    return attempt(sentName, false);
+}
+/* /stale-username-retry */
+
 // ---- Submit Listing to Firestore ----
 var _lastMktListingTime = 0;
 window.submitListing = function() {
@@ -10282,7 +10421,10 @@ window.submitListing = function() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         };
 
-        db.collection('marketplace').add(listing).then(function() {
+        sendWithFreshUsername(function(name) {
+            listing.sellerName = name;
+            return db.collection('marketplace').add(listing);
+        }, sellerName, function() {
             window._mktUploadedImage = null;
             var overlay = document.getElementById('createListingOverlay');
             if (overlay) overlay.remove();
@@ -10293,7 +10435,7 @@ window.submitListing = function() {
             if (auth && auth.currentUser) refreshMarketListingBadges(auth.currentUser.uid);
             renderMarketplace();
             finishSubmit();
-        }).catch(function(e) {
+        }, function(e) {
             finishSubmit(e);
         });
     }
@@ -13396,6 +13538,8 @@ window.updatePredictionLabel = function() {
 
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
+    var more = document.getElementById('homeMore');
+    if (more && more.hidden) return;
     var el = document.getElementById('explorationMap');
     if (!el) return;
     if (typeof CHANNELS === 'undefined') return;
@@ -13628,15 +13772,6 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
                 .then(function(result) {
                 })
                 .catch(function() {});
-            // GG chat for significant hidden badge milestones
-            var _gcMajorHidden = ['trail_meadow', 'trail_mountain', 'trail_summit', 'lq_graduate'];
-            if (_gcMajorHidden.indexOf(badgeId) !== -1 && typeof window.nachoGlobalAnnounce === 'function') {
-                var _gcUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_gcUser) {
-                    var _gcBadgeEmoji = badgeId === 'trail_meadow' ? '🌿' : badgeId === 'trail_mountain' ? '⛰️' : badgeId === 'trail_summit' ? '🏔️' : '📖';
-                    window.nachoGlobalAnnounce('🏅 @' + _gcUser + ' just completed ' + (toastMsg || badgeId) + '! ' + _gcBadgeEmoji + '🎉');
-                }
-            }
         }
     }
 };
@@ -13646,31 +13781,27 @@ window.awardOrangeTickets = function() {
     return { success: false, awarded: 0, tickets: 0 };
 };
 
-// setFloatingElementsVisible — show/hide floating buttons when sidebar opens
-// Respects fabMinimized state: FAB group buttons stay hidden if user minimized them
+// setFloatingElementsVisible — show/hide floating buttons when the sidebar opens.
+// The More tools toggle hides wherever chat hides. AI Tools, Metrics, and
+// Leaderboard stay collapsed unless that toggle is open. Experience-mode
+// hides (data-em-hidden) are left alone.
 window.setFloatingElementsVisible = function(visible) {
-    var fabMinimized = localStorage.getItem('fabMinimized') === '1';
-    // FAB group — respect user's minimize preference
-    var fabGroupIds = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
-    // Regular floating elements — always follow sidebar show/hide
-    var regularIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom'];
-    regularIds.concat(fabGroupIds).forEach(function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        if (!visible) {
-            el.style.display = 'none';
-        } else if (fabGroupIds.indexOf(id) !== -1) {
-            // Only show FAB group buttons if not minimized
-            el.style.display = fabMinimized ? 'none' : '';
-        } else {
-            el.style.display = '';
-        }
-    });
-    // Keep expand button in sync
-    if (visible) {
+    var showIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','fabExpandBtn'];
+    var toolIds = ['aiToolsBtn','dashboardFloatBtn','lbFloatBtn'];
+    var minBtn = document.getElementById('fabMinimizeBtn');
+    if (minBtn) minBtn.style.setProperty('display', 'none', 'important');
+    if (!visible) {
+        document.body.classList.remove('fab-tools-open');
         var exp = document.getElementById('fabExpandBtn');
-        if (exp) exp.style.display = fabMinimized ? 'flex' : 'none';
+        if (exp) exp.setAttribute('aria-expanded', 'false');
     }
+    showIds.concat(toolIds).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el || el.hasAttribute('data-em-hidden')) return;
+        if (!visible) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+    });
+    if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
 };
 
 // ========== CELEBRATION SYSTEM ==========
@@ -13858,7 +13989,7 @@ function initBottomNav() {
             '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
             '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
             '<button onclick="if(typeof toggleNotifOverlay===\'function\')toggleNotifOverlay()" class="bnav-btn" id="bnavNotif" style="position:relative;"><span class="bnav-icon">🔔</span><span class="bnav-label">Alerts</span><span id="bnavNotifBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
-            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span></button>' +
+            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings" style="position:relative;"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span><span class="whats-new-dot" hidden></span></button>' +
         '</div>';
 
     // Add styles
@@ -13875,6 +14006,7 @@ function initBottomNav() {
     document.head.appendChild(style);
     document.body.appendChild(nav);
     watchBottomNavHeight();
+    if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
 }
 
 // --bnav-h is the nav's height above the safe-area inset. CSS adds
@@ -14329,6 +14461,15 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
     }
 
     el.innerHTML = html;
+    var raidLine = document.getElementById('todayRaidLine');
+    if (raidLine) {
+        if (activeBoss) {
+            raidLine.textContent = '⚔️ Raid: ' + (activeBoss.name || 'Boss') + ' ' + (activeBoss.current || 0) + '/' + (activeBoss.target || 0);
+        } else if (upcomingBoss) {
+            raidLine.textContent = '⚔️ Raid: ' + (upcomingBoss.name || 'soon');
+        }
+        raidLine.hidden = false;
+    }
 
     // Update countdowns every second
     window._raidHomeTimer = setInterval(function() {
@@ -16809,6 +16950,8 @@ var _NEW_COUNTRY_MS = 10 * 24 * 60 * 60 * 1000; // 10 days
 
 /* ───────────────── Public entry point ───────────────── */
 window.renderUserWorldMap = function() {
+    var more = document.getElementById('homeMore');
+    if (more && more.hidden) return;
     var el = document.getElementById('communityWorldMap');
     if (!el) return;
 
@@ -17081,6 +17224,13 @@ document.addEventListener('btcProfileSaved', function() {
     }
 
     function toggleMenu() {
+        // Desktop sidebar is already on screen. Browse topics opens the full list instead.
+        if (!isMobile()) {
+            var existing = document.getElementById('topicsBrowser');
+            if (existing && !existing.hidden) closeTopicsBrowser();
+            else openTopicsBrowser();
+            return;
+        }
         var sidebar = document.getElementById('sidebar');
         if (sidebar) {
             sidebar.classList.toggle('open');
@@ -17090,6 +17240,514 @@ document.addEventListener('btcProfileSaved', function() {
             }
         }
     }
+
+    // Full-screen topics browser. Categories, order, and per-topic state come from
+    // the sidebar DOM. Titles and descriptions come from that DOM plus CHANNELS.
+    var _topicsOpener = null;
+    var _topicsScrollLock = null;
+    var _topicsBrowserCache = null;
+    var _topicsInerted = [];
+    var _topicsPushed = false;
+    var _topicsSwallowPop = false;
+    var _topicsMuting = false;
+    var _topicsHomeWasHidden = false;
+    var _topicsSegmenter = null;
+    var _topicsSegmenterReady = false;
+
+    function topicsSegmenter() {
+        if (_topicsSegmenterReady) return _topicsSegmenter;
+        _topicsSegmenterReady = true;
+        try {
+            if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+                _topicsSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+            }
+        } catch (e) {}
+        return _topicsSegmenter;
+    }
+
+    // Keycap sequences in the sidebar sometimes omit U+FE0F. Insert it only
+    // for the glyph we draw so the title text stays unchanged.
+    function presentKeycap(emoji) {
+        if (!emoji || emoji.indexOf('\u20E3') === -1) return emoji;
+        return String(emoji).replace(/\uFE0F?\u20E3/g, '\uFE0F\u20E3');
+    }
+
+    function isEmojiGrapheme(g) {
+        if (!g || g === '#' || g === '✓' || g === '\u2713') return false;
+        if (g.indexOf('\u20E3') !== -1) return true;
+        try {
+            if (/^\p{Extended_Pictographic}/u.test(g)) return true;
+        } catch (e) {}
+        if (/[\u{1F1E6}-\u{1F1FF}]/u.test(g)) return true;
+        if (/^[\u2100-\u214F\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF\u2B00-\u2BFF\u2900-\u297F\uFE0F\u200D]/u.test(g)) return true;
+        return false;
+    }
+
+    function splitLeadEmoji(text) {
+        var s = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!s) return { emoji: '', rest: '' };
+        var parts = [];
+        var seg = topicsSegmenter();
+        if (seg) {
+            var item;
+            for (item of seg.segment(s)) parts.push(item.segment);
+        } else {
+            parts = [s];
+        }
+        var i = 0;
+        while (i < parts.length && isEmojiGrapheme(parts[i])) i++;
+        if (i > 0) {
+            return { emoji: parts.slice(0, i).join(''), rest: parts.slice(i).join('').replace(/^\s+/, '') };
+        }
+        return { emoji: '', rest: s };
+    }
+
+    function cleanButtonLabel(btn) {
+        var clone = btn.cloneNode(true);
+        var junk = clone.querySelectorAll('.ch-done, .ch-progress, .trail-dot, .ch-lock, .lock-badge, .new-badge, .ch-new, .topic-new, .badge-new');
+        var i;
+        for (i = 0; i < junk.length; i++) junk[i].remove();
+        return (clone.textContent || '').replace(/[✓\u2713]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function readTopicState(btn) {
+        var visited = btn.classList.contains('visited') || !!btn.querySelector('.ch-done');
+        var locked = btn.classList.contains('tier-locked') || btn.classList.contains('locked') || btn.hasAttribute('data-locked') || btn.getAttribute('aria-disabled') === 'true' || !!btn.querySelector('.ch-lock, .lock-badge, [data-locked]');
+        var isNew = btn.classList.contains('is-new') || btn.classList.contains('ch-new') || btn.getAttribute('data-new') === '1' || btn.getAttribute('data-new') === 'true' || !!btn.querySelector('.new-badge, .ch-new, .topic-new, .badge-new');
+        if (!isNew) {
+            var nodes = btn.children;
+            var n;
+            for (n = 0; n < nodes.length; n++) {
+                if ((nodes[n].textContent || '').trim().toLowerCase() === 'new') { isNew = true; break; }
+            }
+        }
+        return { visited: visited, locked: locked, isNew: isNew };
+    }
+
+    function categoryName(label) {
+        var clone = label.cloneNode(true);
+        var arrow = clone.querySelector('.cat-arrow');
+        if (arrow) arrow.remove();
+        return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function readSidebarTopicGroups() {
+        var list = document.getElementById('channelList');
+        var groups = [];
+        if (!list) return groups;
+        var labels = list.querySelectorAll('.cat-label.cat-toggle');
+        var g;
+        for (g = 0; g < labels.length; g++) {
+            var label = labels[g];
+            var group = label.nextElementSibling;
+            if (!group || !group.classList.contains('cat-group')) continue;
+            var buttons = group.querySelectorAll('.ch-btn');
+            var topics = [];
+            var b;
+            for (b = 0; b < buttons.length; b++) {
+                var btn = buttons[b];
+                var match = (btn.getAttribute('onclick') || '').match(/go\(['"]([^'"]+)['"]/);
+                if (!match) continue;
+                var id = match[1];
+                var ch = (typeof CHANNELS !== 'undefined' && CHANNELS) ? CHANNELS[id] : null;
+                var labelText = cleanButtonLabel(btn);
+                var parts = splitLeadEmoji(labelText);
+                var emoji = parts.emoji;
+                var title = parts.rest || labelText;
+                if (!emoji && ch && ch.title) {
+                    var fromChannel = splitLeadEmoji(String(ch.title));
+                    if (fromChannel.emoji) emoji = fromChannel.emoji;
+                }
+                if (!title && ch && ch.title) title = splitLeadEmoji(String(ch.title)).rest;
+                if (!title) title = id;
+                var desc = (ch && ch.desc != null) ? String(ch.desc).trim() : '';
+                var state = readTopicState(btn);
+                topics.push({
+                    id: id,
+                    emoji: emoji,
+                    title: title,
+                    desc: desc,
+                    find: (title + '\n' + id + '\n' + desc).toLowerCase(),
+                    visited: state.visited,
+                    locked: state.locked,
+                    isNew: state.isNew
+                });
+            }
+            if (!topics.length) continue;
+            groups.push({ name: categoryName(label) || 'Topics', topics: topics });
+        }
+        return groups;
+    }
+
+    function topicCardStatus(topic) {
+        var node = document.createElement('span');
+        node.className = 'topic-card-status';
+        if (topic.visited) {
+            var check = document.createElement('span');
+            check.className = 'topic-card-check';
+            check.setAttribute('aria-hidden', 'true');
+            check.textContent = '✓';
+            node.appendChild(check);
+            var checkText = document.createElement('span');
+            checkText.className = 'topic-card-sr';
+            checkText.textContent = 'Completed';
+            node.appendChild(checkText);
+        }
+        if (topic.locked) {
+            var lock = document.createElement('span');
+            lock.className = 'topic-card-lock';
+            lock.setAttribute('aria-hidden', 'true');
+            lock.textContent = '🔒';
+            node.appendChild(lock);
+            var lockText = document.createElement('span');
+            lockText.className = 'topic-card-sr';
+            lockText.textContent = 'Locked';
+            node.appendChild(lockText);
+        }
+        if (topic.isNew) {
+            var badge = document.createElement('span');
+            badge.className = 'topic-card-new';
+            badge.textContent = 'new';
+            node.appendChild(badge);
+        }
+        return node;
+    }
+
+    function renderTopicsBrowser(filter) {
+        var body = document.getElementById('topicsBrowserBody');
+        var live = document.getElementById('topicsBrowserLive');
+        if (!body) return;
+        _topicsMuting = true;
+        var q = String(filter || '').trim().toLowerCase();
+        body.textContent = '';
+        if (!_topicsBrowserCache) _topicsBrowserCache = readSidebarTopicGroups();
+        var groups = _topicsBrowserCache;
+        var shown = 0;
+        var g;
+        for (g = 0; g < groups.length; g++) {
+            var group = groups[g];
+            var section = document.createElement('section');
+            section.className = 'topics-browser-section';
+            var heading = document.createElement('h3');
+            heading.textContent = group.name;
+            var grid = document.createElement('div');
+            grid.className = 'topics-browser-grid';
+            var t;
+            for (t = 0; t < group.topics.length; t++) {
+                var topic = group.topics[t];
+                if (q && topic.find.indexOf(q) === -1) continue;
+                shown++;
+                var card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'topic-card';
+                if (topic.visited) card.classList.add('is-visited');
+                if (topic.locked) card.classList.add('is-locked');
+                if (topic.isNew) card.classList.add('is-new');
+                card.setAttribute('data-topic-id', topic.id);
+                var top = document.createElement('span');
+                top.className = 'topic-card-top';
+                if (topic.emoji) {
+                    var emoji = document.createElement('span');
+                    emoji.className = 'topic-card-emoji';
+                    emoji.setAttribute('aria-hidden', 'true');
+                    emoji.textContent = presentKeycap(topic.emoji);
+                    top.appendChild(emoji);
+                }
+                top.appendChild(topicCardStatus(topic));
+                card.appendChild(top);
+                var title = document.createElement('span');
+                title.className = 'topic-card-title';
+                title.textContent = topic.title;
+                card.appendChild(title);
+                if (topic.desc) {
+                    var desc = document.createElement('span');
+                    desc.className = 'topic-card-desc';
+                    desc.textContent = topic.desc;
+                    card.appendChild(desc);
+                }
+                card.addEventListener('click', (function(id) {
+                    return function() {
+                        closeTopicsBrowser({ fromHistory: true });
+                        if (typeof window.go === 'function') window.go(id);
+                    };
+                })(topic.id));
+                grid.appendChild(card);
+            }
+            if (!grid.childNodes.length) continue;
+            section.appendChild(heading);
+            section.appendChild(grid);
+            body.appendChild(section);
+        }
+        if (!shown) {
+            var empty = document.createElement('p');
+            empty.className = 'topics-browser-empty';
+            empty.textContent = 'No topics match that search.';
+            body.appendChild(empty);
+        }
+        if (live) {
+            live.textContent = shown ? (shown + (shown === 1 ? ' topic' : ' topics')) : 'No topics match that search.';
+        }
+        _topicsMuting = false;
+    }
+
+    function topicsBrowserFocusables(dlg) {
+        var nodes = dlg.querySelectorAll('button, input, a[href], select, textarea, [tabindex]:not([tabindex="-1"])');
+        var out = [];
+        var i;
+        for (i = 0; i < nodes.length; i++) {
+            var el = nodes[i];
+            if (el.disabled || el.getAttribute('aria-hidden') === 'true') continue;
+            if (el.closest('[hidden]')) continue;
+            if (!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)) continue;
+            out.push(el);
+        }
+        return out;
+    }
+
+    function onTopicsBrowserKeydown(e) {
+        var dlg = document.getElementById('topicsBrowser');
+        if (!dlg || dlg.hidden) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeTopicsBrowser();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        var items = topicsBrowserFocusables(dlg);
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        var active = document.activeElement;
+        if (items.indexOf(active) === -1) {
+            e.preventDefault();
+            (e.shiftKey ? last : first).focus();
+            return;
+        }
+        if (e.shiftKey && active === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && active === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function setTopicsBackgroundInert(on) {
+        var i;
+        if (!on) {
+            for (i = 0; i < _topicsInerted.length; i++) {
+                if (_topicsInerted[i]) _topicsInerted[i].removeAttribute('inert');
+            }
+            _topicsInerted = [];
+            return;
+        }
+        var nodes = [document.getElementById('sidebar'), document.getElementById('main'), document.querySelector('.mobile-bar')];
+        _topicsInerted = [];
+        for (i = 0; i < nodes.length; i++) {
+            if (!nodes[i] || nodes[i].hasAttribute('inert')) continue;
+            nodes[i].setAttribute('inert', '');
+            _topicsInerted.push(nodes[i]);
+        }
+    }
+
+    function lockTopicsScroll() {
+        var main = document.getElementById('main');
+        var sidebar = document.getElementById('sidebar');
+        _topicsScrollLock = {
+            html: document.documentElement.style.overflow,
+            body: document.body.style.overflow,
+            main: main ? main.style.overflow : null,
+            sidebar: sidebar ? sidebar.style.overflow : null
+        };
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        if (main) main.style.overflow = 'hidden';
+        if (sidebar) sidebar.style.overflow = 'hidden';
+    }
+
+    function unlockTopicsScroll() {
+        if (!_topicsScrollLock) return;
+        var main = document.getElementById('main');
+        var sidebar = document.getElementById('sidebar');
+        document.documentElement.style.overflow = _topicsScrollLock.html;
+        document.body.style.overflow = _topicsScrollLock.body;
+        if (main && _topicsScrollLock.main !== null) main.style.overflow = _topicsScrollLock.main;
+        if (sidebar && _topicsScrollLock.sidebar !== null) sidebar.style.overflow = _topicsScrollLock.sidebar;
+        _topicsScrollLock = null;
+    }
+
+    function ensureTopicsBrowser() {
+        var dlg = document.getElementById('topicsBrowser');
+        if (dlg) return dlg;
+        dlg = document.createElement('div');
+        dlg.id = 'topicsBrowser';
+        dlg.hidden = true;
+        dlg.setAttribute('role', 'dialog');
+        dlg.setAttribute('aria-modal', 'true');
+        dlg.setAttribute('aria-labelledby', 'topicsBrowserTitle');
+        var bar = document.createElement('div');
+        bar.className = 'topics-browser-bar';
+        var title = document.createElement('h2');
+        title.id = 'topicsBrowserTitle';
+        title.textContent = 'Browse topics';
+        var search = document.createElement('input');
+        search.type = 'search';
+        search.id = 'topicsBrowserSearch';
+        search.className = 'topics-browser-search';
+        search.placeholder = 'Filter topics';
+        search.setAttribute('aria-label', 'Filter topics by title, description, or id');
+        search.setAttribute('aria-controls', 'topicsBrowserBody');
+        search.autocomplete = 'off';
+        search.autocorrect = 'off';
+        search.spellcheck = false;
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.id = 'topicsBrowserClose';
+        closeBtn.className = 'topics-browser-close';
+        closeBtn.setAttribute('aria-label', 'Close topics');
+        closeBtn.textContent = 'Close';
+        var live = document.createElement('div');
+        live.id = 'topicsBrowserLive';
+        live.className = 'topic-card-sr';
+        live.setAttribute('aria-live', 'polite');
+        var body = document.createElement('div');
+        body.id = 'topicsBrowserBody';
+        body.className = 'topics-browser-body';
+        bar.appendChild(title);
+        bar.appendChild(search);
+        bar.appendChild(closeBtn);
+        dlg.appendChild(bar);
+        dlg.appendChild(live);
+        dlg.appendChild(body);
+        document.body.appendChild(dlg);
+        search.addEventListener('input', function() {
+            renderTopicsBrowser(search.value);
+        });
+        closeBtn.addEventListener('click', function() { closeTopicsBrowser(); });
+        dlg.addEventListener('keydown', onTopicsBrowserKeydown, true);
+        return dlg;
+    }
+
+    function topicsBrowserIsOpen() {
+        var dlg = document.getElementById('topicsBrowser');
+        return !!(dlg && !dlg.hidden);
+    }
+
+    function topicsElementShown(el) {
+        if (!el || el.hidden) return false;
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    function topicsForeignSurface() {
+        var home = document.getElementById('home');
+        if (home && home.classList.contains('hidden') && !_topicsHomeWasHidden) return true;
+        var search = document.getElementById('searchOverlay');
+        if (search && search.getAttribute('data-open') === '1' && topicsElementShown(search)) return true;
+        var ids = ['usernameModal', 'questModal', 'leaderboard', 'tosModal', 'questHubOverlay', 'guideOverlay', 'onboardingOverlay', 'pvpNameOverlay', 'pvpOverlay', 'tipOverlay', 'donateModal', 'lnAuthModal', 'nostrAuthOverlay', 'spinModal', 'nachoModeScreen', 'lb'];
+        var i;
+        for (i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el || !topicsElementShown(el)) continue;
+            if (el.classList.contains('open') || el.getAttribute('data-open') === '1' || ids[i] === 'lb' || el.id.indexOf('Overlay') !== -1 || el.id.indexOf('Modal') !== -1 || el.id === 'nachoModeScreen' || el.id === 'spinModal') return true;
+        }
+        var dialogs = document.querySelectorAll('[role="dialog"]');
+        for (i = 0; i < dialogs.length; i++) {
+            var d = dialogs[i];
+            if (!d || d.id === 'topicsBrowser' || (d.closest && d.closest('#topicsBrowser'))) continue;
+            if (topicsElementShown(d)) return true;
+        }
+        return false;
+    }
+
+    function topicsYieldIfCovered() {
+        if (_topicsMuting || !topicsBrowserIsOpen()) return;
+        if (topicsForeignSurface()) closeTopicsBrowser({ fromHistory: true });
+    }
+
+    function ensureTopicsYieldWatch() {
+        if (window._topicsYieldWatch) return;
+        var queued = false;
+        window._topicsYieldWatch = new MutationObserver(function() {
+            if (queued || _topicsMuting || !topicsBrowserIsOpen()) return;
+            queued = true;
+            Promise.resolve().then(function() {
+                queued = false;
+                topicsYieldIfCovered();
+            });
+        });
+        window._topicsYieldWatch.observe(document.body, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'hidden', 'data-open']
+        });
+    }
+
+    function openTopicsBrowser() {
+        if (isMobile()) return;
+        var home = document.getElementById('home');
+        _topicsHomeWasHidden = !!(home && home.classList.contains('hidden'));
+        var dlg = ensureTopicsBrowser();
+        ensureTopicsYieldWatch();
+        var opener = document.activeElement;
+        _topicsOpener = (opener && opener !== document.body && typeof opener.focus === 'function') ? opener : document.getElementById('homeLearnBrowse');
+        _topicsBrowserCache = null;
+        var search = document.getElementById('topicsBrowserSearch');
+        if (search) search.value = '';
+        renderTopicsBrowser('');
+        dlg.hidden = false;
+        setTopicsBackgroundInert(true);
+        lockTopicsScroll();
+        if (!_topicsPushed) {
+            try {
+                history.pushState({ topicsBrowser: true }, '', window.location.href);
+                _topicsPushed = true;
+            } catch (err) {}
+        }
+        var focusTarget = search || document.getElementById('topicsBrowserClose');
+        if (focusTarget) focusTarget.focus();
+    }
+
+    function closeTopicsBrowser(opts) {
+        opts = opts || {};
+        var dlg = document.getElementById('topicsBrowser');
+        if (!dlg || dlg.hidden) return;
+        dlg.hidden = true;
+        setTopicsBackgroundInert(false);
+        unlockTopicsScroll();
+        _topicsBrowserCache = null;
+        var back = _topicsOpener;
+        _topicsOpener = null;
+        var pushed = _topicsPushed;
+        _topicsPushed = false;
+        if (pushed && !opts.fromHistory) {
+            _topicsSwallowPop = true;
+            try { history.back(); } catch (err) { _topicsSwallowPop = false; }
+        }
+        var target = (back && document.contains(back)) ? back : document.getElementById('homeLearnBrowse');
+        if (target && typeof target.focus === 'function') {
+            try { target.focus(); } catch (err) {}
+        }
+    }
+
+    window.addEventListener('resize', function() {
+        if (!isMobile()) return;
+        if (topicsBrowserIsOpen()) closeTopicsBrowser();
+    });
+
+    window.addEventListener('hashchange', function() {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
+    });
+
+    window.addEventListener('popstate', function(e) {
+        if (!_topicsPushed && !_topicsSwallowPop) return;
+        var open = topicsBrowserIsOpen();
+        _topicsSwallowPop = false;
+        _topicsPushed = false;
+        if (open) closeTopicsBrowser({ fromHistory: true });
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }, true);
 
     function toggleSidebarCollapse() {
         var sidebar = document.getElementById('sidebar');
@@ -20041,6 +20699,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         window.currentPage = 'home';
         window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
@@ -20177,7 +20836,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const lastCh = localStorage.getItem('btc_last_channel');
         if (lastCh && CHANNELS[lastCh]) {
             const meta = CHANNELS[lastCh];
-            el.style.display = 'block';
+            el.style.display = 'none';
             el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\''+ lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
                 '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:800;margin-bottom:6px;">📖 Continue Reading</div>' +
                 '<div style="color:var(--heading);font-size:1.05rem;font-weight:700;margin-bottom:2px;">' + meta.title + '</div>' +
@@ -20185,7 +20844,113 @@ window.nachoQuizAnswer = function(btn, correct) {
         } else {
             el.style.display = 'none';
         }
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
+
+    function homeLearnTitle(id) {
+        var wanted = "go('" + id + "'";
+        var nodes = document.querySelectorAll('.ch-btn');
+        for (var i = 0; i < nodes.length; i++) {
+            var oc = nodes[i].getAttribute('onclick') || '';
+            if (oc.indexOf(wanted) !== -1) {
+                var text = (nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) return text;
+            }
+        }
+        if (typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].title) {
+            return String(CHANNELS[id].title).trim();
+        }
+        return '';
+    }
+    window.paintHomeLearnCard = function() {
+        var title = document.getElementById('homeLearnTitle');
+        if (!title) return;
+        var last = '';
+        try { last = localStorage.getItem('btc_last_channel') || ''; } catch (e) {}
+        var kicker = document.getElementById('homeLearnKicker');
+        var desc = document.getElementById('homeLearnDesc');
+        function paintChannel(id, daily) {
+            var name = homeLearnTitle(id);
+            if (kicker) kicker.textContent = 'LEARN · CONTINUE';
+            title.textContent = name || 'Learn Bitcoin';
+            if (desc) desc.textContent = daily ? 'Channel of the day' : ((typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].cat) || 'Continue reading');
+            window._homeLearnId = name ? id : '';
+        }
+        if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
+            paintChannel(last, false);
+            return;
+        }
+        var daily = window._channelOfTheDay;
+        if (daily && typeof CHANNELS !== 'undefined' && CHANNELS[daily]) {
+            paintChannel(daily, true);
+            return;
+        }
+        if (kicker) kicker.textContent = 'LEARN';
+        title.textContent = 'Learn Bitcoin';
+        if (desc) desc.textContent = 'Pick a topic and start reading';
+        window._homeLearnId = '';
+    };
+    window.openHomeLearn = function() {
+        if (window._homeLearnId && typeof go === 'function') {
+            go(window._homeLearnId);
+            return;
+        }
+        if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
+        else if (typeof toggleMenu === 'function') toggleMenu();
+    };
+    window.ensureIntroVideo = function(play) {
+        var video = document.getElementById('introVideo');
+        if (!video) return;
+        if (!video.querySelector('source')) {
+            var src = video.getAttribute('data-src');
+            if (src) {
+                var source = document.createElement('source');
+                source.src = src;
+                source.type = 'video/mp4';
+                video.appendChild(source);
+                video.load();
+            }
+        }
+        if (play && video.play) video.play().catch(function() {});
+    };
+    window.toggleHomeMore = function() {
+        var more = document.getElementById('homeMore');
+        var btn = document.getElementById('homeMoreToggle');
+        if (!more) return;
+        var open = !!more.hidden;
+        more.hidden = !open;
+        window._homeMoreOpen = open;
+        if (btn) {
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.textContent = open ? 'More ▾' : 'More ▸';
+        }
+        if (open) {
+            var videoSection = document.getElementById('introVideoSection');
+            var videoHidden = videoSection && videoSection.getAttribute('data-simplified-hidden') === '1' && !window._forceIntroVideo;
+            if (!videoHidden) window.ensureIntroVideo(!!window._forceIntroVideo);
+            if (typeof renderExplorationMap === 'function') renderExplorationMap();
+            if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
+        }
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+    };
+    window.watchIntroVideo = function() {
+        window._forceIntroVideo = true;
+        var section = document.getElementById('introVideoSection');
+        if (section) {
+            section.style.display = '';
+            section.removeAttribute('data-simplified-hidden');
+            var full = document.getElementById('introVideoFull');
+            var mini = document.getElementById('introVideoMini');
+            if (full) full.style.display = '';
+            if (mini) mini.style.display = 'none';
+        }
+        var more = document.getElementById('homeMore');
+        if (more && more.hidden) window.toggleHomeMore();
+        else window.ensureIntroVideo(true);
+        if (section && section.scrollIntoView) {
+            try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { section.scrollIntoView(true); }
+        }
+    };
 
     // Keyboard shortcuts (desktop) — MMORPG style!
     document.addEventListener('keydown', function(e) {
@@ -20238,8 +21003,15 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === 'j') { document.getElementById('main').scrollBy({ top: 300, behavior: 'smooth' }); return; }
         // K = scroll up
         if (key === 'k') { document.getElementById('main').scrollBy({ top: -300, behavior: 'smooth' }); return; }
-        // Space = page down (unless in modal)
-        if (key === ' ') { e.preventDefault(); document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }); return; }
+        // Space = page down, unless a button or link is focused so Space can activate it
+        if (key === ' ') {
+            var spaceTag = e.target && e.target.tagName;
+            var spaceRole = e.target && e.target.getAttribute && e.target.getAttribute('role');
+            if (spaceTag === 'BUTTON' || spaceTag === 'A' || spaceTag === 'SELECT' || spaceTag === 'SUMMARY' || spaceRole === 'button') return;
+            e.preventDefault();
+            document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+            return;
+        }
 
         // === Info ===
         // ? = show keyboard shortcuts help
@@ -20821,6 +21593,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         if (id === 'questhub' || id === 'raid' || id === 'raid-hub') {
             if (typeof window.openRaidHub === 'function') window.openRaidHub();
             else if (typeof showQuestHub === 'function') {
@@ -21790,13 +22563,17 @@ window.nachoQuizAnswer = function(btn, correct) {
         const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
         const dailyKey = keys[dayOfYear % keys.length];
         const ch = CHANNELS[dailyKey];
+        window._channelOfTheDay = dailyKey;
         if (ch) {
             const el = document.getElementById('dailyChannel');
-            el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
-                '<div class="daily-title">' + ch.title + '</div>' +
-                '<div class="daily-desc">' + ch.desc + '</div>';
-            el.onclick = () => go(dailyKey);
+            if (el) {
+                el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
+                    '<div class="daily-title">' + ch.title + '</div>' +
+                    '<div class="daily-desc">' + ch.desc + '</div>';
+                el.onclick = () => go(dailyKey);
+            }
         }
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     })();
 
     // Daily Bitcoin quote
@@ -21907,7 +22684,10 @@ if (locked) {
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
                         _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
                         appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
-                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : ''
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : '',
+                        appBtn('🤖', 'AI Tools', "if(typeof toggleAITools==='function')toggleAITools()", false),
+                        appBtn('📊', 'Metrics', "if(typeof toggleDashboard==='function')toggleDashboard()", false),
+                        appBtn('🏆', 'Leaderboard', "if(typeof toggleLeaderboard==='function')toggleLeaderboard()", false)
                     ];
                     return _all.join('');
                 })() +
@@ -22558,6 +23338,8 @@ if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
 if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
 if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
 if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
+if (typeof openTopicsBrowser !== 'undefined') window.openTopicsBrowser = openTopicsBrowser;
+if (typeof closeTopicsBrowser !== 'undefined') window.closeTopicsBrowser = closeTopicsBrowser;
 if (typeof toggleSidebarCollapse !== 'undefined') window.toggleSidebarCollapse = toggleSidebarCollapse;
 if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
@@ -26141,14 +26923,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     // IDs to hide per mode
     var HIDE_IDS = {
         beginner: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailySpinBanner', 'em-quick-actions',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'
         ],
         intermediate: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'
@@ -26186,8 +26968,8 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
     function applyMode(mode) {
         _restoreAll();
-        if (!mode || mode === 'advanced') return;
-        applyDynamic(mode);
+        if (mode && mode !== 'advanced') applyDynamic(mode);
+        if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
     }
 
     function run() {
@@ -26364,7 +27146,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
+        // Desktop Explore Apps matches mobile #appsMenu. Beginner hides Proof of
+        // Play, Pleb Talk, Lightning Mart, IRL Sync, Bitcoin Beats, and Proof of
+        // Walk. AI Tools, Metrics, and Leaderboard stay for beginner, intermediate,
+        // and advanced (data-app-modes on those three cards).
         var APPS_HIDE_ONCLICK = {
             beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
             intermediate: []
@@ -26393,8 +27178,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         var appsMenu = document.getElementById('homeAppsMenu');
         if (appsMenu) {
             appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var modes = btn.getAttribute('data-app-modes');
+                var shouldHide;
+                if (modes) {
+                    shouldHide = modes.split(/\s+/).indexOf(mode) === -1;
+                } else {
+                    var oc = btn.getAttribute('onclick') || '';
+                    shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                }
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';
