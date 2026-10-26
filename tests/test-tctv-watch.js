@@ -415,9 +415,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2365'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2370'"));
     assert.ok(!sw.includes('btc-archive-v2371'));
-    assert.ok(!sw.includes('btc-archive-v2370'));
+    assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2369'));
     assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2367'));
@@ -788,7 +788,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.';
+    const latest = 'Latest: On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
     const favor = 'Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.';
     const deleted = 'You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.';
     const topicLinks = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
@@ -804,6 +804,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.'));
+    assert.ok(!notes.includes('Latest: The home page is simpler'));
     assert.ok(notes.includes(favor));
     assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes(deleted));
