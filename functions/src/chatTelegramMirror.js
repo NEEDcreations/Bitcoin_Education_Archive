@@ -250,8 +250,8 @@ function messageSkipReason(data, collection) {
     return '';
 }
 
-function contentSkipReason(body) {
-    const result = moderateText(body, { strict: true });
+function contentSkipReason(body, displayName) {
+    const result = moderateText(body, { strict: true, displayName: displayName });
     if (result.clean) return '';
     if (result.reason === 'Content contains potential scam patterns') return 'scam';
     return 'profanity';
@@ -262,7 +262,7 @@ function contentSkipReason(body) {
 function publicMirrorName(data) {
     const name = mirrorName(data);
     if (!name || name === '🦌 Nacho' || name === 'Someone' || name === 'A player') return name;
-    const hit = moderateText(name, { strict: true });
+    const hit = moderateText(name, { strict: true, displayName: true });
     if (!hit.clean) return 'A player';
     return name;
 }
@@ -329,7 +329,7 @@ function decideMirror(input) {
     // Leading @ only. Then filter the text that would actually be sent.
     const name = stripLeadingMentions(publicMirrorName(data));
     const sent = stripLeadingMentions(flat);
-    const outgoingReason = contentSkipReason(sent) || contentSkipReason(name + ' ' + sent);
+    const outgoingReason = contentSkipReason(sent) || contentSkipReason(name + ' ' + sent, name);
     if (outgoingReason) return { forward: false, reason: outgoingReason };
     const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + sent;
     return { forward: true, reason: '', line: escapeHtml(line), name: name };

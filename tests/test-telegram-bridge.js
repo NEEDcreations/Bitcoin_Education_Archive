@@ -397,6 +397,11 @@ test('the backfill script is dry-run unless --apply and only accepts shoutouts',
     assert.ok(src.indexOf('ADMIN_TOKEN') !== -1);
     assert.ok(src.indexOf('--apply') !== -1);
     assert.ok(src.indexOf('dry-run') !== -1);
+    assert.ok(src.indexOf('filter=') !== -1);
+    assert.strictEqual(cli.filterResult('Shoutout to phil', 'Shoutout to phil'), 'clean');
+    const hidden = ['f', '@', 'u', '@', 'c', '@', 'k'].join('');
+    assert.strictEqual(cli.filterResult('note ' + hidden, 'note ' + hidden), 'profanity');
+    assert.strictEqual(cli.filterResult('send 0.01 btc to bc1qxyz', 'send 0.01 btc to bc1qxyz'), 'scam');
 });
 
 Promise.all(queue).then(function() {
