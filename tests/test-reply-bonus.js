@@ -654,8 +654,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2403'"));
     assert.ok(!swText.includes('btc-archive-v2377'));
     assert.ok(!swText.includes('btc-archive-v2376'));
-    assert.ok(!swText.includes('btc-archive-v2374'));
     assert.ok(!swText.includes('btc-archive-v2375'));
+    assert.ok(!swText.includes('btc-archive-v2374'));
     assert.ok(!swText.includes('btc-archive-v2373'));
     assert.ok(!swText.includes('btc-archive-v2372'));
     assert.ok(!swText.includes('btc-archive-v2371'));

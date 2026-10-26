@@ -1,6 +1,6 @@
 // Cache-buster pin. This ship branch is btc-archive-v2403.
-// Live gh-pages is v2374. timechain-tv.js stays 20261024_v2353.
-// bundle.min.js, onboarding.js and ranking.js are 20261026_v2373.
+// Live gh-pages is v2375. timechain-tv.js stays 20261024_v2353.
+// bundle.min.js, onboarding.js and ranking.js stay 20261026_v2373.
 // global-chat.js and quests.js stay 20261026_v2372.
 // satoshi-favor.js stays 20261026_v2368.
 // today-card.js stays 20261026_v2371.
@@ -36,8 +36,8 @@ test('service worker cache is v2403', () => {
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2403'"));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
-    assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2375'));
+    assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2371'));
@@ -307,6 +307,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Encrypted account backups keep email addresses, phone numbers, and password hashes for 90 days.'));
+    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar topic names'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
     assert.ok(!notes.includes('Latest: Opening gifts'));
     assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));
