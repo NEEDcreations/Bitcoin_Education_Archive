@@ -12,7 +12,7 @@
 // The token is never logged. Images are a public https link or "[image]";
 // nothing is re-uploaded.
 
-const { toTelegramText, redactForLog } = require('./telegramBridge');
+const { toTelegramText, redactForLog, stripLeadingMentions } = require('./telegramBridge');
 const { moderationBlock } = require('./topicDiscussion');
 const { moderateText } = require('./moderateText');
 
@@ -74,14 +74,6 @@ function neutralizePings(value) {
     return String(value == null ? '' : value)
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
         .replace(/@(everyone|here|channel|all)\b/gi, '$1');
-}
-
-// Applied to the outgoing line only, after moderation. @ still folds to "a"
-// inside the filter, and a shoutout's toTelegramText keeps its @name.
-function stripHandles(value) {
-    return String(value == null ? '' : value)
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .replace(/[\uFF20@]+(?=[A-Za-z0-9_])/g, '');
 }
 
 function stripContacts(value) {
@@ -334,8 +326,12 @@ function decideMirror(input) {
     const flat = collapseSpace(flattenLines(body));
     const contentReason = contentSkipReason(body) || contentSkipReason(flat);
     if (contentReason) return { forward: false, reason: contentReason };
-    const name = stripHandles(publicMirrorName(data));
-    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + stripHandles(flat);
+    // Leading @ only. Then filter the text that would actually be sent.
+    const name = stripLeadingMentions(publicMirrorName(data));
+    const sent = stripLeadingMentions(flat);
+    const outgoingReason = contentSkipReason(sent) || contentSkipReason(name + ' ' + sent);
+    if (outgoingReason) return { forward: false, reason: outgoingReason };
+    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + sent;
     return { forward: true, reason: '', line: escapeHtml(line), name: name };
 }
 

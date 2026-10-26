@@ -14,6 +14,15 @@
 
 const { unwrapProfileSpans } = require('./moderateText');
 
+// Only an @ that starts a word. n@igger stays intact so a later strip cannot
+// spell the slur into the public group. Shoutout payloads use this on the
+// Telegram copy; the in-app string is left alone.
+function stripLeadingMentions(value) {
+    return String(value == null ? '' : value)
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/(^|[^\p{L}\p{N}_])[\uFF20@]+(?=[A-Za-z0-9_])/gu, '$1');
+}
+
 const DEFAULT_BRIDGE_URL = 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
 const DEFAULT_TIMEOUT_MS = 5000;
 // Normal chat posts can carry a photo. They keep a long timeout so moving
@@ -71,7 +80,7 @@ function toTelegramText(text) {
 function buildNachoBridgePayload(text) {
     return {
         user: NACHO_BRIDGE_USER,
-        text: toTelegramText(text),
+        text: stripLeadingMentions(toTelegramText(text)),
         source: 'server',
         uid: NACHO_BRIDGE_UID,
     };
@@ -309,6 +318,7 @@ module.exports = {
     NACHO_BRIDGE_UID: NACHO_BRIDGE_UID,
     redactForLog: redactForLog,
     toTelegramText: toTelegramText,
+    stripLeadingMentions: stripLeadingMentions,
     buildNachoBridgePayload: buildNachoBridgePayload,
     buildWebBridgePayload: buildWebBridgePayload,
     shouldMirrorShoutout: shouldMirrorShoutout,

@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2368" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2382" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -475,8 +475,9 @@
         /* FAB minimize/expand controls */
         #fabMinimizeBtn { position:fixed; right:240px; bottom:10px; z-index:200001; width:24px; height:24px; border-radius:50%; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.38); font-size:0.95rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:opacity 0.15s, background 0.15s; }
         #fabMinimizeBtn:hover { background:rgba(255,255,255,0.13); color:rgba(255,255,255,0.6); }
-        #fabExpandBtn { position:fixed; right:16px; bottom:10px; z-index:200003; width:34px; height:34px; border-radius:50%; border:1px solid rgba(247,147,26,0.22); background:rgba(247,147,26,0.09); color:rgba(255,255,255,0.38); font-size:0.75rem; cursor:pointer; display:none; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); transition:opacity 0.15s, background 0.15s; }
-        #fabExpandBtn:hover { background:rgba(247,147,26,0.2); color:rgba(255,255,255,0.6); }
+        #fabExpandBtn { position:fixed; right:calc(16px + 48px + 10px); bottom:calc(10px + (48px - 44px) / 2); z-index:200003; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; border-radius:50%; border:1px solid rgba(247,147,26,0.45); background:rgba(15,23,42,0.92); color:#fff; font-size:1.35rem; font-family:inherit; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); transition:background 0.15s, color 0.15s; box-shadow:0 4px 16px rgba(0,0,0,0.35); }
+        #fabExpandBtn:hover, #fabExpandBtn[aria-expanded="true"] { background:rgba(247,147,26,0.28); color:#fff; }
+        #fabExpandBtn:focus-visible { outline:2px solid #f7931a; outline-offset:2px; }
 
         /* Phones and tablets: the row clears the real bottom nav.
            --bnav-h is the nav height above the safe-area inset (measured).
@@ -513,10 +514,13 @@
                 bottom: calc(var(--fab-bottom) + (var(--fab-size) - var(--fab-min)) / 2) !important;
             }
             #fabExpandBtn {
-                width: 44px;
-                height: 44px;
-                right: var(--fab-edge) !important;
-                bottom: var(--fab-bottom) !important;
+                display: flex !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px;
+                min-height: 44px;
+                right: calc(var(--fab-edge) + (var(--fab-size) + var(--fab-space)) * 2) !important;
+                bottom: calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2) !important;
             }
             #floatingRandomBtn { bottom: var(--fab-bottom) !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             #mobileSearchBtn { bottom: var(--fab-bottom) !important; }
@@ -763,9 +767,12 @@
         .daily-xp-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px; }
         .daily-xp-mark-full { left: 50%; }
         .daily-xp-mark-half { left: 90%; }
-        .daily-xp-scale { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 0.75em; row-gap: 0.2em; height: auto; min-height: 1.2em; margin-top: 4px; font-size: 0.65rem; font-weight: 700; color: #94a3b8; }
-        .daily-xp-scale span { position: static; transform: none; white-space: nowrap; }
-        .daily-xp-scale span:nth-child(2), .daily-xp-scale span:nth-child(3) { color: #e2e8f0; }
+        .daily-xp-scale { position: relative; height: 16px; margin-top: 4px; font-size: 0.65rem; font-weight: 700; color: #94a3b8; }
+        .daily-xp-scale span { white-space: nowrap; }
+        .daily-xp-scale span:first-child { position: absolute; left: 0; }
+        .daily-xp-scale span:nth-child(2) { position: absolute; left: 50%; transform: translateX(-50%); color: #e2e8f0; }
+        .daily-xp-scale span:nth-child(3) { position: absolute; left: 90%; transform: translateX(-100%); padding-right: 6px; color: #e2e8f0; }
+        .daily-xp-scale span:last-child { position: absolute; right: 0; }
         #todayCard:focus { outline: none; }
         #todayCard:focus-visible, #todayCard button:focus-visible { outline: 2px solid var(--accent, #f7931a); outline-offset: 2px; }
         #todayCard.today-highlight { box-shadow: 0 0 0 2px #f7931a, 0 0 28px rgba(247,147,26,0.45); }
@@ -777,20 +784,15 @@
         #todayFavorCountdown { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 0.9rem; background: transparent; border-radius: 0; padding: 0; white-space: nowrap; }
         #todayFavorCountdown:not([hidden])::before { content: '⏱ '; }
         #todayFavorCountdown[hidden] { display: none !important; }
-        #todayEarnFavor { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
-        #todayEarnFavor:hover { filter: brightness(1.08); }
         #todayFavorStrip.is-favor-active { position: relative; overflow: hidden; animation: todayFavorPulse 2s ease-in-out infinite; }
         #todayFavorStrip.is-favor-active > * { position: relative; z-index: 1; }
         #todayFavorStrip.is-favor-active::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(110deg, transparent 32%, rgba(255,255,255,0.22) 50%, transparent 68%); transform: translateX(-130%); animation: todayFavorShimmer 2s ease-in-out infinite; }
-        #todayEarnFavor.is-favor-active { animation: todayEarnPulse 2s ease-in-out infinite; }
         @keyframes todayFavorPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 150, 0); transform: scale(1); } 50% { box-shadow: 0 0 22px 4px rgba(255, 220, 160, 0.55); transform: scale(1.012); } }
         @keyframes todayFavorShimmer { 0%, 100% { transform: translateX(-130%); } 55% { transform: translateX(130%); } }
-        @keyframes todayEarnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); box-shadow: 0 0 12px rgba(255, 220, 160, 0.45); } }
         @media (prefers-reduced-motion: reduce) {
-            #todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after, #todayEarnFavor.is-favor-active { animation: none; }
+            #todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after { animation: none; }
             #todayFavorStrip.is-favor-active { box-shadow: 0 0 18px 2px rgba(255, 220, 160, 0.5); transform: none; }
             #todayFavorStrip.is-favor-active::after { display: none; }
-            #todayEarnFavor.is-favor-active { transform: none; box-shadow: 0 0 10px rgba(255, 220, 160, 0.4); }
         }
         .today-body { padding: 12px 12px 14px; }
         .today-check-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 2px 8px; }
@@ -1016,9 +1018,37 @@
     .home-learn-title { font-size:1.25rem; font-weight:900; color:#fff; margin:4px 0; }
     .home-learn-desc { color:#94a3b8; font-size:0.85rem; margin-bottom:12px; }
     .home-learn-actions { display:flex; gap:8px; }
-    .home-learn-go, .home-learn-browse { flex:1; border-radius:12px; padding:12px; font-family:inherit; cursor:pointer; font-weight:800; touch-action:manipulation; }
+    .home-learn-go, .home-learn-browse { flex:1; border-radius:12px; padding:12px; font-family:inherit; cursor:pointer; font-weight:800; touch-action:manipulation; min-height:44px; }
     .home-learn-go { background:#f7931a; color:#fff; border:none; }
     .home-learn-browse { background:transparent; color:#e2e8f0; border:1px solid #334155; font-weight:700; }
+    .home-learn-go:focus-visible, .home-learn-browse:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+
+    #topicsBrowser { position:fixed; inset:0; z-index:2100000; display:flex; flex-direction:column; background:var(--bg); color:var(--text); }
+    #topicsBrowser[hidden] { display:none !important; }
+    @media (max-width: 900px) { #topicsBrowser { display:none !important; } }
+    .topics-browser-bar { position:sticky; top:0; z-index:2; flex:0 0 auto; display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-side); border-bottom:1px solid var(--border); }
+    #topicsBrowserTitle { margin:0; font-size:1.05rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; color:var(--accent); }
+    .topics-browser-search { flex:1 1 180px; min-width:0; min-height:44px; padding:10px 14px; background:var(--input-bg); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:16px; font-family:inherit; }
+    .topics-browser-search::placeholder { color:var(--text-faint); }
+    .topics-browser-close { flex:0 0 auto; min-width:44px; min-height:44px; height:44px; padding:0 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-weight:800; font-family:inherit; cursor:pointer; }
+    .topics-browser-search:focus-visible, .topics-browser-close:focus-visible, .topic-card:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+    .topics-browser-close:hover, .topic-card:hover { border-color:var(--accent); }
+    .topics-browser-body { flex:1 1 auto; overflow:auto; overscroll-behavior:contain; padding:8px 20px 48px; }
+    .topics-browser-section { margin-top:28px; }
+    .topics-browser-section h3 { margin:0 0 12px; font-size:0.75rem; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); }
+    .topics-browser-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+    .topic-card { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-height:44px; width:100%; padding:14px; text-align:left; background:var(--bg-side); border:1px solid var(--border); border-radius:14px; color:var(--text); font-family:inherit; cursor:pointer; }
+    .topic-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; }
+    .topic-card-emoji { font-size:1.6rem; line-height:1; }
+    .topic-card-status { display:flex; align-items:center; gap:6px; margin-left:auto; }
+    .topic-card-title { font-size:0.95rem; font-weight:800; color:var(--heading); line-height:1.3; }
+    .topic-card-desc { font-size:0.8rem; line-height:1.4; color:var(--text-muted); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    .topic-card-check { color:#22c55e; font-weight:800; font-size:0.95rem; }
+    .topic-card-lock { font-size:0.95rem; }
+    .topic-card-new { background:var(--accent); color:#fff; font-size:0.65rem; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; border-radius:999px; padding:2px 8px; line-height:1.4; }
+    .topic-card.is-locked { opacity:0.72; }
+    .topics-browser-empty { margin:32px 0; color:var(--text-muted); font-weight:700; }
+    .topic-card-sr { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     #homeMoreToggle { width:100%; margin:0 0 12px; padding:12px 14px; background:transparent; border:1px dashed #334155; border-radius:12px; color:#94a3b8; font-weight:800; font-family:inherit; cursor:pointer; text-align:left; }
     #homeMore[hidden] { display:none !important; }
     .daily-xp-rates { margin:4px 0 0; font-size:0.68rem; color:#94a3b8; font-weight:700; text-align:left; }
@@ -1028,12 +1058,47 @@
     #todayRaidLine::before { content:'· '; }
     #todayRaidLine[hidden] { display:none !important; }
     #raidBossHomeCard, #continueReading, #dailyChannel { display:none !important; }
-    #aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn, #fabMinimizeBtn, #fabExpandBtn, #mobileSearchBtn { display:none !important; }
+    #fabMinimizeBtn, #mobileSearchBtn { display:none !important; }
+    /* Collapsed by default. !important beats inline display:flex from leaderboard close. */
+    #aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn { display:none !important; }
+    @media (min-width: 901px) {
+        #chatOverlayBtn { right:16px !important; bottom:10px !important; }
+        body.fab-tools-open #aiToolsBtn,
+        body.fab-tools-open #dashboardFloatBtn,
+        body.fab-tools-open #lbFloatBtn {
+            display:flex !important;
+            right:calc(16px + 48px + 10px) !important;
+            width:48px !important;
+            height:48px !important;
+            z-index:200004;
+        }
+        body.fab-tools-open #lbFloatBtn { bottom:calc(10px + (48px - 44px) / 2 + 44px + 10px) !important; }
+        body.fab-tools-open #dashboardFloatBtn { bottom:calc(10px + (48px - 44px) / 2 + 44px + 10px + 48px + 10px) !important; }
+        body.fab-tools-open #aiToolsBtn { bottom:calc(10px + (48px - 44px) / 2 + 44px + 10px + (48px + 10px) * 2) !important; }
+    }
     @media (max-width: 900px) {
         .home-page { padding:12px 12px calc(72px + env(safe-area-inset-bottom, 0px)); }
         #chatOverlayBtn { right:calc(var(--fab-edge) + var(--fab-size) + var(--fab-space)) !important; }
         #nacho-toggle { right:var(--fab-edge) !important; left:auto !important; bottom:var(--fab-bottom) !important; width:var(--fab-size) !important; height:var(--fab-size) !important; }
+        body.fab-tools-open #aiToolsBtn,
+        body.fab-tools-open #dashboardFloatBtn,
+        body.fab-tools-open #lbFloatBtn {
+            display:flex !important;
+            right:calc(var(--fab-edge) + (var(--fab-size) + var(--fab-space)) * 2) !important;
+            z-index:200004;
+        }
+        body.fab-tools-open #lbFloatBtn { bottom:calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2 + 44px + var(--fab-space)) !important; }
+        body.fab-tools-open #dashboardFloatBtn { bottom:calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2 + 44px + var(--fab-space) + var(--fab-size) + var(--fab-space)) !important; }
+        body.fab-tools-open #aiToolsBtn { bottom:calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2 + 44px + var(--fab-space) + (var(--fab-size) + var(--fab-space)) * 2) !important; }
     }
+    body.fab-tools-open #aiToolsBtn[data-em-hidden],
+    body.fab-tools-open #dashboardFloatBtn[data-em-hidden],
+    body.fab-tools-open #lbFloatBtn[data-em-hidden],
+    body.fab-tools-unavailable #fabExpandBtn,
+    body.chat-fab-hidden #fabExpandBtn,
+    body.chat-fab-hidden #aiToolsBtn,
+    body.chat-fab-hidden #dashboardFloatBtn,
+    body.chat-fab-hidden #lbFloatBtn { display:none !important; }
     .whats-new-dot { width:8px; height:8px; border-radius:50%; background:#f7931a; display:inline-block; }
     .whats-new-dot[hidden] { display:none !important; }
     #bnavSettings .whats-new-dot { position:absolute; top:6px; right:18%; }
@@ -1639,6 +1704,9 @@
                                 <button onclick="go('bitcoin-beats')" class="apps-grid-btn"><span class="app-title">🎵 Bitcoin Beats</span><span class="app-desc">Community music player — Bitcoin-themed tracks &amp; beats</span></button>
                                 <button onclick="go('timechain-tv')" class="apps-grid-btn"><span class="app-title">📺 Timechain TV</span><span class="app-desc">21 channels of Bitcoin video — free-to-air, always on</span></button>
                                 <button onclick="showProofOfWalk()" class="apps-grid-btn"><span class="app-title">👟 Proof of Walk</span><span class="app-desc">Earn XP for real-world steps — connect Strava to stack sats</span></button>
+                                <button onclick="toggleAITools()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">🤖 AI Tools</span><span class="app-desc">Bitcoin AI helpers and tools</span></button>
+                                <button onclick="toggleDashboard()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">📊 Metrics</span><span class="app-desc">Live Bitcoin dashboard and stats</span></button>
+                                <button onclick="toggleLeaderboard()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">🏆 Leaderboard</span><span class="app-desc">Top players, XP and rankings</span></button>
                             </div>
                         </div>
 
@@ -1812,33 +1880,91 @@
     </div>
 
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
-    <!-- FAB row: [−] Chat | AI Tools | Metrics | Leaderboard -->
-    <button id="fabMinimizeBtn" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
-    <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();}" title="Global Chat" aria-label="Open Chat">💬</button>
+    <!-- FAB row: More tools | Chat, with Nacho in the right slot. AI, Metrics, and Leaderboard stack above More tools. -->
+    <button id="fabMinimizeBtn" type="button" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
+    <button id="fabExpandBtn" type="button" onclick="toggleFabMinimize()" title="More tools" aria-label="More tools" aria-expanded="false" aria-controls="aiToolsBtn dashboardFloatBtn lbFloatBtn">⋯</button>
     <button id="aiToolsBtn"     class="fab-btn" onclick="if(typeof toggleAITools==='function')toggleAITools();else showToast('AI Tools loading...')" title="AI Tools" aria-label="Open AI Tools">🤖</button>
-    <div    id="dashboardFloatBtn" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics" role="button" tabindex="0">📊</div>
+    <button id="dashboardFloatBtn" type="button" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics">📊</button>
     <button id="lbFloatBtn"     class="fab-btn" onclick="toggleLeaderboard()" title="Leaderboard" aria-label="Open Leaderboard">🏆</button>
-    <button id="fabExpandBtn" onclick="toggleFabMinimize()" title="Show buttons" aria-label="Expand floating buttons">···</button>
+    <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();}" title="Global Chat" aria-label="Open Chat">💬</button>
     <script>
     (function(){
-      var FAB_BTNS = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
-      window.toggleFabMinimize = function(){
-        var minimized = localStorage.getItem('fabMinimized')==='1';
-        minimized = !minimized;
-        localStorage.setItem('fabMinimized', minimized ? '1' : '0');
-        _applyFabState(minimized);
-      };
-      function _applyFabState(minimized){
-        FAB_BTNS.forEach(function(id){
-          var el = document.getElementById(id);
-          if(!el) return;
-          el.style.display = minimized ? 'none' : '';
-        });
-        var exp = document.getElementById('fabExpandBtn');
-        if(exp) exp.style.display = minimized ? 'flex' : 'none';
+      var TOOL_IDS = ['aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn'];
+      function chatHidden() {
+        var chat = document.getElementById('chatOverlayBtn');
+        if (!chat) return true;
+        var cs = window.getComputedStyle(chat);
+        return cs.display === 'none' || cs.visibility === 'hidden';
       }
-      document.addEventListener('DOMContentLoaded', function(){
-        _applyFabState(localStorage.getItem('fabMinimized')==='1');
+      // A tool is offered unless experience mode or an important inline hide removed it.
+      // The collapsed stylesheet rule is display:none !important with no inline style, so
+      // that does not count as unavailable.
+      function toolOffered(el) {
+        if (!el || el.hasAttribute('data-em-hidden')) return false;
+        if (el.style.getPropertyValue('display') === 'none' && el.style.getPropertyPriority('display') === 'important') return false;
+        return true;
+      }
+      function toolsAvailable() {
+        for (var i = 0; i < TOOL_IDS.length; i++) {
+          if (toolOffered(document.getElementById(TOOL_IDS[i]))) return true;
+        }
+        return false;
+      }
+      function setExpanded(open) {
+        if (open && (chatHidden() || !toolsAvailable())) open = false;
+        document.body.classList.toggle('fab-tools-open', !!open);
+        var exp = document.getElementById('fabExpandBtn');
+        if (exp) exp.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      function syncChrome() {
+        var chatGone = chatHidden();
+        var offered = !chatGone && toolsAvailable();
+        document.body.classList.toggle('chat-fab-hidden', chatGone);
+        document.body.classList.toggle('fab-tools-unavailable', !offered);
+        if (!offered) setExpanded(false);
+      }
+      window.toggleFabMinimize = function() {
+        if (chatHidden() || !toolsAvailable()) {
+          setExpanded(false);
+          return;
+        }
+        setExpanded(!document.body.classList.contains('fab-tools-open'));
+      };
+      window.syncFabToolsToggle = syncChrome;
+      document.addEventListener('click', function(e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        if (t.closest('#aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn')) {
+          setExpanded(false);
+          return;
+        }
+        if (t.closest('#fabExpandBtn')) return;
+        if (document.body.classList.contains('fab-tools-open')) setExpanded(false);
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' || !document.body.classList.contains('fab-tools-open')) return;
+        setExpanded(false);
+        var exp = document.getElementById('fabExpandBtn');
+        if (exp) exp.focus();
+      });
+      function watchChrome() {
+        var chat = document.getElementById('chatOverlayBtn');
+        if (chat && !chat._fabWatch) {
+          chat._fabWatch = true;
+          new MutationObserver(syncChrome).observe(chat, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+        }
+        TOOL_IDS.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (!el || el._fabToolWatch) return;
+          el._fabToolWatch = true;
+          new MutationObserver(syncChrome).observe(el, { attributes: true, attributeFilter: ['style', 'data-em-hidden'] });
+        });
+      }
+      syncChrome();
+      watchChrome();
+      document.addEventListener('DOMContentLoaded', function() {
+        syncChrome();
+        watchChrome();
       });
     })();
     </script>
@@ -1944,7 +2070,7 @@
     <script src="ranking.js?v=20261026_v2367" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2368" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2382" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2361" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2365" defer></script>
@@ -1961,7 +2087,7 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261026_v2368',
+            'global-chat.js?v=20261026_v2369',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
@@ -2028,10 +2154,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2368'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2368'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2368'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2368'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2369'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2369'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2369'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2369'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],

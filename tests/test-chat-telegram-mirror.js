@@ -1393,24 +1393,50 @@ test('profile span unwrap stays linear on a long unclosed tag', function () {
     assert.strictEqual(bridgeSrc.includes(klass), false);
 });
 
-test('em and en dashes between ordinary words are not slurs', function () {
-    const allowed = [
-        ['grape-en', 'a grape\u2013and cheese plate'],
-        ['drama-em', 'drama\u2014game night'],
-    ];
-    allowed.forEach(function (row) {
-        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
-        assert.strictEqual(decision.forward, true, row[0] + ' blocked: ' + decision.reason);
+test('split slurs joined by an em or en dash are dropped', function () {
+    ['nig\u2014ger', 'nig\u2013ger', 'fuc\u2014king', 'hit\u2014ler', 'f\u2013uck', 'f\u2014uck'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', text);
+        assert.ok(!decision.line || decision.line.indexOf(text.replace(/[\u2013\u2014]/g, '')) === -1);
     });
-    const blocked = [
-        ['en-dash', 'f\u2013uck'],
-        ['em-dash', 'f\u2014uck'],
-    ];
-    blocked.forEach(function (row) {
-        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
-        assert.strictEqual(decision.forward, false, row[0]);
-        assert.strictEqual(decision.reason, 'profanity', row[0]);
+});
+
+test('comma colon and semicolon join only a short fragment', function () {
+    ['menu,delete', 'drama,gain', 'taco,on', 'bit,its', 'grape,fruit', 'menu:delete', 'drama;gain'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, true, text + ' blocked: ' + decision.reason);
     });
+    ['f,uck', 'f:uck', 'f;uck', 'fu,ck', 'sh,it', 'fuc,k'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', text);
+    });
+});
+
+test('a mid-word @ is not spelled out into the group', function () {
+    const spelled = {
+        'n@igger': 'nigger',
+        'sh@it': 'shit',
+        'f@uck': 'fuck',
+        'c@unt': 'cunt',
+        'p@orn': 'porn',
+        'bit@ch': 'bitch',
+        'sh\uFF20it': 'shit',
+    };
+    Object.keys(spelled).forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded: ' + (decision.line || decision.reason));
+        assert.strictEqual(decision.reason, 'profanity', text);
+        assert.ok(!decision.line || decision.line.indexOf(spelled[text]) === -1, text);
+    });
+    const noon = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'meet n@oon tomorrow' }),
+    });
+    assert.strictEqual(noon.forward, true, noon.reason);
+    assert.ok(noon.line.indexOf('n@oon') !== -1, noon.line);
+    assert.strictEqual(noon.line.indexOf('noon'), -1, noon.line);
 });
 
 test('filter line breaks match the mirror splitter', function () {

@@ -64,11 +64,12 @@ test('a shoutout is mirrored once, as Nacho, and stamped for reactions', async f
     assert.strictEqual(posts.length, 1);
     assert.deepStrictEqual(posts[0], {
         user: '🦌 Nacho',
-        text: '🎉 Shoutout to @phil! They just unlocked a rare Nacho Shoutout. Go send phil a peer request! 🤝',
+        text: '🎉 Shoutout to phil! They just unlocked a rare Nacho Shoutout. Go send phil a peer request! 🤝',
         source: 'server',
         uid: 'nacho',
     });
-    assert.ok(posts[0].text.indexOf('@phil') !== -1);
+    assert.strictEqual(posts[0].text.indexOf('@phil'), -1);
+    assert.ok(posts[0].text.indexOf('to phil!') !== -1);
     assert.ok(posts[0].text.indexOf('<') === -1);
     assert.ok(posts[0].text.indexOf('uid_phil') === -1);
     const saved = db.docs.shoutout_gift_abc;
@@ -247,6 +248,9 @@ test('a hung bridge times out and the plain shoutout text is left intact', async
     assert.strictEqual(result.error, 'timeout');
     assert.ok(Date.now() - started < 2000);
     assert.strictEqual(bridge.toTelegramText(shoutoutText('phil')), shoutoutText('phil'));
+    const posted = bridge.buildNachoBridgePayload('📝 @phil just posted in PlebTalk');
+    assert.strictEqual(posted.text, '📝 phil just posted in PlebTalk');
+    assert.strictEqual(bridge.buildNachoBridgePayload('meet n@oon').text, 'meet n@oon');
     assert.strictEqual(bridge.WEB_BRIDGE_TIMEOUT_MS, 60000);
 });
 

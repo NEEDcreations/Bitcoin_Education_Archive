@@ -95,9 +95,10 @@ test('no premium cap, learn titles, consent labels, and the xp scale', () => {
     assert.ok(html.includes('<label class="tos-check-row" id="signupConsentRow">'));
     assert.ok(html.indexOf('id="tosModalCheck"') > html.indexOf('id="tosConsentRow"'));
     assert.ok(html.indexOf('id="signupTosCheck"') > html.indexOf('id="signupConsentRow"'));
-    assert.ok(html.includes('flex-wrap: wrap'));
-    assert.ok(html.includes('column-gap: 0.75em'));
+    assert.ok(html.includes('.daily-xp-scale { position: relative; height: 16px;'));
+    assert.ok(!html.includes('.daily-xp-scale { display: flex'));
     assert.ok(!html.includes('id="todayEarnFavor"'));
+    assert.ok(!html.includes('#todayEarnFavor'));
     assert.ok(!html.includes('>Earn Favor</button>'));
     assert.ok(html.includes("event.key==='Enter'||event.key===' '"));
     const ranking = read('ranking.js');

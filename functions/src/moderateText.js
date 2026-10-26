@@ -282,16 +282,37 @@ function joinShortLineBreaks(text) {
     return s.replace(/\n/g, ' ');
 }
 
+// A one-letter fragment always joins (f,uck, n@igger). A two-letter
+// fragment joins only when the other side is also short (fu,ck, sh,it),
+// so taco,on and menu,delete stay two words.
+function joinShortFragment(left, right) {
+    const a = String(left || '').length;
+    const b = String(right || '').length;
+    const short = a < b ? a : b;
+    const long = a > b ? a : b;
+    if (short === 1) return true;
+    return short === 2 && long <= 3;
+}
+
+// Mid-word @ is hiding letters, not the leet letter "a". A short fragment
+// is glued back (n@igger). A long pair stays split so drama@gain is not "maga".
+function unfoldMidWordAt(text) {
+    return String(text || '').replace(/(^|[^\p{L}])(\p{L}+)[\uFF20@]+(\p{L}+)/gu, function (_m, lead, left, right) {
+        if (joinShortFragment(left, right)) return lead + left + right;
+        return lead + left + ' ' + right;
+    });
+}
+
 function collapseSeparators(text) {
     let s = String(text || '');
-    // An em or en dash between ordinary words is a separator. Joining
-    // grape–and or drama—game would invent "rape" and "maga". A short
-    // side is still obfuscation: f–uck and f—uck collapse below.
-    s = s.replace(/(\p{L}{3,})[\u2012\u2013\u2014\u2015]+(?=\p{L}{3,})/gu, '$1 ');
     let prev = '';
     while (s !== prev) {
         prev = s;
-        s = s.replace(/(\p{L})[-_.,:;\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(^|[^\p{L}])(\p{L}+)[,:;]+(\p{L}+)(?!\p{L})/gu, function (whole, lead, left, right) {
+            if (joinShortFragment(left, right)) return lead + left + right;
+            return whole;
+        });
     }
     return s;
 }
@@ -323,6 +344,7 @@ function prepareStrict(text) {
     s = s.replace(/[\u115F\u1160\u3164\uFFA0\u2800]/g, '');
     s = s.replace(/(\p{L})[\p{Extended_Pictographic}\p{So}\u{1F3FB}-\u{1F3FF}\u200D\uFE0F]+(?=\p{L})/gu, '$1');
     s = foldLookalikes(s.toLowerCase());
+    s = unfoldMidWordAt(s);
     s = applyLeet(s);
     const unbroken = unbrokenWords(s);
     s = joinShortLineBreaks(s);
