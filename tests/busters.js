@@ -1,13 +1,13 @@
 // Cache-buster pin. This ship branch is btc-archive-v2407.
-// timechain-tv.js stays 20261024_v2353.
-// bundle.min.js, ranking.js, modules.js, scholar.js, and learning-quests.js are 20261026_v2377.
+// Live gh-pages shipped #125 at v2378. timechain-tv.js stays 20261024_v2353.
+// bundle.min.js, modules.js, scholar.js, and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
-// global-chat.js and quests.js stay 20261026_v2381.
+// gifting.js, ranking.js, and global-chat.js are 20261026_v2378. quests.js stays 20261026_v2381.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js stays 20261026_v2373. today-card.js stays 20261026_v2371.
 // features.registry.js stays 20261024_v2368.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
-// gifting.js is 20261024_v2365.
+// gifting.js is 20261026_v2378.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349.
@@ -57,11 +57,8 @@ test('service worker cache is v2407', () => {
     assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
-    assert.ok(!sw.includes('btc-archive-v2373'));
-    assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
-    assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2369'));
@@ -141,10 +138,13 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261026_v2377'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2378'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2400'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2377'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2377'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2378'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -209,9 +209,13 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2381'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2381/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261026_v2378'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2378/g) || []).length, 5);
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2400'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2381'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2374'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2373'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2380'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
@@ -265,7 +269,11 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
     assert.ok(html.includes('onboarding.js?v=20261026_v2373'));
     assert.ok(!html.includes('onboarding.js?v=20261024_v2358'));
-    assert.ok(html.includes('gifting.js?v=20261024_v2365'));
+    assert.ok(html.includes('gifting.js?v=20261026_v2378'));
+    assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
+    assert.ok(!html.includes('gifting.js?v=20261026_v2399'));
+    assert.ok(!html.includes('gifting.js?v=20261024_v2365'));
+    assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2355'));
@@ -375,20 +383,11 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
-    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
-    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
-    assert.ok(!notes.includes('Latest: On a computer'));
-    assert.ok(notes.includes('A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
-    assert.ok(!notes.includes('Latest: A miner'));
-    assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
-    assert.ok(!notes.includes('Latest: A More tools button'));
-
-    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
+    assert.ok(notes.includes('Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
+    assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
+    assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
+    assert.ok(!notes.includes("Latest: A miner's public name"));
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar topic names'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
