@@ -96,6 +96,10 @@ test('older badge-gg posts match the registry when badge ids are absent', functi
     const groupedSpoof = { uid: 'pat', postedByUid: 'pat', isNachoAuto: true, badgeIds: ['sf_first_hash', 'combo_trio'], text: '🏅 A player earned 3 badges: First Hash, Trio Combo' };
     assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(groupedSpoof.text, groupedSpoof, registry)), []);
     assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(legacy, { uid: 'pat', postedByUid: 'pat', text: legacy }, registry)), []);
+    const commaReg = registry.concat([{ id: 'pow_km_1000', name: '1,000 km Titan', emoji: '🏅', desc: 'Walked 1,000 km', how: 'Walked 1,000 km', pts: 10 }]);
+    const commaText = '🏅 A player earned 2 badges: 1,000 km Titan, First Hash';
+    assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(commaText, serverPost(commaText), commaReg)), ['1,000 km Titan', 'First Hash']);
+    assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(commaText, serverPost(commaText, ['pow_km_1000', 'sf_first_hash']), commaReg)), ['1,000 km Titan', 'First Hash']);
 });
 
 test('user-written chat cannot fake a badge tag', function () {
@@ -127,12 +131,17 @@ test('badge text stays text and tooltip fields come from the registry', function
     ]);
     const body = chat.slice(chat.indexOf('function ggAppendBadgeBody'), chat.indexOf('function ggPlaceBadgeTip'));
     assert.ok(body.includes('textContent'));
-    assert.ok(body.includes('ggRegistry()'));
+    assert.ok(body.includes('ggRegistryIndex()'));
     assert.ok(!body.includes('ggCollectRegistry('));
     assert.ok(!body.includes('btn.addEventListener'));
-    assert.ok(body.includes('ggBindBadgeList(parent)'));
+    assert.ok(!body.includes('ggBindBadgeList'));
     assert.ok(!body.includes('innerHTML'));
     assert.ok(!body.includes('insertAdjacentHTML'));
+    const segments = chat.slice(start, end);
+    assert.ok(segments.includes('function ggBuildNameIndex'));
+    assert.ok(segments.includes('ggBucketsForIds'));
+    assert.ok(!segments.includes('badges.slice().sort'));
+    assert.ok(!segments.includes('all.forEach'));
     const handler = chat.slice(chat.indexOf('function ggOnBadgeListEvent'), chat.indexOf('function ggBindBadgeList'));
     assert.ok(handler.includes("e.type === 'click'"));
     assert.ok(handler.includes("e.type === 'focusin'"));
@@ -147,8 +156,10 @@ test('badge text stays text and tooltip fields come from the registry', function
     assert.ok(!place.includes('- 2'));
     const panel = chat.slice(chat.indexOf('function renderAnnouncementsTab'), chat.indexOf('function renderDMsTab'));
     assert.ok(panel.includes('ggCloseBadgeTip()'));
+    assert.ok(panel.includes('ggBindBadgeList(el)'));
     const overlay = chat.slice(chat.indexOf("if (_overlayTab === 'announcements')"), chat.indexOf("if (_overlayTab === 'dms')"));
     assert.ok(overlay.includes('ggCloseBadgeTip()'));
+    assert.ok(overlay.includes('ggBindBadgeList(el)'));
     assert.ok(chat.includes("addEventListener('scroll'"));
     const tip = chat.slice(chat.indexOf('window._showBadgeTooltip = function'), chat.indexOf('// Safe hash navigation'));
     assert.ok(tip.includes('textContent'));
@@ -203,6 +214,129 @@ test('badge registry is built once for a stable catalog', function () {
         'return calls;'
     ].join('\n'));
     assert.strictEqual(run(undefined), 1);
+});
+
+function median(samples) {
+    const sorted = samples.slice().sort(function (a, b) { return a - b; });
+    return sorted[Math.floor(sorted.length / 2)];
+}
+
+test('50 badge posts render inside the budget and keep 152 tags', function () {
+    const win = {};
+    new Function('window', fs.readFileSync(path.join(root, 'badges.catalog.js'), 'utf8'))(win);
+    assert.ok(Object.keys(win.BADGE_CATALOG).length >= 900);
+    const bindAt = chat.indexOf('function ggPlaceBadgeTip');
+    assert.ok(bindAt > start);
+    function makeEl() {
+        return {
+            children: [],
+            style: {},
+            attrs: {},
+            listeners: {},
+            _ggBadgeBound: false,
+            setAttribute: function (key, value) { this.attrs[key] = value; },
+            appendChild: function (child) { this.children.push(child); return child; },
+            addEventListener: function (type, fn) {
+                if (!this.listeners[type]) this.listeners[type] = [];
+                this.listeners[type].push(fn);
+            }
+        };
+    }
+    const doc = {
+        createElement: function () { return makeEl(); },
+        createTextNode: function (text) { return { nodeType: 3, textContent: text }; },
+        getElementById: function () { return null; },
+        addEventListener: function () {}
+    };
+    const api = new Function('window', 'document', chat.slice(start, bindAt) + '\nreturn { ggBadgeSegments: ggBadgeSegments, ggRegistry: ggRegistry, ggRegistryIndex: ggRegistryIndex, ggAppendBadgeBody: ggAppendBadgeBody, ggBindBadgeList: ggBindBadgeList, ggCatalogCount: ggCatalogCount };')(win, doc);
+    const reg = api.ggRegistry();
+    const index = api.ggRegistryIndex();
+    const names = reg.filter(function (badge) { return badge.name && badge.name.length >= 2; });
+    assert.ok(names.length >= 900);
+    const batches = [];
+    for (let i = 0; i < 50; i++) {
+        const count = i >= 48 ? 4 : 3;
+        const batch = [];
+        for (let k = 0; k < count; k++) batch.push(names[(i * 3 + k) % names.length]);
+        batches.push(batch);
+    }
+    function line(batch) {
+        return '🏅 A player earned ' + batch.length + ' badges: ' + batch.map(function (badge) { return badge.name; }).join(', ');
+    }
+    const oldPosts = batches.map(function (batch) {
+        const text = line(batch);
+        return { uid: 'nacho-bot', postedByUid: 'badge-gg', text: text };
+    });
+    const idPosts = batches.map(function (batch) {
+        const text = line(batch);
+        return { uid: 'nacho-bot', postedByUid: 'badge-gg', text: text, badgeIds: batch.map(function (badge) { return badge.id; }) };
+    });
+    function tagIds(message) {
+        return api.ggBadgeSegments(message.text, message, index).filter(function (seg) { return seg.type === 'badge'; }).map(function (seg) { return seg.id; });
+    }
+    const oldIds = oldPosts.map(tagIds);
+    const idIds = idPosts.map(tagIds);
+    const oldCount = oldIds.reduce(function (sum, ids) { return sum + ids.length; }, 0);
+    const idCount = idIds.reduce(function (sum, ids) { return sum + ids.length; }, 0);
+    assert.strictEqual(oldCount, 152);
+    assert.strictEqual(idCount, 152);
+    oldIds.forEach(function (ids, i) {
+        assert.deepStrictEqual(ids, idIds[i]);
+        assert.deepStrictEqual(ids, batches[i].map(function (badge) { return badge.id; }));
+    });
+    const keys = Object.keys;
+    let keyCalls = 0;
+    Object.keys = function (value) {
+        keyCalls++;
+        return keys.apply(Object, arguments);
+    };
+    try {
+        api.ggRegistry();
+        const afterWarm = keyCalls;
+        for (let i = 0; i < 50; i++) api.ggRegistry();
+        assert.strictEqual(keyCalls, afterWarm);
+    } finally {
+        Object.keys = keys;
+    }
+    function render(posts) {
+        const list = doc.createElement('div');
+        posts.forEach(function (message) {
+            const post = doc.createElement('div');
+            api.ggAppendBadgeBody(post, message);
+            assert.strictEqual(post.listeners.click, undefined);
+            list.appendChild(post);
+        });
+        api.ggBindBadgeList(list);
+        api.ggBindBadgeList(list);
+        assert.strictEqual(list.listeners.click.length, 1);
+        assert.strictEqual(list.listeners.focusin.length, 1);
+        assert.strictEqual(list.listeners.focusout.length, 1);
+        assert.strictEqual(list.listeners.mouseover.length, 1);
+        assert.strictEqual(list.listeners.mouseout.length, 1);
+        let buttons = 0;
+        list.children.forEach(function (post) {
+            post.children.forEach(function (node) {
+                if (node.attrs && node.attrs['data-badge-id']) buttons++;
+            });
+        });
+        assert.strictEqual(buttons, 152);
+        return list;
+    }
+    render(oldPosts);
+    function time(posts) {
+        const samples = [];
+        for (let i = 0; i < 5; i++) {
+            const t0 = process.hrtime.bigint();
+            render(posts);
+            samples.push(Number(process.hrtime.bigint() - t0) / 1e6);
+        }
+        return median(samples);
+    }
+    const oldMs = time(oldPosts);
+    const idMs = time(idPosts);
+    console.log('50-post render ms  old-format=' + oldMs.toFixed(2) + '  id-format=' + idMs.toFixed(2));
+    assert.ok(oldMs < 6, 'old-format render ' + oldMs.toFixed(2) + ' ms');
+    assert.ok(idMs < 6, 'id-format render ' + idMs.toFixed(2) + ' ms');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

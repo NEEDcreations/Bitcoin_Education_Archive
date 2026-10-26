@@ -1606,6 +1606,7 @@ function renderAnnouncementsTab() {
             snapshot.forEach(function(doc) {
                 el.appendChild(_renderAnnouncementItem(doc, 'panel'));
             });
+            ggBindBadgeList(el);
             // Scroll to bottom on first load; on subsequent updates only scroll if already near bottom
             if (_firstLoad) {
                 setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
@@ -1856,6 +1857,7 @@ function renderOverlayChat() {
                     snapshot.forEach(function(doc) {
                         el.appendChild(_renderAnnouncementItem(doc, 'overlay'));
                     });
+                    ggBindBadgeList(el);
                     if (_overlayFirstLoad) {
                         setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
                         _overlayFirstLoad = false;
@@ -3927,7 +3929,70 @@ function ggNameRegions(text) {
 
 function ggBoundary(ch) {
     if (!ch) return true;
+    var code = ch.charCodeAt(0);
+    if (code < 128) {
+        return !((code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122));
+    }
     return !/[\p{L}\p{N}]/u.test(ch);
+}
+
+function ggNameAt(slice, i, name) {
+    var n = name.length;
+    if (i + n > slice.length) return false;
+    for (var c = 0; c < n; c++) {
+        if (slice.charCodeAt(i + c) !== name.charCodeAt(c)) return false;
+    }
+    return true;
+}
+
+// Sorted once, then grouped by the lowercased first character, so a scan
+// tries only the names that can start at this character.
+function ggBuildNameIndex(list) {
+    var byId = {};
+    var order = {};
+    var matchable = [];
+    var i, badge, ch, bucket;
+    for (i = 0; i < list.length; i++) {
+        badge = list[i];
+        if (!badge || !badge.id) continue;
+        byId[badge.id] = badge;
+        order[badge.id] = i;
+        if (badge.name && String(badge.name).length >= 2) matchable.push(badge);
+    }
+    matchable.sort(function(a, b) {
+        return b.name.length - a.name.length || String(a.name).localeCompare(String(b.name)) || ((order[a.id] || 0) - (order[b.id] || 0));
+    });
+    var byChar = {};
+    for (i = 0; i < matchable.length; i++) {
+        ch = String(matchable[i].name).charAt(0).toLowerCase();
+        bucket = byChar[ch];
+        if (!bucket) byChar[ch] = bucket = [];
+        bucket.push(matchable[i]);
+    }
+    return { byId: byId, byChar: byChar, order: order };
+}
+
+function ggBucketsForIds(index, ids) {
+    var few = [];
+    var n, badge;
+    for (n = 0; n < ids.length; n++) {
+        badge = index.byId[ids[n]];
+        if (badge && badge.name && String(badge.name).length >= 2) few.push(badge);
+    }
+    if (few.length > 1) {
+        var order = index.order || {};
+        few.sort(function(a, b) {
+            return b.name.length - a.name.length || String(a.name).localeCompare(String(b.name)) || ((order[a.id] || 0) - (order[b.id] || 0));
+        });
+    }
+    var byChar = {};
+    for (n = 0; n < few.length; n++) {
+        var ch = String(few[n].name).charAt(0).toLowerCase();
+        var bucket = byChar[ch];
+        if (!bucket) byChar[ch] = bucket = [];
+        bucket.push(few[n]);
+    }
+    return byChar;
 }
 
 function ggLegacyRegions(text) {
@@ -3944,23 +4009,18 @@ function ggBadgeSegments(text, message, registry) {
     // and have no badge ids. Only that phrase is tagged, never a grouped line.
     var legacyOnly = ids === null && !!(message && message.isNachoAuto === true);
     if (ids === null && !legacyOnly) return [{ type: 'text', text: raw }];
-    var all = registry || [];
-    var badges = [];
-    // A present badgeIds list, even empty, is the allow-list. Only a missing
-    // field falls back to registry names, for badge-gg posts written before ids.
-    if (!legacyOnly && message && Array.isArray(message.badgeIds)) {
-        var want = {};
-        ids.forEach(function(id) { want[id] = true; });
-        all.forEach(function(badge) { if (badge && want[badge.id]) badges.push(badge); });
-    } else {
-        badges = all.filter(function(badge) { return badge && badge.name && badge.name.length >= 2; });
-    }
-    if (!badges.length) return [{ type: 'text', text: raw }];
     var regions = legacyOnly ? ggLegacyRegions(raw) : ggNameRegions(raw);
     if (!regions.length) return [{ type: 'text', text: raw }];
-    var sorted = badges.slice().sort(function(a, b) {
-        return b.name.length - a.name.length || String(a.name).localeCompare(String(b.name));
-    });
+    var index = (registry && registry.byChar && registry.byId) ? registry : ggBuildNameIndex(registry || []);
+    var buckets;
+    // A present badgeIds list, even empty, is the allow-list. Only a missing
+    // field falls back to the prebuilt name index, for badge-gg posts written before ids.
+    if (!legacyOnly && message && Array.isArray(message.badgeIds)) {
+        if (!ids.length) return [{ type: 'text', text: raw }];
+        buckets = ggBucketsForIds(index, ids);
+    } else {
+        buckets = index.byChar;
+    }
     var hits = [];
     regions.forEach(function(region) {
         var start = region[0];
@@ -3970,12 +4030,15 @@ function ggBadgeSegments(text, message, registry) {
         var i = 0;
         while (i < slice.length) {
             var found = null;
-            for (var k = 0; k < sorted.length; k++) {
-                var name = sorted[k].name;
-                if (!name || name.length < 2 || slice.substr(i, name.length) !== name) continue;
-                var before = i === 0 ? raw.charAt(start - 1) : slice.charAt(i - 1);
-                var after = slice.charAt(i + name.length);
-                if (ggBoundary(before) && ggBoundary(after)) { found = sorted[k]; break; }
+            var bucket = buckets[slice.charAt(i).toLowerCase()];
+            if (bucket) {
+                for (var k = 0; k < bucket.length; k++) {
+                    var name = bucket[k].name;
+                    if (!ggNameAt(slice, i, name)) continue;
+                    var before = i === 0 ? raw.charAt(start - 1) : slice.charAt(i - 1);
+                    var after = slice.charAt(i + name.length);
+                    if (ggBoundary(before) && ggBoundary(after)) { found = bucket[k]; break; }
+                }
             }
             if (found) {
                 hits.push({ at: start + i, len: found.name.length, badge: found });
@@ -4081,17 +4144,31 @@ function ggCollectRegistry() {
 }
 
 // The registry is about 940 ids plus flex combos. Build it once per catalog
-// shape, not once per GGs post.
+// shape, not once per GGs post. Catalog key recounts follow the object
+// reference, so a render does not walk every catalog key again.
 var _ggRegistryCache = null;
 var _ggRegistryById = null;
+var _ggNameIndex = null;
 var _ggRegistryKey = '';
+var _ggCatalogRef = null;
+var _ggCatalogCount = 0;
+var _ggCatalogReady = false;
+
+function ggCatalogCount() {
+    var cat = (typeof window !== 'undefined' && window && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    if (_ggCatalogReady && cat === _ggCatalogRef) return _ggCatalogCount;
+    _ggCatalogReady = true;
+    _ggCatalogRef = cat;
+    var count = 0;
+    if (cat) {
+        try { count = Object.keys(cat).length; } catch (err) { count = 0; }
+    }
+    _ggCatalogCount = count;
+    return count;
+}
 
 function ggRegistryKey() {
     function n(list) { return (list && list.length) || 0; }
-    var cat = 0;
-    if (typeof window !== 'undefined' && window && window.BADGE_CATALOG) {
-        try { cat = Object.keys(window.BADGE_CATALOG).length; } catch (err) {}
-    }
     return [
         n(typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : null),
         n(typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : null),
@@ -4099,7 +4176,7 @@ function ggRegistryKey() {
         n(typeof BADGE_SETS !== 'undefined' ? BADGE_SETS : null),
         n(typeof FLEX_ACTIONS !== 'undefined' ? FLEX_ACTIONS : null),
         n(typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_BADGE_MILESTONES : null),
-        cat
+        ggCatalogCount()
     ].join(':');
 }
 
@@ -4108,14 +4185,19 @@ function ggRegistry() {
     if (_ggRegistryCache && _ggRegistryKey === key) return _ggRegistryCache;
     _ggRegistryKey = key;
     _ggRegistryCache = ggCollectRegistry();
-    _ggRegistryById = {};
-    _ggRegistryCache.forEach(function(badge) { _ggRegistryById[badge.id] = badge; });
+    _ggNameIndex = ggBuildNameIndex(_ggRegistryCache);
+    _ggRegistryById = _ggNameIndex.byId;
     return _ggRegistryCache;
 }
 
 function ggRegistryById() {
     ggRegistry();
     return _ggRegistryById || {};
+}
+
+function ggRegistryIndex() {
+    ggRegistry();
+    return _ggNameIndex || ggBuildNameIndex([]);
 }
 
 function ggAppendMentionText(parent, text, mentionUid) {
@@ -4253,10 +4335,10 @@ function ggBindBadgeList(parent) {
 }
 
 function ggAppendBadgeBody(parent, message) {
-    var registry = ggRegistry();
-    var byId = ggRegistryById();
+    var index = ggRegistryIndex();
+    var byId = index.byId;
     var mentionUid = message && typeof message.mentionUid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(message.mentionUid) ? message.mentionUid : '';
-    var segments = ggBadgeSegments(String(message && message.text || ''), message, registry);
+    var segments = ggBadgeSegments(String(message && message.text || ''), message, index);
     segments.forEach(function(seg) {
         if (seg.type !== 'badge') {
             ggAppendMentionText(parent, seg.text, mentionUid);
@@ -4277,7 +4359,6 @@ function ggAppendBadgeBody(parent, message) {
         btn.style.cssText = 'background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:1px 8px;margin:0 1px;cursor:pointer;font-weight:700;color:var(--accent,#f7931a);white-space:nowrap;display:inline;font-family:inherit;font-size:inherit;line-height:inherit;vertical-align:baseline;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
         parent.appendChild(btn);
     });
-    ggBindBadgeList(parent);
     ggBindBadgeTipDismiss();
 }
 
