@@ -791,7 +791,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: A miner\'s public name is what Satoshi\'s Favor saves, and someone with no name is left blank instead of Anonymous.';
+    const latest = 'Latest: A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.';
     const usernames = 'Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.';
     assert.ok(notes.includes(usernames));
     assert.ok(!notes.includes('Latest: Usernames'));

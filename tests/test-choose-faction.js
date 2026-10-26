@@ -377,7 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: A miner's public name is what Satoshi's Favor saves, and someone with no name is left blank instead of Anonymous.") > 0);
+    assert.ok(notes.indexOf("Latest: A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
     assert.ok(notes.indexOf("Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") > 0);
     assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") === -1);
     assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") === -1);

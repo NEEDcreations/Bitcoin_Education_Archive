@@ -286,7 +286,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: A miner\'s public name is what Satoshi\'s Favor saves, and someone with no name is left blank instead of Anonymous.'));
+    assert.ok(notes.includes('Latest: A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
     assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
     assert.ok(!notes.includes('Latest: A More tools button'));
 
