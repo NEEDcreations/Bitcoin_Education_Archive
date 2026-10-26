@@ -1033,8 +1033,6 @@
     #homeAppsMenu .apps-grid-btn { padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;transition:0.2s;width:100%; }
     #homeAppsMenu .apps-grid-btn .app-title { font-size:0.8rem;font-weight:700;color:var(--text);line-height:1.3;display:block; }
     #homeAppsMenu .apps-grid-btn .app-desc  { font-size:0.68rem;font-weight:400;color:rgba(255,255,255,0.45);line-height:1.35;white-space:normal;display:block; }
-    #homeAppsMenu .apps-grid-btn.tier-locked { opacity:0.6;filter:grayscale(0.7);cursor:help; }
-    #homeAppsMenu .apps-grid-btn.tier-locked .app-desc { color:rgba(255,255,255,0.45); }
 
     /* Simpler home */
     .mobile-bar .mobile-brand { min-width:0; flex:1 1 auto; overflow:hidden; display:flex; align-items:center; gap:8px; cursor:pointer; }
@@ -1727,11 +1725,11 @@
                         <button id="authBtn" onclick="showUsernamePrompt()" style="display:none;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">Create Free Account / Sign In</button>
 
                         <!-- Learn (standalone, between Settings and Explore Apps) -->
-                        <button id="homeLearnBtn" onclick="toggleSidebarMenu('homeLearnMenu')" class="desktop-only-learn" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🎓 Learn ▼</button>
+                        <button id="homeLearnBtn" type="button" onclick="toggleSidebarMenu('homeLearnMenu')" class="desktop-only-learn" aria-expanded="false" aria-controls="homeLearnMenu" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🎓 Learn ▼</button>
                         <div id="homeLearnMenu" class="desktop-only-learn" role="group" aria-label="Learn" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:8px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;"></div>
 
                         <!-- Explore Apps -->
-                        <button id="homeAppsBtn" onclick="toggleSidebarMenu('homeAppsMenu')" class="desktop-only-apps" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
+                        <button id="homeAppsBtn" type="button" onclick="toggleSidebarMenu('homeAppsMenu')" class="desktop-only-apps" aria-expanded="false" aria-controls="homeAppsMenu" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
                         <div id="homeAppsMenu" class="desktop-only-apps" role="group" aria-label="Explore Apps" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
                             <div id="homeAppsGrid" data-apps-grid="1" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
                         </div>
@@ -2113,11 +2111,11 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261026_v2372',
+            'global-chat.js?v=20261026_v2381',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261026_v2372',
+            'quests.js?v=20261026_v2381',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
@@ -2180,10 +2178,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2372'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2372'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2372'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2372'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2381'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2381'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2381'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2381'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],
@@ -2191,9 +2189,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261023_v2324'],
             'learning-quests': ['learning-quests.js?v=20261023_v2324'],
-            'quests':        ['quests.js?v=20261026_v2372'],
-            'questhub':      ['quests.js?v=20261026_v2372'],
-            'app':           ['quests.js?v=20261026_v2372'],
+            'quests':        ['quests.js?v=20261026_v2381'],
+            'questhub':      ['quests.js?v=20261026_v2381'],
+            'app':           ['quests.js?v=20261026_v2381'],
             'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
             'tv':            ['timechain-tv.js?v=20261024_v2353']
         };

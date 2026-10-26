@@ -1,8 +1,8 @@
 // Cache-buster pin. This ship branch is btc-archive-v2402.
-// Live gh-pages was v2375. timechain-tv.js stays 20261024_v2353.
+// Live gh-pages was v2376. timechain-tv.js stays 20261024_v2353.
 // bundle.min.js and features.registry.js are 20261026_v2402.
 // onboarding.js and ranking.js stay 20261026_v2373.
-// global-chat.js and quests.js stay 20261026_v2372.
+// global-chat.js and quests.js are 20261026_v2381.
 // satoshi-favor.js stays 20261026_v2368.
 // today-card.js stays 20261026_v2371.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
@@ -34,10 +34,11 @@ function test(name, fn) {
 test('service worker cache is v2402', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2402'"));
+    assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2377'));
-    assert.ok(!sw.includes('btc-archive-v2376'));
+    assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2372'));
@@ -150,10 +151,12 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2372'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2372/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261026_v2381'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2381/g) || []).length, 5);
     assert.ok(!html.includes('global-chat.js?v=20261026_v2374'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2380'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2350'));
@@ -243,8 +246,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2372/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2381/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2374/g) || []).length, 0);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2380/g) || []).length, 0);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2372/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2368/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
@@ -275,7 +280,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
     const bundle = read('bundle.min.js');
     const src = read('bundle.src.js');
-    assert.ok(read('global-chat.js').includes('quests.js?v=20261026_v2372'));
+    assert.ok(read('global-chat.js').includes('quests.js?v=20261026_v2381'));
+    assert.ok(!read('global-chat.js').includes('quests.js?v=20261026_v2380'));
+    assert.ok(!read('global-chat.js').includes('quests.js?v=20261026_v2372'));
     assert.ok(!read('global-chat.js').includes('quests.js?v=20261026_v2374'));
     assert.ok(!read('global-chat.js').includes('quests.js?v=20261026_v2368'));
     assert.ok(bundle.includes('savedBy:firebase.firestore.FieldValue.arrayUnion'), 'bundle.min.js was not rebuilt from marketplace.js');
@@ -313,6 +320,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar'));
     assert.ok(!notes.includes('Latest: The phone Learn'));
+    assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
+    assert.ok(!notes.includes('Latest: A miner'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
     assert.ok(!notes.includes('Latest: Opening gifts'));
     assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));

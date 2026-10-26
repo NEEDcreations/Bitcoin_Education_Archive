@@ -62,7 +62,7 @@ const HIDDEN_BADGES = [
         "⚡ A pleb just completed a Lightning Network quest — 50 XP earned!",
         "🗺️ Someone just finished all 10 steps of the Bitcoin Journey!",
         "🎮 A Bitcoiner just aced a quiz in Nacho Mode — 10/10!",
-        "📚 A new user just explored their first 3 topics — features unlocking!",
+        "📚 A new user just explored their first 3 topics!",
         "🧠 Someone just asked Nacho 100 questions — Bitcoin Scholar status!",
         "🎯 A pleb just scored 5/5 on a Conversation Quest!",
         "📖 Someone just read through the entire Timechain channel!",

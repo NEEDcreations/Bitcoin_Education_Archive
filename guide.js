@@ -156,7 +156,7 @@
             guideSection('🎯 Daily Activities', dailyCards) +
 
             // -- APPS TO EXPLORE --
-            guideSection('🔓 Apps to Explore', appsCards) +
+            guideSection('Apps to Explore', appsCards) +
 
             // -- MORE FEATURES (advanced only) --
             moreFeaturesHtml +
@@ -191,17 +191,6 @@
             '<div style="width:42px;height:42px;border-radius:12px;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + icon + '</div>' +
             '<div style="flex:1;min-width:0;"><div style="font-size:0.88rem;font-weight:700;color:#fff;margin:0 0 2px;display:block;">' + title + '</div><div style="font-size:0.75rem;color:#94a3b8;line-height:1.45;margin:0;display:block;">' + desc + '</div>' + tag + '</div>' +
             '<div style="color:#4b5563;font-size:0.8rem;margin-top:8px;flex-shrink:0;">›</div>' +
-        '</div>';
-    }
-
-    // ---- Helper: unlock tier row ----
-    function unlockTier(icon, name, req, locked, onclick) {
-        var clickAttr = onclick ? ' onclick="' + onclick + '" style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;cursor:pointer;"'
-            : ' style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;"';
-        return '<div' + clickAttr + '>' +
-            '<div style="font-size:1.1rem;width:28px;text-align:center;flex-shrink:0;">' + icon + '</div>' +
-            '<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:700;color:#e2e8f0;">' + name + '</div><div style="font-size:0.68rem;color:#64748b;">' + req + '</div></div>' +
-            '<div style="font-size:0.8rem;color:' + (locked ? '#4b5563' : '#22c55e') + ';">' + (locked ? '🔒' : '✅') + '</div>' +
         '</div>';
     }
 

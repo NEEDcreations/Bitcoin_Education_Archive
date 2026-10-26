@@ -2692,12 +2692,7 @@
 
     window.nachoLearningPath = function() {
         var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
-        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _a = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
-        var isFull = true;
-        var isCommunity = true;
-        var isExplorer = true;
 
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
@@ -2705,17 +2700,11 @@
         var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">🗺️ Your Bitcoin Journey</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '% concepts mastered</div>';
 
-        // All apps unlocked info
-        html += '<div style="background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;padding:12px;margin-bottom:16px;font-size:0.8rem;line-height:1.4;">' +
-            '<div style="font-weight:800;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">✅ All Features Unlocked</div>' +
-            '<p style="margin:0;color:var(--text);">Every app and feature is available to you. Explore freely! 🦌</p>' +
-            '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
-                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>🗣️ Pleb Talk</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>🤝 IRL Sync</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>⚡ Lightning Mart</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (_a && !_a.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
-            '</div>' +
-        '</div>';
+        if (!_a || _a.isAnonymous) {
+            html += '<div style="background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;padding:12px;margin-bottom:16px;font-size:0.8rem;line-height:1.4;">' +
+                '<div style="font-weight:800;color:var(--accent);">Sign in to keep your profile and progress.</div>' +
+            '</div>';
+        }
 
         // Progress bar
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;height:8px;margin-bottom:12px;overflow:hidden;">' +
@@ -3616,13 +3605,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var hero = document.getElementById('hero');
         if (hero) hero.style.display = 'none';
 
-        // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
-        var isAdmin = window._isAdminClaim === true;
-        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        var isNewUser = !isAdmin && (visits < 2 && exploredCount < 3);
-        
-        // Hide distracting gamification for absolute beginners to focus on core education
+        // Show the home actions. Visited-topic counts do not hide apps.
         var spinBtn = document.querySelector('[onclick*="showSpinWheel"]');
         var predictBtn = document.querySelector('[onclick*="showPricePrediction"]');
         var storyBtn = document.querySelector('[onclick*="showNachoStory"]');
@@ -4171,30 +4154,12 @@ window.nachoQuizAnswer = function(btn, correct) {
     // Cache loaded channel data
     const channelCache = {};
 
-    // PROGRESSIVE SIDEBAR UPDATE
+    // Keep sidebar categories expanded or collapsed from their own toggle.
+    // Visited-topic counts do not lock Pleb Talk, IRL Sync, or Lightning Mart.
     function updateSidebarTiers() {
-        const exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        const visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        
-        // Admin Bypass Logic — safely handle auth not being ready yet
-        var _auth = (typeof auth !== 'undefined') ? auth : null;
-        var _cu = _auth && _auth.currentUser;
-        const isAdmin = window._isAdminClaim === true;
-
-        // Experienced onboarding users bypass all gating
-        var _obProfile = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
-        var _isAdvanced = _obProfile && (_obProfile.level === 'advanced' || _obProfile.level === 'full');
-
-        // Tier Logic — all apps unlocked for everyone (progressive unlock removed)
-        const isFull = true;
-        const isCommunity = true;
-        const isExplorer = true;
-
         const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
         const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
 
-        // All categories always visible — no tier gating on channel access
-        // Users can explore everything; the "Next Goal" banner encourages progression
         toggleLabels.forEach(function(label) {
             var group = label.nextElementSibling;
             if (!group || !group.classList.contains('cat-group')) return;
@@ -4228,7 +4193,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Sidebar Action Buttons (exclude buttons inside appsMenu — those have their own formatting)
         sidebarButtons.forEach(btn => {
             if (btn.closest('#appsMenu') || btn.closest('#homeAppsMenu') || btn.closest('#guideOverlay') || btn.closest('#questHubOverlay')) return;
-            const txt = btn.getAttribute('data-name') || btn.textContent.replace('🔒 ', '').trim();
+            const txt = btn.getAttribute('data-name') || btn.textContent.trim();
             if (!btn.getAttribute('data-name')) btn.setAttribute('data-name', txt);
             
             const origOnclick = btn.getAttribute('data-onclick') || btn.getAttribute('onclick');
@@ -4245,79 +4210,6 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         });
 
-        // Gate tiered app buttons on home page
-        // Pure CSS-class approach — never mutate innerHTML so span styles stay intact
-        const tieredBtns = document.querySelectorAll('[data-tier]');
-        tieredBtns.forEach(btn => {
-            const tier = btn.getAttribute('data-tier');
-            const name = btn.getAttribute('data-unlock-name') || (btn.querySelector('.app-title') || btn).textContent.trim();
-            // Save original onclick string once
-            if (!btn.getAttribute('data-onclick')) {
-                var _oc = btn.getAttribute('onclick');
-                if (_oc) btn.setAttribute('data-onclick', _oc);
-            }
-            // Save original title-span text once (so we can restore 🔒 prefix removal)
-            var _titleSpan = btn.querySelector('.app-title');
-            if (_titleSpan && !btn.getAttribute('data-orig-title')) {
-                btn.setAttribute('data-orig-title', _titleSpan.textContent);
-            }
-
-            let unlocked = false;
-            let reqMsg = '';
-            if (tier === 'explorer') {
-                unlocked = isExplorer;
-                reqMsg = '🔒 Visit ' + Math.max(0, 3 - exploredCount) + ' more channel' + (3 - exploredCount === 1 ? '' : 's') + ' to unlock ' + name + '!';
-            } else if (tier === 'community') {
-                unlocked = isCommunity;
-                reqMsg = '🔒 Explore ' + Math.max(0, 5 - exploredCount) + ' more channel' + (5 - exploredCount === 1 ? '' : 's') + ' to unlock ' + name + '!';
-            } else if (tier === 'full') {
-                unlocked = isFull;
-                reqMsg = '🔒 Explore ' + Math.max(0, 10 - exploredCount) + ' more channel' + (10 - exploredCount === 1 ? '' : 's') + ' or sign in to unlock ' + name + '!';
-            }
-
-            if (!unlocked) {
-                btn.classList.add('tier-locked');
-                btn.title = reqMsg;
-                btn.setAttribute('data-tooltip', reqMsg);
-                // Prefix title span with lock icon (text only, no HTML change)
-                if (_titleSpan) {
-                    var _orig = btn.getAttribute('data-orig-title') || _titleSpan.textContent;
-                    _titleSpan.textContent = '🔒 ' + _orig.replace(/^🔒\s*/, '');
-                }
-                btn.onclick = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (typeof showToast === 'function') showToast(reqMsg);
-                };
-            } else {
-                btn.classList.remove('tier-locked');
-                btn.title = '';
-                btn.style.opacity = '';
-                btn.style.filter = '';
-                btn.style.cursor = '';
-                // Restore original title text (remove lock prefix)
-                if (_titleSpan && btn.getAttribute('data-orig-title')) {
-                    _titleSpan.textContent = btn.getAttribute('data-orig-title');
-                }
-                var action = btn.getAttribute('data-onclick');
-                if (action) btn.onclick = _safeAction(action);
-            }
-        });
-
-        // Unlock celebrations — fire once per tier
-        var prevTier = localStorage.getItem('btc_unlocked_tier') || 'none';
-        var tiers = ['none', 'explorer', 'community', 'full'];
-        var curTier = isFull ? 'full' : isCommunity ? 'community' : isExplorer ? 'explorer' : 'none';
-        var prevIdx = tiers.indexOf(prevTier);
-        var curIdx = tiers.indexOf(curTier);
-        if (curIdx > prevIdx) {
-            localStorage.setItem('btc_unlocked_tier', curTier);
-            // Close any stale apps menu so next open reflects new tier
-            var _staleMenu = document.getElementById('appsMenu');
-            if (_staleMenu) _staleMenu.remove();
-            // Tier unlock toasts removed — all apps are open to all users
-        }
-        
         // Remove any leftover milestone banner
         var milestoneEl = document.getElementById('sidebarMilestone');
         if (milestoneEl) milestoneEl.remove();
@@ -4521,19 +4413,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
         }
-
-        // PROGRESSIVE DISCLOSURE TIER SYSTEM
-        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
-        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        
-        // Admin Bypass Logic
-        var isAdmin = window._isAdminClaim === true;
-
-        var isFull = true;
-        var isExplorer = true;
-
-        // Forum and Marketplace are ALWAYS viewable — actions (post, list) require sign-in
-        // No more page-level lockdown
 
         // Learning Quests: fixed overlay — render on top of current page, don't wipe home
         if (id === 'learning-quests') {
@@ -5512,11 +5391,22 @@ window.nachoQuizAnswer = function(btn, correct) {
         var menu = document.getElementById(id);
         if (!menu) return;
         var isVisible = menu.style.display === 'flex' || menu.style.display === 'grid' || menu.style.display === 'block';
-        
+        var toggleIds = { homeLearnMenu: 'homeLearnBtn', homeAppsMenu: 'homeAppsBtn' };
+        var toggle = toggleIds[id] ? document.getElementById(toggleIds[id]) : null;
+
         // Use inline-style directly to track state for simplicity in this build
         if (isVisible) {
             menu.style.display = 'none';
+            if (id === 'homeLearnMenu') {
+                menu.setAttribute('data-learn-view', 'root');
+                if (typeof window.renderDesktopLearnMenu === 'function') window.renderDesktopLearnMenu('root');
+            }
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
         } else {
+            if (id === 'homeLearnMenu') {
+                menu.setAttribute('data-learn-view', 'root');
+                if (typeof window.renderDesktopLearnMenu === 'function') window.renderDesktopLearnMenu('root');
+            }
             if (id.includes('Flash')) {
                 menu.style.display = 'flex';
             } else if (id.includes('homeAppsMenu')) {
@@ -5525,6 +5415,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 menu.style.display = 'flex';
                 menu.style.flexDirection = 'column';
             }
+            if (toggle) toggle.setAttribute('aria-expanded', 'true');
             if (typeof playSound === 'function') playSound('pop');
         }
     };
