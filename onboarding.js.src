@@ -364,7 +364,7 @@
             btn.style.top = Math.round(lowest + 12) + 'px';
             btn.style.bottom = 'auto';
         }
-        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'curatedStartSection', 'todayFavorStrip', 'todayCardTitle', 'homeLearnTitle', 'homeLearnKicker'];
+        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'curatedStartSection', 'todayFavorStrip', 'todayCardTitle', 'homeLearnTitle', 'homeLearnKicker', 'guestPointsBanner'];
         for (var a = 0; a < avoidIds.length; a++) {
             var block = document.getElementById(avoidIds[a]);
             if (!block) continue;
