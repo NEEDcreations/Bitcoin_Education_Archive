@@ -74,8 +74,6 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 
     const userRef = db.collection('users').doc(uid);
     const awardRef = userRef.collection('badge_awards').doc(badgeId);
-    const nowMs = Number(options.nowMs) || Date.now();
-    const day = options.day || offsetDateKey(nowMs);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const stateRef = db.collection('satoshiFavor').doc('current');
     const contributorRef = stateRef.collection('contributors').doc(uid + '_badge_' + badgeId);
@@ -83,6 +81,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
     const needsAwards = !verified && rule.source && (rule.source.type === 'awards' || rule.source.type === 'set');
 
     return db.runTransaction(async function (t) {
+        // Recomputed on every attempt. A retry must not reuse a clock from before the transaction.
+        const nowMs = Number(options.nowMs) || Date.now();
+        const day = options.day || offsetDateKey(nowMs);
         const userSnap = await t.get(userRef);
         const awardSnap = await t.get(awardRef);
         const ledgerSnap = await t.get(ledgerRef);
@@ -155,7 +156,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
             update.monthlyXP = adminSdk.firestore.FieldValue.increment(xp);
         }
-        t.set(awardRef, {
+        const awardDoc = {
             awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
             badge: badgeId,
             xp: xp,
@@ -163,7 +164,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             dropped: xpGrant.dropped,
             day: day,
             source: options.source || 'awardBadge',
-        });
+            favorPoint: false,
+        };
+        if (options.xpSource) awardDoc.xpSource = String(options.xpSource);
+        if (options.backfill === true) awardDoc.backfill = true;
+        if (options.ggSkip === true) awardDoc.ggSkip = true;
         t.update(userRef, update);
         if (xp > 0 && xpGrant.dailyRef) {
             t.set(xpGrant.dailyRef, {
@@ -173,6 +178,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         }
 
         let favor = false;
+        let favorPoint = false;
         if (!contributorSnap.exists) {
             const stateData = stateSnap.exists ? (stateSnap.data() || {}) : {
                 points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,
@@ -229,7 +235,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
                 updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
             favor = true;
+            // Pool points only. An open window adds bonus minutes and does not increment the pool.
+            favorPoint = plan.extended !== true;
+            awardDoc.favorPoint = favorPoint;
         }
+        t.set(awardRef, awardDoc);
 
         return {
             granted: true,
@@ -241,6 +251,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             capped: xpGrant.capped,
             capBypass: false,
             favor: favor,
+            favorPoint: favorPoint,
             badgeId: badgeId,
             cosmetic: false,
         };

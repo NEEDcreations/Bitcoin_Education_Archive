@@ -377,7 +377,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
+    assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") > 0);
+    assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 

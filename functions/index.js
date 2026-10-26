@@ -6262,7 +6262,7 @@ exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals, resetExpiredFavor } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
@@ -6273,61 +6273,13 @@ exports.getFactionTotals = getFactionTotals;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
 exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {
-    const stateRef = db.collection('satoshiFavor').doc('current');
-    const stateDoc = await stateRef.get();
-    if (!stateDoc.exists) return;
-
-    const stateData = stateDoc.data();
-    if (!stateData.favorActive) return;
-
-    const now = Date.now();
-    const favorEndBase = stateData.favorEndBase ? stateData.favorEndBase.toMillis() : 0;
-    const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
-    const effectiveEnd = favorEndBase + bonusMs;
-
-    if (now > effectiveEnd) {
-        // Archive window stats BEFORE resetting
-        try {
-            const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
-            const DIFFICULTY_TARGET = 10000; // keep in sync with satoshiFavor.js
-            await lastWindowRef.set({
-                cycleId: stateData.currentCycleId || null,
-                startedAt: stateData.favorStart || null,
-                endedAt: admin.firestore.Timestamp.fromMillis(effectiveEnd),
-                durationMinutes: (function() {
-                    if (!stateData.favorStart) return 0;
-                    const durMs = effectiveEnd - stateData.favorStart.toMillis();
-                    return durMs > 0 ? Math.round(durMs / 60000) : 0;
-                })(),
-                totalHashes: stateData.totalHashes || 0,
-                lowestHash: stateData.lowestHashThisWindow || null,
-                difficultyTarget: DIFFICULTY_TARGET,
-                winner: stateData.lowestHashThisWindowUid ? {
-                    uid: stateData.lowestHashThisWindowUid,
-                    username: stateData.lowestHashThisWindowUsername || null,
-                } : null,
-                archivedAt: admin.firestore.Timestamp.now(),
-                archivedBy: 'cron',
-            }, { merge: false });
-            console.log('[SF-CRON] Archived lastWindow — hashes:', stateData.totalHashes || 0, 'lowest:', stateData.lowestHashThisWindow || 'none');
-        } catch (e) {
-            console.warn('[SF-CRON] Failed to archive lastWindow:', e.message);
+    try {
+        const result = await resetExpiredFavor();
+        if (result && result.reset) {
+            console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
         }
-        // Reset state
-        await stateRef.set({
-            points: 0,
-            favorActive: false,
-            favorStart: null,
-            favorEndBase: null,
-            bonusMinutes: 0,
-            totalHashes: 0,
-            lowestHashThisWindow: null,
-            lowestHashThisWindowUid: null,
-            lowestHashThisWindowUsername: null,
-            lastReset: admin.firestore.Timestamp.now(),
-            currentCycleId: stateData.currentCycleId || null,
-        });
-        console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
+    } catch (e) {
+        console.warn('[SF-CRON] reset failed:', e.message);
     }
 });
 
@@ -7998,6 +7950,43 @@ exports.refreshHotTopicsForce = functionsV1.runWith({
 // ── Satoshi's Favor → X auto-post ────────────────────────────────────────────
 const { tweetSatoshisFavor } = require('./src/tweetSatoshisFavor');
 exports.tweetSatoshisFavor = tweetSatoshisFavor;
+
+const { handleFavorLiveWrite } = require('./src/favorLiveAnnounce');
+exports.onSatoshiFavorLive = onDocumentWritten('satoshiFavor/current', async (event) => {
+    const beforeSnap = event.data && event.data.before;
+    const afterSnap = event.data && event.data.after;
+    const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
+    const after = afterSnap && afterSnap.exists ? afterSnap.data() : null;
+    try {
+        await handleFavorLiveWrite(db, admin, before, after);
+    } catch (e) {
+        console.error('[SF LIVE] announce failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+    return null;
+});
+
+const { queueBadgeGg, flushDueBursts } = require('./src/badgeGg');
+exports.onBadgeAwardCreated = onDocumentCreated('users/{uid}/badge_awards/{badgeId}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const data = snap.data() || {};
+    try {
+        await queueBadgeGg(db, admin, event.params.uid, event.params.badgeId, data, Date.now());
+    } catch (e) {
+        console.error('[BADGE GG] queue failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+    return null;
+});
+exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+    try {
+        await flushDueBursts(db, admin, Date.now());
+    } catch (e) {
+        console.error('[BADGE GG] flush failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+});
 
 // ── GIF Search Proxy (Tenor v2) ───────────────────────────────────────────────
 // Proxies Tenor v2 requests server-side so the API key never leaks to the client

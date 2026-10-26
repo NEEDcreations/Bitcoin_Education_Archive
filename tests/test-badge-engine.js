@@ -325,6 +325,8 @@ queue.push(test('every badge grant adds one Favor point once', async function ()
     const second = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now + 1000 });
     assert.strictEqual(first.granted, true);
     assert.strictEqual(first.favor, true);
+    assert.strictEqual(first.favorPoint, true);
+    assert.strictEqual(db.docs['users/u/badge_awards/say_hi_1'].favorPoint, true);
     assert.strictEqual(first.xp, 10);
     assert.strictEqual(second.reason, 'already');
     assert.strictEqual(second.favor, false);
@@ -351,6 +353,8 @@ queue.push(test('an open Favor window extends and the caps hold', async function
     });
     const extended = await awardBadge(open, admin, 'u', 'say_hi_7', { day: '2026-10-22', nowMs: now });
     assert.strictEqual(extended.favor, true);
+    assert.strictEqual(extended.favorPoint, false);
+    assert.strictEqual(open.docs['users/u/badge_awards/say_hi_7'].favorPoint, false);
     assert.strictEqual(open.docs['satoshiFavor/current'].bonusMinutes, 3);
     assert.strictEqual(open.docs['satoshiFavor/current'].points, 25);
     const cappedMin = memoryDb({

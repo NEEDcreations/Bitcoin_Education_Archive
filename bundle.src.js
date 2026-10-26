@@ -1458,13 +1458,7 @@ function showBadgeToast(badge) {
 
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-    // Announce major badge earns in GG chat
-    if (typeof window.nachoGlobalAnnounce === 'function') {
-        var _gcBadgeUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-        if (_gcBadgeUser) {
-            window.nachoGlobalAnnounce('🏅 @' + _gcBadgeUser + ' just earned the ' + badge.emoji + ' ' + badge.name + ' badge! 🎉');
-        }
-    }
+    // GGs posts for badge earns are written by the server, grouped per player.
 }
 
 function copyBadgeLink(emoji, name) {
@@ -13628,15 +13622,6 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
                 .then(function(result) {
                 })
                 .catch(function() {});
-            // GG chat for significant hidden badge milestones
-            var _gcMajorHidden = ['trail_meadow', 'trail_mountain', 'trail_summit', 'lq_graduate'];
-            if (_gcMajorHidden.indexOf(badgeId) !== -1 && typeof window.nachoGlobalAnnounce === 'function') {
-                var _gcUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_gcUser) {
-                    var _gcBadgeEmoji = badgeId === 'trail_meadow' ? '🌿' : badgeId === 'trail_mountain' ? '⛰️' : badgeId === 'trail_summit' ? '🏔️' : '📖';
-                    window.nachoGlobalAnnounce('🏅 @' + _gcUser + ' just completed ' + (toastMsg || badgeId) + '! ' + _gcBadgeEmoji + '🎉');
-                }
-            }
         }
     }
 };

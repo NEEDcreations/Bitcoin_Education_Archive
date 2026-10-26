@@ -1,10 +1,10 @@
-// Cache-buster pin. This ship branch is btc-archive-v2362.
+// Cache-buster pin. This ship branch is btc-archive-v2369.
 // timechain-tv.js stays 20261024_v2353.
-// bundle.min.js, ranking.js, and features.registry.js stay 20261024_v2361.
+// bundle.min.js is 20261026_v2369. ranking.js and features.registry.js stay 20261024_v2361.
 // global-chat.js and patches.js stay 20261024_v2360. nacho-qa.js stays 20261024_v2350.
-// gifting.js and onboarding.js stay 20261024_v2358. quests.js is 20261024_v2362.
+// gifting.js and onboarding.js stay 20261024_v2358. quests.js is 20261026_v2369.
 // notifications.js stays 20261024_v2357.
-// satoshi-favor.js and username-repick.js stay 20261024_v2352.
+// satoshi-favor.js is 20261026_v2369. username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349. today-card.js is 20261024_v2351.
 // scholar.js stays 20261023_v2330. tctv-watch.js stays 20261023_v2340.
 // learning-quests.js and modules.js stay 20261023_v2324.
@@ -27,9 +27,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2362', () => {
+test('service worker cache is v2369', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2362'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2369'"));
+    assert.ok(!sw.includes('btc-archive-v2362'));
     assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));
     assert.ok(!sw.includes('btc-archive-v2359'));
@@ -51,8 +52,9 @@ test('service worker cache is v2362', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261024_v2361/g) || []).length, 2);
-    assert.ok(html.includes('bundle.min.js?v=20261024_v2361'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2369/g) || []).length, 2);
+    assert.ok(html.includes('bundle.min.js?v=20261026_v2369'));
+    assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2358'));
@@ -185,13 +187,15 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('today-card.js?v=20261023_v2349'));
     assert.ok(!html.includes('today-card.js?v=20261023_v2330'));
     assert.ok(!html.includes('today-card.js?v=20261023_v2323'));
-    assert.ok(html.includes('satoshi-favor.js?v=20261024_v2352'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261026_v2369'));
+    assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2352'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2351'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2323'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2369/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
@@ -214,7 +218,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2362');
+    assert.ok(swVersion && swVersion[1] === 'v2369');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -251,7 +255,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
+    assert.ok(notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
+    assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
+    assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
     assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));
