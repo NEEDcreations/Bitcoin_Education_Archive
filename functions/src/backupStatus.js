@@ -8,6 +8,7 @@ const health = require('./backupHealth');
 
 const JOB_NAMES = ['firestore', 'auth', 'uploads', 'config'];
 const HISTORY_TTL_DAYS = 90;
+const STALE_MS = 26 * 60 * 60 * 1000;
 const LATEST_COLLECTION = 'backup_status';
 const LATEST_DOC = 'latest';
 const HISTORY_COLLECTION = 'backup_history';
@@ -56,10 +57,30 @@ function finiteCount(value, fallback) {
     return Number.isFinite(prior) ? prior : 0;
 }
 
-function nextLatest(previous, event, nowIso) {
-    // r2 is optional. The 05:00 check still requires the four nightly jobs.
-    // A present r2 failure is added to the failed list, so latest.ok is false
-    // and the existing checker alerts. A missing r2 job does not fail the day.
+function r2IsStale(job, nowIso) {
+    if (!job || !job.finishedAt) return true;
+    const finished = Date.parse(job.finishedAt);
+    const now = Date.parse(nowIso || new Date().toISOString());
+    if (Number.isNaN(finished) || Number.isNaN(now)) return true;
+    return now - finished > STALE_MS;
+}
+
+function checkerVerdict(latest, nowIso) {
+    const now = Date.parse(nowIso || new Date().toISOString());
+    const updated = latest && latest.updatedAt ? Date.parse(latest.updatedAt) : NaN;
+    if (!latest || !latest.updatedAt || Number.isNaN(updated) || Number.isNaN(now) || now - updated > STALE_MS) {
+        return { ok: false, detail: 'status is older than 26 hours' };
+    }
+    return { ok: latest.ok === true, detail: latest.detail || '' };
+}
+
+function nextLatest(previous, event, nowIso, options) {
+    // The four nightly jobs are always required. r2 is required when the
+    // health check passes r2Required. A missing r2 record, r2.ok !== true,
+    // or an r2 finishedAt older than 26 hours then fails the day. A job
+    // write that does not ask for that check still fails when a present r2
+    // record is not ok, and does not fail merely because r2 is absent.
+    const r2Required = !!(options && options.r2Required);
     const isR2 = event.job === 'r2';
     if (!isR2 && JOB_NAMES.indexOf(event.job) === -1) throw new Error('unknown backup job');
     const date = event.date;
@@ -94,7 +115,11 @@ function nextLatest(previous, event, nowIso) {
         const name = JOB_NAMES[i];
         if (!jobs[name] || jobs[name].ok !== true) failed.push(name);
     }
-    if (jobs.r2 && jobs.r2.ok !== true) failed.push('r2');
+    if (r2Required) {
+        if (!jobs.r2 || jobs.r2.ok !== true || r2IsStale(jobs.r2, nowIso)) failed.push('r2');
+    } else if (jobs.r2 && jobs.r2.ok !== true) {
+        failed.push('r2');
+    }
     // A nightly job write clears verification. The r2 copy keeps a same-day
     // verifiedAt so a later ciphertext copy does not hide a 05:00 check.
     // Only an event that carries verifiedAt (the 05:00 health check) can
@@ -131,7 +156,7 @@ function historyDoc(event, expireAt) {
     return doc;
 }
 
-async function writeBackupResults(db, admin, events, nowIso) {
+async function writeBackupResults(db, admin, events, nowIso, options) {
     const list = events || [];
     if (!list.length) return [];
     const now = nowIso || new Date().toISOString();
@@ -144,7 +169,7 @@ async function writeBackupResults(db, admin, events, nowIso) {
             const finishedAt = list[i].finishedAt || now;
             const runId = list[i].runId || makeRunId(list[i].job, finishedAt);
             const full = Object.assign({}, list[i], { finishedAt: finishedAt, runId: runId });
-            prev = nextLatest(prev, full, now);
+            prev = nextLatest(prev, full, now, options);
             const expireAt = admin.firestore.Timestamp.fromDate(expireDate(finishedAt));
             tx.set(db.collection(HISTORY_COLLECTION).doc(runId), historyDoc(full, expireAt));
             runIds.push(runId);
@@ -162,12 +187,15 @@ async function writeBackupResult(db, admin, event) {
 module.exports = {
     JOB_NAMES,
     HISTORY_TTL_DAYS,
+    STALE_MS,
     LATEST_COLLECTION,
     LATEST_DOC,
     HISTORY_COLLECTION,
     makeRunId,
     expireDate,
     verifiedAfterCutoff,
+    checkerVerdict,
+    r2IsStale,
     nextLatest,
     historyDoc,
     writeBackupResult,

@@ -66,7 +66,7 @@ function completeFound(date) {
         ],
         auth: ['auth/' + date + '/users.jsonl.gz.enc', 'auth/' + date + '/manifest.json'],
         config: configNames(date),
-        uploads: ['beats/a.mp3'],
+        uploads: [{ name: 'beats/a.mp3', generation: '17', md5: 'abc', size: 5 }],
     };
 }
 
@@ -149,7 +149,25 @@ test('the night plan requires every backup and names ciphertext keys', function 
     assert.ok(dests.indexOf(date + '/auth/users.jsonl.gz.enc') !== -1);
     assert.ok(dests.indexOf(date + '/auth/manifest.json') !== -1);
     assert.ok(dests.indexOf(date + '/config/firestore-rules.json') !== -1);
-    assert.ok(dests.indexOf(date + '/uploads/beats/a.mp3') !== -1);
+    assert.ok(dests.indexOf('uploads/beats/a.mp3#17') !== -1);
+    assert.ok(dests.indexOf(date + '/uploads-manifest.json') !== -1);
+    assert.strictEqual(dests.indexOf(date + '/uploads/beats/a.mp3'), -1);
+    const manifest = plan.uploads.filter((item) => item.group === 'manifest')[0];
+    const listed = JSON.parse(manifest.body.toString('utf8'));
+    assert.strictEqual(listed.objects[0].dest, 'uploads/beats/a.mp3#17');
+    assert.strictEqual(listed.objects[0].generation, '17');
+    assert.strictEqual(listed.objects[0].bytes, 5);
+    const changed = r2.planNight(date, {
+        firestore: completeFound(date).firestore,
+        auth: completeFound(date).auth,
+        config: completeFound(date).config,
+        uploads: [{ name: 'beats/a.mp3', generation: '18', md5: 'def', size: 9 }],
+    });
+    assert.ok(changed.uploads.some((item) => item.dest === 'uploads/beats/a.mp3#18'));
+    assert.deepStrictEqual(
+        r2.unreferencedUploads(['uploads/beats/a.mp3#17', 'uploads/beats/a.mp3#18', date + '/firestore/a'], ['uploads/beats/a.mp3#18']),
+        ['uploads/beats/a.mp3#17']
+    );
 });
 
 test('objects older than 90 days are deleted and a 90 day old key is kept', function () {
@@ -160,6 +178,7 @@ test('objects older than 90 days are deleted and a 90 day old key is kept', func
         cutoff + '/firestore/a',
         older + '/auth/users.jsonl.gz.enc',
         today + '/config/firestore-rules.json',
+        'uploads/beats/a.mp3#17',
         'notes.txt',
     ], today, 90);
     assert.deepStrictEqual(old, [older + '/auth/users.jsonl.gz.enc']);
@@ -227,14 +246,29 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
     assert.strictEqual(apply.indexOf('R2_SECRET_ACCESS_KEY'), -1);
     assert.strictEqual(apply.indexOf('BACKUP_ENCRYPTION_KEY'), -1);
     assert.ok(src.indexOf('Object Read & Write') !== -1);
-    assert.ok(src.indexOf('GOVERNANCE') !== -1);
-    assert.ok(src.indexOf('Days":30') !== -1);
+    assert.ok(src.indexOf('Bucket lock rules') !== -1);
+    assert.ok(src.indexOf('bq-backup-offsite') !== -1);
+    assert.ok(src.indexOf('Prefix: 2') !== -1);
+    assert.ok(src.indexOf('read -rsp') !== -1);
+    assert.ok(src.indexOf('history -c') !== -1);
+    assert.ok(src.indexOf('irreversible') !== -1);
+    assert.ok(src.indexOf('in addition to roles/storage.objectAdmin') !== -1);
+    assert.ok(src.indexOf('BACKUP_RESTORE.md') !== -1);
+    assert.ok(src.indexOf('checkerVerdict') !== -1);
+    assert.ok(src.indexOf('status is older than 26 hours') !== -1);
+    assert.strictEqual(src.indexOf('GOVERNANCE'), -1);
+    assert.strictEqual(src.indexOf('aws s3api'), -1);
     assert.ok(src.indexOf('functions:nightlyR2Copy') !== -1);
     assert.ok(src.indexOf('decrypt_r2_object.js') !== -1);
+    const nightly = fs.readFileSync(path.join(__dirname, '..', 'functions/src/nightlyBackup.js'), 'utf8');
+    assert.ok(nightly.indexOf('r2Required: true') !== -1);
     const out = execFileSync('bash', [script], { encoding: 'utf8' });
     assert.ok(out.indexOf('Object Read & Write') !== -1);
-    assert.ok(out.indexOf('Governance') !== -1);
+    assert.ok(out.indexOf('Bucket lock rules') !== -1);
     assert.ok(out.indexOf('30 days') !== -1);
+    assert.ok(out.indexOf('bq-backup-offsite') !== -1);
+    assert.ok(out.indexOf('read -rsp') !== -1);
+    assert.strictEqual(out.indexOf('GOVERNANCE'), -1);
     assert.ok(out.indexOf('R2_ACCOUNT_ID') !== -1);
     assert.ok(out.indexOf('R2_ACCESS_KEY_ID') !== -1);
     assert.ok(out.indexOf('R2_SECRET_ACCESS_KEY') !== -1);
@@ -253,13 +287,23 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         const blob = await seal.sealBuffer(sentinel, key);
         assert.strictEqual(seal.headerMatches(blob), true);
         assert.strictEqual(blob.subarray(0, 4).toString('utf8'), 'BQR2');
-        assert.strictEqual(blob[4], 1);
+        assert.strictEqual(blob[4], seal.VERSION);
         assert.strictEqual(blob.length > seal.HEADER_LEN + seal.TAG_LEN, true);
         assert.strictEqual(blob.includes(sentinel), false);
+        assert.ok(blob.subarray(5, 5 + seal.KID_LEN).equals(seal.keyId(key)));
         assert.deepStrictEqual(seal.decryptBuffer(blob, key), sentinel);
         const second = await seal.sealBuffer(sentinel, key);
-        assert.strictEqual(blob.subarray(5, 17).equals(second.subarray(5, 17)), false);
+        const ivAt = 5 + seal.KID_LEN;
+        assert.strictEqual(blob.subarray(ivAt, ivAt + seal.IV_LEN).equals(second.subarray(ivAt, ivAt + seal.IV_LEN)), false);
         assert.deepStrictEqual(seal.decryptBuffer(second, key), sentinel);
+        const bound = await seal.sealBuffer(sentinel, key, 'uploads/a#1');
+        assert.deepStrictEqual(seal.decryptBuffer(bound, [key32(), key], 'uploads/a#1'), sentinel);
+        assert.throws(() => seal.decryptBuffer(bound, key, 'uploads/a#2'), /unable to authenticate|Unsupported state|auth/i);
+        const iv = crypto.randomBytes(seal.IV_LEN);
+        const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+        const data = Buffer.concat([cipher.update(sentinel), cipher.final()]);
+        const v1 = Buffer.concat([Buffer.from('BQR2'), Buffer.from([seal.VERSION_V1]), iv, data, cipher.getAuthTag()]);
+        assert.deepStrictEqual(seal.decryptBuffer(v1, [key32(), key]), sentinel);
         const empty = await seal.sealBuffer(Buffer.alloc(0), key);
         assert.strictEqual(empty.length, seal.HEADER_LEN + seal.TAG_LEN);
         assert.strictEqual(seal.decryptBuffer(empty, key).length, 0);
@@ -286,6 +330,7 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         tag[tag.length - 1] ^= 1;
         assert.throws(() => seal.decryptBuffer(tag, key));
         assert.strictEqual(seal.headerMatches(Buffer.from('BQR2\x01')), true);
+        assert.strictEqual(seal.headerMatches(Buffer.from('BQR2\x02')), true);
         assert.strictEqual(seal.headerMatches(Buffer.from('BQAE\x01')), false);
     });
 
@@ -328,7 +373,8 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         assert.ok(sealed);
         assert.strictEqual(sealed.includes(plain), false);
         assert.strictEqual(seal.headerMatches(sealed), true);
-        assert.deepStrictEqual(seal.decryptBuffer(sealed, key), plain);
+        assert.deepStrictEqual(seal.decryptBuffer(sealed, key, 'd/config/firestore-rules.json'), plain);
+        assert.ok(sealed.subarray(5, 5 + seal.KID_LEN).equals(seal.keyId(key)));
         assert.strictEqual(result.bytes, sealed.length + 40);
     });
 
@@ -461,6 +507,33 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         assert.strictEqual(latest.verifiedAt, finishedAt);
         assert.strictEqual(latest.jobs.r2.objectCount, 9);
         assert.strictEqual(latest.jobs.r2.bytes, 100);
+        const required = fakeDb();
+        await status.writeBackupResults(required.db, adminStub, verifiedEvents(day, finishedAt), finishedAt, { r2Required: true });
+        assert.strictEqual(required.docs['backup_status/latest'].ok, false);
+        assert.ok(required.docs['backup_status/latest'].detail.indexOf('r2') !== -1);
+        const stale = fakeDb();
+        await status.writeBackupResults(stale.db, adminStub, verifiedEvents(day, finishedAt), finishedAt);
+        await status.writeBackupResults(stale.db, adminStub, [{
+            job: 'r2',
+            date: day,
+            ok: true,
+            startedAt: '2026-10-22T04:45:00.000Z',
+            finishedAt: '2026-10-22T04:50:00.000Z',
+            detail: 'copied',
+            objectCount: 1,
+            bytes: 2,
+        }], finishedAt);
+        await status.writeBackupResults(stale.db, adminStub, verifiedEvents(day, finishedAt), finishedAt, { r2Required: true });
+        assert.strictEqual(stale.docs['backup_status/latest'].ok, false);
+        assert.ok(stale.docs['backup_status/latest'].detail.indexOf('r2') !== -1);
+        const fresh = { ok: true, updatedAt: finishedAt, detail: 'all checks passed' };
+        assert.deepStrictEqual(status.checkerVerdict(fresh, finishedAt), { ok: true, detail: 'all checks passed' });
+        assert.strictEqual(status.checkerVerdict(fresh, '2026-10-25T05:00:00.000Z').ok, true);
+        assert.deepStrictEqual(
+            status.checkerVerdict(fresh, '2026-10-25T08:00:00.000Z'),
+            { ok: false, detail: 'status is older than 26 hours' }
+        );
+        assert.deepStrictEqual(status.checkerVerdict(null, finishedAt), { ok: false, detail: 'status is older than 26 hours' });
         assert.throws(() => status.nextLatest(null, { job: 'other', date: day, ok: true }, finishedAt), /unknown backup job/);
         await status.writeBackupResult(store.db, adminStub, {
             job: 'firestore',
@@ -490,6 +563,7 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
             env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
         });
         assert.deepStrictEqual(fs.readFileSync(out), plain);
+        assert.strictEqual(fs.statSync(out).mode & 0o777, 0o600);
         assert.strictEqual(log.indexOf(key.toString('base64')), -1);
         assert.strictEqual(log.indexOf(file), -1);
         const empty = await seal.sealBuffer(Buffer.alloc(0), key);
@@ -501,12 +575,26 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
             env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
         });
         assert.strictEqual(fs.readFileSync(emptyOut).length, 0);
+        const bound = await seal.sealBuffer(plain, key, 'uploads/photo.png#17');
+        const boundFile = path.join(dir, 'bound.bin');
+        const boundOut = path.join(dir, 'bound.out');
+        fs.writeFileSync(boundFile, bound);
+        const wrong = key32();
+        execFileSync('node', [script, '--file', boundFile, '--out', boundOut, '--dest', 'uploads/photo.png#17'], {
+            encoding: 'utf8',
+            env: Object.assign({}, process.env, {
+                BACKUP_ENCRYPTION_KEY: wrong.toString('base64'),
+                BACKUP_ENCRYPTION_KEYS: key.toString('base64'),
+            }),
+        });
+        assert.deepStrictEqual(fs.readFileSync(boundOut), plain);
         const tampered = Buffer.from(blob);
         tampered[tampered.length - 1] ^= 1;
         fs.writeFileSync(file, tampered);
+        const badOut = path.join(dir, 'bad.bin');
         let rejected = false;
         try {
-            execFileSync('node', [script, '--file', file, '--out', out], {
+            execFileSync('node', [script, '--file', file, '--out', badOut], {
                 encoding: 'utf8',
                 env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
                 stdio: ['ignore', 'pipe', 'pipe'],
@@ -517,7 +605,45 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
             assert.strictEqual(stderr.indexOf(key.toString('base64')), -1);
         }
         assert.strictEqual(rejected, true);
+        assert.strictEqual(fs.existsSync(badOut), false);
+        assert.strictEqual(fs.existsSync(badOut + '.tmp'), false);
+        assert.deepStrictEqual(fs.readFileSync(out), plain);
         fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    await testAsync('a 403 before the upload reads does not hang or reject unhandled', async function () {
+        const rejections = [];
+        function onRejection(err) { rejections.push(err); }
+        process.on('unhandledRejection', onRejection);
+        const started = Date.now();
+        try {
+            const result = await r2.copyPlanned({
+                encKey: key32(),
+                objectTimeoutMs: 5000,
+                planned: [{ group: 'uploads', name: 'a', dest: 'uploads/a#1' }],
+                headObject: async function () { return { exists: false, bytes: 0 }; },
+                openObject: async function () { return Readable.from([Buffer.from('hello')]); },
+                putObject: function () { return Promise.reject(new Error('R2 403 AccessDenied')); },
+            });
+            await new Promise(function (resolve) { setTimeout(resolve, 30); });
+            assert.ok(Date.now() - started < 1000);
+            assert.deepStrictEqual(result.failedGroups, ['uploads']);
+            assert.strictEqual(result.objectCount, 0);
+            assert.strictEqual(rejections.length, 0);
+            const timed = await r2.copyPlanned({
+                encKey: key32(),
+                objectTimeoutMs: 80,
+                planned: [{ group: 'config', name: 'c', dest: 'd/config/c' }],
+                headObject: async function () { return { exists: false, bytes: 0 }; },
+                openObject: async function () { return Readable.from([Buffer.from('hello')]); },
+                putObject: function () { return new Promise(function () {}); },
+            });
+            await new Promise(function (resolve) { setTimeout(resolve, 30); });
+            assert.deepStrictEqual(timed.failedGroups, ['config']);
+            assert.strictEqual(rejections.length, 0);
+        } finally {
+            process.off('unhandledRejection', onRejection);
+        }
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

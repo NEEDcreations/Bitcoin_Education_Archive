@@ -2,15 +2,21 @@
 
 // Copy one night of backups to Cloudflare R2. Every object is sealed with
 // r2BackupCrypto before it is uploaded. R2 never receives plaintext.
+// Uploads objects are stored once, at uploads/<name>#<generation> (or md5
+// when generation is missing). A small sealed manifest for the night lists
+// them. Dated Firestore, auth, and config keys still expire after 90 days.
 // A failed run is recorded as job "r2" on backup_status/latest, which makes
 // latest.ok false. That is the existing failure alert. No email or chat.
 
+const crypto = require('crypto');
 const health = require('./backupHealth');
 const seal = require('./r2BackupCrypto');
-const { PassThrough } = require('stream');
+const { PassThrough, Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
 
 const DELETE_AFTER_DAYS = 90;
+const OBJECT_TIMEOUT_MS = 10 * 60 * 1000;
+const COPY_BUDGET_MS = 25 * 60 * 1000;
 const PROJECT_ID = 'bitcoin-education-archive';
 const FIRESTORE_BACKUP_BUCKET = 'bitcoin-education-archive-backups';
 const AUTH_BACKUP_BUCKET = 'bitcoin-education-archive-auth-backups';
@@ -18,6 +24,23 @@ const UPLOADS_BACKUP_BUCKET = 'bitcoin-education-archive-uploads-backup';
 
 function destKey(date, group, name) {
     return date + '/' + group + '/' + String(name || '').replace(/^\/+/, '');
+}
+
+function entryName(entry) {
+    if (typeof entry === 'string') return entry;
+    return entry && entry.name ? String(entry.name) : '';
+}
+
+function entryToken(entry) {
+    if (!entry || typeof entry === 'string') return '0';
+    if (entry.generation) return String(entry.generation);
+    if (entry.md5) return String(entry.md5);
+    if (entry.md5Hash) return String(entry.md5Hash);
+    return '0';
+}
+
+function uploadsObjectKey(entry) {
+    return 'uploads/' + entryName(entry) + '#' + entryToken(entry);
 }
 
 function baseName(name) {
@@ -33,11 +56,21 @@ function hasExportMetadata(names) {
     return false;
 }
 
+function namesOf(list) {
+    const out = [];
+    const items = list || [];
+    for (let i = 0; i < items.length; i++) {
+        const name = entryName(items[i]);
+        if (name) out.push(name);
+    }
+    return out;
+}
+
 function planNight(date, found) {
     const src = found || {};
     const uploads = [];
     const missing = [];
-    const firestore = src.firestore || [];
+    const firestore = namesOf(src.firestore);
     if (!hasExportMetadata(firestore)) {
         missing.push('firestore export metadata is missing');
     } else {
@@ -50,7 +83,7 @@ function planNight(date, found) {
     }
     const authNeed = ['auth/' + date + '/users.jsonl.gz.enc', 'auth/' + date + '/manifest.json'];
     const authHave = {};
-    const authNames = src.auth || [];
+    const authNames = namesOf(src.auth);
     for (let i = 0; i < authNames.length; i++) authHave[authNames[i]] = true;
     if (authNeed.some((name) => !authHave[name])) {
         missing.push('auth export is missing');
@@ -65,7 +98,7 @@ function planNight(date, found) {
     }
     const configNeed = health.CONFIG_OBJECT_NAMES.map((name) => 'config/' + date + '/' + name);
     const configHave = {};
-    const configNames = src.config || [];
+    const configNames = namesOf(src.config);
     for (let i = 0; i < configNames.length; i++) configHave[configNames[i]] = true;
     if (configNeed.some((name) => !configHave[name])) {
         missing.push('config snapshot is missing');
@@ -82,9 +115,33 @@ function planNight(date, found) {
     if (!ups.length) {
         missing.push('uploads backup is missing');
     } else {
+        const listed = [];
         for (let i = 0; i < ups.length; i++) {
-            uploads.push({ group: 'uploads', name: ups[i], dest: destKey(date, 'uploads', ups[i]) });
+            const entry = typeof ups[i] === 'string' ? { name: ups[i] } : ups[i];
+            const item = {
+                group: 'uploads',
+                name: entryName(entry),
+                generation: entry.generation ? String(entry.generation) : '',
+                md5: entry.md5 || entry.md5Hash || '',
+                bytes: Number(entry.size != null ? entry.size : entry.bytes) || 0,
+                dest: uploadsObjectKey(entry),
+            };
+            uploads.push(item);
+            listed.push({
+                name: item.name,
+                generation: item.generation,
+                md5: item.md5,
+                bytes: item.bytes,
+                dest: item.dest,
+            });
         }
+        const manifest = Buffer.from(JSON.stringify({ date: date, objects: listed }));
+        uploads.push({
+            group: 'manifest',
+            name: date + '/uploads-manifest.json',
+            dest: date + '/uploads-manifest.json',
+            body: manifest,
+        });
     }
     return { uploads: uploads, missing: missing, ok: missing.length === 0 };
 }
@@ -101,20 +158,49 @@ function keysOlderThan(keys, today, days) {
     return old;
 }
 
+function unreferencedUploads(keys, referenced) {
+    const keep = {};
+    const refs = referenced || [];
+    for (let i = 0; i < refs.length; i++) keep[refs[i]] = true;
+    const drop = [];
+    const list = keys || [];
+    for (let i = 0; i < list.length; i++) {
+        const key = String(list[i] || '');
+        if (key.indexOf('uploads/') === 0 && !keep[key]) drop.push(key);
+    }
+    return drop;
+}
+
 function safeDetail(err) {
     let message = err && err.message ? err.message : 'r2 request failed';
     message = String(message).replace(/https?:\/\/\S+/gi, '[redacted-url]');
     return health.sanitizeAlertDetail(message) || 'r2 request failed';
 }
 
+function hashStream() {
+    const hash = crypto.createHash('sha256');
+    const hasher = new Transform({
+        transform(chunk, enc, cb) {
+            hash.update(chunk);
+            cb(null, chunk);
+        },
+    });
+    return { hasher: hasher, digest: function () { return hash.digest('hex'); } };
+}
+
 async function copyPlanned(opts) {
     const planned = opts.planned || [];
     const encKey = opts.encKey;
+    const timeoutMs = opts.objectTimeoutMs || OBJECT_TIMEOUT_MS;
     let objectCount = 0;
     let bytes = 0;
     const failedGroups = [];
     for (let i = 0; i < planned.length; i++) {
         const item = planned[i];
+        if (opts.deadlineMs && Date.now() > opts.deadlineMs) {
+            if (failedGroups.indexOf(item.group) === -1) failedGroups.push(item.group);
+            continue;
+        }
         try {
             const existing = await opts.headObject(item.dest);
             if (existing && existing.exists) {
@@ -122,20 +208,51 @@ async function copyPlanned(opts) {
                 bytes += Number(existing.bytes) || 0;
                 continue;
             }
-            const source = await opts.openObject(item);
+            const source = item.body
+                ? Readable.from([Buffer.isBuffer(item.body) ? item.body : Buffer.from(item.body)])
+                : await opts.openObject(item);
             const body = new PassThrough();
-            const sealed = seal.encryptStream(encKey);
-            const putPromise = opts.putObject(item.dest, body);
+            const hashed = hashStream();
+            const sealed = seal.encryptStream(encKey, item.dest);
+            // Keep an error listener so a rejected upload or a timeout cannot
+            // surface as an unhandled 'error' event after the pipeline stops.
+            body.on('error', function () {});
+            sealed.on('error', function () {});
+            if (source && typeof source.on === 'function') source.on('error', function () {});
+            const kid = seal.keyIdHex(encKey);
+            const putPromise = opts.putObject(item.dest, body, { kid: kid });
+            putPromise.catch(function (err) {
+                if (!body.destroyed) body.destroy(err);
+                if (source && typeof source.destroy === 'function' && !source.destroyed) source.destroy(err);
+            });
+            let timer;
+            const timeout = new Promise(function (_, reject) {
+                timer = setTimeout(function () {
+                    const err = new Error('r2 upload timed out');
+                    if (!body.destroyed) body.destroy(err);
+                    if (source && typeof source.destroy === 'function' && !source.destroyed) source.destroy(err);
+                    reject(err);
+                }, timeoutMs);
+            });
+            const both = Promise.all([
+                pipeline(source, hashed.hasher, sealed, body),
+                putPromise,
+            ]);
+            both.catch(function () {});
             try {
-                await pipeline(source, sealed, body);
-                const stored = await putPromise;
+                const stored = (await Promise.race([both, timeout]))[1];
+                const sha256 = hashed.digest();
+                if (typeof opts.tagObject === 'function') {
+                    try {
+                        await opts.tagObject(item.dest, { kid: kid, sha256: sha256 });
+                    } catch (tagErr) {
+                        console.error('[r2-backup]', item.group, 'checksum', safeDetail(tagErr));
+                    }
+                }
                 objectCount++;
                 bytes += Number(stored) || 0;
-            } catch (err) {
-                body.destroy();
-                if (source && typeof source.destroy === 'function') source.destroy();
-                await putPromise.catch(function () {});
-                throw err;
+            } finally {
+                clearTimeout(timer);
             }
         } catch (err) {
             console.error('[r2-backup]', item.group, safeDetail(err));
@@ -182,7 +299,7 @@ function r2Endpoint(accountId) {
 }
 
 function makeClient(opts) {
-    const { S3Client, HeadObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
+    const { S3Client, HeadObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand } = require('@aws-sdk/client-s3');
     const { Upload } = require('@aws-sdk/lib-storage');
     const account = r2Endpoint(opts.accountId);
     const accessKeyId = requireLabel(opts.accessKeyId, 'R2 access key');
@@ -195,7 +312,17 @@ function makeClient(opts) {
         credentials: { accessKeyId: accessKeyId, secretAccessKey: secretAccessKey },
         logger: { trace: function () {}, debug: function () {}, info: function () {}, warn: function () {}, error: function () {} },
     });
-    return { client: client, bucket: bucket, HeadObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, Upload };
+    return {
+        client: client,
+        bucket: bucket,
+        HeadObjectCommand: HeadObjectCommand,
+        PutObjectCommand: PutObjectCommand,
+        ListObjectsV2Command: ListObjectsV2Command,
+        DeleteObjectsCommand: DeleteObjectsCommand,
+        GetObjectCommand: GetObjectCommand,
+        CopyObjectCommand: CopyObjectCommand,
+        Upload: Upload,
+    };
 }
 
 function notFound(err) {
@@ -206,7 +333,7 @@ function notFound(err) {
 
 async function listGcs(token, bucket, prefix) {
     const fetch = require('node-fetch');
-    const names = [];
+    const objects = [];
     let pageToken = '';
     for (let page = 0; page < 500; page++) {
         const url = new URL('https://storage.googleapis.com/storage/v1/b/' + encodeURIComponent(bucket) + '/o');
@@ -219,9 +346,15 @@ async function listGcs(token, bucket, prefix) {
         const items = json.items || [];
         for (let i = 0; i < items.length; i++) {
             const name = items[i].name || '';
-            if (name && name.charAt(name.length - 1) !== '/') names.push(name);
+            if (!name || name.charAt(name.length - 1) === '/') continue;
+            objects.push({
+                name: name,
+                generation: items[i].generation ? String(items[i].generation) : '',
+                md5: items[i].md5Hash || '',
+                size: Number(items[i].size) || 0,
+            });
         }
-        if (!json.nextPageToken) return names;
+        if (!json.nextPageToken) return objects;
         pageToken = json.nextPageToken;
     }
     throw new Error('backup object list was truncated');
@@ -234,6 +367,14 @@ async function openGcs(token, bucket, name) {
     const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
     if (!res.ok) throw new Error('could not read backup object');
     return res.body;
+}
+
+async function readBody(body) {
+    if (!body) return Buffer.alloc(0);
+    if (Buffer.isBuffer(body)) return body;
+    const chunks = [];
+    for await (const chunk of body) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks);
 }
 
 async function copyToday(opts) {
@@ -257,10 +398,13 @@ async function copyToday(opts) {
     const copied = await copyPlanned({
         encKey: encKey,
         planned: plan.uploads,
+        deadlineMs: opts.deadlineMs || (Date.now() + COPY_BUDGET_MS),
+        objectTimeoutMs: opts.objectTimeoutMs,
         headObject: async function (key) {
             try {
                 const head = await made.client.send(new made.HeadObjectCommand({ Bucket: made.bucket, Key: key }));
-                return { exists: true, bytes: Number(head.ContentLength) || 0 };
+                const meta = head.Metadata || {};
+                return { exists: true, bytes: Number(head.ContentLength) || 0, sha256: meta.sha256 || '' };
             } catch (err) {
                 if (notFound(err)) return { exists: false, bytes: 0 };
                 throw err;
@@ -269,7 +413,7 @@ async function copyToday(opts) {
         openObject: function (item) {
             return openGcs(token, bucketFor[item.group], item.name);
         },
-        putObject: async function (key, body) {
+        putObject: async function (key, body, meta) {
             const upload = new made.Upload({
                 client: made.client,
                 params: {
@@ -277,14 +421,28 @@ async function copyToday(opts) {
                     Key: key,
                     Body: body,
                     ContentType: 'application/octet-stream',
+                    Metadata: { kid: meta && meta.kid ? meta.kid : '' },
                 },
             });
             await upload.done();
             const head = await made.client.send(new made.HeadObjectCommand({ Bucket: made.bucket, Key: key }));
             return Number(head.ContentLength) || 0;
         },
+        tagObject: async function (key, meta) {
+            const encoded = encodeURIComponent(key).replace(/%2F/g, '/');
+            await made.client.send(new made.CopyObjectCommand({
+                Bucket: made.bucket,
+                Key: key,
+                CopySource: made.bucket + '/' + encoded,
+                MetadataDirective: 'REPLACE',
+                ContentType: 'application/octet-stream',
+                Metadata: { kid: meta.kid || '', sha256: meta.sha256 || '' },
+            }));
+        },
     });
-    const deleted = await deleteOldObjects(made, date);
+    const deleted = await deleteOldObjects(made, date, encKey, {
+        skipUploads: (copied.failedGroups || []).indexOf('manifest') !== -1,
+    });
     const summary = summarize(plan, copied);
     if (deleted.error) {
         summary.ok = false;
@@ -294,7 +452,21 @@ async function copyToday(opts) {
     return summary;
 }
 
-async function deleteOldObjects(made, today) {
+async function deleteBatches(made, keys) {
+    for (let i = 0; i < keys.length; i += 1000) {
+        const batch = keys.slice(i, i + 1000).map((key) => ({ Key: key }));
+        if (!batch.length) continue;
+        const out = await made.client.send(new made.DeleteObjectsCommand({
+            Bucket: made.bucket,
+            Delete: { Objects: batch },
+        }));
+        if (out.Errors && out.Errors.length) return true;
+    }
+    return false;
+}
+
+async function deleteOldObjects(made, today, encKey, flags) {
+    const skipUploads = flags && flags.skipUploads;
     let token;
     const keys = [];
     try {
@@ -309,17 +481,35 @@ async function deleteOldObjects(made, today) {
             }
             token = page.IsTruncated ? page.NextContinuationToken : undefined;
         } while (token);
-        const old = keysOlderThan(keys, today, DELETE_AFTER_DAYS);
-        for (let i = 0; i < old.length; i += 1000) {
-            const batch = old.slice(i, i + 1000).map((key) => ({ Key: key }));
-            if (!batch.length) continue;
-            const out = await made.client.send(new made.DeleteObjectsCommand({
-                Bucket: made.bucket,
-                Delete: { Objects: batch },
-            }));
-            if (out.Errors && out.Errors.length) return { count: i, error: true };
+        const dated = keysOlderThan(keys, today, DELETE_AFTER_DAYS);
+        let uploadsDrop = [];
+        let manifestError = false;
+        if (!skipUploads) {
+            const cutoff = health.addUtcDays(today, -DELETE_AFTER_DAYS);
+            const referenced = [];
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                const match = /^(\d{4}-\d{2}-\d{2})\/uploads-manifest\.json$/.exec(key);
+                if (!match || match[1] < cutoff) continue;
+                try {
+                    const obj = await made.client.send(new made.GetObjectCommand({ Bucket: made.bucket, Key: key }));
+                    const plain = seal.decryptBuffer(await readBody(obj.Body), encKey, key);
+                    const parsed = JSON.parse(plain.toString('utf8'));
+                    const objects = parsed.objects || [];
+                    for (let j = 0; j < objects.length; j++) {
+                        if (objects[j] && objects[j].dest) referenced.push(objects[j].dest);
+                    }
+                } catch (err) {
+                    console.error('[r2-backup] manifest', safeDetail(err));
+                    manifestError = true;
+                    break;
+                }
+            }
+            if (!manifestError) uploadsDrop = unreferencedUploads(keys, referenced);
         }
-        return { count: old.length, error: false };
+        const drop = dated.concat(uploadsDrop);
+        const batchError = await deleteBatches(made, drop);
+        return { count: batchError ? 0 : drop.length, error: manifestError || batchError };
     } catch (err) {
         console.error('[r2-backup] delete', safeDetail(err));
         return { count: 0, error: true };
@@ -359,13 +549,16 @@ async function runNightlyR2Copy(deps) {
 
 module.exports = {
     DELETE_AFTER_DAYS,
+    OBJECT_TIMEOUT_MS,
     PROJECT_ID,
     FIRESTORE_BACKUP_BUCKET,
     AUTH_BACKUP_BUCKET,
     UPLOADS_BACKUP_BUCKET,
     destKey,
+    uploadsObjectKey,
     planNight,
     keysOlderThan,
+    unreferencedUploads,
     copyPlanned,
     summarize,
     copyToday,

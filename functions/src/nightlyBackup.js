@@ -69,11 +69,12 @@ async function apiJson(url, options) {
     return parsed.json || {};
 }
 
-async function uploadBytes(token, bucket, name, buffer, contentType) {
+async function uploadBytes(token, bucket, name, buffer, contentType, metadata) {
     const type = contentType || 'application/octet-stream';
     const bucketPath = encodeURIComponent(bucket);
     const object = encodeURIComponent(name);
-    if (buffer.length <= 4 * 1024 * 1024) {
+    const custom = metadata && Object.keys(metadata).length ? metadata : null;
+    if (buffer.length <= 4 * 1024 * 1024 && !custom) {
         const url = 'https://storage.googleapis.com/upload/storage/v1/b/' + bucketPath
             + '/o?uploadType=media&name=' + object;
         const res = await fetch(url, {
@@ -92,6 +93,8 @@ async function uploadBytes(token, bucket, name, buffer, contentType) {
     }
     const startUrl = 'https://storage.googleapis.com/upload/storage/v1/b/' + bucketPath
         + '/o?uploadType=resumable&name=' + object;
+    const resource = { contentType: type };
+    if (custom) resource.metadata = custom;
     const start = await fetch(startUrl, {
         method: 'POST',
         headers: {
@@ -100,7 +103,7 @@ async function uploadBytes(token, bucket, name, buffer, contentType) {
             'X-Upload-Content-Type': type,
             'X-Upload-Content-Length': String(buffer.length),
         },
-        body: JSON.stringify({ contentType: type }),
+        body: JSON.stringify(resource),
     });
     if (!start.ok) {
         const parsed = await readResponse(start);
@@ -372,10 +375,14 @@ async function runAuthExport(input, date) {
         hashConfig,
     }, users);
     const gz = zlib.gzipSync(Buffer.from(jsonl));
-    const enc = crypto.encryptAesGcm(gz, key);
     const objectName = 'auth/' + date + '/users.jsonl.gz.enc';
+    const enc = crypto.encryptAesGcm(gz, key, objectName);
     // objectCreator cannot overwrite. A second run the same day gets 403 and fails closed.
-    await uploadBytes(token, AUTH_BACKUP_BUCKET, objectName, enc, 'application/octet-stream');
+    // kid and sha256 are set on create. objectCreator cannot update metadata later.
+    await uploadBytes(token, AUTH_BACKUP_BUCKET, objectName, enc, 'application/octet-stream', {
+        kid: crypto.keyIdHex(key),
+        sha256: crypto.plaintextSha256(gz),
+    });
     const manifest = {
         date,
         userCount: users.length,
@@ -935,7 +942,7 @@ async function checkBackupHealth() {
         });
     }
     try {
-        await backupStatus.writeBackupResults(admin.firestore(), admin, events, finishedAt);
+        await backupStatus.writeBackupResults(admin.firestore(), admin, events, finishedAt, { r2Required: true });
     } catch (e) {
         console.error('[backup-status] health write failed', shortError(e));
         throw new Error('backup status write failed');

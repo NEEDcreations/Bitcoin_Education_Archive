@@ -8,6 +8,7 @@ scripts/*
 !scripts/decrypt_auth_export.js
 !scripts/decrypt_r2_object.js
 !scripts/restore_auth_export.js
+!scripts/BACKUP_RESTORE.md
 .keys/
 firebase-debug.log
 firestore-debug.log

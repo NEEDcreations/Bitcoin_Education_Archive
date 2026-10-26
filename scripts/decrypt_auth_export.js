@@ -27,17 +27,29 @@ function fail(message) {
     process.exit(1);
 }
 
+function keysFromEnv() {
+    const keys = [];
+    if (process.env.AUTH_BACKUP_KEY) keys.push(process.env.AUTH_BACKUP_KEY);
+    String(process.env.AUTH_BACKUP_KEYS || '').split(/[\n,]/).forEach(function (part) {
+        const trimmed = part.trim();
+        if (trimmed) keys.push(trimmed);
+    });
+    return keys;
+}
+
 function main() {
     const file = argValue('--file');
     const out = argValue('--out');
+    const dest = argValue('--dest');
     const stdout = process.argv.indexOf('--stdout') !== -1;
-    if (!file) fail('Usage: AUTH_BACKUP_KEY=... node scripts/decrypt_auth_export.js --file users.jsonl.gz.enc --out users.jsonl');
+    if (!file) fail('Usage: AUTH_BACKUP_KEY=... node scripts/decrypt_auth_export.js --file users.jsonl.gz.enc --out users.jsonl --dest auth/YYYY-MM-DD/users.jsonl.gz.enc');
     if (!out && !stdout) fail('Refusing to print plaintext. Pass --out <file> or --stdout.');
-    if (!process.env.AUTH_BACKUP_KEY) {
+    const keys = keysFromEnv();
+    if (!keys.length) {
         fail('Set AUTH_BACKUP_KEY in the environment. Do not pass the key as an argument.');
     }
     const enc = fs.readFileSync(file);
-    const gz = crypto.decryptAesGcm(enc, process.env.AUTH_BACKUP_KEY);
+    const gz = crypto.decryptAesGcm(enc, keys, dest);
     const text = zlib.gunzipSync(gz);
     if (out) {
         fs.writeFileSync(out, text, { mode: 0o600 });

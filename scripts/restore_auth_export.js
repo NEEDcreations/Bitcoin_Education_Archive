@@ -169,11 +169,18 @@ async function main() {
     const projectId = argValue('--project') || 'bitcoin-education-archive';
     const apply = process.argv.indexOf('--apply') !== -1;
     if (!file) fail('Pass --file path/to/users.jsonl.gz.enc. Add --apply only when you intend to write Auth users.');
-    if (!process.env.AUTH_BACKUP_KEY) {
+    const keys = [];
+    if (process.env.AUTH_BACKUP_KEY) keys.push(process.env.AUTH_BACKUP_KEY);
+    String(process.env.AUTH_BACKUP_KEYS || '').split(/[\n,]/).forEach(function (part) {
+        const trimmed = part.trim();
+        if (trimmed) keys.push(trimmed);
+    });
+    if (!keys.length) {
         fail('Set AUTH_BACKUP_KEY in the environment. Do not pass the key as an argument.');
     }
+    const dest = argValue('--dest');
     const enc = fs.readFileSync(file);
-    const text = zlib.gunzipSync(crypto.decryptAesGcm(enc, process.env.AUTH_BACKUP_KEY)).toString('utf8');
+    const text = zlib.gunzipSync(crypto.decryptAesGcm(enc, keys, dest)).toString('utf8');
     const parsed = format.parseJsonl(text);
     const summary = summarize(parsed);
     if (!apply) {

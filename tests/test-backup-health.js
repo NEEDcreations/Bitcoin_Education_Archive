@@ -242,6 +242,20 @@ test('auth export round-trips and keeps hashes only when present', function () {
     const tampered = Buffer.from(enc);
     tampered[tampered.length - 1] ^= 1;
     assert.throws(() => crypto.decryptAesGcm(tampered, key));
+    assert.strictEqual(enc[4], crypto.VERSION);
+    assert.ok(enc.subarray(5, 13).equals(crypto.keyId(key)));
+    assert.throws(() => crypto.decryptAesGcm(enc, key, 'auth/2026-10-24/users.jsonl.gz.enc'));
+    const nodeCrypto = require('crypto');
+    const iv = nodeCrypto.randomBytes(12);
+    const cipher = nodeCrypto.createCipheriv('aes-256-gcm', key, iv);
+    const body = Buffer.from('v1-auth');
+    const data = Buffer.concat([cipher.update(body), cipher.final()]);
+    const v1 = Buffer.concat([Buffer.from('BQAE'), Buffer.from([1]), iv, cipher.getAuthTag(), data]);
+    const other = Buffer.alloc(32, 4);
+    assert.deepStrictEqual(crypto.decryptAesGcm(v1, [other, key]), body);
+    const named = crypto.encryptAesGcm(Buffer.from('named'), key, 'auth/d/users.jsonl.gz.enc');
+    assert.deepStrictEqual(crypto.decryptAesGcm(named, [other, key], 'auth/d/users.jsonl.gz.enc'), Buffer.from('named'));
+    assert.throws(() => crypto.decryptAesGcm(named, key, 'auth/d/other.enc'));
 });
 
 test('backup modules do not call chat bridges or send mail', function () {
@@ -396,7 +410,9 @@ test('infra setup prints the plan unless --apply is passed', function () {
     assert.ok(out.indexOf('Dry run only') !== -1);
     assert.ok(out.indexOf('Cloud Shell') !== -1);
     assert.ok(out.indexOf('secrets versions access latest') !== -1);
-    assert.ok(out.indexOf('\n  clear\n') !== -1);
+    assert.ok(out.indexOf('history -c') !== -1);
+    assert.ok(out.indexOf('read -rsp') !== -1);
+    assert.ok(out.indexOf('irreversible') !== -1);
     assert.strictEqual(out.indexOf('APPLY:'), -1);
     assert.strictEqual(out.indexOf('OWNER:'), -1);
     assert.strictEqual(out.indexOf('ALERT_SMTP'), -1);
