@@ -11,6 +11,7 @@ const badgeRules = require('./badgeRules');
 const badgeXp = require('./badgeXpTable');
 const { rewardBlocked } = require('./cipherClaim');
 const { classifyHeld } = require('../../scripts/backfill-badge-favor');
+const { countableAwardIds } = require('./badgeProfile');
 const { planLevelFavor, levelNameForPoints } = require('./satoshiFavor');
 
 function legacyZero(award) {
@@ -69,8 +70,14 @@ function planUserBadges(input) {
     }
     const classified = classifyHeld({ user: user, awardIds: src.awardIds || [] });
     const awardById = src.awardById || {};
+    const awardRows = {};
+    (src.awardIds || []).forEach(function (id) {
+        awardRows[id] = awardById[id] || {};
+    });
+    // Set membership still sees every award id. The milestone count does not
+    // see a legacy row that no server-written field backs up.
     const awardSet = new Set(src.awardIds || []);
-    const payingCount = badgeRules.countPaying(awardSet);
+    const payingCount = badgeRules.countPaying(new Set(countableAwardIds(user, awardRows)));
     const flexClaims = badgeRules.tallyFlexClaims(src.flexClaimIds || []);
     const markers = {};
     (src.markerIds || []).forEach(function (id) { markers[id] = true; });

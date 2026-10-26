@@ -1232,6 +1232,72 @@ queue.push(test('grantFamily tallies flex claims once, skips earned ids, and doe
     assert.strictEqual(hiStats.outside, 0);
 }));
 
+queue.push(test('60 unbacked legacy records must not unlock jack_of_all or hall_of_fame', async function () {
+    const ids = badgeRules.verifiedIds().filter(function (id) {
+        const rule = badgeRules.ruleFor(id);
+        return rule && rule.source && rule.source.type === 'counter' && rule.xp > 0 && rule.source.gte > 0;
+    }).slice(0, 60);
+    assert.strictEqual(ids.length, 60);
+    const user = {
+        points: 0,
+        displayBadge: ids[0],
+        equippedBadge: ids[1],
+        earnedHidden: ids.slice(0, 10),
+    };
+    const docs = { 'users/u': user };
+    const awardById = {};
+    ids.forEach(function (id) {
+        const row = { source: 'legacy', xp: 0, badge: id };
+        docs['users/u/badge_awards/' + id] = row;
+        awardById[id] = row;
+    });
+    const day = { day: '2026-10-26', nowMs: 1700000000000 };
+    const db = memoryDb(docs);
+    const jack = await awardBadge(db, admin, 'u', 'jack_of_all', day);
+    const hall = await awardBadge(db, admin, 'u', 'hall_of_fame', day);
+    assert.strictEqual(jack.granted, false);
+    assert.strictEqual(jack.reason, 'criteria');
+    assert.strictEqual(hall.granted, false);
+    assert.strictEqual(hall.reason, 'criteria');
+    assert.strictEqual(db.docs['users/u/badge_awards/jack_of_all'], undefined);
+    assert.strictEqual(db.docs['users/u/badge_awards/hall_of_fame'], undefined);
+    assert.strictEqual(db.docs['users/u'].points || 0, 0);
+    assert.strictEqual(db.docs['satoshiFavor/current'], undefined);
+
+    const family = await grantFamily(db, admin, 'u', ['jack_of_all', 'hall_of_fame', ids[0]], day);
+    assert.strictEqual(family[0].reason, 'criteria');
+    assert.strictEqual(family[0].granted, false);
+    assert.strictEqual(family[1].reason, 'criteria');
+    assert.strictEqual(family[1].granted, false);
+    assert.strictEqual(family[2].reason, 'already');
+    assert.strictEqual(db.docs['users/u/badge_awards/jack_of_all'], undefined);
+    assert.strictEqual(db.docs['users/u/badge_awards/hall_of_fame'], undefined);
+
+    const { planUserBadges } = require('../functions/src/badgeXpBackfill');
+    const plan = planUserBadges({
+        user: user,
+        awardIds: ids.concat(['jack_of_all', 'hall_of_fame']),
+        awardById: Object.assign({}, awardById, {
+            jack_of_all: { source: 'legacy', xp: 0 },
+            hall_of_fame: { source: 'legacy', xp: 0 },
+        }),
+    });
+    assert.strictEqual(plan.xp, 0);
+    assert.ok(!plan.topUps.some(function (row) {
+        return row.badgeId === 'jack_of_all' || row.badgeId === 'hall_of_fame';
+    }));
+
+    const backedIds = ids.slice(0, 25);
+    const backed = { 'users/w': { points: 0, visibleBadges: backedIds.slice() } };
+    backedIds.forEach(function (id) {
+        backed['users/w/badge_awards/' + id] = { source: 'legacy', xp: 0, badge: id };
+    });
+    const backedDb = memoryDb(backed);
+    const backedJack = await awardBadge(backedDb, admin, 'w', 'jack_of_all', day);
+    assert.strictEqual(backedJack.granted, true);
+    assert.ok(backedDb.docs['users/w/badge_awards/jack_of_all']);
+}));
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
