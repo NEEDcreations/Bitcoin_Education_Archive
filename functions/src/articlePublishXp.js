@@ -165,7 +165,9 @@ function stripMarkup(text) {
             const name = tagName(src.slice(i + 1, j));
             if (name === 'script' || name === 'style') {
                 const end = findCloseTag(src, j + 1, name);
-                i = end === -1 ? j + 1 : end;
+                // No closer: drop the rest. Searching again from the next
+                // '<' would rescan the same tail for every repeated opener.
+                i = end === -1 ? n : end;
             } else {
                 i = j + 1;
             }
@@ -206,12 +208,13 @@ function stripMarkup(text) {
     return out.trim();
 }
 
+const LETTER_OR_NUMBER = /\p{L}|\p{N}/u;
+
 function distinctLetters(text) {
     const seen = new Set();
-    for (let i = 0; i < text.length; i++) {
-        let code = text.charCodeAt(i);
-        if (code >= 65 && code <= 90) code += 32;
-        if ((code >= 97 && code <= 122) || (code >= 48 && code <= 57)) seen.add(code);
+    for (const ch of text) {
+        if (!LETTER_OR_NUMBER.test(ch)) continue;
+        seen.add(ch.toLowerCase());
         if (seen.size >= MIN_DISTINCT) return seen.size;
     }
     return seen.size;
@@ -233,7 +236,7 @@ function assessQuality(article) {
     // caller still writes the marker so the article cannot be retried.
     if (raw.length > MAX_BODY_CHARS) return { ok: false, reason: 'too_long', body: '' };
     const body = stripMarkup(stripInvisible(raw));
-    const words = body.split(' ').filter(Boolean);
+    const words = body.split(/\s+/u).filter(Boolean);
     if (body.length < MIN_BODY_CHARS || words.length < MIN_WORDS || distinctLetters(body) < MIN_DISTINCT) {
         return { ok: false, reason: 'too_short', body: body };
     }

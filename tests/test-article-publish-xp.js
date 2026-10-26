@@ -365,6 +365,45 @@ queue.push(test('a megabyte of angle brackets or square brackets pays nothing an
     assert.strictEqual(again.reason, 'already');
 }));
 
+queue.push(test('repeated script and style openers finish in one pass', function () {
+    const scripts = '<script>'.repeat(6250);
+    const styles = '<style>'.repeat(6250);
+    const t0 = Date.now();
+    const strippedScripts = stripMarkup(scripts);
+    const t1 = Date.now();
+    const strippedStyles = stripMarkup(styles);
+    const t2 = Date.now();
+    assert.ok(t1 - t0 < 100, 'script strip took ' + (t1 - t0) + 'ms');
+    assert.ok(t2 - t1 < 100, 'style strip took ' + (t2 - t1) + 'ms');
+    assert.strictEqual(strippedScripts, '');
+    assert.strictEqual(strippedStyles, '');
+    const kept = stripMarkup('<script>secret</script> Hello world');
+    assert.ok(kept.indexOf('Hello') !== -1);
+    assert.strictEqual(kept.indexOf('secret'), -1);
+}));
+
+queue.push(test('a Cyrillic article pays, and padding still does not', async function () {
+    const sentence = 'Биткоин хранит ценность лучше любого старого металла и служит людям по всему миру. ';
+    const cyrillic = sentence.repeat(8);
+    const db = memoryDb(seedUser());
+    const paid = await publish(db, 'artCyr', article({
+        title: 'Почему Биткоин сохраняет ценность',
+        body: cyrillic,
+    }));
+    assert.strictEqual(paid.reason, 'paid');
+    assert.strictEqual(paid.awarded, 30);
+    assert.strictEqual(pointsOf(db), 40);
+
+    const blanks = await publish(db, 'artBlank', article({ body: '\u200B'.repeat(300) }));
+    assert.strictEqual(blanks.reason, 'too_short');
+    assert.strictEqual(blanks.awarded, 0);
+    const letters = await publish(db, 'artLetter', article({ body: 'a'.repeat(300) }));
+    assert.strictEqual(letters.reason, 'too_short');
+    const repeated = await publish(db, 'artSame', article({ body: 'aa '.repeat(80) }));
+    assert.strictEqual(repeated.reason, 'too_short');
+    assert.strictEqual(pointsOf(db), 40);
+}));
+
 queue.push(test('invisible padding and a one-letter body do not meet the minimum', async function () {
     const db = memoryDb(seedUser());
     const blanks = await publish(db, 'artBlank', article({ body: '\u200B'.repeat(300) }));
