@@ -8712,51 +8712,7 @@ exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
 // Runs daily at 2 AM UTC. Bucket lifecycle deletes exports older than 90 days.
 // Bucket must be in 'us' multi-region (us-central1 causes INVALID_ARGUMENT).
 const nightlyBackup = require('./src/nightlyBackup');
-exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
-    const projectId = 'bitcoin-education-archive';
-    const bucket = `gs://${projectId}-backups`;
-    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const exportPath = `${bucket}/${timestamp}`;
-
-    const token = await admin.app().options.credential.getAccessToken();
-    const res = await fetch(
-        `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default):exportDocuments`,
-        {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token.access_token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ outputUriPrefix: exportPath })
-        }
-    );
-    const result = await res.json();
-    if (result.error) {
-        console.error('[BACKUP] Export failed:', JSON.stringify(result.error));
-        try {
-            await nightlyBackup.recordFirestoreExportAttempt({
-                token: token.access_token,
-                date: timestamp,
-                outputUriPrefix: exportPath,
-                error: result.error.message,
-            });
-        } catch (markerErr) {
-            console.error('[BACKUP] Could not record export failure:', markerErr.message);
-        }
-        throw new Error(result.error.message);
-    }
-    console.log(`[BACKUP] Export started → ${exportPath}`, result.name);
-    try {
-        await nightlyBackup.recordFirestoreExportAttempt({
-            token: token.access_token,
-            date: timestamp,
-            outputUriPrefix: exportPath,
-            operation: result.name,
-        });
-    } catch (markerErr) {
-        console.error('[BACKUP] Could not record export operation:', markerErr.message);
-    }
-});
+const BACKUP_SA = 'bq-backup@bitcoin-education-archive.iam.gserviceaccount.com';
 
 // Nightly backups. Scheduled only — do not add onRequest/onCall wrappers.
 // Auth ciphertext uses AUTH_BACKUP_KEY. Results are written to
@@ -8779,6 +8735,13 @@ function backupSchedule(cron, extra) {
     }, extra || {});
 }
 
+exports.dailyFirestoreBackup = onSchedule(backupSchedule('0 2 * * *', {
+    timeoutSeconds: 1800,
+    serviceAccount: BACKUP_SA,
+}), async () => {
+    await nightlyBackup.exportFirestore();
+});
+
 exports.nightlyAuthExport = onSchedule(backupSchedule('30 2 * * *', {
     memory: '1GiB',
     secrets: [authBackupKey],
@@ -8787,11 +8750,15 @@ exports.nightlyAuthExport = onSchedule(backupSchedule('30 2 * * *', {
     await nightlyBackup.exportAuthUsers({ key: authBackupKey.value() });
 });
 
-exports.nightlyUploadsCopy = onSchedule(backupSchedule('0 3 * * *'), async () => {
+exports.nightlyUploadsCopy = onSchedule(backupSchedule('0 3 * * *', {
+    serviceAccount: BACKUP_SA,
+}), async () => {
     await nightlyBackup.copyUploads();
 });
 
-exports.nightlyConfigSnapshot = onSchedule(backupSchedule('30 3 * * *'), async () => {
+exports.nightlyConfigSnapshot = onSchedule(backupSchedule('30 3 * * *', {
+    serviceAccount: BACKUP_SA,
+}), async () => {
     await nightlyBackup.snapshotConfig();
 });
 
@@ -8825,7 +8792,9 @@ exports.nightlyR2Copy = onSchedule(backupSchedule('45 4 * * *', {
     });
 });
 
-exports.backupHealthCheck = onSchedule(backupSchedule('0 5 * * *'), async () => {
+exports.backupHealthCheck = onSchedule(backupSchedule('0 5 * * *', {
+    serviceAccount: BACKUP_SA,
+}), async () => {
     await nightlyBackup.checkBackupHealth();
 });
 

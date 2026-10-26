@@ -273,8 +273,10 @@ test('backup modules do not call chat bridges or send mail', function () {
         assert.ok(!/backup_alerts/.test(src), rel);
     });
     const index = fs.readFileSync(path.join(__dirname, '..', 'functions/index.js'), 'utf8');
-    assert.ok(index.indexOf("onSchedule('0 2 * * *'") !== -1);
-    assert.ok(index.indexOf('exportDocuments') !== -1);
+    assert.ok(index.indexOf("backupSchedule('0 2 * * *'") !== -1);
+    assert.ok(index.indexOf('exportFirestore()') !== -1);
+    assert.ok(index.indexOf("serviceAccount: BACKUP_SA") !== -1);
+    assert.ok(index.indexOf("const BACKUP_SA = 'bq-backup@bitcoin-education-archive.iam.gserviceaccount.com'") !== -1);
     assert.ok(index.indexOf("backupSchedule('30 2 * * *'") !== -1);
     assert.ok(index.indexOf("backupSchedule('0 3 * * *'") !== -1);
     assert.ok(index.indexOf("backupSchedule('30 3 * * *'") !== -1);
@@ -295,10 +297,13 @@ test('backup modules do not call chat bridges or send mail', function () {
     const healthBlock = index.slice(healthAt, index.indexOf('exports.nachoRadioTick'));
     assert.ok(healthBlock.indexOf('checkBackupHealth()') !== -1);
     assert.strictEqual(healthBlock.indexOf('secrets'), -1);
-    const marker = index.indexOf('recordFirestoreExportAttempt');
-    const thrown = index.indexOf('throw new Error(result.error.message);', marker);
-    assert.ok(marker !== -1 && thrown > marker);
-    assert.ok(index.indexOf('Could not record export failure') !== -1);
+    const nightly = fs.readFileSync(path.join(__dirname, '..', 'functions/src/nightlyBackup.js'), 'utf8');
+    assert.ok(nightly.indexOf('exportDocuments') !== -1);
+    assert.ok(nightly.indexOf('confirmExportFinished') !== -1);
+    assert.ok(nightly.indexOf('Firestore export finished and the folder is present') !== -1);
+    assert.ok(nightly.indexOf('Could not record export failure') !== -1);
+    assert.ok(nightly.indexOf("throw new Error('firestore export did not finish')") !== -1);
+    assert.strictEqual(index.indexOf('result.error.message'), -1);
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.strictEqual((rules.match(/match \/\{document=\*\*\}/g) || []).length, 1);
     assert.ok(rules.indexOf('match /backup_status/{docId}') !== -1);
@@ -376,8 +381,16 @@ test('infra setup prints the plan unless --apply is passed', function () {
     assert.strictEqual(src.indexOf('ALERT_SMTP'), -1);
     assert.strictEqual(src.indexOf('firebaseauth.admin'), -1);
     assert.strictEqual(src.indexOf('firebaseauth.viewer'), -1);
-    assert.strictEqual(src.indexOf('roles/storage.objectUser'), -1);
+    assert.ok(src.indexOf('storage_object_user_role=roles/storage.objectUser') !== -1);
+    assert.strictEqual(src.indexOf('"roles/storage.objectUser"'), -1);
     assert.strictEqual(src.indexOf('"roles/storage.admin"'), -1);
+    assert.ok(src.indexOf('bq-backup@') !== -1);
+    assert.ok(src.indexOf('backupOperator') !== -1);
+    assert.ok(src.indexOf('bitcoin-education-archive-firestore-backups') !== -1);
+    assert.ok(src.indexOf('--lock-retention-period') !== -1);
+    assert.ok(src.indexOf('--versioning') !== -1);
+    assert.strictEqual(src.indexOf('buckets delete'), -1);
+    assert.ok(src.indexOf('does not delete it') !== -1);
     const out = execFileSync('bash', [script], { encoding: 'utf8' });
     assert.ok(out.indexOf('WOULD') !== -1);
     assert.ok(out.indexOf('Dry run only') !== -1);
@@ -657,6 +670,39 @@ async function testAsync(name, fn) {
         await status.writeBackupResults(stale.db, adminStub, jobs(finishedAt), '2026-10-25T06:00:00.000Z');
         assert.strictEqual(stale.docs['backup_status/latest'].ok, false);
         assert.strictEqual(stale.docs['backup_status/latest'].detail, 'status is not for today');
+    });
+
+    await testAsync('an export counts as finished only after the operation and the metadata file', async function () {
+        const nightly = require('../functions/src/nightlyBackup');
+        assert.deepStrictEqual(nightly.classifyExportOperation(null), {
+            done: false, ok: false, detail: 'Firestore export was still running',
+        });
+        assert.strictEqual(nightly.classifyExportOperation({ done: true, error: { message: 'nope' } }).ok, false);
+        assert.strictEqual(nightly.classifyExportOperation({ done: true }).ok, true);
+        const running = await nightly.confirmExportFinished({
+            waitMs: 0,
+            pollMs: 0,
+            getOperation: async function () { return { done: false }; },
+            scanFolder: async function () { throw new Error('should not scan'); },
+        });
+        assert.strictEqual(running.ok, false);
+        assert.strictEqual(running.detail, 'Firestore export was still running');
+        const bare = await nightly.confirmExportFinished({
+            waitMs: 0,
+            pollMs: 0,
+            getOperation: async function () { return { done: true }; },
+            scanFolder: async function () { return { metadata: false, count: 3 }; },
+        });
+        assert.strictEqual(bare.ok, false);
+        assert.strictEqual(bare.detail, 'Firestore export finished without metadata');
+        const ready = await nightly.confirmExportFinished({
+            waitMs: 0,
+            pollMs: 0,
+            getOperation: async function () { return { done: true }; },
+            scanFolder: async function () { return { metadata: true, count: 4 }; },
+        });
+        assert.strictEqual(ready.ok, true);
+        assert.strictEqual(ready.detail, 'Firestore export finished and the folder is present');
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

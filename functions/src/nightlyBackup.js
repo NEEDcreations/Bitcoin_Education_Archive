@@ -204,8 +204,99 @@ async function fetchHashConfig(token) {
 async function recordJob(event) {
     try {
         await backupStatus.writeBackupResult(admin.firestore(), admin, event);
+        return true;
     } catch (e) {
         console.error('[backup-status] write failed', event && event.job, shortError(e));
+        return false;
+    }
+}
+
+function classifyExportOperation(op) {
+    if (!op || op.done !== true) {
+        return { done: false, ok: false, detail: 'Firestore export was still running' };
+    }
+    if (op.error) {
+        return { done: true, ok: false, detail: 'Firestore export operation failed' };
+    }
+    return { done: true, ok: true, detail: 'Firestore export operation finished' };
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function confirmExportFinished(deps) {
+    const waitMs = Number.isFinite(deps.waitMs) ? deps.waitMs : (25 * 60 * 1000);
+    const pollMs = Number.isFinite(deps.pollMs) ? deps.pollMs : 15000;
+    const deadline = Date.now() + waitMs;
+    let last = { done: false, ok: false, detail: 'Firestore export was still running' };
+    for (;;) {
+        last = classifyExportOperation(await deps.getOperation());
+        if (last.done) break;
+        if (Date.now() >= deadline) break;
+        await sleep(pollMs);
+    }
+    if (last.ok !== true) return last;
+    const folder = await deps.scanFolder();
+    if (!folder || folder.metadata !== true || !(folder.count > 0)) {
+        return { done: true, ok: false, detail: 'Firestore export finished without metadata' };
+    }
+    return { done: true, ok: true, detail: 'Firestore export finished and the folder is present' };
+}
+
+async function exportFirestore() {
+    const startedAt = new Date().toISOString();
+    const date = utcDate();
+    const outputUriPrefix = 'gs://' + FIRESTORE_BACKUP_BUCKET + '/' + date;
+    let recorded = false;
+    try {
+        const token = await accessToken();
+        const op = await apiJson(
+            'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default):exportDocuments',
+            { token: token, method: 'POST', body: { outputUriPrefix: outputUriPrefix } }
+        );
+        if (!op.name) throw new Error('export request failed');
+        await recordFirestoreExportAttempt({
+            token: token,
+            date: date,
+            outputUriPrefix: outputUriPrefix,
+            operation: op.name,
+        });
+        recorded = true;
+        const verdict = await confirmExportFinished({
+            getOperation: function () {
+                return apiJson('https://firestore.googleapis.com/v1/' + op.name, { token: token });
+            },
+            scanFolder: function () {
+                return scanExportFolder(token, date);
+            },
+        });
+        const wrote = await recordJob({
+            job: 'firestore',
+            date: date,
+            ok: verdict.ok === true,
+            startedAt: startedAt,
+            finishedAt: new Date().toISOString(),
+            detail: verdict.detail,
+        });
+        if (!wrote) throw new Error('backup status write failed');
+        if (verdict.ok !== true) throw new Error('firestore export did not finish');
+        console.log('[BACKUP] export finished', date);
+    } catch (e) {
+        console.error('[BACKUP] export failed', shortError(e));
+        if (!recorded) {
+            try {
+                await recordFirestoreExportAttempt({
+                    date: date,
+                    outputUriPrefix: outputUriPrefix,
+                    error: 'export request failed',
+                });
+            } catch (markerErr) {
+                console.error('[BACKUP] Could not record export failure', shortError(markerErr));
+            }
+        }
+        if (e && e.message === 'backup status write failed') throw e;
+        throw new Error('firestore export did not finish');
     }
 }
 
@@ -861,6 +952,9 @@ module.exports = {
     UPLOADS_SOURCE_BUCKET,
     UPLOADS_BACKUP_BUCKET,
     recordFirestoreExportAttempt,
+    classifyExportOperation,
+    confirmExportFinished,
+    exportFirestore,
     exportAuthUsers,
     copyUploads,
     snapshotConfig,

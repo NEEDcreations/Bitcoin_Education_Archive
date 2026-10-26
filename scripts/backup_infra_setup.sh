@@ -10,15 +10,18 @@
 #
 # --owner-apply is Phil, once, in Cloud Shell, with an owner login:
 #   enable APIs (including Storage Transfer), create the Storage Transfer
-#   service agent, create bq-auth-backup, and create the custom role plus
-#   its project binding.
+#   service agent, create bq-auth-backup and bq-backup, and create the
+#   custom roles plus their project bindings.
 # --apply is the rufus2-deploy account: buckets, bucket IAM, uniform access,
 #   public access prevention, the empty secret container, PITR, delete
 #   protection, and the backup_history TTL. It does not enable APIs, create
 #   the service account, or call the Storage Transfer create API.
 #
-# This script does not delete buckets, objects, or databases, and it does
-# not set a retention policy or a retention lock. It does not create SMTP
+# This script does not delete buckets, objects, or databases. The old empty
+# bucket bitcoin-education-archive-firestore-backups is left untouched.
+# --apply sets a 90 day retention policy on the Firestore backup bucket and
+# then locks it. That lock cannot be shortened. Phil approves it by running
+# --apply. No other bucket gets a retention lock. It does not create SMTP
 # secrets. Backup results stay in Firestore for an external checker.
 # It does not generate AUTH_BACKUP_KEY. Phil pipes that in Cloud Shell.
 # It does not create the Cloudflare R2 bucket, the R2 API token, or the
@@ -44,7 +47,9 @@ UPLOADS_BACKUP_BUCKET="${UPLOADS_BACKUP_BUCKET:-bitcoin-education-archive-upload
 SOURCE_UPLOADS_BUCKET="${SOURCE_UPLOADS_BUCKET:-bitcoin-education-archive.firebasestorage.app}"
 AUTH_BACKUP_LOCATION="${AUTH_BACKUP_LOCATION:-us}"
 AUTH_BACKUP_SA="${AUTH_BACKUP_SA:-bq-auth-backup@${PROJECT_ID}.iam.gserviceaccount.com}"
+BACKUP_SA="${BACKUP_SA:-bq-backup@${PROJECT_ID}.iam.gserviceaccount.com}"
 R2_COPY_SA="${R2_COPY_SA:-bq-r2-copy@${PROJECT_ID}.iam.gserviceaccount.com}"
+OLD_FIRESTORE_BACKUP_BUCKET="bitcoin-education-archive-firestore-backups"
 
 OWNER=0
 APPLY=0
@@ -70,7 +75,10 @@ done
 cat <<EOF
 Project: ${PROJECT_ID}
 Mode: $([[ "${OWNER}" == "1" || "${APPLY}" == "1" ]] && echo MUTATE || echo DRY-RUN)
-No buckets are deleted. No retention lock is set. No email secrets are created.
+No buckets are deleted. gs://${OLD_FIRESTORE_BACKUP_BUCKET} is an old
+empty bucket. This script does not delete it and does not write to it.
+The Firestore backup bucket gets a 90 day retention lock only when --apply
+runs. That lock cannot be shortened. No email secrets are created.
 No key material is generated. Phil pipes AUTH_BACKUP_KEY in Cloud Shell.
 This script does not create the R2 bucket, the R2 API token, or these
 secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET,
@@ -90,16 +98,29 @@ WOULD enable APIs:
   iam.googleapis.com
 WOULD create the Storage Transfer service agent by reading
   googleServiceAccounts/${PROJECT_ID}. That call creates the agent.
+WOULD create ${BACKUP_SA} if it is missing.
 WOULD create ${AUTH_BACKUP_SA} if it is missing.
 WOULD create or update custom role authBackupReader with
   firebaseauth.users.get, firebaseauth.configs.get, and
   firebaseauth.configs.getHashConfig, and bind it only to ${AUTH_BACKUP_SA}.
 WOULD stop if that custom role cannot be created or bound.
+WOULD create or update custom role backupOperator with only the permissions
+  the nightly backup jobs call: datastore.databases.export,
+  datastore.operations.get, datastore.indexes.list, datastore.indexes.get,
+  firebaserules.releases.list, firebaserules.releases.get,
+  firebaserules.rulesets.get, firebaserules.rulesets.list,
+  cloudscheduler.locations.list, cloudscheduler.jobs.list,
+  cloudfunctions.functions.list, storagetransfer.jobs.list,
+  storagetransfer.jobs.get, storagetransfer.jobs.create,
+  storagetransfer.jobs.run, and storagetransfer.operations.get.
+  Bind it only to ${BACKUP_SA}. It does not include a project editor grant.
+WOULD bind backupStatusWriter to ${BACKUP_SA} as well as ${R2_COPY_SA}.
+WOULD stop if backupOperator cannot be created or bound.
 WOULD create ${R2_COPY_SA} if it is missing.
 WOULD create or update custom role backupStatusWriter with
   datastore.entities.get, datastore.entities.list, datastore.entities.create,
   and datastore.entities.update. The role has no delete permission. Bind it
-  only to ${R2_COPY_SA}.
+  to ${R2_COPY_SA} and ${BACKUP_SA}.
 WOULD stop if that custom role cannot be created or bound.
 
 Bucket section (--apply, deploy account). Run this after --owner-apply.
@@ -126,8 +147,9 @@ WOULD remove projectEditor, projectOwner, and projectViewer legacy bindings
   binding is success, so a re-run is safe. A permission error is not a
   missing binding.
 WOULD stop if that bucket policy still has projectEditor, projectOwner, or
-  projectViewer, or if the functions service account has any role there other
-  than roles/storage.objectViewer and roles/storage.legacyBucketReader.
+  projectViewer, or if ${BACKUP_SA} has any role there other than
+  roles/storage.objectViewer and roles/storage.legacyBucketReader. The
+  default compute account is removed from this bucket.
 
 WOULD read the location of gs://${SOURCE_UPLOADS_BUCKET}.
 WOULD put gs://${UPLOADS_BACKUP_BUCKET} in us-east1, or us-west1 when the
@@ -135,34 +157,50 @@ WOULD put gs://${UPLOADS_BACKUP_BUCKET} in us-east1, or us-west1 when the
 WOULD refuse a destination that matches the source region.
 WOULD create that bucket if missing, then set uniform bucket-level access,
   public access prevention enforced, and versioning.
-WOULD leave its default projectEditor binding in place. The compute account
-  overwrites the uploads checkpoint there.
+WOULD remove projectEditor, projectOwner, and projectViewer legacy bindings
+  on gs://${UPLOADS_BACKUP_BUCKET}. ${BACKUP_SA} gets
+  roles/storage.objectAdmin there so the fallback copy can overwrite a
+  checkpoint. The default compute account is not granted a role on it.
 WOULD set its lifecycle to delete noncurrent generations after 90 days and
   abort incomplete multipart uploads after 7 days. Live objects are not
   deleted by age.
 
-WOULD leave the lifecycle on gs://${FIRESTORE_BACKUP_BUCKET} unchanged.
-WOULD set uniform bucket-level access and public access prevention enforced
-  on that existing bucket.
+WOULD set uniform bucket-level access, public access prevention enforced,
+  and versioning on gs://${FIRESTORE_BACKUP_BUCKET}.
+WOULD set its lifecycle to delete a live object at age 90 days and a
+  noncurrent generation after 1 day. That replaces the lifecycle file.
+WOULD set a 90 day retention policy and then lock it. The lock cannot be
+  shortened or removed. Phil approves that by running --apply.
+WOULD remove projectEditor, projectOwner, and projectViewer legacy bindings
+  on gs://${FIRESTORE_BACKUP_BUCKET}, and remove the default compute
+  account's admin and object roles there. Project Editor on the compute
+  account is not changed. The other functions still use it. Once the legacy
+  binding is gone, that Editor grant is not object admin on this bucket.
+WOULD leave gs://${OLD_FIRESTORE_BACKUP_BUCKET} untouched. It is an old
+  empty bucket. This script does not delete it.
 
 WOULD grant roles/storage.objectAdmin and roles/storage.legacyBucketReader
   on gs://${FIRESTORE_BACKUP_BUCKET} to the Firestore service agent BEFORE
-  uniform access is turned on. That replaces per-object ACLs the export uses
-  today. roles/storage.admin is not granted.
-WOULD grant roles/storage.objectCreator, roles/storage.objectViewer, and
-  roles/storage.legacyBucketReader on the Firestore backup bucket and the
-  uploads backup bucket to the functions service account. That account can
-  create and read backup objects. It is not granted a role that deletes them.
+  uniform access is turned on. The managed export writes the files as that
+  agent. roles/storage.admin is not granted.
+WOULD grant ${BACKUP_SA} roles/storage.objectCreator,
+  roles/storage.objectViewer, and roles/storage.legacyBucketReader on
+  gs://${FIRESTORE_BACKUP_BUCKET}. Those are the only function-account
+  writes. objectCreator cannot delete. The Firestore service agent is the
+  only other writer.
+WOULD stop if any other member can create or administer objects there, or
+  if the default compute account still has a role on that bucket.
 WOULD grant ${AUTH_BACKUP_SA} roles/storage.objectCreator,
   roles/storage.objectViewer, and roles/storage.legacyBucketReader on
   gs://${AUTH_BACKUP_BUCKET} only. objectCreator cannot overwrite, so a
   second auth export the same day fails closed.
-WOULD grant the functions service account roles/storage.objectViewer and
+WOULD grant ${BACKUP_SA} roles/storage.objectViewer and
   roles/storage.legacyBucketReader on gs://${AUTH_BACKUP_BUCKET} so the
   health check can read the manifest and object metadata. It cannot create
-  or delete objects there.
+  or delete objects there. The default compute account is removed.
 WOULD grant roles/storage.objectViewer and roles/storage.legacyBucketReader
-  on gs://${SOURCE_UPLOADS_BUCKET} to the functions service account.
+  on gs://${SOURCE_UPLOADS_BUCKET} to ${BACKUP_SA}. The live uploads bucket
+  is not given a new writer.
 WOULD grant the Storage Transfer service agent objectViewer and
   legacyBucketReader on the source, and legacyBucketWriter plus objectViewer
   on gs://${UPLOADS_BACKUP_BUCKET}.
@@ -297,7 +335,8 @@ remove_bucket_binding() {
   return 1
 }
 
-strip_auth_bucket_legacy() {
+strip_legacy_members() {
+  local bucket="$1"
   local members=(
     "projectEditor:${PROJECT_ID}"
     "projectOwner:${PROJECT_ID}"
@@ -312,15 +351,42 @@ strip_auth_bucket_legacy() {
   local member role
   for member in "${members[@]}"; do
     for role in "${roles[@]}"; do
-      remove_bucket_binding "${AUTH_BACKUP_BUCKET}" "${member}" "${role}"
+      remove_bucket_binding "${bucket}" "${member}" "${role}"
     done
+  done
+}
+
+strip_auth_bucket_legacy() {
+  strip_legacy_members "${AUTH_BACKUP_BUCKET}"
+}
+
+remove_compute_backup_access() {
+  local bucket="$1"
+  local member="serviceAccount:${COMPUTE_SA}"
+  local storage_admin_role=roles/storage.admin
+  local storage_object_user_role=roles/storage.objectUser
+  local roles=(
+    "${storage_admin_role}"
+    "roles/storage.objectAdmin"
+    "roles/storage.objectCreator"
+    "roles/storage.objectViewer"
+    "${storage_object_user_role}"
+    "roles/storage.legacyBucketOwner"
+    "roles/storage.legacyObjectOwner"
+    "roles/storage.legacyBucketWriter"
+    "roles/storage.legacyBucketReader"
+    "roles/storage.legacyObjectReader"
+  )
+  local role
+  for role in "${roles[@]}"; do
+    remove_bucket_binding "${bucket}" "${member}" "${role}"
   done
 }
 
 assert_auth_bucket_isolated() {
   local policy
   policy="$(gcloud storage buckets get-iam-policy "gs://${AUTH_BACKUP_BUCKET}" --project "${PROJECT_ID}" --format=json)"
-  POLICY_JSON="${policy}" ASSERT_PROJECT="${PROJECT_ID}" ASSERT_FUNCTIONS_SA="${FUNCTIONS_SA}" python3 - <<'AUTH_POLICY_PY'
+  POLICY_JSON="${policy}" ASSERT_PROJECT="${PROJECT_ID}" ASSERT_FUNCTIONS_SA="${BACKUP_SA}" ASSERT_COMPUTE_SA="${COMPUTE_SA}" python3 - <<'AUTH_POLICY_PY'
 import json, os, sys
 policy = json.loads(os.environ["POLICY_JSON"])
 functions_sa = "serviceAccount:" + os.environ["ASSERT_FUNCTIONS_SA"]
@@ -336,6 +402,10 @@ for binding in policy.get("bindings") or []:
                 sys.exit(1)
         if member == functions_sa:
             found.add(role)
+        compute = os.environ.get("ASSERT_COMPUTE_SA", "")
+        if compute and member == "serviceAccount:" + compute:
+            sys.stderr.write("Default compute account still has %s on the auth backup bucket\n" % role)
+            sys.exit(1)
 extra = sorted(found - allowed)
 if extra:
     sys.stderr.write("Functions service account has extra auth-bucket roles: %s\n" % ", ".join(extra))
@@ -345,6 +415,73 @@ if missing:
     sys.stderr.write("Functions service account is missing auth-bucket read roles: %s\n" % ", ".join(missing))
     sys.exit(1)
 AUTH_POLICY_PY
+}
+
+assert_firestore_backup_writers() {
+  local policy
+  policy="$(gcloud storage buckets get-iam-policy "gs://${FIRESTORE_BACKUP_BUCKET}" --project "${PROJECT_ID}" --format=json)"
+  POLICY_JSON="${policy}" ASSERT_BACKUP_SA="${BACKUP_SA}" ASSERT_FIRESTORE_SA="${FIRESTORE_AGENT_SA}" ASSERT_COMPUTE_SA="${COMPUTE_SA}" python3 - <<'FS_POLICY_PY'
+import json, os, sys
+policy = json.loads(os.environ["POLICY_JSON"])
+backup = "serviceAccount:" + os.environ["ASSERT_BACKUP_SA"]
+agent = "serviceAccount:" + os.environ["ASSERT_FIRESTORE_SA"]
+compute = "serviceAccount:" + os.environ["ASSERT_COMPUTE_SA"]
+banned_prefixes = ("projectEditor:", "projectOwner:", "projectViewer:")
+backup_need = {"roles/storage.objectCreator", "roles/storage.objectViewer", "roles/storage.legacyBucketReader"}
+agent_need = {"roles/storage.objectAdmin", "roles/storage.legacyBucketReader"}
+write_roles = {
+    "roles/storage." + "admin",
+    "roles/storage.objectAdmin",
+    "roles/storage.objectCreator",
+    "roles/storage.legacyBucketOwner",
+    "roles/storage.legacyObjectOwner",
+    "roles/storage.legacyBucketWriter",
+}
+found_backup = set()
+found_agent = set()
+for binding in policy.get("bindings") or []:
+    role = binding.get("role") or ""
+    for member in binding.get("members") or []:
+        for prefix in banned_prefixes:
+            if member.startswith(prefix):
+                sys.stderr.write("Firestore backup bucket still binds %s to %s\n" % (member, role))
+                sys.exit(1)
+        if member == "serviceAccount:" + compute:
+            sys.stderr.write("Default compute account still has %s on the Firestore backup bucket\n" % role)
+            sys.exit(1)
+        if member == backup:
+            found_backup.add(role)
+        if member == agent:
+            found_agent.add(role)
+        if role in write_roles:
+            if member == agent and role == "roles/storage.objectAdmin":
+                continue
+            if member == backup and role == "roles/storage.objectCreator":
+                continue
+            sys.stderr.write("Unexpected writer %s has %s on the Firestore backup bucket\n" % (member, role))
+            sys.exit(1)
+missing_backup = sorted(backup_need - found_backup)
+if missing_backup:
+    sys.stderr.write("Backup service account is missing Firestore backup roles: %s\n" % ", ".join(missing_backup))
+    sys.exit(1)
+missing_agent = sorted(agent_need - found_agent)
+if missing_agent:
+    sys.stderr.write("Firestore service agent is missing export roles: %s\n" % ", ".join(missing_agent))
+    sys.exit(1)
+FS_POLICY_PY
+}
+
+lock_firestore_backup_retention() {
+  local seconds="7776000"
+  local locked=""
+  locked="$(gcloud storage buckets describe "gs://${FIRESTORE_BACKUP_BUCKET}" --project "${PROJECT_ID}" --format='value(retentionPolicy.isLocked)')"
+  if [[ "${locked}" == "True" || "${locked}" == "true" ]]; then
+    echo "APPLY: retention on gs://${FIRESTORE_BACKUP_BUCKET} is already locked. It is not changed."
+    return 0
+  fi
+  echo "APPLY: lock 90 day retention on gs://${FIRESTORE_BACKUP_BUCKET}. This cannot be shortened."
+  gcloud storage buckets update "gs://${FIRESTORE_BACKUP_BUCKET}" --project "${PROJECT_ID}" --retention-period="${seconds}s"
+  gcloud storage buckets update "gs://${FIRESTORE_BACKUP_BUCKET}" --project "${PROJECT_ID}" --lock-retention-period
 }
 
 disable_auth_soft_delete() {
@@ -530,6 +667,29 @@ run_owner() {
   bind_project "serviceAccount:${AUTH_BACKUP_SA}" "projects/${PROJECT_ID}/roles/authBackupReader"
   echo "OWNER: granted projects/${PROJECT_ID}/roles/authBackupReader to ${AUTH_BACKUP_SA}"
 
+  echo "OWNER: backup service account"
+  if gcloud iam service-accounts describe "${BACKUP_SA}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
+    echo "OWNER: ${BACKUP_SA} already exists."
+  else
+    gcloud iam service-accounts create "${BACKUP_SA%%@*}" \
+      --project "${PROJECT_ID}" \
+      --display-name "Bitcoin Quest nightly backup"
+  fi
+  local backup_perms="datastore.databases.export,datastore.operations.get,datastore.indexes.list,datastore.indexes.get,firebaserules.releases.list,firebaserules.releases.get,firebaserules.rulesets.get,firebaserules.rulesets.list,cloudscheduler.locations.list,cloudscheduler.jobs.list,cloudfunctions.functions.list,storagetransfer.jobs.list,storagetransfer.jobs.get,storagetransfer.jobs.create,storagetransfer.jobs.run,storagetransfer.operations.get"
+  if gcloud iam roles describe backupOperator --project "${PROJECT_ID}" >/dev/null 2>&1; then
+    gcloud iam roles update backupOperator --project "${PROJECT_ID}" \
+      --permissions "${backup_perms}" \
+      --stage GA
+  else
+    gcloud iam roles create backupOperator --project "${PROJECT_ID}" \
+      --title "Nightly backup operator" \
+      --description "Export Firestore, read backup configuration, and run the uploads transfer. No project editor grant." \
+      --permissions "${backup_perms}" \
+      --stage GA
+  fi
+  bind_project "serviceAccount:${BACKUP_SA}" "projects/${PROJECT_ID}/roles/backupOperator"
+  echo "OWNER: granted projects/${PROJECT_ID}/roles/backupOperator to ${BACKUP_SA}"
+
   echo "OWNER: r2 copy service account"
   if gcloud iam service-accounts describe "${R2_COPY_SA}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
     echo "OWNER: ${R2_COPY_SA} already exists."
@@ -552,22 +712,20 @@ run_owner() {
       --stage GA
   fi
   bind_project "serviceAccount:${R2_COPY_SA}" "projects/${PROJECT_ID}/roles/backupStatusWriter"
-  echo "OWNER: granted projects/${PROJECT_ID}/roles/backupStatusWriter to ${R2_COPY_SA}"
+  bind_project "serviceAccount:${BACKUP_SA}" "projects/${PROJECT_ID}/roles/backupStatusWriter"
+  echo "OWNER: granted projects/${PROJECT_ID}/roles/backupStatusWriter to ${R2_COPY_SA} and ${BACKUP_SA}"
 }
 
 run_apply() {
   echo "APPLY: starting bucket and database changes for ${PROJECT_ID}"
   local project_number
   project_number="$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)')"
-  FUNCTIONS_SA="${FUNCTIONS_SA:-${project_number}-compute@developer.gserviceaccount.com}"
-  local detected
-  detected="$(gcloud functions describe dailyFirestoreBackup --gen2 --region=us-central1 --project="${PROJECT_ID}" --format='value(serviceConfig.serviceAccountEmail)' 2>/dev/null || true)"
-  if [[ -n "${detected}" ]]; then
-    FUNCTIONS_SA="${detected}"
-  fi
-  local firestore_sa="service-${project_number}@gcp-sa-firestore.iam.gserviceaccount.com"
+  COMPUTE_SA="${project_number}-compute@developer.gserviceaccount.com"
+  FIRESTORE_AGENT_SA="service-${project_number}@gcp-sa-firestore.iam.gserviceaccount.com"
   local sts_sa="project-${project_number}@storage-transfer-service.iam.gserviceaccount.com"
-  echo "APPLY: functions service account ${FUNCTIONS_SA}"
+  echo "APPLY: backup service account ${BACKUP_SA}"
+  echo "APPLY: default compute account ${COMPUTE_SA}"
+  echo "APPLY: Firestore service agent ${FIRESTORE_AGENT_SA}"
   echo "APPLY: Storage Transfer service agent ${sts_sa}"
 
   local uploads_location
@@ -577,6 +735,15 @@ run_apply() {
   trap 'rm -rf "${TMP}"' EXIT
 
   cat > "${TMP}/auth-lifecycle.json" <<'EOF'
+{
+  "rule": [
+    { "action": { "type": "Delete" }, "condition": { "age": 90 } },
+    { "action": { "type": "Delete" }, "condition": { "daysSinceNoncurrentTime": 1 } }
+  ]
+}
+EOF
+
+  cat > "${TMP}/firestore-lifecycle.json" <<'EOF'
 {
   "rule": [
     { "action": { "type": "Delete" }, "condition": { "age": 90 } },
@@ -603,15 +770,22 @@ EOF
 
   echo "APPLY: uploads backup bucket"
   create_bucket "${UPLOADS_BACKUP_BUCKET}" "${uploads_location}" "${TMP}/uploads-lifecycle.json"
+  echo "APPLY: remove legacy project bindings and the default compute account from the uploads backup"
+  strip_legacy_members "${UPLOADS_BACKUP_BUCKET}"
+  remove_compute_backup_access "${UPLOADS_BACKUP_BUCKET}"
 
   echo "APPLY: bucket roles (Firestore agent before uniform access)"
-  bind_bucket "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${firestore_sa}" "roles/storage.objectAdmin"
-  bind_bucket "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${firestore_sa}" "roles/storage.legacyBucketReader"
-  bind_bucket_creator "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
-  bind_bucket_creator "${UPLOADS_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
+  bind_bucket "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FIRESTORE_AGENT_SA}" "roles/storage.objectAdmin"
+  bind_bucket "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${FIRESTORE_AGENT_SA}" "roles/storage.legacyBucketReader"
+  bind_bucket_creator "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${BACKUP_SA}"
+  bind_bucket "${UPLOADS_BACKUP_BUCKET}" "serviceAccount:${BACKUP_SA}" "roles/storage.objectAdmin"
   bind_bucket_creator "${AUTH_BACKUP_BUCKET}" "serviceAccount:${AUTH_BACKUP_SA}"
-  bind_bucket_reader "${AUTH_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
-  bind_bucket_reader "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
+  bind_bucket_reader "${AUTH_BACKUP_BUCKET}" "serviceAccount:${BACKUP_SA}"
+  bind_bucket_reader "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${BACKUP_SA}"
+  echo "APPLY: remove the default compute account from the auth and Firestore backup buckets"
+  remove_compute_backup_access "${AUTH_BACKUP_BUCKET}"
+  remove_compute_backup_access "${FIRESTORE_BACKUP_BUCKET}"
+  strip_legacy_members "${FIRESTORE_BACKUP_BUCKET}"
   echo "APPLY: r2 copy account reads the three backup buckets only"
   bind_bucket_reader "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${R2_COPY_SA}"
   bind_bucket_reader "${AUTH_BACKUP_BUCKET}" "serviceAccount:${R2_COPY_SA}"
@@ -636,6 +810,13 @@ EOF
     echo "Public access prevention on gs://${FIRESTORE_BACKUP_BUCKET} is '${existing_pap}', expected enforced." >&2
     exit 1
   fi
+  echo "APPLY: versioning, 90 day lifecycle, and the retention lock"
+  gcloud storage buckets update "gs://${FIRESTORE_BACKUP_BUCKET}" --project "${PROJECT_ID}" --versioning
+  gcloud storage buckets update "gs://${FIRESTORE_BACKUP_BUCKET}" --project "${PROJECT_ID}" --lifecycle-file "${TMP}/firestore-lifecycle.json"
+  lock_firestore_backup_retention
+  echo "APPLY: check the Firestore backup bucket writers"
+  assert_firestore_backup_writers
+  echo "APPLY: leaving gs://${OLD_FIRESTORE_BACKUP_BUCKET} untouched"
 
   echo "APPLY: secret shell AUTH_BACKUP_KEY for ${AUTH_BACKUP_SA} only (no version)"
   ensure_secret AUTH_BACKUP_KEY "${AUTH_BACKUP_SA}"
@@ -671,7 +852,8 @@ fi
 
 cat <<EOF
 
-Changes finished. No buckets were deleted and no retention lock was set.
+Changes finished. No buckets were deleted. gs://${OLD_FIRESTORE_BACKUP_BUCKET}
+was not deleted. The Firestore backup bucket retention lock cannot be shortened.
 No key was generated.
 
 Phil adds the auth backup key in Cloud Shell, never on the deploy box.
