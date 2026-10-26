@@ -135,6 +135,7 @@ function createFakeDb(initial) {
             },
             listCollections: async function() {
                 listCalls.push(docPath);
+                if (db.omitListed === true) return [];
                 const prefix = docPath + '/';
                 const names = new Set();
                 for (const key of docs.keys()) {
@@ -1850,6 +1851,41 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('forum_posts/legacy').authorId, 'deleted');
         assert.ok(db.docs.has('forum_posts/nested/replies/r1'));
         assert.ok(db.docs.has('articles/nestedA/comments/c1'));
+    });
+
+    await testAsync('cert_bonuses and xp_ledger are deleted by name when listCollections is empty', async function() {
+        assert.ok(del.USER_SUBCOLLECTIONS.indexOf('cert_bonuses') !== -1);
+        assert.ok(del.USER_SUBCOLLECTIONS.indexOf('xp_ledger') !== -1);
+        assert.ok(del.CAP_SUBCOLLECTIONS.indexOf('cert_bonuses') === -1);
+        assert.ok(del.CAP_SUBCOLLECTIONS.indexOf('xp_ledger') === -1);
+        assert.ok(del.RETAINED_COLLECTIONS.indexOf('cert_bonuses') === -1);
+        assert.ok(del.RETAINED_COLLECTIONS.indexOf('xp_ledger') === -1);
+        const db = createFakeDb({
+            'users/u1': { username: 'Ada', points: 10 },
+            'users/u1/cert_bonuses/prop': { amount: 2100, source: 'cert_bonus' },
+            'users/u1/xp_ledger/cert_bonus_prop': { amount: 2100, source: 'cert_bonus' },
+            'users/u2': { username: 'Bea' },
+            'users/u2/cert_bonuses/prop': { amount: 2100 },
+            'users/u2/xp_ledger/cert_bonus_prop': { amount: 2100 },
+        });
+        db.omitListed = true;
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-cert-ledger',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.ok(db.listCalls.indexOf('users/u1') !== -1);
+        assert.strictEqual(db.docs.has('users/u1/cert_bonuses/prop'), false);
+        assert.strictEqual(db.docs.has('users/u1/xp_ledger/cert_bonus_prop'), false);
+        assert.strictEqual(db.docs.has('users/u1'), false);
+        assert.ok(db.docs.has('users/u2/cert_bonuses/prop'));
+        assert.ok(db.docs.has('users/u2/xp_ledger/cert_bonus_prop'));
     });
 
     await testAsync('the hash limit names the sign-in, and the delete overlay scrolls', async function() {

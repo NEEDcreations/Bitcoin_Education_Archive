@@ -6857,8 +6857,9 @@ function accountDeleteRowHtml(user) {
         html += '<div style="background:linear-gradient(135deg, rgba(247,147,26,0.1), rgba(247,147,26,0.02));border:1px solid '+(propPassed ? '#22c55e' : 'var(--accent)')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(propPassed ? '✅' : '📜')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Scholar Certification</div>' +
-            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:15px;line-height:1.4;">25 questions on the <strong>economic properties</strong> and scarcity of Bitcoin. 80% to pass. One attempt per day.</p>' +
-            '<button onclick="hideUsernamePrompt(); startScholarQuest(\'properties\');" style="width:100%;padding:12px;background:'+(propPassed ? '#22c55e' : 'var(--accent)')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(propPassed ? '✅ View Certificate' : '🎓 Start Scholar Exam')+'</button>' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;line-height:1.4;">25 questions on the <strong>economic properties</strong> and scarcity of Bitcoin. 80% to pass. One attempt per day.</p>' +
+            '<p style="color:#22c55e;font-size:0.8rem;font-weight:800;margin-bottom:15px;">+2,100 XP, not limited by the daily cap</p>' +
+            '<button onclick="hideUsernamePrompt(); if(window.openCertification){openCertification(\'properties\');}else if(typeof startScholarQuest===\'function\'){startScholarQuest(\'properties\');}" style="width:100%;padding:12px;background:'+(propPassed ? '#22c55e' : 'var(--accent)')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(propPassed ? '✅ View Certificate' : '🎓 Start Scholar Exam')+'</button>' +
             '</div>';
 
         // Scholar Certification - Technical
@@ -6866,8 +6867,9 @@ function accountDeleteRowHtml(user) {
         html += '<div style="background:linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.02));border:1px solid '+(techPassed ? '#22c55e' : '#3b82f6')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(techPassed ? '✅' : '🛠️')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Protocol Expert</div>' +
-            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:15px;line-height:1.4;">25 questions on <strong>highly technical</strong> topics: BIPs, Script, SegWit, Taproot, and Networking.</p>' +
-            '<button onclick="hideUsernamePrompt(); startScholarQuest(\'technical\');" style="width:100%;padding:12px;background:'+(techPassed ? '#22c55e' : '#3b82f6')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(techPassed ? '✅ View Certificate' : '🛠️ Start Technical Exam')+'</button>' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;line-height:1.4;">25 questions on <strong>highly technical</strong> topics: BIPs, Script, SegWit, Taproot, and Networking.</p>' +
+            '<p style="color:#22c55e;font-size:0.8rem;font-weight:800;margin-bottom:15px;">+2,100 XP, not limited by the daily cap</p>' +
+            '<button onclick="hideUsernamePrompt(); if(window.openCertification){openCertification(\'technical\');}else if(typeof startScholarQuest===\'function\'){startScholarQuest(\'technical\');}" style="width:100%;padding:12px;background:'+(techPassed ? '#22c55e' : '#3b82f6')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(techPassed ? '✅ View Certificate' : '🛠️ Start Technical Exam')+'</button>' +
             '</div>';
 
         // Flashcards (collapsible)

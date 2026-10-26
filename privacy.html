@@ -587,7 +587,7 @@
         <li>Rate limiting on sign-in attempts and message sending (30 messages/hour)</li>
         <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
         <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
-        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked; atomic transactions)</li>
+        <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked; atomic transactions). A certification completion bonus of 2,100 XP is credited once per certification outside that daily counter</li>
         <li>Device fingerprinting and IP-based multi-account detection for faucet claims, referral signup, and the peer-key and peer-request checks that decide badge and XP credit. Those checks compare fingerprint, IP, email, and Lightning address the same way tips do. Server-written badge counters (gifts opened, keys used, shop purchases, raffle tickets bought, topic comments, and the rest of the badge ladders) live on the account profile and are not writable from the browser</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
         <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>
