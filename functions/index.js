@@ -4995,7 +4995,7 @@ exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
 // PII (email, known_ips, fingerprint, lightningAddress, nostr, etc.) is never copied.
 // ============================================================
 const PUBLIC_PROFILE_FIELDS = [
-    'username', 'username_lower', 'displayName', 'profilePic', 'faction',
+    'username', 'username_lower', 'usernameMigratedFrom', 'displayName', 'profilePic', 'faction',
     'country', 'bio', 'twitter', 'website',
     'points', 'weeklyXP', 'monthlyXP', 'level',
     'streak', 'bestStreak', 'totalVisits', 'channelsVisited',

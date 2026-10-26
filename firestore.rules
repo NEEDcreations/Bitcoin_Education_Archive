@@ -287,6 +287,8 @@ service cloud.firestore {
                         // Guest-link nonce and the one-time merge marker.
                         'guestLinkNonce', 'guestLinkNonceAt', 'mergedInto', 'mergedFromGuest',
                         'usernameChangedAt',
+                        // Username-spaces migration: free-rename grant and audit fields.
+                        'usernameFreeRename', 'usernameMigratedFrom', 'usernameMigratedAt',
                         'totpEnabled', 'phoneVerified',
                         // Push tokens stay in push_tokens/{uid}/devices, never on the profile
                         'fcmToken', 'pushToken', 'pushEnabled'
@@ -303,7 +305,7 @@ service cloud.firestore {
             || (request.resource.data.username is string
                 && request.resource.data.username.size() >= 3
                 && request.resource.data.username.size() <= 20
-                && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')))
+                && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.]+$')))
           && (!changed.hasAny(['displayBadge'])
             || !('displayBadge' in request.resource.data)
             || request.resource.data.displayBadge == ''

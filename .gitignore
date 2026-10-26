@@ -9,6 +9,7 @@ firebase-debug.log
 firestore-debug.log
 images/
 .firebase/
+username-spaces-private/
 .wrangler/
 **/.wrangler/
 *.bak

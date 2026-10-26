@@ -290,7 +290,10 @@ function createBucket(files) {
 
 function world() {
     const data = {
-        'users/u1': { username: 'Alice', username_lower: 'alice', points: 10, profilePic: 'data:image/png;base64,abc' },
+        'users/u1': {
+            username: 'Alice', username_lower: 'alice', points: 10, profilePic: 'data:image/png;base64,abc',
+            usernameMigratedFrom: 'Alice Smith', usernameMigratedAt: 1, usernameFreeRename: true,
+        },
         'users/u1/daily_points/2026-10-22': { total: 40 },
         'users/u1/daily_action_counts/2026-10-22': { say_hi: 1 },
         'users/u1/badge_awards/b1': { badge: 'x' },
@@ -300,8 +303,10 @@ function world() {
         'users/u1/proof_of_walk/act1': { id: 'act1' },
         'users/u1/proof_of_walk_stats/daily': { n: 1 },
         'users/u2': { username: 'Bob', points: 3 },
-        'public_profiles/u1': { username: 'Alice', points: 10 },
+        'public_profiles/u1': { username: 'Alice', points: 10, usernameMigratedFrom: 'Alice Smith' },
         'public_profiles/u2': { username: 'Bob' },
+        'username_migrations/u1': { uid: 'u1', from: 'Alice Smith', to: 'Alice', atMs: 1 },
+        'username_migrations/u2': { uid: 'u2', from: 'Bob Two', to: 'Bob', atMs: 1 },
         'usernames/alice': { uid: 'u1' },
         'usernames/u1': { uid: 'u1' },
         'usernames/bob': { uid: 'u2' },
@@ -672,6 +677,9 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('usernames/orphan'));
         assert.strictEqual(db.docs.has('public_profiles/u1'), false);
         assert.ok(db.docs.has('public_profiles/u2'));
+        assert.strictEqual(db.docs.has('username_migrations/u1'), false);
+        assert.strictEqual(db.docs.get('username_migrations/u2').from, 'Bob Two');
+        assert.strictEqual(db.docs.has('users/u1'), false);
 
         assert.strictEqual(db.docs.has('forum_posts/p1'), false);
         assert.ok(db.docs.has('forum_posts/p2'));
