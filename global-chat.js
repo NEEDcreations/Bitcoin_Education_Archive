@@ -765,7 +765,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261026_v2374';
+        s.src = 'quests.js?v=20261026_v2372';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;
@@ -1778,7 +1778,7 @@ window.toggleChatOverlay = function() {
         btn.innerHTML = '💬';
         btn.style.background = 'var(--accent,#f7931a)';
         btn.style.color = '#fff';
-        btn.style.display = _overlayOpen ? 'none' : (localStorage.getItem('fabMinimized') === '1' ? 'none' : '');
+        btn.style.display = _overlayOpen ? 'none' : '';
     }
 
     // Click-outside backdrop
@@ -2037,13 +2037,13 @@ window.renderChatHub = function(tab) {
 // Re-show overlay button on ANY navigation (go, goHome, popstate)
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
-    // Show on all screen sizes (unless full chat hub is open or FAB is minimized)
-    if (btn && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') btn.style.display = 'block';
+    // Show on all screen sizes unless the full chat hub is open
+    if (btn && !document.getElementById('chatContent')) btn.style.display = 'block';
 }
 // Periodically check button visibility (catches app navigations that don't call go())
 setInterval(function() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') {
+    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
         btn.style.display = 'block';
     }
 }, 3000);
@@ -3467,7 +3467,7 @@ function initOverlay() {
     // if (oldBtn) oldBtn.style.display = 'none';
     // Keep chat button visible on all screen sizes — it's the only chat entry point
     var chatBtn = document.getElementById('chatOverlayBtn');
-    if (chatBtn) chatBtn.style.display = localStorage.getItem('fabMinimized') === '1' ? 'none' : '';
+    if (chatBtn) chatBtn.style.display = '';
     // Safety net: strip chat-shifted from lbFloatBtn if chat panel is not open on init
     if (!_overlayOpen && !document.getElementById('chatContent')) {
         var _lbInit = document.getElementById('lbFloatBtn');
