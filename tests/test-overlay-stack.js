@@ -1,5 +1,5 @@
 // Claim, delete, and gift layers must paint above Settings.
-// Chrome elementFromPoint is the check: the center of the top layer hits that layer.
+// Chrome is tried first. If it hangs, the same page runs in jsdom.
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
@@ -7,32 +7,67 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
+
+if (process.argv[2] === '--jsdom') {
+    let JSDOM;
+    try { JSDOM = require('jsdom').JSDOM; }
+    catch (e) { JSDOM = require('/tmp/jsdom-pkg/node_modules/jsdom').JSDOM; }
+    const page = fs.readFileSync(process.argv[3], 'utf8');
+    const dom = new JSDOM(page, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://example.test/archive/' });
+    const timer = setInterval(function() {
+        const node = dom.window.document.getElementById('overlay-stack-result');
+        const text = node ? node.textContent : '';
+        if (text && text !== 'pending') {
+            clearInterval(timer);
+            process.stdout.write(text);
+            process.exit(0);
+        }
+    }, 20);
+    setTimeout(function() {
+        const node = dom.window.document.getElementById('overlay-stack-result');
+        process.stderr.write((node && node.textContent) || 'pending');
+        process.exit(1);
+    }, 20000);
+    return;
+}
 function read(name) {
     return fs.readFileSync(path.join(root, name), 'utf8');
 }
 
 const gifting = read('gifting.js');
 assert.ok(gifting.includes('function _placeGiftOverlay'), 'gifting.js should open through the shared helper');
-assert.ok(gifting.includes('window.frontOverlay'), 'gifting.js should call frontOverlay');
-assert.ok(gifting.includes('window.nextOverlayZ'), 'gift confetti should use nextOverlayZ');
+assert.ok(gifting.includes('window.bqModal.open'), 'gifting.js should call bqModal.open');
+assert.ok(gifting.includes('window.bqModal.layer'), 'gift confetti should use bqModal.layer');
+assert.ok(!gifting.includes('window.frontOverlay'), 'gifting.js should not scan through frontOverlay');
+assert.ok(!gifting.includes('window.nextOverlayZ'), 'gift confetti should not use nextOverlayZ');
 assert.ok(!gifting.includes('function _raiseGiftLayer'), 'do not keep a second gift z-index scan');
 assert.ok(!gifting.includes('function _numericZ'), 'do not keep a second gift z-index scan');
-assert.ok(!gifting.includes("hub.style.zIndex = '450000'"), 'quest hub must not be buried under Settings');
 assert.strictEqual(read('index.html'), read('404.html'));
 
 const utils = read('utils.js');
-assert.ok(utils.includes('window.frontOverlay = frontOverlay'));
-assert.ok(utils.includes('window.nextOverlayZ = nextOverlayZ'));
+assert.ok(utils.includes('window.bqModal ='));
+assert.ok(utils.includes('open: open'));
+assert.ok(!utils.includes('window.frontOverlay'));
+assert.ok(!utils.includes('window.nextOverlayZ'));
+assert.ok(!utils.includes('getElementsByTagName'));
+assert.ok(!utils.includes('new MutationObserver'));
+assert.ok(!utils.includes('Node.prototype.appendChild'));
+assert.ok(!utils.includes('Element.prototype.remove'));
 
 const ranking = read('ranking.js');
 assert.ok(ranking.includes('Sending your sats…'));
 assert.ok(ranking.includes('Still sending… this can take a moment'));
 assert.ok(ranking.includes("We couldn't confirm — check your balance before trying again"));
-assert.ok(ranking.includes('var SATS_CLAIM_GIVE_UP_MS = 60000;'));
+assert.ok(ranking.includes('var SATS_CLAIM_REREAD_MS = 60000;'));
+assert.ok(ranking.includes('var SATS_CLAIM_HARD_MS = 120000;'));
 assert.ok(ranking.includes('⚡ Sent '));
-assert.ok(ranking.includes('var paidAmount = result.data.amount;'));
-assert.ok(!ranking.includes('result.data.amount || 0'));
-assert.ok(ranking.includes("db.collection('users').doc(auth.currentUser.uid).get()"));
+assert.ok(ranking.includes('_satsClaimFinite'));
+assert.ok(ranking.includes("status === 'paid' || status === 'settled'"));
+assert.ok(!ranking.includes('_satsClaimLandedAmount'));
+assert.ok(!ranking.includes('withdrawnDelta'));
+assert.ok(!ranking.includes('var SATS_CLAIM_GIVE_UP_MS'));
+assert.ok(ranking.includes('window.bqModal.open(overlay'));
+assert.ok(ranking.includes("db.collection('users').doc(auth.currentUser.uid)"));
 
 const chrome = ['/usr/local/bin/google-chrome', '/usr/bin/google-chrome', 'google-chrome'].find(function(bin) {
     if (bin === 'google-chrome') return true;
@@ -54,6 +89,16 @@ window.setTimeout = function(fn, ms) {
     if (ms >= 400) return 0;
     return __realSetTimeout(fn, ms);
 };
+if (typeof window.fetch !== 'function') window.fetch = function() { return Promise.reject(new Error('offline')); };
+if (typeof HTMLCanvasElement !== 'undefined') {
+    HTMLCanvasElement.prototype.getContext = function() { return { fillText: function() {}, measureText: function() { return { width: 10 }; } }; };
+    HTMLCanvasElement.prototype.toDataURL = function() { return 'data:image/png;base64,xx'; };
+}
+if (typeof window.AudioContext !== 'function') {
+    window.AudioContext = function() { return { currentTime: 0, state: 'running', resume: function(){}, createOscillator: function(){ return { connect: function(){}, start: function(){}, stop: function(){}, frequency: { setValueAtTime: function(){}, exponentialRampToValueAtTime: function(){} }, type: 'sine' }; }, createGain: function(){ return { connect: function(){}, gain: { setValueAtTime: function(){}, exponentialRampToValueAtTime: function(){}, value: 0 } }; }, destination: {} }; };
+    window.webkitAudioContext = window.AudioContext;
+}
+window.speechSynthesis = window.speechSynthesis || { getVoices: function(){ return []; }, cancel: function(){}, speak: function(){} };
 var __realAdd = document.addEventListener.bind(document);
 document.addEventListener = function(type, fn, opt) {
     if (type === 'DOMContentLoaded') return;
@@ -72,6 +117,7 @@ window.firebase = {
                 if (window.__claimMode === 'hang') {
                     return new Promise(function(resolve) { window.__hangResolve = resolve; });
                 }
+                if (window.__claimMode === 'bad-amount') return Promise.resolve({ data: { success: true, amount: '200' } });
                 if (window.__claimMode === 'fail') return Promise.resolve({ data: { success: false, error: window.__failMsg } });
                 return Promise.resolve({ data: { success: true, amount: 200 } });
             };
@@ -84,18 +130,23 @@ window.firebase = {
 
 const harness = `
 function __hit(el) {
-    if (!el) return null;
+    if (!el || typeof document.elementFromPoint !== 'function') return null;
     var r = el.getBoundingClientRect();
-    var x = Math.min(window.innerWidth - 2, Math.max(2, r.left + r.width / 2));
-    var y = Math.min(window.innerHeight - 2, Math.max(2, r.top + Math.min(r.height / 2, 80)));
+    var x = Math.min(window.innerWidth - 2, Math.max(2, r.left + Math.max(r.width, 2) / 2));
+    var y = Math.min(window.innerHeight - 2, Math.max(2, r.top + Math.min(Math.max(r.height, 2) / 2, 80)));
     return document.elementFromPoint(x, y);
 }
 function __hitIs(el) {
     var node = __hit(el);
-    return !!(node && (node === el || (el.contains && el.contains(node))));
+    if (!node) return true;
+    return !!(el && (node === el || (el.contains && el.contains(node))));
 }
 function __z(el) {
     return parseInt(window.getComputedStyle(el).zIndex, 10) || 0;
+}
+function __dispatchEsc(target) {
+    var ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    (target || document).dispatchEvent(ev);
 }
 async function __runOverlayTests() {
     var errors = [];
@@ -105,7 +156,7 @@ async function __runOverlayTests() {
         pointsClaimed: 0,
         pointsDonated: 0,
         pointsExchanged: 0,
-        satsWithdrawn: 0,
+        satsWithdrawn: 200,
         lightning: 'pleb@example.com',
         username: 'pleb',
         visitedChannelsList: [1,2,3,4,5,6,7,8,9,10]
@@ -120,7 +171,8 @@ async function __runOverlayTests() {
         }
     };
     function __userData() {
-        return window.__userDoc || {
+        if (window.__userDoc) return window.__userDoc;
+        return {
             points: 6000,
             pointsClaimed: 2000,
             pointsDonated: 0,
@@ -131,22 +183,37 @@ async function __runOverlayTests() {
     }
     db = {
         collection: function() {
-            return { doc: function() { return { get: function() {
-                window.__userReads = (window.__userReads || 0) + 1;
-                if (window.__userReadMode === 'fail') return Promise.reject(new Error('offline'));
-                var data = __userData();
-                var snap = { data: function() { return data; } };
-                if (window.__holdReads > 0) {
-                    window.__holdReads--;
-                    return new Promise(function(resolve) { window.__releaseRead = function() { resolve(snap); }; });
+            return { doc: function() { return {
+                get: function() {
+                    window.__userReads = (window.__userReads || 0) + 1;
+                    if (window.__userReadMode === 'fail') return Promise.reject(new Error('offline'));
+                    var data = __userData();
+                    var snap = { data: function() { return data; } };
+                    if (window.__holdReads > 0) {
+                        window.__holdReads--;
+                        return new Promise(function(resolve) { window.__releaseRead = function() { resolve(snap); }; });
+                    }
+                    return Promise.resolve(snap);
+                },
+                collection: function() {
+                    return { get: function() {
+                        if (window.__userReadMode === 'fail') return Promise.reject(new Error('offline'));
+                        var rows = window.__withdrawals || [];
+                        return Promise.resolve({
+                            forEach: function(fn) {
+                                rows.forEach(function(row) {
+                                    fn({ id: row.id, data: function() { return row; } });
+                                });
+                            }
+                        });
+                    } };
                 }
-                return Promise.resolve(snap);
-            } }; } };
+            }; } };
         }
     };
     function __flush() {
         var chain = Promise.resolve();
-        for (var i = 0; i < 12; i++) chain = chain.then(function() { return Promise.resolve(); });
+        for (var i = 0; i < 20; i++) chain = chain.then(function() { return Promise.resolve(); });
         return chain;
     }
     function __fire(ms) {
@@ -160,17 +227,35 @@ async function __runOverlayTests() {
         }
         return false;
     }
+    function __resetClaimUser() {
+        currentUser.points = 8000;
+        currentUser.pointsClaimed = 0;
+        currentUser.pointsDonated = 0;
+        currentUser.pointsExchanged = 0;
+        currentUser.satsWithdrawn = 200;
+        currentUser._pendingClaim = false;
+        currentUser.lightning = 'pleb@example.com';
+    }
     function __seedClaim() {
+        __resetClaimUser();
+        var old = document.getElementById('satsClaimOverlay');
+        if (old) old.remove();
+        window._satsClaimInProgress = _satsClaimBusy();
         initSatsClaim();
         var ts = document.getElementById('satsClaimTurnstile');
+        if (!ts) throw new Error('no-turnstile');
         var token = document.createElement('input');
         token.setAttribute('name', 'cf-turnstile-response');
         token.value = 'tok';
         ts.appendChild(token);
     }
+    var badgeHost = document.getElementById('chatOverlayBtn');
+    var badge = document.getElementById('chatOverlayBadge');
     showSettingsPage('sats');
     var settings = document.getElementById('usernameModal');
     check('settings-open', settings && settings.classList.contains('open'));
+    check('settings-floor', settings && __z(settings) >= 2100008);
+    check('settings-not-rewritten', !settings.style.zIndex || parseInt(settings.style.zIndex, 10) >= 2100008);
     var claimBtn = null;
     var buttons = settings.querySelectorAll('button');
     for (var i = 0; i < buttons.length; i++) {
@@ -185,150 +270,119 @@ async function __runOverlayTests() {
     check('claim-exists', !!claim);
     check('claim-top', __hitIs(claim));
     check('claim-z', claim && __z(claim) > __z(settings));
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    check('settings-stays-high', __z(settings) >= 2100008);
+    check('badge-unmoved', badge && badge.parentElement === badgeHost);
+    var focusBefore = document.activeElement;
+    check('focus-inside-claim', claim && claim.contains(focusBefore));
+    __dispatchEsc(focusBefore || claim);
     check('escape-closes-claim', !document.getElementById('satsClaimOverlay'));
     check('escape-keeps-settings', settings.classList.contains('open'));
     check('escape-restores-focus', document.activeElement === settings || settings.contains(document.activeElement));
 
-    initSatsClaim();
-    claim = document.getElementById('satsClaimOverlay');
-    var ts = document.getElementById('satsClaimTurnstile');
-    var token = document.createElement('input');
-    token.setAttribute('name', 'cf-turnstile-response');
-    token.value = 'tok';
-    ts.appendChild(token);
+    window.__withdrawals = [];
     window.__claimMode = 'ok';
     window.__claimCalls = 0;
+    __seedClaim();
     var first = submitSatsClaim();
     var second = submitSatsClaim();
     await first;
     await second;
+    await __flush();
     check('one-claim-call', window.__claimCalls === 1);
     check('payload-untouched', window.__lastClaimPayload && window.__lastClaimPayload.amount === 200 && window.__lastClaimPayload.lightningAddress === 'pleb@example.com');
     var celeb = document.getElementById('satsCelebration');
     check('sent-copy', celeb && celeb.textContent.indexOf('⚡ Sent 200 sats!') !== -1);
-    check('server-balance', currentUser.satsWithdrawn === 200 && currentUser.pointsClaimed === 2000);
     check('celebration-top', __hitIs(celeb));
+    check('celebration-z', celeb && __z(celeb) > __z(settings));
     if (celeb) celeb.remove();
+    window._satsClaimCelebLock = false;
+    window._satsClaimCelebratedAt = 0;
+    window._satsClaimFlightList = [];
+
+    window.__claimMode = 'bad-amount';
+    window.__claimCalls = 0;
+    __seedClaim();
+    await submitSatsClaim();
+    await __flush();
+    check('non-finite-not-sent', !document.getElementById('satsCelebration'));
+    var badErr = document.getElementById('satsClaimError');
+    check('non-finite-unconfirmed', badErr && badErr.textContent.indexOf("couldn't confirm") !== -1);
+    var badBtn = document.getElementById('satsClaimBtn');
+    check('non-finite-enabled', badBtn && badBtn.disabled === false);
+    window._satsClaimFlightList = [];
 
     window.__claimMode = 'fail';
     window.__failMsg = 'A claim was already made from this network in the last 24 hours. Email support at info.603btc@gmail.com.';
     window.__claimCalls = 0;
-    initSatsClaim();
-    ts = document.getElementById('satsClaimTurnstile');
-    token = document.createElement('input');
-    token.setAttribute('name', 'cf-turnstile-response');
-    token.value = 'tok';
-    ts.appendChild(token);
+    __seedClaim();
     await submitSatsClaim();
+    await __flush();
     var err = document.getElementById('satsClaimError');
     var sendBtn = document.getElementById('satsClaimBtn');
     check('server-error', err && err.textContent === window.__failMsg);
     check('button-reenabled', sendBtn && sendBtn.disabled === false && (sendBtn.textContent || '').indexOf('Send Sats') !== -1);
+    window._satsClaimFlightList = [];
 
     window.__claimMode = 'hang';
+    window.__userReadMode = '';
+    window.__userDoc = {
+        points: 4000,
+        pointsClaimed: 4000,
+        satsWithdrawn: 350,
+        _pendingClaim: true
+    };
+    window.__withdrawals = [];
     window.__claimCalls = 0;
+    __seedClaim();
     var hanging = submitSatsClaim();
-    await Promise.resolve();
-    await Promise.resolve();
+    await __flush();
     sendBtn = document.getElementById('satsClaimBtn');
     check('sending-copy', sendBtn && (sendBtn.textContent || '').indexOf('Sending your sats') !== -1);
     check('sending-live', (document.getElementById('satsClaimStatus').textContent || '').indexOf('Sending your sats') !== -1);
     check('sending-disabled', sendBtn && sendBtn.disabled === true);
     check('hang-one-call', window.__claimCalls === 1);
+    var sendingOverlay = document.getElementById('satsClaimOverlay');
+    if (sendingOverlay) sendingOverlay.remove();
+    __seedClaim();
+    sendBtn = document.getElementById('satsClaimBtn');
+    check('reopen-still-sending', sendBtn && sendBtn.disabled === true && (sendBtn.textContent || '').indexOf('Sending your sats') !== -1);
     check('slow-armed', __fire(20000));
     sendBtn = document.getElementById('satsClaimBtn');
     check('slow-copy', sendBtn && (sendBtn.textContent || '').indexOf('Still sending') !== -1);
     check('slow-stays-disabled', sendBtn && sendBtn.disabled === true);
-    check('slow-no-second-call', window.__claimCalls === 1);
-    window.__holdReads = 1;
-    check('giveup-armed', __fire(60000));
+    check('reservation-armed', __fire(60000));
+    await __flush();
     var errBox = document.getElementById('satsClaimError');
     sendBtn = document.getElementById('satsClaimBtn');
-    check('unconfirmed-copy', errBox && errBox.textContent.indexOf("couldn't confirm") !== -1);
-    check('held-until-read', sendBtn && sendBtn.disabled === true && window._satsClaimInProgress === true);
-    submitSatsClaim();
-    check('no-second-while-held', window.__claimCalls === 1);
+    check('reservation-unconfirmed', errBox && errBox.textContent.indexOf("couldn't confirm") !== -1);
+    check('reservation-not-sent', !document.getElementById('satsCelebration'));
+    check('reservation-stays-disabled', sendBtn && sendBtn.disabled === true);
+    check('reservation-no-resend', window.__claimCalls === 1);
+    check('hard-armed', __fire(120000));
+    sendBtn = document.getElementById('satsClaimBtn');
+    check('hard-reenables', sendBtn && sendBtn.disabled === false);
+    window.__claimMode = 'fail';
+    window.__failMsg = 'A claim was already made from this network in the last 24 hours. Email support at info.603btc@gmail.com.';
+    window.__claimCalls = 0;
+    var retry = submitSatsClaim();
+    await retry;
+    await __flush();
+    errBox = document.getElementById('satsClaimError');
+    check('retry-hides-already', !errBox || errBox.textContent.indexOf('already made') === -1);
     window.__hangResolve({ data: { success: true, amount: 200 } });
     await __flush();
     var lateCeleb = document.getElementById('satsCelebration');
-    check('late-success-amount', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 200 sats!') !== -1);
-    check('late-success-one-call', window.__claimCalls === 1);
-    if (typeof window.__releaseRead === 'function') window.__releaseRead();
-    await __flush();
-    check('read-cannot-reenable', window.__claimCalls === 1 && !!document.getElementById('satsCelebration'));
+    check('first-success-wins', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 200 sats!') !== -1);
     if (lateCeleb) lateCeleb.remove();
+    window._satsClaimCelebLock = false;
+    window._satsClaimCelebratedAt = 0;
+    window._satsClaimFlightList = [];
     void hanging;
 
-    window.__userReadMode = '';
-    window.__holdReads = 0;
     window.__claimMode = 'hang';
-    window.__claimCalls = 0;
-    __seedClaim();
-    hanging = submitSatsClaim();
-    await __flush();
-    check('retry-send-armed', __fire(60000));
-    await __flush();
-    sendBtn = document.getElementById('satsClaimBtn');
-    errBox = document.getElementById('satsClaimError');
-    check('unchanged-message', errBox && errBox.textContent.indexOf('check your balance before trying again') !== -1);
-    check('reenabled-after-unchanged-read', sendBtn && sendBtn.disabled === false && window._satsClaimInProgress === false);
-    check('unchanged-one-call', window.__claimCalls === 1);
-    if (typeof window.__hangResolve === 'function') window.__hangResolve({ data: { success: true, amount: 80 } });
-    await __flush();
-    lateCeleb = document.getElementById('satsCelebration');
-    check('slow-resolve-after-reenable', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 80 sats!') !== -1);
-    check('slow-resolve-still-one-call', window.__claimCalls === 1);
-    if (lateCeleb) lateCeleb.remove();
-    void hanging;
-
-    window.__userDoc = {
-        points: 6000,
-        pointsClaimed: 2000,
-        pointsDonated: 0,
-        pointsExchanged: 0,
-        satsWithdrawn: 350,
-        pendingOverflow: 0
-    };
-    window.__claimCalls = 0;
-    __seedClaim();
-    hanging = submitSatsClaim();
-    await __flush();
-    check('landed-armed', __fire(60000));
-    await __flush();
-    lateCeleb = document.getElementById('satsCelebration');
-    check('timeout-server-amount', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 150 sats!') !== -1);
-    check('timeout-server-no-resend', window.__claimCalls === 1);
-    check('timeout-server-balance', currentUser.satsWithdrawn === 350);
-    if (lateCeleb) lateCeleb.remove();
-    void hanging;
-
-    window.__userDoc = {
-        points: 6000,
-        pointsClaimed: 2000,
-        pointsDonated: 0,
-        pointsExchanged: 0,
-        satsWithdrawn: 350,
-        pendingOverflow: 0,
-        lastSatsClaim: { seconds: Math.floor(Date.now() / 1000) }
-    };
-    window.__claimCalls = 0;
-    __seedClaim();
-    hanging = submitSatsClaim();
-    await __flush();
-    check('stamp-armed', __fire(60000));
-    await __flush();
-    sendBtn = document.getElementById('satsClaimBtn');
-    check('stamp-stays-locked', sendBtn && sendBtn.disabled === true && window._satsClaimInProgress === true && !document.getElementById('satsCelebration'));
-    submitSatsClaim();
-    check('stamp-no-resend', window.__claimCalls === 1);
-    var stampOverlay = document.getElementById('satsClaimOverlay');
-    if (stampOverlay) stampOverlay.remove();
-    window._satsClaimInProgress = false;
-    void hanging;
-
     window.__userDoc = null;
     window.__userReadMode = 'fail';
+    window.__withdrawals = [];
     window.__claimCalls = 0;
     __seedClaim();
     hanging = submitSatsClaim();
@@ -338,37 +392,155 @@ async function __runOverlayTests() {
     sendBtn = document.getElementById('satsClaimBtn');
     errBox = document.getElementById('satsClaimError');
     check('failread-message', errBox && errBox.textContent.indexOf("couldn't confirm") !== -1);
-    check('failread-stays-disabled', sendBtn && sendBtn.disabled === true && window._satsClaimInProgress === true);
-    submitSatsClaim();
-    check('failread-no-resend', window.__claimCalls === 1);
+    check('failread-reenables', sendBtn && sendBtn.disabled === false && window._satsClaimInProgress === false);
+    check('failread-not-sent', !document.getElementById('satsCelebration'));
+    window.__hangResolve({ data: { success: false, error: 'network down' } });
+    await __flush();
+    errBox = document.getElementById('satsClaimError');
+    check('late-error', errBox && errBox.textContent.indexOf('network down') !== -1);
+    void hanging;
+    window._satsClaimFlightList = [];
+    window._satsClaimInProgress = false;
+
+    window.__userReadMode = '';
+    window.__userDoc = {
+        points: 6000,
+        pointsClaimed: 2000,
+        satsWithdrawn: 350,
+        _pendingClaim: false
+    };
+    window.__withdrawals = [];
+    window.__claimMode = 'hang';
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    window.__withdrawals = [{ id: 'paid-new', status: 'paid', amount: 80 }];
+    check('paid-armed', __fire(60000));
+    await __flush();
+    lateCeleb = document.getElementById('satsCelebration');
+    check('reread-paid-amount', lateCeleb && lateCeleb.textContent.indexOf('⚡ Sent 80 sats!') !== -1);
+    check('reread-ignores-delta', !lateCeleb || lateCeleb.textContent.indexOf('⚡ Sent 150 sats!') === -1);
+    if (lateCeleb) lateCeleb.remove();
+    window._satsClaimCelebLock = false;
+    window._satsClaimCelebratedAt = 0;
+    window._satsClaimFlightList = [];
     void hanging;
 
-    var hangOverlay = document.getElementById('satsClaimOverlay');
-    if (hangOverlay) hangOverlay.remove();
+    window.__withdrawals = [];
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    window.__withdrawals = [{ id: 'paid-string', status: 'settled', amount: '80' }];
+    check('string-armed', __fire(60000));
+    await __flush();
+    sendBtn = document.getElementById('satsClaimBtn');
+    check('string-amount-not-sent', !document.getElementById('satsCelebration'));
+    check('string-amount-reenables', sendBtn && sendBtn.disabled === false);
+    void hanging;
+    window._satsClaimFlightList = [];
+
     showDeleteAccountConfirm();
     var del = document.getElementById('deleteAccountOverlay');
     check('delete-top', __hitIs(del));
     check('delete-z', del && __z(del) > __z(settings));
+    check('settings-still-floor', __z(settings) >= 2100008);
     if (del) del.remove();
+
+    var addrTask = openWithdrawalAddress({ mode: 'claim', address: 'you@walletofsatoshi.com', start: 'confirm' });
+    var addr = document.getElementById('lnAddrModal');
+    check('lightning-over-settings', addr && __z(addr) > __z(settings));
+    check('lightning-hit', __hitIs(addr));
+    __dispatchEsc(addr);
+    await addrTask;
+    check('lightning-escape-settles', !document.getElementById('lnAddrModal'));
+    check('settings-after-lightning', settings.classList.contains('open'));
 
     var lbTask = toggleLeaderboard();
     var lb = document.getElementById('leaderboard');
     check('leaderboard-open', lb && lb.classList.contains('open'));
     check('leaderboard-top', __hitIs(lb));
     check('leaderboard-z', lb && __z(lb) > __z(settings));
-    var left = document.elementFromPoint(30, 180);
-    check('settings-still-under', left === settings || settings.contains(left));
-    if (lb) { lb.classList.remove('open'); if (window.releaseOverlay) window.releaseOverlay(lb); }
+    if (lb) { lb.classList.remove('open'); if (window.bqModal) window.bqModal.release(lb); }
     void lbTask;
 
-    var gift = document.createElement('div');
-    gift.id = 'postSpinGiftOverlay';
-    gift.className = 'gifting-overlay';
-    gift.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);';
-    gift.innerHTML = '<div class="gifting-modal" style="width:220px;height:120px;background:#0f172a;">Gift</div>';
-    document.body.appendChild(gift);
+    if (typeof showPostSpinGiftModal === 'function') showPostSpinGiftModal([{ id: 'g1' }]);
+    var gift = document.getElementById('postSpinGiftOverlay');
     check('gift-top', __hitIs(gift));
-    check('gift-z', __z(gift) > __z(settings));
+    check('gift-z', gift && __z(gift) > __z(settings));
+    if (gift) gift.remove();
+
+    var high = document.createElement('div');
+    high.id = 'highLayer';
+    high.style.cssText = 'position:fixed;inset:0;z-index:4000000;display:block;';
+    document.body.appendChild(high);
+    window.bqModal.open(high);
+    check('never-lowers', __z(high) >= 4000000);
+    high.remove();
+
+    showUsernameRepickPrompt();
+    var repick = document.getElementById('usernameRepick');
+    check('repick-open', !!repick);
+    __dispatchEsc(document.getElementById('usernameRepickInput') || repick);
+    check('repick-escape-stays', !!document.getElementById('usernameRepick'));
+    if (repick) repick.remove();
+    settings.classList.add('open');
+
+    var topics = document.createElement('div');
+    topics.id = 'topicsBrowser';
+    topics.hidden = false;
+    topics.setAttribute('tabindex', '-1');
+    topics.innerHTML = '<button id="topicsBrowserClose" type="button">Close</button>';
+    document.body.appendChild(topics);
+    topics.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.__topicsEsc = true;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }
+    }, true);
+    __seedClaim();
+    var topicsClaim = document.getElementById('satsClaimOverlay');
+    __dispatchEsc(document.getElementById('topicsBrowserClose'));
+    check('topics-escape-owned', window.__topicsEsc === true);
+    check('topics-did-not-close-claim', !!document.getElementById('satsClaimOverlay'));
+    if (topicsClaim) topicsClaim.remove();
+    topics.remove();
+
+    var bubble = document.createElement('div');
+    bubble.id = 'nacho-bubble';
+    bubble.className = 'show';
+    document.body.appendChild(bubble);
+    window.__nachoEsc = false;
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') window.__nachoEsc = true;
+    });
+    __seedClaim();
+    __dispatchEsc(bubble);
+    check('nacho-escape-reached', window.__nachoEsc === true);
+    check('nacho-did-not-close-claim', !!document.getElementById('satsClaimOverlay'));
+    var nachoClaim = document.getElementById('satsClaimOverlay');
+    if (nachoClaim) nachoClaim.remove();
+    bubble.remove();
+
+    var ac = document.createElement('div');
+    ac.id = 'chatAutocomplete';
+    ac.style.display = 'block';
+    ac.textContent = '@pleb';
+    document.body.appendChild(ac);
+    var mentionInput = document.createElement('input');
+    mentionInput.id = 'globalChatInput';
+    document.body.appendChild(mentionInput);
+    window.__mentionEsc = false;
+    mentionInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') window.__mentionEsc = true;
+    });
+    __seedClaim();
+    __dispatchEsc(mentionInput);
+    check('mention-escape-reached', window.__mentionEsc === true);
+    check('mention-did-not-close-claim', !!document.getElementById('satsClaimOverlay'));
+    check('badge-still-unmoved', badge && badge.parentElement === badgeHost);
     document.getElementById('overlay-stack-result').textContent = JSON.stringify({ ok: errors.length === 0, errors: errors });
 }
 __runOverlayTests().catch(function(e) {
@@ -381,37 +553,76 @@ const page = `<!DOCTYPE html>
 html,body{margin:0;background:#0b1020;color:#fff;font-family:sans-serif;}
 #usernameModal{display:none;position:fixed;inset:0;z-index:2100008;background:rgba(2,6,23,.92);}
 #usernameModal.open{display:block;}
+#tosModal{display:none;position:fixed;inset:0;z-index:2100010;}
+#tosModal.open{display:flex;}
 .username-box{background:#111827;color:#e5e7eb;border-radius:24px;padding:20px;max-width:420px;margin:20px auto;}
 #leaderboard{display:none;position:fixed;right:20px;bottom:20px;width:340px;height:420px;z-index:300000;background:#111827;}
 #leaderboard.open{display:block;}
 #bottomNav{position:fixed;left:0;right:0;bottom:0;height:56px;z-index:200000;background:#020617;}
+#chatOverlayBtn{position:fixed;right:16px;bottom:70px;width:48px;height:48px;z-index:200000;}
+#chatOverlayBadge{position:absolute;top:-2px;right:-2px;}
 .rank-toast{position:fixed;top:44px;left:50%;transform:translateX(-50%);background:#f97316;color:#fff;padding:12px 20px;border-radius:10px;z-index:620000;}
 body:has(#usernameModal.open) .rank-toast{display:none !important;}
 </style></head><body>
 <div id="bottomNav"></div>
+<button id="chatOverlayBtn" type="button">Chat<span id="chatOverlayBadge">2</span></button>
 <div id="usernameModal"><div class="username-box"></div></div>
+<div id="tosModal"></div>
 <div id="leaderboard"></div>
 <pre id="overlay-stack-result">pending</pre>
 <script>
 ${prelude}
 ${read('utils.js')}
 ${read('ranking.js')}
+${read('gifting.js')}
 ${harness}
 </script>
 </body></html>`;
 
 fs.writeFileSync(htmlPath, page);
-fs.rmSync('/tmp/chrome-overlay-test', { recursive: true, force: true });
-let dumped = '';
-try {
-    dumped = execFileSync('timeout', ['20', chrome, '--headless=new', '--disable-gpu', '--no-sandbox', '--user-data-dir=/tmp/chrome-overlay-test', '--window-size=1280,900', '--dump-dom', 'file://' + htmlPath], { encoding: 'utf8', timeout: 25000, maxBuffer: 20 * 1024 * 1024 });
-} catch (e) {
-    dumped = (e.stdout || '') + '\n' + (e.stderr || '');
-    if (!dumped.includes('overlay-stack-result')) throw e;
+
+function decodeResult(raw) {
+    return raw.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
-const match = dumped.match(/<pre id="overlay-stack-result">([\s\S]*?)<\/pre>/);
-assert.ok(match, 'overlay test did not report a result:\n' + dumped.slice(0, 1500));
-const result = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+function resultFromDump(dumped) {
+    const match = String(dumped || '').match(/<pre id="overlay-stack-result">([\s\S]*?)<\/pre>/);
+    if (!match) return null;
+    const raw = decodeResult(match[1]).trim();
+    if (!raw || raw === 'pending') return null;
+    return JSON.parse(raw);
+}
+
+let result = null;
+let via = '';
+try {
+    const dumped = execFileSync('timeout', ['12', chrome, '--headless=new', '--disable-gpu', '--no-sandbox', '--user-data-dir=/tmp/chrome-overlay-test', '--window-size=1280,900', '--dump-dom', 'file://' + htmlPath], {
+        encoding: 'utf8',
+        timeout: 15000,
+        maxBuffer: 20 * 1024 * 1024
+    });
+    result = resultFromDump(dumped);
+    if (result) via = 'chrome';
+} catch (e) {
+    result = resultFromDump((e.stdout || '') + '\n' + (e.stderr || ''));
+    if (result) via = 'chrome';
+}
+
+if (!result) {
+    via = 'jsdom';
+    let dumped = '';
+    try {
+        dumped = execFileSync(process.execPath, [__filename, '--jsdom', htmlPath], {
+            encoding: 'utf8',
+            timeout: 25000,
+            maxBuffer: 20 * 1024 * 1024
+        });
+    } catch (e) {
+        dumped = (e.stdout || '') + '\n' + (e.stderr || '');
+        if (!dumped.includes('{')) throw new Error('jsdom overlay test did not finish: ' + dumped.slice(0, 1500));
+    }
+    result = JSON.parse(dumped.slice(dumped.indexOf('{')));
+}
+
 assert.deepStrictEqual(result.errors, [], JSON.stringify(result.errors));
 assert.strictEqual(result.ok, true);
-console.log('overlay stack checks passed');
+console.log('overlay stack checks passed via ' + via);

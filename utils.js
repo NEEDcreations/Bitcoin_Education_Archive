@@ -242,52 +242,37 @@ function censorText(text) {
 }
 
 // ============================================================
-// Overlay stack
-// One mechanism for every button-opened modal, sheet, toast, and dialog.
-// window.nextOverlayZ(excludeEl) is 2 above the highest visible fixed layer
-// (Settings #usernameModal is 2100008 in CSS). window.frontOverlay(el, opts)
-// moves a trapped position:fixed layer to document.body and assigns that z-index
-// with !important so a stylesheet !important cannot keep it behind Settings.
-// Gift popups must call frontOverlay / nextOverlayZ. Do not keep a second scan
-// such as _raiseGiftLayer, _numericZ, or _layerOpen.
+// Explicit popup stack. Popup-opening code calls window.bqModal.open.
+// No page scan, no reparenting, no prototype patches, no MutationObserver.
+// The popup's layer becomes the current top + 1 and is never lowered.
+// Settings (#usernameModal, CSS 2100008) and Terms (#tosModal, CSS 2100010)
+// stay at that floor or higher. Escape and Back close only popups that
+// registered onClose, and that onClose settles the code waiting on them.
 // ============================================================
 (function() {
-    if (typeof document === 'undefined' || window.frontOverlay) return;
+    if (typeof document === 'undefined' || (window.bqModal && window.bqModal.open)) return;
 
     var stack = [];
-    var raising = false;
-    var CHROME_IDS = {
-        bottomNav: 1,
-        chatOverlayBtn: 1,
-        aiToolsBtn: 1,
-        dashboardFloatBtn: 1,
-        lbFloatBtn: 1,
-        fabMinimizeBtn: 1,
-        fabExpandBtn: 1,
-        floatingRandomBtn: 1,
-        userDisplay: 1,
-        backToTop: 1,
-        scrollToBottom: 1,
-        guestPointsBanner: 1,
-        bqSafeAreaProbe: 1,
-        tctvNoise: 1,
-        tctvOverlay: 1,
-        'nacho-container': 1
-    };
-    var OVERLAY_RE = /modal|overlay|sheet|dialog|toast|lightbox|confirm|popup/i;
-    var KNOWN_IDS = {
-        usernameModal: 1,
-        questModal: 1,
-        leaderboard: 1,
-        searchOverlay: 1,
-        chatOverlay: 1,
-        aiToolsPanel: 1,
-        inviteCard: 1,
-        tosModal: 1,
-        spinModal: 1,
-        questHubOverlay: 1,
-        onboardingOverlay: 1
-    };
+    var swallowPop = false;
+    var FLOORS = { usernameModal: 2100008, tosModal: 2100010 };
+
+    function shown(node) {
+        if (!node || node.nodeType !== 1) return false;
+        if (node.isConnected === false) return false;
+        if (node.hidden || (node.hasAttribute && node.hasAttribute('hidden'))) return false;
+        if (node.getAttribute && node.getAttribute('aria-hidden') === 'true') return false;
+        var transform = (node.style && node.style.transform) || '';
+        if (/translateY\(\s*100%/.test(transform)) return false;
+        if (node.id === 'usernameModal' || node.id === 'tosModal' || node.id === 'questModal' || node.id === 'leaderboard') {
+            return !!(node.classList && node.classList.contains('open'));
+        }
+        try {
+            var cs = window.getComputedStyle ? window.getComputedStyle(node) : null;
+            if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+        } catch (e) {}
+        if (node.style && node.style.display === 'none') return false;
+        return true;
+    }
 
     function numericZ(node) {
         if (!node || node.nodeType !== 1) return 0;
@@ -302,100 +287,9 @@ function censorText(text) {
             var inline = parseInt(node.style.zIndex, 10);
             if (inline > best) best = inline;
         }
+        var floor = FLOORS[node.id];
+        if (floor && floor > best) best = floor;
         return best;
-    }
-
-    function isChrome(node) {
-        if (!node || node.nodeType !== 1) return false;
-        if (CHROME_IDS[node.id]) return true;
-        if (node.classList && node.classList.contains('fab-btn')) return true;
-        return false;
-    }
-
-    function looksLikeOverlay(node) {
-        if (!node || node.nodeType !== 1 || isChrome(node)) return false;
-        if (KNOWN_IDS[node.id]) return true;
-        if (node.getAttribute && node.getAttribute('role') === 'dialog') return true;
-        if (node.classList && (node.classList.contains('rank-toast') || node.classList.contains('badge-toast') || node.classList.contains('gifting-overlay') || node.classList.contains('invite-card'))) return true;
-        var id = node.id || '';
-        var cls = (node.className && typeof node.className === 'string') ? node.className : '';
-        return OVERLAY_RE.test(id) || OVERLAY_RE.test(cls);
-    }
-
-    function isToast(node) {
-        return !!(node && node.classList && (node.classList.contains('rank-toast') || node.classList.contains('badge-toast')));
-    }
-
-    function offscreenSheet(node) {
-        var t = (node && node.style && node.style.transform) || '';
-        return /translateY\(\s*100%/.test(t);
-    }
-
-    function isShown(node) {
-        if (!node || node.nodeType !== 1 || !node.isConnected) return false;
-        if (node.hasAttribute && node.hasAttribute('hidden')) return false;
-        if (node.getAttribute && node.getAttribute('aria-hidden') === 'true') return false;
-        if (offscreenSheet(node)) return false;
-        var cs = null;
-        try { cs = window.getComputedStyle ? window.getComputedStyle(node) : null; } catch (e) { cs = null; }
-        if (cs) {
-            if (cs.display === 'none' || cs.visibility === 'hidden') return false;
-        } else if (node.style && node.style.display === 'none') {
-            return false;
-        }
-        return true;
-    }
-
-    function trapped(el) {
-        var p = el.parentElement;
-        while (p && p !== document.body && p !== document.documentElement) {
-            var cs = null;
-            try { cs = window.getComputedStyle ? window.getComputedStyle(p) : null; } catch (e) { cs = null; }
-            if (cs) {
-                if (cs.transform && cs.transform !== 'none') return true;
-                if (cs.filter && cs.filter !== 'none') return true;
-                if (cs.backdropFilter && cs.backdropFilter !== 'none') return true;
-                if (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none') return true;
-                var wc = cs.willChange || '';
-                if (/transform|filter/.test(wc)) return true;
-            }
-            p = p.parentElement;
-        }
-        return false;
-    }
-
-    function positioned(node) {
-        var pos = '';
-        try {
-            if (window.getComputedStyle) pos = window.getComputedStyle(node).position || '';
-        } catch (e) {}
-        if (!pos && node.style) pos = node.style.position || '';
-        if (!pos && node.getAttribute) {
-            var raw = node.getAttribute('style') || '';
-            if (/position:\s*fixed/i.test(raw)) return true;
-            if (/position:\s*absolute/i.test(raw)) return true;
-            if (/position:\s*sticky/i.test(raw)) return true;
-        }
-        return pos === 'fixed' || pos === 'absolute' || pos === 'sticky';
-    }
-
-    function nextOverlayZ(excludeEl) {
-        var top = 0;
-        function consider(node) {
-            if (!node || node.nodeType !== 1) return;
-            if (node === excludeEl) return;
-            if (excludeEl && excludeEl.contains && excludeEl.contains(node)) return;
-            if (!node.isConnected || !isShown(node)) return;
-            if (!positioned(node)) return;
-            var z = numericZ(node);
-            if (z > top) top = z;
-        }
-        var root = document.body || document.documentElement;
-        if (root && root.getElementsByTagName) {
-            var all = root.getElementsByTagName('*');
-            for (var i = 0; i < all.length; i++) consider(all[i]);
-        }
-        return top + 2;
     }
 
     function findRec(el) {
@@ -403,274 +297,260 @@ function censorText(text) {
         return -1;
     }
 
-    function releaseOverlay(el) {
-        var idx = findRec(el);
-        if (idx < 0) return;
-        var rec = stack[idx];
-        stack.splice(idx, 1);
-        var wasTop = idx === stack.length;
-        if (wasTop && rec.restoreFocus !== false) {
-            var target = rec.prevFocus;
-            var under = stack.length ? stack[stack.length - 1].el : null;
-            var targetOk = target && target.isConnected !== false && target !== document.body && target !== document.documentElement;
-            if (!targetOk) target = under;
-            if (target && target !== document.body && typeof target.focus === 'function') {
-                if (target.setAttribute && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
-                try { target.focus(); } catch (e) {}
+    function layer(excludeEl) {
+        var top = 0;
+        var ids = ['usernameModal', 'tosModal'];
+        for (var i = 0; i < ids.length; i++) {
+            var node = document.getElementById(ids[i]);
+            if (!shown(node) || node === excludeEl) continue;
+            var z = numericZ(node);
+            if (z > top) top = z;
+        }
+        for (var j = 0; j < stack.length; j++) {
+            var el = stack[j].el;
+            if (!el || el === excludeEl || el.isConnected === false) continue;
+            var sz = numericZ(el);
+            if (sz > top) top = sz;
+        }
+        return top;
+    }
+
+    function raise(el) {
+        var own = numericZ(el);
+        var next = layer(el) + 1;
+        if (own >= next) return own;
+        if (el.style && el.style.setProperty) el.style.setProperty('z-index', String(next), 'important');
+        else if (el.style) el.style.zIndex = String(next);
+        return next;
+    }
+
+    function focusables(root) {
+        if (!root || !root.querySelectorAll) return [];
+        var nodes = root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        var out = [];
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            if (!n || n.disabled) continue;
+            if (n.getAttribute && (n.getAttribute('aria-hidden') === 'true' || n.getAttribute('tabindex') === '-1')) continue;
+            if (n.offsetParent === null && n !== document.activeElement) {
+                try {
+                    var cs = window.getComputedStyle ? window.getComputedStyle(n) : null;
+                    if (cs && cs.position !== 'fixed' && cs.display === 'none') continue;
+                } catch (e) {}
             }
+            out.push(n);
+        }
+        return out;
+    }
+
+    function focusInside(el) {
+        var items = focusables(el);
+        var target = items.length ? items[0] : el;
+        if (target === el && target.setAttribute && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        try { if (target && target.focus) target.focus(); } catch (e) {}
+    }
+
+    function restoreFocus(rec) {
+        var target = rec && rec.prevFocus;
+        if (!target || target.isConnected === false) {
+            var under = null;
+            for (var i = stack.length - 1; i >= 0; i--) {
+                if (stack[i].el && stack[i].el.isConnected !== false) { under = stack[i].el; break; }
+            }
+            target = under;
+        }
+        if (target && target !== document.body && typeof target.focus === 'function') {
+            try { target.focus(); } catch (e) {}
         }
     }
 
-    function frontOverlay(el, opts) {
-        if (!el || el.nodeType !== 1) return 0;
-        opts = opts || {};
-        if (raising) {
-            var busy = parseInt(el.style && el.style.zIndex, 10);
-            return isFinite(busy) ? busy : 0;
-        }
-        raising = true;
-        try {
-            if (!opts.keepParent && document.body) {
-                var parent = el.parentNode;
-                var needsMove = !parent || parent !== document.body || trapped(el);
-                if (needsMove) document.body.appendChild(el);
-            }
-            var z = nextOverlayZ(el);
-            if (el.style && el.style.setProperty) el.style.setProperty('z-index', String(z), 'important');
-            else if (el.style) el.style.zIndex = String(z);
-            if (el.setAttribute) el.setAttribute('data-front-overlay', '1');
-            var idx = findRec(el);
-            if (idx >= 0) {
-                var existing = stack[idx];
-                if (opts.onClose) existing.onClose = opts.onClose;
-                if (opts.restoreFocus != null) existing.restoreFocus = opts.restoreFocus;
-                if (opts.toast != null) existing.toast = opts.toast;
-                stack.splice(idx, 1);
-                stack.push(existing);
-            } else {
-                var prev = null;
-                var active = document.activeElement;
-                if (active && active !== el && (!el.contains || !el.contains(active))) prev = active;
-                stack.push({
-                    el: el,
-                    onClose: opts.onClose || null,
-                    restoreFocus: opts.restoreFocus !== false && !opts.toast && !isToast(el),
-                    toast: opts.toast === true || isToast(el),
-                    prevFocus: opts.prevFocus !== undefined ? opts.prevFocus : prev
-                });
-            }
-            if (opts.focus === true) {
-                var dialog = (el.querySelector && el.querySelector('[role="dialog"], .gifting-modal, .username-box')) || el;
-                if (dialog && !dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
-                if (dialog && typeof dialog.focus === 'function') {
-                    try { dialog.focus(); } catch (e2) {}
-                }
-            }
-            return z;
-        } finally {
-            raising = false;
-        }
-    }
-
-    function closeById(rec) {
-        var el = rec.el;
-        var id = el.id;
-        if (id === 'tosModal') return false;
-        if (id === 'usernameModal' && typeof window.hideUsernamePrompt === 'function') {
-            window.hideUsernamePrompt();
-            return true;
-        }
-        if (id === 'questModal') {
-            el.classList.remove('open');
-            el.style.display = 'none';
-            releaseOverlay(el);
-            return true;
-        }
-        if (id === 'leaderboard') {
-            el.classList.remove('open');
-            el.classList.remove('minimized');
-            var fab = document.getElementById('lbFloatBtn');
-            if (fab) fab.style.display = 'flex';
-            releaseOverlay(el);
-            return true;
-        }
-        if (id === 'chatOverlay' && typeof window.toggleChatOverlay === 'function') {
-            if (window._chatOverlayOpen) window.toggleChatOverlay();
-            else releaseOverlay(el);
-            return true;
-        }
-        if (id === 'aiToolsPanel' && typeof window.toggleAITools === 'function') {
-            if (window._aiToolsOpen) window.toggleAITools();
-            else releaseOverlay(el);
-            return true;
-        }
-        if (id === 'searchOverlay') {
-            el.style.display = 'none';
-            if (el.removeAttribute) el.removeAttribute('data-open');
-            releaseOverlay(el);
-            return true;
-        }
-        if (id === 'inviteCard' && typeof window.minimizeInviteCard === 'function') {
-            window.minimizeInviteCard();
-            releaseOverlay(el);
-            return true;
-        }
-        if (typeof el.remove === 'function') el.remove();
-        else if (el.parentNode) el.parentNode.removeChild(el);
-        return true;
-    }
-
-    function topDialog() {
+    function topRec() {
         for (var i = stack.length - 1; i >= 0; i--) {
             var rec = stack[i];
-            if (!rec.el || rec.el.isConnected === false) { stack.splice(i, 1); continue; }
-            if (rec.toast || isToast(rec.el)) continue;
-            if (!isShown(rec.el)) continue;
+            if (!rec.el || rec.el.isConnected === false) {
+                stack.splice(i, 1);
+                continue;
+            }
+            if (!shown(rec.el)) continue;
             return rec;
         }
         return null;
     }
 
-    function closeTopOverlay() {
-        var rec = topDialog();
-        if (!rec) return false;
-        if (rec.el.id === 'tosModal') return false;
-        if (typeof rec.onClose === 'function') {
-            var fn = rec.onClose;
-            rec.onClose = null;
-            fn();
-            if (findRec(rec.el) >= 0 && rec.el.id !== 'usernameModal') releaseOverlay(rec.el);
-            return true;
+    function topPushed() {
+        for (var i = stack.length - 1; i >= 0; i--) {
+            if (stack[i].pushed && stack[i].el && stack[i].el.isConnected !== false) return stack[i];
         }
-        return closeById(rec);
+        return null;
     }
 
-    function dropdownInside(topEl) {
-        var ids = ['chatAutocomplete', 'countryDropdown', 'signupCountryDropdown'];
-        for (var i = 0; i < ids.length; i++) {
-            var el = document.getElementById(ids[i]);
-            if (!el || !isShown(el)) continue;
-            if (!topEl || (topEl.contains && topEl.contains(el))) return true;
+    function open(el, opts) {
+        if (!el || el.nodeType !== 1) return 0;
+        opts = opts || {};
+        if (el.id === 'usernameModal' || el.id === 'tosModal') return numericZ(el);
+        var z = raise(el);
+        var idx = findRec(el);
+        var prev = null;
+        var active = document.activeElement;
+        if (active && active !== document.body && active !== el && (!el.contains || !el.contains(active))) prev = active;
+        if (idx >= 0) {
+            var existing = stack[idx];
+            if (opts.onClose) existing.onClose = opts.onClose;
+            else if (opts.onClose === null) existing.onClose = null;
+            if (prev) existing.prevFocus = prev;
+            if (opts.trap != null) existing.trap = opts.trap !== false;
+            stack.splice(idx, 1);
+            stack.push(existing);
+            if (existing.trap !== false) focusInside(el);
+            return z;
         }
-        return false;
-    }
-
-    function afterInsert(node) {
-        if (raising || !node || node.nodeType !== 1) return;
-        if (!looksLikeOverlay(node)) return;
-        var parent = node.parentElement;
-        if (parent && parent !== document.body && parent !== document.documentElement) {
-            var fixed = false;
+        var pushed = false;
+        if (typeof opts.onClose === 'function') {
             try {
-                fixed = window.getComputedStyle && window.getComputedStyle(node).position === 'fixed';
+                history.pushState({ bqModal: true }, '', window.location.href);
+                pushed = true;
             } catch (e) {}
-            if (!fixed && node.style && node.style.position === 'fixed') fixed = true;
-            if (!fixed || !trapped(node)) return;
         }
-        if (!isShown(node)) return;
-        frontOverlay(node, { focus: false, toast: isToast(node), restoreFocus: !isToast(node) });
+        stack.push({
+            el: el,
+            onClose: typeof opts.onClose === 'function' ? opts.onClose : null,
+            pushed: pushed,
+            prevFocus: prev,
+            trap: opts.trap !== false
+        });
+        if (opts.trap !== false) focusInside(el);
+        return z;
     }
 
-    if (Node.prototype.appendChild && !Node.prototype.appendChild._overlayStack) {
-        var origAppend = Node.prototype.appendChild;
-        var append = function(child) {
-            var result = origAppend.call(this, child);
-            try { afterInsert(child); } catch (e) {}
-            return result;
-        };
-        append._overlayStack = true;
-        Node.prototype.appendChild = append;
-    }
-    if (Node.prototype.insertBefore && !Node.prototype.insertBefore._overlayStack) {
-        var origInsert = Node.prototype.insertBefore;
-        var insert = function(child) {
-            var result = origInsert.apply(this, arguments);
-            try { afterInsert(child); } catch (e) {}
-            return result;
-        };
-        insert._overlayStack = true;
-        Node.prototype.insertBefore = insert;
-    }
-    if (Element.prototype.remove && !Element.prototype.remove._overlayStack) {
-        var origRemove = Element.prototype.remove;
-        var remove = function() {
-            var el = this;
-            origRemove.call(el);
-            try { releaseOverlay(el); } catch (e) {}
-        };
-        remove._overlayStack = true;
-        Element.prototype.remove = remove;
-    }
-    if (Node.prototype.removeChild && !Node.prototype.removeChild._overlayStack) {
-        var origRemoveChild = Node.prototype.removeChild;
-        var removeChild = function(child) {
-            var result = origRemoveChild.call(this, child);
-            try { if (child && child.nodeType === 1) releaseOverlay(child); } catch (e) {}
-            return result;
-        };
-        removeChild._overlayStack = true;
-        Node.prototype.removeChild = removeChild;
+    function release(el) {
+        var idx = findRec(el);
+        if (idx < 0) return;
+        var rec = stack[idx];
+        var wasTop = idx === stack.length - 1;
+        stack.splice(idx, 1);
+        if (rec.pushed) {
+            rec.pushed = false;
+            swallowPop = true;
+            try { history.back(); } catch (e) { swallowPop = false; }
+        }
+        if (wasTop) restoreFocus(rec);
     }
 
-    function shouldAutoFront(el, attr) {
-        if (!looksLikeOverlay(el) || !isShown(el)) return false;
-        if (attr === 'class') return el.classList.contains('open') || el.classList.contains('show');
-        if (attr === 'data-open') return el.getAttribute('data-open') === '1';
-        if (attr === 'data-state') return el.getAttribute('data-state') === 'open';
-        if (attr === 'hidden') return true;
-        if (attr === 'style') {
-            if (el.id === 'chatOverlay' || el.id === 'aiToolsPanel') return /translateY\(\s*0\s*\)/.test(el.style.transform || '');
-            if (el.getAttribute('data-front-overlay') === '1') return false;
-            if (el.style.display && el.style.display !== 'none') return true;
-        }
+    function close(el) {
+        var idx = findRec(el);
+        if (idx < 0) return false;
+        var rec = stack[idx];
+        if (typeof rec.onClose !== 'function') return false;
+        var fn = rec.onClose;
+        rec.onClose = null;
+        try { fn(); } catch (e) {}
+        if (findRec(el) >= 0) release(el);
+        return true;
+    }
+
+    function topicsOpen() {
+        var dlg = document.getElementById('topicsBrowser');
+        return !!(dlg && dlg.hidden !== true && shown(dlg));
+    }
+
+    function mentionOwns(e) {
+        var ac = document.getElementById('chatAutocomplete');
+        if (!ac || !shown(ac)) return false;
+        if (ac.style && ac.style.display === 'none') return false;
+        var t = e && e.target;
+        if (!t) return true;
+        if (t === ac || (ac.contains && ac.contains(t))) return true;
+        if (t.id === 'globalChatInput') return true;
+        if (t.closest && t.closest('#chatAutocomplete')) return true;
         return false;
     }
 
-    if (typeof MutationObserver === 'function' && document.documentElement) {
-        var obs = new MutationObserver(function(muts) {
-            if (raising) return;
-            for (var i = 0; i < muts.length; i++) {
-                var m = muts[i];
-                if (m.type === 'childList') {
-                    for (var j = 0; j < m.addedNodes.length; j++) {
-                        try { afterInsert(m.addedNodes[j]); } catch (e) {}
-                    }
-                } else if (m.type === 'attributes' && m.target && shouldAutoFront(m.target, m.attributeName)) {
-                    try { frontOverlay(m.target, { focus: false, toast: isToast(m.target), restoreFocus: !isToast(m.target) }); } catch (e2) {}
-                }
-            }
-        });
-        try {
-            obs.observe(document.documentElement, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['class', 'style', 'hidden', 'data-open', 'data-state']
-            });
-        } catch (e) {}
+    function nachoOwns() {
+        var bubble = document.getElementById('nacho-bubble');
+        if (!bubble) return false;
+        if (bubble.getAttribute && bubble.getAttribute('data-trivia') === '1') return true;
+        return !!(bubble.classList && bubble.classList.contains('show'));
     }
 
-    document.addEventListener('keydown', function(e) {
+    function onEscape(e) {
         if (!e) return;
         var key = e.key;
         if (key !== 'Escape' && key !== 'Esc' && e.keyCode !== 27) return;
-        var rec = topDialog();
+        var t = e.target;
+        if (t && t.closest && t.closest('#topicsBrowser')) return;
+        if (topicsOpen()) return;
+        if (t && t.closest && (t.closest('#nacho-bubble') || t.closest('#nacho-container'))) return;
+        if (nachoOwns()) return;
+        if (mentionOwns(e)) return;
+        var rec = topRec();
         if (!rec) return;
-        if (dropdownInside(rec.el)) return;
-        if (rec.el.id === 'tosModal') {
-            if (e.preventDefault) e.preventDefault();
-            if (e.stopPropagation) e.stopPropagation();
-            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-            return;
-        }
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-        closeTopOverlay();
-    }, true);
+        if (typeof rec.onClose === 'function') close(rec.el);
+    }
 
-    window.nextOverlayZ = nextOverlayZ;
-    window.frontOverlay = frontOverlay;
-    window.releaseOverlay = releaseOverlay;
-    window.closeTopOverlay = closeTopOverlay;
+    function onTab(e) {
+        if (!e || e.key !== 'Tab') return;
+        var t = e.target;
+        if (t && t.closest && t.closest('#topicsBrowser')) return;
+        if (topicsOpen()) return;
+        var rec = topRec();
+        if (!rec || rec.trap === false) return;
+        var items = focusables(rec.el);
+        if (!items.length) {
+            if (e.preventDefault) e.preventDefault();
+            focusInside(rec.el);
+            return;
+        }
+        var first = items[0];
+        var last = items[items.length - 1];
+        var active = document.activeElement;
+        var inside = rec.el.contains && rec.el.contains(active);
+        if (e.shiftKey) {
+            if (!inside || active === first) {
+                if (e.preventDefault) e.preventDefault();
+                try { last.focus(); } catch (err) {}
+            }
+        } else if (!inside || active === last) {
+            if (e.preventDefault) e.preventDefault();
+            try { first.focus(); } catch (err2) {}
+        }
+    }
+
+    function onPop(e) {
+        if (swallowPop) {
+            swallowPop = false;
+            if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+            return;
+        }
+        if (topicsOpen()) return;
+        var rec = topPushed();
+        if (!rec) return;
+        rec.pushed = false;
+        var el = rec.el;
+        var fn = rec.onClose;
+        rec.onClose = null;
+        var idx = findRec(el);
+        if (idx >= 0) {
+            stack.splice(idx, 1);
+            restoreFocus(rec);
+        }
+        try { if (typeof fn === 'function') fn(); } catch (err) {}
+        if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+
+    document.addEventListener('keydown', onEscape, true);
+    document.addEventListener('keydown', onTab, true);
+    window.addEventListener('popstate', onPop, true);
+
+    window.bqModal = {
+        open: open,
+        close: close,
+        release: release,
+        layer: layer,
+        top: function() {
+            var rec = topRec();
+            return rec ? rec.el : null;
+        }
+    };
 })();

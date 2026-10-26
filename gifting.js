@@ -358,7 +358,7 @@ function _playGiftOpen(stage) {
 
 function _confetti() {
     var colors = ['#f7931a', '#fbbf24', '#a78bfa', '#34d399', '#f472b6', '#60a5fa'];
-    var z = (typeof window.nextOverlayZ === 'function') ? window.nextOverlayZ() : 120001;
+    var z = (window.bqModal && typeof window.bqModal.layer === 'function') ? (window.bqModal.layer() + 1) : 120001;
     for (var i = 0; i < 12; i++) {
         var dot = document.createElement('div');
         dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:' + z + ';left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
@@ -367,14 +367,30 @@ function _confetti() {
     }
 }
 
-// Gift popups use the shared stack. frontOverlay reads the current top layer
-// (Settings is z-index 2100008) and places this overlay two above it.
+// Gift popups opt in to the shared helper. It raises this overlay to the
+// current top layer + 1 and never lowers Settings or Terms.
 // Do not add a private scan (_raiseGiftLayer / _numericZ / _layerOpen).
 function _placeGiftOverlay(overlay) {
     if (!overlay) return;
     if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
-    if (typeof window.frontOverlay === 'function') {
-        window.frontOverlay(overlay, { focus: true });
+    if (!overlay._bqRemove && typeof overlay.remove === 'function') {
+        var nativeRemove = overlay.remove.bind(overlay);
+        overlay.remove = function() {
+            if (overlay._bqRemoving) return nativeRemove();
+            overlay._bqRemoving = true;
+            try {
+                if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(overlay);
+                nativeRemove();
+            } finally {
+                overlay._bqRemoving = false;
+            }
+        };
+        overlay._bqRemove = true;
+    }
+    if (window.bqModal && typeof window.bqModal.open === 'function') {
+        window.bqModal.open(overlay, {
+            onClose: function() { overlay.remove(); }
+        });
         return;
     }
     overlay.style.zIndex = '480000';
@@ -1520,7 +1536,7 @@ window.openNookInventory = function() {
         window._nookSubTab = 'inventory';
         if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
         var hub = document.getElementById('questHubOverlay');
-        if (hub && typeof window.frontOverlay === 'function') window.frontOverlay(hub);
+        if (hub && window.bqModal && typeof window.bqModal.open === 'function') window.bqModal.open(hub);
     }, 120);
 };
 

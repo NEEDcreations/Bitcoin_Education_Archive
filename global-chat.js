@@ -1749,8 +1749,11 @@ window.toggleChatOverlay = function() {
     document.body.classList.toggle('chat-panel-open', _overlayOpen);
     panel.classList.toggle('chat-panel-open', _overlayOpen);
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
-    if (_overlayOpen && typeof window.frontOverlay === 'function') window.frontOverlay(panel);
-    else if (!_overlayOpen && typeof window.releaseOverlay === 'function') window.releaseOverlay(panel);
+    if (_overlayOpen && window.bqModal && typeof window.bqModal.open === 'function') {
+        window.bqModal.open(panel, { onClose: function() {
+            if (window._chatOverlayOpen && typeof window.toggleChatOverlay === 'function') window.toggleChatOverlay();
+        } });
+    } else if (!_overlayOpen && window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(panel);
     if (typeof window.syncFabHold === 'function') window.syncFabHold();
     // Shift leaderboard button up when chat is open so it doesn't cover input buttons
     var _lbFab = document.getElementById('lbFloatBtn');
@@ -1780,7 +1783,7 @@ window.toggleChatOverlay = function() {
         btn.innerHTML = '💬';
         btn.style.background = 'var(--accent,#f7931a)';
         btn.style.color = '#fff';
-        btn.style.display = _overlayOpen ? 'none' : (localStorage.getItem('fabMinimized') === '1' ? 'none' : '');
+        btn.style.display = _overlayOpen ? 'none' : '';
     }
 
     // Click-outside backdrop
@@ -2039,13 +2042,13 @@ window.renderChatHub = function(tab) {
 // Re-show overlay button on ANY navigation (go, goHome, popstate)
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
-    // Show on all screen sizes (unless full chat hub is open or FAB is minimized)
-    if (btn && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') btn.style.display = 'block';
+    // Show on all screen sizes unless the full chat hub is open
+    if (btn && !document.getElementById('chatContent')) btn.style.display = 'block';
 }
 // Periodically check button visibility (catches app navigations that don't call go())
 setInterval(function() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') {
+    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
         btn.style.display = 'block';
     }
 }, 3000);
@@ -3469,7 +3472,7 @@ function initOverlay() {
     // if (oldBtn) oldBtn.style.display = 'none';
     // Keep chat button visible on all screen sizes — it's the only chat entry point
     var chatBtn = document.getElementById('chatOverlayBtn');
-    if (chatBtn) chatBtn.style.display = localStorage.getItem('fabMinimized') === '1' ? 'none' : '';
+    if (chatBtn) chatBtn.style.display = '';
     // Safety net: strip chat-shifted from lbFloatBtn if chat panel is not open on init
     if (!_overlayOpen && !document.getElementById('chatContent')) {
         var _lbInit = document.getElementById('lbFloatBtn');

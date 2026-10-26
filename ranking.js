@@ -645,19 +645,31 @@ async function handleEmailSignIn() {
                 '<div style="font-size:0.85rem;color:var(--text-muted,#999);margin-bottom:20px;line-height:1.5;">It looks like you opened this link on a different device. Enter the email you used to sign up:</div>' +
                 '<input id="crossDeviceEmail" type="email" placeholder="your@email.com" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:10px;color:var(--text,#fff);font-size:1rem;text-align:center;font-family:inherit;box-sizing:border-box;margin-bottom:12px;" autofocus>' +
                 '<button id="crossDeviceSubmit" style="width:100%;padding:14px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign In</button>' +
-                '<div onclick="this.closest(\'#emailConfirmOverlay\').remove()" style="margin-top:12px;font-size:0.8rem;color:var(--text-faint,#666);cursor:pointer;">Cancel</div>' +
+                '<div id="emailConfirmCancel" style="margin-top:12px;font-size:0.8rem;color:var(--text-faint,#666);cursor:pointer;">Cancel</div>' +
             '</div>';
             document.body.appendChild(ov);
+            var settled = false;
+            function finish(value) {
+                if (settled) return;
+                settled = true;
+                if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(ov);
+                if (ov.parentNode) ov.remove();
+                resolve(value);
+            }
+            if (window.bqModal && typeof window.bqModal.open === 'function') {
+                window.bqModal.open(ov, { onClose: function() { finish(null); } });
+            }
             var inp = document.getElementById('crossDeviceEmail');
             var btn = document.getElementById('crossDeviceSubmit');
+            var cancel = document.getElementById('emailConfirmCancel');
             function submit() {
                 var val = inp.value.trim().toLowerCase();
                 if (!val || !val.includes('@')) { if (typeof showToast === 'function') showToast('Please enter a valid email'); return; }
-                ov.remove();
                 email = val;
-                resolve(finishEmailSignIn(email, _signInUrl));
+                finish(finishEmailSignIn(email, _signInUrl));
             }
             btn.onclick = submit;
+            if (cancel) cancel.onclick = function() { finish(null); };
             inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
             setTimeout(function() { inp.focus(); }, 100);
         });
@@ -963,8 +975,12 @@ window.showReauthStep = function(user, purpose) {
             '<button type="button" id="reauthCancel" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div>';
         document.body.appendChild(overlay);
+        if (window.bqModal && typeof window.bqModal.open === 'function') {
+            window.bqModal.open(overlay, { onClose: function() { finish(false); } });
+        }
         function finish(ok) {
             var node = document.getElementById('reauthOverlay');
+            if (node && window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(node);
             if (node) node.remove();
             resolve(!!ok);
         }
@@ -3541,7 +3557,8 @@ function showUsernameRepickPrompt() {
         '<button type="button" id="usernameRepickSave">Save username</button>' +
         '<button type="button" id="usernameRepickSignOut">Sign out</button>' +
         '</div>';
-    document.body.appendChild(overlay);
+            document.body.appendChild(overlay);
+    if (window.bqModal && typeof window.bqModal.open === 'function') window.bqModal.open(overlay);
     var input = document.getElementById('usernameRepickInput');
     var save = document.getElementById('usernameRepickSave');
     var signOut = document.getElementById('usernameRepickSignOut');
@@ -5236,6 +5253,20 @@ window.showDeleteAccountConfirm = function() {
         '</div>';
 
     document.body.appendChild(overlay);
+    if (window.bqModal && typeof window.bqModal.open === 'function') {
+        var nativeDeleteRemove = overlay.remove.bind(overlay);
+        overlay.remove = function() {
+            if (overlay._bqRemoving) return nativeDeleteRemove();
+            overlay._bqRemoving = true;
+            try {
+                window.bqModal.release(overlay);
+                nativeDeleteRemove();
+            } finally {
+                overlay._bqRemoving = false;
+            }
+        };
+        window.bqModal.open(overlay, { onClose: function() { overlay.remove(); } });
+    }
 };
 
 window._deleteConfirmReady = function() {
@@ -5461,7 +5492,7 @@ async function toggleLeaderboard() {
         lb.classList.remove('open');
         lb.classList.remove('minimized');
         if (fab) fab.style.display = 'flex';
-        if (typeof window.releaseOverlay === 'function') window.releaseOverlay(lb);
+        if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(lb);
         return;
     }
     // Daily challenge tracking: leaderboard viewed today
@@ -5487,7 +5518,14 @@ async function toggleLeaderboard() {
     lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
     lb.classList.add('open');
-    if (typeof window.frontOverlay === 'function') window.frontOverlay(lb);
+    if (window.bqModal && typeof window.bqModal.open === 'function') {
+        window.bqModal.open(lb, { onClose: function() {
+            lb.classList.remove('open');
+            lb.classList.remove('minimized');
+            var fabBtn = document.getElementById('lbFloatBtn');
+            if (fabBtn) fabBtn.style.display = 'flex';
+        } });
+    }
     if (fab) fab.style.display = 'none';
 
     // Leaderboard open sound - dramatic reveal
@@ -6000,7 +6038,6 @@ window._showToastNow = function _showToastNow(msg, duration) {
     if (typeof msg === 'object' && msg.duration) ms = msg.duration;
     t.style.setProperty('display', 'block', 'important');
     document.body.appendChild(t);
-    if (typeof window.frontOverlay === 'function') window.frontOverlay(t, { toast: true, restoreFocus: false, focus: false });
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, ms);
 }
@@ -6085,7 +6122,6 @@ function showUsernamePrompt() {
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
-        if (typeof window.frontOverlay === 'function') window.frontOverlay(document.getElementById('usernameModal'));
         // Push history state so back button closes modal instead of exiting app
         history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
     } catch(e) {
@@ -6107,7 +6143,6 @@ window.showSignInOnly = function() {
     var modal = document.getElementById('usernameModal');
     if (!modal) return;
     modal.classList.add('open');
-    if (typeof window.frontOverlay === 'function') window.frontOverlay(modal);
     history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
 
     // Hide signup-only fields
@@ -6424,7 +6459,6 @@ function showSettingsPage(tab) {
     // If no auth user resolved yet, show sign-up form instead of crashing
     if (!user) {
         modal.classList.add('open');
-        if (typeof window.frontOverlay === 'function') window.frontOverlay(modal);
         return;
     }
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
@@ -8187,7 +8221,6 @@ function accountDeleteRowHtml(user) {
     if (profileLn) profileLn.textContent = shownLn;
     if (satsLn) satsLn.textContent = shownLn;
     modal.classList.add('open');
-    if (typeof window.frontOverlay === 'function') window.frontOverlay(modal);
     if (settingsTab === 'prefs') {
         setTimeout(function() {
             var fill = function() {
@@ -9356,7 +9389,7 @@ window.hideUsernamePrompt = function() {
         modal.classList.remove('open');
         if (modal.style && modal.style.removeProperty) modal.style.removeProperty('z-index');
         else modal.style.zIndex = '';
-        if (typeof window.releaseOverlay === 'function') window.releaseOverlay(modal);
+        if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(modal);
     }
     if (typeof flushAfterTos === 'function' && !tosBlocking()) {
         if (!chromeBlocksToasts() && typeof _toastQueue !== 'undefined' && _toastQueue.length && typeof window._showToastNow === 'function') {
@@ -9609,6 +9642,7 @@ function openWithdrawalAddress(opts) {
             if (settled) return;
             settled = true;
             var el = document.getElementById('lnAddrModal');
+            if (el && window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(el);
             if (el) el.remove();
             resolve(value || null);
         }
@@ -9801,6 +9835,9 @@ function openWithdrawalAddress(opts) {
         }
 
         document.body.appendChild(overlay);
+        if (window.bqModal && typeof window.bqModal.open === 'function') {
+            window.bqModal.open(overlay, { onClose: function() { finish(null); } });
+        }
         if (stepInput.style.display !== 'none') {
             setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
         }
@@ -10574,6 +10611,7 @@ window._showFreshStepUp = function (action) {
             if (settled) return;
             settled = true;
             var el = document.getElementById('freshStepUpOverlay');
+            if (el && window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(el);
             if (el) el.remove();
             resolve(value);
         }
@@ -10589,6 +10627,9 @@ window._showFreshStepUp = function (action) {
             '<button id="freshStepUpCancel" type="button" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div>';
         document.body.appendChild(overlay);
+        if (window.bqModal && typeof window.bqModal.open === 'function') {
+            window.bqModal.open(overlay, { onClose: function() { finish(null); } });
+        }
         overlay.querySelector('#freshStepUpCancel').addEventListener('click', function () { finish(null); });
         overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
         var input = overlay.querySelector('#freshStepUpInput');
@@ -10793,17 +10834,36 @@ function _ensureSatsClaimSpinnerCss() {
     s.textContent = '@keyframes satsClaimSpin{to{transform:rotate(360deg)}}#satsClaimBtn{display:flex;align-items:center;justify-content:center;gap:8px;}#satsClaimBtn .sats-claim-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:satsClaimSpin .7s linear infinite;flex:0 0 auto;}';
     (document.head || document.documentElement).appendChild(s);
 }
-var SATS_CLAIM_GIVE_UP_MS = 60000;
+var SATS_CLAIM_SLOW_MS = 20000;
+var SATS_CLAIM_REREAD_MS = 60000;
+var SATS_CLAIM_HARD_MS = 120000;
 var SATS_CLAIM_UNCONFIRMED = "We couldn't confirm — check your balance before trying again";
-function _satsClaimClearSlow() {
-    if (window._satsClaimSlowTimer) {
-        clearTimeout(window._satsClaimSlowTimer);
-        window._satsClaimSlowTimer = null;
+function _satsClaimFinite(amount) {
+    return typeof amount === 'number' && isFinite(amount);
+}
+function _satsClaimFlights() {
+    if (!Array.isArray(window._satsClaimFlightList)) window._satsClaimFlightList = [];
+    return window._satsClaimFlightList;
+}
+function _satsClaimBusy() {
+    var list = _satsClaimFlights();
+    for (var i = 0; i < list.length; i++) {
+        if (!list[i].done && !list[i].reenabled) return true;
     }
-    if (window._satsClaimGiveUpTimer) {
-        clearTimeout(window._satsClaimGiveUpTimer);
-        window._satsClaimGiveUpTimer = null;
-    }
+    return false;
+}
+function _satsClaimAlready(msg) {
+    var text = String(msg || '');
+    return /already claimed/i.test(text) || /last 24 hours/i.test(text) || /still processing/i.test(text) || /previous claim is still/i.test(text);
+}
+function _satsClaimClearTimers(flight) {
+    if (!flight) return;
+    ['slowTimer', 'rereadTimer', 'hardTimer'].forEach(function(key) {
+        if (flight[key]) {
+            clearTimeout(flight[key]);
+            flight[key] = null;
+        }
+    });
 }
 function _satsClaimAnnounce(text) {
     var live = document.getElementById('satsClaimStatus');
@@ -10819,13 +10879,15 @@ function _satsClaimShowSending(slow) {
         btn.innerHTML = '<span class="sats-claim-spinner" aria-hidden="true"></span><span>' + text + '</span>';
     }
     _satsClaimAnnounce(text);
+    window._satsClaimInProgress = true;
 }
-function _satsClaimShowUnconfirmed() {
+function _satsClaimShowUnconfirmed(enable) {
     var btn = document.getElementById('satsClaimBtn');
     if (btn) {
-        btn.disabled = true;
-        btn.setAttribute('aria-busy', 'true');
-        btn.style.opacity = '0.85';
+        btn.disabled = !enable;
+        if (enable) btn.removeAttribute('aria-busy');
+        else btn.setAttribute('aria-busy', 'true');
+        btn.style.opacity = enable ? '1' : '0.85';
         btn.textContent = '⚡ Send Sats to My Wallet';
     }
     var errorEl = document.getElementById('satsClaimError');
@@ -10834,116 +10896,135 @@ function _satsClaimShowUnconfirmed() {
         errorEl.style.display = 'block';
     }
     _satsClaimAnnounce(SATS_CLAIM_UNCONFIRMED);
+    window._satsClaimInProgress = enable ? _satsClaimBusy() : true;
 }
-function _satsClaimResetBtn() {
-    _satsClaimClearSlow();
-    window._satsClaimInProgress = false;
+function _satsClaimEnableBtn() {
+    window._satsClaimInProgress = _satsClaimBusy();
     var btn = document.getElementById('satsClaimBtn');
-    if (!btn) return;
+    if (!btn || window._satsClaimInProgress) return;
     btn.disabled = false;
     btn.removeAttribute('aria-busy');
     btn.style.opacity = '1';
-    btn.textContent = '⚡ Send Sats to My Wallet';
+    if ((btn.textContent || '').indexOf('Send Sats') === -1) btn.textContent = '⚡ Send Sats to My Wallet';
 }
-function _satsClaimSnapshot() {
-    var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-    return {
-        satsWithdrawn: Number(u.satsWithdrawn) || 0,
-        pointsClaimed: Number(u.pointsClaimed) || 0,
-        lastSatsClaim: u.lastSatsClaim || null
-    };
-}
-function _satsClaimStamp(value) {
-    if (value == null || value === '') return 0;
-    if (typeof value === 'number' && isFinite(value)) return value;
-    if (typeof value.toMillis === 'function') {
-        try { return value.toMillis() || 0; } catch (e) { return 0; }
-    }
-    if (typeof value.seconds === 'number') return value.seconds * 1000;
-    if (typeof value === 'string') {
-        var parsed = Date.parse(value);
-        return isFinite(parsed) ? parsed : 0;
-    }
-    return 0;
+function _satsClaimResetBtn() {
+    _satsClaimEnableBtn();
 }
 function _satsClaimApplyUser(fresh) {
     if (!fresh || typeof currentUser === 'undefined' || !currentUser) return;
-    ['points', 'pointsClaimed', 'pointsDonated', 'pointsExchanged', 'satsWithdrawn', 'lastSatsClaim', 'pendingOverflow'].forEach(function(key) {
+    ['points', 'pointsClaimed', 'pointsDonated', 'pointsExchanged', 'satsWithdrawn', 'lastSatsClaim', 'pendingOverflow', '_pendingClaim', '_pendingClaimAt'].forEach(function(key) {
         if (Object.prototype.hasOwnProperty.call(fresh, key)) currentUser[key] = fresh[key];
     });
 }
+function _satsClaimUserRef() {
+    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) return null;
+    try { return db.collection('users').doc(auth.currentUser.uid); } catch (e) { return null; }
+}
 function _satsClaimReadUser() {
-    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) {
-        return Promise.reject(new Error('balance-unread'));
-    }
-    return db.collection('users').doc(auth.currentUser.uid).get().then(function(snap) {
+    var ref = _satsClaimUserRef();
+    if (!ref || typeof ref.get !== 'function') return Promise.reject(new Error('balance-unread'));
+    return ref.get().then(function(snap) {
         if (!snap || typeof snap.data !== 'function') throw new Error('balance-unread');
         return snap.data() || null;
     });
 }
-function _satsClaimLandedAmount(before, after) {
-    before = before || {};
-    after = after || {};
-    var withdrawnDelta = (Number(after.satsWithdrawn) || 0) - (Number(before.satsWithdrawn) || 0);
-    if (withdrawnDelta > 0) return withdrawnDelta;
-    var claimedDelta = (Number(after.pointsClaimed) || 0) - (Number(before.pointsClaimed) || 0);
-    if (claimedDelta > 0) return Math.floor(claimedDelta / 10);
-    if (_satsClaimStamp(after.lastSatsClaim) > _satsClaimStamp(before.lastSatsClaim)) return -1;
-    return 0;
+function _satsClaimRows(snap) {
+    var rows = [];
+    if (snap && typeof snap.forEach === 'function') {
+        snap.forEach(function(doc) {
+            var data = (doc && typeof doc.data === 'function' && doc.data()) || {};
+            rows.push({ id: doc.id, status: data.status, amount: data.amount });
+        });
+    }
+    return rows;
 }
-function _satsClaimStill(attempt) {
-    return window._satsClaimSendId === attempt && window._satsClaimSettledId !== attempt;
+function _satsClaimKnownKeys() {
+    var ref = _satsClaimUserRef();
+    var col = null;
+    try { col = ref && typeof ref.collection === 'function' ? ref.collection('sats_withdrawals') : null; } catch (e) { col = null; }
+    if (!col || typeof col.get !== 'function') return Promise.resolve({});
+    return col.get().then(function(snap) {
+        var keys = {};
+        _satsClaimRows(snap).forEach(function(row) { if (row.id) keys[row.id] = true; });
+        return keys;
+    }).catch(function() { return {}; });
 }
-function _satsClaimArmSlow(attempt) {
-    _satsClaimClearSlow();
-    window._satsClaimSlowTimer = setTimeout(function() {
-        window._satsClaimSlowTimer = null;
-        if (!_satsClaimStill(attempt) || !window._satsClaimInProgress) return;
-        if (window._satsClaimGaveUpId === attempt) return;
-        _satsClaimShowSending(true);
-    }, 20000);
-    window._satsClaimGiveUpTimer = setTimeout(function() {
-        window._satsClaimGiveUpTimer = null;
-        _satsClaimGiveUp(attempt);
-    }, SATS_CLAIM_GIVE_UP_MS);
-}
-function _satsClaimGiveUp(attempt) {
-    if (!_satsClaimStill(attempt) || !window._satsClaimInProgress) return;
-    window._satsClaimGaveUpId = attempt;
-    _satsClaimShowUnconfirmed();
-    var before = (window._satsClaimBaselines && window._satsClaimBaselines[attempt]) || _satsClaimSnapshot();
-    var readOk = false;
-    var fresh = null;
-    return _satsClaimReadUser().then(function(user) {
-        readOk = true;
-        fresh = user;
-    }).catch(function() {
-        readOk = false;
-        fresh = null;
-    }).then(function() {
-        if (!_satsClaimStill(attempt)) return;
-        if (readOk && fresh) _satsClaimApplyUser(fresh);
-        if (!readOk) return;
-        var landed = _satsClaimLandedAmount(before, fresh || {});
-        if (landed > 0) {
-            _satsClaimFinishSuccess(landed, attempt);
-            return;
-        }
-        if (landed < 0) return;
-        _satsClaimResetBtn();
+function _satsClaimReadSettlement(knownKeys) {
+    var ref = _satsClaimUserRef();
+    if (!ref || typeof ref.get !== 'function') return Promise.reject(new Error('balance-unread'));
+    var userP = ref.get().then(function(snap) {
+        if (!snap || typeof snap.data !== 'function') throw new Error('balance-unread');
+        var data = snap.data();
+        if (!data) throw new Error('balance-unread');
+        return data;
+    });
+    var wdP = Promise.resolve([]);
+    try {
+        var col = typeof ref.collection === 'function' ? ref.collection('sats_withdrawals') : null;
+        if (col && typeof col.get === 'function') wdP = col.get().then(_satsClaimRows);
+    } catch (e) {
+        wdP = Promise.reject(e);
+    }
+    return Promise.all([userP, wdP]).then(function(pair) {
+        return { user: pair[0], withdrawals: pair[1], knownKeys: knownKeys || {} };
     });
 }
-function _satsClaimFinishSuccess(paidAmount, attempt) {
-    if (!_satsClaimStill(attempt)) return Promise.resolve();
-    window._satsClaimSettledId = attempt;
-    _satsClaimClearSlow();
+function _satsClaimSettledAmount(info) {
+    var known = (info && info.knownKeys) || {};
+    var found = null;
+    ((info && info.withdrawals) || []).forEach(function(row) {
+        if (!row || known[row.id]) return;
+        var status = String(row.status || '').toLowerCase();
+        if ((status === 'paid' || status === 'settled') && _satsClaimFinite(row.amount)) found = row.amount;
+    });
+    return found;
+}
+function _satsClaimReservation(info) {
+    if (info && info.user && info.user._pendingClaim === true) return true;
+    var known = (info && info.knownKeys) || {};
+    var rows = (info && info.withdrawals) || [];
+    for (var i = 0; i < rows.length; i++) {
+        if (!rows[i] || known[rows[i].id]) continue;
+        if (String(rows[i].status || '').toLowerCase() === 'pending') return true;
+    }
+    return false;
+}
+function _satsClaimPaintError(msg) {
+    if (window._satsClaimCelebratedAt) return;
+    var errorEl = document.getElementById('satsClaimError');
+    if (errorEl) {
+        errorEl.textContent = msg || 'Claim failed - try again';
+        errorEl.style.display = 'block';
+    }
+    _satsClaimAnnounce(msg || '');
+    _satsClaimEnableBtn();
+}
+function _satsClaimCelebrate(paidAmount) {
+    if (!_satsClaimFinite(paidAmount)) return Promise.resolve();
+    if (window._satsClaimCelebLock) {
+        window._satsClaimCelebratedAt = window._satsClaimCelebratedAt || Date.now();
+        window._satsClaimInProgress = false;
+        var openClaim = document.getElementById('satsClaimOverlay');
+        if (openClaim) openClaim.remove();
+        return Promise.resolve();
+    }
+    window._satsClaimCelebLock = true;
+    window._satsClaimCelebratedAt = Date.now();
     window._satsClaimInProgress = false;
-    var _claimDone = document.getElementById('satsClaimOverlay');
-    if (_claimDone) _claimDone.remove();
+    _satsClaimFlights().forEach(function(flight) {
+        if (!flight.done) {
+            flight.done = true;
+            flight.reenabled = true;
+            _satsClaimClearTimers(flight);
+        }
+    });
+    var claimDone = document.getElementById('satsClaimOverlay');
+    if (claimDone) claimDone.remove();
+    if (document.getElementById('satsCelebration')) return Promise.resolve();
     return _satsClaimReadUser().then(function(fresh) {
         _satsClaimApplyUser(fresh);
     }).catch(function() {}).then(function() {
-        if (window._satsClaimSettledId !== attempt) return;
+        if (document.getElementById('satsCelebration')) return;
         try {
             var _fcToday = new Date().toISOString().split('T')[0];
             var _fcLast = localStorage.getItem('btc_faucet_last_day');
@@ -10959,13 +11040,17 @@ function _satsClaimFinishSuccess(paidAmount, attempt) {
         } catch (e) {}
         if (typeof notifySelfSatsClaim === 'function') notifySelfSatsClaim(paidAmount);
         if (typeof launchConfetti === 'function') launchConfetti();
-        var _totalClaimed = currentUser.satsWithdrawn || paidAmount;
+        var _totalClaimed = (typeof currentUser !== 'undefined' && currentUser && currentUser.satsWithdrawn) || paidAmount;
         var _claimCap = lifetimeSatCap();
         var _remaining = Math.max(0, _claimCap - _totalClaimed);
         var _celebOverlay = document.createElement('div');
         _celebOverlay.id = 'satsCelebration';
         _celebOverlay.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeSlideIn 0.3s;';
-        _celebOverlay.onclick = function(e) { if (e.target === _celebOverlay) _celebOverlay.remove(); };
+        function _closeCeleb() {
+            if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(_celebOverlay);
+            if (_celebOverlay.parentNode) _celebOverlay.remove();
+        }
+        _celebOverlay.onclick = function(e) { if (e.target === _celebOverlay) _closeCeleb(); };
         _celebOverlay.innerHTML = '<div style="background:linear-gradient(135deg,#1a1b2e,#12131f);border:2px solid #f7931a;border-radius:24px;padding:32px;max-width:360px;width:100%;text-align:center;animation:nachoPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);">' +
             '<div style="font-size:4rem;margin-bottom:12px;">⚡🎉</div>' +
             '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">⚡ Sent ' + paidAmount + ' sats!</h2>' +
@@ -10978,12 +11063,145 @@ function _satsClaimFinishSuccess(paidAmount, attempt) {
             '<div style="padding:10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:10px;margin-bottom:16px;">' +
                 '<div style="font-size:0.75rem;color:#22c55e;font-weight:700;">🧡 Thank you for learning Bitcoin with us!</div>' +
             '</div>' +
-            '<button onclick="document.getElementById(\'satsCelebration\').remove()" style="padding:14px 32px;background:#f7931a;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;">🚀 Stack more sats!</button>' +
+            '<button id="satsCelebrationDone" type="button" style="padding:14px 32px;background:#f7931a;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;">🚀 Stack more sats!</button>' +
         '</div>';
         document.body.appendChild(_celebOverlay);
-        if (typeof window.frontOverlay === 'function') window.frontOverlay(_celebOverlay);
+        var doneBtn = document.getElementById('satsCelebrationDone');
+        if (doneBtn) doneBtn.onclick = function() { _closeCeleb(); };
+        if (window.bqModal && typeof window.bqModal.open === 'function') {
+            window.bqModal.open(_celebOverlay, { onClose: _closeCeleb });
+        }
         setTimeout(function() { showSettingsPage('sats'); }, 500);
     });
+}
+function _satsClaimPaintLive() {
+    var flight = null;
+    var list = _satsClaimFlights();
+    for (var i = list.length - 1; i >= 0; i--) {
+        if (!list[i].done) { flight = list[i]; break; }
+    }
+    if (!flight) {
+        window._satsClaimInProgress = false;
+        var idle = document.getElementById('satsClaimBtn');
+        if (idle) {
+            idle.disabled = false;
+            idle.removeAttribute('aria-busy');
+            idle.style.opacity = '1';
+            idle.textContent = '⚡ Send Sats to My Wallet';
+        }
+        return;
+    }
+    if (flight.reenabled) _satsClaimShowUnconfirmed(true);
+    else if (flight.phase === 'unconfirmed') _satsClaimShowUnconfirmed(false);
+    else if (flight.phase === 'slow') _satsClaimShowSending(true);
+    else _satsClaimShowSending(false);
+}
+function _satsClaimReread(flight) {
+    if (!flight || flight.done) return;
+    flight.phase = 'unconfirmed';
+    _satsClaimShowUnconfirmed(false);
+    Promise.resolve(flight.keysReady).catch(function() { return {}; }).then(function() {
+        if (flight.done) return null;
+        return _satsClaimReadSettlement(flight.knownKeys || {});
+    }).then(function(info) {
+        if (!info || flight.done) return;
+        if (info.user) _satsClaimApplyUser(info.user);
+        var settled = _satsClaimSettledAmount(info);
+        if (_satsClaimFinite(settled)) {
+            flight.done = true;
+            flight.celebrated = true;
+            _satsClaimClearTimers(flight);
+            _satsClaimCelebrate(settled);
+            return;
+        }
+        if (_satsClaimReservation(info)) {
+            flight.phase = 'unconfirmed';
+            _satsClaimShowUnconfirmed(false);
+            return;
+        }
+        flight.reenabled = true;
+        flight.phase = 'unconfirmed';
+        _satsClaimShowUnconfirmed(true);
+    }).catch(function() {
+        if (!flight || flight.done) return;
+        flight.reenabled = true;
+        flight.phase = 'unconfirmed';
+        _satsClaimShowUnconfirmed(true);
+    });
+}
+function _satsClaimBeginFlight() {
+    var flight = {
+        id: (window._satsClaimSeq || 0) + 1,
+        born: Date.now(),
+        done: false,
+        reenabled: false,
+        celebrated: false,
+        phase: 'sending',
+        knownKeys: {},
+        keysReady: null,
+        error: ''
+    };
+    window._satsClaimSeq = flight.id;
+    flight.keysReady = _satsClaimKnownKeys().then(function(keys) {
+        flight.knownKeys = keys || {};
+        return flight.knownKeys;
+    });
+    flight.slowTimer = setTimeout(function() {
+        flight.slowTimer = null;
+        if (flight.done || flight.reenabled || flight.phase === 'unconfirmed') return;
+        flight.phase = 'slow';
+        _satsClaimShowSending(true);
+    }, SATS_CLAIM_SLOW_MS);
+    flight.rereadTimer = setTimeout(function() {
+        flight.rereadTimer = null;
+        _satsClaimReread(flight);
+    }, SATS_CLAIM_REREAD_MS);
+    flight.hardTimer = setTimeout(function() {
+        flight.hardTimer = null;
+        if (flight.done) return;
+        flight.reenabled = true;
+        flight.phase = 'unconfirmed';
+        _satsClaimShowUnconfirmed(true);
+    }, SATS_CLAIM_HARD_MS);
+    _satsClaimFlights().push(flight);
+    return flight;
+}
+function _satsClaimSettleFailure(flight, msg) {
+    if (!flight || flight.done) return;
+    flight.done = true;
+    flight.reenabled = true;
+    flight.error = msg || 'Claim failed - try again';
+    _satsClaimClearTimers(flight);
+    if (flight.celebrated || (window._satsClaimCelebratedAt && flight.born <= window._satsClaimCelebratedAt)) return;
+    var otherOpen = _satsClaimFlights().some(function(other) { return other !== flight && !other.done; });
+    if (otherOpen && _satsClaimAlready(flight.error)) {
+        if (!_satsClaimBusy()) _satsClaimEnableBtn();
+        return;
+    }
+    _satsClaimPaintError(flight.error);
+}
+function _satsClaimOnResult(flight, result) {
+    if (!flight || flight.celebrated || flight.done) return;
+    var data = result && result.data ? result.data : null;
+    var amount = data ? data.amount : undefined;
+    if (data && data.success && _satsClaimFinite(amount)) {
+        flight.done = true;
+        flight.celebrated = true;
+        _satsClaimClearTimers(flight);
+        _satsClaimCelebrate(amount);
+        return;
+    }
+    if (data && data.success) {
+        _satsClaimSettleFailure(flight, SATS_CLAIM_UNCONFIRMED);
+        return;
+    }
+    var errMsg = (data && data.error) ? data.error : 'Claim failed - try again';
+    _satsClaimSettleFailure(flight, errMsg);
+    if (data && (data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
+        try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
+        var lnAddrEl = document.getElementById('satsLnAddr');
+        openWithdrawalAddress({ mode: 'reset', address: lnAddrEl ? lnAddrEl.value : '' });
+    }
 }
 
 window.initSatsClaim = function() {
@@ -11009,10 +11227,23 @@ window.initSatsClaim = function() {
     }
     console.log('[SATS] Passed all checks, showing overlay');
     _ensureSatsClaimSpinnerCss();
+    var priorClaim = document.getElementById('satsClaimOverlay');
+    if (priorClaim) priorClaim.remove();
 
     var overlay = document.createElement('div');
     overlay.id = 'satsClaimOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var nativeClaimRemove = overlay.remove.bind(overlay);
+    overlay.remove = function() {
+        if (overlay._bqRemoving) return nativeClaimRemove();
+        overlay._bqRemoving = true;
+        try {
+            if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(overlay);
+            nativeClaimRemove();
+        } finally {
+            overlay._bqRemoving = false;
+        }
+    };
     // Delay dismiss listener to prevent the originating button click from immediately closing it
     setTimeout(function() {
         overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
@@ -11062,7 +11293,9 @@ window.initSatsClaim = function() {
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
-    if (typeof window.frontOverlay === 'function') window.frontOverlay(overlay, { focus: true });
+    if (window.bqModal && typeof window.bqModal.open === 'function') {
+        window.bqModal.open(overlay, { onClose: function() { overlay.remove(); } });
+    }
     // Re-render Turnstile widget now that the element is in the DOM
     if (window.turnstile) {
         window.turnstile.render('#satsClaimTurnstile', {
@@ -11071,6 +11304,7 @@ window.initSatsClaim = function() {
             size: 'flexible',
         });
     }
+    _satsClaimPaintLive();
 };
 
 // Device fingerprint for multi-account detection (Fix #3)
@@ -11112,7 +11346,7 @@ window._satsClaimInProgress = false;
 window._satsClaimTab = 'ln';
 
 window.submitSatsClaim = async function() {
-    if (window._satsClaimInProgress) return;
+    if (window._satsClaimInProgress || _satsClaimBusy()) return;
     var btn = document.getElementById('satsClaimBtn');
     var errorEl = document.getElementById('satsClaimError');
     if (!btn) return;
@@ -11134,68 +11368,42 @@ window.submitSatsClaim = async function() {
     var savedNow = normalizeClientLn((typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || currentUser.lnAddress || '') : '');
     claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
     if (errorEl) errorEl.style.display = 'none';
-    // Lock the button before any await so a second press cannot send twice.
     window._satsClaimInProgress = true;
     btn.disabled = true;
     if (!savedNow || savedNow !== lnAddr) {
         var confirmedAddr = await openWithdrawalAddress({ mode: 'claim', address: lnAddr, start: 'confirm' });
-        if (!confirmedAddr) { _satsClaimResetBtn(); return; }
-        lnAddr = confirmedAddr;
-        claimPayload.lightningAddress = lnAddr;
-    }
-    window._satsClaimSendId = (window._satsClaimSendId || 0) + 1;
-    var attempt = window._satsClaimSendId;
-    if (!window._satsClaimBaselines) window._satsClaimBaselines = {};
-    window._satsClaimBaselines[attempt] = _satsClaimSnapshot();
-    _satsClaimShowSending(false);
-    _satsClaimArmSlow(attempt);
-
-    try {
-        try {
-            // Mint or reuse the cached token (1h TTL). httpsCallable attaches it
-            // as X-Firebase-AppCheck on the claimSats request.
-            await firebase.appCheck().getToken(false);
-        } catch (appCheckErr) {
-            if (!_satsClaimStill(attempt)) return;
-            if (errorEl) { errorEl.textContent = 'Security check failed. Refresh the page and try again.'; errorEl.style.display = 'block'; }
+        if (!confirmedAddr) {
+            window._satsClaimInProgress = _satsClaimBusy();
             _satsClaimResetBtn();
             return;
         }
+        lnAddr = confirmedAddr;
+        claimPayload.lightningAddress = lnAddr;
+    }
+    var flight = _satsClaimBeginFlight();
+    _satsClaimShowSending(false);
+
+    try {
+        try {
+            await firebase.appCheck().getToken(false);
+        } catch (appCheckErr) {
+            _satsClaimSettleFailure(flight, 'Security check failed. Refresh the page and try again.');
+            return;
+        }
         var claimSats = firebase.functions().httpsCallable('claimSats');
-        // Generate device fingerprint for multi-account detection
         var _fp = _generateDeviceFingerprint();
-        // Grab Turnstile token from faucet widget
         var _tsEl = document.querySelector('#satsClaimTurnstile [name="cf-turnstile-response"]');
         var _tsToken = _tsEl ? (_tsEl.value || '') : '';
         if (!_tsToken) {
-            if (!_satsClaimStill(attempt)) return;
-            if (errorEl) { errorEl.textContent = 'Security check pending — please wait a moment and try again.'; errorEl.style.display = 'block'; }
-            _satsClaimResetBtn();
+            _satsClaimSettleFailure(flight, 'Security check pending — please wait a moment and try again.');
             if (window.turnstile) window.turnstile.reset('#satsClaimTurnstile');
             return;
         }
         var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
-        if (!_satsClaimStill(attempt)) return;
-        if (result.data && result.data.success) {
-            var paidAmount = result.data.amount;
-            await _satsClaimFinishSuccess(paidAmount, attempt);
-        } else {
-            if (window._satsClaimGaveUpId === attempt && window._satsClaimInProgress) return;
-            var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
-            if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
-            _satsClaimResetBtn();
-            if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
-                try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
-                openWithdrawalAddress({ mode: 'reset', address: lnAddr });
-            }
-        }
-    } catch(e) {
-        if (!_satsClaimStill(attempt)) return;
-        if (window._satsClaimGaveUpId === attempt && window._satsClaimInProgress) return;
+        _satsClaimOnResult(flight, result);
+    } catch (e) {
         console.error('Sats claim error:', e);
-        var errMsg = e.message || 'Claim failed - try again';
-        if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
-        _satsClaimResetBtn();
+        _satsClaimSettleFailure(flight, (e && e.message) || 'Claim failed - try again');
     }
 };
 
