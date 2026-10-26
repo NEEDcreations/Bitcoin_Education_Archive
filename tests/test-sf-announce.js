@@ -233,9 +233,38 @@ queue.push(test('a retried award is claimed once and mixed badges share a line',
         { badgeId: 'spin_1', favorPoint: true },
         { badgeId: 'quest_1', favorPoint: true },
     ]);
-    assert.strictEqual(mixed, '🏅 @Pat earned 3 badges: Flex Pattern 25, First Spin, Quester (+3 SF points)');
+    assert.strictEqual(mixed, '🏅 @Pat earned 3 badges: Pattern ×25, First Spin, Quester (+3 SF points)');
     assert.ok(mixed.indexOf('flex_pattern_25') === -1);
+    assert.ok(mixed.indexOf('Flex Pattern') === -1);
     assert.ok(mixed.indexOf('pat@') === -1);
+    const loneFlex = badgeGg.formatBadgeGg('Pat', [{ badgeId: 'flex_pattern_25', favorPoint: true }]);
+    assert.strictEqual(loneFlex, '🏅 @Pat earned Pattern ×25 (+1 SF point)');
+    const hidden = badgeGg.formatBadgeGg('Pat', [{ badgeId: 'p01', favorPoint: false }]);
+    assert.strictEqual(hidden, '🏅 @Pat earned P01');
+    assert.strictEqual(hidden.indexOf('p01'), -1);
+    const capped = badgeGg.formatBadgeGg('Pat', [
+        { badgeId: 'quest_1', favorPoint: true },
+        { badgeId: 'spin_1', favorPoint: true },
+        { badgeId: 'peer_1', favorPoint: true },
+        { badgeId: 'say_hi_1', favorPoint: true },
+        { badgeId: 'chat_first', favorPoint: true },
+        { badgeId: 'forum_first', favorPoint: true },
+        { badgeId: 'explorer_5', favorPoint: true },
+    ]);
+    assert.strictEqual(capped, '🏅 @Pat earned 7 badges: Quester, First Spin, First Peer, Hello World, First Words and 2 more (+7 SF points)');
+    assert.strictEqual(capped.indexOf('First Post'), -1);
+    assert.strictEqual(capped.indexOf('Curious Mind'), -1);
+    const also = badgeGg.formatBadgeGg('Pat', [
+        { badgeId: 'explorer_50', favorPoint: false },
+        { badgeId: 'quest_1', favorPoint: false },
+        { badgeId: 'spin_1', favorPoint: false },
+        { badgeId: 'peer_1', favorPoint: false },
+        { badgeId: 'say_hi_1', favorPoint: false },
+        { badgeId: 'chat_first', favorPoint: false },
+        { badgeId: 'forum_first', favorPoint: false },
+    ]);
+    assert.ok(also.indexOf('Also: Quester, First Spin, First Peer, Hello World, First Words and 1 more') !== -1);
+    assert.strictEqual(also.indexOf('First Post'), -1);
 }));
 
 queue.push(test('backfill and admin awards are not posted', async function () {
@@ -259,6 +288,18 @@ queue.push(test('backfill and admin awards are not posted', async function () {
     assert.strictEqual(Object.keys(db.docs).filter(function (key) { return key.indexOf('badge_gg_claims/') === 0; }).length, 0);
     const real = await badgeGg.queueBadgeGg(db, admin, 'pat', 'quest_1', { source: 'combo', favorPoint: true }, start);
     assert.strictEqual(real.queued, true);
+    const fanDb = memoryDb({ 'users/fan': { username: 'satoshi_fan', name: 'Real Name' } });
+    await badgeGg.queueBadgeGg(fanDb, admin, 'fan', 'quest_1', { source: 'awardBadge', favorPoint: true }, start);
+    const fanFlush = await badgeGg.flushDueBursts(fanDb, admin, start + badgeGg.BURST_WINDOW_MS);
+    assert.strictEqual(fanFlush[0].text, '🏅 @satoshi_fan earned Quester (+1 SF point)');
+    assert.strictEqual(fanFlush[0].text.indexOf('Real Name'), -1);
+    assert.strictEqual(fanFlush[0].text.indexOf('satoshifan'), -1);
+    assert.strictEqual(fanFlush[0].text.indexOf('\\_'), -1);
+    const anonDb = memoryDb({ 'users/anon': { name: 'Real Name' } });
+    await badgeGg.queueBadgeGg(anonDb, admin, 'anon', 'quest_1', { source: 'awardBadge', favorPoint: false }, start);
+    const anonFlush = await badgeGg.flushDueBursts(anonDb, admin, start + badgeGg.BURST_WINDOW_MS);
+    assert.strictEqual(anonFlush[0].text, '🏅 @A player earned Quester');
+    assert.strictEqual(anonFlush[0].text.indexOf('Real Name'), -1);
     const email = badgeGg.formatBadgeGg('pat@example.com 10.0.0.8', [{ badgeId: 'quest_1', favorPoint: true }]);
     assert.ok(email.indexOf('@example.com') === -1);
     assert.ok(email.indexOf('10.0.0.8') === -1);
@@ -298,6 +339,11 @@ queue.push(test('an expired reset keeps eraHashes inside the transaction', async
     const stateFn = favor.slice(stateAt, stateAt + 1200);
     assert.ok(stateFn.includes('resetExpiredFavor'));
     assert.ok(!stateFn.includes('await stateRef.set'));
+    ['onSatoshiFavorLive', 'onBadgeAwardCreated', 'onGlobalChatTelegram', 'onAnnouncementsTelegram'].forEach(function (name) {
+        const at = index.indexOf('exports.' + name);
+        const body = index.slice(at, at + 220);
+        assert.ok(body.includes('retry: true'), name);
+    });
 }));
 
 queue.push(test('client copies and the tweet use the new wording', function () {

@@ -45,7 +45,9 @@ function sanitizeDisplayName(raw) {
     s = s.replace(/\bwww\.\S+/gi, ' ');
     s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ');
     s = s.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ' ');
-    s = s.replace(/[\[\]()#*_~`@]/g, '');
+    // Keep underscores so satoshi_fan stays intact. Chat and Telegram HTML
+    // do not treat "_" as markup, so the character is shown as itself.
+    s = s.replace(/[\[\]()#*~`@]/g, '');
     s = s.replace(/[\r\n<>]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim().slice(0, 40);
     return s;
@@ -68,22 +70,58 @@ function titleCaseWord(word) {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// Catalog names that are just the raw id (flex_pattern_25) become a display
-// name ("Flex Pattern 25"). A real catalog name (Quester, Pathfinder) is kept.
+function stripIdPrefixes(id) {
+    let s = String(id || '');
+    let prev = '';
+    while (s && s !== prev) {
+        prev = s;
+        s = s.replace(/^(?:flex_|badge_|bc_)/, '');
+    }
+    return s;
+}
+
+// flex_pattern_25 → "Pattern ×25". The action id is title-cased and the
+// trailing tier is the count. A catalog name that is the raw id is not used.
 function flexDisplayName(id) {
     if (String(id || '').indexOf('flex_') !== 0) return '';
-    const rest = id.slice(5).split('_').filter(Boolean).map(titleCaseWord).join(' ');
-    return rest ? ('Flex ' + rest) : '';
+    const parts = id.slice(5).split('_').filter(Boolean);
+    if (!parts.length) return '';
+    const last = parts[parts.length - 1];
+    if (/^\d+$/.test(last) && parts.length >= 2) {
+        const action = parts.slice(0, -1).map(titleCaseWord).join(' ');
+        return action ? (action + ' ×' + last) : '';
+    }
+    return parts.map(titleCaseWord).join(' ');
+}
+
+function fallbackDisplayName(id) {
+    const parts = stripIdPrefixes(id).split('_').filter(Boolean).map(titleCaseWord);
+    return parts.join(' ');
 }
 
 function badgeName(badgeId) {
     const id = String(badgeId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
-    const rule = id ? badgeRules.ruleFor(id) : null;
+    if (!id) return 'a badge';
+    const rule = badgeRules.ruleFor(id);
     const catalog = rule && rule.name ? String(rule.name) : '';
-    if (catalog && catalog !== id) return cleanLabel(catalog) || 'a badge';
+    if (catalog && catalog !== id) {
+        const cleaned = cleanLabel(catalog);
+        if (cleaned && cleaned !== id) return cleaned;
+    }
     const flex = flexDisplayName(id);
-    if (flex) return cleanLabel(flex) || 'a badge';
-    return cleanLabel(catalog || id || 'a badge') || 'a badge';
+    const candidate = flex || fallbackDisplayName(id);
+    const cleaned = cleanLabel(candidate);
+    if (!cleaned || cleaned === id) return 'a badge';
+    return cleaned;
+}
+
+const NAME_LIST_CAP = 5;
+
+function joinNames(names) {
+    const list = (names || []).filter(Boolean);
+    if (list.length <= NAME_LIST_CAP) return list.join(', ');
+    const extra = list.length - NAME_LIST_CAP;
+    return list.slice(0, NAME_LIST_CAP).join(', ') + ' and ' + extra + ' more';
 }
 
 function badgeEmoji(badgeId) {
@@ -129,7 +167,7 @@ function formatBadgeGg(name, items) {
         const lead = majors[0];
         const also = majors.slice(1).concat(rest).map(function (item) { return badgeName(item.badgeId); });
         let text = '🏅 @' + display + ' just earned the ' + badgeEmoji(lead.badgeId) + ' ' + badgeName(lead.badgeId) + ' badge! 🎉';
-        if (also.length) text += ' Also: ' + also.join(', ');
+        if (also.length) text += ' Also: ' + joinNames(also);
         return text + suffix;
     }
     const flexOnly = list.length > 1 && list.every(isFlex);
@@ -140,7 +178,7 @@ function formatBadgeGg(name, items) {
         return '🏅 @' + display + ' earned ' + badgeName(list[0].badgeId) + suffix;
     }
     const names = list.map(function (item) { return badgeName(item.badgeId); });
-    return '🏅 @' + display + ' earned ' + list.length + ' badges: ' + names.join(', ') + suffix;
+    return '🏅 @' + display + ' earned ' + list.length + ' badges: ' + joinNames(names) + suffix;
 }
 
 function newBurst(uid, item, nowMs) {
@@ -157,10 +195,10 @@ function announcementId(uid, startedAtMs) {
     return 'badgegg_' + safeId(uid) + '_' + startedAtMs;
 }
 
-function displayNameFromUser(user, uid) {
+function displayNameFromUser(user) {
     const data = user || {};
-    const name = sanitizeDisplayName(data.username || data.name || '');
-    if (!name || (uid && name === String(uid))) return 'A player';
+    const name = sanitizeDisplayName(data.username || '');
+    if (!name) return 'A player';
     return name;
 }
 

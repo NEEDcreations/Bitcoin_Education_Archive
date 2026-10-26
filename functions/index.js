@@ -7861,7 +7861,7 @@ const { tweetSatoshisFavor } = require('./src/tweetSatoshisFavor');
 exports.tweetSatoshisFavor = tweetSatoshisFavor;
 
 const { handleFavorLiveWrite } = require('./src/favorLiveAnnounce');
-exports.onSatoshiFavorLive = onDocumentWritten('satoshiFavor/current', async (event) => {
+exports.onSatoshiFavorLive = onDocumentWritten({ document: 'satoshiFavor/current', retry: true }, async (event) => {
     const beforeSnap = event.data && event.data.before;
     const afterSnap = event.data && event.data.after;
     const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
@@ -7876,7 +7876,7 @@ exports.onSatoshiFavorLive = onDocumentWritten('satoshiFavor/current', async (ev
 });
 
 const { queueBadgeGg, flushDueBursts } = require('./src/badgeGg');
-exports.onBadgeAwardCreated = onDocumentCreated('users/{uid}/badge_awards/{badgeId}', async (event) => {
+exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_awards/{badgeId}', retry: true }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
     const data = snap.data() || {};
@@ -7907,12 +7907,12 @@ async function mirrorChatCreate(collection, docId, data) {
     }
     return null;
 }
-exports.onGlobalChatTelegram = onDocumentCreated('global_chat/{msgId}', async (event) => {
+exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
 });
-exports.onAnnouncementsTelegram = onDocumentCreated('announcements/{msgId}', async (event) => {
+exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('announcements', event.params.msgId, snap.data());

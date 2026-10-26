@@ -5,6 +5,8 @@ const path = require('path');
 const badgeRules = require('../functions/src/badgeRules');
 const { grantBadgeIfEarned, grantFamily } = require('../functions/src/grantBadge');
 const { awardBadge } = require('../functions/src/awardBadge');
+const { millisOf } = require('../functions/src/favorPool');
+const favorLive = require('../functions/src/favorLiveAnnounce');
 const { favorSourceAllowed } = require('../functions/src/satoshiFavor');
 const dailyFive = require('../functions/src/dailyFive');
 const { countMarketplaceListing } = require('../functions/src/marketListingCount');
@@ -386,6 +388,73 @@ queue.push(test('an open Favor window extends and the caps hold', async function
     await awardBadge(stale, admin, 'u', 'peer_1', { day: '2026-10-22', nowMs: now });
     assert.strictEqual(stale.docs['satoshiFavor/current'].favorActive, false);
     assert.strictEqual(stale.docs['satoshiFavor/current'].points, 1);
+    assert.strictEqual(millisOf(stale.docs['satoshiFavor/current'].lastReset), now);
+}));
+
+queue.push(test('an expired badge award drops the previous window from the LIVE post', async function () {
+    const now = 1700000000000;
+    const hour = 60 * 60 * 1000;
+    const docs = {
+        'users/u': { sayHiDays: 1, points: 0 },
+        'satoshiFavor/current': {
+            points: 21,
+            favorActive: true,
+            bonusMinutes: 0,
+            eraHashes: 99,
+            currentCycleId: 'cycle_old',
+            lastReset: { toMillis: function () { return now - 2 * hour; } },
+            favorEndBase: { toMillis: function () { return now - hour; } },
+            favorStart: { toMillis: function () { return now - 2 * hour; } },
+        },
+    };
+    function oldRow(id, data) {
+        docs['satoshiFavor/current/contributors/' + id] = data;
+    }
+    const oldTs = { toMillis: function () { return now - hour; } };
+    for (let i = 0; i < 12; i++) {
+        oldRow('old_flex_' + i, {
+            uid: 'old' + i, source: 'badge_earned', badgeId: 'flex_pattern_' + (i + 1),
+            pointsAdded: 1, timestamp: oldTs,
+        });
+    }
+    for (let i = 0; i < 5; i++) {
+        oldRow('old_badge_' + i, {
+            uid: 'oldb' + i, source: 'badge_earned', badgeId: 'quest_1',
+            pointsAdded: 1, timestamp: oldTs,
+        });
+    }
+    for (let i = 0; i < 4; i++) {
+        oldRow('old_tri_' + i, {
+            uid: 'oldt' + i, source: 'daily_all_three', pointsAdded: 1, timestamp: oldTs,
+        });
+    }
+    const db = memoryDb(docs);
+    const result = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-10-22', nowMs: now });
+    assert.strictEqual(result.granted, true);
+    const state = db.docs['satoshiFavor/current'];
+    assert.strictEqual(state.points, 1);
+    assert.strictEqual(state.favorActive, false);
+    assert.strictEqual(state.eraHashes, 99);
+    assert.strictEqual(millisOf(state.lastReset), now);
+    const fresh = db.docs['satoshiFavor/current/contributors/u_badge_say_hi_1'];
+    assert.ok(fresh);
+    fresh.timestamp = { toMillis: function () { return now; } };
+    for (let i = 0; i < 20; i++) {
+        db.docs['satoshiFavor/current/contributors/new_' + i] = {
+            uid: 'n' + i, source: 'badge_earned', badgeId: 'peer_1',
+            pointsAdded: 1, timestamp: { toMillis: function () { return now; } },
+        };
+    }
+    state.points = 21;
+    state.favorActive = true;
+    state.currentCycleId = 'cycle_new';
+    const live = await favorLive.handleFavorLiveWrite(db, admin, { favorActive: false, points: 1 }, state);
+    assert.strictEqual(live.posted, true);
+    assert.strictEqual(live.text.indexOf('flex'), -1);
+    assert.strictEqual(live.text.indexOf('trifecta'), -1);
+    assert.ok(live.text.indexOf('21 badges') !== -1);
+    assert.ok(live.text.indexOf('21 players') !== -1);
+    assert.strictEqual(live.text, "⚡ Satoshi's Favor is LIVE! 21 points from 21 players: 21 badges. Window open for 60 min.");
 }));
 
 queue.push(test('the daily XP cap still grants the badge and Favor', async function () {

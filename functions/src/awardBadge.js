@@ -219,6 +219,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
                 next.totalHashes = 0;
                 next.lowestHashThisWindow = null;
                 next.winnersThisWindow = [];
+                // A badge that lands in the minute before the cron must start a
+                // new contributor window, or the next LIVE post counts the last one.
+                next.lastReset = stamp(adminSdk, nowMs);
             }
             if (plan.expired) {
                 t.set(db.collection('satoshiFavor').doc('lastWindow'), {
