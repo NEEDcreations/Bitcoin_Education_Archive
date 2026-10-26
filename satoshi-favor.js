@@ -175,6 +175,7 @@
             if (snap.empty) return;
             var data = snap.docs[0].data();
             if (!data.sfBoostActive) return;
+            if (!sfUiAllows('favorBanner')) return;
             var today = new Date().toISOString().split('T')[0];
             if (data.startDate && data.endDate && today >= data.startDate && today <= data.endDate) {
                 window._sfBoostActive = true;
@@ -330,6 +331,11 @@
         updateQuestHubTab();
     }
 
+    function sfUiAllows(id) {
+        if (typeof window.bqModeAllows !== 'function') return true;
+        return window.bqModeAllows(id);
+    }
+
     function renderHomeBanner() {
         var strip = document.getElementById('todayFavorStrip');
         if (strip && typeof window._paintTodayFavor === 'function') {
@@ -351,6 +357,10 @@
         if (!homeInner) return;
 
         let banner = document.getElementById('satoshiFavorHomeBanner');
+        if (!sfUiAllows('favorBanner')) {
+            if (banner) banner.remove();
+            return;
+        }
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'satoshiFavorHomeBanner';
@@ -366,6 +376,10 @@
     function renderChatBanner() {
         const existing = document.getElementById('satoshiFavorChatBanner');
         if (!existing) return;
+        if (!sfUiAllows('favorBanner')) {
+            existing.innerHTML = '';
+            return;
+        }
         try {
             existing.innerHTML = buildBannerHTML('chat');
             if (favorState.favorActive) startCountdown('chatCountdown');
@@ -581,6 +595,7 @@
 
     // ─── Feature 6: Hash booster UI ───
     function _buildBoosterBannerHTML() {
+        if (!sfUiAllows('favorBanner')) return '';
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
         var boosterHashes = u.hashBoosterHashes || 0;
         if (boosterHashes <= 0) return '';
@@ -824,6 +839,7 @@
     }
 
     function _showNearMissToast(msg) {
+        if (!sfUiAllows('favorOverlay')) return;
         var el = document.getElementById('sfNearMissToast');
         if (!el) return;
         el.textContent = msg;
@@ -865,6 +881,7 @@
 
     // ─── Feature 7A: Winner overlay ───
     function _showWinnerCelebration(value) {
+        if (!sfUiAllows('favorOverlay')) return;
         // Remove existing if any
         var existing = document.getElementById('sfWinnerOverlay');
         if (existing) existing.remove();
@@ -1456,6 +1473,13 @@
     var _sfFloatTCTVNudgeDone = false;
 
     function _sfUpdateFloat() {
+        if (!sfUiAllows('favorFloat')) {
+            var blocked = document.getElementById('sfFloatWidget');
+            if (blocked && blocked.parentNode) blocked.parentNode.removeChild(blocked);
+            if (_sfFloatCooldownTimer) { clearInterval(_sfFloatCooldownTimer); _sfFloatCooldownTimer = null; }
+            _sfFloatShown = false;
+            return;
+        }
         var isActive = !!(favorState && favorState.favorActive && isFavorEffectivelyActive());
         var isLoggedIn = !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
 

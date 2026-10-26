@@ -500,6 +500,28 @@ test('show/open/enter navigation openers are in the registry', function () {
     assert.strictEqual(missing.length, 0, 'openers missing from registry: ' + missing.join(', '));
 });
 
+test('every surface declares modes', function () {
+    assert.ok(Array.isArray(reg.BQ_MODES) && reg.BQ_MODES.indexOf('lite') !== -1);
+    assert.ok(Array.isArray(reg.BQ_SURFACES) && reg.BQ_SURFACES.length > 10);
+    reg.BQ_SURFACES.forEach(function (row) {
+        assert.ok(row && row.id, 'surface missing id');
+        assert.ok(Array.isArray(row.modes) && row.modes.length, (row && row.id) + ' missing modes');
+        assert.ok(row.selector || row.render || row.reach, (row && row.id) + ' missing reach');
+    });
+    assert.strictEqual(reg.bqModeAllows('tv', 'lite'), true);
+    assert.strictEqual(reg.bqModeAllows('dailyQuests', 'lite'), true);
+    assert.strictEqual(reg.bqModeAllows('spinBanner', 'intermediate'), false);
+    assert.strictEqual(reg.bqModeAllows('spin', 'intermediate'), true);
+    assert.strictEqual(reg.bqModeAllows('pvpLobby', 'beginner'), false);
+    assert.strictEqual(reg.bqModeAllows('wallet', 'lite'), true);
+    const liteGuide = reg.bqGuideCards('lite');
+    const liteTitles = liteGuide.start.concat(liteGuide.daily, liteGuide.apps, liteGuide.more).map(function (g) { return g.title; });
+    assert.ok(liteTitles.indexOf('Timechain TV') !== -1);
+    assert.ok(liteTitles.indexOf('Scholar Certification') !== -1);
+    assert.ok(liteTitles.indexOf('Proof of Walk') === -1);
+    assert.ok(liteTitles.indexOf('Set Up Your Wallet') !== -1);
+});
+
 test('changed files parse', function () {
     ['features.registry.js', 'quests.js', 'nacho-qa.js', 'app.js', 'global-chat.js', 'sw.js', 'workers/nacho-search/worker.js'].forEach(function (file) {
         execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });

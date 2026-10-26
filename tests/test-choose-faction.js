@@ -377,7 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf('Latest: Phone and desktop Learn now follow Brand new to Bitcoin, Quests (lessons, trails, daily quests, Bitcoin Scholar, and Bitcoin Protocol Expert), First Bitcoin purchase, Meetup builder, and Spend Bitcoin, and Explore Apps on both uses that same list, including AI Tools, Metrics, Leaderboard, and Wallet.') > 0);
+    assert.ok(notes.indexOf('Latest: Lite is a new Experience Mode. The choices are Lite, Guided, Balanced, and Everything, with a one-time home card and a mode chip beside the daily XP meter.') > 0);
     assert.ok(notes.indexOf('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.') > 0);
     assert.ok(notes.indexOf('Latest: Sidebar') === -1);
     assert.ok(notes.indexOf('Latest: The phone Learn') === -1);

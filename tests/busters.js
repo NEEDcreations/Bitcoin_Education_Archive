@@ -1,15 +1,14 @@
-// Cache-buster pin. This ship branch is btc-archive-v2402.
+// Cache-buster pin. This ship branch is btc-archive-v2405.
 // Live gh-pages was v2375. timechain-tv.js stays 20261024_v2353.
-// bundle.min.js and features.registry.js are 20261026_v2402.
-// onboarding.js and ranking.js stay 20261026_v2373.
+// bundle.min.js, features.registry.js, onboarding.js, ranking.js,
+// notifications.js, nacho-qa.js, and guide.js are 20261026_v2405.
 // global-chat.js and quests.js stay 20261026_v2372.
 // satoshi-favor.js stays 20261026_v2368.
 // today-card.js stays 20261026_v2371.
-// patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
+// patches.js stays 20261024_v2360.
 // gifting.js is 20261024_v2365.
-// notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
-// beats.js and guide.js stay 20261023_v2349.
+// beats.js stays 20261023_v2349.
 // scholar.js stays 20261023_v2330. tctv-watch.js stays 20261023_v2340.
 // learning-quests.js and modules.js stay 20261023_v2324.
 // lightning.js stays 20261023_v2323.
@@ -31,9 +30,9 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2402', () => {
+test('service worker cache is v2405', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2402'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2405'"));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2377'));
@@ -75,8 +74,8 @@ test('service worker cache is v2402', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2402/g) || []).length, 2);
-    assert.ok(html.includes('bundle.min.js?v=20261026_v2402'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2405/g) || []).length, 2);
+    assert.ok(html.includes('bundle.min.js?v=20261026_v2405'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2373'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
@@ -114,7 +113,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2268'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2265'));
-    assert.ok(html.includes('notifications.js?v=20261024_v2357'));
+    assert.ok(html.includes('notifications.js?v=20261026_v2405'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2355'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2354'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2352'));
@@ -122,10 +121,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261026_v2373'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2405'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2373'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2405'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -150,8 +149,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2372'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2372/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261026_v2405'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2405/g) || []).length, 5);
     assert.ok(!html.includes('global-chat.js?v=20261026_v2374'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));
@@ -176,7 +175,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
-    assert.ok(html.includes('features.registry.js?v=20261026_v2402'));
+    assert.ok(html.includes('features.registry.js?v=20261026_v2405'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2368'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2359'));
@@ -191,7 +190,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
     assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261023_v2349'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
-    assert.ok(html.includes('nacho-qa.js?v=20261024_v2350'));
+    assert.ok(html.includes('nacho-qa.js?v=20261026_v2405'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2349'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2348'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2346'));
@@ -203,7 +202,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261022_v2322'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
-    assert.ok(html.includes('onboarding.js?v=20261026_v2373'));
+    assert.ok(html.includes('onboarding.js?v=20261026_v2405'));
     assert.ok(!html.includes('onboarding.js?v=20261024_v2358'));
     assert.ok(html.includes('gifting.js?v=20261024_v2365'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
@@ -224,7 +223,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('tctv-watch.js?v=20261023_v2340'));
     assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
     assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
-    assert.ok(html.includes('today-card.js?v=20261026_v2371'));
+    assert.ok(html.includes('today-card.js?v=20261026_v2405'));
     assert.ok(!html.includes('today-card.js?v=20261026_v2375'));
     assert.ok(!html.includes('today-card.js?v=20261026_v2365'));
     assert.ok(!html.includes('today-card.js?v=20261024_v2368'));
@@ -236,7 +235,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('aria-label="Sign in to see today\'s XP. Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap"'));
     assert.ok(!html.includes('today-card.js?v=20261023_v2330'));
     assert.ok(!html.includes('today-card.js?v=20261023_v2323'));
-    assert.ok(html.includes('satoshi-favor.js?v=20261026_v2368'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261026_v2405'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2352'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2351'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2323'));
@@ -261,7 +260,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
-    assert.ok(html.includes('guide.js?v=20261023_v2349'));
+    assert.ok(html.includes('guide.js?v=20261026_v2405'));
     assert.ok(!html.includes('guide.js?v=20261023_v2339'));
     assert.ok(html.includes('patches.js?v=20261024_v2360'));
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
@@ -269,7 +268,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2402');
+    assert.ok(swVersion && swVersion[1] === 'v2405');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -309,7 +308,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Phone and desktop Learn now follow Brand new to Bitcoin, Quests (lessons, trails, daily quests, Bitcoin Scholar, and Bitcoin Protocol Expert), First Bitcoin purchase, Meetup builder, and Spend Bitcoin, and Explore Apps on both uses that same list, including AI Tools, Metrics, Leaderboard, and Wallet.'));
+    assert.ok(notes.includes('Latest: Lite is a new Experience Mode. The choices are Lite, Guided, Balanced, and Everything, with a one-time home card and a mode chip beside the daily XP meter.'));
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar'));
     assert.ok(!notes.includes('Latest: The phone Learn'));

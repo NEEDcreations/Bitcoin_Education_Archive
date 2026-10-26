@@ -5134,12 +5134,20 @@ window._changeExperienceMode = function(mode) {
     }
     window.setExperienceMode(mode);
     if (typeof showToast === 'function') {
-        var labels = {beginner:'🌱 Guided Intro activated', intermediate:'📘 Quieter Experience activated', advanced:'🔥 Maximalist Mode activated'};
-        showToast(labels[mode] || 'Mode updated', 3000);
+        var meta = (typeof window.bqExperienceModeMeta === 'function') ? window.bqExperienceModeMeta(mode) : null;
+        var labels = {lite:'📖 Lite activated', beginner:'🌱 Guided activated', intermediate:'📘 Balanced activated', advanced:'🔥 Everything activated'};
+        showToast((meta && meta.toast) || labels[mode] || 'Mode updated', 3000);
     }
-    // Re-render settings to show new selection
+    // Stay on Prefs so the current check moves with the choice.
     setTimeout(function() {
-        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
+        setTimeout(function() {
+            var card = document.getElementById('experienceModeCard');
+            if (!card) return;
+            if (card.scrollIntoView) card.scrollIntoView({ block: 'center' });
+            var picked = card.querySelector('[data-mode="' + mode + '"]');
+            if (picked && picked.focus) picked.focus();
+        }, 40);
     }, 300);
     // Apply visibility changes immediately on home
     setTimeout(function() {
@@ -6527,7 +6535,7 @@ function showSettingsPage(tab) {
 
         _advHtml += _acctDetailsHtml;
         // Display Badge chooser (collapsible)
-        if (!isAnon) {
+        if (!isAnon && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
             var chosenBadge = (currentUser && currentUser.displayBadge) || '';
             var allEarned = [];
             if (typeof earnedBadges !== 'undefined') {
@@ -7429,6 +7437,13 @@ function accountDeleteRowHtml(user) {
         } // end donate sub-tab
 
     } else if (settingsTab === 'prefs') {
+        html += '<div id="experienceModeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:800;">🎛️ Experience Mode</div>' +
+            '<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px;line-height:1.5;">Choose how much you see. Open What\'s included before you pick. Your XP stays either way.</div>' +
+            '<div id="experienceModePicker"></div>' +
+            '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="width:100%;margin-top:8px;padding:12px;min-height:44px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--heading);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;">Replay welcome tour</button>' +
+            '</div>';
+
         // Appearance (Theme + Font Size combined)
         const isDark = document.body.getAttribute('data-theme') !== 'light';
         const isOLED = localStorage.getItem('btc_theme_oled') === 'true';
@@ -7765,27 +7780,6 @@ function accountDeleteRowHtml(user) {
                 if (container) container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load blocked list.</div>';
             });
         }, 100);
-
-        // Experience Mode Selector
-        var _expMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
-        var _expModes = [
-            {v:'beginner', e:'🌱', l:'Guided Intro', d:'Nacho Mode + Timechain TV. Core learning tools only. Clean and focused.'},
-            {v:'intermediate', e:'📘', l:'Quieter Experience', d:'All apps + all learning tools. Noisy widgets hidden.'},
-            {v:'advanced', e:'🔥', l:'Maximalist Mode', d:'Every feature, widget, and tool. Nothing hidden.'}
-        ];
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:20px;">' +
-            '<div style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:800;">🎛️ Experience Mode</div>' +
-            '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:12px;line-height:1.5;">Control how much of the app you see. You can change this anytime — your XP and badges are always saved regardless of mode.</div>';
-        _expModes.forEach(function(m) {
-            var sel = _expMode === m.v;
-            html += '<button onclick="window._changeExperienceMode(\''+m.v+'\')" style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;width:100%;text-align:left;background:'+(sel?'rgba(249,115,22,0.1)':'rgba(255,255,255,0.03)')+';border:2px solid '+(sel?'var(--accent)':'var(--border)')+';border-radius:10px;cursor:pointer;font-family:inherit;color:var(--text);margin-bottom:8px;transition:0.2s;">' +
-                '<span style="font-size:1.2rem;flex-shrink:0;margin-top:1px;">'+m.e+'</span>' +
-                '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.88rem;color:'+(sel?'var(--accent)':'var(--heading)')+';">'+m.l+(sel?' <span style="font-size:0.68rem;opacity:0.7;">(current)</span>':'')+'</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:3px;line-height:1.4;">'+m.d+'</div></div>' +
-                (sel?'<span style="color:var(--accent);font-size:1rem;flex-shrink:0;margin-top:2px;">✓</span>':'') +
-            '</button>';
-        });
-        html += '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="width:100%;margin-top:8px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--heading);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Replay welcome tour</button>';
-        html += '</div>';
 
         // Delete Account - Danger Zone
         if (!user.isAnonymous) {
@@ -8143,6 +8137,14 @@ function accountDeleteRowHtml(user) {
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
+    if (settingsTab === 'prefs') {
+        var modePicker = document.getElementById('experienceModePicker');
+        if (modePicker && typeof window.bqFillModePicker === 'function') {
+            window.bqFillModePicker(modePicker, {
+                onPick: function (id) { if (typeof window._changeExperienceMode === 'function') window._changeExperienceMode(id); }
+            });
+        }
+    }
     if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
     if (settingsTab === 'account') mountAccountGoogleLinkButton();
     var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';
@@ -9022,7 +9024,7 @@ window.minimizeSignUpBanner = function() {
 };
 
 function clearUserLocalStorage(opts) {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country', 'btc_mode_card_dismissed',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
         // a cold-start race where checkBadges() fires before Firestore restores
         // visibleBadges, causing duplicate toast/celebration modals.

@@ -335,17 +335,40 @@
         mark(document.getElementById('todayPollBtn'), p);
         mark(document.getElementById('nqSpinBtn'), spinDone());
         mark(document.getElementById('tctvWatchBtn'), watchDone());
-        var predictLabel = document.getElementById('predAccuracyLabel');
-        mark(predictLabel && predictLabel.closest ? predictLabel.closest('button') : null, predictDone());
+        var predictBtn = document.getElementById('todayPredictBtn');
+        if (!predictBtn) {
+            var predictLabel = document.getElementById('predAccuracyLabel');
+            predictBtn = predictLabel && predictLabel.closest ? predictLabel.closest('button') : null;
+        }
+        mark(predictBtn, predictDone());
         mark(document.getElementById('sayHiBtn'), sayHiDone());
         var sayHiLabel = document.getElementById('sayHiBtnLabel');
         var sayHiSub = document.getElementById('sayHiBtnSub');
         if (sayHiLabel) sayHiLabel.textContent = 'Say hi!';
         if (sayHiSub) sayHiSub.textContent = 'to the community';
         var flex = paintFlex();
-        var done = (tri === 3 ? 1 : 0) + (spinDone() ? 1 : 0) + (watchDone() ? 1 : 0) + (predictDone() ? 1 : 0) + (sayHiDone() ? 1 : 0) + (flex ? 1 : 0);
+        var tiles = [
+            { id: 'trifecta', el: document.getElementById('todayTrifectaBtn'), done: tri === 3 },
+            { id: 'spin', el: document.getElementById('nqSpinBtn'), done: !!spinDone() },
+            { id: 'tctvWatch', el: document.getElementById('tctvWatchBtn'), done: !!watchDone() },
+            { id: 'pricePrediction', el: predictBtn, done: !!predictDone() },
+            { id: 'sayHi', el: document.getElementById('sayHiBtn'), done: !!sayHiDone() },
+            { id: 'flex', el: document.getElementById('todayFlexBtn'), done: !!flex }
+        ];
+        var visibleTiles = tiles.filter(function (tile) {
+            if (!tile.el) return false;
+            if (tile.el.getAttribute('data-em-hidden') || tile.el.getAttribute('data-simplified-hidden')) return false;
+            if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows(tile.id)) return false;
+            try {
+                var cs = window.getComputedStyle(tile.el);
+                if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+            } catch (eVis) {}
+            return true;
+        });
+        var done = 0;
+        visibleTiles.forEach(function (tile) { if (tile.done) done++; });
         var counter = document.getElementById('todayDoneCount');
-        if (counter) counter.textContent = done + '/6 done today';
+        if (counter) counter.textContent = done + '/' + visibleTiles.length + ' done today';
 
         var live = raidLive();
         var raidCadence = document.getElementById('todayCadenceRaid');

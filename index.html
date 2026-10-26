@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2402" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2405" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -1684,7 +1684,7 @@
                             <button type="button" id="todayTrifectaBtn" class="today-tile" aria-expanded="false" aria-controls="todayTrifectaChooser" aria-label="Daily Trifecta, 0 of 3 done. Opens Quiz, Trivia, and Poll." onclick="if(window.toggleTodayTrifecta)window.toggleTodayTrifecta()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span class="today-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="today-ring-track" cx="18" cy="18" r="15"></circle><circle class="today-ring-val" cx="18" cy="18" r="15" stroke-dasharray="0 94.248"></circle></svg><span class="today-ring-icon">🎯</span></span><span>Daily Trifecta</span><span id="todayTrifectaCount">0/3</span></button>
                             <button id="nqSpinBtn" class="today-tile" type="button" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
                             <button id="tctvWatchBtn" class="today-tile" type="button" onclick="if(typeof startTctvDailyWatch==='function')startTctvDailyWatch()" aria-label="Watch 10 minutes of Timechain TV" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="tctvWatchEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">📺</span><span id="tctvWatchLabel">Watch TV</span><span id="tctvWatchSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/10 min</span></button>
-                            <button class="today-tile" type="button" onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
+                            <button id="todayPredictBtn" class="today-tile" type="button" onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                             <button id="sayHiBtn" class="today-tile" type="button" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi!" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi!</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
                             <button id="todayFlexBtn" class="today-tile" type="button" onclick="if(window.openTodayQuest)window.openTodayQuest('flex')" aria-label="Flex, 0 of 5" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🏆</span><span id="todayFlexLabel">Flex</span><span id="todayFlexSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/5</span></button>
                         </div>
@@ -1704,7 +1704,7 @@
                                 <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('charity')"><span aria-hidden="true">❤️</span><span class="today-more-name">Charity</span><span class="today-more-cadence" id="todayCadenceCharity">Ongoing</span><span id="todayDotCharity" class="today-dot" hidden></span></button>
                                 <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('community')"><span aria-hidden="true">🤝</span><span class="today-more-name">Community</span><span class="today-more-cadence" id="todayCadenceCommunity">Weekly</span><span id="todayDotCommunity" class="today-dot" hidden></span></button>
                                 <button type="button" id="todayNookBtn" class="today-more-item" aria-label="Nook / Inventory" onclick="if(window.openTodayQuest)window.openTodayQuest('nook')"><span aria-hidden="true">🦌</span><span class="today-more-name">Nook/Inventory</span><span class="today-more-cadence" id="todayCadenceNook">Ongoing</span><span id="todayDotNook" class="today-dot" hidden></span></button>
-                                <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('story')"><span aria-hidden="true">📖</span><span class="today-more-name">Nacho's Story</span><span class="today-more-cadence" id="todayCadenceStory">Ongoing</span><span id="todayDotStory" class="today-dot" hidden></span></button>
+                                <button type="button" id="todayStoryBtn" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('story')"><span aria-hidden="true">📖</span><span class="today-more-name">Nacho's Story</span><span class="today-more-cadence" id="todayCadenceStory">Ongoing</span><span id="todayDotStory" class="today-dot" hidden></span></button>
                             </div>
                         </div>
                     </div>
@@ -2093,16 +2093,16 @@
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
-    <script src="ranking.js?v=20261026_v2373" defer></script>
+    <script src="ranking.js?v=20261026_v2405" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2402" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261026_v2402" defer></script>
+    <script src="bundle.min.js?v=20261026_v2405" defer fetchpriority="high"></script>
+    <script src="features.registry.js?v=20261026_v2405" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
-    <script src="today-card.js?v=20261026_v2371" defer></script>
-    <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
+    <script src="today-card.js?v=20261026_v2405" defer></script>
+    <script src="pvp-lobby-alert.js?v=20261026_v2405" defer></script>
     <script src="patches.js?v=20261024_v2360" defer></script>
-    <script src="onboarding.js?v=20261026_v2373" defer></script>
+    <script src="onboarding.js?v=20261026_v2405" defer></script>
     <script src="learning-quests.js?v=20261023_v2324" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2113,16 +2113,16 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261026_v2372',
-            'satoshi-favor.js?v=20261026_v2368'
+            'global-chat.js?v=20261026_v2405',
+            'satoshi-favor.js?v=20261026_v2405'
         ];
         var _lazyScripts = [
             'quests.js?v=20261026_v2372',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
+            'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261026_v2405',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261024_v2357','gifting.js?v=20261024_v2365','guide.js?v=20261023_v2349','modules.js?v=20261023_v2324',
+            'notifications.js?v=20261026_v2405','gifting.js?v=20261024_v2365','guide.js?v=20261026_v2405','modules.js?v=20261023_v2324',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
@@ -2180,10 +2180,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2372'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2372'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2372'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2372'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2405'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2405'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2405'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2405'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],

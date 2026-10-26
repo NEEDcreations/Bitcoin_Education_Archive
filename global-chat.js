@@ -329,6 +329,29 @@ function timeAgo(ts) {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function bqChatFeature(id) {
+    if (typeof window.bqModeAllows !== 'function') return true;
+    return window.bqModeAllows(id);
+}
+function bqIsServerShoutout(m) {
+    if (!m || bqChatFeature('chatShoutouts')) return false;
+    if (m.topicChannel || m.topicPost) return false;
+    var uid = m.uid || m.authorUid || '';
+    if (uid !== 'nacho-bot') return false;
+    if (m.activityRef || m.activityKind || m.cycleId) return true;
+    var docId = String(m._id || m.id || '');
+    if (/^(shoutout_|sf_live_|pvp_lobby|lobby_)/.test(docId)) return true;
+    var text = String(m.text || '');
+    if (/BLOCK FOUND|EPOCH #|Satoshi's Favor is LIVE|looking for a PvP|PvP match|PvP opponent|level up|leveled up/i.test(text)) return true;
+    if (m.mentionUid && m.isNachoAuto === false) return true;
+    return false;
+}
+function bqSkipAnnouncement(m) {
+    if (!m) return false;
+    if (m.postedByUid === 'badge-gg' && !bqChatFeature('ggPosts')) return true;
+    return bqIsServerShoutout(m);
+}
+
 // ---- Render Chat Hub (tabbed: Global Chat | DMs) ----
 window.renderChatHub = function(initialTab) {
     _chatTab = initialTab || 'global';
@@ -349,7 +372,11 @@ window.renderChatHub = function(initialTab) {
     var _tB = function(t) { return t === _chatTab ? 'var(--accent)' : 'transparent'; };
     html += '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg-side);">';
     html += '<button id="chatTabGlobal" onclick="switchChatTab(\'global\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('global') + ';color:' + _tA('global') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Global</button>';
-    html += '<button id="chatTabAnnouncements" onclick="switchChatTab(\'announcements\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('announcements') + ';color:' + _tA('announcements') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎉 GGs</button>';
+    if (bqChatFeature('ggPosts')) {
+        html += '<button id="chatTabAnnouncements" onclick="switchChatTab(\'announcements\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('announcements') + ';color:' + _tA('announcements') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎉 GGs</button>';
+    } else if (_chatTab === 'announcements') {
+        _chatTab = 'global';
+    }
     html += '<button id="chatTabDMs" onclick="switchChatTab(\'dms\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('dms') + ';color:' + _tA('dms') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✉️ DMs</button>';
     html += '<button onclick="showChatRules()" style="padding:12px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">📋 Rules</button>';
     html += '</div>';
@@ -590,6 +617,7 @@ function renderChatMessages(msgs) {
             lastDate = dateStr;
         }
 
+        if (bqSkipAnnouncement(m)) continue;
         var isNacho = m.uid === 'nacho-bot' || m.isNachoAuto === true;
         var _factionStyle = !isNacho && m.faction ? window._factionNameStyle(m.faction) : '';
         var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : '#6366f1';
@@ -1815,6 +1843,7 @@ function renderOverlayChat() {
     if (!body) return;
 
     _overlayTab = _overlayTab || 'global';
+    if (_overlayTab === 'announcements' && !bqChatFeature('ggPosts')) _overlayTab = 'global';
 
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
     var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
@@ -1824,7 +1853,7 @@ function renderOverlayChat() {
     var _oB = function(t) { return t === _overlayTab ? 'var(--accent)' : 'transparent'; };
     var tabHtml = '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;">' +
         '<button onclick="window._switchOverlayTab(\'global\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('global') + ';color:' + _oA('global') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">🌍 Global</button>' +
-        '<button onclick="window._switchOverlayTab(\'announcements\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('announcements') + ';color:' + _oA('announcements') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">🎉 GGs</button>' +
+        (bqChatFeature('ggPosts') ? '<button id="chatOverlayGgs" onclick="window._switchOverlayTab(\'announcements\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('announcements') + ';color:' + _oA('announcements') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">🎉 GGs</button>' : '') +
         '<button onclick="window._switchOverlayTab(\'dms\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('dms') + ';color:' + _oA('dms') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
         '<button onclick="if(typeof showChatRules===\'function\')showChatRules()" style="padding:10px 7px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Rules</button>' +
     '</div>';
@@ -3915,6 +3944,7 @@ function _buildAnnReactBar(docId, reactions, myUid, esc) {
 // context: 'panel' = full chat hub, 'overlay' = floating overlay
 function _renderAnnouncementItem(doc, context) {
     var m = doc.data ? doc.data() : doc;
+    if (bqSkipAnnouncement(m)) return '';
     var docId = doc.id || '';
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
     var timeStr = '';

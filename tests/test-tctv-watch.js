@@ -391,7 +391,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261026_v2402'));
+    assert.ok(html.includes('features.registry.js?v=20261026_v2405'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2368'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
@@ -417,7 +417,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2402'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2405'"));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2377'));
@@ -797,7 +797,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Phone and desktop Learn now follow Brand new to Bitcoin, Quests (lessons, trails, daily quests, Bitcoin Scholar, and Bitcoin Protocol Expert), First Bitcoin purchase, Meetup builder, and Spend Bitcoin, and Explore Apps on both uses that same list, including AI Tools, Metrics, Leaderboard, and Wallet.';
+    const latest = 'Latest: Lite is a new Experience Mode. The choices are Lite, Guided, Balanced, and Everything, with a one-time home card and a mode chip beside the daily XP meter.';
     const previousLatest = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
     const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
     assert.ok(notes.includes(gifts));

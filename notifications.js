@@ -355,6 +355,14 @@ function notifCardHtml(docId, n, variant) {
         extra = '<div class="notif-status" style="margin-top:6px;font-size:0.72rem;font-weight:800;color:var(--text-muted);">Completed</div>';
     }
     var message = n.message || '';
+    var notifMode = 'advanced';
+    try { notifMode = localStorage.getItem('btc_experience_mode') || 'advanced'; } catch (eLite) {}
+    if (notifMode !== 'lite' && notifMode !== 'beginner' && notifMode !== 'intermediate' && notifMode !== 'advanced') notifMode = 'advanced';
+    if (notifMode === 'lite' || notifMode === 'beginner') {
+        var notifType = String(n.type || '');
+        var rewardOrReply = notifType === 'reward' || notifType === 'reply' || notifType === 'sats' || notifType.indexOf('reply') !== -1;
+        if (!rewardOrReply) return '';
+    }
     if ((target.type === 'beats_track' || n.targetType === 'beats_track') && typeof beatsCensor === 'function') {
         message = beatsCensor(message);
     }
@@ -1034,11 +1042,18 @@ function _renderPointsTab() {
     for (var i = log.length - 1; i >= 0; i--) {
         var e = log[i];
         var ts = e.ts ? formatNotifTime(new Date(e.ts)) : '';
+        var reason = e.reason || '';
+        var xpMode = 'advanced';
+        try { xpMode = localStorage.getItem('btc_experience_mode') || 'advanced'; } catch (eLiteXp) {}
+        if (xpMode === 'lite' && /badge/i.test(reason)) {
+            reason = String(reason).replace(/^badge:\s*/i, '').replace(/[\u2600-\u27BF\uD800-\uDBFF][\uDC00-\uDFFF]?/g, '').trim() || 'learning';
+        }
+        var xpLine = '+' + e.pts + ' XP · ' + reason;
         html += '<div style="padding:10px 16px;border-bottom:1px solid var(--border);">' +
             '<div style="display:flex;gap:10px;align-items:flex-start;">' +
                 '<span style="font-size:1.2rem;flex-shrink:0;">⭐</span>' +
                 '<div style="flex:1;min-width:0;">' +
-                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">+' + e.pts + ' XP — ' + (typeof escapeHtml === 'function' ? escapeHtml(e.reason) : e.reason) + '</div>' +
+                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">' + (typeof escapeHtml === 'function' ? escapeHtml(xpLine) : xpLine) + '</div>' +
                     '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + ts + '</div>' +
                 '</div>' +
             '</div>' +

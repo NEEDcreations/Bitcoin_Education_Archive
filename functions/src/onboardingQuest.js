@@ -3,8 +3,10 @@
 // Pure onboarding-quest and guest-link decisions. The callable gathers evidence
 // with the Admin SDK and passes it here. Client flags never grant a reward.
 
+const BEGINNER_STEPS = ['pick_topic', 'find_nacho', 'first_quiz'];
 const MODES = {
-    beginner: ['pick_topic', 'find_nacho', 'first_quiz'],
+    lite: BEGINNER_STEPS,
+    beginner: BEGINNER_STEPS,
     intermediate: ['pick_topic', 'find_nacho', 'send_chat', 'first_quiz'],
     advanced: ['pick_topic', 'send_chat', 'spin_wheel', 'find_nacho', 'first_quiz'],
 };
@@ -26,7 +28,7 @@ const GUEST_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const { planDailyXp } = require('./dailyXp');
 
 function normalizeMode(mode) {
-    if (mode === 'beginner' || mode === 'intermediate' || mode === 'advanced') return mode;
+    if (mode === 'lite' || mode === 'beginner' || mode === 'intermediate' || mode === 'advanced') return mode;
     return 'advanced';
 }
 

@@ -392,7 +392,7 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Phone and desktop Learn now follow Brand new to Bitcoin, Quests (lessons, trails, daily quests, Bitcoin Scholar, and Bitcoin Protocol Expert), First Bitcoin purchase, Meetup builder, and Spend Bitcoin, and Explore Apps on both uses that same list, including AI Tools, Metrics, Leaderboard, and Wallet.'));
+    assert.ok(notes.includes('Latest: Lite is a new Experience Mode. The choices are Lite, Guided, Balanced, and Everything, with a one-time home card and a mode chip beside the daily XP meter.'));
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar'));
     assert.ok(!notes.includes('Latest: The phone Learn'));

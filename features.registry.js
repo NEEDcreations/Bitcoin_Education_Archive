@@ -1682,6 +1682,7 @@
 
     // Shared Learn + Explore Apps catalogs. Mobile sheets render these.
     // Desktop home menus stay markup; tests check the Explore list cannot drift.
+    var LEARN_ALL = ['lite', 'beginner', 'intermediate', 'advanced'];
     var LEARN_MODES = ['beginner', 'intermediate', 'advanced'];
     var LEARN_LATER = ['intermediate', 'advanced'];
     var BQ_LEARN_MENU = {
@@ -1689,15 +1690,15 @@
             { id: 'brand-new', emoji: '🟢', title: 'Brand new to Bitcoin', hint: 'Start here',
                 desc: 'A zero-jargon intro if you have never owned BTC.',
                 color: '#3b82f6', bg: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08))',
-                modes: LEARN_MODES, kind: 'go', arg: 'one-stop-shop', browse: true },
+                modes: LEARN_ALL, kind: 'go', arg: 'one-stop-shop', browse: true },
             { id: 'quests', emoji: '🗺️', title: 'Quests',
                 desc: 'Lessons, trails, daily quests, and both certifications.',
                 color: '#10b981', bg: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06))',
-                modes: LEARN_MODES, kind: 'quests' },
+                modes: LEARN_ALL, kind: 'quests' },
             { id: 'first-purchase', emoji: '🛒', title: 'First Bitcoin purchase',
                 desc: 'A step-by-step guide to buying BTC from a trusted exchange.',
                 color: '#22c55e', bg: 'linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06))',
-                modes: LEARN_MODES, kind: 'go', arg: 'first-purchase' },
+                modes: LEARN_ALL, kind: 'go', arg: 'first-purchase' },
             { id: 'meetup', emoji: '🔨', title: 'Meetup builder',
                 desc: 'Create or find a local Bitcoin meetup.',
                 color: '#eab308', bg: 'linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06))',
@@ -1711,41 +1712,419 @@
             { id: 'learning-quests', emoji: '📖', title: 'Learning Quests', hint: '8 topics',
                 desc: 'Slideshow lessons with key stats, graphics, and a quiz.',
                 color: '#10b981', bg: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06))',
-                modes: LEARN_MODES, kind: 'go', arg: 'learning-quests' },
+                modes: LEARN_ALL, kind: 'go', arg: 'learning-quests' },
             { id: 'trails', emoji: '🦌', title: "Nacho's Trails",
                 desc: 'Guided learning paths — Meadow, Mountain, and Summit.',
                 color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05))',
-                modes: LEARN_MODES, kind: 'go', arg: 'trails' },
+                modes: LEARN_ALL, kind: 'go', arg: 'trails' },
             { id: 'daily-quests', emoji: '🎯', title: 'Daily Quests',
                 desc: 'Daily quizzes, trivia, and polls.',
                 color: '#a78bfa', bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))',
-                modes: LEARN_LATER, kind: 'hub' },
+                modes: LEARN_ALL, kind: 'hub' },
             { id: 'scholar', emoji: '🎓', title: 'Bitcoin Scholar',
                 desc: 'Certification on Bitcoin properties and economics.',
                 color: '#f7931a', bg: 'linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.04))',
-                modes: LEARN_MODES, kind: 'cert', arg: 'properties' },
+                modes: LEARN_ALL, kind: 'cert', arg: 'properties' },
             { id: 'protocol', emoji: '🛠️', title: 'Bitcoin Protocol Expert',
                 desc: 'Certification on Bitcoin technical mechanics.',
                 color: '#3b82f6', bg: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(59,130,246,0.05))',
-                modes: LEARN_MODES, kind: 'cert', arg: 'technical' }
+                modes: LEARN_ALL, kind: 'cert', arg: 'technical' }
         ]
     };
     var BQ_EXPLORE_APPS = [
-        { id: 'nacho', emoji: '🦌', title: 'Nacho Mode', desc: 'AI Bitcoin tutor — ask anything, take quizzes, learn by chatting', modes: LEARN_MODES, kind: 'fn', arg: 'enterNachoMode' },
+        { id: 'nacho', emoji: '🦌', title: 'Nacho Mode', desc: 'AI Bitcoin tutor — ask anything, take quizzes, learn by chatting', modes: LEARN_ALL, kind: 'fn', arg: 'enterNachoMode' },
         { id: 'pop', emoji: '🕹️', title: 'Proof of Play', desc: 'Bitcoin gaming hub — Arcade, trivia & PVP battles', modes: LEARN_LATER, kind: 'pop' },
         { id: 'forum', emoji: '🗣️', title: 'Pleb Talk', desc: 'Community forum — discuss Bitcoin topics with fellow stackers', modes: LEARN_LATER, kind: 'go', arg: 'forum' },
         { id: 'market', emoji: '⚡', title: 'Lightning Mart', desc: 'Peer-to-peer marketplace — buy & sell goods for sats', modes: LEARN_LATER, kind: 'go', arg: 'marketplace' },
         { id: 'irl', emoji: '🤝', title: 'IRL Sync', desc: 'Find or host local Bitcoin meetups near you', modes: LEARN_LATER, kind: 'go', arg: 'irl-sync' },
         { id: 'beats', emoji: '🎵', title: 'Bitcoin Beats', desc: 'Community music player — Bitcoin-themed tracks & beats', modes: LEARN_LATER, kind: 'go', arg: 'bitcoin-beats' },
-        { id: 'tv', emoji: '📺', title: 'Timechain TV', desc: '21 channels of Bitcoin video — free-to-air, always on', modes: LEARN_MODES, kind: 'go', arg: 'timechain-tv' },
+        { id: 'tv', emoji: '📺', title: 'Timechain TV', desc: '21 channels of Bitcoin video — free-to-air, always on', modes: LEARN_ALL, kind: 'go', arg: 'timechain-tv' },
         { id: 'pow', emoji: '👟', title: 'Proof of Walk', desc: 'Earn XP for real-world steps — connect Strava to stack sats', modes: LEARN_LATER, kind: 'fn', arg: 'showProofOfWalk' },
         { id: 'ai', emoji: '🤖', title: 'AI Tools', desc: 'Bitcoin AI helpers and tools', modes: LEARN_MODES, kind: 'fn', arg: 'toggleAITools' },
         { id: 'metrics', emoji: '📊', title: 'Metrics', desc: 'Live Bitcoin dashboard and stats', modes: LEARN_MODES, kind: 'fn', arg: 'toggleDashboard' },
         { id: 'lb', emoji: '🏆', title: 'Leaderboard', desc: 'Top players, XP and rankings', modes: LEARN_MODES, kind: 'fn', arg: 'toggleLeaderboard' },
-        { id: 'wallet', emoji: '⚡', title: 'Wallet', desc: 'Connect a Lightning wallet to send and receive sats', modes: LEARN_MODES, kind: 'go', arg: 'wallet', wide: true }
+        { id: 'wallet', emoji: '⚡', title: 'Wallet', desc: 'Connect a Lightning wallet to send and receive sats', modes: LEARN_ALL, kind: 'go', arg: 'wallet', wide: true }
     ];
+    // Display catalog only. Earning never reads this map.
+    var BQ_EXPERIENCE_MODES = [
+        { id: 'lite', emoji: '📖', name: 'Lite', label: '📖 Lite', desc: 'Just the learning. No games, badges or leaderboards.', toast: '📖 Lite activated' },
+        { id: 'beginner', emoji: '🌱', name: 'Guided', label: '🌱 Guided', desc: 'A calm start with the essentials and a few extras.', toast: '🌱 Guided activated' },
+        { id: 'intermediate', emoji: '📘', name: 'Balanced', label: '📘 Balanced', desc: 'Most features, fewer popups.', toast: '📘 Balanced activated' },
+        { id: 'advanced', emoji: '🔥', name: 'Everything', label: '🔥 Everything', desc: 'Every app, game and event.', toast: '🔥 Everything activated' }
+    ];
+    var BQ_MODES = ['lite', 'beginner', 'intermediate', 'advanced'];
+    var MODE_BE = ['intermediate', 'advanced'];
+    var MODE_E = ['advanced'];
+    var MODE_GBE = LEARN_MODES;
+    var BQ_SURFACES = [
+        { id: 'topics', selector: '#channelList, #homeLearnBrowse', modes: LEARN_ALL, reach: 'home' },
+        { id: 'search', selector: '#searchBtn, #menuSearchBtn', modes: LEARN_ALL, reach: 'home' },
+        { id: 'learn', modes: LEARN_ALL, reach: 'menu', render: 'renderDesktopLearnMenu' },
+        { id: 'brandNew', modes: LEARN_ALL, reach: 'menu' },
+        { id: 'firstPurchase', modes: LEARN_ALL, reach: 'menu' },
+        { id: 'learningQuests', modes: LEARN_ALL, reach: 'menu' },
+        { id: 'trails', modes: LEARN_ALL, reach: 'menu', guide: { section: 'start', icon: '🗺️', iconBg: 'rgba(34,197,94,0.12)', title: "Nacho's Trails", desc: 'Guided learning paths — Meadow, Mountain, and Summit.', tagClass: 'tag-new', tagText: 'Recommended path', action: "minimizeGuide();setTimeout(function(){go('trails')},300)" } },
+        { id: 'channels', modes: LEARN_ALL, reach: 'home', guide: { section: 'start', icon: '📖', iconBg: 'rgba(247,147,26,0.12)', title: 'Read Channels', desc: 'Read curated Bitcoin content. Each channel earns XP.', tagClass: 'tag-start', tagText: 'Your main activity', action: 'goHome()' } },
+        { id: 'nacho', modes: LEARN_ALL, reach: 'menu', guide: { section: 'start', icon: '🦌', iconBg: 'rgba(234,179,8,0.12)', title: 'Ask Nacho Anything', desc: 'AI Bitcoin tutor — ask anything, get quizzed, track progress.', tagClass: 'tag-start', tagText: 'Always available', action: "minimizeGuide();setTimeout(function(){if(typeof enterNachoMode==='function')enterNachoMode()},300)" } },
+        { id: 'scholar', modes: LEARN_ALL, reach: 'menu', guide: { section: 'more', icon: '🎓', iconBg: 'rgba(168,85,247,0.12)', title: 'Scholar Certification', desc: 'Read all topics and pass the exam to earn your certification.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('scholar')}},300)" } },
+        { id: 'protocol', modes: LEARN_ALL, reach: 'menu' },
+        { id: 'dailyQuests', modes: LEARN_ALL, reach: 'menu', guide: { section: 'daily', icon: '⚔️', iconBg: 'rgba(234,179,8,0.12)', title: 'Quests', desc: 'Quiz, Trivia, and Poll quests — test your knowledge and earn XP!', tagClass: 'tag-earn', tagText: '+50 XP each', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestHub==='function')showQuestHub()},300)" } },
+        { id: 'trifecta', selector: '#todayTrifectaBtn', modes: LEARN_ALL, reach: 'tile' },
+        { id: 'quiz', modes: LEARN_ALL, reach: 'tile' },
+        { id: 'trivia', modes: LEARN_ALL, reach: 'tile' },
+        { id: 'spin', selector: '#nqSpinBtn', modes: MODE_BE, reach: 'tile', guide: { section: 'daily', icon: '🎡', iconBg: 'rgba(99,102,241,0.12)', title: 'Daily Spin', desc: 'Spin once daily for tickets, XP, or rare prizes.', tagClass: 'tag-earn', tagText: '+XP daily', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}" } },
+        { id: 'spinBanner', selector: '#dailySpinBanner', modes: MODE_E, reach: 'banner' },
+        { id: 'tctvWatch', selector: '#tctvWatchBtn', modes: LEARN_ALL, reach: 'tile' },
+        { id: 'tv', modes: LEARN_ALL, reach: 'menu', guide: { section: 'apps', icon: '📺', iconBg: 'rgba(99,102,241,0.12)', title: 'Timechain TV', desc: '21 channels of curated Bitcoin video, plus the music station.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)" } },
+        { id: 'pricePrediction', selector: '#todayPredictBtn', modes: MODE_BE, reach: 'tile', guide: { section: 'daily', icon: '📈', iconBg: 'rgba(34,197,94,0.12)', title: 'Price Predictions', desc: "Predict tomorrow's BTC price. Earn XP if right.", tagClass: 'tag-earn', tagText: '+XP if right', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}" } },
+        { id: 'sayHi', selector: '#sayHiBtn', modes: MODE_BE, reach: 'tile' },
+        { id: 'flex', selector: '#todayFlexBtn', modes: MODE_BE, reach: 'tile' },
+        { id: 'todayCounter', selector: '#todayDoneCount', modes: LEARN_ALL, reach: 'home' },
+        { id: 'moreQuests', selector: '#todayRaidLine, #todayMorePanel button:not(#todayStoryBtn)', modes: MODE_BE, reach: 'home' },
+        { id: 'moreQuestsShell', selector: '#todayFoldLine, #todayMorePanel', modes: MODE_GBE, reach: 'home' },
+        { id: 'story', selector: '#nachoStoryBtn, #todayStoryBtn', modes: MODE_GBE, reach: 'home' },
+        { id: 'xpMeter', selector: '#dailyXpMeter, #todayCard', modes: LEARN_ALL, reach: 'home' },
+        { id: 'xpToasts', modes: LEARN_ALL, reach: 'flag', render: 'showToast' },
+        { id: 'favorStrip', selector: '#todayFavorStrip', modes: MODE_GBE, reach: 'home' },
+        { id: 'favorFloat', modes: MODE_BE, reach: 'float', render: '_sfUpdateFloat' },
+        { id: 'favorBanner', modes: MODE_E, reach: 'banner', render: 'renderHomeBanner' },
+        { id: 'favorOverlay', modes: MODE_E, reach: 'banner', render: '_showWinnerCelebration' },
+        { id: 'cipherPrompts', modes: MODE_BE, reach: 'nook', render: 'showQuestHub' },
+        { id: 'ciphers', modes: MODE_BE, reach: 'nook' },
+        { id: 'keys', modes: MODE_BE, reach: 'nook' },
+        { id: 'gifting', modes: MODE_BE, reach: 'nook' },
+        { id: 'inventoryExplainer', modes: MODE_BE, reach: 'nook' },
+        { id: 'invite', selector: '#inviteCard', modes: MODE_GBE, reach: 'home' },
+        { id: 'inviteGuest', selector: '#inviteGuestPill, #todayInviteGuest, #inviteGuest', modes: MODE_BE, reach: 'home' },
+        { id: 'chat', selector: '#chatOverlayBtn', modes: MODE_GBE, reach: 'home', guide: { section: 'more', icon: '🌍', iconBg: 'rgba(236,72,153,0.12)', title: 'Global Chat', desc: 'Live chat with the community — messages, DMs, GIFs, reactions.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}" } },
+        { id: 'ggPosts', selector: '#chatTabAnnouncements', modes: MODE_BE, reach: 'chat' },
+        { id: 'chatShoutouts', modes: MODE_BE, reach: 'chat', render: 'renderChatMessages' },
+        { id: 'badges', modes: MODE_GBE, reach: 'flag', render: 'showBadgeToast' },
+        { id: 'leaderboard', modes: MODE_GBE, reach: 'menu', guide: { section: 'more', icon: '🏆', iconBg: 'rgba(168,85,247,0.12)', title: 'Leaderboard', desc: 'Compete with other learners. Rise from Normie to Whale.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleLeaderboard==='function')toggleLeaderboard()},300)" } },
+        { id: 'lbFloat', selector: '#lbFloatBtn', modes: MODE_E, reach: 'float' },
+        { id: 'raidBoss', selector: '#raidBossHomeCard', modes: MODE_E, reach: 'home' },
+        { id: 'dailyChallenge', selector: '#dailyChallengeCard', modes: MODE_BE, reach: 'home', guide: { section: 'daily', icon: '🎯', iconBg: 'rgba(139,92,246,0.12)', title: 'Daily Challenges', desc: 'Complete tasks each day for bonus XP.', tagClass: 'tag-earn', tagText: '+Bonus XP', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)" } },
+        { id: 'hotTopics', selector: '#hotTopicsSectionWrapper, #hotTopicsSection', modes: MODE_BE, reach: 'home' },
+        { id: 'quote', selector: '#quoteOfDay', modes: MODE_E, reach: 'home' },
+        { id: 'dailyChannel', selector: '#dailyChannel', modes: MODE_E, reach: 'home' },
+        { id: 'donate', selector: '#donateSection', modes: MODE_E, reach: 'home' },
+        { id: 'activityTicker', selector: '#activity-ticker', modes: MODE_E, reach: 'home' },
+        { id: 'notifications', modes: LEARN_ALL, reach: 'home', render: 'showNotifications' },
+        { id: 'pvpLobby', modes: MODE_BE, reach: 'flag', render: 'showSheet' },
+        { id: 'wallet', modes: LEARN_ALL, reach: 'menu', guide: { section: 'start', icon: '👛', iconBg: 'rgba(247,147,26,0.08)', title: 'Set Up Your Wallet', desc: 'Add a Lightning address to receive and send sats.', tagClass: 'tag-earn', tagText: 'Receive sats', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('wallet')}},300)" } },
+        { id: 'satsClaim', modes: LEARN_ALL, reach: 'menu', guide: { section: 'more', icon: '₿', iconBg: 'rgba(247,147,26,0.12)', title: 'Earn Real Bitcoin', desc: 'Redeem points for sats via Lightning. Learn, earn, stack.', tagClass: 'tag-earn', tagText: 'XP → Sats', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)" } },
+        { id: 'plebShop', modes: MODE_BE, reach: 'nook' },
+        { id: 'nachoCloset', selector: '#nachoClosetBtn', modes: MODE_BE, reach: 'home' },
+        { id: 'aiTools', modes: MODE_GBE, reach: 'menu' },
+        { id: 'metrics', modes: MODE_GBE, reach: 'menu', guide: { section: 'more', icon: '📊', iconBg: 'rgba(59,130,246,0.12)', title: 'Bitcoin Dashboard', desc: 'Live price, top indicators, mempool, and cycle signals.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleDashboard==='function')toggleDashboard()},300)" } },
+        { id: 'aiFloat', selector: '#aiToolsBtn', modes: MODE_E, reach: 'float' },
+        { id: 'metricsFloat', selector: '#dashboardFloatBtn', modes: MODE_E, reach: 'float' },
+        { id: 'proofOfPlay', modes: MODE_BE, reach: 'menu', guide: { section: 'apps', icon: '🕹️', iconBg: 'rgba(239,68,68,0.12)', title: 'Proof of Play', desc: 'Bitcoin gaming hub — Arcade, trivia, and PVP battles.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay()},300)" } },
+        { id: 'pvp', modes: MODE_BE, reach: 'menu', guide: { section: 'apps', icon: '⚔️', iconBg: 'rgba(239,68,68,0.12)', title: 'PVP Battles', desc: 'Real-time 1v1 Bitcoin trivia battles against other players.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterPVPMode==='function')enterPVPMode()},300)" } },
+        { id: 'forum', modes: MODE_BE, reach: 'menu', guide: { section: 'apps', icon: '💬', iconBg: 'rgba(59,130,246,0.12)', title: 'Pleb Talk', desc: 'Community discussion board for Bitcoin topics and debates.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)" } },
+        { id: 'marketplace', modes: MODE_BE, reach: 'menu', guide: { section: 'apps', icon: '🛒', iconBg: 'rgba(250,204,21,0.12)', title: 'Lightning Mart', desc: 'Buy and sell goods using Lightning payments.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)" } },
+        { id: 'irl', modes: MODE_BE, reach: 'menu', guide: { section: 'apps', icon: '🤝', iconBg: 'rgba(34,197,94,0.12)', title: 'IRL Sync', desc: 'Find and organize real-life Bitcoin meetups near you.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)" } },
+        { id: 'spend', modes: MODE_BE, reach: 'menu' },
+        { id: 'beats', modes: MODE_BE, reach: 'menu', guide: { section: 'apps', icon: '🎵', iconBg: 'rgba(168,85,247,0.12)', title: 'Bitcoin Beats', desc: 'Community music player with uploads, likes, and artist pages.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)" } },
+        { id: 'proofOfWalk', modes: MODE_BE, reach: 'menu', guide: { section: 'daily', icon: '👟', iconBg: 'rgba(252,76,2,0.12)', title: 'Proof of Walk', desc: 'Connect Strava to earn 50 pts per km walked, run, or hiked.', tagClass: 'tag-earn', tagText: 'Max 2,100 pts/day', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();if(typeof showProofOfWalk==='function')showProofOfWalk()" } },
+        { id: 'earnGuide', modes: LEARN_ALL, reach: 'guide' },
+        { id: 'patchNotes', modes: LEARN_ALL, reach: 'guide' },
+        { id: 'settings', modes: LEARN_ALL, reach: 'home' },
+        { id: 'meetup', modes: MODE_BE, reach: 'menu' },
+        { id: 'referral', modes: MODE_GBE, reach: 'home' },
+        { id: 'buddy', modes: MODE_BE, reach: 'menu' },
+        { id: 'confetti', modes: MODE_E, reach: 'flag', render: 'launchConfetti' },
+        { id: 'banners', modes: MODE_E, reach: 'banner' }
+    ];
+    var BQ_MODE_FEATURES = {};
+    BQ_SURFACES.forEach(function (row) { BQ_MODE_FEATURES[row.id] = row.modes; });
+    BQ_MODE_FEATURES.favor = MODE_GBE;
+    function bqNormalizeExperienceMode(mode) {
+        var m = mode;
+        if (m == null || m === '') {
+            try { m = (typeof win.getExperienceMode === 'function' && win.getExperienceMode()) || ''; } catch (e) { m = ''; }
+            if (!m) {
+                try { m = win.localStorage && win.localStorage.getItem('btc_experience_mode'); } catch (e2) {}
+            }
+        }
+        m = String(m || '').toLowerCase();
+        if (m === 'lite' || m === 'beginner' || m === 'intermediate' || m === 'advanced') return m;
+        return 'advanced';
+    }
+    function bqModeAllows(featureKey, mode) {
+        var key = String(featureKey || '');
+        var m = bqNormalizeExperienceMode(mode);
+        for (var i = 0; i < BQ_SURFACES.length; i++) {
+            if (BQ_SURFACES[i].id === key) return BQ_SURFACES[i].modes.indexOf(m) !== -1;
+        }
+        var allowed = BQ_MODE_FEATURES[key];
+        if (!allowed) return true;
+        return allowed.indexOf(m) !== -1;
+    }
+    function bqGuideCards(mode) {
+        var m = bqNormalizeExperienceMode(mode);
+        var groups = { start: [], daily: [], apps: [], more: [] };
+        for (var i = 0; i < BQ_SURFACES.length; i++) {
+            var row = BQ_SURFACES[i];
+            if (!row.guide || row.modes.indexOf(m) === -1) continue;
+            var section = row.guide.section || 'more';
+            if (!groups[section]) groups[section] = [];
+            groups[section].push(row.guide);
+        }
+        return groups;
+    }
+    function bqEnsureSurfaceStyles() {
+        if (typeof document === 'undefined' || document.getElementById('bqSurfaceStyles')) return;
+        var style = document.createElement('style');
+        style.id = 'bqSurfaceStyles';
+        style.textContent = 'body.bq-invite-off #inviteCard,body.bq-invite-off #inviteGuestPill,body.bq-invite-off #todayInviteGuest{display:none!important}'
+            + 'body.bq-invite-min #inviteBody,body.bq-invite-min #inviteGuest,body.bq-invite-min #inviteGuestPill,body.bq-invite-min #todayInviteGuest{display:none!important}'
+            + 'body.bq-invite-min #inviteCard[data-show="1"] #invitePill{display:inline-flex!important}';
+        document.head.appendChild(style);
+    }
+    function bqApplyExperienceSurfaces(mode) {
+        if (typeof document === 'undefined') return bqNormalizeExperienceMode(mode);
+        var m = bqNormalizeExperienceMode(mode);
+        bqEnsureSurfaceStyles();
+        document.body.classList.remove('bq-mode-lite', 'bq-mode-beginner', 'bq-mode-intermediate', 'bq-mode-advanced');
+        document.body.classList.add('bq-mode-' + m);
+        document.body.classList.toggle('bq-invite-off', m === 'lite');
+        document.body.classList.toggle('bq-invite-min', m === 'beginner');
+        var hidden = {};
+        for (var i = 0; i < BQ_SURFACES.length; i++) {
+            var row = BQ_SURFACES[i];
+            if (!row.selector || row.modes.indexOf(m) !== -1) continue;
+            document.querySelectorAll(row.selector).forEach(function (el) {
+                hidden[el] = true;
+                el.setAttribute('data-em-hidden', m);
+                el.style.setProperty('display', 'none', 'important');
+            });
+        }
+        document.querySelectorAll('[data-em-hidden]').forEach(function (el) {
+            var still = false;
+            for (var s = 0; s < BQ_SURFACES.length; s++) {
+                var surf = BQ_SURFACES[s];
+                if (!surf.selector || surf.modes.indexOf(m) !== -1) continue;
+                if (el.matches && el.matches(surf.selector)) { still = true; break; }
+            }
+            if (!still) {
+                el.style.removeProperty('display');
+                el.removeAttribute('data-em-hidden');
+            }
+        });
+        return m;
+    }
+    function bqHiddenExploreAppCount(mode) {
+        var m = bqNormalizeExperienceMode(mode);
+        var hidden = 0;
+        for (var i = 0; i < BQ_EXPLORE_APPS.length; i++) {
+            var modes = BQ_EXPLORE_APPS[i].modes || [];
+            if (modes.indexOf(m) === -1) hidden++;
+        }
+        return hidden;
+    }
+    function bqExperienceModeMeta(mode) {
+        var m = bqNormalizeExperienceMode(mode);
+        for (var i = 0; i < BQ_EXPERIENCE_MODES.length; i++) {
+            if (BQ_EXPERIENCE_MODES[i].id === m) return BQ_EXPERIENCE_MODES[i];
+        }
+        return BQ_EXPERIENCE_MODES[3];
+    }
+    // Player-facing lines. Each group follows real surface modes.
+    // Hand-written notes cover earning, which the registry does not describe.
+    var MODE_BRIEF_GROUPS = [
+        { key: 'learn', surfaces: ['topics', 'nacho', 'dailyQuests', 'scholar'], on: 'Topics, quests, and Nacho', off: 'Topics, quests, and Nacho' },
+        { key: 'today', surfaces: ['trifecta'], on: 'Quiz, trivia, and poll', off: 'Quiz, trivia, and poll' },
+        { key: 'tv', surfaces: ['tv', 'tctvWatch'], on: 'Timechain TV and its music', off: 'Timechain TV' },
+        { key: 'wallet', surfaces: ['wallet', 'satsClaim'], on: 'Wallet and the sats claim', off: 'Wallet and the sats claim' },
+        { key: 'chat', surfaces: ['chat'], on: 'Global Chat', off: 'Global Chat' },
+        { key: 'badges', surfaces: ['badges'], on: 'Badge list and badge popups', off: 'Badge list and badge popups' },
+        { key: 'favorStrip', surfaces: ['favorStrip'], on: "Satoshi's Favor strip", off: "Satoshi's Favor strip" },
+        { key: 'story', surfaces: ['story'], on: "Nacho's story", off: "Nacho's story" },
+        { key: 'spin', surfaces: ['spin'], on: 'Daily spin', off: 'Daily spin' },
+        { key: 'games', surfaces: ['proofOfPlay', 'pvp', 'forum', 'beats', 'proofOfWalk'], on: 'Games, forum, and extra apps', off: 'Games, forum, and extra apps' },
+        { key: 'leaderboard', surfaces: ['leaderboard'], on: 'Leaderboard', off: 'Leaderboard' },
+        { key: 'social', surfaces: ['sayHi', 'flex', 'pricePrediction'], on: 'Say hi, Flex, and price guesses', off: 'Say hi, Flex, and price guesses' },
+        { key: 'moreQuests', surfaces: ['moreQuests'], on: 'More quests, including Nook', off: 'More quests panel' },
+        { key: 'favorFloat', surfaces: ['favorFloat'], on: 'Favor button while you browse', off: 'Favor button while you browse' },
+        { key: 'dailyChallenge', surfaces: ['dailyChallenge'], on: 'Daily challenge card', off: 'Daily challenge card' },
+        { key: 'hotTopics', surfaces: ['hotTopics'], on: 'Hot topics', off: 'Hot topics' },
+        { key: 'shop', surfaces: ['plebShop', 'nachoCloset'], on: 'Pleb Shop and Nacho closet', off: 'Pleb Shop and Nacho closet' },
+        { key: 'gg', surfaces: ['ggPosts', 'chatShoutouts'], on: 'Badge posts and shoutouts in chat', off: 'Badge posts and shoutouts in chat' },
+        { key: 'spinBanner', surfaces: ['spinBanner'], on: 'Daily spin banner', off: 'Daily spin banner' },
+        { key: 'favorBanner', surfaces: ['favorBanner', 'favorOverlay'], on: 'Favor banners and winner popups', off: 'Favor banners and winner popups' },
+        { key: 'raid', surfaces: ['raidBoss'], on: 'Raid boss card', off: 'Raid boss card' },
+        { key: 'extras', surfaces: ['quote', 'donate', 'activityTicker'], on: 'Quote, donate, and the activity ticker', off: 'Quote, donate, and the activity ticker' },
+        { key: 'floats', surfaces: ['aiFloat', 'metricsFloat', 'lbFloat'], on: 'Shortcut buttons for AI, metrics, and rank', off: 'Shortcut buttons for AI, metrics, and rank' }
+    ];
+    var MODE_QUIETER = { beginner: 'lite', intermediate: 'beginner', advanced: 'intermediate' };
+    var MODE_ON_ORDER = ['learn', 'today', 'tv', 'wallet', 'chat', 'badges', 'favorStrip', 'story', 'spin', 'games', 'leaderboard', 'social', 'moreQuests', 'favorFloat', 'dailyChallenge', 'hotTopics', 'shop', 'gg', 'spinBanner', 'favorBanner', 'raid', 'extras', 'floats'];
+    var MODE_OFF_ORDER = ['badges', 'leaderboard', 'games', 'chat', 'spin', 'favorBanner', 'raid', 'gg', 'shop', 'social', 'moreQuests', 'extras', 'floats', 'spinBanner', 'favorStrip', 'hotTopics'];
+    function bqBriefRank(order, key) {
+        var i = order.indexOf(key);
+        return i === -1 ? 100 : i;
+    }
+    function bqBriefGroupOn(group, mode) {
+        for (var i = 0; i < group.surfaces.length; i++) {
+            if (!bqModeAllows(group.surfaces[i], mode)) return false;
+        }
+        return true;
+    }
+    function bqModeBrief(mode) {
+        var m = bqNormalizeExperienceMode(mode);
+        var meta = bqExperienceModeMeta(m);
+        var quieter = MODE_QUIETER[m] || '';
+        var on = [];
+        var off = [];
+        var fresh = [];
+        for (var i = 0; i < MODE_BRIEF_GROUPS.length; i++) {
+            var group = MODE_BRIEF_GROUPS[i];
+            if (bqBriefGroupOn(group, m)) {
+                on.push(group);
+                if (!quieter || !bqBriefGroupOn(group, quieter)) fresh.push(group);
+            } else off.push(group);
+        }
+        fresh.sort(function (a, b) { return bqBriefRank(MODE_ON_ORDER, a.key) - bqBriefRank(MODE_ON_ORDER, b.key); });
+        on.sort(function (a, b) { return bqBriefRank(MODE_ON_ORDER, a.key) - bqBriefRank(MODE_ON_ORDER, b.key); });
+        off.sort(function (a, b) { return bqBriefRank(MODE_OFF_ORDER, a.key) - bqBriefRank(MODE_OFF_ORDER, b.key); });
+        var includedGroups = fresh.slice(0, 3);
+        var c;
+        for (c = 0; includedGroups.length < 3 && c < on.length; c++) {
+            if (includedGroups.indexOf(on[c]) === -1) includedGroups.push(on[c]);
+        }
+        var hiddenGroups = off.slice(0, 3);
+        var included = includedGroups.map(function (g) { return g.on; });
+        var hidden = hiddenGroups.map(function (g) { return g.off; });
+        if (!included.length) included = ['Topics, quests, and Nacho'];
+        if (!hidden.length) hidden = ['Nothing is hidden'];
+        while (included.length + hidden.length > 6) {
+            if (hidden.length > 1) hidden.pop();
+            else if (included.length > 2) included.pop();
+            else break;
+        }
+        var notes = [
+            'You still earn XP, badges, Favor and streaks in the background in every mode',
+            'You can switch anytime from the mode chip next to your XP meter or Settings'
+        ];
+        if (m === 'lite') {
+            notes.push('XP and the XP-to-sats claim stay, and XP shows in notifications with how you earned it');
+            notes.push('You stay ranked; leaderboards are just hidden');
+        }
+        return {
+            id: m,
+            emoji: meta.emoji,
+            name: meta.name,
+            label: meta.label,
+            summary: meta.desc,
+            included: included,
+            hidden: hidden,
+            notes: notes
+        };
+    }
+    function bqStoredExperienceMode() {
+        var stored = '';
+        try { stored = (typeof localStorage !== 'undefined' && localStorage.getItem('btc_experience_mode')) || ''; } catch (e) {}
+        if (stored !== 'lite' && stored !== 'beginner' && stored !== 'intermediate' && stored !== 'advanced') return '';
+        return stored;
+    }
+    function bqEnsurePickerStyles() {
+        if (typeof document === 'undefined' || document.getElementById('bqModePickerStyles')) return;
+        var style = document.createElement('style');
+        style.id = 'bqModePickerStyles';
+        style.textContent = '.bq-mode-option{margin:0 0 8px;}'
+            + '.bq-mode-option>button{display:block;width:100%;text-align:left;min-height:44px;padding:12px;border-radius:12px;border:2px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-family:inherit;font-size:16px;line-height:1.35;cursor:pointer;}'
+            + '.bq-mode-option>button[aria-pressed="true"]{border-color:var(--accent,#f7931a);}'
+            + '.bq-mode-option .bq-mode-name{font-weight:800;font-size:16px;color:var(--heading,#f8fafc);}'
+            + '.bq-mode-option .bq-mode-summary{margin-top:4px;font-size:14px;font-weight:500;color:var(--text-muted,#94a3b8);}'
+            + '.bq-mode-option .bq-mode-flag{font-weight:700;color:var(--accent,#f7931a);}'
+            + '.bq-mode-option details{margin-top:4px;}'
+            + '.bq-mode-option summary{min-height:44px;display:flex;align-items:center;padding:8px 12px;font-size:14px;font-weight:800;cursor:pointer;color:var(--accent,#f7931a);}'
+            + '.bq-mode-option li{font-size:13px;line-height:1.4;margin:0 0 6px;color:var(--text,#e2e8f0);}'
+            + '.bq-mode-option ul{margin:0 0 8px;padding:0 12px 0 28px;}'
+            + '.bq-mode-card-grid{display:block;}'
+            + '@media (max-width:360px){.bq-mode-option .bq-mode-summary,.bq-mode-option li{font-size:12px;}}';
+        document.head.appendChild(style);
+    }
+    function bqFillModePicker(container, opts) {
+        if (!container) return;
+        bqEnsurePickerStyles();
+        var options = opts || {};
+        container.textContent = '';
+        var stored = bqStoredExperienceMode();
+        var recommend = !stored;
+        BQ_EXPERIENCE_MODES.forEach(function (meta) {
+            var brief = bqModeBrief(meta.id);
+            var block = document.createElement('div');
+            block.className = 'bq-mode-option';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.setAttribute('data-mode', meta.id);
+            var on = stored === meta.id;
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            var name = document.createElement('div');
+            name.className = 'bq-mode-name';
+            name.textContent = meta.label;
+            if (on) {
+                var current = document.createElement('span');
+                current.className = 'bq-mode-flag';
+                current.textContent = ' (current)';
+                name.appendChild(current);
+            } else if (recommend && meta.id === 'beginner') {
+                var rec = document.createElement('span');
+                rec.className = 'bq-mode-flag';
+                rec.textContent = ' · Recommended';
+                name.appendChild(rec);
+            }
+            var summary = document.createElement('div');
+            summary.className = 'bq-mode-summary';
+            summary.textContent = brief.summary;
+            btn.appendChild(name);
+            btn.appendChild(summary);
+            btn.addEventListener('click', function () {
+                if (typeof options.onPick === 'function') options.onPick(meta.id);
+            });
+            var details = document.createElement('details');
+            var sum = document.createElement('summary');
+            sum.textContent = "What's included";
+            details.appendChild(sum);
+            var list = document.createElement('ul');
+            brief.included.forEach(function (line) {
+                var li = document.createElement('li');
+                li.textContent = 'On: ' + line;
+                list.appendChild(li);
+            });
+            brief.hidden.forEach(function (line) {
+                var li = document.createElement('li');
+                li.textContent = line === 'Nothing is hidden' ? line : ('Hidden: ' + line);
+                list.appendChild(li);
+            });
+            details.appendChild(list);
+            var notes = document.createElement('ul');
+            brief.notes.forEach(function (line) {
+                var li = document.createElement('li');
+                li.textContent = line;
+                notes.appendChild(li);
+            });
+            details.appendChild(notes);
+            block.appendChild(btn);
+            block.appendChild(details);
+            container.appendChild(block);
+        });
+    }
     win.BQ_LEARN_MENU = BQ_LEARN_MENU;
     win.BQ_EXPLORE_APPS = BQ_EXPLORE_APPS;
+    win.BQ_EXPERIENCE_MODES = BQ_EXPERIENCE_MODES;
+    win.BQ_MODES = BQ_MODES;
+    win.BQ_SURFACES = BQ_SURFACES;
+    win.BQ_MODE_FEATURES = BQ_MODE_FEATURES;
+    win.bqNormalizeExperienceMode = bqNormalizeExperienceMode;
+    win.bqModeAllows = bqModeAllows;
+    win.bqHiddenExploreAppCount = bqHiddenExploreAppCount;
+    win.bqExperienceModeMeta = bqExperienceModeMeta;
+    win.bqModeBrief = bqModeBrief;
+    win.bqFillModePicker = bqFillModePicker;
+    win.bqGuideCards = bqGuideCards;
+    win.bqApplyExperienceSurfaces = bqApplyExperienceSurfaces;
     if (typeof win.renderDesktopHomeMenus === 'function') win.renderDesktopHomeMenus();
 
     var api = {
@@ -1753,6 +2132,18 @@
         BY_ID: BY_ID,
         BQ_LEARN_MENU: BQ_LEARN_MENU,
         BQ_EXPLORE_APPS: BQ_EXPLORE_APPS,
+        BQ_EXPERIENCE_MODES: BQ_EXPERIENCE_MODES,
+        BQ_MODES: BQ_MODES,
+        BQ_SURFACES: BQ_SURFACES,
+        BQ_MODE_FEATURES: BQ_MODE_FEATURES,
+        bqNormalizeExperienceMode: bqNormalizeExperienceMode,
+        bqModeAllows: bqModeAllows,
+        bqHiddenExploreAppCount: bqHiddenExploreAppCount,
+        bqExperienceModeMeta: bqExperienceModeMeta,
+        bqModeBrief: bqModeBrief,
+        bqFillModePicker: bqFillModePicker,
+        bqGuideCards: bqGuideCards,
+        bqApplyExperienceSurfaces: bqApplyExperienceSurfaces,
         searchFeatures: searchFeatures,
         resolveNachoFeature: resolveNachoFeature,
         featureByHash: featureByHash,

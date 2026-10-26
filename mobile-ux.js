@@ -786,8 +786,62 @@ function mobileExperienceMode() {
     if (!mode) {
         try { mode = localStorage.getItem('btc_experience_mode') || ''; } catch (e2) {}
     }
-    if (mode !== 'beginner' && mode !== 'intermediate') return 'advanced';
-    return mode;
+    if (mode === 'lite' || mode === 'beginner' || mode === 'intermediate' || mode === 'advanced') return mode;
+    return 'advanced';
+}
+
+function experienceModeName(mode) {
+    if (typeof window.bqExperienceModeMeta === 'function') return window.bqExperienceModeMeta(mode).name;
+    if (mode === 'lite') return 'Lite';
+    if (mode === 'beginner') return 'Guided';
+    if (mode === 'intermediate') return 'Balanced';
+    return 'Everything';
+}
+
+function openExperienceModeSettings() {
+    if (typeof window.bqOpenExperienceModeSettings === 'function') {
+        window.bqOpenExperienceModeSettings();
+        return;
+    }
+    closeMobileSheets();
+    var desk = document.getElementById('homeAppsMenu');
+    if (desk) desk.style.display = 'none';
+    if (typeof showSettings === 'function') showSettings();
+    setTimeout(function() {
+        if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
+        setTimeout(function() {
+            var card = document.getElementById('experienceModeCard');
+            if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center' });
+        }, 220);
+    }, 150);
+}
+
+function appendHiddenAppsHint(parent, mode) {
+    var count = 0;
+    if (typeof window.bqHiddenExploreAppCount === 'function') count = window.bqHiddenExploreAppCount(mode);
+    else {
+        (window.BQ_EXPLORE_APPS || []).forEach(function(item) {
+            if (item.modes && item.modes.indexOf(mode) === -1) count++;
+        });
+    }
+    if (!count) return;
+    var line = document.createElement('p');
+    line.className = 'bq-hidden-apps';
+    line.style.cssText = 'grid-column:1 / -1;margin:8px 0 0;font-size:0.78rem;line-height:1.4;color:var(--text-muted);font-weight:600;';
+    var text = document.createElement('span');
+    text.textContent = count + ' apps hidden in ' + experienceModeName(mode) + ' mode, ';
+    var show = document.createElement('button');
+    show.type = 'button';
+    show.textContent = 'Show all';
+    show.style.cssText = 'background:none;border:none;padding:0;min-height:44px;color:var(--accent,#f7931a);font:inherit;font-weight:800;cursor:pointer;text-decoration:underline;';
+    show.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openExperienceModeSettings();
+    });
+    line.appendChild(text);
+    line.appendChild(show);
+    parent.appendChild(line);
 }
 
 function mobileSheetBox() {
@@ -1145,6 +1199,7 @@ window.openMobileExploreApps = function() {
         empty.style.cssText = 'grid-column:1 / -1;margin:0;color:var(--text-muted);';
         grid.appendChild(empty);
     }
+    appendHiddenAppsHint(grid, mode);
     menu.appendChild(grid);
     document.body.appendChild(menu);
     if (closeBtn.focus) closeBtn.focus();
@@ -1267,6 +1322,7 @@ window.renderDesktopAppsMenu = function() {
         });
         grid.appendChild(btn);
     });
+    appendHiddenAppsHint(grid, mode);
 };
 
 window.renderDesktopHomeMenus = function() {

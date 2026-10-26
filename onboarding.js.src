@@ -8,8 +8,10 @@
     var QUEST_STEP = 'btc_onboarding_step';
     var PENDING_KEY = 'btc_quest_pending';
 
+    var BEGINNER_QUEST = ['pick_topic', 'find_nacho', 'first_quiz'];
     var QUEST_MODES = {
-        beginner: ['pick_topic', 'find_nacho', 'first_quiz'],
+        lite: BEGINNER_QUEST,
+        beginner: BEGINNER_QUEST,
         intermediate: ['pick_topic', 'find_nacho', 'send_chat', 'first_quiz'],
         advanced: ['pick_topic', 'send_chat', 'spin_wheel', 'find_nacho', 'first_quiz']
     };
@@ -53,14 +55,17 @@
     window.getExperienceMode = function () {
         var m = '';
         try { m = localStorage.getItem('btc_experience_mode') || ''; } catch (e) {}
-        if (m !== 'beginner' && m !== 'intermediate' && m !== 'advanced') return 'advanced';
+        if (m !== 'lite' && m !== 'beginner' && m !== 'intermediate' && m !== 'advanced') return 'advanced';
         return m;
     };
     window.getUserSimplificationLevel = function () {
         return window.getExperienceMode() === 'advanced' ? 'full' : window.getExperienceMode();
     };
+    function experienceModeAllowed(mode) {
+        return mode === 'lite' || mode === 'beginner' || mode === 'intermediate' || mode === 'advanced';
+    }
     window.setExperienceMode = function (mode) {
-        if (mode !== 'beginner' && mode !== 'intermediate' && mode !== 'advanced') mode = 'advanced';
+        if (!experienceModeAllowed(mode)) mode = 'advanced';
         try { localStorage.setItem('btc_experience_mode', mode); } catch (e) {}
         try {
             if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' && db) {
@@ -68,6 +73,10 @@
             }
         } catch (e) {}
         if (typeof window.applySimplifiedHome === 'function') window.applySimplifiedHome();
+        if (typeof window.applyExperienceModeVisibility === 'function') window.applyExperienceModeVisibility();
+        if (typeof window.applyDesktopMenuModes === 'function') window.applyDesktopMenuModes();
+        if (typeof window.bqRefreshModeChip === 'function') window.bqRefreshModeChip();
+        if (typeof window.bqRefreshModeCard === 'function') window.bqRefreshModeCard();
     };
     window.syncExperienceModeFromFirestore = function () {
         try {
@@ -75,7 +84,7 @@
             db.collection('users').doc(auth.currentUser.uid).get().then(function (doc) {
                 if (!doc.exists) return;
                 var m = doc.data().experienceMode;
-                if (m === 'beginner' || m === 'intermediate' || m === 'advanced') {
+                if (m === 'lite' || m === 'beginner' || m === 'intermediate' || m === 'advanced') {
                     try { localStorage.setItem('btc_experience_mode', m); } catch (e) {}
                 }
                 if (doc.data().introSeen === true) {
@@ -633,11 +642,36 @@
         return false;
     }
 
+    var PLAY_BODY = 'Watch Timechain TV, play Bitcoin Beats, duel in PvP, hash for Satoshi\'s Favor, open ciphers, join a raid, or share a referral. Orange tickets and XP add up. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.';
+    var TRY_FEATURE = {
+        channels: 'topics',
+        quests: 'learn',
+        nacho: 'nacho',
+        spin: 'spin',
+        trivia: 'trivia',
+        chat: 'chat',
+        forum: 'forum',
+        market: 'marketplace',
+        buddy: 'buddy',
+        tv: 'tv',
+        beats: 'beats',
+        pvp: 'proofOfPlay',
+        favor: 'favor',
+        ciphers: 'ciphers',
+        referral: 'referral'
+    };
     var SLIDES = [
+        {
+            kicker: 'Your pace',
+            title: 'How much do you want to see?',
+            body: 'You can change this anytime in Settings. Your XP stays either way.',
+            mode: true
+        },
         {
             kicker: 'Learn',
             title: 'Channels, quests, and Nacho',
             body: 'Read Bitcoin topics, follow a quest, and ask Nacho — the AI deer — when you want it in plain language.',
+            deer: true,
             items: [
                 { label: 'Learn channels', tryId: 'channels' },
                 { label: 'Quests', tryId: 'quests' },
@@ -648,6 +682,10 @@
             kicker: 'Daily',
             title: 'A reason to come back',
             body: 'Spin the wheel, finish the daily challenge, and answer trivia or a poll. Each one pays XP.',
+            bodies: {
+                lite: 'Answer a quiz, trivia, or a poll. Each one pays XP.',
+                beginner: 'Answer trivia or a poll. Each one pays XP. Daily spin is in Everything.'
+            },
             items: [
                 { label: 'Daily spin', tryId: 'spin' },
                 { label: 'Trivia and polls', tryId: 'trivia' }
@@ -657,6 +695,10 @@
             kicker: 'People',
             title: 'Talk, post, trade',
             body: 'Global Chat is live. PlebTalk is the forum. LightningMart is the marketplace. A buddy is optional.',
+            bodies: {
+                lite: 'Learning stays up front. Chat, PlebTalk, and the marketplace are in other modes.',
+                beginner: 'Global Chat is live. PlebTalk and LightningMart are in Everything. A buddy is optional.'
+            },
             items: [
                 { label: 'Global Chat', tryId: 'chat' },
                 { label: 'PlebTalk', tryId: 'forum' },
@@ -667,7 +709,11 @@
         {
             kicker: 'Play and earn',
             title: 'Tickets, XP, and games',
-            body: 'Watch Timechain TV, play Bitcoin Beats, duel in PvP, hash for Satoshi\'s Favor, open ciphers, join a raid, or share a referral. Orange tickets and XP add up. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.',
+            body: PLAY_BODY,
+            bodies: {
+                lite: 'Stick with topics, quests, and Nacho. Games and extra apps are in other modes. Your XP stays either way.',
+                beginner: 'Watch Timechain TV, hash for Satoshi\'s Favor, open ciphers, or share a referral. Bitcoin Beats and PvP are in Everything.'
+            },
             items: [
                 { label: 'Timechain TV', tryId: 'tv' },
                 { label: 'Bitcoin Beats', tryId: 'beats' },
@@ -676,12 +722,6 @@
                 { label: 'Ciphers and raids', tryId: 'ciphers' },
                 { label: 'Referrals', tryId: 'referral' }
             ]
-        },
-        {
-            kicker: 'Your pace',
-            title: 'How much do you want to see?',
-            body: 'You can change this anytime in Settings. Your XP stays either way.',
-            mode: true
         }
     ];
 
@@ -735,7 +775,7 @@
         var skip = document.createElement('button');
         skip.type = 'button';
         skip.textContent = 'Skip';
-        skip.style.cssText = 'background:transparent;border:none;color:var(--text-muted);font-size:16px;font-family:inherit;cursor:pointer;padding:8px;';
+        skip.style.cssText = 'background:transparent;border:none;color:var(--text-muted);font-size:16px;font-family:inherit;cursor:pointer;min-height:44px;min-width:44px;padding:8px 12px;';
         skip.addEventListener('click', finishIntro);
         top.appendChild(dots);
         top.appendChild(skip);
@@ -745,13 +785,18 @@
         var title = document.createElement('h2');
         title.textContent = data.title;
         title.style.cssText = 'color:var(--heading);font-size:1.45rem;line-height:1.2;margin:8px 0;';
+        var storedMode = '';
+        try { storedMode = localStorage.getItem('btc_experience_mode') || ''; } catch (eMode) {}
+        if (!experienceModeAllowed(storedMode)) storedMode = '';
+        var chosen = storedMode || window.getExperienceMode();
         var body = document.createElement('p');
-        body.textContent = data.body;
+        body.textContent = (data.bodies && data.bodies[chosen]) || data.body;
         body.style.cssText = 'color:var(--text);font-size:1rem;line-height:1.45;margin:0 0 14px;';
         card.appendChild(top);
         card.appendChild(kicker);
         card.appendChild(title);
-        if (slide === 0) {
+        title.id = 'bqIntroTitle';
+        if (data.deer) {
             var deer = document.createElement('img');
             deer.src = 'nacho-deer.svg';
             deer.alt = 'Nacho';
@@ -768,55 +813,63 @@
                 var label = document.createElement('span');
                 label.textContent = item.label;
                 label.style.cssText = 'color:var(--heading);font-weight:700;font-size:0.95rem;';
-                var tryBtn = document.createElement('button');
-                tryBtn.type = 'button';
-                tryBtn.textContent = 'Try it';
-                tryBtn.style.cssText = 'background:transparent;border:1px solid var(--border);color:var(--accent,#f97316);border-radius:999px;padding:6px 12px;font-size:16px;font-family:inherit;cursor:pointer;';
-                tryBtn.addEventListener('click', function () { tryFeature(item.tryId); });
+                var feature = TRY_FEATURE[item.tryId];
+                var allowed = !feature || (typeof window.bqModeAllows === 'function' ? window.bqModeAllows(feature, chosen) : true);
                 row.appendChild(label);
-                row.appendChild(tryBtn);
+                if (allowed) {
+                    var tryBtn = document.createElement('button');
+                    tryBtn.type = 'button';
+                    tryBtn.textContent = 'Try it';
+                    tryBtn.style.cssText = 'background:transparent;border:1px solid var(--border);color:var(--accent,#f97316);border-radius:999px;padding:6px 12px;min-height:44px;font-size:16px;font-family:inherit;cursor:pointer;';
+                    tryBtn.addEventListener('click', function () { tryFeature(item.tryId); });
+                    row.appendChild(tryBtn);
+                } else {
+                    var note = document.createElement('span');
+                    note.textContent = 'In Everything';
+                    note.style.cssText = 'color:var(--text-muted);font-size:0.85rem;font-weight:700;';
+                    row.appendChild(note);
+                }
                 card.appendChild(row);
             });
         }
         if (data.mode) {
-            [['beginner', 'Guided', 'A quieter home'], ['intermediate', 'Balanced', 'Apps, less noise'], ['advanced', 'Everything', 'All tools visible']].forEach(function (m) {
-                var b = document.createElement('button');
-                b.type = 'button';
-                b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--heading);font-family:inherit;font-size:16px;cursor:pointer;';
-                var strong = document.createElement('strong');
-                strong.textContent = m[1];
-                var small = document.createElement('div');
-                small.textContent = m[2];
-                small.style.cssText = 'color:var(--text-muted);font-size:0.85rem;font-weight:500;margin-top:2px;';
-                b.appendChild(strong);
-                b.appendChild(small);
-                b.addEventListener('click', function () {
-                    window.setExperienceMode(m[0]);
-                    card.querySelectorAll('button').forEach(function (el) { el.style.borderColor = 'var(--border)'; });
-                    b.style.borderColor = 'var(--accent,#f97316)';
+            var picker = document.createElement('div');
+            picker.id = 'bqIntroModePicker';
+            card.appendChild(picker);
+            if (typeof window.bqFillModePicker === 'function') {
+                window.bqFillModePicker(picker, {
+                    onPick: function (id) {
+                        window.setExperienceMode(id);
+                        dismissModeCard();
+                        renderIntro(slide + 1);
+                    }
                 });
-                card.appendChild(b);
-            });
+            }
+            var firstMode = card.querySelector('[data-mode]');
+            if (firstMode && firstMode.focus) firstMode.focus();
         }
-        var next = document.createElement('button');
-        next.type = 'button';
-        next.textContent = slide >= SLIDES.length - 1 ? 'Start exploring' : 'Next';
-        next.style.cssText = 'width:100%;margin-top:14px;padding:14px;border:none;border-radius:12px;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;';
-        next.addEventListener('click', function () {
-            if (slide >= SLIDES.length - 1) finishIntro();
-            else renderIntro(slide + 1);
-        });
-        card.appendChild(next);
-        var start = document.createElement('button');
-        start.type = 'button';
-        start.textContent = 'Start exploring';
-        start.style.cssText = 'width:100%;margin-top:8px;padding:10px;border:none;background:transparent;color:var(--text-muted);font-size:16px;font-family:inherit;cursor:pointer;';
-        start.addEventListener('click', finishIntro);
-        if (slide < SLIDES.length - 1) card.appendChild(start);
+        if (!data.mode) {
+            var next = document.createElement('button');
+            next.type = 'button';
+            next.textContent = slide >= SLIDES.length - 1 ? 'Start exploring' : 'Next';
+            next.style.cssText = 'width:100%;margin-top:14px;padding:14px;min-height:44px;border:none;border-radius:12px;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;';
+            next.addEventListener('click', function () {
+                if (slide >= SLIDES.length - 1) finishIntro();
+                else renderIntro(slide + 1);
+            });
+            card.appendChild(next);
+            var start = document.createElement('button');
+            start.type = 'button';
+            start.textContent = 'Start exploring';
+            start.style.cssText = 'width:100%;margin-top:8px;padding:10px;min-height:44px;border:none;background:transparent;color:var(--text-muted);font-size:16px;font-family:inherit;cursor:pointer;';
+            start.addEventListener('click', finishIntro);
+            if (slide < SLIDES.length - 1) card.appendChild(start);
+        }
     }
 
     function finishIntro() {
         if (!localStorage.getItem('btc_experience_mode')) window.setExperienceMode('advanced');
+        dismissModeCard();
         markIntroSeen();
         var overlay = document.getElementById('btcIntroOverlay');
         if (overlay) overlay.remove();
@@ -834,12 +887,19 @@
         overlay.id = 'btcIntroOverlay';
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-label', 'Welcome tour');
+        overlay.setAttribute('aria-labelledby', 'bqIntroTitle');
         var wide = window.innerWidth > 800;
         overlay.style.cssText = 'position:fixed;inset:0;z-index:2100003;background:var(--bg,#020617);display:flex;align-items:' + (wide ? 'center' : 'flex-end') + ';justify-content:center;padding:' + (wide ? '24px' : '0') + ';';
         var card = document.createElement('div');
         card.setAttribute('data-intro-card', '1');
-        card.style.cssText = 'background:var(--bg-side,#0f172a);color:var(--text,#e2e8f0);width:100%;max-width:520px;max-height:100%;overflow:auto;border-radius:' + (wide ? '20px' : '20px 20px 0 0') + ';padding:18px 18px 28px;border:1px solid var(--border);';
+        card.style.cssText = 'background:var(--bg-side,#0f172a);color:var(--text,#e2e8f0);width:100%;max-width:520px;max-height:100dvh;overflow:auto;border-radius:' + (wide ? '20px' : '20px 20px 0 0') + ';padding:18px 18px 28px;border:1px solid var(--border);box-sizing:border-box;';
         overlay.appendChild(card);
+        overlay.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                finishIntro();
+            }
+        });
         document.body.appendChild(overlay);
         renderIntro((opts && typeof opts.slide === 'number') ? opts.slide : 0);
         return true;
@@ -852,10 +912,8 @@
     };
     window.applySimplifiedHome = function () {
         var level = window.getUserSimplificationLevel();
-        var hide = {
-            beginner: ['#dailySpinBanner', '#progressRings', '#dailyChallengeCard', '#quoteOfDay', '#explorationMap', '#donateSection', '#homeAppsBtn', '#homeAppsMenu', '#desktopDMBtn', '#rankBar', '#activity-ticker', '#continueReading'],
-            intermediate: ['#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker', '#featuredOnSection', '#introVideoSection', '#countryUsersSection', '#quoteOfDay']
-        };
+        if (typeof window.bqApplyExperienceSurfaces === 'function') window.bqApplyExperienceSurfaces(level === 'full' ? 'advanced' : level);
+        if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
         document.querySelectorAll('[data-simplified-hidden]').forEach(function (el) {
             el.style.display = '';
             el.removeAttribute('data-simplified-hidden');
@@ -863,13 +921,6 @@
         var old = document.getElementById('curatedStartSection');
         if (old) old.remove();
         if (level === 'full') return;
-        (hide[level] || []).forEach(function (sel) {
-            if (sel === '#introVideoSection' && window._forceIntroVideo) return;
-            document.querySelectorAll(sel).forEach(function (el) {
-                el.setAttribute('data-simplified-hidden', '1');
-                el.style.display = 'none';
-            });
-        });
         // The home page already has one Learn card. Do not add a chip list above it.
         if (document.getElementById('homeLearnCard')) return;
         var home = document.getElementById('home');
@@ -954,6 +1005,236 @@
         try { localStorage.setItem('btc_nacho_quest_quiz', '1'); } catch (e) {}
     });
 
+    var MODE_CARD_KEY = 'btc_mode_card_dismissed';
+
+    function modeChoices() {
+        if (window.BQ_EXPERIENCE_MODES && window.BQ_EXPERIENCE_MODES.length) return window.BQ_EXPERIENCE_MODES;
+        return [
+            { id: 'lite', label: '📖 Lite', desc: 'Just the learning. No games, badges or leaderboards.', toast: '📖 Lite activated' },
+            { id: 'beginner', label: '🌱 Guided', desc: 'A calm start with the essentials and a few extras.', toast: '🌱 Guided activated' },
+            { id: 'intermediate', label: '📘 Balanced', desc: 'Most features, fewer popups.', toast: '📘 Balanced activated' },
+            { id: 'advanced', label: '🔥 Everything', desc: 'Every app, game and event.', toast: '🔥 Everything activated' }
+        ];
+    }
+    function modeMeta(mode) {
+        if (typeof window.bqExperienceModeMeta === 'function') return window.bqExperienceModeMeta(mode);
+        var list = modeChoices();
+        var want = experienceModeAllowed(mode) ? mode : 'advanced';
+        for (var i = 0; i < list.length; i++) if (list[i].id === want) return list[i];
+        return list[list.length - 1];
+    }
+    function dismissModeCard() {
+        try { localStorage.setItem(MODE_CARD_KEY, '1'); } catch (e) {}
+        var card = document.getElementById('bqModeHomeCard');
+        if (card) card.remove();
+    }
+    function modeCardEligible() {
+        try { if (localStorage.getItem(MODE_CARD_KEY) === '1') return false; } catch (e) {}
+        return alreadyOnboarded();
+    }
+    function ensureModeStyles() {
+        if (document.getElementById('bqModeStyles')) return;
+        var style = document.createElement('style');
+        style.id = 'bqModeStyles';
+        style.textContent = ''
+            + '#bqModeHomeCard{position:relative;z-index:1;width:100%;box-sizing:border-box;margin:0 0 16px;padding:14px;background:var(--card-bg,#0f172a);border:1px solid var(--border,#1e293b);border-radius:16px;color:var(--text,#e2e8f0);}'
+            + '.bq-mode-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;}'
+            + '.bq-mode-card-title{margin:0;font-size:1.05rem;line-height:1.3;font-weight:800;color:var(--heading,#f8fafc);}'
+            + '.bq-mode-card-dismiss{min-width:44px;min-height:44px;border:none;background:transparent;color:var(--text-muted,#94a3b8);font-size:1.1rem;cursor:pointer;font-family:inherit;border-radius:10px;}'
+            + '.bq-mode-card-grid{display:block;}'
+            + '.bq-mode-card-grid button{min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;text-align:left;}'
+            + '.bq-mode-card-grid button[aria-pressed="true"]{border:2px solid var(--accent,#f7931a);color:var(--accent,#f7931a);}'
+            + '#bqModeMeterRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 4px;}'
+            + '#bqModeMeterRow #dailyXpMeterText{margin:0;flex:1;min-width:0;}'
+            + '#bqModeChip{flex:0 0 auto;min-height:44px;padding:6px 10px;border-radius:999px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;}'
+            + '#bqModeChipPanel{display:flex;flex-direction:column;gap:6px;margin:0 0 8px;padding:8px;border:1px solid var(--border,#334155);border-radius:12px;background:var(--bg,#020617);}'
+            + '#bqModeChipPanel[hidden]{display:none;}'
+            + '#bqModeChipPanel button{min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--border,#334155);background:transparent;color:var(--heading,#f8fafc);font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;}'
+            + '#bqModeChipPanel button[aria-pressed="true"]{border-color:var(--accent,#f7931a);color:var(--accent,#f7931a);}'
+            + '#bqModeChipPanel a{min-height:44px;display:flex;align-items:center;color:var(--accent,#f7931a);font-size:16px;font-weight:700;text-decoration:underline;}'
+            + '#bqModeChip:focus-visible,#bqModeHomeCard button:focus-visible,#bqModeChipPanel button:focus-visible,#bqModeChipPanel a:focus-visible,#btcIntroOverlay button:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}'
+            + 'body.bq-mode-lite #rankBar,body.bq-mode-lite #lbFloatBtn,body.bq-mode-lite #aiToolsBtn,body.bq-mode-lite #dashboardFloatBtn,body.bq-mode-lite #dailySpinBanner,body.bq-mode-lite #raidBossHomeCard,body.bq-mode-lite #dailyChallengeCard,body.bq-mode-lite #quoteOfDay,body.bq-mode-lite #hotTopicsSectionWrapper,body.bq-mode-lite #donateSection,body.bq-mode-lite #todayFavorStrip,body.bq-mode-lite #badgeCelebration,body.bq-mode-lite #confettiCanvas,body.bq-mode-lite #chatTabAnnouncements,body.bq-mode-lite #progressRings,body.bq-mode-lite #leaderboard,body.bq-mode-lite #chatOverlayBtn{display:none !important;}';
+        document.head.appendChild(style);
+    }
+    function openExperienceModeSettings() {
+        var panel = document.getElementById('bqModeChipPanel');
+        var chip = document.getElementById('bqModeChip');
+        if (panel) panel.hidden = true;
+        if (chip) chip.setAttribute('aria-expanded', 'false');
+        if (typeof showSettings === 'function') showSettings();
+        setTimeout(function () {
+            if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
+            setTimeout(function () {
+                var card = document.getElementById('experienceModeCard');
+                if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center' });
+            }, 220);
+        }, 120);
+    }
+    window.bqOpenExperienceModeSettings = openExperienceModeSettings;
+    function toastMode(mode) {
+        var meta = modeMeta(mode);
+        if (typeof showToast === 'function') showToast(meta.toast || 'Mode updated', 3000);
+    }
+    function fillHomeCard(card) {
+        var grid = card.querySelector('.bq-mode-card-grid');
+        if (!grid) return;
+        if (typeof window.bqFillModePicker === 'function') {
+            window.bqFillModePicker(grid, {
+                onPick: function (id) {
+                    dismissModeCard();
+                    window.setExperienceMode(id);
+                    toastMode(id);
+                }
+            });
+        }
+    }
+    window.bqRefreshModeCard = function () {
+        var existing = document.getElementById('bqModeHomeCard');
+        if (!modeCardEligible()) {
+            if (existing) existing.remove();
+            return;
+        }
+        if (!existing) {
+            var inner = document.querySelector('#home .home-inner');
+            if (!inner) return;
+            existing = document.createElement('section');
+            existing.id = 'bqModeHomeCard';
+            existing.setAttribute('aria-label', 'Choose how much you see');
+            var head = document.createElement('div');
+            head.className = 'bq-mode-card-head';
+            var title = document.createElement('h2');
+            title.className = 'bq-mode-card-title';
+            title.textContent = 'New: choose how much you see';
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.className = 'bq-mode-card-dismiss';
+            close.setAttribute('aria-label', 'Dismiss');
+            close.textContent = '✕';
+            close.addEventListener('click', dismissModeCard);
+            head.appendChild(title);
+            head.appendChild(close);
+            var grid = document.createElement('div');
+            grid.className = 'bq-mode-card-grid';
+            existing.appendChild(head);
+            existing.appendChild(grid);
+            inner.insertBefore(existing, inner.firstChild);
+        }
+        fillHomeCard(existing);
+    };
+    function fillChipPanel(panel) {
+        panel.textContent = '';
+        if (typeof window.bqFillModePicker === 'function') {
+            window.bqFillModePicker(panel, {
+                onPick: function (id) {
+                    window.setExperienceMode(id);
+                    toastMode(id);
+                    panel.hidden = true;
+                    var chip = document.getElementById('bqModeChip');
+                    if (chip) {
+                        chip.setAttribute('aria-expanded', 'false');
+                        if (chip.focus) chip.focus();
+                    }
+                }
+            });
+        }
+        var link = document.createElement('a');
+        link.href = '#app/prefs';
+        link.textContent = "What's the difference?";
+        link.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            openExperienceModeSettings();
+        });
+        panel.appendChild(link);
+    }
+    function onChipPanelKey(ev) {
+        var panel = document.getElementById('bqModeChipPanel');
+        if (!panel || panel.hidden) return;
+        var items = panel.querySelectorAll('button, a');
+        var list = Array.prototype.slice.call(items);
+        var index = list.indexOf(document.activeElement);
+        if (ev.key === 'Escape') {
+            ev.preventDefault();
+            panel.hidden = true;
+            var chip = document.getElementById('bqModeChip');
+            if (chip) {
+                chip.setAttribute('aria-expanded', 'false');
+                if (chip.focus) chip.focus();
+            }
+        } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            ev.preventDefault();
+            var step = ev.key === 'ArrowDown' ? 1 : -1;
+            var next = list[index + step] || list[step > 0 ? 0 : list.length - 1];
+            if (next && next.focus) next.focus();
+        }
+    }
+    function mountModeChip() {
+        var meter = document.getElementById('dailyXpMeter');
+        var text = document.getElementById('dailyXpMeterText');
+        if (!meter || !text) return;
+        var row = document.getElementById('bqModeMeterRow');
+        if (!row) {
+            row = document.createElement('div');
+            row.id = 'bqModeMeterRow';
+            text.parentNode.insertBefore(row, text);
+            row.appendChild(text);
+        }
+        var chip = document.getElementById('bqModeChip');
+        if (!chip) {
+            chip = document.createElement('button');
+            chip.type = 'button';
+            chip.id = 'bqModeChip';
+            chip.setAttribute('aria-haspopup', 'true');
+            chip.setAttribute('aria-expanded', 'false');
+            chip.setAttribute('aria-controls', 'bqModeChipPanel');
+            row.appendChild(chip);
+            chip.addEventListener('click', function () {
+                var panel = document.getElementById('bqModeChipPanel');
+                if (!panel) return;
+                var willOpen = panel.hidden;
+                panel.hidden = !willOpen;
+                chip.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                if (willOpen) {
+                    fillChipPanel(panel);
+                    var first = panel.querySelector('button, a');
+                    if (first && first.focus) first.focus();
+                }
+            });
+        }
+        var panel = document.getElementById('bqModeChipPanel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'bqModeChipPanel';
+            panel.hidden = true;
+            panel.setAttribute('role', 'group');
+            panel.setAttribute('aria-label', 'Experience mode');
+            row.insertAdjacentElement('afterend', panel);
+            panel.addEventListener('keydown', onChipPanelKey);
+        }
+        if (!window._bqModeChipDoc) {
+            window._bqModeChipDoc = true;
+            document.addEventListener('click', function (ev) {
+                var openPanel = document.getElementById('bqModeChipPanel');
+                var openChip = document.getElementById('bqModeChip');
+                if (!openPanel || openPanel.hidden) return;
+                if (openPanel.contains(ev.target) || (openChip && openChip.contains(ev.target))) return;
+                openPanel.hidden = true;
+                if (openChip) openChip.setAttribute('aria-expanded', 'false');
+            });
+        }
+        window.bqRefreshModeChip();
+    }
+    window.bqRefreshModeChip = function () {
+        var chip = document.getElementById('bqModeChip');
+        if (!chip) return;
+        var meta = modeMeta(window.getExperienceMode());
+        chip.textContent = meta.label + ' ▾';
+    };
+    window.mountExperienceModeHome = function () {
+        ensureModeStyles();
+        mountModeChip();
+        window.bqRefreshModeCard();
+    };
+
     function boot() {
         hookNav();
         setTimeout(hookNav, 1500);
@@ -963,6 +1244,7 @@
         if (!alreadyOnboarded() && !hashed) window.showOnboardingIntro();
         else {
             window.applySimplifiedHome();
+            if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
             if (window.isNachoQuestActive() && !window.isNachoQuestDone()) {
                 window._showNachoQuestPill();
                 window.startNachoQuestDetection();

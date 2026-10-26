@@ -47,9 +47,9 @@ test('Quests hub holds lessons, trails, daily quests, and both certifications', 
     assert.strictEqual(reg.BQ_LEARN_MENU.quests[4].arg, 'technical');
 });
 
-test('beginner mode hides daily quests, meetup, spend, and the same six apps', function () {
+test('beginner mode shows daily quests and hides meetup, spend, and the same six apps', function () {
     assert.deepStrictEqual(ids(reg.BQ_LEARN_MENU.root, 'beginner'), ['brand-new', 'quests', 'first-purchase']);
-    assert.deepStrictEqual(ids(reg.BQ_LEARN_MENU.quests, 'beginner'), ['learning-quests', 'trails', 'scholar', 'protocol']);
+    assert.deepStrictEqual(ids(reg.BQ_LEARN_MENU.quests, 'beginner'), ['learning-quests', 'trails', 'daily-quests', 'scholar', 'protocol']);
     const hidden = ids(reg.BQ_EXPLORE_APPS, 'beginner');
     ['pop', 'forum', 'market', 'irl', 'beats', 'pow'].forEach(function (id) {
         assert.ok(hidden.indexOf(id) === -1, id);

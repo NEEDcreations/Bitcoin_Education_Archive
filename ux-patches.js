@@ -1544,65 +1544,24 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 // =====================================================================
 (function() {
 
-    // IDs to hide per mode
-    var HIDE_IDS = {
-        beginner: [
-            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
-            'dailySpinBanner', 'em-quick-actions',
-            'dailyChallengeCard', 'raidBossHomeCard',
-            'donateSection', 'quoteOfDay', 'dailyChannel',
-            'hotTopicsSectionWrapper'
-        ],
-        intermediate: [
-            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
-            'dailyChallengeCard', 'raidBossHomeCard',
-            'donateSection', 'quoteOfDay', 'dailyChannel',
-            'hotTopicsSectionWrapper'
-        ],
-        advanced: []
-    };
-
     function _getMode() {
         try { return localStorage.getItem('btc_experience_mode') || null; } catch(e) { return null; }
     }
 
-    function _hideEl(el, mode) {
-        if (!el) return;
-        el.setAttribute('data-em-hidden', mode);
-        el.style.setProperty('display', 'none', 'important');
-    }
-
-    function _restoreAll() {
-        document.querySelectorAll('[data-em-hidden]').forEach(function(el) {
-            el.style.removeProperty('display');
-            el.removeAttribute('data-em-hidden');
-        });
-    }
-
-    // Hide dynamic elements that may not exist yet at page load
     function applyDynamic(mode) {
-        if (!mode || mode === 'advanced') return;
-        var ids = HIDE_IDS[mode] || [];
-        ids.forEach(function(id) { _hideEl(document.getElementById(id), mode); });
-        // intermediate: also hide Nacho story button (beginner keeps it per spec)
-        if (mode === 'intermediate') {
-            _hideEl(document.getElementById('nachoStoryBtn'), mode);
-        }
+        if (typeof window.bqApplyExperienceSurfaces === 'function') window.bqApplyExperienceSurfaces(mode || 'advanced');
     }
 
     function applyMode(mode) {
-        _restoreAll();
-        if (mode && mode !== 'advanced') applyDynamic(mode);
+        applyDynamic(mode || 'advanced');
         if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
     }
 
     function run() {
         var mode = _getMode();
         if (!mode) {
-            var done = false;
-            try { done = localStorage.getItem('btc_onboarding_done') === 'true'; } catch(e) {}
-            if (done) { mode = 'advanced'; try { localStorage.setItem('btc_experience_mode','advanced'); } catch(e) {} }
-            else return;
+            applyMode('advanced');
+            return;
         }
         applyMode(mode);
     }
@@ -1620,7 +1579,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             window[fn] = function() {
                 var r = orig.apply(this, arguments);
                 var m = _getMode();
-                if (m && m !== 'advanced') setTimeout(function(){ applyDynamic(m); }, 50);
+                setTimeout(function(){ applyDynamic(m || 'advanced'); }, 50);
                 return r;
             };
         });
@@ -1661,12 +1620,11 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     function startObserver() {
         if (_obs) return;
         var mode = _getMode();
-        if (!mode || mode === 'advanced') return;
+        if (!mode) return;
         _obs = new MutationObserver(function() {
             clearTimeout(_obsTimer);
             _obsTimer = setTimeout(function() {
-                var m = _getMode();
-                if (m && m !== 'advanced') applyDynamic(m);
+                applyDynamic(_getMode() || 'advanced');
             }, 200);
         });
         _obs.observe(document.body, { childList: true, subtree: true });
@@ -1676,152 +1634,34 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 })();
 
 // =====================================================================
-// XP & BADGE TOAST SUPPRESSION — Phase 3
-// In beginner/intermediate modes: suppress XP gain and badge toasts.
-// XP and badges are still SILENTLY collected (awardPoints/checkBadges run normally).
-// Only the visible toast/celebration is suppressed.
+// XP TOAST DEDUPE
+// Every mode shows '+N XP · reason'. Identical toasts inside a short
+// window are dropped. Awards are never skipped.
 // =====================================================================
 (function() {
-    // Patterns that identify XP/badge toasts to suppress
-    var XP_PATTERNS = [
-        /^\+\d+ XP/i,           // "+25 XP - Reading: ..."
-        /streak.*XP/i,          // "Day 7 streak! +X XP"
-        /2X XP/i,               // "2X XP! Daily boost..."
-        /overflow pts/i,        // "overflow pts redeemed"
-        /daily cap/i,           // "Daily cap reached"
-        /XP will sync/i,        // offline sync
-        /XP - /i,               // generic "+N XP - reason"
-        /badge earned/i,        // badge earned toast (non-modal)
-        /🏅.*earned/i,
-        /earned.*🏅/i,
-        /\+\d+ pts.*badge/i,
-        /Nacho Quest.*pts/i,    // Nacho Quest XP toasts
-        /WAGMI.*topic/i,        // Nacho Quest step toasts
-        /First message sent/i,
-        /Spin complete/i,
-        /Smart question.*already/i,
-    ];
-
-    function shouldSuppress(msg) {
-        if (typeof msg !== 'string') return false;
-        for (var i = 0; i < XP_PATTERNS.length; i++) {
-            if (XP_PATTERNS[i].test(msg)) return true;
-        }
-        return false;
-    }
-
-    function isQuietMode() {
-        var m = null;
-        try { m = localStorage.getItem('btc_experience_mode'); } catch(e) {}
-        return (m === 'beginner' || m === 'intermediate');
-    }
-
     setTimeout(function() {
         var _origToast = window.showToast;
         if (!_origToast || window._emToastHooked) return;
         window._emToastHooked = true;
+        var last = { msg: '', at: 0 };
         window.showToast = function(msg) {
-            if (isQuietMode() && shouldSuppress(msg)) {
-                // Silently drop — XP has already been awarded to Firestore/localStorage
-                return;
-            }
+            var key = typeof msg === 'string' ? msg : '';
+            var now = Date.now();
+            if (key && key === last.msg && (now - last.at) < 2500) return;
+            last.msg = key;
+            last.at = now;
             return _origToast.apply(this, arguments);
         };
     }, 1500);
-
-    // Suppress badge celebration MODAL in quiet modes 
-    // (checkBadges still runs, badge is still stored — just no confetti/modal)
-    setTimeout(function() {
-        var _origCheck = window.checkBadges;
-        if (!_origCheck || window._emBadgeHooked) return;
-        window._emBadgeHooked = true;
-        window.checkBadges = function(data, silent) {
-            if (isQuietMode()) {
-                // Force silent=true so checkBadges records the badge but skips celebration
-                return _origCheck.call(this, data, true);
-            }
-            return _origCheck.apply(this, arguments);
-        };
-    }, 2000);
 })();
 
 // =====================================================================
-// DESKTOP SIDEBAR LEARN + APPS — mode filtering
-// Hides specific desktop buttons based on experience mode
+// DESKTOP SIDEBAR LEARN + APPS — registry renders the menus
 // =====================================================================
 (function() {
     function applyDesktopMenuModes() {
-        if (typeof window.renderDesktopHomeMenus === 'function' && window.BQ_LEARN_MENU && window.BQ_EXPLORE_APPS) {
+        if (typeof window.renderDesktopHomeMenus === 'function') {
             window.renderDesktopHomeMenus();
-            return;
-        }
-        var mode = null;
-        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
-        if (!mode || mode === 'advanced') {
-            // Show everything — remove any previous hiding
-            document.querySelectorAll('[data-em-desk-hidden]').forEach(function(el) {
-                el.style.display = '';
-                el.removeAttribute('data-em-desk-hidden');
-            });
-            return;
-        }
-
-        // Desktop Learn menu: which buttons to HIDE per mode
-        // Beginner: hide Daily Quests, Meetup Builder, Spend Bitcoin
-        // Intermediate: nothing extra to hide in learn (has all)
-        var LEARN_HIDE_ONCLICK = {
-            beginner: ['showQuestHub', 'irl-sync', "section:'merchants'"],
-            intermediate: []
-        };
-
-        // Desktop Explore Apps matches mobile #appsMenu. Beginner hides Proof of
-        // Play, Pleb Talk, Lightning Mart, IRL Sync, Bitcoin Beats, and Proof of
-        // Walk. AI Tools, Metrics, and Leaderboard stay for beginner, intermediate,
-        // and advanced (data-app-modes on those three cards).
-        var APPS_HIDE_ONCLICK = {
-            beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
-            intermediate: []
-        };
-
-        var learnHide = LEARN_HIDE_ONCLICK[mode] || [];
-        var appsHide = APPS_HIDE_ONCLICK[mode] || [];
-
-        // Apply to homeLearnMenu buttons
-        var learnMenu = document.getElementById('homeLearnMenu');
-        if (learnMenu) {
-            learnMenu.querySelectorAll('button').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = learnHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
-                if (shouldHide) {
-                    btn.setAttribute('data-em-desk-hidden', mode);
-                    btn.style.display = 'none';
-                } else {
-                    btn.removeAttribute('data-em-desk-hidden');
-                    btn.style.display = '';
-                }
-            });
-        }
-
-        // Apply to homeAppsMenu buttons
-        var appsMenu = document.getElementById('homeAppsMenu');
-        if (appsMenu) {
-            appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
-                var modes = btn.getAttribute('data-app-modes');
-                var shouldHide;
-                if (modes) {
-                    shouldHide = modes.split(/\s+/).indexOf(mode) === -1;
-                } else {
-                    var oc = btn.getAttribute('onclick') || '';
-                    shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
-                }
-                if (shouldHide) {
-                    btn.setAttribute('data-em-desk-hidden', mode);
-                    btn.style.display = 'none';
-                } else {
-                    btn.removeAttribute('data-em-desk-hidden');
-                    btn.style.display = '';
-                }
-            });
         }
     }
 

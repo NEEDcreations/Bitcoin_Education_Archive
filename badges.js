@@ -920,7 +920,7 @@ window._checkAndAwardTitles = function(earnedBadgeIds) {
     // Toast/announce each new title
     newTitles.forEach(function(tid) {
         var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
-        if (tDef && typeof showToast === 'function') {
+        if (tDef && typeof showToast === 'function' && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
             showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
         }
     });
@@ -954,6 +954,14 @@ function badgeShownXp(badge) {
 }
 
 function showBadgeToast(badge) {
+    var badgesOn = typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges');
+    if (!badgesOn) {
+        setTimeout(function() { if (typeof window._checkBadgeSets === 'function') window._checkBadgeSets(); }, 500);
+        var plainPts = badgeShownXp(badge);
+        var plainReason = (badge && badge.name) ? String(badge.name) : 'learning';
+        if (plainPts > 0 && typeof showToast === 'function') showToast('+' + plainPts + ' XP · ' + plainReason);
+        return;
+    }
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
     // Check if any badge set is now complete
