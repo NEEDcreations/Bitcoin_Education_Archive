@@ -1592,8 +1592,8 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
     function applyMode(mode) {
         _restoreAll();
-        if (!mode || mode === 'advanced') return;
-        applyDynamic(mode);
+        if (mode && mode !== 'advanced') applyDynamic(mode);
+        if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
     }
 
     function run() {
@@ -1770,7 +1770,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
+        // Desktop Explore Apps matches mobile #appsMenu. Beginner hides Proof of
+        // Play, Pleb Talk, Lightning Mart, IRL Sync, Bitcoin Beats, and Proof of
+        // Walk. AI Tools, Metrics, and Leaderboard stay for beginner, intermediate,
+        // and advanced (data-app-modes on those three cards).
         var APPS_HIDE_ONCLICK = {
             beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
             intermediate: []
@@ -1804,8 +1807,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         var appsMenu = document.getElementById('homeAppsMenu');
         if (appsMenu) {
             appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var modes = btn.getAttribute('data-app-modes');
+                var shouldHide;
+                if (modes) {
+                    shouldHide = modes.split(/\s+/).indexOf(mode) === -1;
+                } else {
+                    var oc = btn.getAttribute('onclick') || '';
+                    shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                }
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';
