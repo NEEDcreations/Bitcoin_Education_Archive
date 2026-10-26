@@ -3174,7 +3174,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const lastCh = localStorage.getItem('btc_last_channel');
         if (lastCh && CHANNELS[lastCh]) {
             const meta = CHANNELS[lastCh];
-            el.style.display = 'block';
+            el.style.display = 'none';
             el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\''+ lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
                 '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:800;margin-bottom:6px;">📖 Continue Reading</div>' +
                 '<div style="color:var(--heading);font-size:1.05rem;font-weight:700;margin-bottom:2px;">' + meta.title + '</div>' +
@@ -3182,7 +3182,113 @@ window.nachoQuizAnswer = function(btn, correct) {
         } else {
             el.style.display = 'none';
         }
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
+
+    function homeLearnTitle(id) {
+        var wanted = "go('" + id + "'";
+        var nodes = document.querySelectorAll('.ch-btn');
+        for (var i = 0; i < nodes.length; i++) {
+            var oc = nodes[i].getAttribute('onclick') || '';
+            if (oc.indexOf(wanted) !== -1) {
+                var text = (nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) return text;
+            }
+        }
+        if (typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].title) {
+            return String(CHANNELS[id].title).trim();
+        }
+        return '';
+    }
+    window.paintHomeLearnCard = function() {
+        var title = document.getElementById('homeLearnTitle');
+        if (!title) return;
+        var last = '';
+        try { last = localStorage.getItem('btc_last_channel') || ''; } catch (e) {}
+        var kicker = document.getElementById('homeLearnKicker');
+        var desc = document.getElementById('homeLearnDesc');
+        function paintChannel(id, daily) {
+            var name = homeLearnTitle(id);
+            if (kicker) kicker.textContent = 'LEARN · CONTINUE';
+            title.textContent = name || 'Learn Bitcoin';
+            if (desc) desc.textContent = daily ? 'Channel of the day' : ((typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].cat) || 'Continue reading');
+            window._homeLearnId = name ? id : '';
+        }
+        if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
+            paintChannel(last, false);
+            return;
+        }
+        var daily = window._channelOfTheDay;
+        if (daily && typeof CHANNELS !== 'undefined' && CHANNELS[daily]) {
+            paintChannel(daily, true);
+            return;
+        }
+        if (kicker) kicker.textContent = 'LEARN';
+        title.textContent = 'Learn Bitcoin';
+        if (desc) desc.textContent = 'Pick a topic and start reading';
+        window._homeLearnId = '';
+    };
+    window.openHomeLearn = function() {
+        if (window._homeLearnId && typeof go === 'function') {
+            go(window._homeLearnId);
+            return;
+        }
+        if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
+        else if (typeof toggleMenu === 'function') toggleMenu();
+    };
+    window.ensureIntroVideo = function(play) {
+        var video = document.getElementById('introVideo');
+        if (!video) return;
+        if (!video.querySelector('source')) {
+            var src = video.getAttribute('data-src');
+            if (src) {
+                var source = document.createElement('source');
+                source.src = src;
+                source.type = 'video/mp4';
+                video.appendChild(source);
+                video.load();
+            }
+        }
+        if (play && video.play) video.play().catch(function() {});
+    };
+    window.toggleHomeMore = function() {
+        var more = document.getElementById('homeMore');
+        var btn = document.getElementById('homeMoreToggle');
+        if (!more) return;
+        var open = !!more.hidden;
+        more.hidden = !open;
+        window._homeMoreOpen = open;
+        if (btn) {
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.textContent = open ? 'More ▾' : 'More ▸';
+        }
+        if (open) {
+            var videoSection = document.getElementById('introVideoSection');
+            var videoHidden = videoSection && videoSection.getAttribute('data-simplified-hidden') === '1' && !window._forceIntroVideo;
+            if (!videoHidden) window.ensureIntroVideo(!!window._forceIntroVideo);
+            if (typeof renderExplorationMap === 'function') renderExplorationMap();
+            if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
+        }
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+    };
+    window.watchIntroVideo = function() {
+        window._forceIntroVideo = true;
+        var section = document.getElementById('introVideoSection');
+        if (section) {
+            section.style.display = '';
+            section.removeAttribute('data-simplified-hidden');
+            var full = document.getElementById('introVideoFull');
+            var mini = document.getElementById('introVideoMini');
+            if (full) full.style.display = '';
+            if (mini) mini.style.display = 'none';
+        }
+        var more = document.getElementById('homeMore');
+        if (more && more.hidden) window.toggleHomeMore();
+        else window.ensureIntroVideo(true);
+        if (section && section.scrollIntoView) {
+            try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { section.scrollIntoView(true); }
+        }
+    };
 
     // Keyboard shortcuts (desktop) — MMORPG style!
     document.addEventListener('keydown', function(e) {
@@ -4787,13 +4893,17 @@ window.nachoQuizAnswer = function(btn, correct) {
         const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
         const dailyKey = keys[dayOfYear % keys.length];
         const ch = CHANNELS[dailyKey];
+        window._channelOfTheDay = dailyKey;
         if (ch) {
             const el = document.getElementById('dailyChannel');
-            el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
-                '<div class="daily-title">' + ch.title + '</div>' +
-                '<div class="daily-desc">' + ch.desc + '</div>';
-            el.onclick = () => go(dailyKey);
+            if (el) {
+                el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
+                    '<div class="daily-title">' + ch.title + '</div>' +
+                    '<div class="daily-desc">' + ch.desc + '</div>';
+                el.onclick = () => go(dailyKey);
+            }
         }
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     })();
 
     // Daily Bitcoin quote
@@ -4904,7 +5014,10 @@ if (locked) {
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
                         _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
                         appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
-                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : ''
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : '',
+                        appBtn('🤖', 'AI Tools', "if(typeof toggleAITools==='function')toggleAITools()", false),
+                        appBtn('📊', 'Metrics', "if(typeof toggleDashboard==='function')toggleDashboard()", false),
+                        appBtn('🏆', 'Leaderboard', "if(typeof toggleLeaderboard==='function')toggleLeaderboard()", false)
                     ];
                     return _all.join('');
                 })() +

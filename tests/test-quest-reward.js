@@ -103,6 +103,9 @@ test('a wrong trivia answer gets no reward', function() {
     assert.strictEqual(right.correct, true);
     assert.strictEqual(right.awarded, 50);
     assert.strictEqual(right.pts, 50);
+    assert.strictEqual(right.optionIndex, question.options.indexOf(correctText));
+    assert.strictEqual(missed.optionIndex, question.options.indexOf(wrong));
+    assert.strictEqual(byIndex.optionIndex, -1);
 });
 
 test('banned accounts and the daily cap hold for trivia', function() {
@@ -433,13 +436,39 @@ test('trivia stats record the bank index, not the shuffled display slot', functi
     const finishStart = src.indexOf('function _finishTrivia');
     const finishEnd = src.indexOf('var signedIn', finishStart);
     const finish = src.slice(finishStart, finishEnd);
-    assert.ok(finish.includes('var _bankIdx = _triviaStatIndex(t, chosenIdx)'));
-    assert.ok(finish.includes("statsUpdate['option_' + _bankIdx]"));
-    assert.ok(finish.includes("dayStatsUpdate['option_' + _bankIdx]"));
-    assert.strictEqual(finish.includes("option_' + chosenIdx"), false);
+    assert.strictEqual(finish.includes("db.collection('trivia_stats')"), false);
+    assert.strictEqual(finish.includes("db.collection('trivia_cumulative')"), false);
+    assert.strictEqual(finish.includes('FieldValue.increment'), false);
+    assert.ok(finish.includes('statsRecorded === true'));
     assert.strictEqual(src.includes('_triviaOptimisticStats'), false);
     assert.ok(src.includes("var statKey = 'option_' + _triviaStatIndex(trivia, oi)"));
     assert.ok(src.includes('_captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx)'));
+
+    const rewardSrc = read('functions/src/questReward.js');
+    assert.ok(rewardSrc.includes('function triviaOptionIndex'));
+    const body = callableBody(read('functions/src/questCallables.js'), 'answerTrivia');
+    assert.ok(body.includes("db.collection('trivia_stats').doc(dayKey)"));
+    assert.ok(body.includes("db.collection('trivia_cumulative').doc('t_' + graded.questionIndex)"));
+    assert.ok(body.includes("statPatch[optionKey] = FieldValue.increment(1)"));
+    assert.ok(body.includes('statsRecorded'));
+    assert.ok(body.indexOf('if (alreadyClaimed)') < body.indexOf("collection('trivia_stats')"));
+    assert.ok(body.indexOf('if (!banned)') < body.indexOf("collection('trivia_stats')"));
+    const rules = read('firestore.rules');
+    function rulesBlock(marker) {
+        const at = rules.indexOf(marker);
+        assert.ok(at > 0, marker);
+        return rules.slice(at, rules.indexOf('match /', at + 10));
+    }
+    ['match /trivia_stats/{date}', 'match /trivia_cumulative/{triviaId}'].forEach(function(marker) {
+        const block = rulesBlock(marker);
+        assert.ok(block.includes('allow read: if true'), marker);
+        assert.ok(block.includes('allow create, update, delete: if false'), marker);
+        assert.strictEqual(block.includes('request.auth'), false, marker);
+    });
+    const polls = rulesBlock('match /poll_votes/{pollId}');
+    assert.ok(polls.includes('allow create, update, delete: if false'));
+    assert.ok(rules.includes('match /poll_cumulative/{pollId}'));
+    assert.ok(rules.includes('match /satoshiFavor/announceDedup') || rules.includes('match /sf_live_announcements/{cycleId}'));
 });
 
 function cloneQuests(mutate) {

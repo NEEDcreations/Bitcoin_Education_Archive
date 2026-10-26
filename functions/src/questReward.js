@@ -257,23 +257,40 @@ function selectTriviaQuestion(src, now) {
     return { ok: true, question: currentQ, questionIndex: currentIndex };
 }
 
+// Bank slot of the chosen option text. A numeric index is never trusted.
+function triviaOptionIndex(question, chosen) {
+    if (!question || !Array.isArray(question.options)) return -1;
+    let text = '';
+    if (typeof chosen === 'string') text = chosen.trim();
+    else if (chosen && typeof chosen === 'object') {
+        text = String(chosen.text || chosen.chosen || chosen.chosenText || '').trim();
+    }
+    if (!text) return -1;
+    const limit = Math.min(question.options.length, 4);
+    for (let i = 0; i < limit; i++) {
+        if (String(question.options[i] || '').trim() === text) return i;
+    }
+    return -1;
+}
+
 function gradeTrivia(input) {
     const src = input || {};
     const now = src.now == null ? Date.now() : src.now;
     const today = offsetDateKey(now);
     const dayKey = String(src.dayKey || '');
     if (dayKey !== today) {
-        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'wrong-day' };
+        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'wrong-day', optionIndex: -1 };
     }
     const selected = selectTriviaQuestion(src, now);
     if (!selected.ok) {
-        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: selected.reason, questionIndex: selected.questionIndex };
+        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: selected.reason, questionIndex: selected.questionIndex, optionIndex: -1 };
     }
     const question = selected.question;
     const expected = selected.questionIndex;
     const correct = triviaChoiceCorrect(question, src.chosen);
+    const optionIndex = triviaOptionIndex(question, src.chosen);
     if (src.banned === true) {
-        return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected };
+        return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected, optionIndex: optionIndex };
     }
     const pts = correct ? TRIVIA_CORRECT_XP : 0;
     const split = planDailyXp(src.dailyUsed || 0, pts);
@@ -286,6 +303,7 @@ function gradeTrivia(input) {
         pts: pts,
         reason: correct ? '' : 'incorrect',
         questionIndex: expected,
+        optionIndex: optionIndex,
     };
 }
 

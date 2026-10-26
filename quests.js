@@ -1349,7 +1349,25 @@ function _markDailyActivity(type) {
     localStorage.setItem('btc_daily_activities', JSON.stringify(state));
 }
 
-function _announceDailyTrifecta() {
+function _trifectaTail(info) {
+    info = info || {};
+    if (info.wasActive) return '+3 min';
+    if (info.opened) return 'window open';
+    var points = typeof info.points === 'number' ? info.points : null;
+    if (points == null && typeof window._resolveFavorState === 'function') {
+        var live = window._resolveFavorState();
+        if (live && live.favorActive) return 'window open';
+        if (live && typeof live.points === 'number') points = live.points;
+    }
+    if (typeof points === 'number') {
+        var rem = 21 - points;
+        if (rem <= 0) return 'window open';
+        return rem + ' more to go';
+    }
+    return 'window open';
+}
+
+function _announceDailyTrifecta(info) {
     var state = _getDailyActivities();
     if (state.announced) return;
     state.announced = true;
@@ -1358,7 +1376,7 @@ function _announceDailyTrifecta() {
         ? currentUser.username : null;
     if (username && typeof window.nachoGlobalAnnounce === 'function') {
         window.nachoGlobalAnnounce(
-            '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
+            '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! ' + _trifectaTail(info) + ' \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
             (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : ''
         );
     }
@@ -1385,15 +1403,25 @@ function _triggerDailyAllThreeSF(attempt) {
         if (attempt < 5) setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 2000);
         return;
     }
+    var wasActive = false;
+    if (typeof window._resolveFavorState === 'function') {
+        var before = window._resolveFavorState();
+        wasActive = !!(before && before.favorActive);
+    }
     window.contributeSatoshiFavor('daily_all_three').then(function(data) {
         if (data) console.log('[DAILY] SF point awarded:', data);
-        _announceDailyTrifecta();
+        var opened = !!(data && data.favorActive && !wasActive);
+        _announceDailyTrifecta({
+            wasActive: wasActive,
+            opened: opened,
+            points: data && typeof data.points === 'number' ? data.points : null
+        });
     }).catch(function(err) {
         var code = err && err.code;
         var msg  = err && (err.message || String(err));
         console.warn('[DAILY] contributeSatoshiFavor failed (attempt ' + attempt + '):', msg);
         // already-exists = dedup already recorded, silent success
-        if (code === 'already-exists') { _announceDailyTrifecta(); return; }
+        if (code === 'already-exists') { _announceDailyTrifecta({ wasActive: wasActive }); return; }
         // Retry on: docs not written yet (failed-precondition) or transient read error (internal)
         var shouldRetry = (code === 'failed-precondition' || code === 'internal') && attempt < 8;
         if (shouldRetry) {
@@ -4946,6 +4974,15 @@ function _paintTriviaCommunity(trivia, todayKey) {
     _applyTriviaCommunity(trivia, merged && merged.total > 0 ? merged : null);
 }
 
+function _markCommunityResultsUnavailable(totalId) {
+    var el = document.getElementById(totalId);
+    if (!el) return;
+    var text = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text || text === 'Loading community results...') {
+        el.textContent = 'Community results are unavailable right now.';
+    }
+}
+
 function _listenTriviaStats(todayKey, onSnap) {
     _detachTriviaStatsListener();
     var gen = window._triviaStatsGen;
@@ -4956,7 +4993,10 @@ function _listenTriviaStats(todayKey, onSnap) {
             window._triviaLiveKey = todayKey;
             window._triviaLiveDoc = (doc && doc.exists) ? (doc.data() || {}) : {};
             if (onSnap) onSnap(window._triviaLiveDoc);
-        }, function() {});
+        }, function() {
+            if (gen !== window._triviaStatsGen) return;
+            _markCommunityResultsUnavailable('triviaTotalVotes');
+        });
     } catch (e) {}
 }
 
@@ -5091,7 +5131,7 @@ window.triviaAnswer = function(chosenIdx) {
 
     var chosenText = t.options[chosenIdx];
 
-    function _finishTrivia(isCorrect, awarded, banned) {
+    function _finishTrivia(isCorrect, awarded, banned, statsRecorded) {
         state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: !!isCorrect };
         _setTriviaState(state);
         if (isCorrect && !banned && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
@@ -5105,17 +5145,9 @@ window.triviaAnswer = function(chosenIdx) {
             _markDailyActivity('trivia');
             _checkDailyAllThree();
         }
-        if (typeof db !== 'undefined') {
-            var _bankIdx = _triviaStatIndex(t, chosenIdx);
-            var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: today.index };
-            statsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
-            db.collection('trivia_cumulative').doc('t_' + today.index).set(statsUpdate, { merge: true }).catch(function() {});
-            var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
-            dayStatsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
-            db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true }).catch(function() {});
-        }
+        window._triviaAwaitingWrite = statsRecorded === true;
         var body = document.getElementById('questHubBody');
-        if (body) _renderTriviaTab(body, { chosenIdx: chosenIdx });
+        if (body) _renderTriviaTab(body, statsRecorded === true ? { chosenIdx: chosenIdx } : null);
         if (typeof showToast === 'function') {
             var toast = isCorrect
                 ? (awarded > 0 ? '✅ Correct! +' + awarded + ' XP 🧠' : '✅ Correct!')
@@ -5129,7 +5161,7 @@ window.triviaAnswer = function(chosenIdx) {
         var signedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
             && typeof firebase !== 'undefined' && firebase.functions;
         if (!signedIn) {
-            _finishTrivia(chosenIdx === t.answer, 0, false);
+            _finishTrivia(chosenIdx === t.answer, 0, false, false);
             return;
         }
 
@@ -5150,7 +5182,7 @@ window.triviaAnswer = function(chosenIdx) {
                 return;
             }
             var awarded = typeof d.awarded === 'number' ? d.awarded : 0;
-            _finishTrivia(d.correct === true, awarded, d.banned === true);
+            _finishTrivia(d.correct === true, awarded, d.banned === true, d.statsRecorded === true);
         }).catch(function() {
             window._triviaSubmitting = false;
             if (typeof showToast === 'function') showToast('❌ Could not grade trivia. Try again.');
@@ -5368,7 +5400,10 @@ function _listenPollStats(pollId, onSnap) {
             window._pollLiveKey = pollId;
             window._pollLiveDoc = (doc && doc.exists) ? (doc.data() || {}) : {};
             if (onSnap) onSnap(window._pollLiveDoc);
-        }, function() {});
+        }, function() {
+            if (gen !== window._pollStatsGen) return;
+            _markCommunityResultsUnavailable('pollTotalVotes');
+        });
     } catch (e) {}
 }
 

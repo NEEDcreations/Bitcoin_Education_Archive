@@ -29,6 +29,15 @@ test('post-answer path does not bake a single-vote total', function() {
     assert.ok(src.includes("db.collection('poll_votes')"));
     assert.ok(src.includes('.onSnapshot('));
     assert.ok(src.includes('Loading community results...'));
+    assert.ok(src.includes('Community results are unavailable right now.'));
+    var triviaListen = src.slice(src.indexOf('function _listenTriviaStats'), src.indexOf('function _captureTriviaBaseline'));
+    var pollListen = src.slice(src.indexOf('function _listenPollStats'), src.indexOf('function _showPollLoading'));
+    assert.ok(triviaListen.includes("_markCommunityResultsUnavailable('triviaTotalVotes')"));
+    assert.ok(pollListen.includes("_markCommunityResultsUnavailable('pollTotalVotes')"));
+    assert.strictEqual(triviaListen.includes('function() {}'), false);
+    assert.strictEqual(pollListen.includes('function() {}'), false);
+    assert.strictEqual(src.includes("db.collection('trivia_stats').doc(todayKey).set"), false);
+    assert.strictEqual(src.includes("db.collection('trivia_cumulative')"), true);
     const closeStart = src.indexOf('function _closeQuestScreen');
     const closeEnd = src.indexOf('function _ensureQuestScreen');
     assert.ok(closeStart >= 0 && closeEnd > closeStart);
@@ -156,8 +165,8 @@ function boot() {
                     return {
                         id: id,
                         get: function() { return thenable(snap(docs[name] || {})); },
-                        onSnapshot: function(cb) {
-                            var rec = { name: name, id: id, cb: cb, unsubbed: false };
+                        onSnapshot: function(cb, err) {
+                            var rec = { name: name, id: id, cb: cb, err: err, unsubbed: false };
                             listeners.push(rec);
                             return function() { rec.unsubbed = true; };
                         },
@@ -366,6 +375,58 @@ test('poll with no tally yet says it is loading instead of one vote', function()
     assert.strictEqual(live.length, 1);
     page._closeQuestScreen();
     assert.strictEqual(live[0].unsubbed, true);
+});
+
+test('a failed listener says results are unavailable and keeps painted counts', function() {
+    var unavailable = 'Community results are unavailable right now.';
+    var page = boot();
+    var body = mount(page);
+    page.localStorage.setItem('btc_trivia_state', JSON.stringify({
+        date: '2026-10-24', chosen: 0, correct: true, index: 0
+    }));
+    page._triviaLiveDoc = null;
+    page._triviaLiveKey = null;
+    page._triviaBaseline = null;
+    page._triviaAwaitingWrite = false;
+    page._renderTriviaTab(body, null);
+    var triviaLive = page.listeners.filter(function(rec) { return rec.name === 'trivia_stats' && !rec.unsubbed; });
+    assert.strictEqual(triviaLive.length, 1);
+    assert.strictEqual(typeof triviaLive[0].err, 'function');
+    assert.strictEqual(page.document.getElementById('triviaTotalVotes').textContent, 'Loading community results...');
+    triviaLive[0].err(new Error('unavailable'));
+    assert.strictEqual(page.document.getElementById('triviaTotalVotes').textContent, unavailable);
+    triviaLive[0].cb({
+        exists: true,
+        data: function() { return { total: 10, option_0: 4, option_1: 3, option_2: 2, option_3: 1 }; }
+    });
+    assert.strictEqual(page.document.getElementById('triviaTotalVotes').textContent, '10 answers today');
+    triviaLive[0].err(new Error('later'));
+    assert.strictEqual(page.document.getElementById('triviaTotalVotes').textContent, '10 answers today');
+    page._closeQuestScreen();
+
+    page = boot();
+    body = mount(page);
+    page.window._questHubTab = 'poll';
+    page._pollLiveDoc = null;
+    page._pollLiveKey = null;
+    page._pollBaseline = null;
+    page._pollAwaitingWrite = false;
+    page.docs.poll_votes = {};
+    page.localStorage.setItem('btc_poll_state', JSON.stringify({
+        date: '2026-10-24', index: 0, chosen: 0, pollId: 'poll_test'
+    }));
+    page._renderPollTab(body);
+    var pollLive = page.listeners.filter(function(rec) { return rec.name === 'poll_votes' && !rec.unsubbed; });
+    assert.strictEqual(pollLive.length, 1);
+    assert.strictEqual(typeof pollLive[0].err, 'function');
+    assert.strictEqual(page.document.getElementById('pollTotalVotes').textContent, 'Loading community results...');
+    pollLive[0].err(new Error('unavailable'));
+    assert.strictEqual(page.document.getElementById('pollTotalVotes').textContent, unavailable);
+    pollLive[0].cb({ exists: true, data: function() { return { votes: [8, 5, 3, 2], total: 18 }; } });
+    assert.ok(page.document.getElementById('pollTotalVotes').textContent.indexOf('18 total votes') === 0);
+    pollLive[0].err(new Error('later'));
+    assert.ok(page.document.getElementById('pollTotalVotes').textContent.indexOf('18 total votes') === 0);
+    page._closeQuestScreen();
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

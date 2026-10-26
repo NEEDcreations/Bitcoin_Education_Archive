@@ -4,7 +4,8 @@
 
 const MIN_LEN = 3;
 const MAX_LEN = 20;
-const NAME_RE = /^[A-Za-z0-9 _\-.]+$/;
+// No whitespace of any kind (spaces break @mentions and Telegram tags).
+const NAME_RE = /^[A-Za-z0-9_\-.]+$/;
 
 const PROFANITY_LIST = [
     'fuck', 'shit', 'ass', 'bitch', 'dick', 'cock', 'pussy', 'cunt', 'damn', 'hell',
@@ -105,6 +106,7 @@ function assessUsername(name, ctx) {
     const raw = name == null ? '' : String(name);
     if (hasHtml(raw)) return { ok: false, error: 'html' };
     const trimmed = raw.trim();
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(trimmed)) return { ok: false, error: 'spaces' };
     if (trimmed.length < MIN_LEN) return { ok: false, error: 'short' };
     if (trimmed.length > MAX_LEN) return { ok: false, error: 'long' };
     if (!NAME_RE.test(trimmed)) return { ok: false, error: 'charset' };
@@ -124,7 +126,8 @@ const USERNAME_MESSAGES = {
     html: 'Usernames cannot include HTML.',
     short: 'Username must be at least 3 characters.',
     long: 'Username must be 20 characters or less.',
-    charset: 'Use letters, numbers, spaces, underscores, hyphens, or dots.',
+    spaces: 'Usernames cannot contain spaces. Try an underscore instead, like chill_guy.',
+    charset: 'Use letters, numbers, underscores, hyphens, or dots. No spaces.',
     profanity: 'That username is not allowed.',
     reserved: 'That name is reserved.',
     rename_limit: 'You can change your username once a day.',

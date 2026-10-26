@@ -113,10 +113,12 @@ const answerTrivia = onCall(async (data, context) => {
                 correct: claimDoc.data().correct === true,
                 awarded: 0,
                 alreadyClaimed: true,
+                statsRecorded: false,
                 reason: 'already-claimed',
             };
         }
 
+        let statsRecorded = false;
         if (!banned) {
             const last = user.lastTriviaDate || '';
             const yesterday = reward.previousDateKey(dayKey);
@@ -143,6 +145,21 @@ const answerTrivia = onCall(async (data, context) => {
                 correct: graded.correct === true,
                 at: FieldValue.serverTimestamp(),
             });
+            const optionIndex = graded.optionIndex;
+            if (Number.isInteger(optionIndex) && optionIndex >= 0 && optionIndex < 4
+                && Number.isInteger(graded.questionIndex) && graded.questionIndex >= 0) {
+                const optionKey = 'option_' + optionIndex;
+                const statPatch = { total: FieldValue.increment(1) };
+                statPatch[optionKey] = FieldValue.increment(1);
+                tx.set(db.collection('trivia_stats').doc(dayKey), statPatch, { merge: true });
+                const cumulativePatch = {
+                    total: FieldValue.increment(1),
+                    triviaIndex: graded.questionIndex,
+                };
+                cumulativePatch[optionKey] = FieldValue.increment(1);
+                tx.set(db.collection('trivia_cumulative').doc('t_' + graded.questionIndex), cumulativePatch, { merge: true });
+                statsRecorded = true;
+            }
             if (awarded > 0) {
                 try {
                     rewardNotify.apply(tx, db, FieldValue.serverTimestamp(), rewardNotify.plan({
@@ -169,6 +186,7 @@ const answerTrivia = onCall(async (data, context) => {
             banned: banned,
             alreadyClaimed: false,
             graded: true,
+            statsRecorded: statsRecorded,
             reason: banned ? 'banned' : (graded.correct ? '' : 'incorrect'),
         }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)));
     });
