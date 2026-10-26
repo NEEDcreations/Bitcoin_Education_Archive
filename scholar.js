@@ -3878,6 +3878,7 @@ function startScholarQuest(type) {
                     scholarTimeLeft = 600 - elapsed;
                     renderScholarQuestion(session.currentIndex || 0);
                     document.getElementById('questModal').classList.add('open');
+                    if (window.bqModal && typeof window.bqModal.open === 'function') window.bqModal.open(document.getElementById('questModal'), { onClose: function() { if (typeof closeQuest === 'function') closeQuest(); } });
                     startScholarTimer();
                     return;
                 }
@@ -3901,6 +3902,7 @@ function startScholarQuest(type) {
     // We show a loading state while the CF responds.
     inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-muted);font-size:0.95rem;">⌛ Preparing your exam…</div>';
     modal.classList.add('open');
+    if (window.bqModal && typeof window.bqModal.open === 'function') window.bqModal.open(modal, { onClose: function() { if (typeof closeQuest === 'function') closeQuest(); } });
 
     if (typeof firebase === 'undefined' || !firebase.functions) {
         inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;">Exam system unavailable. Please refresh and try again.</div>';
@@ -4301,6 +4303,7 @@ function showScholarCertificate(type) {
         '<button onclick="closeQuest()" style="margin-top:12px;padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;">Close</button>' +
     '</div>';
     modal.classList.add('open');
+    if (window.bqModal && typeof window.bqModal.open === 'function') window.bqModal.open(modal, { onClose: function() { if (typeof closeQuest === 'function') closeQuest(); } });
 }
 function downloadCertificate(type) {
     const certType = type || 'properties';
@@ -4729,6 +4732,7 @@ window.startFlashcards = function(topic) {
 
     renderCard();
     modal.classList.add('open');
+    if (window.bqModal && typeof window.bqModal.open === 'function') window.bqModal.open(modal, { onClose: function() { if (typeof closeQuest === 'function') closeQuest(); } });
 };
 
 

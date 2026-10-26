@@ -15,6 +15,7 @@ execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
+    { name: 'Overlay stack', file: 'test-overlay-stack.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },

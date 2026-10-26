@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2377" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2404" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -369,7 +369,7 @@
         .rank-next { font-size: 0.7rem; color: var(--text-faint); margin-top: 4px; }
 
         /* Toasts */
-        .rank-toast { position: fixed; top: 44px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #f97316; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; z-index: 620000; opacity: 0; transition: 0.3s; pointer-events: none; box-shadow: 0 8px 25px rgba(249,115,22,0.3); }
+        .rank-toast { position: fixed; top: 44px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #f97316; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; z-index: 2147483000; opacity: 0; transition: 0.3s; pointer-events: none; box-shadow: 0 8px 25px rgba(249,115,22,0.3); }
         .rank-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         /* Leaderboard */
@@ -457,7 +457,6 @@
         #tosModal .tos-signout { display:block; text-align:center; margin-top:12px; color:#475569; font-size:0.78rem; cursor:pointer; }
         #tosModal .tos-signout:hover { color:#94a3b8; }
         @media (max-width: 480px) { #tosModal .tos-box { width:calc(100% - 32px); padding:20px 16px 16px; } }
-        body:has(#tosModal.open) .rank-toast,
         body:has(#tosModal.open) #nachoQuestPill,
         body:has(#tosModal.open) #btcIntroOverlay,
         body:has(#tosModal.open) #guestPointsBanner,
@@ -465,8 +464,6 @@
         body:has(#tosModal.open) #usernameRepick,
         body:has(#tosModal.open) #totpSignInOverlay,
         body:has(#tosModal.open) #mfaSignInOverlay { display:none !important; }
-        body:has(#usernameModal.open) .rank-toast { display:none !important; }
-
         /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
         .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
         .fab-btn:hover { transform:translateY(-2px) translateZ(0); filter:brightness(1.1); }
@@ -2013,7 +2010,7 @@
     <div id="leaderboard"></div>
     <div id="badgeFloatTip"></div>
 
-    <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
+    <div id="usernameModal" role="dialog" aria-modal="true" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
             <p>Pick a username to start earning XP as you explore the archive!</p>
@@ -2109,10 +2106,10 @@
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
-    <script src="ranking.js?v=20261026_v2378" defer></script>
+    <script src="ranking.js?v=20261026_v2404" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2377" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2404" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2371" defer></script>
@@ -2129,16 +2126,16 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261026_v2378',
+            'global-chat.js?v=20261026_v2404',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261026_v2381',
+            'quests.js?v=20261026_v2404',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
-            'scholar.js?v=20261026_v2377','beats.js?v=20261023_v2349',
+            'scholar.js?v=20261026_v2404','beats.js?v=20261023_v2349',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261023_v2349','modules.js?v=20261026_v2377',
+            'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2404','guide.js?v=20261023_v2349','modules.js?v=20261026_v2377',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
@@ -2196,10 +2193,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2378'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2378'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2378'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2378'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2404'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2404'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2404'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2404'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],
@@ -2207,9 +2204,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261026_v2377'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261026_v2381'],
-            'questhub':      ['quests.js?v=20261026_v2381'],
-            'app':           ['quests.js?v=20261026_v2381'],
+            'quests':        ['quests.js?v=20261026_v2404'],
+            'questhub':      ['quests.js?v=20261026_v2404'],
+            'app':           ['quests.js?v=20261026_v2404'],
             'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
             'tv':            ['timechain-tv.js?v=20261024_v2353']
         };

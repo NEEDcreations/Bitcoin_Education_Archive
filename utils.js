@@ -240,3 +240,337 @@ function censorText(text) {
         return urls[Number(i)];
     });
 }
+
+// ============================================================
+// Explicit popup stack. Popup-opening code calls window.bqModal.open.
+// No page scan, no reparenting, no prototype patches, no MutationObserver.
+// The popup's layer becomes the current top + 1 and is never lowered.
+// Settings (#usernameModal, CSS 2100008) and Terms (#tosModal, CSS 2100010)
+// stay at that floor or higher. Escape and Back close only popups that
+// registered onClose, and that onClose settles the code waiting on them.
+// ============================================================
+(function() {
+    if (typeof document === 'undefined' || (window.bqModal && window.bqModal.open)) return;
+
+    var stack = [];
+    var swallowPop = false;
+    var FLOORS = { usernameModal: 2100008, tosModal: 2100010 };
+
+    function shown(node) {
+        if (!node || node.nodeType !== 1) return false;
+        if (node.isConnected === false) return false;
+        if (node.hidden || (node.hasAttribute && node.hasAttribute('hidden'))) return false;
+        if (node.getAttribute && node.getAttribute('aria-hidden') === 'true') return false;
+        var transform = (node.style && node.style.transform) || '';
+        if (/translateY\(\s*100%/.test(transform)) return false;
+        if (node.id === 'usernameModal' || node.id === 'tosModal' || node.id === 'questModal' || node.id === 'leaderboard') {
+            return !!(node.classList && node.classList.contains('open'));
+        }
+        try {
+            var cs = window.getComputedStyle ? window.getComputedStyle(node) : null;
+            if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+        } catch (e) {}
+        if (node.style && node.style.display === 'none') return false;
+        return true;
+    }
+
+    function numericZ(node) {
+        if (!node || node.nodeType !== 1) return 0;
+        var best = 0;
+        try {
+            if (window.getComputedStyle) {
+                var computed = parseInt(window.getComputedStyle(node).zIndex, 10);
+                if (computed > best) best = computed;
+            }
+        } catch (e) {}
+        if (node.style && node.style.zIndex) {
+            var inline = parseInt(node.style.zIndex, 10);
+            if (inline > best) best = inline;
+        }
+        var floor = FLOORS[node.id];
+        if (floor && floor > best) best = floor;
+        return best;
+    }
+
+    function findRec(el) {
+        for (var i = 0; i < stack.length; i++) if (stack[i].el === el) return i;
+        return -1;
+    }
+
+    function layer(excludeEl, skipTerms) {
+        var top = 0;
+        var ids = ['usernameModal', 'tosModal'];
+        for (var i = 0; i < ids.length; i++) {
+            if (skipTerms && ids[i] === 'tosModal') continue;
+            var node = document.getElementById(ids[i]);
+            if (!shown(node) || node === excludeEl) continue;
+            var z = numericZ(node);
+            if (z > top) top = z;
+        }
+        for (var j = 0; j < stack.length; j++) {
+            var el = stack[j].el;
+            if (!el || el === excludeEl || el.isConnected === false) continue;
+            if (skipTerms && el.id === 'tosModal') continue;
+            var sz = numericZ(el);
+            if (sz > top) top = sz;
+        }
+        return top;
+    }
+
+    function writeZ(el, z) {
+        if (!el) return;
+        if (el.style && el.style.setProperty) el.style.setProperty('z-index', String(z), 'important');
+        else if (el.style) el.style.zIndex = String(z);
+    }
+
+    function raise(el) {
+        var own = numericZ(el);
+        var terms = document.getElementById('tosModal');
+        var termsOpen = !!(terms && el !== terms && shown(terms));
+        var next = layer(el, termsOpen) + 1;
+        var applied = own;
+        if (own < next) {
+            writeZ(el, next);
+            applied = next;
+        }
+        if (termsOpen) {
+            var termsZ = numericZ(terms);
+            if (applied >= termsZ) writeZ(terms, applied + 1);
+        }
+        return applied;
+    }
+
+    function focusables(root) {
+        if (!root || !root.querySelectorAll) return [];
+        var nodes = root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        var out = [];
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            if (!n || n.disabled) continue;
+            if (n.getAttribute && (n.getAttribute('aria-hidden') === 'true' || n.getAttribute('tabindex') === '-1')) continue;
+            if (n.offsetParent === null && n !== document.activeElement) {
+                try {
+                    var cs = window.getComputedStyle ? window.getComputedStyle(n) : null;
+                    if (cs && cs.position !== 'fixed' && cs.display === 'none') continue;
+                } catch (e) {}
+            }
+            out.push(n);
+        }
+        return out;
+    }
+
+    function focusInside(el) {
+        var items = focusables(el);
+        var target = items.length ? items[0] : el;
+        if (target === el && target.setAttribute && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        try { if (target && target.focus) target.focus(); } catch (e) {}
+    }
+
+    function restoreFocus(rec) {
+        var target = rec && rec.prevFocus;
+        if (!target || target.isConnected === false) {
+            var under = null;
+            for (var i = stack.length - 1; i >= 0; i--) {
+                if (stack[i].el && stack[i].el.isConnected !== false) { under = stack[i].el; break; }
+            }
+            target = under;
+        }
+        if (target && target !== document.body && typeof target.focus === 'function') {
+            try { target.focus(); } catch (e) {}
+        }
+    }
+
+    function topRec() {
+        for (var i = stack.length - 1; i >= 0; i--) {
+            var rec = stack[i];
+            if (!rec.el || rec.el.isConnected === false) {
+                stack.splice(i, 1);
+                continue;
+            }
+            if (!shown(rec.el)) continue;
+            return rec;
+        }
+        return null;
+    }
+
+    function topPushed() {
+        for (var i = stack.length - 1; i >= 0; i--) {
+            if (stack[i].pushed && stack[i].el && stack[i].el.isConnected !== false) return stack[i];
+        }
+        return null;
+    }
+
+    function open(el, opts) {
+        if (!el || el.nodeType !== 1) return 0;
+        opts = opts || {};
+        if (el.id === 'usernameModal' || el.id === 'tosModal') return numericZ(el);
+        if (el.setAttribute) {
+            if (!el.getAttribute('role')) el.setAttribute('role', 'dialog');
+            el.setAttribute('aria-modal', 'true');
+        }
+        var z = raise(el);
+        var idx = findRec(el);
+        var prev = null;
+        var active = document.activeElement;
+        if (active && active !== document.body && active !== el && (!el.contains || !el.contains(active))) prev = active;
+        if (idx >= 0) {
+            var existing = stack[idx];
+            if (opts.onClose) existing.onClose = opts.onClose;
+            else if (opts.onClose === null) existing.onClose = null;
+            if (prev) existing.prevFocus = prev;
+            if (opts.trap != null) existing.trap = opts.trap !== false;
+            stack.splice(idx, 1);
+            stack.push(existing);
+            if (existing.trap !== false) focusInside(el);
+            return z;
+        }
+        var pushed = false;
+        if (typeof opts.onClose === 'function') {
+            try {
+                history.pushState({ bqModal: true }, '', window.location.href);
+                pushed = true;
+            } catch (e) {}
+        }
+        stack.push({
+            el: el,
+            onClose: typeof opts.onClose === 'function' ? opts.onClose : null,
+            pushed: pushed,
+            prevFocus: prev,
+            trap: opts.trap !== false
+        });
+        if (opts.trap !== false) focusInside(el);
+        return z;
+    }
+
+    function release(el) {
+        var idx = findRec(el);
+        if (idx < 0) return;
+        var rec = stack[idx];
+        var wasTop = idx === stack.length - 1;
+        stack.splice(idx, 1);
+        if (rec.pushed) {
+            rec.pushed = false;
+            swallowPop = true;
+            try { history.back(); } catch (e) { swallowPop = false; }
+        }
+        if (wasTop) restoreFocus(rec);
+    }
+
+    function close(el) {
+        var idx = findRec(el);
+        if (idx < 0) return false;
+        var rec = stack[idx];
+        if (typeof rec.onClose !== 'function') return false;
+        var fn = rec.onClose;
+        rec.onClose = null;
+        try { fn(); } catch (e) {}
+        if (findRec(el) >= 0) release(el);
+        return true;
+    }
+
+    function topicsOpen() {
+        var dlg = document.getElementById('topicsBrowser');
+        return !!(dlg && dlg.hidden !== true && shown(dlg));
+    }
+
+    function mentionOwns(e) {
+        var ac = document.getElementById('chatAutocomplete');
+        if (!ac || !shown(ac)) return false;
+        if (ac.style && ac.style.display === 'none') return false;
+        var t = e && e.target;
+        if (!t) return true;
+        if (t === ac || (ac.contains && ac.contains(t))) return true;
+        if (t.id === 'globalChatInput') return true;
+        if (t.closest && t.closest('#chatAutocomplete')) return true;
+        return false;
+    }
+
+    function nachoOwns() {
+        var bubble = document.getElementById('nacho-bubble');
+        if (!bubble) return false;
+        if (bubble.getAttribute && bubble.getAttribute('data-trivia') === '1') return true;
+        return !!(bubble.classList && bubble.classList.contains('show'));
+    }
+
+    function onEscape(e) {
+        if (!e) return;
+        var key = e.key;
+        if (key !== 'Escape' && key !== 'Esc' && e.keyCode !== 27) return;
+        var t = e.target;
+        if (t && t.closest && t.closest('#topicsBrowser')) return;
+        if (topicsOpen()) return;
+        if (t && t.closest && (t.closest('#nacho-bubble') || t.closest('#nacho-container'))) return;
+        if (nachoOwns()) return;
+        if (mentionOwns(e)) return;
+        var rec = topRec();
+        if (!rec) return;
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (typeof rec.onClose === 'function') close(rec.el);
+    }
+
+    function onTab(e) {
+        if (!e || e.key !== 'Tab') return;
+        var t = e.target;
+        if (t && t.closest && t.closest('#topicsBrowser')) return;
+        if (topicsOpen()) return;
+        var rec = topRec();
+        if (!rec || rec.trap === false) return;
+        var items = focusables(rec.el);
+        if (!items.length) {
+            if (e.preventDefault) e.preventDefault();
+            focusInside(rec.el);
+            return;
+        }
+        var first = items[0];
+        var last = items[items.length - 1];
+        var active = document.activeElement;
+        var inside = rec.el.contains && rec.el.contains(active);
+        if (e.shiftKey) {
+            if (!inside || active === first) {
+                if (e.preventDefault) e.preventDefault();
+                try { last.focus(); } catch (err) {}
+            }
+        } else if (!inside || active === last) {
+            if (e.preventDefault) e.preventDefault();
+            try { first.focus(); } catch (err2) {}
+        }
+    }
+
+    function onPop(e) {
+        if (swallowPop) {
+            swallowPop = false;
+            if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+            return;
+        }
+        if (topicsOpen()) return;
+        var rec = topPushed();
+        if (!rec) return;
+        rec.pushed = false;
+        var el = rec.el;
+        var fn = rec.onClose;
+        rec.onClose = null;
+        var idx = findRec(el);
+        if (idx >= 0) {
+            stack.splice(idx, 1);
+            restoreFocus(rec);
+        }
+        try { if (typeof fn === 'function') fn(); } catch (err) {}
+        if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+
+    document.addEventListener('keydown', onEscape, true);
+    document.addEventListener('keydown', onTab, true);
+    window.addEventListener('popstate', onPop, true);
+
+    window.bqModal = {
+        open: open,
+        close: close,
+        release: release,
+        layer: layer,
+        top: function() {
+            var rec = topRec();
+            return rec ? rec.el : null;
+        }
+    };
+})();

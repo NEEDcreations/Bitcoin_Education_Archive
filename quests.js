@@ -2372,7 +2372,9 @@ window._startQuestTopic = function(topicKey) {
 function skipQuest() { closeQuest(); }
 
 function closeQuest() {
-    document.getElementById('questModal').classList.remove('open');
+    var questModal = document.getElementById('questModal');
+    if (questModal) questModal.classList.remove('open');
+    if (questModal && window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(questModal);
     currentQuest = null;
     isRetry = false;
     // If the Quest Hub overlay is still open, restore its tabs + re-render so

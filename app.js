@@ -3923,6 +3923,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // === Escape = close modals ===
         if (key === 'escape') {
+            if (window.bqModal && typeof window.bqModal.top === 'function' && window.bqModal.top()) return;
             e.preventDefault();
             // Close lightbox
             var lb = document.getElementById('lb');
@@ -6374,6 +6375,11 @@ window.toggleAITools = function() {
 
     window._aiToolsOpen = !window._aiToolsOpen;
     panel.style.transform = window._aiToolsOpen ? 'translateY(0)' : 'translateY(100%)';
+    if (window._aiToolsOpen && window.bqModal && typeof window.bqModal.open === 'function') {
+        window.bqModal.open(panel, { onClose: function() {
+            if (window._aiToolsOpen && typeof window.toggleAITools === 'function') window.toggleAITools();
+        } });
+    } else if (!window._aiToolsOpen && window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(panel);
 
     // Update button appearance
     var btn = document.getElementById('aiToolsBtn');

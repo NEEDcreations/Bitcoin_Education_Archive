@@ -193,7 +193,6 @@ var _holdingsRefresh = null;
 var _holdingsRefreshQueued = false;
 var _giftReturnFocus = null;
 var _giftKeyBound = false;
-var _giftLayerZ = 480000;
 
 function _emptyEl(el) {
     if (!el) return;
@@ -433,76 +432,55 @@ function _playGiftOpen(stage) {
     });
 }
 
-function _numericZ(node) {
-    if (!node || node.nodeType !== 1) return 0;
-    var best = 0;
-    if (node.style && node.style.zIndex) {
-        var inline = parseInt(node.style.zIndex, 10);
-        if (inline > best) best = inline;
-    }
-    var css = node.getAttribute && node.getAttribute('style');
-    if (css) {
-        var match = String(css).match(/z-index:\s*(\d+)/i);
-        if (match) {
-            var fromCss = parseInt(match[1], 10);
-            if (fromCss > best) best = fromCss;
-        }
-    }
-    if (typeof window.getComputedStyle === 'function') {
-        try {
-            var computed = parseInt(window.getComputedStyle(node).zIndex, 10);
-            if (computed > best) best = computed;
-        } catch (e) { /* a detached node has no computed style */ }
-    }
-    return best;
-}
-
-function _layerOpen(node) {
-    if (!node || node.nodeType !== 1) return false;
-    if (node.id === 'postSpinGiftOverlay') return false;
-    if (node.getAttribute && node.getAttribute('hidden') != null) return false;
-    if (node.style && node.style.display === 'none') return false;
-    if (node.classList && node.classList.contains('open')) return true;
-    if (node.id === 'spinModal' || node.id === 'questHubOverlay' || node.id === 'onboardingOverlay') return true;
-    if (typeof window.getComputedStyle === 'function') {
-        try {
-            if (window.getComputedStyle(node).display === 'none') return false;
-        } catch (e) { return false; }
-    }
-    return true;
-}
-
-function _raiseGiftLayer() {
+function _giftFallbackZ() {
     var top = 480000;
-    function consider(node) {
-        var cur = node;
-        while (cur && cur !== document && cur !== document.documentElement) {
-            if (_layerOpen(cur)) {
-                var z = _numericZ(cur);
-                if (z > top) top = z;
-            }
-            cur = cur.parentNode;
-        }
+    var ids = ['usernameModal', 'tosModal', 'questHubOverlay', 'spinModal', 'onboardingOverlay'];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (!el || !el.style) continue;
+        var z = parseInt(el.style.zIndex, 10);
+        if (z > top) top = z;
     }
-    if (document.activeElement) consider(document.activeElement);
-    ['usernameModal', 'questHubOverlay', 'spinModal', 'onboardingOverlay', 'tosModal'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) consider(el);
-    });
-    var kids = document.body ? document.body.childNodes : [];
-    for (var i = 0; i < kids.length; i++) consider(kids[i]);
-    _giftLayerZ = top + 2;
-    return _giftLayerZ;
+    return top + 2;
 }
 
 function _confetti() {
     var colors = ['#f7931a', '#fbbf24', '#a78bfa', '#34d399', '#f472b6', '#60a5fa'];
+    var z = (window.bqModal && typeof window.bqModal.layer === 'function') ? (window.bqModal.layer() + 1) : (_giftFallbackZ() + 8);
     for (var i = 0; i < 12; i++) {
         var dot = document.createElement('div');
-        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:' + (_giftLayerZ + 8) + ';left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
+        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:' + z + ';left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
         document.body.appendChild(dot);
         setTimeout(function(d) { if (d && d.parentNode) d.parentNode.removeChild(d); }, 1400, dot);
     }
+}
+
+// Gift popups opt in to the shared helper. It raises this overlay to the
+// current top layer + 1 and never lowers Settings or Terms.
+// Do not add a private scan (_raiseGiftLayer / _numericZ / _layerOpen).
+function _placeGiftOverlay(overlay, onClose) {
+    if (!overlay) return;
+    if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
+    if (!overlay._bqRemove && typeof overlay.remove === 'function') {
+        var nativeRemove = overlay.remove.bind(overlay);
+        overlay.remove = function() {
+            if (overlay._bqRemoving) return nativeRemove();
+            overlay._bqRemoving = true;
+            try {
+                if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(overlay);
+                nativeRemove();
+            } finally {
+                overlay._bqRemoving = false;
+            }
+        };
+        overlay._bqRemove = true;
+    }
+    var closeFn = typeof onClose === 'function' ? onClose : function() { overlay.remove(); };
+    if (window.bqModal && typeof window.bqModal.open === 'function') {
+        window.bqModal.open(overlay, { onClose: closeFn });
+        return;
+    }
+    overlay.style.zIndex = String(_giftFallbackZ());
 }
 
 function _btn(label, bg) {
@@ -772,7 +750,6 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     _injectGiftingCSS();
     opts = opts || {};
     var previousFocus = document.activeElement || null;
-    var layer = _raiseGiftLayer();
     var existing = document.getElementById('postSpinGiftOverlay');
     if (existing) {
         if (_nodeInside(previousFocus, existing)) previousFocus = _giftReturnFocus;
@@ -786,9 +763,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     var overlay = document.createElement('div');
     overlay.id = 'postSpinGiftOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = String(layer);
     overlay.setAttribute('data-pending', opts.pending ? '1' : '0');
-
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     modal.setAttribute('role', 'dialog');
@@ -870,7 +845,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     actions.appendChild(_soundButton('giftSoundToggle'));
     modal.appendChild(actions);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay, function() { _closePostSpinGiftModal(); });
     _bindGiftModalKeys();
     try { modal.focus(); } catch (e) { /* focus is best-effort when the dialog opens */ }
 };
@@ -1207,6 +1182,9 @@ function _lockedCipherNote(parent, label) {
 function _restorePanelZ(id) {
     var panel = document.getElementById(id);
     if (!panel || !panel.style) return;
+    // bqModal.open writes z-index with !important. Clear that before restoring
+    // the panel default, or the raised layer stays on top after close.
+    if (panel.style.removeProperty) panel.style.removeProperty('z-index');
     // Chat's default z-index lives on the element. Leaderboard's default lives in CSS.
     panel.style.zIndex = id === 'chatOverlay' ? '250000' : '';
 }
@@ -1644,7 +1622,6 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     var overlay = document.createElement('div');
     overlay.id = 'decryptCipherOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     var own = key.status === 'inventory';
@@ -1655,7 +1632,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
         '<div id="dcStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Checking the key…</div>' +
         '<div id="dcResult" style="display:none;"></div>';
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
 
     var hexEl = document.getElementById('dcHex');
     var statusEl = document.getElementById('dcStatus');
@@ -1752,7 +1729,6 @@ window.showCipherClaim = function(win) {
     var overlay = document.createElement('div');
     overlay.id = 'cipherClaimOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     modal.style.textAlign = 'left';
@@ -1809,7 +1785,7 @@ window.showCipherClaim = function(win) {
     modal.appendChild(input);
     modal.appendChild(row);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
     setTimeout(function() { input.focus(); }, 50);
 };
 
@@ -1838,7 +1814,6 @@ window.showPeerPickerForKeys = async function(keyIds) {
     var overlay = document.createElement('div');
     overlay.id = 'peerPickerOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;';
@@ -1898,7 +1873,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
     sheet.appendChild(close);
     overlay.appendChild(sheet);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
 };
 
 window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
@@ -1919,7 +1894,6 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     var overlay = document.createElement('div');
     overlay.id = 'keyPickerOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow:auto;border:1px solid #334155;';
@@ -1953,7 +1927,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
             closeBlocked.onclick = function() { overlay.remove(); };
             sheet.appendChild(closeBlocked);
             overlay.appendChild(sheet);
-            document.body.appendChild(overlay);
+            _placeGiftOverlay(overlay);
             return;
         }
     } catch (e) { /* server still enforces the cap */ }
@@ -2018,7 +1992,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     close.onclick = function() { overlay.remove(); };
     sheet.appendChild(close);
     overlay.appendChild(sheet);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
 };
 
 // ─── Settings blurb: pending gifts only (the explanation is in the page) ────
@@ -2062,8 +2036,7 @@ window.openNookInventory = function() {
         window._nookSubTab = 'inventory';
         if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
         var hub = document.getElementById('questHubOverlay');
-        var settings = document.getElementById('usernameModal');
-        if (hub && settings && settings.classList.contains('open')) hub.style.zIndex = '450000';
+        if (hub && window.bqModal && typeof window.bqModal.open === 'function') window.bqModal.open(hub);
     }, 120);
 };
 
@@ -2170,7 +2143,6 @@ function _drainCipherShareQueue() {
     var overlay = document.createElement('div');
     overlay.id = 'cipherShareOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     var who = notice.openerUsername || 'a Bitcoiner';
@@ -2182,7 +2154,7 @@ function _drainCipherShareQueue() {
         '<div id="csHex" style="font-family:monospace;font-size:0.7rem;color:#f7931a;word-break:break-all;min-height:48px;margin-bottom:12px;padding:10px;background:rgba(247,147,26,0.05);border-radius:8px;"></div>' +
         '<div id="csResult" style="display:none;"></div>';
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
     var hexEl = document.getElementById('csHex');
     _playHex(hexEl, 1200).then(function() {
         if (!overlay.parentNode) return;
