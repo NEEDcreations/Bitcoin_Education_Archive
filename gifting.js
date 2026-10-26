@@ -82,9 +82,22 @@ function _injectGiftingCSS() {
         '@keyframes decryptReveal{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}',
         '@keyframes decryptConfetti{to{transform:translateY(220px) rotate(720deg);opacity:0}}',
         '@keyframes decryptPulse{0%,100%{text-shadow:0 0 8px #f7931a}50%{text-shadow:0 0 24px #f7931a}}',
-        '.gifting-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:480000;display:flex;align-items:center;justify-content:center;padding:16px;}',
-        '.gifting-modal{background:var(--card-bg,#0f172a);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(247,147,26,0.12);max-height:90vh;overflow-y:auto;}',
-        '.gift-open-btn,.cipher-open-btn,.key-send-btn{padding:8px 12px;border:none;border-radius:8px;color:#fff;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}',
+        '@keyframes giftBtnSpin{to{transform:rotate(360deg)}}',
+        '.gifting-overlay{position:fixed;inset:0;background:rgba(2,6,23,0.82);z-index:480000;display:flex;align-items:center;justify-content:center;padding:16px;}',
+        '.gifting-modal{background:#0f172a;background-color:#0f172a;color:#e2e8f0;opacity:1;border:1px solid rgba(247,147,26,0.35);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 50px rgba(0,0,0,0.45);max-height:90vh;overflow-y:auto;}',
+        '[data-theme="light"] .gifting-modal{background:#ffffff;background-color:#ffffff;color:#1e293b;}',
+        '.oled-theme .gifting-modal,[data-theme="oled"] .gifting-modal{background:#000000;background-color:#000000;color:#e2e8f0;}',
+        '.gifting-modal button{min-height:44px;min-width:44px;box-sizing:border-box;}',
+        '.gift-open-btn,.cipher-open-btn,.key-send-btn{min-height:44px;min-width:44px;padding:10px 16px;border:none;border-radius:10px;color:#fff;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:8px;}',
+        '.gift-open-btn{background:linear-gradient(135deg,#f7931a,#ea580c);}',
+        '.gift-open-btn:disabled{cursor:progress;opacity:0.92;}',
+        '.gift-later-btn{background:transparent;color:var(--text-muted,#94a3b8);border:1px solid var(--border,#334155);}',
+        '.gift-btn-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;display:inline-block;flex:0 0 auto;animation:giftBtnSpin 0.7s linear infinite;}',
+        '.gift-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.28);border-radius:12px;}',
+        '.gift-prize-emoji{font-size:2rem;line-height:1;flex-shrink:0;animation:giftReveal 0.35s ease-out;}',
+        '.gift-prize-label{flex:1;min-width:120px;font-size:0.95rem;font-weight:800;line-height:1.3;}',
+        '.gift-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}',
+        '.gift-actions button{flex:1 1 132px;}',
         '.kc-card{display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg-side,#0f172a);border:1px solid var(--border,#333);border-radius:12px;}',
         '.kc-accent{color:#f7931a;}.kc-locked{color:#a78bfa;}.kc-match{color:#34d399;}',
         '[data-theme="light"] .kc-accent{color:#c2410c;}[data-theme="light"] .kc-locked{color:#6d28d9;}[data-theme="light"] .kc-match{color:#047857;}',
@@ -92,7 +105,7 @@ function _injectGiftingCSS() {
         '.gift-base{font-size:3.2rem;line-height:1;animation:giftBoxShake 0.72s ease-in-out;}',
         '.gift-lid{position:absolute;top:6px;font-size:1.5rem;animation:giftLidPop 0.5s ease-out 0.62s forwards;}',
         '.gift-prize-pop{position:absolute;top:8px;font-size:1.8rem;animation:giftPrizePop 0.45s ease-out 0.78s both;}',
-        '@media (max-width:700px){.gifting-modal{padding:18px 14px;border-radius:16px;}}',
+        '@media (max-width:700px){.gifting-overlay{padding:12px;}.gifting-modal{padding:16px 12px;border-radius:16px;}.gift-actions{flex-direction:column;}.gift-actions button{width:100%;flex:1 1 auto;}}',
         '.kc-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:2px 0 10px;flex-wrap:wrap;}',
         '.kc-intro p{flex:1;min-width:160px;margin:0;}',
         '@media (max-width:520px){.kc-card{flex-wrap:wrap;}.kc-card .cipher-open-btn,.kc-card .key-send-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}}'
@@ -150,6 +163,29 @@ var _cipherBusy = false;
 var _giftsOpening = {};
 var _openAllBusy = false;
 var _forceServerHoldings = false;
+// openGift flips that gift's status and applies daily XP, tickets, keys,
+// closet items, and the weekly shoutout cap in one transaction. Parallel
+// opens of different gifts conflict on the user doc and retry, so they
+// cannot over-award those caps. Sats are not granted here. Keep a small
+// pool so a burst still lines up on that one user document.
+var GIFT_OPEN_CONCURRENCY = 3;
+var GIFT_OPEN_ANIM_MS = 450;
+var _giftQueue = [];
+var _giftActiveCount = 0;
+var _giftSettled = {};
+var _giftWaiters = {};
+var _giftPromises = {};
+var _giftSilent = {};
+var _giftAnimGen = 0;
+var _holdingsRefresh = null;
+var _holdingsRefreshQueued = false;
+var _giftReturnFocus = null;
+var _giftKeyBound = false;
+
+function _emptyEl(el) {
+    if (!el) return;
+    while (el.firstChild) el.removeChild(el.firstChild);
+}
 
 function _soundOn() {
     try {
@@ -306,7 +342,7 @@ function _soundButton(id) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.id = id;
-    btn.style.cssText = 'padding:7px 12px;background:transparent;color:var(--text-muted);border:1px solid var(--border,#333);border-radius:10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
+    btn.style.cssText = 'min-height:44px;min-width:44px;padding:10px 14px;background:transparent;color:var(--text-muted);border:1px solid var(--border,#333);border-radius:10px;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0;box-sizing:border-box;';
     _paintSoundBtn(btn);
     btn.onclick = function() { _toggleAppSound(btn); };
     return btn;
@@ -331,34 +367,74 @@ function _playHex(el, ms) {
 }
 
 function _playGiftOpen(stage) {
+    var gen = ++_giftAnimGen;
     return new Promise(function(resolve) {
-        if (!stage) { setTimeout(resolve, 1200); return; }
-        stage.style.display = 'block';
-        stage.style.fontFamily = 'inherit';
-        stage.style.background = 'transparent';
-        stage.style.minHeight = '96px';
-        stage.innerHTML = '<div class="gift-stage-box" aria-hidden="true"><div class="gift-lid">✨</div><div class="gift-base">🎁</div><div class="gift-prize-pop">🎉</div></div>';
-        var box = stage.querySelector('.gift-stage-box');
-        var sparks = ['✦', '✧', '✨', '⭐'];
-        for (var i = 0; i < 8; i++) {
-            var s = document.createElement('span');
-            s.textContent = sparks[i % sparks.length];
-            s.style.cssText = 'position:absolute;left:50%;top:42%;font-size:0.95rem;pointer-events:none;animation:giftSpark 0.7s ease-out ' + (0.62 + i * 0.03) + 's forwards;';
-            s.style.setProperty('--dx', ((i - 3.5) * 16) + 'px');
-            s.style.setProperty('--dy', (-18 - (i % 3) * 14) + 'px');
-            box.appendChild(s);
-        }
-        setTimeout(function() {
-            stage.style.display = 'none';
-            stage.innerHTML = '';
+        var finished = false;
+        function finish() {
+            if (finished) return;
+            finished = true;
+            if (stage && gen === _giftAnimGen) {
+                stage.style.display = 'none';
+                _emptyEl(stage);
+            }
             resolve();
-        }, 1200);
+        }
+        try {
+            if (!stage) { setTimeout(finish, GIFT_OPEN_ANIM_MS); return; }
+            stage.style.display = 'block';
+            stage.style.fontFamily = 'inherit';
+            stage.style.background = 'transparent';
+            stage.style.minHeight = '72px';
+            _emptyEl(stage);
+            var box = document.createElement('div');
+            box.className = 'gift-stage-box';
+            box.setAttribute('aria-hidden', 'true');
+            var lid = document.createElement('div');
+            lid.className = 'gift-lid';
+            lid.textContent = '✨';
+            var base = document.createElement('div');
+            base.className = 'gift-base';
+            base.textContent = '🎁';
+            var pop = document.createElement('div');
+            pop.className = 'gift-prize-pop';
+            pop.textContent = '🎉';
+            box.appendChild(lid);
+            box.appendChild(base);
+            box.appendChild(pop);
+            var sparks = ['✦', '✧', '✨', '⭐'];
+            for (var i = 0; i < 8; i++) {
+                var s = document.createElement('span');
+                s.textContent = sparks[i % sparks.length];
+                s.style.cssText = 'position:absolute;left:50%;top:42%;font-size:0.95rem;pointer-events:none;animation:giftSpark 0.45s ease-out ' + (0.12 + i * 0.02) + 's forwards;';
+                if (s.style.setProperty) {
+                    s.style.setProperty('--dx', ((i - 3.5) * 16) + 'px');
+                    s.style.setProperty('--dy', (-18 - (i % 3) * 14) + 'px');
+                }
+                box.appendChild(s);
+            }
+            stage.appendChild(box);
+            setTimeout(finish, GIFT_OPEN_ANIM_MS);
+        } catch (e) {
+            finish();
+        }
     });
+}
+
+function _giftFallbackZ() {
+    var top = 480000;
+    var ids = ['usernameModal', 'tosModal', 'questHubOverlay', 'spinModal', 'onboardingOverlay'];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (!el || !el.style) continue;
+        var z = parseInt(el.style.zIndex, 10);
+        if (z > top) top = z;
+    }
+    return top + 2;
 }
 
 function _confetti() {
     var colors = ['#f7931a', '#fbbf24', '#a78bfa', '#34d399', '#f472b6', '#60a5fa'];
-    var z = (window.bqModal && typeof window.bqModal.layer === 'function') ? (window.bqModal.layer() + 1) : 120001;
+    var z = (window.bqModal && typeof window.bqModal.layer === 'function') ? (window.bqModal.layer() + 1) : (_giftFallbackZ() + 8);
     for (var i = 0; i < 12; i++) {
         var dot = document.createElement('div');
         dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:' + z + ';left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
@@ -370,7 +446,7 @@ function _confetti() {
 // Gift popups opt in to the shared helper. It raises this overlay to the
 // current top layer + 1 and never lowers Settings or Terms.
 // Do not add a private scan (_raiseGiftLayer / _numericZ / _layerOpen).
-function _placeGiftOverlay(overlay) {
+function _placeGiftOverlay(overlay, onClose) {
     if (!overlay) return;
     if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
     if (!overlay._bqRemove && typeof overlay.remove === 'function') {
@@ -387,20 +463,19 @@ function _placeGiftOverlay(overlay) {
         };
         overlay._bqRemove = true;
     }
+    var closeFn = typeof onClose === 'function' ? onClose : function() { overlay.remove(); };
     if (window.bqModal && typeof window.bqModal.open === 'function') {
-        window.bqModal.open(overlay, {
-            onClose: function() { overlay.remove(); }
-        });
+        window.bqModal.open(overlay, { onClose: closeFn });
         return;
     }
-    overlay.style.zIndex = '480000';
+    overlay.style.zIndex = String(_giftFallbackZ());
 }
 
 function _btn(label, bg) {
     var b = document.createElement('button');
     b.type = 'button';
     b.textContent = label;
-    b.style.cssText = 'padding:10px 16px;background:' + (bg || 'linear-gradient(135deg,#f7931a,#ea580c)') + ';color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;';
+    b.style.cssText = 'min-height:44px;min-width:44px;padding:10px 16px;background:' + (bg || 'linear-gradient(135deg,#f7931a,#ea580c)') + ';color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:8px;';
     return b;
 }
 
@@ -447,27 +522,261 @@ window.checkPendingGifts = async function() {
     }
 };
 
+function _resetGiftOpenState() {
+    _giftQueue = [];
+    _giftActiveCount = 0;
+    _giftSettled = {};
+    _giftWaiters = {};
+    _giftPromises = {};
+    _giftSilent = {};
+    _giftsOpening = {};
+    _openAllBusy = false;
+}
+
+function _rowButton(giftId) {
+    var row = document.getElementById('giftRow_' + giftId);
+    if (!row) return null;
+    var nodes = row.childNodes || [];
+    for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i] && nodes[i].tagName === 'BUTTON') return nodes[i];
+    }
+    return null;
+}
+
+function _paintOpeningButton(btn) {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    _emptyEl(btn);
+    var spin = document.createElement('span');
+    spin.className = 'gift-btn-spin';
+    spin.setAttribute('aria-hidden', 'true');
+    var text = document.createElement('span');
+    text.textContent = 'Opening…';
+    btn.appendChild(spin);
+    btn.appendChild(text);
+}
+
+function _showOpening(giftId) {
+    var row = document.getElementById('giftRow_' + giftId);
+    if (row) {
+        row.style.opacity = '';
+        row.setAttribute('data-gift-state', 'opening');
+    }
+    _paintOpeningButton(_rowButton(giftId));
+}
+
+function _settleGift(giftId) {
+    var waiters = _giftWaiters[giftId] || [];
+    delete _giftWaiters[giftId];
+    delete _giftPromises[giftId];
+    for (var i = 0; i < waiters.length; i++) {
+        try { waiters[i](); } catch (e) { /* a waiter cannot stall the queue */ }
+    }
+}
+
+function _nodeInside(node, root) {
+    if (!node || !root) return false;
+    if (typeof root.contains === 'function') return root.contains(node);
+    var cur = node;
+    while (cur) {
+        if (cur === root) return true;
+        cur = cur.parentNode;
+    }
+    return false;
+}
+
+function _isGiftAlreadyOpened(err) {
+    var code = err && err.code ? String(err.code) : '';
+    if (code === 'already-exists' || code === 'functions/already-exists') return true;
+    var msg = err && err.message ? String(err.message) : '';
+    return /already opened/i.test(msg);
+}
+
+function _removeUnopenedGift(giftId) {
+    var gifts = window._postSpinGifts;
+    if (!gifts || !gifts.length) return;
+    for (var i = gifts.length - 1; i >= 0; i--) {
+        if (gifts[i] && gifts[i].id === giftId) gifts.splice(i, 1);
+    }
+}
+
+function _syncOpenAllButton() {
+    var openAll = document.getElementById('openAllGiftsBtn');
+    if (!openAll) return;
+    var gifts = window._postSpinGifts || [];
+    for (var i = 0; i < gifts.length; i++) {
+        var id = gifts[i] && gifts[i].id;
+        if (id && _giftSettled[id] !== 'ok') return;
+    }
+    openAll.disabled = true;
+    openAll.removeAttribute('aria-busy');
+    openAll.textContent = 'All opened';
+    openAll.style.background = '#34d399';
+}
+
+function _closePostSpinGiftModal() {
+    var overlay = document.getElementById('postSpinGiftOverlay');
+    if (!overlay) return;
+    var pending = overlay.getAttribute('data-pending') === '1';
+    var back = _giftReturnFocus;
+    _giftReturnFocus = null;
+    overlay.remove();
+    if (pending) window._suppressPendingGifts = true;
+    if (back && typeof back.focus === 'function' && !_nodeInside(back, overlay)) {
+        try { back.focus(); } catch (e) { /* the opener may already be gone */ }
+    }
+}
+
+function _onGiftModalKeydown(e) {
+    if (!e) return;
+    var key = e.key;
+    if (key !== 'Escape' && key !== 'Esc' && e.keyCode !== 27) return;
+    if (!document.getElementById('postSpinGiftOverlay')) return;
+    if (e.preventDefault) e.preventDefault();
+    _closePostSpinGiftModal();
+}
+
+function _bindGiftModalKeys() {
+    if (_giftKeyBound || !document.addEventListener) return;
+    _giftKeyBound = true;
+    document.addEventListener('keydown', _onGiftModalKeydown);
+}
+
+function _refreshHoldingsInBackground() {
+    if (_holdingsRefresh) {
+        _holdingsRefreshQueued = true;
+        return;
+    }
+    var run = function() {
+        _holdingsRefresh = Promise.resolve().then(function() {
+            return _refreshHoldingsViews();
+        }).catch(function() { /* holdings catch up on the next open */ }).then(function() {
+            _holdingsRefresh = null;
+            if (_holdingsRefreshQueued) {
+                _holdingsRefreshQueued = false;
+                run();
+            }
+        });
+    };
+    run();
+}
+
+function _enqueueGiftOpen(giftId, opts) {
+    opts = opts || {};
+    if (!giftId) return Promise.resolve();
+    if (_giftSettled[giftId] === 'ok') return Promise.resolve();
+    if (_giftsOpening[giftId]) return _giftPromises[giftId] || Promise.resolve();
+    _giftsOpening[giftId] = true;
+    _giftSilent[giftId] = !!opts.silent;
+    _showOpening(giftId);
+    var promise = new Promise(function(resolve) {
+        if (!_giftWaiters[giftId]) _giftWaiters[giftId] = [];
+        _giftWaiters[giftId].push(resolve);
+    });
+    _giftPromises[giftId] = promise;
+    _giftQueue.push(giftId);
+    _pumpGiftOpens();
+    return promise;
+}
+
+function _pumpGiftOpens() {
+    while (_giftQueue.length && _giftActiveCount < GIFT_OPEN_CONCURRENCY) {
+        var giftId = _giftQueue.shift();
+        _giftActiveCount++;
+        _runGiftOpen(giftId);
+    }
+}
+
+async function _runGiftOpen(giftId) {
+    var silent = !!_giftSilent[giftId];
+    delete _giftSilent[giftId];
+    _unlockAudio();
+    _playGiftChime();
+    _injectGiftingCSS();
+    var stage = document.getElementById('giftAnimStage');
+    var anim = _playGiftOpen(stage);
+    if (anim && anim.catch) anim.catch(function() {});
+    try {
+        var rw = await _openGiftRequest(giftId);
+        _markGiftRow(giftId, rw, false);
+        _giftSettled[giftId] = 'ok';
+        _syncOpenAllButton();
+        if (!silent) {
+            _confetti();
+            _toast('🎁 ' + _rewardLabel(rw), rw && rw.shoutoutConverted ? 6000 : undefined);
+        }
+        _refreshHoldingsInBackground();
+    } catch (e) {
+        if (_isGiftAlreadyOpened(e)) {
+            _markGiftAlreadyOpened(giftId);
+            _giftSettled[giftId] = 'ok';
+            _removeUnopenedGift(giftId);
+            _syncOpenAllButton();
+            if (!silent) _toast('Already opened');
+        } else {
+            delete _giftSettled[giftId];
+            _markGiftRow(giftId, null, true);
+            var row = document.getElementById('giftRow_' + giftId);
+            if (row) {
+                var retry = _btn('Try again');
+                retry.className = 'gift-open-btn';
+                retry.onclick = function() { window.openSingleGift(giftId); };
+                row.appendChild(retry);
+            }
+            _toast('❌ ' + ((e && e.message) || 'Could not open that gift'));
+        }
+    } finally {
+        delete _giftsOpening[giftId];
+        _giftActiveCount = Math.max(0, _giftActiveCount - 1);
+        _pumpGiftOpens();
+        _settleGift(giftId);
+    }
+}
+
 window.showPostSpinGiftModal = function(gifts, opts) {
     _injectGiftingCSS();
     opts = opts || {};
+    var previousFocus = document.activeElement || null;
     var existing = document.getElementById('postSpinGiftOverlay');
-    if (existing) existing.remove();
+    if (existing) {
+        if (_nodeInside(previousFocus, existing)) previousFocus = _giftReturnFocus;
+        existing.remove();
+    }
+    _giftReturnFocus = previousFocus;
+    _resetGiftOpenState();
     window._postSpinGifts = gifts.slice();
     window._openedGiftRewards = [];
 
     var overlay = document.createElement('div');
     overlay.id = 'postSpinGiftOverlay';
     overlay.className = 'gifting-overlay';
+    overlay.setAttribute('data-pending', opts.pending ? '1' : '0');
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'postSpinGiftTitle');
+    modal.tabIndex = -1;
+    modal.setAttribute('tabindex', '-1');
 
     var count = gifts.length;
     var title = document.createElement('div');
-    title.innerHTML = '<div style="font-size:2.6rem;animation:giftBounce 0.6s ease-out;">🎁</div>' +
-        '<div style="color:#f7931a;font-weight:900;font-size:1.2rem;margin:4px 0;">' +
-        (opts.pending ? 'You have ' + count + ' gift' + (count > 1 ? 's' : '') + ' to open' : 'You won ' + count + ' gift' + (count > 1 ? 's' : '') + '!') +
-        '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Open them now — gifts are not saved for later.</div>';
+    var emoji = document.createElement('div');
+    emoji.textContent = '🎁';
+    emoji.style.cssText = 'font-size:2.6rem;animation:giftBounce 0.6s ease-out;';
+    var heading = document.createElement('div');
+    heading.id = 'postSpinGiftTitle';
+    heading.style.cssText = 'color:#f7931a;font-weight:900;font-size:1.2rem;margin:4px 0;';
+    heading.textContent = opts.pending
+        ? ('You have ' + count + ' gift' + (count > 1 ? 's' : '') + ' to open')
+        : ('You won ' + count + ' gift' + (count > 1 ? 's' : '') + '!');
+    var sub = document.createElement('div');
+    sub.style.cssText = 'color:var(--text-muted,#94a3b8);font-size:0.8rem;margin-bottom:8px;';
+    sub.textContent = 'Open them now — gifts are not saved for later.';
+    title.appendChild(emoji);
+    title.appendChild(heading);
+    title.appendChild(sub);
     modal.appendChild(title);
 
     var stage = document.createElement('div');
@@ -481,17 +790,19 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     gifts.forEach(function(g, i) {
         var row = document.createElement('div');
         row.id = 'giftRow_' + g.id;
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;';
+        row.className = 'gift-row';
+        row.setAttribute('data-gift-state', 'closed');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.28);border-radius:12px;';
         var icon = document.createElement('span');
         icon.textContent = '🎁';
-        icon.style.fontSize = '1.4rem';
+        icon.style.cssText = 'font-size:1.6rem;line-height:1;flex-shrink:0;';
         var label = document.createElement('div');
-        label.style.cssText = 'flex:1;color:var(--text-muted);font-size:0.85rem;';
+        label.className = 'gift-prize-label';
+        label.style.cssText = 'flex:1;min-width:120px;color:var(--text-muted,#94a3b8);font-size:0.9rem;';
         label.textContent = 'Gift ' + (i + 1);
         var btn = _btn('Open gift');
-        btn.style.padding = '7px 14px';
-        btn.style.fontSize = '0.8rem';
         btn.className = 'gift-open-btn';
+        btn.setAttribute('data-gift-id', g.id);
         btn.onclick = function() { window.openSingleGift(g.id); };
         row.appendChild(icon);
         row.appendChild(label);
@@ -506,47 +817,78 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     modal.appendChild(follow);
 
     var actions = document.createElement('div');
+    actions.className = 'gift-actions';
     actions.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
     var openAll = _btn('Open all');
     openAll.id = 'openAllGiftsBtn';
     openAll.className = 'gift-open-btn';
     openAll.onclick = function() { window.openAllPostSpinGifts(); };
     var later = _btn(opts.pending ? 'Not now' : 'Close', 'transparent');
-    later.style.border = '1px solid var(--border,#333)';
-    later.style.color = 'var(--text-muted)';
-    later.onclick = function() {
-        overlay.remove();
-        if (opts.pending) window._suppressPendingGifts = true;
-    };
+    later.className = 'gift-later-btn';
+    later.style.border = '1px solid var(--border,#334155)';
+    later.style.color = 'var(--text-muted,#94a3b8)';
+    later.onclick = function() { _closePostSpinGiftModal(); };
     actions.appendChild(openAll);
     actions.appendChild(later);
     actions.appendChild(_soundButton('giftSoundToggle'));
     modal.appendChild(actions);
     overlay.appendChild(modal);
-    _placeGiftOverlay(overlay);
+    _placeGiftOverlay(overlay, function() { _closePostSpinGiftModal(); });
+    _bindGiftModalKeys();
+    try { modal.focus(); } catch (e) { /* focus is best-effort when the dialog opens */ }
 };
 
 function _markGiftRow(giftId, rw, failed) {
     var row = document.getElementById('giftRow_' + giftId);
     if (!row) return;
-    row.innerHTML = '';
+    _emptyEl(row);
+    row.style.opacity = '';
     var icon = document.createElement('span');
-    icon.style.cssText = 'font-size:1.3rem;animation:giftReveal 0.35s ease-out;';
+    icon.className = failed ? 'gift-row-icon' : 'gift-prize-emoji';
+    icon.style.cssText = failed
+        ? 'font-size:1.6rem;line-height:1;flex-shrink:0;'
+        : 'font-size:2rem;line-height:1;flex-shrink:0;animation:giftReveal 0.35s ease-out;';
     icon.textContent = failed ? '⚠️' : _rewardEmoji(rw);
     var label = document.createElement('div');
-    label.style.cssText = 'flex:1;font-size:0.85rem;font-weight:700;color:var(--text);';
-    label.textContent = failed ? 'Could not open — try again' : _rewardLabel(rw);
+    label.className = 'gift-prize-label';
+    label.style.cssText = 'flex:1;min-width:120px;font-size:0.95rem;font-weight:800;color:var(--text,#e2e8f0);line-height:1.3;';
+    label.setAttribute('aria-live', 'polite');
+    label.setAttribute('aria-atomic', 'true');
     row.appendChild(icon);
     row.appendChild(label);
-    row.style.borderColor = failed ? 'rgba(239,68,68,0.35)' : 'rgba(52,211,153,0.35)';
-    row.style.background = failed ? 'rgba(239,68,68,0.05)' : 'rgba(52,211,153,0.06)';
+    label.textContent = failed ? 'Could not open — try again' : _rewardLabel(rw);
+    row.style.borderColor = failed ? 'rgba(239,68,68,0.45)' : 'rgba(52,211,153,0.45)';
+    row.style.background = failed ? 'rgba(239,68,68,0.08)' : 'rgba(52,211,153,0.1)';
+    row.setAttribute('data-gift-state', failed ? 'failed' : 'opened');
     if (!failed) {
         var ok = document.createElement('span');
         ok.textContent = '✓';
-        ok.style.color = '#34d399';
-        ok.style.fontWeight = '800';
+        ok.style.cssText = 'color:#34d399;font-weight:800;font-size:1.1rem;flex-shrink:0;';
         row.appendChild(ok);
     }
+}
+
+function _markGiftAlreadyOpened(giftId) {
+    var row = document.getElementById('giftRow_' + giftId);
+    if (!row) return;
+    _emptyEl(row);
+    row.style.opacity = '';
+    var icon = document.createElement('span');
+    icon.className = 'gift-row-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'font-size:1.6rem;line-height:1;flex-shrink:0;';
+    icon.textContent = '🎁';
+    var label = document.createElement('div');
+    label.className = 'gift-prize-label';
+    label.style.cssText = 'flex:1;min-width:120px;font-size:0.95rem;font-weight:800;color:var(--text-muted,#94a3b8);line-height:1.3;';
+    label.setAttribute('aria-live', 'polite');
+    label.setAttribute('aria-atomic', 'true');
+    row.appendChild(icon);
+    row.appendChild(label);
+    label.textContent = 'Already opened';
+    row.style.borderColor = 'rgba(148,163,184,0.45)';
+    row.style.background = 'rgba(148,163,184,0.1)';
+    row.setAttribute('data-gift-state', 'already');
 }
 
 async function _openGiftRequest(giftId) {
@@ -556,82 +898,45 @@ async function _openGiftRequest(giftId) {
     return rw;
 }
 
-window.openSingleGift = async function(giftId) {
-    _unlockAudio();
-    if (_openAllBusy || Object.keys(_giftsOpening).length) return;
-    _giftsOpening[giftId] = true;
-    _playGiftChime();
-    _injectGiftingCSS();
-    var giftBtns = document.querySelectorAll('#postSpinGiftOverlay .gift-open-btn');
-    for (var gi = 0; gi < giftBtns.length; gi++) giftBtns[gi].disabled = true;
-    var row = document.getElementById('giftRow_' + giftId);
-    if (row) {
-        var old = row.querySelector('button');
-        if (old) { old.disabled = true; old.textContent = 'Opening…'; }
-    }
-    var stage = document.getElementById('giftAnimStage');
-    var anim = _playGiftOpen(stage);
-    try {
-        var rw = await _openGiftRequest(giftId);
-        await anim;
-        _markGiftRow(giftId, rw, false);
-        _confetti();
-        _toast('🎁 ' + _rewardLabel(rw), rw.shoutoutConverted ? 6000 : undefined);
-        await _refreshHoldingsViews();
-    } catch (e) {
-        await anim;
-        _markGiftRow(giftId, null, true);
-        if (row) {
-            var retry = _btn('Try again');
-            retry.style.padding = '6px 10px';
-            retry.style.fontSize = '0.75rem';
-            retry.onclick = function() { window.openSingleGift(giftId); };
-            row.appendChild(retry);
-        }
-        _toast('❌ ' + (e.message || 'Could not open that gift'));
-    } finally {
-        delete _giftsOpening[giftId];
-        if (!_openAllBusy && !Object.keys(_giftsOpening).length) {
-            var left = document.querySelectorAll('#postSpinGiftOverlay .gift-open-btn');
-            for (var bi = 0; bi < left.length; bi++) left[bi].disabled = false;
-        }
-    }
+window.openSingleGift = function(giftId) {
+    return _enqueueGiftOpen(giftId);
 };
 
 window.openAllPostSpinGifts = async function() {
-    _unlockAudio();
-    if (_openAllBusy || Object.keys(_giftsOpening).length) return;
+    if (_openAllBusy) return;
     _openAllBusy = true;
-    _playGiftChime();
-    var gifts = window._postSpinGifts || [];
+    _unlockAudio();
     var openAll = document.getElementById('openAllGiftsBtn');
-    if (openAll) { openAll.disabled = true; openAll.textContent = 'Opening…'; }
-    var rows = document.querySelectorAll('#postSpinGiftList .gift-open-btn');
-    rows.forEach(function(b) { b.disabled = true; });
-    var stage = document.getElementById('giftAnimStage');
-    var anim = _playGiftOpen(stage);
-    for (var i = 0; i < gifts.length; i++) {
-        var g = gifts[i];
-        if (_giftsOpening[g.id]) continue;
-        var row = document.getElementById('giftRow_' + g.id);
-        if (row && row.querySelector('button') == null && row.textContent.indexOf('✓') !== -1) continue;
-        _giftsOpening[g.id] = true;
-        if (row) row.style.opacity = '0.7';
-        try {
-            var rw = await _openGiftRequest(g.id);
-            _markGiftRow(g.id, rw, false);
-        } catch (e) {
-            _markGiftRow(g.id, null, true);
-        }
-        delete _giftsOpening[g.id];
-    }
+    if (openAll) _paintOpeningButton(openAll);
+    var gifts = window._postSpinGifts || [];
+    var tasks = [];
+    var ids = [];
     try {
-        await anim;
-        if (openAll) { openAll.textContent = 'All opened'; openAll.style.background = '#34d399'; }
-        _confetti();
-        await _refreshHoldingsViews();
+        for (var i = 0; i < gifts.length; i++) {
+            var id = gifts[i] && gifts[i].id;
+            if (!id || _giftSettled[id] === 'ok') continue;
+            ids.push(id);
+            tasks.push(_enqueueGiftOpen(id, { silent: true }));
+        }
+        await Promise.all(tasks);
         var summary = _summarize(window._openedGiftRewards || []);
         if (summary) _toast('🎁 Opened! ' + summary, 4500);
+        if (ids.length) _confetti();
+        if (openAll) {
+            var anyFailed = false;
+            for (var fi = 0; fi < ids.length; fi++) {
+                if (_giftSettled[ids[fi]] !== 'ok') anyFailed = true;
+            }
+            if (!anyFailed) {
+                _syncOpenAllButton();
+            } else {
+                openAll.disabled = false;
+                openAll.removeAttribute('aria-busy');
+                openAll.textContent = 'Open all';
+                openAll.style.background = 'linear-gradient(135deg,#f7931a,#ea580c)';
+            }
+        }
+        _refreshHoldingsInBackground();
     } finally {
         _openAllBusy = false;
     }
@@ -704,7 +1009,7 @@ async function _showGiftFollowUp() {
             if (!_spentKeys[id]) keyIds.push(id);
         });
     });
-    box.innerHTML = '';
+    _emptyEl(box);
     if (keyIds.length) {
         var note = document.createElement('div');
         note.style.cssText = 'font-size:0.8rem;color:var(--text);margin-bottom:4px;';

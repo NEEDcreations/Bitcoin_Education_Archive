@@ -297,10 +297,11 @@ function censorText(text) {
         return -1;
     }
 
-    function layer(excludeEl) {
+    function layer(excludeEl, skipTerms) {
         var top = 0;
         var ids = ['usernameModal', 'tosModal'];
         for (var i = 0; i < ids.length; i++) {
+            if (skipTerms && ids[i] === 'tosModal') continue;
             var node = document.getElementById(ids[i]);
             if (!shown(node) || node === excludeEl) continue;
             var z = numericZ(node);
@@ -309,19 +310,34 @@ function censorText(text) {
         for (var j = 0; j < stack.length; j++) {
             var el = stack[j].el;
             if (!el || el === excludeEl || el.isConnected === false) continue;
+            if (skipTerms && el.id === 'tosModal') continue;
             var sz = numericZ(el);
             if (sz > top) top = sz;
         }
         return top;
     }
 
+    function writeZ(el, z) {
+        if (!el) return;
+        if (el.style && el.style.setProperty) el.style.setProperty('z-index', String(z), 'important');
+        else if (el.style) el.style.zIndex = String(z);
+    }
+
     function raise(el) {
         var own = numericZ(el);
-        var next = layer(el) + 1;
-        if (own >= next) return own;
-        if (el.style && el.style.setProperty) el.style.setProperty('z-index', String(next), 'important');
-        else if (el.style) el.style.zIndex = String(next);
-        return next;
+        var terms = document.getElementById('tosModal');
+        var termsOpen = !!(terms && el !== terms && shown(terms));
+        var next = layer(el, termsOpen) + 1;
+        var applied = own;
+        if (own < next) {
+            writeZ(el, next);
+            applied = next;
+        }
+        if (termsOpen) {
+            var termsZ = numericZ(terms);
+            if (applied >= termsZ) writeZ(terms, applied + 1);
+        }
+        return applied;
     }
 
     function focusables(root) {
@@ -388,6 +404,10 @@ function censorText(text) {
         if (!el || el.nodeType !== 1) return 0;
         opts = opts || {};
         if (el.id === 'usernameModal' || el.id === 'tosModal') return numericZ(el);
+        if (el.setAttribute) {
+            if (!el.getAttribute('role')) el.setAttribute('role', 'dialog');
+            el.setAttribute('aria-modal', 'true');
+        }
         var z = raise(el);
         var idx = findRec(el);
         var prev = null;

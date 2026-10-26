@@ -3181,27 +3181,13 @@ async function loadUser(uid, prefetchedDoc) {
 // Track if button was ever set to "signed in" state - never downgrade once set
 var _authBtnSignedIn = false;
 
-function homePreviewAllowed() {
-    try {
-        var host = String(location.hostname || '');
-        return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
-    } catch (e) { return false; }
-}
-function homePreviewUser() {
-    if (!homePreviewAllowed()) return null;
-    return window._homePreviewUser || null;
-}
-
 function homeSignedInNow() {
-    if (homePreviewUser()) return true;
     return !!_authBtnSignedIn;
 }
 
 // Strip numbers come only from server-maintained counters.
 function satsHomeSnapshot(user) {
     var u = user || {};
-    var previewUser = homePreviewUser();
-    var preview = !!(previewUser && u === previewUser);
     var math = (typeof window.claimableSats === 'function')
         ? window.claimableSats(u)
         : { balance: 0, lifetimeLeft: 0, claimable: 0, cap: lifetimeSatCap(), withdrawn: Number(u.satsWithdrawn) || 0 };
@@ -3213,19 +3199,14 @@ function satsHomeSnapshot(user) {
     if (Array.isArray(u.visitedChannelsList)) channels = u.visitedChannelsList.length;
     else if (Array.isArray(u.readChannels)) channels = u.readChannels.length;
     else if (u.readChannels && typeof u.readChannels === 'object') channels = Object.keys(u.readChannels).length;
-    if (preview) {
-        anon = false;
-        emailOk = !!(u.email && u.emailVerified);
-        ageDays = Number(u.accountAgeDays) || 0;
-        if (Number(u.channelsRead) > channels) channels = Number(u.channelsRead);
-    } else if (typeof auth !== 'undefined' && auth && auth.currentUser) {
+    if (typeof auth !== 'undefined' && auth && auth.currentUser) {
         var fu = auth.currentUser;
         anon = !!fu.isAnonymous;
         emailOk = !!(fu.email && fu.emailVerified);
         var created = fu.metadata && fu.metadata.creationTime ? new Date(fu.metadata.creationTime) : null;
         ageDays = created ? Math.floor((Date.now() - created.getTime()) / 86400000) : 0;
     }
-    if (!preview && channels === 0) {
+    if (channels === 0) {
         try {
             var localList = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
             if (Array.isArray(localList) && localList.length > channels) channels = localList.length;
@@ -3295,13 +3276,12 @@ window.refreshHomeStrip = function() {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
         return;
     }
-    var previewUser = homePreviewUser();
-    var user = previewUser || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
     var invited = Number(user.referralInvited) || 0;
     var maxi = Number(user.referralCount) || 0;
     paintHomeStrip(snap, invited, maxi);
-    if (!previewUser && typeof getReferralStats === 'function') {
+    if (typeof getReferralStats === 'function') {
         getReferralStats().then(function(stats) {
             if (!stats) return;
             var gotInvited = (typeof stats.invited === 'number') ? stats.invited : invited;
@@ -3326,7 +3306,7 @@ function openHomeInvites() {
 window.openHomeInvites = openHomeInvites;
 
 function openHomeWithdraw() {
-    var user = homePreviewUser() || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
     if (!snap.address) {
         if (typeof openWithdrawalAddress === 'function') openWithdrawalAddress({ mode: 'reset' });
@@ -3336,19 +3316,8 @@ function openHomeWithdraw() {
 }
 window.openHomeWithdraw = openHomeWithdraw;
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (homePreviewUser()) window.refreshHomeStrip();
-});
-
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
-    if (homePreviewUser()) {
-        document.documentElement.classList.add('home-signed-in');
-        document.body.classList.add('home-signed-in');
-        if (btn) btn.style.display = 'none';
-        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
-        return;
-    }
     if (!btn) return;
     // Check all possible ways a user can be "signed in":
     var firebaseUser = auth && auth.currentUser;
@@ -10933,23 +10902,44 @@ function _satsClaimRows(snap) {
     if (snap && typeof snap.forEach === 'function') {
         snap.forEach(function(doc) {
             var data = (doc && typeof doc.data === 'function' && doc.data()) || {};
-            rows.push({ id: doc.id, status: data.status, amount: data.amount });
+            rows.push({ id: doc.id, status: data.status, amount: data.amount, timestamp: data.timestamp });
         });
     }
     return rows;
+}
+function _satsClaimRowMillis(row) {
+    var ts = row && row.timestamp;
+    if (typeof ts === 'number' && isFinite(ts)) return ts;
+    if (ts && typeof ts.toMillis === 'function') {
+        var ms = ts.toMillis();
+        if (typeof ms === 'number' && isFinite(ms)) return ms;
+    }
+    if (ts && typeof ts.seconds === 'number' && isFinite(ts.seconds)) {
+        var extra = typeof ts.nanoseconds === 'number' && isFinite(ts.nanoseconds) ? ts.nanoseconds / 1e6 : 0;
+        return ts.seconds * 1000 + extra;
+    }
+    if (ts instanceof Date) {
+        var at = ts.getTime();
+        if (isFinite(at)) return at;
+    }
+    return null;
+}
+function _satsClaimEmptySnap() {
+    return { trusted: false, keys: {} };
 }
 function _satsClaimKnownKeys() {
     var ref = _satsClaimUserRef();
     var col = null;
     try { col = ref && typeof ref.collection === 'function' ? ref.collection('sats_withdrawals') : null; } catch (e) { col = null; }
-    if (!col || typeof col.get !== 'function') return Promise.resolve({});
+    if (!col || typeof col.get !== 'function') return Promise.resolve(_satsClaimEmptySnap());
     return col.get().then(function(snap) {
+        if (!snap || !snap.metadata || snap.metadata.fromCache !== false) return _satsClaimEmptySnap();
         var keys = {};
         _satsClaimRows(snap).forEach(function(row) { if (row.id) keys[row.id] = true; });
-        return keys;
-    }).catch(function() { return {}; });
+        return { trusted: true, keys: keys };
+    }).catch(function() { return _satsClaimEmptySnap(); });
 }
-function _satsClaimReadSettlement(knownKeys) {
+function _satsClaimReadSettlement() {
     var ref = _satsClaimUserRef();
     if (!ref || typeof ref.get !== 'function') return Promise.reject(new Error('balance-unread'));
     var userP = ref.get().then(function(snap) {
@@ -10966,25 +10956,31 @@ function _satsClaimReadSettlement(knownKeys) {
         wdP = Promise.reject(e);
     }
     return Promise.all([userP, wdP]).then(function(pair) {
-        return { user: pair[0], withdrawals: pair[1], knownKeys: knownKeys || {} };
+        return { user: pair[0], withdrawals: pair[1] };
     });
 }
-function _satsClaimSettledAmount(info) {
-    var known = (info && info.knownKeys) || {};
+function _satsClaimFreshRow(row, flight) {
+    if (!flight || !flight.snapshot || flight.snapshot.trusted !== true) return false;
+    if (!row || !row.id) return false;
+    var known = flight.snapshot.keys || {};
+    if (known[row.id]) return false;
+    var when = _satsClaimRowMillis(row);
+    return typeof when === 'number' && when > flight.startedAt;
+}
+function _satsClaimSettledAmount(info, flight) {
     var found = null;
     ((info && info.withdrawals) || []).forEach(function(row) {
-        if (!row || known[row.id]) return;
+        if (!_satsClaimFreshRow(row, flight)) return;
         var status = String(row.status || '').toLowerCase();
         if ((status === 'paid' || status === 'settled') && _satsClaimFinite(row.amount)) found = row.amount;
     });
     return found;
 }
-function _satsClaimReservation(info) {
+function _satsClaimReservation(info, flight) {
     if (info && info.user && info.user._pendingClaim === true) return true;
-    var known = (info && info.knownKeys) || {};
     var rows = (info && info.withdrawals) || [];
     for (var i = 0; i < rows.length; i++) {
-        if (!rows[i] || known[rows[i].id]) continue;
+        if (!_satsClaimFreshRow(rows[i], flight)) continue;
         if (String(rows[i].status || '').toLowerCase() === 'pending') return true;
     }
     return false;
@@ -11100,13 +11096,13 @@ function _satsClaimReread(flight) {
     if (!flight || flight.done) return;
     flight.phase = 'unconfirmed';
     _satsClaimShowUnconfirmed(false);
-    Promise.resolve(flight.keysReady).catch(function() { return {}; }).then(function() {
+    Promise.resolve(flight.keysReady).catch(function() { return _satsClaimEmptySnap(); }).then(function() {
         if (flight.done) return null;
-        return _satsClaimReadSettlement(flight.knownKeys || {});
+        return _satsClaimReadSettlement();
     }).then(function(info) {
         if (!info || flight.done) return;
         if (info.user) _satsClaimApplyUser(info.user);
-        var settled = _satsClaimSettledAmount(info);
+        var settled = _satsClaimSettledAmount(info, flight);
         if (_satsClaimFinite(settled)) {
             flight.done = true;
             flight.celebrated = true;
@@ -11114,7 +11110,7 @@ function _satsClaimReread(flight) {
             _satsClaimCelebrate(settled);
             return;
         }
-        if (_satsClaimReservation(info)) {
+        if (_satsClaimReservation(info, flight)) {
             flight.phase = 'unconfirmed';
             _satsClaimShowUnconfirmed(false);
             return;
@@ -11133,18 +11129,20 @@ function _satsClaimBeginFlight() {
     var flight = {
         id: (window._satsClaimSeq || 0) + 1,
         born: Date.now(),
+        startedAt: Date.now(),
         done: false,
         reenabled: false,
         celebrated: false,
         phase: 'sending',
-        knownKeys: {},
+        snapshot: _satsClaimEmptySnap(),
         keysReady: null,
         error: ''
     };
     window._satsClaimSeq = flight.id;
-    flight.keysReady = _satsClaimKnownKeys().then(function(keys) {
-        flight.knownKeys = keys || {};
-        return flight.knownKeys;
+    flight.startedAt = flight.born;
+    flight.keysReady = _satsClaimKnownKeys().then(function(snap) {
+        flight.snapshot = snap || _satsClaimEmptySnap();
+        return flight.snapshot;
     });
     flight.slowTimer = setTimeout(function() {
         flight.slowTimer = null;

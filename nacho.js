@@ -1393,7 +1393,7 @@ window._nachoDispatch = function(key) {
                 // scholar.js not yet loaded — inject it then call
                 if (typeof showToast === 'function') showToast('⏳ Loading exam\u2026 one moment!');
                 var _s = document.createElement('script');
-                _s.src = 'scholar.js?v=20260809_1846';
+                _s.src = 'scholar.js?v=20261026_v2404';
                 _s.onload = function() { if (typeof startScholarQuest === 'function') startScholarQuest(); };
                 document.body.appendChild(_s);
             }

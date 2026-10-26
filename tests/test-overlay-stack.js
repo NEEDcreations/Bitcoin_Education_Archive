@@ -8,10 +8,33 @@ const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 
+function loadJsdom() {
+    const attempts = [];
+    function tryReq(id) {
+        try { return require(id).JSDOM; }
+        catch (e) { attempts.push(id); return null; }
+    }
+    let found = tryReq('jsdom');
+    if (found) return found;
+    const bases = [
+        path.join(root, 'node_modules', 'jsdom'),
+        path.join(root, 'tests', 'node_modules', 'jsdom'),
+        path.join(root, 'functions', 'node_modules', 'jsdom')
+    ];
+    if (process.env.NODE_PATH) {
+        process.env.NODE_PATH.split(path.delimiter).forEach(function(dir) {
+            if (dir) bases.push(path.join(dir, 'jsdom'));
+        });
+    }
+    for (let i = 0; i < bases.length; i++) {
+        found = tryReq(bases[i]);
+        if (found) return found;
+    }
+    throw new Error('jsdom is not installed (' + attempts.join(', ') + ')');
+}
+
 if (process.argv[2] === '--jsdom') {
-    let JSDOM;
-    try { JSDOM = require('jsdom').JSDOM; }
-    catch (e) { JSDOM = require('/tmp/jsdom-pkg/node_modules/jsdom').JSDOM; }
+    const JSDOM = loadJsdom();
     const page = fs.readFileSync(process.argv[3], 'utf8');
     const dom = new JSDOM(page, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://example.test/archive/' });
     const timer = setInterval(function() {
@@ -63,6 +86,10 @@ assert.ok(ranking.includes('var SATS_CLAIM_HARD_MS = 120000;'));
 assert.ok(ranking.includes('⚡ Sent '));
 assert.ok(ranking.includes('_satsClaimFinite'));
 assert.ok(ranking.includes("status === 'paid' || status === 'settled'"));
+assert.ok(ranking.includes('metadata.fromCache !== false'));
+assert.ok(ranking.includes('flight.snapshot.trusted'));
+assert.ok(read('index.html').includes('z-index: 2147483000'));
+assert.ok(!read('index.html').includes('body:has(#usernameModal.open) .rank-toast'));
 assert.ok(!ranking.includes('_satsClaimLandedAmount'));
 assert.ok(!ranking.includes('withdrawnDelta'));
 assert.ok(!ranking.includes('var SATS_CLAIM_GIVE_UP_MS'));
@@ -200,6 +227,7 @@ async function __runOverlayTests() {
                         if (window.__userReadMode === 'fail') return Promise.reject(new Error('offline'));
                         var rows = window.__withdrawals || [];
                         return Promise.resolve({
+                            metadata: { fromCache: window.__wdFromCache === true },
                             forEach: function(fn) {
                                 rows.forEach(function(row) {
                                     fn({ id: row.id, data: function() { return row; } });
@@ -256,6 +284,10 @@ async function __runOverlayTests() {
     check('settings-open', settings && settings.classList.contains('open'));
     check('settings-floor', settings && __z(settings) >= 2100008);
     check('settings-not-rewritten', !settings.style.zIndex || parseInt(settings.style.zIndex, 10) >= 2100008);
+    showToast('Please enter a valid email');
+    var toast = document.querySelector('.rank-toast');
+    check('toast-above-settings', toast && __z(toast) > __z(settings));
+    if (toast) toast.remove();
     var claimBtn = null;
     var buttons = settings.querySelectorAll('button');
     for (var i = 0; i < buttons.length; i++) {
@@ -270,6 +302,7 @@ async function __runOverlayTests() {
     check('claim-exists', !!claim);
     check('claim-top', __hitIs(claim));
     check('claim-z', claim && __z(claim) > __z(settings));
+    check('claim-dialog', claim && claim.getAttribute('role') === 'dialog' && claim.getAttribute('aria-modal') === 'true');
     check('settings-stays-high', __z(settings) >= 2100008);
     check('badge-unmoved', badge && badge.parentElement === badgeHost);
     var focusBefore = document.activeElement;
@@ -278,6 +311,14 @@ async function __runOverlayTests() {
     check('escape-closes-claim', !document.getElementById('satsClaimOverlay'));
     check('escape-keeps-settings', settings.classList.contains('open'));
     check('escape-restores-focus', document.activeElement === settings || settings.contains(document.activeElement));
+    var terms = document.getElementById('tosModal');
+    terms.classList.add('open');
+    __seedClaim();
+    var underClaim = document.getElementById('satsClaimOverlay');
+    check('claim-under-terms', underClaim && __z(underClaim) < __z(terms));
+    check('terms-floor', __z(terms) >= 2100010);
+    if (underClaim) underClaim.remove();
+    terms.classList.remove('open');
 
     window.__withdrawals = [];
     window.__claimMode = 'ok';
@@ -415,7 +456,7 @@ async function __runOverlayTests() {
     __seedClaim();
     hanging = submitSatsClaim();
     await __flush();
-    window.__withdrawals = [{ id: 'paid-new', status: 'paid', amount: 80 }];
+    window.__withdrawals = [{ id: 'paid-new', status: 'paid', amount: 80, timestamp: Date.now() + 60000 }];
     check('paid-armed', __fire(60000));
     await __flush();
     lateCeleb = document.getElementById('satsCelebration');
@@ -432,12 +473,46 @@ async function __runOverlayTests() {
     __seedClaim();
     hanging = submitSatsClaim();
     await __flush();
-    window.__withdrawals = [{ id: 'paid-string', status: 'settled', amount: '80' }];
+    window.__withdrawals = [{ id: 'paid-string', status: 'settled', amount: '80', timestamp: Date.now() + 60000 }];
     check('string-armed', __fire(60000));
     await __flush();
     sendBtn = document.getElementById('satsClaimBtn');
     check('string-amount-not-sent', !document.getElementById('satsCelebration'));
     check('string-amount-reenables', sendBtn && sendBtn.disabled === false);
+    void hanging;
+    window._satsClaimFlightList = [];
+
+    window.__wdFromCache = false;
+    window.__withdrawals = [];
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    window.__withdrawals = [{ id: 'paid-old', status: 'paid', amount: 80, timestamp: Date.now() - 86400000 }];
+    check('old-armed', __fire(60000));
+    await __flush();
+    sendBtn = document.getElementById('satsClaimBtn');
+    errBox = document.getElementById('satsClaimError');
+    check('old-row-not-sent', !document.getElementById('satsCelebration'));
+    check('old-row-unconfirmed', errBox && errBox.textContent.indexOf("couldn't confirm") !== -1);
+    check('old-row-reenables', sendBtn && sendBtn.disabled === false);
+    void hanging;
+    window._satsClaimFlightList = [];
+
+    window.__wdFromCache = true;
+    window.__withdrawals = [];
+    window.__claimCalls = 0;
+    __seedClaim();
+    hanging = submitSatsClaim();
+    await __flush();
+    window.__withdrawals = [{ id: 'paid-cache', status: 'paid', amount: 80, timestamp: Date.now() + 60000 }];
+    check('cache-armed', __fire(60000));
+    await __flush();
+    sendBtn = document.getElementById('satsClaimBtn');
+    errBox = document.getElementById('satsClaimError');
+    check('cache-row-not-sent', !document.getElementById('satsCelebration'));
+    check('cache-row-unconfirmed', errBox && errBox.textContent.indexOf("couldn't confirm") !== -1);
+    window.__wdFromCache = false;
     void hanging;
     window._satsClaimFlightList = [];
 
@@ -561,8 +636,7 @@ html,body{margin:0;background:#0b1020;color:#fff;font-family:sans-serif;}
 #bottomNav{position:fixed;left:0;right:0;bottom:0;height:56px;z-index:200000;background:#020617;}
 #chatOverlayBtn{position:fixed;right:16px;bottom:70px;width:48px;height:48px;z-index:200000;}
 #chatOverlayBadge{position:absolute;top:-2px;right:-2px;}
-.rank-toast{position:fixed;top:44px;left:50%;transform:translateX(-50%);background:#f97316;color:#fff;padding:12px 20px;border-radius:10px;z-index:620000;}
-body:has(#usernameModal.open) .rank-toast{display:none !important;}
+.rank-toast{position:fixed;top:44px;left:50%;transform:translateX(-50%);background:#f97316;color:#fff;padding:12px 20px;border-radius:10px;z-index:2147483000;}
 </style></head><body>
 <div id="bottomNav"></div>
 <button id="chatOverlayBtn" type="button">Chat<span id="chatOverlayBadge">2</span></button>
