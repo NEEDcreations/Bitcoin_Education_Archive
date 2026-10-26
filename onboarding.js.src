@@ -391,6 +391,37 @@
             btn.style.top = Math.round(hr.bottom + 8) + 'px';
             btn.style.bottom = 'auto';
         }
+        function clearOfTodayCard() {
+            var ids = ['todayCard', 'dailyXpMeter', 'dailyXpMeterText', 'dailyXpMeterFill'];
+            var limitIds = ['bottomNav', 'chatOverlayBtn', 'nacho-toggle', 'fabExpandBtn'];
+            var i, el, br, qb, above, below, limit, j, ob, or;
+            for (i = 0; i < ids.length; i++) {
+                el = document.getElementById(ids[i]);
+                if (!el) continue;
+                var cs = window.getComputedStyle(el);
+                if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+                br = el.getBoundingClientRect();
+                qb = btn.getBoundingClientRect();
+                if (br.width < 1 || br.height < 1) continue;
+                if (qb.right < br.left || qb.left > br.right || qb.bottom < br.top || qb.top > br.bottom) continue;
+                above = Math.round(br.top - 8 - qb.height);
+                below = Math.round(br.bottom + 8);
+                limit = window.innerHeight - 8;
+                for (j = 0; j < limitIds.length; j++) {
+                    ob = document.getElementById(limitIds[j]);
+                    if (!ob) continue;
+                    var ocs = window.getComputedStyle(ob);
+                    if (ocs.display === 'none' || ocs.visibility === 'hidden') continue;
+                    or = ob.getBoundingClientRect();
+                    if (or.height < 8 || or.top < window.innerHeight * 0.45) continue;
+                    if (or.top - 8 < limit) limit = or.top - 8;
+                }
+                if (below + qb.height <= limit) btn.style.top = below + 'px';
+                else btn.style.top = Math.max(8, above) + 'px';
+                btn.style.bottom = 'auto';
+            }
+        }
+        clearOfTodayCard();
         var nav = document.getElementById('bottomNav');
         var maxBottom = window.innerHeight - 8;
         if (nav) {
@@ -402,6 +433,7 @@
             btn.style.top = Math.max(8, Math.round(maxBottom - pb.height)) + 'px';
             btn.style.bottom = 'auto';
         }
+        clearOfTodayCard();
     }
     window._placeNachoQuestPill = placeNachoQuestPill;
 

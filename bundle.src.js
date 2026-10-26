@@ -2718,23 +2718,12 @@ window.awardTickets = async function() {
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
 var INVITE_AUTO_MS = 7 * 24 * 60 * 60 * 1000;
-var INVITE_AUTO_SESSION = 'btc_invite_auto_session';
-
-function _invitePreviewOn() {
-    try {
-        var host = String(location.hostname || '');
-        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
-    } catch (e) { return false; }
-    return !!window._homePreviewUser;
-}
 
 function _inviteSignedIn() {
-    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
-    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -2795,14 +2784,6 @@ function _inviteAutoDue(uid) {
 function _inviteMarkAuto(uid) {
     if (!uid) return;
     try { localStorage.setItem(_inviteAutoKey(uid), String(Date.now())); } catch (e) {}
-}
-
-function _inviteSessionAuto() {
-    try { return sessionStorage.getItem(INVITE_AUTO_SESSION) === '1'; } catch (e) { return false; }
-}
-
-function _inviteClearSessionAuto() {
-    try { sessionStorage.removeItem(INVITE_AUTO_SESSION); } catch (e) {}
 }
 
 function _invitePopupElement(el) {
@@ -2956,7 +2937,6 @@ function _showSignedInOpen() {
 
 function _collapseSignedIn() {
     _inviteHeldOpen = false;
-    _inviteClearSessionAuto();
     _inviteMarkAuto(_inviteUid());
     _inviteWriteStored('min');
     _paintGuestPill(false);
@@ -3079,6 +3059,14 @@ function placeInvitePill() {
 }
 window.placeInvitePill = placeInvitePill;
 
+function _scheduleInvitePlace() {
+    if (window._invitePlaceRaf) return;
+    window._invitePlaceRaf = requestAnimationFrame(function () {
+        window._invitePlaceRaf = 0;
+        placeInvitePill();
+    });
+}
+
 function refreshInviteCard() {
     var card = document.getElementById('inviteCard');
     if (!card) return;
@@ -3093,12 +3081,14 @@ function refreshInviteCard() {
             _inviteMarkAuto(uid);
             _inviteWriteStored('min');
         }
-        var resume = _inviteHeldOpen || _inviteSessionAuto();
-        if ((resume || _inviteAutoDue(uid)) && !_inviteAutoBlocked() && _claimInvitePopup()) {
-            if (!resume) {
-                _inviteMarkAuto(uid);
-                try { sessionStorage.setItem(INVITE_AUTO_SESSION, '1'); } catch (e) {}
-            }
+        if (_inviteHeldOpen && !_inviteAutoBlocked()) {
+            _claimInvitePopup();
+            _showSignedInOpen();
+            return;
+        }
+        if (_inviteAutoDue(uid) && !_inviteAutoBlocked() && _claimInvitePopup()) {
+            _inviteMarkAuto(uid);
+            _inviteHeldOpen = true;
             _showSignedInOpen();
             return;
         }
@@ -3260,7 +3250,9 @@ if (typeof window !== 'undefined') {
     }
     if (!window._invitePlaceBound) {
         window._invitePlaceBound = true;
-        window.addEventListener('resize', function() { _placeInvitePills(); });
+        window.addEventListener('resize', _scheduleInvitePlace);
+        var inviteMain = document.getElementById('main');
+        if (inviteMain) inviteMain.addEventListener('scroll', _scheduleInvitePlace, { passive: true });
     }
     if (!window._invitePopupWatch && typeof MutationObserver === 'function') {
         window._invitePopupWatch = true;
@@ -3274,12 +3266,6 @@ if (typeof window !== 'undefined') {
         }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open', 'data-open', 'aria-modal'] });
     }
     refreshInviteCard();
-    if (!window._invitePillWatch) {
-        window._invitePillWatch = true;
-        window.addEventListener('resize', function() { placeInvitePill(); });
-        var inviteMain = document.getElementById('main');
-        if (inviteMain) inviteMain.addEventListener('scroll', function() { placeInvitePill(); }, { passive: true });
-    }
 }
 // Phase 10: Loyalty & Learning Boosts 🎓
 
@@ -14001,31 +13987,27 @@ window.awardOrangeTickets = function() {
     return { success: false, awarded: 0, tickets: 0 };
 };
 
-// setFloatingElementsVisible — show/hide floating buttons when sidebar opens
-// Respects fabMinimized state: FAB group buttons stay hidden if user minimized them
+// setFloatingElementsVisible — show/hide floating buttons when the sidebar opens.
+// The More tools toggle hides wherever chat hides. AI Tools, Metrics, and
+// Leaderboard stay collapsed unless that toggle is open. Experience-mode
+// hides (data-em-hidden) are left alone.
 window.setFloatingElementsVisible = function(visible) {
-    var fabMinimized = localStorage.getItem('fabMinimized') === '1';
-    // FAB group — respect user's minimize preference
-    var fabGroupIds = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
-    // Regular floating elements — always follow sidebar show/hide
-    var regularIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom'];
-    regularIds.concat(fabGroupIds).forEach(function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        if (!visible) {
-            el.style.display = 'none';
-        } else if (fabGroupIds.indexOf(id) !== -1) {
-            // Only show FAB group buttons if not minimized
-            el.style.display = fabMinimized ? 'none' : '';
-        } else {
-            el.style.display = '';
-        }
-    });
-    // Keep expand button in sync
-    if (visible) {
+    var showIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','fabExpandBtn'];
+    var toolIds = ['aiToolsBtn','dashboardFloatBtn','lbFloatBtn'];
+    var minBtn = document.getElementById('fabMinimizeBtn');
+    if (minBtn) minBtn.style.setProperty('display', 'none', 'important');
+    if (!visible) {
+        document.body.classList.remove('fab-tools-open');
         var exp = document.getElementById('fabExpandBtn');
-        if (exp) exp.style.display = fabMinimized ? 'flex' : 'none';
+        if (exp) exp.setAttribute('aria-expanded', 'false');
     }
+    showIds.concat(toolIds).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el || el.hasAttribute('data-em-hidden')) return;
+        if (!visible) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+    });
+    if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
 };
 
 // ========== CELEBRATION SYSTEM ==========
@@ -20711,8 +20693,15 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === 'j') { document.getElementById('main').scrollBy({ top: 300, behavior: 'smooth' }); return; }
         // K = scroll up
         if (key === 'k') { document.getElementById('main').scrollBy({ top: -300, behavior: 'smooth' }); return; }
-        // Space = page down (unless in modal)
-        if (key === ' ') { e.preventDefault(); document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }); return; }
+        // Space = page down, unless a button or link is focused so Space can activate it
+        if (key === ' ') {
+            var spaceTag = e.target && e.target.tagName;
+            var spaceRole = e.target && e.target.getAttribute && e.target.getAttribute('role');
+            if (spaceTag === 'BUTTON' || spaceTag === 'A' || spaceTag === 'SELECT' || spaceTag === 'SUMMARY' || spaceRole === 'button') return;
+            e.preventDefault();
+            document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+            return;
+        }
 
         // === Info ===
         // ? = show keyboard shortcuts help
@@ -26666,8 +26655,8 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
     function applyMode(mode) {
         _restoreAll();
-        if (!mode || mode === 'advanced') return;
-        applyDynamic(mode);
+        if (mode && mode !== 'advanced') applyDynamic(mode);
+        if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
     }
 
     function run() {
@@ -26844,7 +26833,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
+        // Desktop Explore Apps matches mobile #appsMenu. Beginner hides Proof of
+        // Play, Pleb Talk, Lightning Mart, IRL Sync, Bitcoin Beats, and Proof of
+        // Walk. AI Tools, Metrics, and Leaderboard stay for beginner, intermediate,
+        // and advanced (data-app-modes on those three cards).
         var APPS_HIDE_ONCLICK = {
             beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
             intermediate: []
@@ -26873,8 +26865,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         var appsMenu = document.getElementById('homeAppsMenu');
         if (appsMenu) {
             appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var modes = btn.getAttribute('data-app-modes');
+                var shouldHide;
+                if (modes) {
+                    shouldHide = modes.split(/\s+/).indexOf(mode) === -1;
+                } else {
+                    var oc = btn.getAttribute('onclick') || '';
+                    shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                }
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';

@@ -398,6 +398,13 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(tickets.includes("if (state === 'open') state = 'min'"));
     assert.ok(tickets.includes('btc_invite_auto_'));
     assert.ok(tickets.includes('7 * 24 * 60 * 60 * 1000'));
+    assert.ok(tickets.includes('function _scheduleInvitePlace'));
+    assert.ok(tickets.includes('requestAnimationFrame'));
+    assert.ok(!tickets.includes('_inviteSessionAuto'));
+    assert.ok(!tickets.includes('btc_invite_auto_session'));
+    assert.ok(!tickets.includes('_invitePreviewOn'));
+    assert.ok(!tickets.includes('_homePreviewUser'));
+    assert.ok(tickets.includes('_inviteHeldOpen && !_inviteAutoBlocked()'));
     assert.ok(tickets.includes("_inviteWriteStored('min')"));
     assert.ok(!tickets.includes("_inviteWriteStored('off')"));
     assert.ok(!tickets.includes("_inviteWriteStored('open')"));

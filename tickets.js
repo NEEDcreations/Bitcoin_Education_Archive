@@ -240,23 +240,12 @@ window.awardTickets = async function() {
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
 var INVITE_AUTO_MS = 7 * 24 * 60 * 60 * 1000;
-var INVITE_AUTO_SESSION = 'btc_invite_auto_session';
-
-function _invitePreviewOn() {
-    try {
-        var host = String(location.hostname || '');
-        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
-    } catch (e) { return false; }
-    return !!window._homePreviewUser;
-}
 
 function _inviteSignedIn() {
-    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
-    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -317,14 +306,6 @@ function _inviteAutoDue(uid) {
 function _inviteMarkAuto(uid) {
     if (!uid) return;
     try { localStorage.setItem(_inviteAutoKey(uid), String(Date.now())); } catch (e) {}
-}
-
-function _inviteSessionAuto() {
-    try { return sessionStorage.getItem(INVITE_AUTO_SESSION) === '1'; } catch (e) { return false; }
-}
-
-function _inviteClearSessionAuto() {
-    try { sessionStorage.removeItem(INVITE_AUTO_SESSION); } catch (e) {}
 }
 
 function _invitePopupElement(el) {
@@ -478,7 +459,6 @@ function _showSignedInOpen() {
 
 function _collapseSignedIn() {
     _inviteHeldOpen = false;
-    _inviteClearSessionAuto();
     _inviteMarkAuto(_inviteUid());
     _inviteWriteStored('min');
     _paintGuestPill(false);
@@ -601,6 +581,14 @@ function placeInvitePill() {
 }
 window.placeInvitePill = placeInvitePill;
 
+function _scheduleInvitePlace() {
+    if (window._invitePlaceRaf) return;
+    window._invitePlaceRaf = requestAnimationFrame(function () {
+        window._invitePlaceRaf = 0;
+        placeInvitePill();
+    });
+}
+
 function refreshInviteCard() {
     var card = document.getElementById('inviteCard');
     if (!card) return;
@@ -615,12 +603,14 @@ function refreshInviteCard() {
             _inviteMarkAuto(uid);
             _inviteWriteStored('min');
         }
-        var resume = _inviteHeldOpen || _inviteSessionAuto();
-        if ((resume || _inviteAutoDue(uid)) && !_inviteAutoBlocked() && _claimInvitePopup()) {
-            if (!resume) {
-                _inviteMarkAuto(uid);
-                try { sessionStorage.setItem(INVITE_AUTO_SESSION, '1'); } catch (e) {}
-            }
+        if (_inviteHeldOpen && !_inviteAutoBlocked()) {
+            _claimInvitePopup();
+            _showSignedInOpen();
+            return;
+        }
+        if (_inviteAutoDue(uid) && !_inviteAutoBlocked() && _claimInvitePopup()) {
+            _inviteMarkAuto(uid);
+            _inviteHeldOpen = true;
             _showSignedInOpen();
             return;
         }
@@ -782,7 +772,9 @@ if (typeof window !== 'undefined') {
     }
     if (!window._invitePlaceBound) {
         window._invitePlaceBound = true;
-        window.addEventListener('resize', function() { _placeInvitePills(); });
+        window.addEventListener('resize', _scheduleInvitePlace);
+        var inviteMain = document.getElementById('main');
+        if (inviteMain) inviteMain.addEventListener('scroll', _scheduleInvitePlace, { passive: true });
     }
     if (!window._invitePopupWatch && typeof MutationObserver === 'function') {
         window._invitePopupWatch = true;
@@ -796,10 +788,4 @@ if (typeof window !== 'undefined') {
         }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open', 'data-open', 'aria-modal'] });
     }
     refreshInviteCard();
-    if (!window._invitePillWatch) {
-        window._invitePillWatch = true;
-        window.addEventListener('resize', function() { placeInvitePill(); });
-        var inviteMain = document.getElementById('main');
-        if (inviteMain) inviteMain.addEventListener('scroll', function() { placeInvitePill(); }, { passive: true });
-    }
 }
