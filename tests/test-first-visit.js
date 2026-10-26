@@ -30,7 +30,8 @@ function extractNuke(html) {
     return html.slice(start, end + 5);
 }
 
-function runNuke(initial, sessionInitial) {
+function runNuke(initial, sessionInitial, opts) {
+    opts = opts || {};
     const html = read('index.html');
     const storage = Object.assign({}, initial);
     const session = Object.assign({}, sessionInitial);
@@ -59,15 +60,25 @@ function runNuke(initial, sessionInitial) {
         location: location,
         history: { replaceState: function () {} },
         localStorage: {
-            getItem: function (key) { return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null; },
+            getItem: function (key) {
+                if (opts.throwOn === 'local-get') throw new Error('storage');
+                return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null;
+            },
             setItem: function (key, value) {
+                if (opts.throwOn === 'local-set') throw new Error('storage');
                 storage[key] = String(value);
                 sets.push(key + '=' + value);
             }
         },
         sessionStorage: {
-            getItem: function (key) { return Object.prototype.hasOwnProperty.call(session, key) ? session[key] : null; },
-            setItem: function (key, value) { session[key] = String(value); }
+            getItem: function (key) {
+                if (opts.throwOn === 'session-get') throw new Error('storage');
+                return Object.prototype.hasOwnProperty.call(session, key) ? session[key] : null;
+            },
+            setItem: function (key, value) {
+                if (opts.throwOn === 'session-set') throw new Error('storage');
+                session[key] = String(value);
+            }
         },
         navigator: {
             serviceWorker: {
@@ -204,6 +215,19 @@ queue.push(test('an old btc_build still nukes once and the session guard holds',
     assert.strictEqual(guarded.reloads.length, 0);
     assert.strictEqual(guarded.keysCalls(), 0);
     assert.strictEqual(guarded.storage.btc_build, '20260301a');
+}));
+
+queue.push(test('a storage throw skips cleanup and does not reload', async function () {
+    const modes = ['local-get', 'local-set', 'session-get', 'session-set'];
+    for (let i = 0; i < modes.length; i++) {
+        const result = runNuke({ btc_build: '20260301a' }, {}, { throwOn: modes[i] });
+        await flush();
+        assert.strictEqual(result.timeouts.length, 0, modes[i]);
+        assert.strictEqual(result.reloads.length, 0, modes[i]);
+        assert.strictEqual(result.keysCalls(), 0, modes[i]);
+        assert.strictEqual(result.regCalls(), 0, modes[i]);
+        assert.strictEqual(result.unregistered.length, 0, modes[i]);
+    }
 }));
 
 queue.push(test('the current build does not nuke', async function () {

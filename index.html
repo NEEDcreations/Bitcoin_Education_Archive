@@ -34,28 +34,30 @@
 })();
 // One-time cache nuke for the SW strategy change (April 2026)
 (function(){
-    var _href = location.href;
-    if (!sessionStorage.getItem('_cnuke')) {
-        var v = localStorage.getItem('btc_build');
-        // A missing value is a first visit. Only an old build should nuke and reload.
-        if (v && v !== '20260405e') {
-            sessionStorage.setItem('_cnuke', '1');
-            localStorage.setItem('btc_build', '20260405e');
-            if ('caches' in window) {
-                caches.keys().then(function(k) {
-                    return Promise.all(k.map(function(n){ return caches.delete(n); }));
-                });
+    try {
+        var _href = location.href;
+        if (!sessionStorage.getItem('_cnuke')) {
+            var v = localStorage.getItem('btc_build');
+            // A missing value is a first visit. Only an old build should nuke and reload.
+            if (v && v !== '20260405e') {
+                sessionStorage.setItem('_cnuke', '1');
+                localStorage.setItem('btc_build', '20260405e');
+                if ('caches' in window) {
+                    caches.keys().then(function(k) {
+                        return Promise.all(k.map(function(n){ return caches.delete(n); }));
+                    });
+                }
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.getRegistrations().then(function(r) {
+                        r.forEach(function(reg){ reg.unregister(); });
+                    });
+                }
+                setTimeout(function(){ if (location.href !== _href) history.replaceState(null, '', _href); location.reload(); }, 500);
+                return;
             }
-            if (navigator.serviceWorker) {
-                navigator.serviceWorker.getRegistrations().then(function(r) {
-                    r.forEach(function(reg){ reg.unregister(); });
-                });
-            }
-            setTimeout(function(){ if (location.href !== _href) history.replaceState(null, '', _href); location.reload(); }, 500);
-            return;
+            if (!v) localStorage.setItem('btc_build', '20260405e');
         }
-        if (!v) localStorage.setItem('btc_build', '20260405e');
-    }
+    } catch (e) {}
 })();
 </script>
     <meta charset="UTF-8">
@@ -2203,7 +2205,8 @@ if ('serviceWorker' in navigator) {
         // Primary trigger: controllerchange fires reliably when the new SW takes over
         // after skipWaiting() + clients.claim(). The old statechange='installed' check
         // races with skipWaiting() and silently misses the event on fast devices.
-        // First install has no previous controller, so this must not reload the page.
+        // First install has no previous controller, so skip the update banner.
+        // This listener only shows that banner. It does not reload the page.
         navigator.serviceWorker.addEventListener('controllerchange', function() {
             if (!hadController) return;
             _showUpdateBanner();
