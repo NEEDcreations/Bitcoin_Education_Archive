@@ -314,6 +314,54 @@ function sleep(ms) {
     return new Promise(function(r) { setTimeout(r, ms); });
 }
 
+// Node 22 has a global WebSocket. Node 20 does not, so use the ws package
+// when it is installed. Without either, the hit tests skip instead of throwing.
+function devtoolsWebSocket() {
+    if (devtoolsWebSocket.ctor !== undefined) return devtoolsWebSocket.ctor;
+    if (typeof globalThis.WebSocket === 'function') {
+        devtoolsWebSocket.ctor = globalThis.WebSocket;
+        devtoolsWebSocket.pkg = false;
+        return devtoolsWebSocket.ctor;
+    }
+    try {
+        devtoolsWebSocket.ctor = require('ws');
+        devtoolsWebSocket.pkg = true;
+    } catch (e) {
+        devtoolsWebSocket.ctor = null;
+        devtoolsWebSocket.pkg = false;
+    }
+    return devtoolsWebSocket.ctor;
+}
+
+function openDevtoolsSocket(url) {
+    var Ctor = devtoolsWebSocket();
+    if (!Ctor) return null;
+    var ws = new Ctor(url);
+    var pkg = devtoolsWebSocket.pkg;
+    return {
+        send: function(data) { ws.send(data); },
+        close: function() { try { ws.close(); } catch (e) {} },
+        ready: new Promise(function(resolve, reject) {
+            function fail(err) { reject(err instanceof Error ? err : new Error('websocket error')); }
+            if (!pkg && typeof ws.addEventListener === 'function') {
+                ws.addEventListener('open', function() { resolve(); });
+                ws.addEventListener('error', fail);
+                return;
+            }
+            ws.on('open', function() { resolve(); });
+            ws.on('error', fail);
+        }),
+        onMessage: function(fn) {
+            function text(data) { return typeof data === 'string' ? data : String(data); }
+            if (!pkg && typeof ws.addEventListener === 'function') {
+                ws.addEventListener('message', function(ev) { fn(text(ev && ev.data)); });
+                return;
+            }
+            ws.on('message', function(data) { fn(text(data)); });
+        }
+    };
+}
+
 async function runChrome(width) {
     const dir = fs.mkdtempSync(path.join('/tmp', 'profile-stack-'));
     fs.writeFileSync(path.join(dir, 'index.html'), pageHtml());
@@ -347,15 +395,13 @@ async function runChrome(width) {
             if (!target) await sleep(100);
         }
         if (!target || !target.webSocketDebuggerUrl) throw new Error('no chrome page target');
-        const ws = new WebSocket(target.webSocketDebuggerUrl);
-        await new Promise(function(resolve, reject) {
-            ws.addEventListener('open', resolve);
-            ws.addEventListener('error', reject);
-        });
+        const ws = openDevtoolsSocket(target.webSocketDebuggerUrl);
+        if (!ws) throw new Error('WebSocket is not defined and require("ws") failed');
+        await ws.ready;
         let nextId = 0;
         const pending = new Map();
-        ws.addEventListener('message', function(ev) {
-            const msg = JSON.parse(ev.data);
+        ws.onMessage(function(data) {
+            const msg = JSON.parse(data);
             if (!msg.id || !pending.has(msg.id)) return;
             const waiter = pending.get(msg.id);
             pending.delete(msg.id);
@@ -402,6 +448,10 @@ async function runChrome(width) {
 
 [390, 320].forEach(function(width) {
     test('Add Peer is the hit target from leaderboard and chat at ' + width + 'px', async function() {
+        if (!devtoolsWebSocket()) {
+            console.log('skip: Add Peer hit target at ' + width + 'px — this Node has no global WebSocket and require("ws") failed. Node 22 provides WebSocket; Node 20 needs the ws package.');
+            return;
+        }
         const result = await runChrome(width);
         if (result.error) throw new Error(result.error);
         assert.strictEqual(result.width, width, 'innerWidth ' + result.width);
