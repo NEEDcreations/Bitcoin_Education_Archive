@@ -477,6 +477,24 @@ async function main() {
         await flush();
     });
 
+    failed += await test('the gift popup stacks above the screen that opened it', function() {
+        var env = boot();
+        var opener = env.document.createElement('div');
+        opener.id = 'usernameModal';
+        opener.className = 'open';
+        opener.style.zIndex = '2100008';
+        var trigger = env.document.createElement('button');
+        trigger.textContent = 'Open them';
+        opener.appendChild(trigger);
+        env.document.body.appendChild(opener);
+        trigger.focus();
+        env.sandbox.showPostSpinGiftModal(gifts(['a']));
+        var overlay = env.document.getElementById('postSpinGiftOverlay');
+        assert.ok(parseInt(overlay.style.zIndex, 10) > 2100008);
+        var dialog = findAttr(overlay, 'role', 'dialog');
+        assert.strictEqual(env.document.activeElement, dialog);
+    });
+
     failed += await test('modal background is solid and the open animation is capped', function() {
         var env = boot();
         env.sandbox.showPostSpinGiftModal(gifts(['a']));

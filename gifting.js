@@ -181,6 +181,7 @@ var _holdingsRefresh = null;
 var _holdingsRefreshQueued = false;
 var _giftReturnFocus = null;
 var _giftKeyBound = false;
+var _giftLayerZ = 480000;
 
 function _emptyEl(el) {
     if (!el) return;
@@ -420,11 +421,73 @@ function _playGiftOpen(stage) {
     });
 }
 
+function _numericZ(node) {
+    if (!node || node.nodeType !== 1) return 0;
+    var best = 0;
+    if (node.style && node.style.zIndex) {
+        var inline = parseInt(node.style.zIndex, 10);
+        if (inline > best) best = inline;
+    }
+    var css = node.getAttribute && node.getAttribute('style');
+    if (css) {
+        var match = String(css).match(/z-index:\s*(\d+)/i);
+        if (match) {
+            var fromCss = parseInt(match[1], 10);
+            if (fromCss > best) best = fromCss;
+        }
+    }
+    if (typeof window.getComputedStyle === 'function') {
+        try {
+            var computed = parseInt(window.getComputedStyle(node).zIndex, 10);
+            if (computed > best) best = computed;
+        } catch (e) { /* a detached node has no computed style */ }
+    }
+    return best;
+}
+
+function _layerOpen(node) {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.id === 'postSpinGiftOverlay') return false;
+    if (node.getAttribute && node.getAttribute('hidden') != null) return false;
+    if (node.style && node.style.display === 'none') return false;
+    if (node.classList && node.classList.contains('open')) return true;
+    if (node.id === 'spinModal' || node.id === 'questHubOverlay' || node.id === 'onboardingOverlay') return true;
+    if (typeof window.getComputedStyle === 'function') {
+        try {
+            if (window.getComputedStyle(node).display === 'none') return false;
+        } catch (e) { return false; }
+    }
+    return true;
+}
+
+function _raiseGiftLayer() {
+    var top = 480000;
+    function consider(node) {
+        var cur = node;
+        while (cur && cur !== document && cur !== document.documentElement) {
+            if (_layerOpen(cur)) {
+                var z = _numericZ(cur);
+                if (z > top) top = z;
+            }
+            cur = cur.parentNode;
+        }
+    }
+    if (document.activeElement) consider(document.activeElement);
+    ['usernameModal', 'questHubOverlay', 'spinModal', 'onboardingOverlay', 'tosModal'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) consider(el);
+    });
+    var kids = document.body ? document.body.childNodes : [];
+    for (var i = 0; i < kids.length; i++) consider(kids[i]);
+    _giftLayerZ = top + 2;
+    return _giftLayerZ;
+}
+
 function _confetti() {
     var colors = ['#f7931a', '#fbbf24', '#a78bfa', '#34d399', '#f472b6', '#60a5fa'];
     for (var i = 0; i < 12; i++) {
         var dot = document.createElement('div');
-        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:480010;left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
+        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:' + (_giftLayerZ + 8) + ';left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
         document.body.appendChild(dot);
         setTimeout(function(d) { if (d && d.parentNode) d.parentNode.removeChild(d); }, 1400, dot);
     }
@@ -697,6 +760,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     _injectGiftingCSS();
     opts = opts || {};
     var previousFocus = document.activeElement || null;
+    var layer = _raiseGiftLayer();
     var existing = document.getElementById('postSpinGiftOverlay');
     if (existing) {
         if (_nodeInside(previousFocus, existing)) previousFocus = _giftReturnFocus;
@@ -710,7 +774,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     var overlay = document.createElement('div');
     overlay.id = 'postSpinGiftOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
+    overlay.style.zIndex = String(layer);
     overlay.setAttribute('data-pending', opts.pending ? '1' : '0');
 
     var modal = document.createElement('div');

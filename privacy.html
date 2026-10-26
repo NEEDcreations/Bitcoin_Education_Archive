@@ -45,7 +45,7 @@
     <h3>Account Data (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
-        <tr><td>Username</td><td>Display on leaderboard, PlebTalk forum, LightningMart, and direct messages. The name is checked and reserved on the server (unique, no HTML, no profanity, and not a reserved impersonation). A lowercase copy is stored so two people cannot claim the same name. You can rename once a day. A released name is held for you for 30 days (usernameChangedAt).</td></tr>
+        <tr><td>Username</td><td>Display on leaderboard, PlebTalk forum, LightningMart, and direct messages. The name is checked and reserved on the server (unique, 3 to 20 characters, letters, numbers, underscores, hyphens, or periods, no spaces, no HTML, no profanity, and not a reserved impersonation). A lowercase copy is stored so two people cannot claim the same name. You can rename once a day. A released name is held for you for 30 days (usernameChangedAt). When a name that contained a space is converted, the server keeps a migration record of the old name, the new name, and the date (username_migrations) until the account is deleted, and it stores the previous name on the public profile (usernameMigratedFrom) so an older mention can still open it. That conversion also sets a one-time free rename (usernameFreeRename) that skips the 24 hour wait once and is cleared when you use it. A later rename, including that free change, removes the previous name from your account and from the public profile. The browser cannot set the migration record, the previous name, or the free-rename flag.</td></tr>
         <tr><td>Welcome tour seen (introSeen, introSeenAt)</td><td>Remember that a signed-in user has already seen the welcome tour, so it is not shown again. Guests store this only in this browser.</td></tr>
         <tr><td>First-quest progress (onboardingQuest)</td><td>Which first-quest steps are done, and the XP and orange tickets the server granted for them. The browser cannot mark the quest complete or set the reward.</td></tr>
         <tr><td>Nacho quest note (onboarding evidence)</td><td>For the first quest only: that you asked Nacho something, the length of that question, and the time. The question text is not stored in this record.</td></tr>
@@ -197,6 +197,7 @@
         <tr><td>User count</td><td>Display total registered users</td></tr>
     </table>
     <p>Community statistics are fully anonymous aggregate counters. They do not contain any personally identifiable information. Activity counters used for badges (chat, marketplace, polls, visits, and similar actions) are stored on your server profile and are not included in the public distribution document. A daily poll vote is stored as a server record for that day so the vote can be counted once.</p>
+    <p>A badge the server awards you is posted publicly in GGs chat with your username. That announcement is separate from the aggregate badge distribution counts above.</p>
 
     <h3>Proof of Walk / Strava Integration (stored in Firebase)</h3>
     <table>
@@ -227,7 +228,7 @@
     </table>
 
     <h3>Telegram Bridge (via Cloud Function)</h3>
-    <p>Some Global Chat messages are copied to a linked Telegram group through a Cloudflare Worker, and messages from that group can appear in Global Chat. The copy includes your username and the message text. It can also include an image or GIF link and a short quote of the message you replied to. Your account id is sent to our bridge so we can match the post; it is not shown in the Telegram message. Nacho posts that tag a username are mirrored the same way. People in the Telegram group can see the username and the text.</p>
+    <p>GGs chat and Global Chat messages are mirrored to the public Telegram group, and messages from that group can appear in Global Chat. The copy includes your username and the message text. It can also include an image or GIF link and a short quote of the message you replied to. Your account id is not sent to Telegram. The server keeps a record of the mirrored line for up to 7 days so it can retry a failed send or remove the Telegram message, then deletes that record. Nacho posts that tag a username are mirrored the same way. People in the Telegram group can see the username and the text. Badge awards are posted publicly in GGs chat with your username, and those posts are mirrored with the rest of GGs chat.</p>
 
     <h3>Bitcoin Dashboard / Top Indicators</h3>
     <p>The Bitcoin Dashboard fetches public market data from third-party APIs including CoinGecko, ColintalksCrypto (CBBI), alternative.me (Fear & Greed), mempool.space, and Bitbo.io. No user data is sent in these requests — they are read-only public API calls. Indicator data may be cached in your browser's localStorage for up to 1 hour.</p>
@@ -364,7 +365,7 @@
         <li>Facilitate PVP quiz battles between users</li>
         <li>Power IRL Sync — display events, manage RSVPs, and coordinate meetups</li>
         <li>Track daily price prediction accuracy for user profiles</li>
-        <li>Forward Global Chat messages to/from a linked Telegram group via Cloud Function</li>
+        <li>Mirror GGs chat and Global Chat messages to the public Telegram group, and show messages from that group in Global Chat</li>
         <li>Display Bitcoin market indicators from public third-party APIs (no user data sent)</li>
         <li>Enable two-factor authentication (TOTP) for account security, and remember a browser for 30 days when you ask us to. That record keeps a browser and system label and timestamps, not an IP address</li>
         <li>Verify Nostr and Lightning wallet signatures for authentication</li>
@@ -420,8 +421,8 @@
         <tr><td>alternative.me</td><td>Fear & Greed Index</td><td>None (read-only public API)</td></tr>
         <tr><td>Bitbo.io</td><td>ETF flow data</td><td>None (read-only public data)</td></tr>
         <tr><td>RainbowChart.com</td><td>Rainbow chart formula reference</td><td>None (formula only, no API calls)</td></tr>
-        <tr><td>Firebase Cloud Functions</td><td>Secure Telegram bridge, server-side operations</td><td>Chat messages (username + text)</td></tr>
-        <tr><td>Telegram Bot API</td><td>Bridge Global Chat to Telegram group</td><td>Username and message text</td></tr>
+        <tr><td>Firebase Cloud Functions</td><td>Secure Telegram bridge, server-side operations</td><td>GGs and Global Chat messages (username + text)</td></tr>
+        <tr><td>Telegram Bot API</td><td>Mirror GGs chat and Global Chat to the public Telegram group</td><td>Username and message text</td></tr>
         <tr><td>Strava API</td><td>Proof of Walk — read activity metrics (steps, distance, duration) to award points</td><td>OAuth token (server-side only); activity metrics. No GPS routes, heart rate, or social data.</td></tr>
         <tr><td>Timechain Arcade / Sat Arcade / RyRacer / Galaxy Mind</td><td>Third-party Bitcoin games embedded in Proof of Play hub</td><td>None from us — games open on the third-party site; their own privacy policies apply</td></tr>
     </table>
@@ -437,6 +438,7 @@
         <li>Your <strong>profile picture</strong> is visible on the leaderboard, PVP, and user profiles</li>
         <li>Your <strong>uploaded music tracks</strong> (including albums/EPs) on Bitcoin Beats are publicly playable by all users</li>
         <li>Your <strong>Global Chat messages</strong> are visible to all users in real time</li>
+        <li>Your <strong>badge awards</strong> are posted publicly in GGs chat with your username. GGs chat and Global Chat messages are mirrored to the public Telegram group</li>
         <li>Your <strong>topic discussion comments</strong> (username and comment text) are visible publicly on that topic, including to people who are not signed in. The first post of a thread is also published automatically on the public Pleb Talk forum under your username, with the topic name, a link back, and the start of your message. A short summary may replace that opening after the post is accepted. Replies are mirrored both ways between the topic thread and that forum post, still under the name of the person who wrote them. Conversation XP for that message is recorded once. If the cross-post limit is already used, the message stays on the topic and is not added to Pleb Talk</li>
         <li>Your <strong>DJ broadcasts</strong> (currently playing track, sound effects) are heard by all listeners</li>
         <li>Your <strong>online presence</strong> (username, active status) is visible via the online users counter</li>
@@ -570,7 +572,7 @@
         <li><strong>Satoshi's Favor hash records and cooldowns.</strong> The name on the hash record is replaced with <code>[deleted]</code>. The hash and the cooldown stay so the game limits cannot be reset</li>
         <li><strong>Shared rate-limit rows keyed by network address, including the global shoutout limit, and public topic summaries.</strong> The account-deletion limit for a network, and the Nostr and Lightning sign-in limits, are stored as a keyed hash, not the address itself. The hash key is a random daily salt kept in a server-only record that this site cannot read, or a server secret. That row expires after about a day, and a scheduled cleanup deletes it if the database expiry policy is not on yet. Deleting one account does not erase those shared rows. Authenticator attempt counters, including a recovery attempt, live in totp_rate_limits. Each row has an expiry and the hourly cleanup deletes it. The recovery counter is a salted hash, not the email address</li>
     </ul>
-    <p>A Global Chat message may already have been copied to the linked Telegram group. Deleting the account does not remove that Telegram copy. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if something of yours is still visible and should not be.</p>
+    <p>A GGs chat or Global Chat message may already have been copied to the public Telegram group. If that copy was sent on its own and the server still has the Telegram message id, deleting, hiding, or moderating the web message removes the Telegram copy. Deleting the account does that for your own chat lines, because those lines are marked deleted. A line that was sent together with other people's messages stays, so their lines stay. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if something of yours is still visible and should not be.</p>
 
     <h2>12. Children</h2>
     <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. The direct messaging feature is available only to registered users. If you are a parent and believe your child has provided personal information or been contacted inappropriately, please contact us immediately and we will take action.</p>
