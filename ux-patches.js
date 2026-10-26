@@ -1547,14 +1547,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     // IDs to hide per mode
     var HIDE_IDS = {
         beginner: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailySpinBanner', 'em-quick-actions',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'
         ],
         intermediate: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'

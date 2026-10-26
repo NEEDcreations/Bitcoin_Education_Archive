@@ -100,7 +100,7 @@
     </ul>
     <p>If you register with an email address, a verification magic link will be sent to your inbox. Nostr sign-in requires a NIP-07 compatible browser extension (Alby, nos2x). Lightning sign-in uses LNURL-auth — scan a QR code with a compatible Lightning wallet. Accounts that violate these terms may be suspended or deleted.</p>
     <p>You can delete the account from Settings → Account after confirming your username. Deletion is immediate. Any sats balance and pending withdrawals are forfeited. Changing the email on an email sign-in does not reset faucet, Lightning, fingerprint, or referral limits. Every change to that email, and every change to the set of sign-in providers, pauses sats withdrawals for 72 hours. A Google, X, GitHub, or Facebook email stays with that provider.</p>
-    <p>Usernames are reserved on the server. A name must be unique, 3 to 20 characters, and may use letters, numbers, spaces, underscores, hyphens, and periods. Names that contain HTML or profanity are rejected. Names that impersonate the site are reserved, including Nacho, admin, moderator, support, official, Satoshi, NEEDcreations, Bitcoin Quest, and system, and look-alike spellings of those names. You can change your username once a day. A name you give up stays held for you for 30 days. Your browser cannot write the username onto your account by itself.</p>
+    <p>Usernames are reserved on the server. A name must be unique, 3 to 20 characters, and may use letters, numbers, underscores, hyphens, and periods (no spaces). Names that contain HTML or profanity are rejected. Names that impersonate the site are reserved, including Nacho, admin, moderator, support, official, Satoshi, NEEDcreations, Bitcoin Quest, and system, and look-alike spellings of those names. You can change your username once a day. A name you give up stays held for you for 30 days. Your browser cannot write the username onto your account by itself.</p>
     <p>If you browse as a guest and then sign in with a login that is new, we upgrade that same guest account so you keep your XP, username, badges, and streak. If that login already belongs to another account, the server can copy the guest's progress once instead. The copy uses a code that expires after 30 minutes, works once, and only for that guest. An account can receive one guest copy. Guest sessions older than about 7 days are not copied. Copied points count toward the daily XP cap. After a copy, the guest's points, weekly XP, monthly XP, orange tickets, and channel visits are cleared. The browser cannot set those totals.</p>
     <p>The welcome tour is shown once. For a signed-in account we store that you have seen it. For a guest, that fact stays in this browser only. You can open the tour again from Settings or Help. The first quest records each finished step and its XP and tickets on the server. Quest XP counts toward the daily points cap and the weekly and monthly totals. When that quest asks you to talk to Nacho, we store only that a question was asked, plus its length and the time. We do not store the question text for the quest.</p>
 
@@ -132,7 +132,7 @@
     <h2>5. Points, Badges & Ranking</h2>
     <ul>
         <li>Points are earned through site visits, reading channels, completing quests, earning badges, earning tickets, trivia, community participation, Global Chat engagement, DJ broadcasts, and tune-ins</li>
-        <li>There are visible goal badges (including chat, DJ, discovery, trails, PVP, music, social, streaks, Nacho, marketplace, daily challenges, and prediction categories) and hidden secret badges. Badge XP is checked on the server. Every badge the server awards also adds one Satoshi's Favor point. Some badges are cosmetic and award no XP.</li>
+        <li>There are visible goal badges (including chat, DJ, discovery, trails, PVP, music, social, streaks, Nacho, marketplace, daily challenges, and prediction categories) and hidden secret badges. Badge XP is checked on the server. Every badge the server awards also adds one Satoshi's Favor point. Some badges are cosmetic and award no XP. Badges you earn are posted publicly in GGs chat with your username.</li>
         <li>Ranks run from Normie (0 XP) through Maxi (2,140 XP) up to Satoshi (210,000 XP)</li>
         <li>Leaderboard rankings are public and display your chosen username and online status. Three leaderboard periods are available: All-Time, Weekly (resets every Monday), and Monthly (resets on the 1st of each month)</li>
         <li>Weekly and Monthly leaderboards track XP earned during that period only; all-time XP is never reduced</li>
@@ -350,7 +350,7 @@
         <li>Content rules from Section 6 (PlebTalk) apply equally to Global Chat — no spam, scams, harassment, hate speech, NSFW content, or doxxing</li>
         <li>We reserve the right to moderate, remove messages, and ban users who violate chat rules</li>
         <li>Typing @ and a username can tag that person. The tag can open their profile, and they may get an in-app notification</li>
-        <li>Nacho may post in Global Chat, including posts that tag a username. A new PlebTalk thread or LightningMart listing can get one of those posts. Those posts, and other Global Chat messages, may be mirrored to a linked Telegram group</li>
+        <li>Nacho may post in Global Chat, including posts that tag a username. A new PlebTalk thread or LightningMart listing can get one of those posts. GGs chat and Global Chat messages are mirrored to the public Telegram group</li>
         <li>Engagement in chat may earn XP. Say hi is a separate once-a-day greeting: after you arm it, a real chat message you send that day can award 50 XP and 1 Orange Ticket, if the server accepts the message. Guest accounts cannot claim it. It counts toward the daily XP cap and can be refused</li>
         <li>Nacho may automatically respond to questions posted in Global Chat</li>
     </ul>
@@ -563,7 +563,7 @@
         <li>Cloudflare (Workers AI for Nacho, Turnstile on sats claims, and our chat bridge)</li>
         <li>Alby (Nostr Wallet Connect) for Lightning payouts we send, and your own WebLN or NWC wallet for tips you send</li>
         <li>YouTube (Timechain TV embeds) and Wavlake (optional music player)</li>
-        <li>Telegram (a copy of some Global Chat messages)</li>
+        <li>Telegram (GGs chat and Global Chat messages are mirrored to the public Telegram group)</li>
         <li>mempool.space API (live Bitcoin price, block height, fee data)</li>
         <li>GitHub Pages (hosting)</li>
     </ul>

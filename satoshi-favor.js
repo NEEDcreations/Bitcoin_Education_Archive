@@ -101,6 +101,8 @@
     // ─── SF CHAT + NEWS ANNOUNCEMENTS ───
     var SF_ANNOUNCE_DEDUP_MS = 4 * 60 * 60 * 1000; // 4 hours — fallback dedup
     function _nachoSFAnnounce(type) {
+        // The window-open post is written by the server into global chat.
+        if (type === 'start') return;
         if (typeof db === 'undefined' || !db) return;
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
         var uid = auth.currentUser.uid;
@@ -144,8 +146,6 @@
             // Direct global_chat writes as "🦌 Nacho" also fail the username==profile rule.
             if (typeof window.nachoGlobalAnnounce === 'function') {
                 window.nachoGlobalAnnounce(msg, uid);
-            } else if (typeof bridgeToTelegram === 'function') {
-                bridgeToTelegram({ user: '🦌 Nacho', text: msg });
             }
         }).catch(function(err) {
             if (!err._dedupSkip) console.warn('[SF] announce txn failed:', err);
@@ -244,7 +244,6 @@
                 if (typeof window.forceShowBubble === 'function') {
                     window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to hash! Click below to start hashing! ⛏️🦌", 'fire');
                 }
-                _nachoSFAnnounce('start');
             } else if (!nowActive && _prevFavorActive) {
                 // Feature 1: Window closed — update streak based on participation
                 if (sfState.myHashCount > 0) {
@@ -1376,10 +1375,6 @@
             if (data.favorActive && !wasFavorActive) {
                 var _sfAct = parseInt(localStorage.getItem('btc_sf_activations') || '0') + 1;
                 localStorage.setItem('btc_sf_activations', _sfAct.toString());
-                var activateMsg = '⛏️ SATOSHI\'S FAVOR IS NOW ACTIVE!';
-                if (howEarned) activateMsg += ' ' + howEarned;
-                activateMsg += ' Hash now for 60 minutes! ➡️ [Satoshi\'s Favor](#favor)';
-                window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, (auth && auth.currentUser) ? auth.currentUser.uid : '');
             } else if (data.favorActive && wasFavorActive) {
                 if (typeof window.nachoGlobalAnnounce === 'function') {
                     var extMsg;

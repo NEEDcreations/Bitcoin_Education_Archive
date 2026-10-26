@@ -284,11 +284,21 @@ window.awardTickets = async function() {
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
 
+function _invitePreviewOn() {
+    try {
+        var host = String(location.hostname || '');
+        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
+    } catch (e) { return false; }
+    return !!window._homePreviewUser;
+}
+
 function _inviteSignedIn() {
+    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
+    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -302,12 +312,14 @@ function _inviteReadStored(uid) {
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
         fromUser = String(currentUser.inviteCard);
     }
+    if (fromUser === 'off') return 'min';
     if (INVITE_STATES[fromUser]) return fromUser;
     try {
         var local = localStorage.getItem(_inviteStorageKey(uid));
+        if (local === 'off') return 'min';
         if (INVITE_STATES[local]) return local;
     } catch (e) {}
-    return 'open';
+    return 'min';
 }
 
 function _inviteWriteStored(state) {
@@ -432,7 +444,44 @@ function _applyInviteState(state) {
     if (!card) return;
     card.setAttribute('data-state', state);
     card.setAttribute('data-show', state === 'off' ? '0' : '1');
+    placeInvitePill();
 }
+
+function placeInvitePill() {
+    var card = document.getElementById('inviteCard');
+    var today = document.getElementById('todayCard');
+    if (!card) return;
+    var state = card.getAttribute('data-state');
+    var shown = card.getAttribute('data-show') === '1' && state !== 'off';
+    if (!shown) {
+        card.style.top = '';
+        if (today) today.style.marginTop = '';
+        return;
+    }
+    var anchorBottom = 0;
+    ['homeWalletStrip', 'homeGuestActions', 'homeHero'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var cs = window.getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return;
+        var rect = el.getBoundingClientRect();
+        if (rect.height > 1 && rect.bottom > anchorBottom) anchorBottom = rect.bottom;
+    });
+    var top = 8;
+    var bar = document.querySelector('.mobile-bar');
+    if (bar && window.innerWidth <= 900 && window.getComputedStyle(bar).display !== 'none') {
+        top = Math.round(bar.getBoundingClientRect().bottom + 8);
+    }
+    if (anchorBottom > 1) top = Math.max(top, Math.round(anchorBottom + 8));
+    card.style.top = top + 'px';
+    if (today && (state === 'min' || state === 'guest')) {
+        var pillH = card.getBoundingClientRect().height || 40;
+        today.style.marginTop = Math.round(pillH + 12) + 'px';
+    } else if (today) {
+        today.style.marginTop = '';
+    }
+}
+window.placeInvitePill = placeInvitePill;
 
 function refreshInviteCard() {
     var card = document.getElementById('inviteCard');
@@ -501,8 +550,7 @@ function dismissInviteCard() {
         _applyInviteState('off');
         return;
     }
-    _inviteWriteStored('off');
-    _applyInviteState('off');
+    minimizeInviteCard();
 }
 
 function toggleInviteHow() {
@@ -598,4 +646,10 @@ if (typeof window !== 'undefined') {
         }, 1000);
     }
     refreshInviteCard();
+    if (!window._invitePillWatch) {
+        window._invitePillWatch = true;
+        window.addEventListener('resize', function() { placeInvitePill(); });
+        var inviteMain = document.getElementById('main');
+        if (inviteMain) inviteMain.addEventListener('scroll', function() { placeInvitePill(); }, { passive: true });
+    }
 }
