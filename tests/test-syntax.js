@@ -12,7 +12,7 @@ const JS_FILES = [
     'marketplace.js', 'messaging.js', 'engagement.js', 'badges.js',
     'tickets.js', 'features.js', 'quests.js', 'scholar.js', 'sw.js',
     'pvp.js', 'pvp-enhance.js', 'pvp-lobby-alert.js',
-    'channel_index.js', 'topic-discussions.js', 'global-chat.js', 'notifications.js'
+    'channel_index.js', 'topic-discussions.js', 'global-chat.js', 'notifications.js', 'gifting.js'
 ];
 
 let passed = 0, failed = 0;

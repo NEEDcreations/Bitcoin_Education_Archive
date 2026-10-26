@@ -337,20 +337,34 @@
                 btn.style.transform = 'none';
             }
         }
-        var invite = document.getElementById('invitePill');
+        var blockers = [];
+        var guestPill = document.getElementById('inviteGuestPill');
+        if (guestPill && !guestPill.hasAttribute('hidden')) blockers.push(guestPill);
         var card = document.getElementById('inviteCard');
-        if (invite && card && card.getAttribute('data-show') === '1' && card.getAttribute('data-state') === 'min') {
-            var ib = invite.getBoundingClientRect();
-            var qb = btn.getBoundingClientRect();
-            if (ib.width >= 1 && ib.height >= 1) {
-                var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
-                if (stacked) {
-                    btn.style.top = Math.round(ib.bottom + 12) + 'px';
-                    btn.style.bottom = 'auto';
-                }
+        if (card && card.getAttribute('data-show') === '1') {
+            var inviteState = card.getAttribute('data-state');
+            if (inviteState === 'min') {
+                var invite = document.getElementById('invitePill');
+                if (invite) blockers.push(invite);
+            } else if (inviteState === 'open') {
+                blockers.push(card);
             }
         }
-        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'curatedStartSection', 'todayFavorStrip', 'todayCardTitle', 'homeLearnTitle', 'homeLearnKicker'];
+        var lowest = null;
+        var b;
+        for (b = 0; b < blockers.length; b++) {
+            var ib = blockers[b].getBoundingClientRect();
+            var qb = btn.getBoundingClientRect();
+            if (ib.width < 1 || ib.height < 1) continue;
+            var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
+            if (!stacked) continue;
+            if (lowest === null || ib.bottom > lowest) lowest = ib.bottom;
+        }
+        if (lowest !== null) {
+            btn.style.top = Math.round(lowest + 12) + 'px';
+            btn.style.bottom = 'auto';
+        }
+        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'curatedStartSection', 'todayFavorStrip', 'todayCardTitle', 'homeLearnTitle', 'homeLearnKicker', 'guestPointsBanner'];
         for (var a = 0; a < avoidIds.length; a++) {
             var block = document.getElementById(avoidIds[a]);
             if (!block) continue;
@@ -377,6 +391,37 @@
             btn.style.top = Math.round(hr.bottom + 8) + 'px';
             btn.style.bottom = 'auto';
         }
+        function clearOfTodayCard() {
+            var ids = ['todayCard', 'dailyXpMeter', 'dailyXpMeterText', 'dailyXpMeterFill'];
+            var limitIds = ['bottomNav', 'chatOverlayBtn', 'nacho-toggle', 'fabExpandBtn'];
+            var i, el, br, qb, above, below, limit, j, ob, or;
+            for (i = 0; i < ids.length; i++) {
+                el = document.getElementById(ids[i]);
+                if (!el) continue;
+                var cs = window.getComputedStyle(el);
+                if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+                br = el.getBoundingClientRect();
+                qb = btn.getBoundingClientRect();
+                if (br.width < 1 || br.height < 1) continue;
+                if (qb.right < br.left || qb.left > br.right || qb.bottom < br.top || qb.top > br.bottom) continue;
+                above = Math.round(br.top - 8 - qb.height);
+                below = Math.round(br.bottom + 8);
+                limit = window.innerHeight - 8;
+                for (j = 0; j < limitIds.length; j++) {
+                    ob = document.getElementById(limitIds[j]);
+                    if (!ob) continue;
+                    var ocs = window.getComputedStyle(ob);
+                    if (ocs.display === 'none' || ocs.visibility === 'hidden') continue;
+                    or = ob.getBoundingClientRect();
+                    if (or.height < 8 || or.top < window.innerHeight * 0.45) continue;
+                    if (or.top - 8 < limit) limit = or.top - 8;
+                }
+                if (phone || below + qb.height > limit) btn.style.top = Math.max(8, above) + 'px';
+                else btn.style.top = below + 'px';
+                btn.style.bottom = 'auto';
+            }
+        }
+        clearOfTodayCard();
         var nav = document.getElementById('bottomNav');
         var maxBottom = window.innerHeight - 8;
         if (nav) {
@@ -387,6 +432,45 @@
         if (pb.bottom > maxBottom) {
             btn.style.top = Math.max(8, Math.round(maxBottom - pb.height)) + 'px';
             btn.style.bottom = 'auto';
+        }
+        clearOfTodayCard();
+        // Phones keep the quest pill on the Invite row, left side, the same
+        // band used at 320. Never drop it onto the Today card or the Learn card.
+        if (phone) {
+            var anchor = null;
+            var inviteCard = document.getElementById('inviteCard');
+            if (inviteCard && inviteCard.getAttribute('data-show') === '1' && inviteCard.getAttribute('data-state') === 'min') {
+                anchor = document.getElementById('invitePill');
+            }
+            var guestPill = document.getElementById('inviteGuestPill');
+            if ((!anchor || anchor.getBoundingClientRect().height < 1) && guestPill && !guestPill.hasAttribute('hidden')) {
+                anchor = guestPill;
+            }
+            if (anchor) {
+                var ar = anchor.getBoundingClientRect();
+                if (ar.height > 1) {
+                    btn.style.top = Math.round(ar.top) + 'px';
+                    btn.style.bottom = 'auto';
+                    btn.style.left = 'max(12px, env(safe-area-inset-left, 0px))';
+                    btn.style.right = 'auto';
+                }
+            }
+            var cardIds = ['todayCard', 'dailyXpMeter', 'dailyXpMeterText', 'dailyXpMeterFill', 'homeLearnCard', 'homeLearnKicker', 'homeLearnTitle', 'homeLearnContinue', 'homeLearnDesc'];
+            var c;
+            for (c = 0; c < cardIds.length; c++) {
+                var cardEl = document.getElementById(cardIds[c]);
+                if (!cardEl) continue;
+                var cardCs = window.getComputedStyle(cardEl);
+                if (cardCs.display === 'none' || cardCs.visibility === 'hidden') continue;
+                var cardBox = cardEl.getBoundingClientRect();
+                var questBox = btn.getBoundingClientRect();
+                if (cardBox.width < 1 || cardBox.height < 1) continue;
+                if (questBox.right < cardBox.left || questBox.left > cardBox.right || questBox.bottom < cardBox.top || questBox.top > cardBox.bottom) continue;
+                btn.style.top = Math.max(8, Math.round(cardBox.top - 8 - questBox.height)) + 'px';
+                btn.style.bottom = 'auto';
+                btn.style.left = 'max(12px, env(safe-area-inset-left, 0px))';
+                btn.style.right = 'auto';
+            }
         }
     }
     window._placeNachoQuestPill = placeNachoQuestPill;
@@ -422,6 +506,15 @@
                 if (pill) placeNachoQuestPill(pill);
             }).observe(modal, { attributes: true, attributeFilter: ['class'] });
         }
+        function watchInvite(el, filter) {
+            if (!el || !window.MutationObserver) return;
+            new MutationObserver(function () {
+                var pill = document.getElementById('nachoQuestPill');
+                if (pill) placeNachoQuestPill(pill);
+            }).observe(el, { attributes: true, attributeFilter: filter });
+        }
+        watchInvite(document.getElementById('inviteCard'), ['data-state', 'data-show', 'style']);
+        watchInvite(document.getElementById('inviteGuestPill'), ['hidden', 'style']);
     };
 
     window._showNachoQuestOverlay = function () {

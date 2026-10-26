@@ -1388,8 +1388,9 @@ service cloud.firestore {
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
                     && (
-                      // Author can edit their own article
+                      // Author can edit their own article, but cannot hand authorship to someone else.
                       resource.data.authorId == request.auth.uid
+                      && request.resource.data.authorId == resource.data.authorId
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
@@ -1754,6 +1755,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Paying article publishes per offset day. Cloud Function only.
+    match /users/{userId}/article_publish_days/{docId} {
+      allow read, write: if false;
+    }
+
     // Onboarding evidence (Nacho asked, copied quiz proof). Cloud Function only.
     match /users/{userId}/onboarding_evidence/{docId} {
       allow read: if request.auth != null && request.auth.uid == userId;
@@ -1966,31 +1972,10 @@ service cloud.firestore {
                     && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
     }
 
-    // Trivia cumulative stats (all-time per question) — read public, increment only
+    // Trivia cumulative stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_cumulative/{triviaId} {
       allow read: if true;
-      // [SECURITY FIX] create: schema locked + values bounded (was completely unconstrained)
-      allow create: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total == 1
-                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
-                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
-                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
-                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total >= resource.data.get('total', 0)
-                    && request.resource.data.total <= resource.data.get('total', 0) + 1
-                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // ===== RAID BOSS =====
@@ -2149,26 +2134,10 @@ service cloud.firestore {
       }
     }
 
-    // Trivia answer stats — public read, authenticated users can merge-increment
+    // Trivia answer stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_stats/{date} {
       allow read: if true;
-      allow create: if request.auth != null
-                   && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total == 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                   && request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total >= resource.data.get('total', 0)
-                   && request.resource.data.total <= resource.data.get('total', 0) + 1
-                   && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                   && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                   && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                   && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                   && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                   && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                   && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                   && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // Charity donations — public read (for leaderboard/feed), CF-only write
@@ -2360,6 +2329,11 @@ service cloud.firestore {
     // client cannot forge a Nacho post or reset the cap.
     // One marker per listing so onMarketplaceListingCount cannot double-count.
     match /market_listing_counts/{listingId} {
+      allow read, write: if false;
+    }
+
+    // One article-publish XP marker per article id. Cloud Function only.
+    match /article_xp/{articleId} {
       allow read, write: if false;
     }
 

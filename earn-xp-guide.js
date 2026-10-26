@@ -52,6 +52,7 @@
             id: 'ep_social',
             title: '💬 Community & Social',
             items: [
+                'Publish an article: <strong>30 XP</strong>, once per article, up to 2 a day.',
                 'Forum post: <strong>10 XP</strong>',
                 'Forum reply: <strong>5 XP</strong>',
                 'Article comment: <strong>5 XP</strong>',
