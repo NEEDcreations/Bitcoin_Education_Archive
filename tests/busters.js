@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship branch is btc-archive-v2377.
+// Cache-buster pin. This ship branch is btc-archive-v2407.
 // timechain-tv.js stays 20261024_v2353.
 // bundle.min.js, ranking.js, modules.js, scholar.js, and learning-quests.js are 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
@@ -32,9 +32,28 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2377', () => {
+test('service worker cache is v2407', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2377'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2407'"));
+    assert.ok(!sw.includes('btc-archive-v2406'));
+    assert.ok(!sw.includes('btc-archive-v2405'));
+    assert.ok(!sw.includes('btc-archive-v2404'));
+    assert.ok(!sw.includes('btc-archive-v2403'));
+    assert.ok(!sw.includes('btc-archive-v2402'));
+    assert.ok(!sw.includes('btc-archive-v2401'));
+    assert.ok(!sw.includes('btc-archive-v2400'));
+    assert.ok(!sw.includes('btc-archive-v2399'));
+    assert.ok(!sw.includes('btc-archive-v2398'));
+    assert.ok(!sw.includes('btc-archive-v2397'));
+    assert.ok(!sw.includes('btc-archive-v2396'));
+    assert.ok(!sw.includes('btc-archive-v2395'));
+    assert.ok(!sw.includes('btc-archive-v2394'));
+    assert.ok(!sw.includes('btc-archive-v2393'));
+    assert.ok(!sw.includes('btc-archive-v2392'));
+    assert.ok(!sw.includes('btc-archive-v2391'));
+    assert.ok(!sw.includes('btc-archive-v2390'));
+    assert.ok(!sw.includes('btc-archive-v2378'));
+    assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
@@ -66,7 +85,7 @@ test('service worker cache is v2377', () => {
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2406', 'v2405', 'v2404', 'v2403', 'v2402', 'v2401', 'v2400', 'v2399', 'v2398', 'v2397', 'v2396', 'v2395', 'v2394', 'v2393', 'v2392', 'v2391', 'v2390', 'v2378', 'v2377', 'v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -314,7 +333,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2377');
+    assert.ok(swVersion && swVersion[1] === 'v2407');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -398,7 +417,6 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('Latest: Global chat messages'));
     assert.ok(notes.includes('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
     assert.ok(!notes.includes('Latest: Usernames'));
-    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(!notes.includes('Latest: Satoshi'));

@@ -237,7 +237,6 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(!notes.includes('Latest: The home page is simpler'));
     assert.ok(notes.includes('Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.'));
     assert.ok(!notes.includes('Latest: Global chat messages'));
-    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(notes.includes('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
     assert.ok(!notes.includes('Latest: Usernames'));

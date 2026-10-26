@@ -655,7 +655,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2377'"));
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2407'"));
+    assert.ok(!swText.includes('btc-archive-v2377'));
     assert.ok(!swText.includes('btc-archive-v2376'));
     assert.ok(!swText.includes('btc-archive-v2375'));
     assert.ok(!swText.includes('btc-archive-v2374'));
@@ -702,20 +703,22 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2331'));
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    // Pin only: the patch-notes page shows the whole card. 16000 keeps the
-    // shoutout inside after the gift Latest line, the invite pill, trivia,
-    // the daily XP line, the topics browser, More tools, the live-window line,
-    // the home note, and the mention note.
-    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 16000);
-    assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
-    assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
+    // The Oct 22 card holds the reply bonus, classic Nacho, shoutout, and edu rows.
+    const oct22At = notesHtml.indexOf('id="2026-10-22"');
+    const nextCard = notesHtml.indexOf('<details class="patch"', oct22At + 1);
+    assert.ok(oct22At !== -1 && nextCard > oct22At);
+    const oct22 = notesHtml.slice(oct22At, nextCard);
+    assert.ok(oct22.includes('October 22, 2026'));
+    assert.ok(oct22.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
+    assert.ok(oct22.includes('Nacho is back to his classic look everywhere.'));
     assert.ok(notesHtml.includes('Marketplace fixed: you can post, edit, remove and save listings again.'));
     assert.ok(notesHtml.indexOf('Replying to someone in Global Chat can now earn you bonus XP.') < notesHtml.indexOf('Marketplace fixed: you can post, edit, remove and save listings again.'));
-    assert.strictEqual(latest.includes('24 hours'), false);
-    assert.strictEqual(latest.includes('banned'), false);
-    assert.ok(latest.includes('Nacho now gives a shout in Global Chat when someone starts a new PlebTalk thread or posts a Marketplace listing.'));
-    assert.strictEqual(latest.includes('+50 XP for joining'), false);
-    assert.strictEqual(latest.includes('+25 XP'), false);
+    assert.ok(notesHtml.indexOf('Updated education topics with current facts and fixed broken links and images.') < notesHtml.indexOf('Cleaned up the education topics: removed off-topic and unsafe posts.'));
+    assert.strictEqual(oct22.includes('24 hours'), false);
+    assert.strictEqual(oct22.includes('banned'), false);
+    assert.ok(oct22.includes('Nacho now gives a shout in Global Chat when someone starts a new PlebTalk thread or posts a Marketplace listing.'));
+    assert.strictEqual(oct22.includes('+50 XP for joining'), false);
+    assert.strictEqual(oct22.includes('+25 XP'), false);
 });
 
 Promise.all(queue).then(function () {
