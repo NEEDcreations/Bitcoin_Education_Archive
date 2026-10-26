@@ -8,8 +8,14 @@
 const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
+const ipqsApiKey = defineSecret('IPQS_API_KEY');
+const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
+const ipReputation = require('./ipReputation');
+const faucetGuard = require('./faucetGuard');
+const ipHmac = require('./ipHmac');
 
 // Resolved on first use so unit tests can import helpers before initializeApp().
 function firestoreDb() {
@@ -682,7 +688,10 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
  * hashForFavor (onCall)
  * The mining/hashing function. Auth required.
  */
-exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
+exports.hashForFavor = onCall({
+  enforceAppCheck: false,
+  secrets: [ipqsApiKey, referralIpSecret],
+}, async (request) => {
   const data = request.data;
   const context = request;
   if (!context.auth) {
@@ -718,6 +727,60 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
 
   if (now > effectiveEnd) {
     throw new HttpsError('failed-precondition', 'Satoshi\'s Favor has expired.');
+  }
+
+  const favorHeaders = request.rawRequest && request.rawRequest.headers ? request.rawRequest.headers : {};
+  const favorIp = faucetGuard.clientIpFromRequest(request.rawRequest) || '';
+  let favorIpHmac = '';
+  try {
+    favorIpHmac = ipHmac.hmacIp(favorIp);
+  } catch (hmacErr) {
+    favorIpHmac = '';
+  }
+  const favorCycleId = String(stateData.currentCycleId || 'window');
+  const favorCacheId = favorCycleId.replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 40) + '_' + String(uid).replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 80) + '_' + String(favorIpHmac || '').slice(0, 32);
+  const favorCacheRef = favorIpHmac ? db.collection('favor_ip_cache').doc(favorCacheId) : null;
+  let rewardGate = { action: 'fallback', message: '', reason: 'lookup' };
+  try {
+    const cachedGate = favorCacheRef ? await favorCacheRef.get() : null;
+    const cachedData = cachedGate && cachedGate.exists ? (cachedGate.data() || {}) : null;
+    if (favorCacheRef && ipReputation.shouldReuseFavorCheck(cachedData, favorCycleId, now, favorIpHmac)) {
+      rewardGate = {
+        action: cachedData.action,
+        message: cachedData.message || '',
+        reason: cachedData.reason || 'cache',
+        deviceAction: 'off',
+      };
+    } else {
+      rewardGate = await ipReputation.assessReward({
+        db: db,
+        ip: favorIp,
+        uid: uid,
+        userAgent: favorHeaders['user-agent'] || '',
+        language: favorHeaders['accept-language'] || '',
+        requestId: data && data.ipqsRequestId,
+        purpose: 'favor',
+      });
+      const favorVerdict = rewardGate.ipVerdict;
+      const favorReal = favorVerdict && (favorVerdict.action === 'allow' || favorVerdict.action === 'hold' || favorVerdict.action === 'deny');
+      if (favorReal && favorCacheRef) {
+        await favorCacheRef.set({
+          uid: uid,
+          cycleId: favorCycleId,
+          ipHmac: favorIpHmac,
+          action: favorVerdict.action,
+          reason: String(favorVerdict.reason || '').slice(0, 40),
+          message: String(rewardGate.message || '').slice(0, 240),
+          checkedAtMs: now,
+          expireAt: admin.firestore.Timestamp.fromMillis(now + (7 * 24 * 60 * 60 * 1000)),
+        });
+      }
+    }
+  } catch (gateErr) {
+    console.error('[FAVOR] reward gate fallback');
+  }
+  if (rewardGate.action === 'deny' || rewardGate.action === 'hold') {
+    throw new HttpsError('failed-precondition', rewardGate.message || ipReputation.HOLD_CONNECTION);
   }
 
   // Get username (outside transaction — read-only, not security-critical).

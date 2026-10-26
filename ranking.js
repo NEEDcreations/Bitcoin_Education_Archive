@@ -15,6 +15,59 @@ const FIREBASE_CONFIG = {
 
 // Public reCAPTCHA v3 site key. The matching secret stays in the Firebase console.
 var APP_CHECK_RECAPTCHA_SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
+
+// Public IPQS device-tracker settings. Not a secret. The API key never ships to the browser.
+// Device checks are off until Phil turns on the server switch IPQS_DEVICE_ENABLED.
+// Leave the tracker ID blank. The server ignores any request id while that switch is off.
+// If IPQS assigns a custom script domain, change IPQS_DEVICE_SCRIPT_HOST.
+// A separate device postback key, if the dashboard issues one, is the server env
+// IPQS_DEVICE_POSTBACK_KEY and is never placed here.
+var IPQS_DEVICE_TRACKER_ID = '';
+var IPQS_DEVICE_SCRIPT_HOST = 'https://www.ipqscdn.com';
+
+window.btcPrepareIpqsDevice = function(purpose) {
+    var allowed = { faucet: 1, referral: 1, favor: 1 };
+    if (!allowed[purpose]) return Promise.resolve('');
+    if (window._ipqsRequestId) return Promise.resolve(window._ipqsRequestId);
+    if (window._ipqsPromise) return window._ipqsPromise;
+    var trackerId = String(IPQS_DEVICE_TRACKER_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
+    if (!trackerId) return Promise.resolve('');
+    window._ipqsPromise = new Promise(function(resolve) {
+        var done = false;
+        function finish(id) {
+            if (done) return;
+            done = true;
+            var clean = String(id || '').trim();
+            if (!/^[A-Za-z0-9_-]{8,128}$/.test(clean)) clean = '';
+            window._ipqsRequestId = clean;
+            resolve(clean);
+        }
+        setTimeout(function() { finish(''); }, 4000);
+        window.IPQ = {
+            Callback: function() {
+                try {
+                    if (!window.Startup || !window.Startup.AfterResult || !window.Startup.Init) {
+                        finish('');
+                        return;
+                    }
+                    window.Startup.AfterResult(function(result) {
+                        finish(result && result.request_id ? result.request_id : '');
+                    });
+                    window.Startup.Init();
+                } catch (e) {
+                    finish('');
+                }
+            }
+        };
+        var script = document.createElement('script');
+        script.src = String(IPQS_DEVICE_SCRIPT_HOST || 'https://www.ipqscdn.com').replace(/\/$/, '') + '/api/' + encodeURIComponent(trackerId) + '/learn.js';
+        script.crossOrigin = 'anonymous';
+        script.async = true;
+        script.onerror = function() { finish(''); };
+        document.head.appendChild(script);
+    });
+    return window._ipqsPromise;
+};
 var LN_ADDRESS_LOCK_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 var LN_ADDRESS_LOCKED_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 
@@ -10847,11 +10900,13 @@ window.initSatsClaim = function() {
     html += '<div id="satsClaimTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
 
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
+    html += '<p id="satsClaimHoldNote" hidden style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);text-align:center;line-height:1.45;"></p>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
     html += '</div>';
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    if (typeof window.btcPrepareIpqsDevice === 'function') window.btcPrepareIpqsDevice('faucet');
     // Re-render Turnstile widget now that the element is in the DOM
     if (window.turnstile) {
         window.turnstile.render('#satsClaimTurnstile', {
@@ -10900,11 +10955,24 @@ function _generateDeviceFingerprint() {
 window._satsClaimInProgress = false;
 window._satsClaimTab = 'ln';
 
+function setSatsClaimHoldNote(code) {
+    var note = document.getElementById('satsClaimHoldNote');
+    if (!note) return;
+    if (code === 'vpn' || code === 'proxy' || code === 'tor') {
+        note.textContent = 'Turn off your VPN, proxy, or Tor and tap claim again. The rest of the app still works.';
+        note.hidden = false;
+        return;
+    }
+    note.textContent = '';
+    note.hidden = true;
+}
+
 window.submitSatsClaim = async function() {
     if (window._satsClaimInProgress) return;
     var btn = document.getElementById('satsClaimBtn');
     var errorEl = document.getElementById('satsClaimError');
     if (!btn) return;
+    setSatsClaimHoldNote('');
 
     var claimPayload;
     var lnAddrEl = document.getElementById('satsLnAddr');
@@ -10962,7 +11030,15 @@ window.submitSatsClaim = async function() {
             if (window.turnstile) window.turnstile.reset('#satsClaimTurnstile');
             return;
         }
-        var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
+        var ipqsRequestId = '';
+        try {
+            if (typeof window.btcPrepareIpqsDevice === 'function') {
+                ipqsRequestId = await window.btcPrepareIpqsDevice('faucet');
+            }
+        } catch (ipqsErr) {
+            ipqsRequestId = '';
+        }
+        var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken, ipqsRequestId: ipqsRequestId || '' }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
@@ -11015,6 +11091,7 @@ window.submitSatsClaim = async function() {
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+            setSatsClaimHoldNote(result.data && result.data.code);
             if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
                 try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
                 openWithdrawalAddress({ mode: 'reset', address: lnAddr });
@@ -11028,6 +11105,7 @@ window.submitSatsClaim = async function() {
         console.error('Sats claim error:', e);
         var errMsg = e.message || 'Claim failed - try again';
         if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+        setSatsClaimHoldNote('');
         window._satsClaimInProgress = false;
         btn.disabled = false;
         btn.textContent = '⚡ Send Sats to My Wallet';

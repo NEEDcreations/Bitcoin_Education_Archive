@@ -85,12 +85,22 @@ test('Maxi pays 50 to each side once, and fraud blocks payment', () => {
     const flagged = referrals.assessReferralPayout(payoutInput(referred, referrer, Object.assign({}, pending, { status: 'flagged' })));
     assert.strictEqual(flagged.action, 'skip');
 
-    const sameDevice = referrals.assessReferralPayout(payoutInput(
+    const sameFingerprint = referrals.assessReferralPayout(payoutInput(
         Object.assign({}, referred, { fingerprint: 'device-1' }),
         Object.assign({}, referrer, { fingerprint: 'device-1' }),
         pending
     ));
+    assert.strictEqual(sameFingerprint.action, 'flag');
+    assert.ok(sameFingerprint.flags.indexOf('same-fingerprint') !== -1);
+    assert.notStrictEqual(sameFingerprint.action, 'pay');
+
+    const sameDevice = referrals.assessReferralPayout(payoutInput(
+        Object.assign({}, referred, { deviceHmac: 'abc123' }),
+        Object.assign({}, referrer, { deviceHmac: 'abc123' }),
+        pending
+    ));
     assert.strictEqual(sameDevice.action, 'flag');
+    assert.ok(sameDevice.flags.indexOf('same-fingerprint') !== -1);
     assert.notStrictEqual(sameDevice.action, 'pay');
 
     const self = referrals.assessReferralPayout(payoutInput(referred, Object.assign({}, referrer, { uid: referred.uid }), pending));
@@ -457,6 +467,302 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(notes.includes('Invite friends: share your link from the home page. When they reach Maxi, you both get 50 orange tickets.'));
     assert.ok(notes.includes('Double XP starts when you buy it'));
     assert.ok(notes.includes('I sent the tip'));
+});
+
+function heldReferral(since, extra) {
+    return Object.assign({
+        status: 'held_connection',
+        ticketsAwarded: false,
+        referrerUid: 'refcode0REFR',
+        ipqsHold: { reason: 'vpn', since: since, checkedAt: since },
+    }, extra || {});
+}
+
+function holdSignal(since, extra) {
+    return Object.assign({
+        ipqsAction: 'hold',
+        ipqsReason: 'vpn',
+        ipqsHold: { reason: 'vpn', since: since, checkedAt: since },
+        ipqsVpn: true,
+        flags: ['ipqs-hold'],
+    }, extra || {});
+}
+
+test('a vpn hold waits, a clean recheck pays once, and a second pass does not', () => {
+    const referred = qualified('pleb0001XXXX');
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
+    const since = NOW - 2 * 24 * 60 * 60 * 1000;
+    const referral = heldReferral(since);
+    const signal = holdSignal(since);
+    const waiting = referrals.assessReferralPayout(payoutInput(referred, referrer, referral, {
+        signal: signal,
+        serverVerdict: { action: 'hold', reason: 'vpn' },
+    }));
+    assert.strictEqual(waiting.action, 'hold');
+    assert.strictEqual(waiting.reason, 'vpn');
+    assert.notStrictEqual(waiting.action, 'flag');
+
+    const state = {
+        referral: Object.assign({}, referral),
+        signal: Object.assign({}, signal),
+    };
+    let paid = 0;
+    function settleOnce() {
+        const decision = referrals.assessReferralPayout(payoutInput(referred, referrer, state.referral, {
+            signal: state.signal,
+            serverVerdict: { action: 'allow', reason: 'clean' },
+        }));
+        if (decision.action === 'pay') {
+            state.referral = Object.assign({}, state.referral, { status: 'paid', ticketsAwarded: true });
+            state.signal = { ipqsAction: 'allow', ipqsReason: 'clean', flags: [] };
+            paid++;
+        }
+        return decision;
+    }
+    const first = settleOnce();
+    const second = settleOnce();
+    assert.strictEqual(first.action, 'pay');
+    assert.strictEqual(first.ticketsEach, 50);
+    assert.strictEqual(first.clearHold, true);
+    assert.strictEqual(second.action, 'skip');
+    assert.strictEqual(second.reason, 'already-paid');
+    assert.strictEqual(paid, 1);
+});
+
+test('a vpn hold that is still a vpn stays waiting', () => {
+    const referred = qualified('pleb0001XXXX');
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
+    const since = NOW - 60 * 60 * 1000;
+    const decision = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+        serverVerdict: { action: 'hold', reason: 'proxy' },
+    }));
+    assert.strictEqual(decision.action, 'hold');
+    assert.strictEqual(decision.reason, 'proxy');
+    assert.strictEqual(decision.ipqsHold.since, since);
+});
+
+test('a datacenter deny stays rejected and does not wait', () => {
+    const referred = qualified('pleb0001XXXX');
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
+    const since = NOW - 60 * 60 * 1000;
+    const decision = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+        serverVerdict: { action: 'deny', reason: 'datacenter' },
+    }));
+    assert.strictEqual(decision.action, 'reject');
+    assert.strictEqual(decision.reason, 'ipqs-deny');
+    const signup = referrals.signupConnection(['ipqs-deny'], { action: 'deny', reason: 'datacenter' }, NOW);
+    assert.strictEqual(signup.status, 'rejected');
+    assert.strictEqual(signup.ipqsHold, null);
+});
+
+test('a connection hold expires unpaid after 30 days', () => {
+    assert.strictEqual(referrals.CONNECTION_HOLD_MS, 30 * 24 * 60 * 60 * 1000);
+    const referred = qualified('pleb0001XXXX');
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
+    const since = NOW - referrals.CONNECTION_HOLD_MS - 1000;
+    const decision = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+    }));
+    assert.strictEqual(decision.action, 'expire');
+    assert.strictEqual(decision.reason, 'connection-hold-expired');
+    assert.notStrictEqual(decision.action, 'pay');
+    const lateClean = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+        serverVerdict: { action: 'allow', reason: 'clean' },
+    }));
+    assert.strictEqual(lateClean.action, 'expire');
+    assert.notStrictEqual(lateClean.action, 'pay');
+    const lateDeny = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+        serverVerdict: { action: 'deny', reason: 'botnet' },
+    }));
+    assert.strictEqual(lateDeny.action, 'reject');
+    assert.strictEqual(lateDeny.reason, 'ipqs-deny');
+});
+
+test('zero credits and a forged client flag do not clear a hold', () => {
+    const referred = qualified('pleb0001XXXX');
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
+    const since = NOW - 2 * 24 * 60 * 60 * 1000;
+    const open = referrals.settleConnection({
+        nowMs: NOW,
+        referral: heldReferral(since),
+        signal: holdSignal(since),
+        serverVerdict: { action: 'fallback', reason: 'credits' },
+        clientClear: true,
+        clearHold: true,
+    });
+    assert.strictEqual(open.effect, 'hold');
+    const forged = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+        clientClear: true,
+        clearHold: true,
+    }));
+    assert.strictEqual(forged.action, 'hold');
+    assert.notStrictEqual(forged.action, 'pay');
+    assert.strictEqual(referrals.connectionRecheckDue({ checkedAt: NOW - 60 * 1000 }, NOW), false);
+    assert.strictEqual(referrals.connectionRecheckDue({ checkedAt: NOW - referrals.CONNECTION_RECHECK_MS - 1 }, NOW), true);
+});
+
+test('a legacy flagged ipqs-hold is waiting, and another flag stays dead', () => {
+    const referred = qualified('pleb0001XXXX');
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
+    const legacy = { status: 'flagged', ticketsAwarded: false, referrerUid: referrer.uid };
+    const signal = { flags: ['ipqs-hold'], ipqsAction: 'hold', ipqsReason: 'tor', ipqsTor: true, ipqsCheckedAtMs: NOW - 1000 };
+    assert.strictEqual(referrals.isLegacyConnectionHold(legacy, signal), true);
+    const decision = referrals.assessReferralPayout(payoutInput(referred, referrer, legacy, { signal: signal }));
+    assert.strictEqual(decision.action, 'hold');
+    const mixed = referrals.assessReferralPayout(payoutInput(referred, referrer, legacy, {
+        signal: { flags: ['ipqs-hold', 'same-fingerprint'], ipqsAction: 'hold', ipqsReason: 'vpn', ipqsVpn: true },
+    }));
+    assert.strictEqual(mixed.action, 'skip');
+    assert.strictEqual(mixed.reason, 'flagged');
+});
+
+test('signup keeps a vpn invite pending-for-pay and flags a deny', () => {
+    const held = referrals.signupConnection([], { action: 'hold', reason: 'vpn' }, NOW);
+    assert.strictEqual(held.status, 'held_connection');
+    assert.strictEqual(held.ipqsHold.reason, 'vpn');
+    assert.strictEqual(held.ipqsHold.since, NOW);
+    const denied = referrals.signupConnection(['ipqs-deny'], { action: 'deny', reason: 'botnet' }, NOW);
+    assert.strictEqual(denied.status, 'rejected');
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'referralService.js'), 'utf8');
+    const indexJs = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    assert.ok(service.includes("status === 'held_connection'"));
+    assert.ok(service.includes('connectionRecheckDue'));
+    assert.ok(service.includes('applyObservation'));
+    assert.ok(service.includes('requestIp'));
+    assert.ok(service.includes("scanStatus('held_connection'"));
+    assert.ok(service.includes('isLegacyConnectionHold'));
+    assert.strictEqual(service.includes('clientClear'), false);
+    assert.strictEqual(service.includes('data.clearHold'), false);
+    const verify = indexJs.slice(indexJs.indexOf('exports.verifyReferral'), indexJs.indexOf('exports.registerReferral'));
+    assert.ok(verify.includes('enforceAppCheck: true'));
+    assert.ok(verify.includes('requestIp:'));
+    assert.ok(verify.includes('final:'));
+    assert.strictEqual(verify.includes('data.ip'), false);
+    assert.strictEqual(verify.includes('clearHold'), false);
+    const claim = indexJs.slice(indexJs.indexOf('exports.claimSats'), indexJs.indexOf('exports.confirmTipSent') === -1 ? indexJs.indexOf('const _lnDomainRaw') : indexJs.indexOf('const _lnDomainRaw'));
+    assert.ok(claim.includes('applyObservation: true'));
+    assert.ok(claim.includes('serverVerdict: rewardGate.ipVerdict'));
+    assert.ok(claim.includes("sendUserPush(noted.referrerUid, 'referrals'"));
+    assert.ok(claim.includes('Someone you invited reached Maxi. 50 Orange Tickets were added.'));
+    assert.strictEqual(service.includes('if (lookupIp && !liveIpVerdict(freshGate)) checkedAt = Date.now()'), false);
+    assert.ok(service.includes('if (live) checkedAt = Number(nextHold.checkedAt) || Date.now()'));
+    assert.ok(service.includes('payoutLookupIp'));
+    assert.ok(service.includes('blocksUncheckedPay'));
+    assert.ok(service.includes('referralCheckIsFinal'));
+    assert.ok(service.includes('payoutBudgetReason(freshGate)'));
+    const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
+    assert.ok(privacy.includes('expires unpaid after 30 days'));
+    assert.ok(privacy.includes('A budget hold also expires unpaid after 30 days'));
+    const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
+    assert.ok(terms.includes('pays automatically once a later check from that friend is a regular connection'));
+});
+
+test('opening the app rechecks an unpaid invite and does not gate sign-in', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
+    const start = src.indexOf('var REFERRAL_RECHECK_MS');
+    const end = src.indexOf('function maybeVerifyReferral');
+    const shouldVerifyReferral = new Function(src.slice(start, end) + '\nreturn shouldVerifyReferral;')();
+    const day = 24 * 60 * 60 * 1000;
+    const now = 1_700_000_000_000;
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc', referralVerified: false }, 0, now), true);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, 0, now), true);
+    assert.strictEqual(shouldVerifyReferral({}, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: '', referralVerified: false }, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc', referralVerified: true }, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc', anonymous: true }, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral(null, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, now - day + 1000, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, now - day - 1, now), true);
+    const retry = 5 * 60 * 1000;
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { lastError: now - retry + 1000 }, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { lastError: now - retry - 1 }, now), true);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { final: true }, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { lastOk: 0, final: false }, now), true);
+    assert.ok(src.includes("httpsCallable('verifyReferral')"));
+    assert.ok(src.includes('checkReferralQualifications().catch(function() {})'));
+    assert.ok(src.includes('btc_referral_final_'));
+    assert.ok(src.includes('btc_referral_retry_'));
+    const maybe = src.slice(src.indexOf('function maybeVerifyReferral'), src.indexOf('async function checkReferralQualifications'));
+    assert.strictEqual(maybe.includes('await '), false);
+    const callAt = maybe.indexOf("httpsCallable('verifyReferral')");
+    const writeAt = maybe.indexOf('localStorage.setItem');
+    assert.ok(callAt !== -1 && writeAt > callAt);
+    assert.ok(maybe.indexOf('!firebase.functions') !== -1 && maybe.indexOf('!firebase.functions') < callAt);
+});
+
+test('a ready app-open payout checks the request ip and final invites stop', () => {
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: true,
+        hold: null,
+        legacy: false,
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+        seen: false,
+        recheckDue: false,
+    }), '203.0.113.9');
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: true,
+        hold: { reason: 'vpn' },
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+        recheckDue: true,
+    }), '203.0.113.9');
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: true,
+        requestIp: '',
+        checkIp: '198.51.100.1',
+    }), '198.51.100.1');
+    assert.strictEqual(referrals.payoutLookupIp({
+        seen: true,
+        ready: true,
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+    }), '');
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: false,
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+    }), '');
+    assert.strictEqual(referrals.blocksUncheckedPay('203.0.113.9', null), true);
+    assert.strictEqual(referrals.blocksUncheckedPay('203.0.113.9', { action: 'fallback' }), true);
+    assert.strictEqual(referrals.blocksUncheckedPay('203.0.113.9', { action: 'allow' }), false);
+    assert.strictEqual(referrals.blocksUncheckedPay('', { action: 'allow' }), false);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'rejected' }, {}), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'expired' }, {}), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'flagged' }, { flags: ['same-ip'] }), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'paid' }, {}), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'pending' }, {}), false);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'held_connection' }, {}), false);
+    assert.strictEqual(referrals.referralCheckIsFinal({
+        status: 'flagged',
+    }, {
+        flags: ['ipqs-hold'],
+        ipqsAction: 'hold',
+        ipqsVpn: true,
+        ipqsReason: 'vpn',
+    }), false);
+    const budget = referrals.signupConnection([], null, NOW, { budgetWait: true });
+    assert.strictEqual(budget.status, 'held_connection');
+    assert.strictEqual(budget.ipqsHold.reason, 'budget');
+    assert.strictEqual(budget.ipqsHold.checkedAt, 0);
+    assert.strictEqual(referrals.connectionRecheckDue(budget.ipqsHold, NOW + 1000), true);
+    const seen = referrals.connectionHoldState({ status: 'held_connection' }, { ipqsHold: budget.ipqsHold });
+    assert.strictEqual(seen.reason, 'budget');
+    assert.strictEqual(seen.checkedAt, 0);
+    const blocked = referrals.signupConnection(['ipqs-deny'], null, NOW, { budgetWait: true });
+    assert.strictEqual(blocked.status, 'rejected');
+    assert.strictEqual(blocked.ipqsHold, null);
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'quota', ipVerdict: null }), 'quota');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'backoff', ipVerdict: null }), 'backoff');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'user-quota', ipVerdict: null }), 'user-quota');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'allow', reason: 'clean', ipVerdict: { action: 'allow', reason: 'clean' } }), '');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'vpn', ipVerdict: { action: 'hold', reason: 'vpn' } }), '');
+    assert.strictEqual(referrals.payoutBudgetReason(null), '');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

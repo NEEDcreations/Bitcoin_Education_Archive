@@ -322,6 +322,8 @@ function world() {
         'dm_conversations/u2_u3/messages/m9': { senderUid: 'u2', text: 'keep this thread' },
         'conversations/legacy1': { participants: ['u1', 'u9'] },
         'conversations/legacy1/messages/old1': { text: 'legacy dm' },
+        'favor_ip_cache/window_u1': { uid: 'u1', ipHmac: 'abc', action: 'allow' },
+        'favor_ip_cache/window_u2': { uid: 'u2', ipHmac: 'def', action: 'hold' },
         'telegram_mirror_queue/global_chat__m1': { uid: 'u1', line: '[Global] Alice: hello secret', status: 'pending' },
         'telegram_mirror_queue/global_chat__m2': { uid: 'u2', line: '[Global] Bob: keep', status: 'sent' },
         'telegram_mirror_claims/global_chat__m1': { uid: 'u1', status: 'queued' },
@@ -625,6 +627,8 @@ function auth(uid, extras) {
         assert.ok(db.commits.every(function(n) { return n <= del.BATCH_LIMIT; }));
 
         assert.strictEqual(db.docs.has('users/u1'), false);
+        assert.strictEqual(db.docs.has('favor_ip_cache/window_u1'), false);
+        assert.ok(db.docs.has('favor_ip_cache/window_u2'));
         assert.strictEqual(db.docs.has('telegram_mirror_queue/global_chat__m1'), false);
         assert.ok(db.docs.has('telegram_mirror_queue/global_chat__m2'));
         assert.strictEqual(db.docs.has('telegram_mirror_claims/global_chat__m1'), false);

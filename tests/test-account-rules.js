@@ -30,7 +30,9 @@ assert.ok(index.includes("defineSecret('DELETION_HMAC_SECRET')"));
 assert.ok(index.includes('exports.prepareEmailChange'));
 assert.ok(index.includes('exports.syncEmailChange'));
 assert.ok(index.includes('exports.confirmAccountLink'));
-assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 5);
+// Five callables from the account/PvP surface, plus registerReferral and
+// approveHouseholdDevice from the IP reputation gate.
+assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
 
 const emailSrc = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'emailChange.js'), 'utf8');
 assert.ok(emailSrc.includes('enforceAppCheck: true'));

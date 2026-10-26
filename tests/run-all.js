@@ -36,6 +36,7 @@ const TESTS = [
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Chat Telegram mirror', file: 'test-chat-telegram-mirror.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
+    { name: 'IP reputation', file: 'test-ip-reputation.js' },
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },

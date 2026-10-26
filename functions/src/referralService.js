@@ -9,6 +9,7 @@ const referrals = require('./referrals');
 const rewardNotify = require('./rewardNotify');
 const faucetGuard = require('./faucetGuard');
 const ipHmac = require('./ipHmac');
+const ipReputation = require('./ipReputation');
 const accountTombstone = require('./accountTombstone');
 
 function db() {
@@ -71,10 +72,19 @@ async function linkedAccount(uid, user, ip, nowMs) {
         const decision = faucetGuard.assessFingerprint(uids, uid);
         if (!decision.ok) reasons.push('linked-fingerprint');
     }
-    const net = faucetGuard.networkKeys(ip);
-    if (net) {
-        const ipDoc = await db().collection('faucet_ip_log').doc(net.exactId).get();
-        const subnetDoc = await db().collection('faucet_subnet_log').doc(net.rangeId).get();
+    const netIds = ipReputation.networkDocIds(ip);
+    if (ip && !netIds) {
+        reasons.push('linked-ip-unverified');
+    } else if (netIds) {
+        const legacy = ipReputation.legacyNetworkIds(ip);
+        let ipDoc = await db().collection('faucet_ip_log').doc(netIds.ipId).get();
+        let subnetDoc = await db().collection('faucet_subnet_log').doc(netIds.rangeId).get();
+        if (!ipDoc.exists && legacy && legacy.ipId !== netIds.ipId) {
+            ipDoc = await db().collection('faucet_ip_log').doc(legacy.ipId).get();
+        }
+        if (!subnetDoc.exists && legacy && legacy.rangeId !== netIds.rangeId) {
+            subnetDoc = await db().collection('faucet_subnet_log').doc(legacy.rangeId).get();
+        }
         const ipSlot = ipDoc.exists ? ipDoc.data() : {};
         const subnetSlot = subnetDoc.exists ? subnetDoc.data() : {};
         const ipDecision = faucetGuard.assessExactIpSlot({
@@ -269,6 +279,21 @@ async function registerReferral(data, context) {
         }
         return { success: false, reason: gate.reason, status: gate.status };
     }
+    const rewardHeaders = context && context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
+    let reward = { action: 'fallback', reason: 'lookup', message: '', ipVerdict: null, deviceHmac: '', deviceAction: 'fallback' };
+    try {
+        reward = await ipReputation.assessReward({
+            db: db(),
+            ip: rawIp,
+            uid: uid,
+            userAgent: rewardHeaders['user-agent'] || '',
+            language: rewardHeaders['accept-language'] || '',
+            requestId: data && data.ipqsRequestId,
+            purpose: 'referral',
+        });
+    } catch (e) {
+        console.error('[referral] reward gate fallback');
+    }
 
     await ensureReferralCode(uid);
     const referrerUid = await lookupReferrerUid(code, uid);
@@ -277,6 +302,14 @@ async function registerReferral(data, context) {
         const referrerSnap = await db().collection('users').doc(referrerUid).get();
         if (referrerSnap.exists) referrer = userView(referrerUid, referrerSnap.data());
     }
+    if (referrer && ipReputation.deviceEnabled()) {
+        const referrerDevice = await db().collection('user_devices').doc(referrer.uid).get();
+        referrer.deviceHmac = referrerDevice.exists ? String((referrerDevice.data() || {}).deviceHmac || '') : '';
+    }
+    referred.deviceHmac = reward.deviceHmac || '';
+    referred.ipqsAction = reward.ipVerdict ? reward.ipVerdict.action : '';
+    referred.ipqsReason = reward.ipVerdict ? String(reward.ipVerdict.reason || '') : '';
+    referred.deviceAction = reward.deviceAction === 'deny' || reward.deviceAction === 'hold' ? reward.deviceAction : '';
     let signupIpHmac = '';
     try {
         signupIpHmac = ipHmac.hmacIp(rawIp);
@@ -290,6 +323,7 @@ async function registerReferral(data, context) {
     if (referrer) {
         referrer.emailHistoryHashes = await emailHistoryHashes(referrer.uid);
     }
+    const budgetWait = reward.action === 'hold' && (reward.reason === 'quota' || reward.reason === 'backoff' || reward.reason === 'user-quota');
     const flags = referrer ? referrals.fraudFlags(referred, referrer, rawIp) : [];
     const refereeAlreadyPaid = !!(tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
     if (refereeAlreadyPaid) referred.priorReferral = true;
@@ -300,9 +334,11 @@ async function registerReferral(data, context) {
         if (flags.indexOf('linked-account') === -1) flags.push('linked-account');
         if (flags.indexOf(reason) === -1) flags.push(reason);
     });
-    let status = gate.ok && referrer ? referrals.statusForFlags(flags) : gate.status;
+    const connection = referrals.signupConnection(flags, reward.ipVerdict, now, { budgetWait: budgetWait });
+    let status = gate.ok && referrer ? connection.status : gate.status;
     if (!gate.ok) status = gate.status;
     else if (!referrer) status = 'pending';
+    const ipqsHold = status === 'held_connection' ? connection.ipqsHold : null;
 
     const refRef = db().collection('referrals').doc(uid);
     const userRef = db().collection('users').doc(uid);
@@ -316,16 +352,30 @@ async function registerReferral(data, context) {
         if (!fresh.exists) return;
         if (fresh.data().referredBy && fresh.data().referredBy !== code) return;
         t.set(refRef, referralPayload(uid, referrer ? referrer.uid : '', code, status));
-        t.set(signalRef, {
+        const verdict = reward.ipVerdict || {};
+        const signalBody = {
             signupIpHmac: signupIpHmac,
             expireAt: admin.firestore.Timestamp.fromMillis(now + referrals.SIGNAL_TTL_MS),
             referrerUid: referrer ? referrer.uid : '',
             flags: flags,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+            ipqsAction: verdict.action || 'fallback',
+            ipqsReason: String(verdict.reason || reward.reason || '').slice(0, 40),
+            ipqsFraudScore: verdict.fraudScore == null ? null : verdict.fraudScore,
+            ipqsProxy: !!verdict.proxy,
+            ipqsVpn: !!verdict.vpn,
+            ipqsTor: !!verdict.tor,
+            ipqsDatacenter: !!verdict.datacenter,
+            ipqsRecentAbuse: !!verdict.recentAbuse,
+            ipqsCountry: String(verdict.countryCode || '').slice(0, 2),
+            ipqsCheckedAtMs: Number(verdict.checkedAtMs) || 0,
+            deviceHmac: reward.deviceHmac || '',
+        };
+        if (ipqsHold) signalBody.ipqsHold = ipqsHold;
+        t.set(signalRef, signalBody);
         const userUpdate = { referredBy: code, referralVerified: false };
         t.update(userRef, userUpdate);
-        if (referrerRef && (status === 'pending' || status === 'flagged')) {
+        if (referrerRef && (status === 'pending' || status === 'flagged' || status === 'held_connection')) {
             t.update(referrerRef, {
                 referralInvited: admin.firestore.FieldValue.increment(1),
             });
@@ -338,15 +388,131 @@ async function registerReferral(data, context) {
         const result = await payIfQualified(uid);
         paid = !!(result && result.paid);
     }
+    let message = '';
+    if (status === 'held_connection') message = reward.message || '';
+    else if (reward.action === 'deny') message = reward.message || '';
     return {
-        success: status === 'pending' || status === 'flagged',
+        success: status === 'pending' || status === 'flagged' || status === 'held_connection',
         reason: created ? status : 'exists',
         status: status,
         paid: paid,
+        message: message,
     };
 }
 
-async function payIfQualified(referredUid) {
+function rawIpFromUser(user) {
+    if (!user) return '';
+    const raw = Array.isArray(user.known_ips) ? user.known_ips : String(user.known_ips || '').split(/[,\s]+/);
+    for (let i = raw.length - 1; i >= 0; i--) {
+        const ip = String(raw[i] || '').trim();
+        if (!ip || /^[0-9a-f]{64}$/.test(ip)) continue;
+        if (faucetGuard.networkKeys(ip)) return ip;
+    }
+    return '';
+}
+
+function liveIpVerdict(gate) {
+    const verdict = gate && gate.ipVerdict;
+    if (!verdict || typeof verdict !== 'object') return null;
+    const action = String(verdict.action || '');
+    if (action !== 'allow' && action !== 'hold' && action !== 'deny') return null;
+    return verdict;
+}
+
+// Cheap qualification only. A stored IPQS flag is ignored so a real recheck can
+// still run, but points, age, email, bans, and the other fraud flags go first.
+async function aboutToPayReferral(uid, referrerUid, profile, tomb) {
+    const devicesOn = ipReputation.deviceEnabled();
+    const reads = [
+        db().collection('referrals').doc(uid).get(),
+        db().collection('users').doc(uid).get(),
+        db().collection('users').doc(referrerUid).get(),
+        db().collection('referral_signals').doc(uid).get(),
+        db().collection('faucet_ledger').doc(uid).get(),
+        db().collection('faucet_ledger').doc(referrerUid).get(),
+        db().collection('referral_pay_limits').doc(referrerUid).get(),
+        db().collection('email_history').doc(uid).get(),
+        db().collection('email_history').doc(referrerUid).get(),
+    ];
+    if (devicesOn) {
+        reads.push(db().collection('device_holds').doc(uid).get());
+        reads.push(db().collection('user_devices').doc(uid).get());
+        reads.push(db().collection('user_devices').doc(referrerUid).get());
+    }
+    const got = await Promise.all(reads);
+    const referralDoc = got[0];
+    const referredDoc = got[1];
+    const referrerDoc = got[2];
+    const signalDoc = got[3];
+    const referredLedger = got[4];
+    const referrerLedger = got[5];
+    const limitDoc = got[6];
+    const referredHist = got[7];
+    const referrerHist = got[8];
+    const referredHold = devicesOn ? got[9] : { exists: false };
+    const referredDevice = devicesOn ? got[10] : { exists: false };
+    const referrerDevice = devicesOn ? got[11] : { exists: false };
+    if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists || !signalDoc.exists) return false;
+    const referredView = userView(uid, referredDoc.data());
+    const referrerView = userView(referrerUid, referrerDoc.data());
+    referredView.ledgerBanned = referredLedger.exists && referredLedger.data().banned === true;
+    referrerView.ledgerBanned = referrerLedger.exists && referrerLedger.data().banned === true;
+    if (tomb && tomb.summary && tomb.summary.ledgerBanned) referredView.ledgerBanned = true;
+    Object.assign(referredView, accountTombstone.applyFlagsPatch(tomb && tomb.summary).user);
+    referredView.priorReferral = !!(tomb && tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
+    referredView.createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb && tomb.summary, Date.now());
+    referredView.emailVerified = profile.emailVerified;
+    referredView.providers = profile.providers;
+    if (profile.emailVerified === true && profile.email && !referredView.emailHash) {
+        referredView.emailHash = accountTombstone.emailHmac(profile.email);
+    }
+    referredView.emailHistoryHashes = referredHist.exists && Array.isArray(referredHist.data().hashes) ? referredHist.data().hashes : [];
+    referrerView.emailHistoryHashes = referrerHist.exists && Array.isArray(referrerHist.data().hashes) ? referrerHist.data().hashes : [];
+    referredView.ipqsAction = '';
+    const signal = signalDoc.data() || {};
+    if (devicesOn) {
+        referredView.deviceHmac = String(signal.deviceHmac || '');
+        if (!referredView.deviceHmac && referredDevice.exists) {
+            referredView.deviceHmac = String((referredDevice.data() || {}).deviceHmac || '');
+        }
+        if (referrerDevice.exists) {
+            referrerView.deviceHmac = String((referrerDevice.data() || {}).deviceHmac || '');
+        }
+        const hold = referredHold.exists ? (referredHold.data() || {}) : null;
+        const holdExp = hold ? millisOf(hold.expireAt) : 0;
+        if (hold && hold.approved !== true && hold.held === true && (!holdExp || holdExp > Date.now())) {
+            referredView.deviceAction = hold.reason === 'device-fraud' ? 'deny' : 'hold';
+        }
+    }
+    const exp = millisOf(signal.expireAt);
+    const fresh = !exp || exp > Date.now();
+    const storedHmac = fresh ? String(signal.signupIpHmac || '') : '';
+    referredView.known_ips = fresh ? hmacIps(referredView.known_ips) : [];
+    referrerView.known_ips = fresh ? hmacIps(referrerView.known_ips) : [];
+    const recentPaidAt = limitDoc.exists ? (limitDoc.data().paidAtMs || []) : [];
+    const decision = referrals.assessReferralPayout({
+        hasSignal: true,
+        nowMs: Date.now(),
+        recentPaidAt: recentPaidAt,
+        referral: referralDoc.data(),
+        signal: signal,
+        referred: referredView,
+        referrer: referrerView,
+        signupIpHmac: storedHmac,
+    });
+    return decision.action === 'pay';
+}
+
+function observedVerdict(opts) {
+    if (!opts || opts.applyObservation !== true) return null;
+    const verdict = opts.serverVerdict;
+    if (!verdict || typeof verdict !== 'object') return null;
+    const action = String(verdict.action || '');
+    if (action !== 'allow' && action !== 'hold' && action !== 'deny') return null;
+    return verdict;
+}
+
+async function payIfQualified(referredUid, opts) {
     const uid = String(referredUid || '');
     if (!uid) return { paid: false, reason: 'missing-user' };
     const refRef = db().collection('referrals').doc(uid);
@@ -363,6 +529,25 @@ async function payIfQualified(referredUid) {
     const current = pre;
     const referrerUid = current.data().referrerUid || await lookupReferrerUid(current.data().referrerCode, uid);
     if (!referrerUid) return { paid: false, reason: 'missing-user' };
+    const extra = opts || {};
+    const signalPre = await signalRef.get();
+    const signalPreData = signalPre.exists ? (signalPre.data() || {}) : {};
+    if (referrals.referralCheckIsFinal(current.data(), signalPreData)) {
+        const row = current.data() || {};
+        return {
+            paid: false,
+            reason: referrals.alreadyPaid(row) ? 'already-paid' : (String(row.status || '') || 'final'),
+            final: true,
+        };
+    }
+    let checkIp = '';
+    if (!extra.requestIp && extra.applyObservation !== true) {
+        const remembered = await referredRef.get();
+        checkIp = rawIpFromUser(remembered.exists ? remembered.data() : null);
+    }
+    const holdPre = referrals.connectionHoldState(current.data(), signalPreData);
+    const legacyPre = referrals.isLegacyConnectionHold(current.data(), signalPreData);
+    const devicesOn = ipReputation.deviceEnabled();
     const profile = await authProfile(uid);
     const tomb = await accountTombstone.lookupByMaterials(db(), accountTombstone.identityFrom({
         uid: uid,
@@ -374,16 +559,56 @@ async function payIfQualified(referredUid) {
         },
     }));
     const createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, Date.now());
+    let freshGate = null;
+    let ready = false;
+    try {
+        ready = await aboutToPayReferral(uid, referrerUid, profile, tomb);
+    } catch (e) {
+        console.error('[referral] payout qualify fallback');
+        ready = false;
+    }
+    const seen = observedVerdict(extra);
+    const requestIp = String(extra.requestIp || '');
+    const recheckDue = (holdPre || legacyPre) && requestIp && referrals.connectionRecheckDue(holdPre || { checkedAt: 0 }, Date.now());
+    const lookupIp = referrals.payoutLookupIp({
+        seen: !!seen,
+        requestIp: requestIp,
+        checkIp: checkIp,
+        ready: ready,
+        hold: holdPre,
+        legacy: legacyPre,
+        recheckDue: !!recheckDue,
+    });
+    if (seen) {
+        freshGate = { ipVerdict: seen };
+    } else if (lookupIp) {
+        try {
+            freshGate = await ipReputation.assessReward({
+                db: db(),
+                ip: lookupIp,
+                uid: uid,
+                purpose: 'referral',
+                userAgent: extra.userAgent || '',
+                language: extra.language || '',
+            });
+        } catch (e) {
+            console.error('[referral] payout recheck fallback');
+            freshGate = null;
+        }
+    }
     const referrerRef = db().collection('users').doc(referrerUid);
     const referredLedgerRef = db().collection('faucet_ledger').doc(uid);
     const referrerLedgerRef = db().collection('faucet_ledger').doc(referrerUid);
     const limitRef = db().collection('referral_pay_limits').doc(referrerUid);
+    const referredHoldRef = db().collection('device_holds').doc(uid);
+    const referredDeviceRef = db().collection('user_devices').doc(uid);
+    const referrerDeviceRef = db().collection('user_devices').doc(referrerUid);
     const referredHistRef = db().collection('email_history').doc(uid);
     const referrerHistRef = db().collection('email_history').doc(referrerUid);
 
     let outcome = { paid: false, reason: 'skip' };
     await db().runTransaction(async function(t) {
-        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger, limitDoc, referredHist, referrerHist] = await Promise.all([
+        const reads = [
             t.get(refRef),
             t.get(referredRef),
             t.get(referrerRef),
@@ -393,7 +618,23 @@ async function payIfQualified(referredUid) {
             t.get(limitRef),
             t.get(referredHistRef),
             t.get(referrerHistRef),
-        ]);
+        ];
+        if (devicesOn) {
+            reads.push(t.get(referredHoldRef), t.get(referredDeviceRef), t.get(referrerDeviceRef));
+        }
+        const got = await Promise.all(reads);
+        const referralDoc = got[0];
+        const referredDoc = got[1];
+        const referrerDoc = got[2];
+        const signalDoc = got[3];
+        const referredLedger = got[4];
+        const referrerLedger = got[5];
+        const limitDoc = got[6];
+        const referredHist = got[7];
+        const referrerHist = got[8];
+        const referredHold = devicesOn ? got[9] : { exists: false };
+        const referredDevice = devicesOn ? got[10] : { exists: false };
+        const referrerDevice = devicesOn ? got[11] : { exists: false };
         if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists) {
             outcome = { paid: false, reason: 'missing-user' };
             return;
@@ -427,20 +668,106 @@ async function payIfQualified(referredUid) {
         const storedHmac = fresh ? String(signal.signupIpHmac || '') : '';
         referredView.known_ips = fresh ? hmacIps(referredView.known_ips) : [];
         referrerView.known_ips = fresh ? hmacIps(referrerView.known_ips) : [];
+        const storedAction = String(signal.ipqsAction || '');
+        const verdict = liveIpVerdict(freshGate);
+        const liveAction = verdict ? verdict.action : '';
+        referredView.ipqsAction = liveAction || storedAction;
+        referredView.ipqsReason = verdict ? String(verdict.reason || '') : String(signal.ipqsReason || '');
+        if (liveAction && liveAction !== storedAction) {
+            t.set(signalRef, {
+                ipqsAction: liveAction,
+                ipqsReason: String(verdict.reason || '').slice(0, 40),
+                ipqsFraudScore: verdict.fraudScore == null ? null : verdict.fraudScore,
+                ipqsCheckedAtMs: Date.now(),
+            }, { merge: true });
+        }
+        if (devicesOn) {
+            referredView.deviceHmac = String(signal.deviceHmac || '');
+            if (!referredView.deviceHmac && referredDevice.exists) {
+                referredView.deviceHmac = String((referredDevice.data() || {}).deviceHmac || '');
+            }
+            if (referrerDevice.exists) {
+                referrerView.deviceHmac = String((referrerDevice.data() || {}).deviceHmac || '');
+            }
+        }
+        const hold = referredHold.exists ? (referredHold.data() || {}) : null;
+        const holdExp = hold ? millisOf(hold.expireAt) : 0;
+        if (hold && hold.approved !== true && hold.held === true && (!holdExp || holdExp > Date.now())) {
+            referredView.deviceAction = hold.reason === 'device-fraud' ? 'deny' : 'hold';
+        }
         const recentPaidAt = limitDoc.exists ? (limitDoc.data().paidAtMs || []) : [];
         const decision = referrals.assessReferralPayout({
             hasSignal: true,
             nowMs: Date.now(),
             recentPaidAt: recentPaidAt,
             referral: referralDoc.data(),
+            signal: signal,
+            serverVerdict: verdict,
             referred: referredView,
             referrer: referrerView,
             signupIpHmac: storedHmac,
         });
         const clearFlags = { rejectionFlags: admin.firestore.FieldValue.delete() };
+        const dropHold = { ipqsHold: admin.firestore.FieldValue.delete() };
         if (decision.action === 'legacy') {
             t.update(refRef, Object.assign({ status: 'legacy' }, clearFlags));
             outcome = { paid: false, reason: 'legacy' };
+            return;
+        }
+        if (decision.action === 'hold') {
+            const nextHold = decision.ipqsHold || {};
+            const live = liveIpVerdict(freshGate);
+            const reason = String(nextHold.reason || 'vpn').slice(0, 16);
+            const budget = reason === 'budget';
+            let checkedAt = Number(nextHold.checkedAt) || 0;
+            if (live) checkedAt = Number(nextHold.checkedAt) || Date.now();
+            if (budget) checkedAt = 0;
+            t.update(refRef, Object.assign({
+                status: 'held_connection',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, {
+                ipqsHold: {
+                    reason: reason,
+                    since: Number(nextHold.since) || Date.now(),
+                    checkedAt: checkedAt,
+                },
+                ipqsAction: budget ? 'fallback' : 'hold',
+                ipqsReason: budget ? 'budget' : reason,
+                ipqsCheckedAtMs: budget ? 0 : checkedAt,
+                flags: budget ? [] : ['ipqs-hold'],
+            }, { merge: true });
+            outcome = { paid: false, reason: decision.reason, held: true };
+            return;
+        }
+        if (decision.action === 'clear') {
+            t.update(refRef, Object.assign({
+                status: 'pending',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, Object.assign({
+                ipqsAction: 'allow',
+                ipqsReason: 'clean',
+                ipqsCheckedAtMs: Date.now(),
+                flags: [],
+            }, dropHold), { merge: true });
+            outcome = { paid: false, reason: decision.reason, cleared: true };
+            return;
+        }
+        if (decision.action === 'expire') {
+            t.update(refRef, Object.assign({
+                status: 'expired',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, Object.assign({
+                ipqsAction: 'hold',
+                ipqsReason: 'expired',
+                flags: ['ipqs-hold-expired'],
+            }, dropHold), { merge: true });
+            outcome = { paid: false, reason: 'connection-hold-expired' };
             return;
         }
         if (decision.action === 'skip') {
@@ -454,8 +781,32 @@ async function payIfQualified(referredUid) {
                 ticketsAwarded: false,
                 verified: false,
             }, clearFlags));
-            t.set(signalRef, { flags: decision.flags || [] }, { merge: true });
+            t.set(signalRef, Object.assign({ flags: decision.flags || [] }, dropHold), { merge: true });
             outcome = { paid: false, reason: decision.reason };
+            return;
+        }
+        if (decision.action === 'pay' && referrals.payoutBudgetReason(freshGate)) {
+            const existingHold = referrals.connectionHoldState(referralDoc.data(), signal);
+            const since = existingHold && existingHold.reason === 'budget' && existingHold.since
+                ? existingHold.since
+                : Date.now();
+            t.update(refRef, Object.assign({
+                status: 'held_connection',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, {
+                ipqsHold: { reason: 'budget', since: since, checkedAt: 0 },
+                ipqsAction: 'fallback',
+                ipqsReason: 'budget',
+                ipqsCheckedAtMs: 0,
+                flags: [],
+            }, { merge: true });
+            outcome = { paid: false, reason: 'unchecked', held: true };
+            return;
+        }
+        if (decision.action !== 'pay' || referrals.blocksUncheckedPay(requestIp, verdict)) {
+            outcome = { paid: false, reason: decision.action === 'pay' ? 'unchecked' : (decision.reason || 'skip') };
             return;
         }
         const tickets = referrals.REFERRAL_TICKETS;
@@ -476,6 +827,12 @@ async function payIfQualified(referredUid) {
             verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
             ticketsEach: tickets,
         }, clearFlags));
+        t.set(signalRef, Object.assign({
+            ipqsAction: 'allow',
+            ipqsReason: 'clean',
+            ipqsCheckedAtMs: nowMs,
+            flags: [],
+        }, dropHold), { merge: true });
         t.set(limitRef, {
             paidAtMs: kept.slice(-40),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -551,20 +908,19 @@ async function onUserWritten(event) {
     return null;
 }
 
-async function scanPending(limit) {
-    const cap = Math.max(1, Math.min(40, Number(limit) || 40));
-    const stateRef = db().collection('referral_scan').doc('pending');
+async function scanStatus(status, cursorName, cap) {
+    const stateRef = db().collection('referral_scan').doc(cursorName);
     const state = await stateRef.get();
     const cursor = state.exists ? String(state.data().cursor || '') : '';
     let query = db().collection('referrals')
-        .where('status', '==', 'pending')
+        .where('status', '==', status)
         .orderBy(admin.firestore.FieldPath.documentId())
         .limit(cap);
     if (cursor) query = query.startAfter(cursor);
     let snap = await query.get();
     if (snap.empty && cursor) {
         snap = await db().collection('referrals')
-            .where('status', '==', 'pending')
+            .where('status', '==', status)
             .orderBy(admin.firestore.FieldPath.documentId())
             .limit(cap)
             .get();
@@ -584,6 +940,57 @@ async function scanPending(limit) {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return { scanned: snap.size, paid: paid, cursor: next };
+}
+
+async function scanLegacyConnection(cap) {
+    const stateRef = db().collection('referral_scan').doc('legacy_hold');
+    const state = await stateRef.get();
+    const cursor = state.exists ? String(state.data().cursor || '') : '';
+    let query = db().collection('referrals')
+        .where('status', '==', 'flagged')
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .limit(cap);
+    if (cursor) query = query.startAfter(cursor);
+    let snap = await query.get();
+    if (snap.empty && cursor) {
+        snap = await db().collection('referrals')
+            .where('status', '==', 'flagged')
+            .orderBy(admin.firestore.FieldPath.documentId())
+            .limit(cap)
+            .get();
+    }
+    let paid = 0;
+    let scanned = 0;
+    for (let i = 0; i < snap.docs.length; i++) {
+        try {
+            const signalSnap = await db().collection('referral_signals').doc(snap.docs[i].id).get();
+            const signal = signalSnap.exists ? (signalSnap.data() || {}) : {};
+            if (!referrals.isLegacyConnectionHold(snap.docs[i].data() || {}, signal)) continue;
+            scanned++;
+            const result = await payIfQualified(snap.docs[i].id);
+            if (result && result.paid) paid++;
+        } catch (e) {
+            console.error('[payQualifiedReferrals]', e && e.message ? e.message : e);
+        }
+    }
+    const next = snap.empty ? '' : snap.docs[snap.docs.length - 1].id;
+    await stateRef.set({
+        cursor: next,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { scanned: scanned, paid: paid, cursor: next };
+}
+
+async function scanPending(limit) {
+    const cap = Math.max(1, Math.min(40, Number(limit) || 40));
+    const pending = await scanStatus('pending', 'pending', cap);
+    const held = await scanStatus('held_connection', 'held', cap);
+    const legacy = await scanLegacyConnection(Math.min(10, cap));
+    return {
+        scanned: pending.scanned + held.scanned + legacy.scanned,
+        paid: pending.paid + held.paid + legacy.paid,
+        cursor: pending.cursor,
+    };
 }
 
 async function deleteMyReferralSignal(data, context) {

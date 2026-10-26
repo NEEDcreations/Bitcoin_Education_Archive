@@ -202,13 +202,10 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
-    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
-    assert.ok(!notes.includes('Latest: On a computer'));
-    assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
-    assert.ok(!notes.includes('Latest: A More tools button'));
+    assert.ok(notes.includes('Latest: Sats claims and Satoshi\'s Favor pause on a VPN, proxy, or Tor connection, and an invite from a friend on one waits and pays once they\'re on a regular connection.'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(notes.includes('The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.'));
     assert.ok(!notes.includes('Latest: The home page is simpler'));
     assert.ok(notes.includes('Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.'));

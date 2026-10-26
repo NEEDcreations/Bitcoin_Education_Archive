@@ -2558,8 +2558,19 @@ async function attachReferral(uid) {
     try {
         if (typeof firebase === 'undefined' || !firebase.functions) return;
         var fn = firebase.functions().httpsCallable('registerReferral');
-        var result = await fn({ refCode: refCode });
+        var ipqsRequestId = '';
+        try {
+            if (typeof window.btcPrepareIpqsDevice === 'function') {
+                ipqsRequestId = await window.btcPrepareIpqsDevice('referral');
+            }
+        } catch (ipqsErr) {
+            ipqsRequestId = '';
+        }
+        var result = await fn({ refCode: refCode, ipqsRequestId: ipqsRequestId || '' });
         var data = result && result.data;
+        if (data && data.message && typeof window.btcShowReferralRewardNote === 'function') {
+            window.btcShowReferralRewardNote(data.message);
+        }
         if (data && (data.success || data.reason === 'self' || data.reason === 'late' || data.reason === 'account-age' || data.reason === 'points' || data.reason === 'exists')) {
             localStorage.removeItem('btc_referral_code');
             if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
@@ -2572,9 +2583,72 @@ async function attachReferral(uid) {
     }
 }
 
+// A held invite is rechecked from the friend's own request. This does not
+// block sign-in. A successful call waits a day. An error retries after a
+// short delay. A final server state stops the daily call.
+var REFERRAL_RECHECK_MS = 24 * 60 * 60 * 1000;
+var REFERRAL_RETRY_MS = 5 * 60 * 1000;
+
+function shouldVerifyReferral(user, state, nowMs) {
+    if (!user || user.anonymous) return false;
+    if (!user.referredBy || user.referralVerified === true) return false;
+    var lastOk = 0;
+    var lastError = 0;
+    var finalState = false;
+    if (state && typeof state === 'object') {
+        lastOk = Number(state.lastOk) || 0;
+        lastError = Number(state.lastError) || 0;
+        finalState = state.final === true;
+    } else {
+        lastOk = Number(state) || 0;
+    }
+    if (finalState) return false;
+    var now = Number(nowMs) || 0;
+    if (lastOk && now - lastOk < REFERRAL_RECHECK_MS) return false;
+    if (lastError && now - lastError < REFERRAL_RETRY_MS) return false;
+    return true;
+}
+
+function maybeVerifyReferral() {
+    try {
+        if (typeof currentUser === 'undefined' || !currentUser) return;
+        if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        var uid = String(auth.currentUser.uid || '');
+        if (!uid) return;
+        var okKey = 'btc_referral_recheck_' + uid;
+        var retryKey = 'btc_referral_retry_' + uid;
+        var finalKey = 'btc_referral_final_' + uid;
+        var lastOk = 0;
+        var lastError = 0;
+        var finalState = false;
+        try { lastOk = Number(localStorage.getItem(okKey)) || 0; } catch (e) { lastOk = 0; }
+        try { lastError = Number(localStorage.getItem(retryKey)) || 0; } catch (e) { lastError = 0; }
+        try { finalState = localStorage.getItem(finalKey) === '1'; } catch (e) { finalState = false; }
+        var now = Date.now();
+        if (!shouldVerifyReferral({
+            referredBy: currentUser.referredBy,
+            referralVerified: currentUser.referralVerified,
+            anonymous: false,
+        }, { lastOk: lastOk, lastError: lastError, final: finalState }, now)) return;
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        firebase.functions().httpsCallable('verifyReferral')({}).then(function(res) {
+            var data = res && res.data ? res.data : {};
+            try {
+                if (data.final) localStorage.setItem(finalKey, '1');
+                else localStorage.setItem(okKey, String(Date.now()));
+                localStorage.removeItem(retryKey);
+            } catch (e) {}
+        }).catch(function() {
+            try { localStorage.setItem(retryKey, String(Date.now())); } catch (e) {}
+        });
+    } catch (e) {}
+}
+
 // Referral records and ticket awards are server-side (registerReferral,
 // the user-doc trigger, and the hourly scan). The browser must not write them.
-async function checkReferralQualifications() {}
+async function checkReferralQualifications() {
+    maybeVerifyReferral();
+}
 
 
 async function ensureReferralCode() {}
@@ -2818,9 +2892,30 @@ function _inviteCountLine(stats) {
     return invitedLabel + ' · ' + maxiLabel;
 }
 
+function btcShowReferralRewardNote(message) {
+    var text = String(message || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+    try {
+        if (text) sessionStorage.setItem('btc_referral_reward_note', text);
+        else sessionStorage.removeItem('btc_referral_reward_note');
+    } catch (e) {}
+    var el = document.getElementById('inviteRewardNote');
+    if (!el) return;
+    if (!text) {
+        el.hidden = true;
+        el.textContent = '';
+        return;
+    }
+    el.hidden = false;
+    el.textContent = text;
+}
+window.btcShowReferralRewardNote = btcShowReferralRewardNote;
+
 function _fillInviteCard() {
     var linkEl = document.getElementById('inviteLink');
     if (linkEl) linkEl.textContent = getReferralLink();
+    var savedNote = '';
+    try { savedNote = sessionStorage.getItem('btc_referral_reward_note') || ''; } catch (e) {}
+    if (savedNote) btcShowReferralRewardNote(savedNote);
     var share = document.getElementById('inviteShare');
     if (share) share.hidden = !navigator.share;
     var copyBtn = document.getElementById('inviteCopy');
@@ -2930,6 +3025,7 @@ function openInviteFriends(force) {
         return;
     }
     if (force) _inviteWriteStored('open');
+    if (typeof window.btcPrepareIpqsDevice === 'function') window.btcPrepareIpqsDevice('referral');
     var modal = document.getElementById('usernameModal');
     if (modal) modal.classList.remove('open');
     if (typeof goHome === 'function') goHome();

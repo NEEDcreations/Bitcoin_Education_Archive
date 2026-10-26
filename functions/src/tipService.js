@@ -12,6 +12,7 @@ const bolt11 = require('bolt11');
 const tipConfirm = require('./tipConfirm');
 const doubleXp = require('./doubleXp');
 const referrals = require('./referrals');
+const ipReputation = require('./ipReputation');
 const { assertPublicHost } = require('./publicHost');
 const { applyDailyXp } = require('./applyDailyXp');
 const { paymentHashFromDecoded, rewardBlocked } = require('./cipherClaim');
@@ -115,12 +116,24 @@ async function recipientLightning(recipientUid) {
 }
 
 async function linkedTip(callerUid, recipientUid) {
-    const [leftDoc, rightDoc] = await Promise.all([
+    const devicesOn = ipReputation.deviceEnabled();
+    const reads = [
         db().collection('users').doc(callerUid).get(),
         db().collection('users').doc(recipientUid).get(),
-    ]);
+    ];
+    if (devicesOn) {
+        reads.push(db().collection('user_devices').doc(callerUid).get());
+        reads.push(db().collection('user_devices').doc(recipientUid).get());
+    }
+    const got = await Promise.all(reads);
+    const leftDoc = got[0];
+    const rightDoc = got[1];
+    const leftDev = devicesOn ? got[2] : { exists: false };
+    const rightDev = devicesOn ? got[3] : { exists: false };
     const left = Object.assign({ uid: callerUid }, leftDoc.exists ? leftDoc.data() : {});
     const right = Object.assign({ uid: recipientUid }, rightDoc.exists ? rightDoc.data() : {});
+    if (devicesOn && leftDev.exists) left.deviceHmac = String((leftDev.data() || {}).deviceHmac || '');
+    if (devicesOn && rightDev.exists) right.deviceHmac = String((rightDev.data() || {}).deviceHmac || '');
     const flags = referrals.fraudFlags(left, right, '');
     return flags.some(function(flag) {
         return flag === 'self' || flag === 'same-fingerprint' || flag === 'same-email' || flag === 'same-lightning';

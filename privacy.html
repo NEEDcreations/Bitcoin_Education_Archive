@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: October 23, 2026</p>
+    <p class="subtitle">Last updated: October 24, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -337,7 +337,7 @@
         <tr><td>IP address</td><td>Rate limiting and abuse prevention on sats claims, Nostr and Lightning sign-in, and some votes. Operator audit logs for admin actions can also store an IP address and user agent. We do not put your IP on your public profile</td></tr>
     </table>
     <p>We do <strong>not</strong> use a third-party analytics product, advertising network, or tracking pixel. Thumbs up or down on a Nacho answer can be stored on our servers as feedback. We do not sell that feedback. We do <strong>not</strong> collect your real name, precise location, or browsing history outside the Site. The financial details we store are the ones you type in, such as a Lightning address for withdrawals and giveaways. A withdrawal address stays on the account. A one-time reset marker records that a fresh address was saved, and a later change is a support request to info.603btc@gmail.com. We do not receive your wallet seed or private keys.</p>
-    <p><strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once at referral signup. The referral IP is not stored in raw form. The server keeps an HMAC of it in a server-only record with a 90-day expiry. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
+    <p><strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, while Satoshi's Favor is hashing, when a referral is registered, and again when a referral reward is about to be paid. Those checks send the IP address, the user agent, and the browser language header to IPQualityScore. The referral signup IP is not stored in raw form. The server keeps an HMAC of it in a server-only record with a 90-day expiry. Other users cannot read it. That record is deleted when you delete your account. Faucet claim IPs and network ranges are also stored only as HMACs, in server-only logs. A per-account lookup count (<code>ipqs_usage</code>) is kept for 90 days. A Satoshi's Favor verdict (<code>favor_ip_cache</code>) is kept for 7 days, for that window and that connection. IPs are not collected during normal browsing. Opening the app can recheck an unpaid invite at most once a day, and that check uses the connection the same way a payout does. Sign-in itself is not blocked.</p>
 
     <h2>2. How We Use Your Data</h2>
     <ul>
@@ -411,6 +411,7 @@
         <tr><td>QR codes</td><td>Lightning sign-in and payment codes drawn in your browser</td><td>None sent to a QR-code website. The code stays on the page</td></tr>
         <tr><td>Cloudflare Workers AI</td><td>Nacho answers, using Meta Llama 3.3 70B Instruct. A separate weekly summary of public posts may use another Llama model on Cloudflare</td><td>Your question, a short recent Nacho chat, display name, rank, point total, language, simple-explanation flag, a knowledge snippet, and matching app-feature text. A Firebase sign-in token may be attached to the request. Email, Lightning address, and wallet are not put in the prompt</td></tr>
         <tr><td>Cloudflare Turnstile</td><td>Bot check on sats claims</td><td>The challenge token. Cloudflare may see connection data under its own policy</td></tr>
+        <tr><td>IPQualityScore</td><td>Preventing multi-account reward abuse on sats claims, referral rewards, and Satoshi's Favor. The check that is on today is the IP reputation check</td><td>IP address, user agent, and the browser language header. This is sent on a sats claim, while Satoshi's Favor is hashing, at referral signup, and when a referral payout is rechecked. We keep an HMAC of the IP, not the raw IP. IP reputation is kept for 7 days, or 24 hours when the score is high. Per-account lookup counts (ipqs_usage) are kept for 90 days. A Favor verdict (favor_ip_cache) is kept for 7 days. A device-fingerprint check may be turned on later. It is not active yet. If it is turned on, it would also receive device signals, and those device records are kept for 180 days, including after the account is deleted. Ordinary browsing does not send this. Opening the app rechecks an unpaid invite at most once a day. Sign-in itself is not blocked</td></tr>
         <tr><td>Alby (Nostr Wallet Connect)</td><td>Lightning payouts we send from the faucet and similar rewards. Your own NWC or WebLN wallet, if you connect one, sends tips you choose</td><td>For our payouts: the Lightning invoice we resolve from the address you provide. Your NWC secret stays in this browser and is sent to your wallet, not stored by us</td></tr>
         <tr><td>YouTube</td><td>Timechain TV video player</td><td>Whatever YouTube collects in its embedded player. We do not send your account id to YouTube</td></tr>
         <tr><td>Wavlake</td><td>Optional embedded music player inside Bitcoin Beats</td><td>Whatever Wavlake collects in its player. We do not send your account id to Wavlake</td></tr>
@@ -614,7 +615,7 @@
         <tr><td>Daily claim tracking</td><td>Enforce 1-claim-per-24-hours cooldown and 200 sats/day cap</td></tr>
         <tr><td>Lifetime total claimed</td><td>Enforce 15,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
-        <tr><td>IP address (faucet claim, and once at referral signup)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is an HMAC in a server-only record that expires after 90 days and is deleted with the account.</td></tr>
+        <tr><td>IP address (faucet claim, Satoshi's Favor hashing, referral signup, and referral payout recheck)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is an HMAC in a server-only record that expires after 90 days and is deleted with the account. The faucet copy is also an HMAC. IPQualityScore receives the IP, the user agent, and the browser language header on a sats claim, while Satoshi's Favor is hashing, at referral signup, and when a referral payout is rechecked. Lookup counts in ipqs_usage are kept for 90 days. A Favor verdict in favor_ip_cache is kept for 7 days. Device fingerprinting is not active yet.</td></tr>
         <tr><td>Server-side daily points tracking</td><td>Enforce the shared 1,000 XP/day cap (full through 500, half through 900, then a quarter until 1,000, floor per tier, nothing banked) — tracked in Firebase, not the browser</td></tr>
     </table>
 
@@ -625,9 +626,14 @@
         <li><strong>sats_daily</strong> — daily aggregate tracking (amount claimed per day, claim count)</li>
         <li><strong>daily_points</strong> — server-side daily XP tracking (total awarded per day; full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked)</li>
         <li><strong>faucet_stats</strong> — global faucet statistics (total distributed, active claimants)</li>
-        <li><strong>faucet_ip_log</strong> — IP addresses at claim time (detects multi-account abuse per network)</li>
-        <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus a 90-day expiry. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>
-        <li><strong>faucet_fingerprints</strong> — device fingerprint hashes (detects multi-account abuse per device)</li>
+        <li><strong>faucet_ip_log</strong> — HMAC of the claim IP (not the raw IP) at claim time, to detect multi-account abuse per network. Server-only.</li>
+        <li><strong>faucet_subnet_log</strong> — HMAC of the claim network range. Server-only. The raw range is not stored.</li>
+        <li><strong>ip_reputation</strong> — IPQualityScore verdict for an HMAC of an IP, kept 7 days (24 hours when the score is high). Server-only.</li>
+        <li><strong>ipqs_usage</strong> — daily and per-account IPQualityScore lookup counts, kept 90 days. Server-only.</li>
+        <li><strong>favor_ip_cache</strong> — the IPQualityScore verdict for one Satoshi's Favor window and one connection, keyed by an HMAC of the IP, kept 7 days. The raw IP is not stored. Server-only. Deleted when the account-delete function runs.</li>
+        <li><strong>device_links</strong>, <strong>device_holds</strong>, and <strong>user_devices</strong> — reserved for a device check that is not active yet. If that check is turned on, these records keep an HMAC of a server-verified device id. They are kept for 180 days, including after the account is deleted. Server-only.</li>
+        <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus the IPQualityScore verdict and device HMAC, and a 90-day expiry. A VPN, proxy, or Tor hold also stores the reason and the time it started. That hold is rechecked at most once a day from a request the referred friend makes, and it expires unpaid after 30 days. A budget hold also expires unpaid after 30 days. Server-only. Not readable by other users. The referral document itself can show a held status to the two people on the invite, and that status does not include the IP address. Deleted when the account-delete function runs.</li>
+        <li><strong>faucet_fingerprints</strong> — device fingerprint hashes (detects multi-account abuse per device). A shared fingerprint can block a sats claim. Server-only.</li>
     </ul>
     <p>The withdrawal list and daily totals stored on your profile are deleted with the account. The faucet ledger, invoice records, IP log, and device-fingerprint log are kept. Section 11 explains why.</p>
 
