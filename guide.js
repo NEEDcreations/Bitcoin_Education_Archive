@@ -381,10 +381,10 @@
             { q: 'What is Satoshi\'s Favor all about?', a: 'Satoshi\'s Favor (SF) is our in-app hashing game. A window opens periodically and users compete to find the lowest hash. The player who mines the lowest hash value below the difficulty target wins 21,000 sats sent directly to their Lightning address. It teaches you how Bitcoin proof-of-work mining actually feels — while giving you a real shot at winning bitcoin.' },
             { q: 'What is PVP Battle?', a: 'PVP (Player vs Player) lets you challenge other users to live Bitcoin trivia duels. Both players answer the same questions simultaneously — fastest and most accurate wins. It\'s a real-time head-to-head match. You earn points and badges for wins.' },
             { q: 'What are Orange Tickets?', a: 'Orange Tickets are earned by completing special actions (hosting IRL events, winning PVP streaks, daily spins, etc). You can spend them in the Ticket Redemption store for XP boosts, hint tokens, streak freezes, and bonus spins.' },
-            { q: 'What are ranks and how do I level up?', a: 'Your rank is a title based on your total XP. It starts at Normie and climbs through Pleb, Stacker, Maxi, Papa John, Full Node, Whale, Sovereign, and Cypherpunk up to Satoshi. The title and its emoji show on your profile and the leaderboard.' },
+            { q: 'What are ranks and how do I level up?', a: 'Your rank is a title based on your total XP. It starts at Normie and climbs through Curious, Pleb, Stacker, Maxi, Papa John, Full Node, Whale, Sovereign, and Cypherpunk up to Satoshi. The title and its emoji show on your profile and the leaderboard.' },
             { q: 'What mini-apps are in the Archive?', a: (function() {
-                var apps = window.BQ_EXPLORE_APPS || [];
-                if (!apps.length) return 'Open Explore Apps for Nacho Mode, Timechain TV, Pleb Talk, Lightning Mart, IRL Sync, and the rest.';
+                var apps = (typeof window.exploreAppsForMode === 'function') ? window.exploreAppsForMode() : [];
+                if (!apps.length) return 'Open Explore Apps for Nacho Mode, Timechain TV, and the rest.';
                 var names = apps.map(function(item) { return item.title; });
                 return 'Explore Apps lists ' + names.length + ' apps: ' + names.join(', ') + '.';
             })() },

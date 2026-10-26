@@ -850,6 +850,21 @@ function appendHiddenAppsHint(parent, mode) {
     parent.appendChild(line);
 }
 
+function appVisibleInMode(item, mode) {
+    return !item.modes || item.modes.indexOf(mode) !== -1;
+}
+
+window.exploreAppsForMode = function(mode) {
+    var which = mode || mobileExperienceMode();
+    var apps = window.BQ_EXPLORE_APPS || [];
+    var out = [];
+    var i;
+    for (i = 0; i < apps.length; i++) {
+        if (appVisibleInMode(apps[i], which)) out.push(apps[i]);
+    }
+    return out;
+};
+
 function mobileSheetBox() {
     // Bottom stays above the chat button and the bottom bar (--above-fab).
     // The sheet grows up to 70vh so a short phone shows more than a fixed top gap allows.
@@ -943,29 +958,52 @@ function closeMobileSheets() {
     if (apps) dismissSheet(apps);
 }
 
-function loadScriptOnce(src, done) {
+function loadScriptOnce(src, done, onError) {
     if (typeof window._loadDeferred === 'function') window._loadDeferred();
     var existing = document.querySelector('script[src="' + src + '"]');
+    if (existing && existing.getAttribute('data-failed') === '1') {
+        existing.remove();
+        existing = null;
+    }
+    function markLoaded(script) {
+        script.setAttribute('data-loaded', '1');
+        if (done) done();
+    }
+    function markFailed(script) {
+        script.setAttribute('data-failed', '1');
+        if (onError) setTimeout(onError, 0);
+    }
     if (!existing) {
         var script = document.createElement('script');
         script.src = src;
         script.async = true;
-        if (done) script.addEventListener('load', done);
+        script.addEventListener('load', function() { markLoaded(script); });
+        script.addEventListener('error', function() { markFailed(script); });
         document.body.appendChild(script);
         return;
     }
-    if (done) {
-        if (existing.getAttribute('data-loaded') === '1') done();
-        else existing.addEventListener('load', done);
+    if (existing.getAttribute('data-loaded') === '1') {
+        if (done) done();
+        return;
     }
+    existing.addEventListener('load', function() { markLoaded(existing); });
+    existing.addEventListener('error', function() { markFailed(existing); });
 }
 
-function pollUntil(ready, limit) {
+function pollUntil(ready, limit, onTimeout) {
     if (ready()) return;
     var n = 0;
+    var max = limit || 40;
     var timer = setInterval(function() {
         n += 1;
-        if (ready() || n > (limit || 40)) clearInterval(timer);
+        if (ready()) {
+            clearInterval(timer);
+            return;
+        }
+        if (n > max) {
+            clearInterval(timer);
+            if (onTimeout) onTimeout();
+        }
     }, 100);
 }
 
@@ -1045,11 +1083,31 @@ function walletRouteReady() {
     return window._bqWalletRouteReady === true && typeof window.go === 'function' && typeof window.renderLightning === 'function';
 }
 
+var WALLET_SCRIPT_SRCS = [
+    'lightning.js?v=20261023_v2323',
+    'lightning-tips.js?v=20261022_v2279',
+    'wallet-router.js?v=20261026_v2402'
+];
 var _walletTapQueued = false;
+
+function removeUnloadedScript(src) {
+    var tag = document.querySelector('script[src="' + src + '"]');
+    if (tag && tag.getAttribute('data-loaded') !== '1') tag.remove();
+}
+
 function flushWalletTap() {
     if (!_walletTapQueued || !walletRouteReady()) return;
     _walletTapQueued = false;
     window.go('wallet');
+}
+
+function failWalletLoad() {
+    if (!_walletTapQueued) return;
+    _walletTapQueued = false;
+    WALLET_SCRIPT_SRCS.forEach(removeUnloadedScript);
+    if (typeof showToast === 'function') showToast('Wallet did not load. Opening it now.');
+    if (typeof window.go === 'function') window.go('wallet');
+    else window.location.hash = 'wallet';
 }
 
 function openWalletWhenReady() {
@@ -1059,16 +1117,25 @@ function openWalletWhenReady() {
     }
     if (_walletTapQueued) return;
     _walletTapQueued = true;
+    var settled = false;
+    function giveUp() {
+        if (settled) return;
+        settled = true;
+        failWalletLoad();
+    }
     if (typeof window._loadDeferred === 'function') window._loadDeferred();
-    loadScriptOnce('lightning.js?v=20261023_v2323');
-    loadScriptOnce('lightning-tips.js?v=20261022_v2279');
-    loadScriptOnce('wallet-router.js?v=20261026_v2402', flushWalletTap);
+    loadScriptOnce(WALLET_SCRIPT_SRCS[0], null, giveUp);
+    loadScriptOnce(WALLET_SCRIPT_SRCS[1], null, giveUp);
+    loadScriptOnce(WALLET_SCRIPT_SRCS[2], flushWalletTap, giveUp);
     pollUntil(function() {
         if (!walletRouteReady()) return false;
+        if (settled) return true;
+        settled = true;
         flushWalletTap();
         return true;
-    }, 80);
+    }, 80, giveUp);
 }
+window.openWalletWhenReady = openWalletWhenReady;
 
 function runSurfaceAction(item) {
     if (!item) return;
@@ -1258,10 +1325,8 @@ window.openMobileExploreApps = function() {
 
     var grid = document.createElement('div');
     grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
-    var mode = mobileExperienceMode();
-    var apps = window.BQ_EXPLORE_APPS || [];
+    var apps = window.exploreAppsForMode();
     apps.forEach(function(item) {
-        if (item.modes && item.modes.indexOf(mode) === -1) return;
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'apps-grid-btn';
@@ -1387,9 +1452,7 @@ window.renderDesktopAppsMenu = function() {
         menu.appendChild(grid);
     }
     while (grid.firstChild) grid.removeChild(grid.firstChild);
-    var mode = mobileExperienceMode();
-    window.BQ_EXPLORE_APPS.forEach(function(item) {
-        if (item.modes && item.modes.indexOf(mode) === -1) return;
+    window.exploreAppsForMode().forEach(function(item) {
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'apps-grid-btn';
