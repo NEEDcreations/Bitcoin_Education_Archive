@@ -37,9 +37,8 @@ test('service worker cache is v2395', () => {
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2395'"));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2375'));
-assert.ok(!sw.includes('btc-archive-v2377'));
-    assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2377'));
+    assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2374'));
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2368'));
@@ -189,9 +188,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(html.includes('global-chat.js?v=20261026_v2395'));
     assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2395/g) || []).length, 5);
-assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2374'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2374'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2380'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));

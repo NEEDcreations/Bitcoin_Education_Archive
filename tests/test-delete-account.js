@@ -1888,6 +1888,41 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('users/u2/xp_ledger/cert_bonus_prop'));
     });
 
+    await testAsync('play marks are deleted and award claim uids are anonymized', async function() {
+        const db = createFakeDb({
+            'users/u1': { username: 'Ada', points: 10 },
+            'users/u1/cert_bonuses/prop': { amount: 2100 },
+            'users/u1/xp_ledger/cert_bonus_prop': { amount: 2100 },
+            'beats_play_marks/u1__track1': { uid: 'u1', trackId: 'track1', at: 10 },
+            'beats_play_marks/u1__track2': { uid: 'u1', trackId: 'track2', at: 20 },
+            'beats_play_user/u1': { uid: 'u1', at: 20 },
+            'beats_play_marks/u2__track1': { uid: 'u2', trackId: 'track1', at: 30 },
+            'award_doc_claims/forum_posts__p1': { uid: 'u1', action: 'forum_post' },
+            'award_doc_claims/beats_tracks__t9': { uid: 'u2', action: 'beats_upload' },
+        });
+        db.omitListed = true;
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-play-marks',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.strictEqual(db.docs.has('beats_play_marks/u1__track1'), false);
+        assert.strictEqual(db.docs.has('beats_play_marks/u1__track2'), false);
+        assert.strictEqual(db.docs.has('beats_play_user/u1'), false);
+        assert.ok(db.docs.has('beats_play_marks/u2__track1'));
+        assert.ok(db.docs.has('award_doc_claims/forum_posts__p1'));
+        assert.strictEqual(db.docs.get('award_doc_claims/forum_posts__p1').uid, 'deleted');
+        assert.strictEqual(db.docs.get('award_doc_claims/beats_tracks__t9').uid, 'u2');
+        assert.strictEqual(db.docs.has('users/u1/cert_bonuses/prop'), false);
+        assert.strictEqual(db.docs.has('users/u1/xp_ledger/cert_bonus_prop'), false);
+    });
+
     await testAsync('the hash limit names the sign-in, and the delete overlay scrolls', async function() {
         const tomb = require(path.join(root, 'functions', 'src', 'accountTombstone'));
         const email = 'limited@example.com';

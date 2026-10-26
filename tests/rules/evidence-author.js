@@ -130,11 +130,83 @@ const parts = emu.split(':');
         await expect('beats author edits the title', function () {
             return updateDoc(doc(ada, 'beats_tracks', 'track1'), { title: 'Genesis Block' });
         }, true);
+        const guest = env.authenticatedContext('guest', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
+        await expect('guest cannot add a play', function () {
+            return updateDoc(doc(guest, 'beats_tracks', 'track1'), { plays: 1 });
+        }, false);
+        await expect('someone else cannot set plays to zero', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { plays: 0 });
+        }, false);
+        await expect('someone else cannot set plays negative', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { plays: -500 });
+        }, false);
+        await expect('someone else cannot drop likes by 50', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { likes: -50 });
+        }, false);
+        await expect('the author cannot set plays to a million', function () {
+            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { plays: 1000000 });
+        }, false);
+        await expect('a forum author cannot set replyCount to 9999', function () {
+            return updateDoc(doc(ada, 'forum_posts', 'post1'), { replyCount: 9999 });
+        }, false);
+        await expect('an article author cannot set replyCount to 9999', function () {
+            return updateDoc(doc(ada, 'articles', 'article1'), { replyCount: 9999 });
+        }, false);
+        await expect('a forum post cannot be created with replyCount 500', function () {
+            return setDoc(doc(ada, 'forum_posts', 'post500'), {
+                title: 'A brand new post',
+                authorId: 'ada',
+                authorName: 'Ada',
+                createdAt: new Date(),
+                replyCount: 500,
+            });
+        }, false);
+        await expect('a forum post can be created with replyCount 0', function () {
+            return setDoc(doc(ada, 'forum_posts', 'post0'), {
+                title: 'A brand new post',
+                authorId: 'ada',
+                authorName: 'Ada',
+                createdAt: new Date(),
+                replyCount: 0,
+            });
+        }, true);
+        await expect('an article cannot be created with replyCount 500', function () {
+            return setDoc(doc(ada, 'articles', 'article500'), {
+                title: 'What a full node checks',
+                body: 'The rules.',
+                authorId: 'ada',
+                agreedToTerms: true,
+                replyCount: 500,
+            });
+        }, false);
+        await expect('a track cannot be created with plays already set', function () {
+            return setDoc(doc(ada, 'beats_tracks', 'track500'), {
+                authorId: 'ada',
+                copyrightConfirmed: true,
+                duration: 30,
+                plays: 5,
+                likes: 0,
+            });
+        }, false);
+        await expect('a track can be created with plays and likes at zero', function () {
+            return setDoc(doc(ada, 'beats_tracks', 'track0'), {
+                authorId: 'ada',
+                copyrightConfirmed: true,
+                duration: 30,
+                plays: 0,
+                likes: 0,
+            });
+        }, true);
         await expect('someone else can like a track', function () {
             return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
-                plays: 1,
                 likes: 1,
                 likedBy: ['bea'],
+            });
+        }, true);
+        await expect('someone else can unlike a track', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
+                likes: 0,
+                likedBy: [],
             });
         }, true);
         await expect('client cannot write an award claim marker', function () {

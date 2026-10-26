@@ -1048,7 +1048,7 @@ exports.onForumReplyCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
-    try { await replyCounts.onForumReplyCreated(db, event.data.data()); }
+    try { await replyCounts.onForumReplyCreated(db, event.data.data(), event.id); }
     catch (e) { console.warn('[onForumReplyCount]', e && e.message); }
     return null;
 });
@@ -1057,7 +1057,7 @@ exports.onForumReplyCountDeleted = onDocumentDeleted({
     document: 'forum_replies/{replyId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
-    try { await replyCounts.onForumReplyDeleted(db, event.data && event.data.data()); }
+    try { await replyCounts.onForumReplyDeleted(db, event.data && event.data.data(), event.id); }
     catch (e) { console.warn('[onForumReplyCountDeleted]', e && e.message); }
     return null;
 });
@@ -1067,7 +1067,7 @@ exports.onArticleReplyCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
-    try { await replyCounts.onArticleReplyCreated(db, event.data.data()); }
+    try { await replyCounts.onArticleReplyCreated(db, event.data.data(), event.id); }
     catch (e) { console.warn('[onArticleReplyCount]', e && e.message); }
     return null;
 });

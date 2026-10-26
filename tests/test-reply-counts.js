@@ -78,6 +78,23 @@ const admin = { firestore: { FieldValue: { increment: function (n) { return { __
         assert.strictEqual(db.docs['forum_posts/post1'].replyCount, 0);
     });
 
+    await test('the same reply event bumps replyCount once', async function () {
+        const db = memory();
+        db.docs['forum_posts/post1'] = { replyCount: 0 };
+        const first = await replyCounts.onForumReplyCreated(db, { postId: 'post1', authorId: 'bea' }, 'evt-create');
+        const second = await replyCounts.onForumReplyCreated(db, { postId: 'post1', authorId: 'bea' }, 'evt-create');
+        assert.strictEqual(first.adjusted, true);
+        assert.strictEqual(second.adjusted, false);
+        assert.strictEqual(second.reason, 'duplicate');
+        assert.strictEqual(db.docs['forum_posts/post1'].replyCount, 1);
+        assert.ok(db.docs['reply_count_events/evt-create']);
+        const dropped = await replyCounts.onForumReplyDeleted(db, { postId: 'post1' }, 'evt-delete');
+        const droppedAgain = await replyCounts.onForumReplyDeleted(db, { postId: 'post1' }, 'evt-delete');
+        assert.strictEqual(dropped.adjusted, true);
+        assert.strictEqual(droppedAgain.adjusted, false);
+        assert.strictEqual(db.docs['forum_posts/post1'].replyCount, 0);
+    });
+
     await test('an article comment bumps the article replyCount', async function () {
         const db = memory();
         db.docs['articles/a1'] = { replyCount: 0, authorId: 'ada' };
@@ -100,6 +117,26 @@ const admin = { firestore: { FieldValue: { increment: function (n) { return { __
         const missing = await beatsPlays.recordPlay(db, admin, 'bea', 'nope', 100000);
         assert.strictEqual(missing.counted, false);
         assert.strictEqual(db.docs['beats_tracks/nope'], undefined);
+    });
+
+    await test('one listener counts at most one play across tracks every 25 seconds, and a hidden track is skipped', async function () {
+        const db = memory();
+        db.docs['beats_tracks/a'] = { plays: 0, hidden: false };
+        db.docs['beats_tracks/b'] = { plays: 0, hidden: false };
+        db.docs['beats_tracks/secret'] = { plays: 3, hidden: true };
+        const first = await beatsPlays.recordPlay(db, admin, 'bea', 'a', 500000);
+        assert.strictEqual(first.counted, true);
+        const other = await beatsPlays.recordPlay(db, admin, 'bea', 'b', 500000 + 10000);
+        assert.strictEqual(other.counted, false);
+        assert.strictEqual(other.reason, 'user');
+        assert.strictEqual(db.docs['beats_tracks/b'].plays, 0);
+        const hidden = await beatsPlays.recordPlay(db, admin, 'bea', 'secret', 500000 + 25000);
+        assert.strictEqual(hidden.counted, false);
+        assert.strictEqual(hidden.reason, 'hidden');
+        assert.strictEqual(db.docs['beats_tracks/secret'].plays, 3);
+        const later = await beatsPlays.recordPlay(db, admin, 'bea', 'b', 500000 + 25000);
+        assert.strictEqual(later.counted, true);
+        assert.strictEqual(db.docs['beats_tracks/b'].plays, 1);
     });
 
     console.log(passed + ' passed, ' + failed + ' failed');

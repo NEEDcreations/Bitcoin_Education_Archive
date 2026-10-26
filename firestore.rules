@@ -827,8 +827,14 @@ service cloud.firestore {
         && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
         && request.resource.data.get('ts', null) == resource.data.get('ts', null);
     }
+    // Play counts and reply counts are server-owned. An author edit may change
+    // the post, and it may not change either counter.
+    function serverCountersUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['plays', 'replyCount']);
+    }
     function forumAuthorMayUpdate(maxBody) {
       return resource.data.authorId == request.auth.uid
+        && serverCountersUnchanged()
         && (
           !forumMirroredDoc()
           || (
@@ -852,7 +858,8 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 5
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.authorId == request.auth.uid
-                    && forumMirrorFieldsAbsent();
+                    && forumMirrorFieldsAbsent()
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0);
       allow update: if request.auth != null
                     && evidenceAuthorFrozen()
                     && (
@@ -1346,12 +1353,16 @@ service cloud.firestore {
                     && (!('releaseDate' in request.resource.data)
                         || request.resource.data.releaseDate == ''
                         || (request.resource.data.releaseDate is string
-                            && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+                            && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+                    && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
+                    && (!('likes' in request.resource.data) || request.resource.data.likes == 0);
       allow update: if request.auth != null
                     && evidenceAuthorFrozen()
                     && (
-                      // Author can update their own track (with coverUrl + XSS validation)
+                      // Author can update their own track (with coverUrl + XSS validation).
+                      // plays stays where the server left it.
                       (resource.data.authorId == request.auth.uid
+                        && serverCountersUnchanged()
                         && (!('coverUrl' in request.resource.data)
                             || request.resource.data.coverUrl == ''
                             || request.resource.data.coverUrl == null
@@ -1366,16 +1377,21 @@ service cloud.firestore {
                             || request.resource.data.releaseDate == ''
                             || (request.resource.data.releaseDate is string
                                 && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))))
-                      // Social interactions: plays/likes only
-                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes', 'likedBy'])
-                          && request.resource.data.plays <= resource.data.get('plays', 0) + 1
-                          && request.resource.data.likes <= resource.data.get('likes', 0) + 1
-                          && (!request.resource.data.keys().hasAny(['likedBy']) || (
-                              request.resource.data.likedBy is list
-                              && request.resource.data.likedBy.size() <= resource.data.get('likedBy', []).size() + 1
-                              && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
+                      // A listener may like or unlike. plays is not a client field.
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+                          && request.resource.data.likedBy is list
+                          && (
+                            (request.resource.data.likes == resource.data.get('likes', 0) + 1
                               && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
-                          )))
+                              && request.resource.data.likedBy.size() == resource.data.get('likedBy', []).size() + 1
+                              && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
+                              && request.resource.data.likedBy.hasAny([request.auth.uid]))
+                            || (request.resource.data.likes == resource.data.get('likes', 0) - 1
+                              && resource.data.get('likedBy', []).hasAny([request.auth.uid])
+                              && request.resource.data.likedBy.size() == resource.data.get('likedBy', []).size() - 1
+                              && resource.data.get('likedBy', []).hasAll(request.resource.data.likedBy)
+                              && !request.resource.data.likedBy.hasAny([request.auth.uid]))
+                          ))
                     )
                     // Moderated tracks stay hidden. A partial update (plays, likes,
                     // title) still sees the existing flag. A rewrite that drops it,
@@ -1448,12 +1464,14 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 10
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.body is string
-                    && request.resource.data.agreedToTerms == true;
+                    && request.resource.data.agreedToTerms == true
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0);
       allow update: if request.auth != null
                     && evidenceAuthorFrozen()
                     && (
-                      // Author can edit their own article
-                      resource.data.authorId == request.auth.uid
+                      // Author can edit their own article. replyCount stays server-owned.
+                      (resource.data.authorId == request.auth.uid
+                        && serverCountersUnchanged())
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
