@@ -385,6 +385,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
     assert.ok(notes.indexOf("Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.") > 0);
     assert.ok(notes.indexOf("Latest: Global chat messages") === -1);
+    assert.ok(notes.indexOf('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.') > 0);
+    assert.ok(notes.indexOf('Latest: Usernames') === -1);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 

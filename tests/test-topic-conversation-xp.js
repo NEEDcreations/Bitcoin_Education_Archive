@@ -211,6 +211,8 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(!notes.includes('Latest: Satoshi'));
+    assert.ok(notes.includes('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
+    assert.ok(!notes.includes('Latest: Usernames'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
     assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));

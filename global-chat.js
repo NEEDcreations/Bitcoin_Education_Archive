@@ -765,7 +765,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261026_v2366';
+        s.src = 'quests.js?v=20261026_v2368';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;
@@ -1168,6 +1168,63 @@ function handlePaste(e) {
     }
 }
 
+/* stale-username-retry */
+function isStaleUsernameDenial(err) {
+    var code = String((err && err.code) || '');
+    return code === 'permission-denied' || code.indexOf('permission-denied') !== -1;
+}
+function readServerUsername() {
+    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        return Promise.reject(new Error('no profile'));
+    }
+    return Promise.resolve().then(function() {
+        return db.collection('users').doc(auth.currentUser.uid).get({ source: 'server' });
+    }).then(function(doc) {
+        var data = doc && doc.exists ? (doc.data() || {}) : {};
+        return typeof data.username === 'string' ? data.username : '';
+    });
+}
+function rememberServerUsername(name) {
+    if (!name) return;
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = name;
+    try { localStorage.setItem('btc_username', name); } catch (e) {}
+    try {
+        var cached = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (cached && cached.data) {
+            cached.data.username = name;
+            localStorage.setItem('btc_profile_cache', JSON.stringify(cached));
+        }
+    } catch (e2) {}
+}
+function sendWithFreshUsername(write, sentName, onSuccess, onFail) {
+    function attempt(name, retried) {
+        return Promise.resolve().then(function() {
+            return write(name);
+        }).then(function(result) {
+            if (onSuccess) onSuccess(result);
+            return result;
+        }).catch(function(err) {
+            if (retried || !isStaleUsernameDenial(err)) {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            }
+            return readServerUsername().then(function(fresh) {
+                if (!fresh || fresh === name) {
+                    if (onFail) onFail(err);
+                    return Promise.reject(err);
+                }
+                rememberServerUsername(fresh);
+                return attempt(fresh, true);
+            }, function() {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            });
+        });
+    }
+    return attempt(sentName, false);
+}
+/* /stale-username-retry */
+
 // Returns the currently visible/active chat input (hub or overlay — avoids duplicate-ID confusion)
 function _gcActiveInput() {
     var all = document.querySelectorAll('#globalChatInput');
@@ -1323,7 +1380,11 @@ window.sendGlobalChat = function() {
     if (_oc.indexOf('nacho_skin_nook') !== -1) {
         msgData.hasNachoSkin = true;
     }
-    db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
+    sendWithFreshUsername(function(name) {
+        msgData.name = name;
+        username = name;
+        return db.collection(CHAT_COLLECTION).add(msgData);
+    }, username, function(docRef) {
         // Restore send button on success
         var _sb = document.getElementById('gcSendBtn');
         if (_sb) { _sb.disabled = false; _sb.textContent = 'Send'; }
@@ -1337,7 +1398,7 @@ window.sendGlobalChat = function() {
             if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
             if (replyData.replyTo) _maybeClaimReplyBonus(docRef.id);
         }
-    }).catch(function(err) {
+    }, function(err) {
         console.error('[CHAT] Send error:', err);
         // Restore button and return text to input so user can retry
         var _sb = document.getElementById('gcSendBtn');
@@ -2346,10 +2407,14 @@ window.sendGifMessage = function(url, caption) {
         if (banner) banner.style.display = 'none';
     }
 
-    db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
+    sendWithFreshUsername(function(name) {
+        msgData.name = name;
+        username = name;
+        return db.collection(CHAT_COLLECTION).add(msgData);
+    }, username, function(docRef) {
         if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
         if (replyToId && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
-    }).catch(function(e) {
+    }, function(e) {
         if (typeof showToast === 'function') showToast('Failed to send GIF');
     });
 
@@ -2716,10 +2781,16 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 msgData.replyToText = replyCopy.text;
             }
 
-            return db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
+            return sendWithFreshUsername(function(name) {
+                msgData.name = name;
+                username = name;
+                return db.collection(CHAT_COLLECTION).add(msgData);
+            }, username, function(docRef) {
                 if (typeof showToast === 'function') showToast('📷 Image sent!');
                 if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
                 if (replyCopy && replyCopy.id && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
+            }, function(e) {
+                console.error('[Chat Image] Send failed:', e);
             });
         })
        .catch(function(e) {
@@ -3683,17 +3754,30 @@ window.lookupUserByName = function(username) {
                             });
                             if (typeof showUserProfile === 'function') showUserProfile(best2.id);
                         } else {
-                            // Try displayName for multi-word names (e.g. 'Sipho Ashley')
-                            db.collection('public_profiles').where('displayName', '==', username).limit(10).get()
-                                .then(function(snap3) {
-                                    if (!snap3.empty) {
-                                        var best3 = snap3.docs.reduce(function(a, b) {
+                            // Previous public name, written only by the username migration.
+                            db.collection('public_profiles').where('usernameMigratedFrom', '==', username).limit(10).get()
+                                .then(function(snapMig) {
+                                    if (!snapMig.empty) {
+                                        var bestMig = snapMig.docs.reduce(function(a, b) {
                                             return ((b.data().totalVisits || 0) > (a.data().totalVisits || 0)) ? b : a;
                                         });
-                                        if (typeof showUserProfile === 'function') showUserProfile(best3.id);
-                                    } else {
-                                        if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                        if (typeof showUserProfile === 'function') showUserProfile(bestMig.id);
+                                        return;
                                     }
+                                    // Try displayName for multi-word names (e.g. 'Sipho Ashley')
+                                    db.collection('public_profiles').where('displayName', '==', username).limit(10).get()
+                                        .then(function(snap3) {
+                                            if (!snap3.empty) {
+                                                var best3 = snap3.docs.reduce(function(a, b) {
+                                                    return ((b.data().totalVisits || 0) > (a.data().totalVisits || 0)) ? b : a;
+                                                });
+                                                if (typeof showUserProfile === 'function') showUserProfile(best3.id);
+                                            } else {
+                                                if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                            }
+                                        }).catch(function() {
+                                            if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                        });
                                 }).catch(function() {
                                     if (typeof showToast === 'function') showToast('User @' + username + ' not found');
                                 });

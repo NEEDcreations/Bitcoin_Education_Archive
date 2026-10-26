@@ -1269,6 +1269,10 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
 
     const direct = [
         ['public_profiles', uid, []],
+        // Old name, new name, and date. Deleting the user doc and the public
+        // profile clears the migrated-from fields and the free-rename flag.
+        // This row would otherwise keep a real name after the account is gone.
+        ['username_migrations', uid, []],
         ['push_tokens', uid, ['devices']],
         ['visits', uid, []],
         ['presence', uid, []],

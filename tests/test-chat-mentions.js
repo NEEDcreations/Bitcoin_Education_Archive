@@ -146,6 +146,14 @@ function mentionUids(text) {
     return out;
 }
 
+test('underscore usernames stay one mention beside a spaced name', function() {
+    users.cg = 'chill_guy2';
+    const t = 'hey @chill_guy2 meet @chill guy2';
+    const html = render(t);
+    assert.strictEqual(visible(html), t, html);
+    assert.deepStrictEqual(chips(html), ['@chill_guy2', '@chill guy2'], html);
+});
+
 test('mention notifications resolve spaces, dots, and non-English letters', function() {
     users.ch = 'chill';
     users.sato = '佐藤';
@@ -164,6 +172,9 @@ test('mention notifications resolve spaces, dots, and non-English letters', func
     assert.deepStrictEqual(mentionUids('@佐藤 hello'), ['sato']);
     assert.deepStrictEqual(mentionUids('@佐藤 and @José García hi'), ['sato', 'u5']);
     assert.deepStrictEqual(mentionUids('@1f31e!'), ['u2']);
+    users.cg = 'chill_guy2';
+    assert.deepStrictEqual(mentionUids('@chill_guy2 hey'), ['cg']);
+    assert.deepStrictEqual(mentionUids('@chill_guy2 and @chill guy2'), ['cg', 'u1']);
     assert.deepStrictEqual(mentionUids('@cool-name and @cool_name'), ['hy', 'us']);
     assert.deepStrictEqual(mentionUids('@cool.name hi'), ['dot']);
     assert.deepStrictEqual(mentionUids('@cool hi'), ['cool']);
