@@ -6126,30 +6126,32 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
         await logAdminAction(req, 'adminUnbanUser', { uid });
         // [VULN-7 FIX] Unban atomically in both user doc AND faucet_ledger.
         // Both must be cleared so a re-banned user can't exploit a stale ledger state.
-        // The closed window is appended before bannedAt is deleted.
+        // The closed window is appended in the same transaction as the clear,
+        // so a concurrent ban or unban cannot drop the history entry.
         const certBonus = require('./src/certBonus');
         const faucetRef = db.collection('faucet_ledger').doc(uid);
-        const faucetSnap = await faucetRef.get();
-        const faucet = faucetSnap.exists ? (faucetSnap.data() || {}) : {};
-        const banHistory = certBonus.banHistoryAfterUnban(faucet, Date.now());
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            withdrawals_disabled: false,
-            satsDisabled: false,
-            flagged: false,
-            flag_reason: admin.firestore.FieldValue.delete(),
-            ban_reason: admin.firestore.FieldValue.delete(),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete(),
+        const userRef = db.collection('users').doc(uid);
+        await db.runTransaction(async (tx) => {
+            const faucetSnap = await tx.get(faucetRef);
+            const faucet = faucetSnap.exists ? (faucetSnap.data() || {}) : {};
+            const banHistory = certBonus.banHistoryAfterUnban(faucet, Date.now());
+            tx.update(userRef, {
+                withdrawals_disabled: false,
+                satsDisabled: false,
+                flagged: false,
+                flag_reason: admin.firestore.FieldValue.delete(),
+                ban_reason: admin.firestore.FieldValue.delete(),
+                _pendingClaim: admin.firestore.FieldValue.delete(),
+                _pendingClaimAt: admin.firestore.FieldValue.delete(),
+            });
+            // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
+            tx.set(faucetRef, {
+                banned: false,
+                ban_reason: admin.firestore.FieldValue.delete(),
+                bannedAt: admin.firestore.FieldValue.delete(),
+                banHistory: banHistory,
+            }, { merge: true });
         });
-        // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
-        batch.set(faucetRef, {
-            banned: false,
-            ban_reason: admin.firestore.FieldValue.delete(),
-            bannedAt: admin.firestore.FieldValue.delete(),
-            banHistory: banHistory,
-        }, { merge: true });
-        await batch.commit();
         res.json({success: true, uid});
     } catch(e) { console.error('[adminUnbanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });

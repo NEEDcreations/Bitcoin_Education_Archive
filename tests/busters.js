@@ -12,7 +12,7 @@
 // username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349.
 // tctv-watch.js stays 20261023_v2340.
-// learning-quests.js stays 20261023_v2324.
+// learning-quests.js is 20261026_v2380.
 // lightning.js stays 20261023_v2323.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
@@ -281,7 +281,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2326/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2324/g) || []).length, 0);
-    assert.strictEqual((html.match(/learning-quests\.js\?v=20261023_v2324/g) || []).length, 3);
+    assert.strictEqual((html.match(/learning-quests\.js\?v=20261026_v2380/g) || []).length, 3);
+    assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
     assert.ok(html.includes('guide.js?v=20261023_v2349'));

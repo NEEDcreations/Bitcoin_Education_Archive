@@ -271,6 +271,8 @@ test('a pass during a ban is owed 0 after the user is unbanned', function () {
     const unban = index.slice(index.indexOf('exports.adminUnbanUser'), index.indexOf('exports.scheduleRaidBoss'));
     assert.ok(unban.indexOf('banHistoryAfterUnban') !== -1);
     assert.ok(unban.indexOf('banHistory') !== -1);
+    assert.ok(unban.indexOf('runTransaction') !== -1);
+    assert.ok(unban.indexOf('tx.get(faucetRef)') !== -1);
 });
 
 test('gradeScholarExam pays cert_bonus and does not taper it', function () {
