@@ -393,7 +393,10 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
+    assert.ok(!notes.includes("Latest: A miner's public name"));
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar topic names'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
     assert.ok(!notes.includes('Latest: Opening gifts'));
     assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));

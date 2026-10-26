@@ -618,6 +618,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('joining the conversation'));
     assert.ok(html.includes('global-chat.js?v=20261026_v2400'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2380'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2373'));

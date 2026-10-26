@@ -798,6 +798,9 @@ test('playback with no server clock asks the server to start it and does not inv
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
     const latest = 'Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
+    const minerNote = "A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.";
+    assert.ok(notes.includes(minerNote));
+    assert.ok(!notes.includes('Latest: ' + minerNote));
     const previousLatest = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
     const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
     assert.ok(notes.includes(gifts));
