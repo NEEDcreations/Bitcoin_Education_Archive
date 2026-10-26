@@ -2962,7 +2962,7 @@ function _renderTopHashesHTML(entries) {
         var isMe = _sfRowIsMine(e.value, e.username, nameMissing);
         var rank = i + 1;
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
-        var shownName = nameMissing ? 'Anon' : e.username;
+        var shownName = nameMissing ? 'Anon' : ('@' + e.username);
         var name = typeof escapeHtml === 'function' ? escapeHtml(shownName) : shownName;
            // Winner = hash beat the difficulty target that was ACTIVE when it was mined.
         // e.difficultyTarget is stored by the cloud function (backfilled for legacy entries).
@@ -3003,7 +3003,7 @@ function _renderTopHashesHTML(entries) {
                     var click = nameMissing
                         ? ''
                         : 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + _safeU + '\')"';
-                    return '<span ' + click + ' style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @' + name + '\'s profile">' + name + '</span>' + (isMe ? ' (you)' : '') + badges; })() +
+                    return '<span ' + click + ' style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View ' + name + '\'s profile">' + name + '</span>' + (isMe ? ' (you)' : '') + badges; })() +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
                     '<div style="display:flex;align-items:center;gap:6px;">' +
