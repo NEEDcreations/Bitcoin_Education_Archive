@@ -1,12 +1,12 @@
 // Cache-buster pin. This ship branch is btc-archive-v2396.
-// Live gh-pages is v2373. timechain-tv.js stays 20261024_v2353.
-// bundle.min.js, onboarding.js and ranking.js are 20261026_v2373.
+// Live gh-pages was v2375. timechain-tv.js stays 20261024_v2353.
+// bundle.min.js, onboarding.js and ranking.js stay 20261026_v2373.
 // global-chat.js is 20261026_v2396. quests.js stays 20261026_v2372.
 // satoshi-favor.js stays 20261026_v2368.
 // today-card.js stays 20261026_v2371.
 // features.registry.js stays 20261024_v2368.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
-// gifting.js stays 20261024_v2358.
+// gifting.js is 20261024_v2365.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js and guide.js stay 20261023_v2349.
@@ -38,6 +38,7 @@ test('service worker cache is v2396', () => {
     assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
+    assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
@@ -45,14 +46,12 @@ test('service worker cache is v2396', () => {
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2369'));
-    assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2367'));
-    assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2366'));
-    assert.ok(!sw.includes('btc-archive-v2363'));
-    assert.ok(!sw.includes('btc-archive-v2364'));
     assert.ok(!sw.includes('btc-archive-v2365'));
+    assert.ok(!sw.includes('btc-archive-v2364'));
+    assert.ok(!sw.includes('btc-archive-v2363'));
     assert.ok(!sw.includes('btc-archive-v2362'));
     assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));
@@ -204,7 +203,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
     assert.ok(html.includes('onboarding.js?v=20261026_v2373'));
     assert.ok(!html.includes('onboarding.js?v=20261024_v2358'));
-    assert.ok(html.includes('gifting.js?v=20261024_v2358'));
+    assert.ok(html.includes('gifting.js?v=20261024_v2365'));
+    assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2355'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2254'));
@@ -308,26 +308,25 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.'));
+    assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
+    assert.ok(!notes.includes('Latest: Opening gifts'));
+    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar'));
     assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));
     assert.ok(!notes.includes('Latest: The Invite'));
-    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
-    assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
-    assert.ok(!notes.includes('Latest: A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
-    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
-    assert.ok(!notes.includes('Latest: On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
+    assert.ok(notes.includes('Trivia and poll community totals now update the moment you answer and stay live while the results are open.'));
+    assert.ok(!notes.includes('Latest: Trivia'));
     assert.ok(notes.includes('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
     assert.ok(!notes.includes('Latest: The daily XP bar'));
     assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
     assert.ok(!notes.includes('Latest: On a computer'));
     assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
     assert.ok(!notes.includes('Latest: A More tools button'));
+    assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
+    assert.ok(!notes.includes('Latest: Satoshi\'s Favor'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
-    assert.ok(notes.includes('Trivia and poll community totals now update the moment you answer and stay live while the results are open.'));
-    assert.ok(!notes.includes('Latest: Trivia'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge'));
     assert.ok(notes.includes('The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.'));
     assert.ok(!notes.includes('Latest: The home page is simpler'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
@@ -337,8 +336,10 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('Latest: Global chat messages'));
     assert.ok(notes.includes('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
     assert.ok(!notes.includes('Latest: Usernames'));
-    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
-    assert.ok(!notes.includes("Latest: Satoshi"));
+    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
+    assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
+    assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
+    assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
     assert.ok(!notes.includes('Latest: You can delete'));
     assert.ok(notes.includes('Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.'));

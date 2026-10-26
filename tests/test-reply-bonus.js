@@ -654,21 +654,18 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2396'"));
     assert.ok(!swText.includes('btc-archive-v2377'));
     assert.ok(!swText.includes('btc-archive-v2376'));
-    assert.ok(!swText.includes('btc-archive-v2375'));
     assert.ok(!swText.includes('btc-archive-v2374'));
+    assert.ok(!swText.includes('btc-archive-v2373'));
     assert.ok(!swText.includes('btc-archive-v2372'));
     assert.ok(!swText.includes('btc-archive-v2371'));
     assert.ok(!swText.includes('btc-archive-v2370'));
-    assert.ok(!swText.includes('btc-archive-v2371'));
-    assert.ok(!swText.includes('btc-archive-v2370'));
     assert.ok(!swText.includes('btc-archive-v2369'));
-    assert.ok(!swText.includes('btc-archive-v2365'));
     assert.ok(!swText.includes('btc-archive-v2368'));
     assert.ok(!swText.includes('btc-archive-v2367'));
-    assert.ok(!swText.includes('btc-archive-v2365'));
     assert.ok(!swText.includes('btc-archive-v2366'));
-    assert.ok(!swText.includes('btc-archive-v2363'));
+    assert.ok(!swText.includes('btc-archive-v2365'));
     assert.ok(!swText.includes('btc-archive-v2364'));
+    assert.ok(!swText.includes('btc-archive-v2363'));
     assert.ok(!swText.includes('btc-archive-v2362'));
     assert.ok(!swText.includes('btc-archive-v2361'));
     assert.ok(!swText.includes('btc-archive-v2360'));
@@ -701,8 +698,9 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     // Pin only: the patch-notes page shows the whole card. 16000 keeps the
-    // shoutout inside after the trivia Latest line, the daily XP line, the
-    // topics browser, More tools, the live-window line, the home note, and the mention note.
+    // shoutout inside after the gift Latest line, the invite pill, trivia,
+    // the daily XP line, the topics browser, More tools, the live-window line,
+    // the home note, and the mention note.
     const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 16000);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
