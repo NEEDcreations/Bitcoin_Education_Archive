@@ -391,7 +391,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2361'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
+    assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2350'));
@@ -415,10 +416,11 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2370'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2371'"));
+    assert.ok(!sw.includes('btc-archive-v2375'));
+    assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2372'));
-    assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2369'));
     assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2368'));
@@ -791,7 +793,10 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
+    const latest = 'Latest: The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.';
+    const topics = 'On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
+    assert.ok(notes.includes(topics));
+    assert.ok(!notes.includes('Latest: On a computer'));
     const tools = 'A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.';
     assert.ok(notes.includes(tools));
     assert.ok(!notes.includes('Latest: A More tools button'));
@@ -802,7 +807,6 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     assert.ok(!notes.includes('Latest: Nacho now announces'));
     const favor = 'Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.';
     const deleted = 'You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.';
-    const topicLinks = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const share = 'The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.';
     const anchors = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const music = 'Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.';
@@ -820,9 +824,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     assert.ok(notes.includes(favor));
     assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes(deleted));
-    assert.ok(!notes.includes('Latest: You can delete your account'));
-    assert.ok(notes.includes(topicLinks));
-    assert.ok(!notes.includes('Latest: Topic conversation links'));
+    assert.ok(!notes.includes('Latest: You can delete'));
+    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
+    assert.ok(!notes.includes("Latest: Satoshi"));
     assert.ok(notes.includes(share));
     assert.ok(notes.includes(anchors));
     assert.ok(!notes.includes('Latest: Topic conversation'));
