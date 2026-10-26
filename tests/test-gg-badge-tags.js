@@ -91,6 +91,11 @@ test('older badge-gg posts match the registry when badge ids are absent', functi
     assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(text, serverPost(text, []), registry)), []);
     const legacy = '🏅 @Pat earned a badge: ⛏️ First Hash!';
     assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(legacy, serverPost(legacy), registry)), ['First Hash']);
+    const oldNacho = { uid: 'pat', postedByUid: 'pat', isNachoAuto: true, text: legacy };
+    assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(legacy, oldNacho, registry)), ['First Hash']);
+    const groupedSpoof = { uid: 'pat', postedByUid: 'pat', isNachoAuto: true, badgeIds: ['sf_first_hash', 'combo_trio'], text: '🏅 A player earned 3 badges: First Hash, Trio Combo' };
+    assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(groupedSpoof.text, groupedSpoof, registry)), []);
+    assert.deepStrictEqual(badgeNames(api.ggBadgeSegments(legacy, { uid: 'pat', postedByUid: 'pat', text: legacy }, registry)), []);
 });
 
 test('user-written chat cannot fake a badge tag', function () {
@@ -122,8 +127,29 @@ test('badge text stays text and tooltip fields come from the registry', function
     ]);
     const body = chat.slice(chat.indexOf('function ggAppendBadgeBody'), chat.indexOf('function ggPlaceBadgeTip'));
     assert.ok(body.includes('textContent'));
+    assert.ok(body.includes('ggRegistry()'));
+    assert.ok(!body.includes('ggCollectRegistry('));
+    assert.ok(!body.includes('btn.addEventListener'));
+    assert.ok(body.includes('ggBindBadgeList(parent)'));
     assert.ok(!body.includes('innerHTML'));
     assert.ok(!body.includes('insertAdjacentHTML'));
+    const handler = chat.slice(chat.indexOf('function ggOnBadgeListEvent'), chat.indexOf('function ggBindBadgeList'));
+    assert.ok(handler.includes("e.type === 'click'"));
+    assert.ok(handler.includes("e.type === 'focusin'"));
+    assert.ok(handler.includes("e.type === 'focusout'"));
+    assert.ok(handler.includes("e.type === 'mouseover'"));
+    assert.ok(handler.includes("e.type === 'mouseout'"));
+    const place = chat.slice(chat.indexOf('function ggPlaceBadgeTip'), chat.indexOf('window._showBadgeTooltip = function'));
+    assert.ok(place.includes('var gap = 8'));
+    assert.ok(place.includes('rect.top - height - gap'));
+    assert.ok(place.includes('rect.bottom + gap'));
+    assert.ok(!place.includes('+ 2'));
+    assert.ok(!place.includes('- 2'));
+    const panel = chat.slice(chat.indexOf('function renderAnnouncementsTab'), chat.indexOf('function renderDMsTab'));
+    assert.ok(panel.includes('ggCloseBadgeTip()'));
+    const overlay = chat.slice(chat.indexOf("if (_overlayTab === 'announcements')"), chat.indexOf("if (_overlayTab === 'dms')"));
+    assert.ok(overlay.includes('ggCloseBadgeTip()'));
+    assert.ok(chat.includes("addEventListener('scroll'"));
     const tip = chat.slice(chat.indexOf('window._showBadgeTooltip = function'), chat.indexOf('// Safe hash navigation'));
     assert.ok(tip.includes('textContent'));
     assert.ok(tip.includes('How to earn:'));
@@ -158,6 +184,25 @@ test('server badge ids stay off the client write path and out of the Telegram te
         { badgeId: '<script>' },
         { badgeId: 'spin_1' },
     ]), ['quest_1', 'script', 'spin_1']);
+});
+
+test('badge registry is built once for a stable catalog', function () {
+    const end = chat.indexOf('function ggAppendMentionText');
+    assert.ok(end > start);
+    const run = new Function('BADGE_DEFS', chat.slice(start, end) + '\n' + [
+        'var calls = 0;',
+        'var real = ggCollectRegistry;',
+        'ggCollectRegistry = function () { calls++; return real(); };',
+        'var defs = [];',
+        'for (var i = 0; i < 40; i++) defs.push({ id: "b" + i, name: "Badge " + i, emoji: "🏅", desc: "how " + i, pts: 1 });',
+        'BADGE_DEFS = defs;',
+        'ggRegistry();',
+        'ggRegistry();',
+        'ggRegistry();',
+        'if (calls !== 1) throw new Error("registry built " + calls + " times");',
+        'return calls;'
+    ].join('\n'));
+    assert.strictEqual(run(undefined), 1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

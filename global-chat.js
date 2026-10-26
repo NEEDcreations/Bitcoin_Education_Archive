@@ -1586,6 +1586,7 @@ function renderAnnouncementsTab() {
         .orderBy('ts', 'asc')
         .limitToLast(50)
         .onSnapshot(function(snapshot) {
+            ggCloseBadgeTip();
             var el = document.getElementById('announcementsMessages');
             if (!el) return;
             if (snapshot.empty) {
@@ -1843,6 +1844,7 @@ function renderOverlayChat() {
                 .orderBy('ts', 'asc')
                 .limitToLast(40)
                 .onSnapshot(function(snapshot) {
+                    ggCloseBadgeTip();
                     var el = document.getElementById('overlayAnnouncementsBody');
                     if (!el) { if (_annUnsub) { _annUnsub(); _annUnsub = null; } return; }
                     if (snapshot.empty) {
@@ -3928,15 +3930,25 @@ function ggBoundary(ch) {
     return !/[\p{L}\p{N}]/u.test(ch);
 }
 
+function ggLegacyRegions(text) {
+    var legacy = /earned a badge: ([\s\S]+?)!/.exec(text);
+    if (!legacy) return [];
+    var legacyStart = legacy.index + 'earned a badge: '.length;
+    return [[legacyStart, legacyStart + legacy[1].length]];
+}
+
 function ggBadgeSegments(text, message, registry) {
     var raw = String(text || '');
     var ids = ggTrustedBadgeIds(message);
-    if (ids === null) return [{ type: 'text', text: raw }];
+    // Old Nacho announcements used "earned a badge: …!". Those are isNachoAuto
+    // and have no badge ids. Only that phrase is tagged, never a grouped line.
+    var legacyOnly = ids === null && !!(message && message.isNachoAuto === true);
+    if (ids === null && !legacyOnly) return [{ type: 'text', text: raw }];
     var all = registry || [];
     var badges = [];
     // A present badgeIds list, even empty, is the allow-list. Only a missing
     // field falls back to registry names, for badge-gg posts written before ids.
-    if (message && Array.isArray(message.badgeIds)) {
+    if (!legacyOnly && message && Array.isArray(message.badgeIds)) {
         var want = {};
         ids.forEach(function(id) { want[id] = true; });
         all.forEach(function(badge) { if (badge && want[badge.id]) badges.push(badge); });
@@ -3944,7 +3956,7 @@ function ggBadgeSegments(text, message, registry) {
         badges = all.filter(function(badge) { return badge && badge.name && badge.name.length >= 2; });
     }
     if (!badges.length) return [{ type: 'text', text: raw }];
-    var regions = ggNameRegions(raw);
+    var regions = legacyOnly ? ggLegacyRegions(raw) : ggNameRegions(raw);
     if (!regions.length) return [{ type: 'text', text: raw }];
     var sorted = badges.slice().sort(function(a, b) {
         return b.name.length - a.name.length || String(a.name).localeCompare(String(b.name));
@@ -4068,6 +4080,44 @@ function ggCollectRegistry() {
     return list;
 }
 
+// The registry is about 940 ids plus flex combos. Build it once per catalog
+// shape, not once per GGs post.
+var _ggRegistryCache = null;
+var _ggRegistryById = null;
+var _ggRegistryKey = '';
+
+function ggRegistryKey() {
+    function n(list) { return (list && list.length) || 0; }
+    var cat = 0;
+    if (typeof window !== 'undefined' && window && window.BADGE_CATALOG) {
+        try { cat = Object.keys(window.BADGE_CATALOG).length; } catch (err) {}
+    }
+    return [
+        n(typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : null),
+        n(typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : null),
+        n(typeof TITLE_DEFS !== 'undefined' ? TITLE_DEFS : null),
+        n(typeof BADGE_SETS !== 'undefined' ? BADGE_SETS : null),
+        n(typeof FLEX_ACTIONS !== 'undefined' ? FLEX_ACTIONS : null),
+        n(typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_BADGE_MILESTONES : null),
+        cat
+    ].join(':');
+}
+
+function ggRegistry() {
+    var key = ggRegistryKey();
+    if (_ggRegistryCache && _ggRegistryKey === key) return _ggRegistryCache;
+    _ggRegistryKey = key;
+    _ggRegistryCache = ggCollectRegistry();
+    _ggRegistryById = {};
+    _ggRegistryCache.forEach(function(badge) { _ggRegistryById[badge.id] = badge; });
+    return _ggRegistryCache;
+}
+
+function ggRegistryById() {
+    ggRegistry();
+    return _ggRegistryById || {};
+}
+
 function ggAppendMentionText(parent, text, mentionUid) {
     if (!text) return;
     if (!mentionUid) {
@@ -4095,7 +4145,26 @@ function ggAppendMentionText(parent, text, mentionUid) {
     if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
 }
 
+var _ggTipLeaveTimer = 0;
+
+function ggCancelTipClose() {
+    if (_ggTipLeaveTimer) {
+        clearTimeout(_ggTipLeaveTimer);
+        _ggTipLeaveTimer = 0;
+    }
+}
+
+function ggScheduleTipClose(btn) {
+    ggCancelTipClose();
+    _ggTipLeaveTimer = setTimeout(function() {
+        _ggTipLeaveTimer = 0;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (tip && tip._el === btn && !tip._pinned) ggCloseBadgeTip();
+    }, 120);
+}
+
 function ggCloseBadgeTip() {
+    ggCancelTipClose();
     var tip = document.getElementById('_gcBadgeTip');
     if (!tip) return;
     if (tip._el && tip._el.setAttribute) {
@@ -4125,16 +4194,69 @@ function ggBindBadgeTipDismiss() {
         if (target.closest && target.closest('.gg-badge-tag')) return;
         ggCloseBadgeTip();
     }, true);
+    document.addEventListener('scroll', function() {
+        ggCloseBadgeTip();
+    }, true);
+}
+
+function ggFinePointer() {
+    try { return !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches); }
+    catch (err) { return false; }
+}
+
+function ggOnBadgeListEvent(e) {
+    var parent = this;
+    var node = e.target;
+    if (node && node.nodeType !== 1 && node.parentElement) node = node.parentElement;
+    var btn = node && node.closest ? node.closest('.gg-badge-tag') : null;
+    if (!btn || (parent.contains && !parent.contains(btn))) return;
+    var badge = ggRegistryById()[btn.getAttribute('data-badge-id')];
+    if (!badge) return;
+    if (e.type === 'click') {
+        e.preventDefault();
+        e.stopPropagation();
+        window._showBadgeTooltip(btn, badge, { toggle: true });
+        return;
+    }
+    if (e.type === 'focusin') {
+        window._showBadgeTooltip(btn, badge, {});
+        return;
+    }
+    if (e.type === 'focusout') {
+        var open = document.getElementById('_gcBadgeTip');
+        if (open && open._el === btn && !open._pinned) ggCloseBadgeTip();
+        return;
+    }
+    if (!ggFinePointer()) return;
+    if (e.type === 'mouseover') {
+        var from = e.relatedTarget;
+        if (from && btn.contains(from)) return;
+        ggCancelTipClose();
+        window._showBadgeTooltip(btn, badge, {});
+        return;
+    }
+    if (e.type === 'mouseout') {
+        var next = e.relatedTarget;
+        if (next && btn.contains(next)) return;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (next && tip && (next === tip || (tip.contains && tip.contains(next)))) return;
+        if (tip && tip._el === btn && !tip._pinned) ggScheduleTipClose(btn);
+    }
+}
+
+function ggBindBadgeList(parent) {
+    if (!parent || parent._ggBadgeBound) return;
+    parent._ggBadgeBound = true;
+    ['click', 'focusin', 'focusout', 'mouseover', 'mouseout'].forEach(function(type) {
+        parent.addEventListener(type, ggOnBadgeListEvent);
+    });
 }
 
 function ggAppendBadgeBody(parent, message) {
-    var registry = ggCollectRegistry();
-    var byId = {};
-    registry.forEach(function(badge) { byId[badge.id] = badge; });
+    var registry = ggRegistry();
+    var byId = ggRegistryById();
     var mentionUid = message && typeof message.mentionUid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(message.mentionUid) ? message.mentionUid : '';
     var segments = ggBadgeSegments(String(message && message.text || ''), message, registry);
-    var finePointer = false;
-    try { finePointer = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches); } catch (err) {}
     segments.forEach(function(seg) {
         if (seg.type !== 'badge') {
             ggAppendMentionText(parent, seg.text, mentionUid);
@@ -4153,32 +4275,9 @@ function ggAppendBadgeBody(parent, message) {
         btn.setAttribute('aria-label', badge.name + '. Show badge details');
         btn.textContent = badge.name;
         btn.style.cssText = 'background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:1px 8px;margin:0 1px;cursor:pointer;font-weight:700;color:var(--accent,#f7931a);white-space:nowrap;display:inline;font-family:inherit;font-size:inherit;line-height:inherit;vertical-align:baseline;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            window._showBadgeTooltip(btn, badge, { toggle: true });
-        });
-        btn.addEventListener('focus', function() {
-            window._showBadgeTooltip(btn, badge, {});
-        });
-        btn.addEventListener('blur', function() {
-            var tip = document.getElementById('_gcBadgeTip');
-            if (tip && tip._el === btn && !tip._pinned) ggCloseBadgeTip();
-        });
-        if (finePointer) {
-            btn.addEventListener('mouseenter', function() {
-                window._showBadgeTooltip(btn, badge, {});
-            });
-            btn.addEventListener('mouseleave', function(e) {
-                var tip = document.getElementById('_gcBadgeTip');
-                if (!tip || tip._el !== btn || tip._pinned) return;
-                var next = e.relatedTarget;
-                if (next && (next === tip || (tip.contains && tip.contains(next)))) return;
-                ggCloseBadgeTip();
-            });
-        }
         parent.appendChild(btn);
     });
+    ggBindBadgeList(parent);
     ggBindBadgeTipDismiss();
 }
 
@@ -4189,9 +4288,10 @@ function ggPlaceBadgeTip(tip, el) {
     tip.style.left = '8px';
     tip.style.top = '8px';
     var height = tip.offsetHeight || 80;
+    var gap = 8;
     var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    var top = rect.top - height + 2;
-    if (top < 8) top = rect.bottom - 2;
+    var top = rect.top - height - gap;
+    if (top < 8) top = rect.bottom + gap;
     if (top + height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - height - 8);
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
@@ -4243,11 +4343,12 @@ window._showBadgeTooltip = function(el, badge, opts) {
         xp.textContent = '+' + badge.pts + ' XP';
         tip.appendChild(xp);
     }
+    tip.addEventListener('mouseenter', function() { ggCancelTipClose(); });
     tip.addEventListener('mouseleave', function(e) {
         if (tip._pinned) return;
         var next = e.relatedTarget;
         if (next && tip._el && (next === tip._el || (tip._el.contains && tip._el.contains(next)))) return;
-        ggCloseBadgeTip();
+        ggScheduleTipClose(tip._el);
     });
     document.body.appendChild(tip);
     el.setAttribute('aria-expanded', 'true');
@@ -4403,7 +4504,7 @@ function _renderAnnouncementItem(doc, context) {
     var borderR = isOverlay ? '12px' : '14px';
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var reactHtml = _buildAnnReactBar(docId, m.reactions || {}, myUid, esc);
-    var badgePost = ggTrustedBadgeIds(m) !== null;
+    var badgePost = ggTrustedBadgeIds(m) !== null || (m && m.isNachoAuto === true && /earned a badge: /.test(String(m.text || '')));
 
     var root = document.createElement('div');
     root.setAttribute('data-ann-id', docId);
