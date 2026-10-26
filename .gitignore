@@ -4,6 +4,7 @@ test.sh
 scripts/*
 !scripts/migrate-push-optin.js
 !scripts/backfill-badge-favor.js
+!scripts/build-topic-search-index.js
 .keys/
 firebase-debug.log
 firestore-debug.log
