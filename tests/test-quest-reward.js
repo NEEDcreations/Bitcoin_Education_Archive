@@ -106,6 +106,23 @@ test('a wrong trivia answer gets no reward', function() {
     assert.strictEqual(right.optionIndex, question.options.indexOf(correctText));
     assert.strictEqual(missed.optionIndex, question.options.indexOf(wrong));
     assert.strictEqual(byIndex.optionIndex, -1);
+
+    const answerSlot = question.options.indexOf(correctText);
+    const idOnly = reward.gradeTrivia(triviaPayload({ optionId: reward.optionId(correctText) }));
+    assert.strictEqual(idOnly.correct, true);
+    assert.strictEqual(idOnly.optionIndex, answerSlot);
+    const idString = reward.gradeTrivia(triviaPayload(reward.optionId(correctText)));
+    assert.strictEqual(idString.correct, true);
+    assert.strictEqual(idString.optionIndex, answerSlot);
+    const mismatch = reward.gradeTrivia(triviaPayload({
+        text: correctText,
+        optionId: reward.optionId(wrong),
+    }));
+    assert.strictEqual(mismatch.correct, false);
+    assert.strictEqual(mismatch.optionIndex, -1);
+    const splitFields = reward.gradeTrivia(triviaPayload(correctText, { optionId: reward.optionId(wrong) }));
+    assert.strictEqual(splitFields.correct, false);
+    assert.strictEqual(splitFields.optionIndex, -1);
 });
 
 test('banned accounts and the daily cap hold for trivia', function() {

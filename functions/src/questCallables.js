@@ -93,6 +93,7 @@ const answerTrivia = onCall(async (data, context) => {
             questionIndex: payload.questionIndex,
             question: typeof payload.q === 'string' ? payload.q : payload.question,
             chosen: payload.chosen,
+            optionId: typeof payload.optionId === 'string' ? payload.optionId : '',
             now: now,
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
@@ -145,6 +146,7 @@ const answerTrivia = onCall(async (data, context) => {
                 correct: graded.correct === true,
                 at: FieldValue.serverTimestamp(),
             });
+            // Same bank slot gradeTrivia resolved. A mismatch stays at -1 and is not counted.
             const optionIndex = graded.optionIndex;
             if (Number.isInteger(optionIndex) && optionIndex >= 0 && optionIndex < 4
                 && Number.isInteger(graded.questionIndex) && graded.questionIndex >= 0) {
