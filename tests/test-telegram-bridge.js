@@ -254,6 +254,44 @@ test('a hung bridge times out and the plain shoutout text is left intact', async
     assert.strictEqual(bridge.WEB_BRIDGE_TIMEOUT_MS, 60000);
 });
 
+test('force backfill re-runs the strict filter before posting', async function() {
+    const hidden = ['f', '@', 'g'].join('');
+    let posts = 0;
+    const blocked = await bridge.mirrorShoutoutOnce({
+        db: {},
+        force: true,
+        docId: 'shoutout_gift_bad',
+        text: 'note ' + hidden,
+        getDoc: async function() { return { uid: 'nacho-bot', text: 'note ' + hidden }; },
+        updateDoc: async function() { throw new Error('should not stamp'); },
+        post: async function() {
+            posts++;
+            return { ok: true, telegramMsgId: '1', chatId: '2' };
+        },
+    });
+    assert.strictEqual(blocked.mirrored, false);
+    assert.strictEqual(blocked.reason, 'profanity');
+    assert.strictEqual(posts, 0);
+    const saved = {};
+    const clean = await bridge.mirrorShoutoutOnce({
+        db: {},
+        force: true,
+        docId: 'shoutout_gift_ok',
+        text: 'Shoutout to phil',
+        getDoc: async function() { return { uid: 'nacho-bot', text: 'Shoutout to phil' }; },
+        updateDoc: async function(id, patch) { saved.patch = patch; },
+        post: async function() {
+            posts++;
+            return { ok: true, telegramMsgId: '9', chatId: '2' };
+        },
+    });
+    assert.strictEqual(clean.mirrored, true);
+    assert.strictEqual(saved.patch.telegramMsgId, '9');
+    assert.strictEqual(posts, 1);
+    const src = fs.readFileSync(path.join(__dirname, '../functions/mirror-shoutout.js'), 'utf8');
+    assert.ok(src.indexOf('force: true') !== -1);
+});
+
 test('a caller with db defers to the chat mirror', async function() {
     let calls = 0;
     const deferred = await bridge.mirrorShoutoutOnce({

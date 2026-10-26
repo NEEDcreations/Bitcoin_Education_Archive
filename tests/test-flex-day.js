@@ -142,6 +142,8 @@ test('Say hi stays labeled Say hi, and an active Favor banner can pulse', functi
     assert.ok(html.indexOf('prefers-reduced-motion: reduce') > 0);
     assert.ok(html.indexOf('#todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after { animation: none;') > 0);
     assert.ok(card.indexOf("Satoshi's Favor is LIVE") > 0);
+    assert.strictEqual(card.indexOf("getElementById('todayEarnFavor')"), -1);
+    assert.strictEqual(card.indexOf('getElementById("todayEarnFavor")'), -1);
     const notes = read('patch-notes.html');
     assert.ok(notes.indexOf('Flex counts as done after 5 in a day.') > 0);
     assert.ok(notes.indexOf('Say hi!') > 0);

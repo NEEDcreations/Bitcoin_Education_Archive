@@ -12,7 +12,7 @@
 // Do not log the secret, a URL query string, or a response body. Telegram
 // errors and misconfigured URLs can echo tokens.
 
-const { unwrapProfileSpans } = require('./moderateText');
+const { unwrapProfileSpans, moderateText } = require('./moderateText');
 
 // Only an @ that starts a word. n@igger stays intact so a later strip cannot
 // spell the slur into the public group. Shoutout payloads use this on the
@@ -244,7 +244,14 @@ async function mirrorShoutoutOnce(options) {
         if (!data) return { mirrored: false, reason: 'missing' };
         if (!shouldMirrorShoutout(data)) return { mirrored: false, reason: 'already_mirrored' };
 
-        const payload = buildNachoBridgePayload(opts.text != null ? opts.text : (data.text || ''));
+        const outgoing = opts.text != null ? opts.text : (data.text || '');
+        const payload = buildNachoBridgePayload(outgoing);
+        const verdict = moderateText(outgoing, { strict: true });
+        const sentVerdict = moderateText(payload.text, { strict: true });
+        if (!verdict.clean || !sentVerdict.clean) {
+            const reason = !verdict.clean ? verdict.reason : sentVerdict.reason;
+            return { mirrored: false, reason: String(reason || '').indexOf('scam') !== -1 ? 'scam' : 'profanity' };
+        }
         let result;
         try {
             result = await post(payload);

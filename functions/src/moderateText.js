@@ -35,14 +35,26 @@ const BRIDGE_TERMS = [
 const ALLOWLIST = [
     'magazine', 'suspicious', 'suspicion', 'spicy', 'spice', 'despicable',
     'conspicuous', 'auspicious', 'hospice', 'cocktail', 'cockpit', 'cocky',
-    'peacock', 'hancock', 'hitchcock', 'dickens', 'dickinson', 'grape',
-    'grapefruit', 'drape', 'scrape', 'skyscraper', 'parapet', 'trapeze',
+    'peacock', 'hancock', 'hitchcock', 'dickens', 'dickinson', 'dickson',
+    'grape', 'grapefruit', 'drape', 'scrape', 'skyscraper', 'parapet', 'trapeze',
     'therapeutic', 'trumpet', 'torpedo', 'raccoon', 'cocoon', 'tycoon',
-    'democratic', 'grapevine', 'scunthorpe',
+    'democratic', 'grapevine', 'scunthorpe', 'pedometer', 'shitake',
+    'magali', 'cockrell', 'shitij', 'raper',
 ];
 
 const ALLOW = {};
 ALLOWLIST.forEach(function (word) { ALLOW[word] = true; });
+
+// Joined fragments are checked against this set only. A hit has to be the
+// whole joined word, or the start of it when the first piece is a prefix
+// of that word. A slur buried in the middle (grapeand, menudelete) is not.
+const SLUR_EXACT = Object.create(null);
+const SLUR_WORDS = [];
+BRIDGE_TERMS.forEach(function (term) {
+    const compact = term.replace(/\s+/g, '');
+    SLUR_EXACT[compact] = true;
+    if (term.indexOf(' ') === -1) SLUR_WORDS.push(term);
+});
 
 const SCAM_PATTERNS = [
     /send me \d+(?:[.,]\d+)? btc(?:to)?\b/i,
@@ -303,18 +315,27 @@ function unfoldMidWordAt(text) {
     });
 }
 
+// En and em dashes stay in place here. Joining them turned grape—and into
+// a hit. A real split slur is caught later as its own joined word.
 function collapseSeparators(text) {
     let s = String(text || '');
     let prev = '';
     while (s !== prev) {
         prev = s;
-        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027\u2010-\u2012\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
         s = s.replace(/(^|[^\p{L}])(\p{L}+)[,:;]+(\p{L}+)(?!\p{L})/gu, function (whole, lead, left, right) {
             if (joinShortFragment(left, right)) return lead + left + right;
             return whole;
         });
     }
     return s;
+}
+
+// n,i,g,g,e,r is one run of single letters. Pairwise joins stop at nigg,er.
+function collapseSingleLetterRuns(text) {
+    return String(text || '').replace(/(^|[^\p{L}])\p{L}(?:[,:;.\-_*~|/+\\@\uFF20\u2010-\u2015\u2212]+\p{L}){2,}(?!\p{L})/gu, function (whole, lead) {
+        return lead + whole.slice(String(lead || '').length).replace(/[^\p{L}]/gu, '');
+    });
 }
 
 // "phuck" and "ph uck" fold toward "fuck". "phone" becomes "fone".
@@ -336,23 +357,36 @@ function collapseSpacedLetters(text) {
 // Format characters (soft hyphen, zero-width) are removed after that.
 // Blank fillers and emoji between letters are removed before the
 // unbroken-word snapshot, which is taken after leet and before any join.
-function prepareStrict(text) {
+function foldBase(text) {
     let s = String(text || '').normalize('NFKC').normalize('NFKD');
     s = s.replace(/[\p{M}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     s = s.replace(/\p{Cf}/gu, '');
     s = s.replace(/[\u115F\u1160\u3164\uFFA0\u2800]/g, '');
     s = s.replace(/(\p{L})[\p{Extended_Pictographic}\p{So}\u{1F3FB}-\u{1F3FF}\u200D\uFE0F]+(?=\p{L})/gu, '$1');
-    s = foldLookalikes(s.toLowerCase());
-    s = unfoldMidWordAt(s);
+    return foldLookalikes(s.toLowerCase());
+}
+
+// pr: mid-word @ joins a short disguise and splits a long pair.
+// legacy: live's path, so @ stays and leet reads it as "a".
+// at: a run of @ or ＠ is one "a", so @@ still reads as a single letter.
+function prepareFromBase(base, mode) {
+    let s = String(base || '');
+    if (mode === 'at') s = s.replace(/[\uFF20@]+/g, 'a');
+    if (mode === 'pr') s = unfoldMidWordAt(s);
     s = applyLeet(s);
     const unbroken = unbrokenWords(s);
     s = joinShortLineBreaks(s);
+    s = collapseSingleLetterRuns(s);
     s = collapseSeparators(s);
     s = foldPh(s);
     s = collapseSpacedLetters(s);
     s = s.replace(/\s+/g, ' ').trim();
     return { text: s, unbroken: unbroken };
+}
+
+function prepareStrict(text) {
+    return prepareFromBase(foldBase(text), 'pr');
 }
 
 function normalizeStrictText(text) {
@@ -365,6 +399,78 @@ function scamFold(text) {
     s = s.replace(/[\p{M}\p{Cf}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     return foldLookalikes(s.toLowerCase());
+}
+
+function allowlistedSpelling(word) {
+    const w = String(word || '');
+    if (!w) return false;
+    if (ALLOW[w]) return true;
+    for (let i = 0; i < ALLOW_SUFFIXES.length; i++) {
+        const suffix = ALLOW_SUFFIXES[i];
+        if (w.length <= suffix.length + 2) continue;
+        if (w.slice(-suffix.length) !== suffix) continue;
+        if (ALLOW[w.slice(0, -suffix.length)]) return true;
+    }
+    return false;
+}
+
+// A fragment that is itself a term still counts when the pieces would
+// spell an allowlisted word (g-rape, maga-zine). The whole allowlisted
+// word does not.
+function fragmentIsSlur(word) {
+    const w = String(word || '');
+    if (!w) return false;
+    if (SLUR_EXACT[w]) return true;
+    if (allowlistedSpelling(w)) return false;
+    for (let i = 0; i < SLUR_WORDS.length; i++) {
+        const bad = SLUR_WORDS[i];
+        if (bad.length >= 4 && w.indexOf(bad) !== -1) return true;
+    }
+    return false;
+}
+
+function joinedFragmentSlur(joined, first) {
+    if (!joined || allowlistedSpelling(joined)) return false;
+    if (SLUR_EXACT[joined]) return true;
+    const head = String(first || '');
+    for (let i = 0; i < SLUR_WORDS.length; i++) {
+        const bad = SLUR_WORDS[i];
+        if (bad.length < 3 || joined.length <= bad.length) continue;
+        if (joined.indexOf(bad) !== 0) continue;
+        if (head.length < bad.length && bad.indexOf(head) === 0) return true;
+    }
+    return false;
+}
+
+// Two or three letter-pieces with one symbol or space between them.
+// Checked before leet, so "|" and "+" stay separators.
+function fragmentSlur(text) {
+    const src = String(text || '');
+    const runs = [];
+    const re = /\p{L}+/gu;
+    let match;
+    while ((match = re.exec(src))) {
+        runs.push({ start: match.index, end: match.index + match[0].length, word: match[0] });
+    }
+    for (let i = 0; i < runs.length; i++) {
+        if (fragmentIsSlur(runs[i].word)) return true;
+        for (let n = 2; n <= 3; n++) {
+            const last = i + n - 1;
+            if (last >= runs.length) break;
+            let joined = runs[i].word;
+            let ok = true;
+            for (let k = 1; k < n; k++) {
+                const gap = src.slice(runs[i + k - 1].end, runs[i + k].start);
+                if (gap.length !== 1 || /[\p{L}\p{N}]/u.test(gap)) {
+                    ok = false;
+                    break;
+                }
+                joined += runs[i + k].word;
+            }
+            if (ok && joinedFragmentSlur(joined, runs[i].word)) return true;
+        }
+    }
+    return false;
 }
 
 function allowlistedWord(word, unbroken) {
@@ -452,13 +558,22 @@ function scamHit(text) {
     return false;
 }
 
+function formHits(prepared) {
+    const variants = squeezeVariants(prepared.text);
+    for (let i = 0; i < variants.length; i++) {
+        if (bridgeHit(variants[i], prepared.unbroken)) return true;
+    }
+    return false;
+}
+
 function moderateStrict(raw) {
     const sanitized = sanitizeOutgoing(raw).trim();
     if (!sanitized) return { clean: true, reason: '' };
-    const prepared = prepareStrict(sanitized);
-    const variants = squeezeVariants(prepared.text);
-    for (let i = 0; i < variants.length; i++) {
-        if (bridgeHit(variants[i], prepared.unbroken)) return { clean: false, reason: REASON_PROFANITY };
+    const base = foldBase(sanitized);
+    if (fragmentSlur(base)) return { clean: false, reason: REASON_PROFANITY };
+    const modes = ['pr', 'legacy', 'at'];
+    for (let i = 0; i < modes.length; i++) {
+        if (formHits(prepareFromBase(base, modes[i]))) return { clean: false, reason: REASON_PROFANITY };
     }
     if (scamHit(sanitized) || scamHit(scamFold(sanitized))) return { clean: false, reason: REASON_SCAM };
     return { clean: true, reason: '' };

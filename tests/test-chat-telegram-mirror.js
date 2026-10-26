@@ -1485,6 +1485,84 @@ test('punctuation inserted in a slur is still profanity', function () {
     });
 });
 
+function mask(parts) {
+    return parts.join('');
+}
+
+test('masked @, letter runs, and short splits are blocked in bodies and names', function () {
+    const blocked = [
+        ['at-a', ['f', '@', 'g']],
+        ['at-n', ['n', '@', 'zi']],
+        ['at-r', ['r', '@', 'pe']],
+        ['at-ret', ['ret', '@', 'rd']],
+        ['at-hent', ['hent', '@', 'i']],
+        ['at-star', ['n', '*', 'gg', '@', 'er']],
+        ['fw-a', ['f', '\uFF20', 'g']],
+        ['fw-n', ['n', '\uFF20', 'zi']],
+        ['fw-ret', ['ret', '\uFF20', 'rd']],
+        ['fw-hent', ['hent', '\uFF20', 'i']],
+        ['fw-star', ['n', '*', 'gg', '\uFF20', 'er']],
+        ['at-double', ['f', '@@', 'g']],
+        ['at-triple', ['f', '@@@', 'g']],
+        ['at-double-n', ['n', '@@', 'zi']],
+        ['at-woven', ['f', '@', 'a', '@', 'g']],
+        ['at-woven-m', ['m', '@', 'a', '@', 'g', '@', 'a']],
+        ['run-comma', ['n', ',', 'i', ',', 'g', ',', 'g', ',', 'e', ',', 'r']],
+        ['run-semi', ['r', ';', 'e', ';', 't', ';', 'a', ';', 'r', ';', 'd']],
+        ['run-colon', ['h', ':', 'i', ':', 't', ':', 'l', ':', 'e', ':', 'r']],
+        ['run-suicide', ['s', ',', 'u', ',', 'i', ',', 'c', ',', 'i', ',', 'd', ',', 'e']],
+        ['run-terror', ['t', ',', 'e', ',', 'r', ',', 'r', ',', 'o', ',', 'r', ',', 'i', ',', 's', ',', 't']],
+        ['split-slash', ['f', '/', 'uck']],
+        ['split-space', ['fu', ' ', 'ck']],
+        ['split-pipe', ['f', '|', 'uck']],
+        ['split-tilde', ['n', '~', 'igger']],
+        ['split-plus', ['n', '+', 'igger']],
+        ['split-at', ['nig', '@', 'ger']],
+        ['split-at-fa', ['fa', '@', 'ggot']],
+        ['split-at-hit', ['hit', '@', 'ler']],
+        ['split-comma', ['nig', ',', 'ger']],
+    ];
+    blocked.forEach(function (row) {
+        const text = mask(row[1]);
+        const body = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(body.forward, false, row[0] + ' body forwarded');
+        assert.strictEqual(body.reason, 'profanity', row[0] + ' body');
+        const named = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ name: text, text: 'hello there' }),
+        });
+        assert.strictEqual(named.forward, true, row[0] + ' name stopped the line');
+        assert.strictEqual(named.name, 'A player', row[0] + ' name');
+        assert.strictEqual(named.line.indexOf(text), -1, row[0] + ' name leaked');
+    });
+    const allowed = [
+        ['space-pair', 'bit its'],
+        ['mention', 'hello @bob'],
+        ['menu', 'menu,delete'],
+        ['bc1-words', 'bc1 address'],
+        ['bc1q', 'bc1q'],
+        ['pedometer', 'pedometer'],
+        ['shitake', 'Shitake'],
+        ['grape-dash', 'grape\u2014and'],
+        ['drama-dash', 'drama\u2014game'],
+        ['dickson', 'Dickson'],
+        ['magali', 'Magali'],
+        ['cockrell', 'Cockrell'],
+        ['shitij', 'Shitij'],
+        ['raper', 'Raper'],
+    ];
+    allowed.forEach(function (row) {
+        const body = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(body.forward, true, row[0] + ' body blocked: ' + body.reason);
+        const named = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ name: row[1], text: 'hello there' }),
+        });
+        assert.strictEqual(named.forward, true, row[0] + ' name blocked: ' + named.reason);
+        assert.strictEqual(named.name, row[1] === 'hello @bob' ? 'hello bob' : row[1], row[0] + ' name changed');
+    });
+});
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
