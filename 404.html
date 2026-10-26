@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2370" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2373" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -641,6 +641,9 @@
         .invite-how-btn { margin-top: 8px; padding: 0; border: none; background: none; color: var(--accent); font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: inherit; }
         .invite-how { margin-top: 6px; }
         .invite-pill, .invite-guest { border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.85rem; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; }
+        .invite-pill { white-space: nowrap; }
+        #inviteGuestPill { position: fixed; z-index: 180; white-space: nowrap; }
+        #inviteGuestPill[hidden] { display: none !important; }
         .invite-guest { font-size: 0.75rem; max-width: 220px; text-align: left; line-height: 1.3; }
         .invite-card[data-state="open"] .invite-pill,
         .invite-card[data-state="open"] .invite-guest,
@@ -659,7 +662,8 @@
            lightning logo and above the Bitcoin Quest title. The ticker shifts
            that band down by 76px. Desktop: right edge around the vertical middle.
            The Quest pill (onboarding.js) uses the left side of the same band. */
-        .invite-card[data-state="min"] {
+        .invite-card[data-state="min"],
+        #inviteGuestPill:not([hidden]) {
             top: calc(186px + env(safe-area-inset-top, 0px));
             right: max(12px, env(safe-area-inset-right, 0px));
             left: auto;
@@ -671,21 +675,30 @@
             z-index: 180;
             transform: none;
         }
-        body.ticker-visible .invite-card[data-state="min"] {
+        body.ticker-visible .invite-card[data-state="min"],
+        body.ticker-visible #inviteGuestPill:not([hidden]) {
             top: calc(262px + env(safe-area-inset-top, 0px));
         }
         @media (min-width: 901px) {
             .invite-card[data-state="min"],
-            body.ticker-visible .invite-card[data-state="min"] {
+            body.ticker-visible .invite-card[data-state="min"],
+            #inviteGuestPill:not([hidden]),
+            body.ticker-visible #inviteGuestPill:not([hidden]) {
                 top: clamp(calc(160px + env(safe-area-inset-top, 0px)), calc(50dvh - 22px), calc(100dvh - 340px - env(safe-area-inset-bottom, 0px)));
             }
         }
-        body:has(#searchOverlay[data-open="1"]) .invite-card { display: none !important; }
+        body:has(#searchOverlay[data-open="1"]) .invite-card,
+        body:has(#searchOverlay[data-open="1"]) #inviteGuestPill { display: none !important; }
         body:has(#usernameModal.open) .invite-card[data-state="min"],
         body:has(#questModal.open) .invite-card[data-state="min"],
         body:has(#tosModal.open) .invite-card[data-state="min"],
         body:has(#leaderboard.open) .invite-card[data-state="min"],
-        body:has(#lb.open) .invite-card[data-state="min"] {
+        body:has(#lb.open) .invite-card[data-state="min"],
+        body:has(#usernameModal.open) #inviteGuestPill,
+        body:has(#questModal.open) #inviteGuestPill,
+        body:has(#tosModal.open) #inviteGuestPill,
+        body:has(#leaderboard.open) #inviteGuestPill,
+        body:has(#lb.open) #inviteGuestPill {
             visibility: hidden;
             pointer-events: none;
         }
@@ -868,6 +881,7 @@
         #todayInviteGuest { display: none; margin: 0 auto 16px; border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.75rem; line-height: 1.3; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; max-width: 100%; }
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #todayInviteGuest { display: inline-flex; align-self: center; }
         body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteCard { display: none !important; }
+        body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteGuestPill { display: none !important; }
         @media (max-width: 480px) {
             #em-quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             #todayFavorStrip { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; }
@@ -912,6 +926,12 @@
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
             .invite-card { top: calc(62px + env(safe-area-inset-top, 0px)); right: 8px; width: min(220px, calc(100vw - 20px)); }
+            .invite-card[data-state="min"],
+            #inviteGuestPill:not([hidden]) {
+                top: calc(186px + env(safe-area-inset-top, 0px));
+                right: max(12px, env(safe-area-inset-right, 0px));
+                width: auto;
+            }
             .home-stats { grid-template-columns: repeat(3, auto); gap: 14px 20px; }
             .home-stat-num { font-size: 1.3rem; }
             .home-stat-label { font-size: 0.7rem; }
@@ -2098,16 +2118,16 @@
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
-    <script src="ranking.js?v=20261026_v2367" defer></script>
+    <script src="ranking.js?v=20261026_v2373" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2370" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2373" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2371" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
     <script src="patches.js?v=20261024_v2360" defer></script>
-    <script src="onboarding.js?v=20261026_v2365" defer></script>
+    <script src="onboarding.js?v=20261026_v2373" defer></script>
     <script src="learning-quests.js?v=20261023_v2324" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2304,9 +2324,10 @@ if ('serviceWorker' in navigator) {
             <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.</p>
         </div>
     </div>
-    <button type="button" class="invite-pill" id="invitePill" onclick="expandInviteCard()">🎟️ Invite</button>
+    <button type="button" class="invite-pill" id="invitePill" aria-label="Invite friends" onclick="expandInviteCard()">🎟️ Invite</button>
     <button type="button" class="invite-guest" id="inviteGuest" onclick="inviteGuestSignup()">Sign up to get your invite link</button>
 </div>
+<button type="button" class="invite-pill" id="inviteGuestPill" hidden aria-label="Invite friends" onclick="inviteGuestSignup()">🎟️ Invite friends</button>
 </body>
 </html>
 <!-- v1771873982 -->

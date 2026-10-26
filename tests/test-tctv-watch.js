@@ -416,12 +416,16 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2372'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2373'"));
+    assert.ok(!sw.includes('btc-archive-v2377'));
+    assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
+    assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
-    assert.ok(!sw.includes('btc-archive-v2373'));
+    assert.ok(!sw.includes('btc-archive-v2371'));
+    assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2369'));
     assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2368'));
@@ -793,7 +797,8 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Trivia and poll community totals now update the moment you answer and stay live while the results are open.';
+    const latest = 'Latest: The Invite button now stays on the home screen as a small pill, so you can always invite a friend.';
+    const favorLive = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
     const topics = 'On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
     assert.ok(notes.includes(topics));
     assert.ok(!notes.includes('Latest: On a computer'));
@@ -803,6 +808,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const xpBar = 'The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.';
     assert.ok(notes.includes(xpBar));
     assert.ok(!notes.includes('Latest: The daily XP bar'));
+    const trivia = 'Trivia and poll community totals now update the moment you answer and stay live while the results are open.';
+    assert.ok(notes.includes(trivia));
+    assert.ok(!notes.includes('Latest: Trivia'));
     const usernames = 'Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.';
     assert.ok(notes.includes(usernames));
     assert.ok(!notes.includes('Latest: Usernames'));
@@ -822,14 +830,19 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
-    assert.ok(notes.includes('The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.'));
-    assert.ok(!notes.includes('Latest: The home page is simpler'));
-    assert.ok(notes.includes(favor));
-    assert.ok(!notes.includes('Latest: Satoshi'));
+    assert.ok(notes.includes(favorLive));
+    assert.ok(!notes.includes('Latest: ' + favorLive));
+    const moreTools = 'A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.';
+    assert.ok(notes.includes(moreTools));
+    assert.ok(!notes.includes('Latest: ' + moreTools));
+    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
+    assert.ok(!notes.includes('Latest: On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
     assert.ok(notes.includes(deleted));
-    assert.ok(!notes.includes('Latest: You can delete'));
-    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
-    assert.ok(!notes.includes("Latest: Satoshi"));
+    assert.ok(!notes.includes('Latest: You can delete your account'));
+    assert.ok(notes.includes(favor));
+    assert.ok(!notes.includes('Latest: Satoshi\'s Favor'));
+    assert.ok(notes.includes(anchors));
+    assert.ok(!notes.includes('Latest: Topic conversation links'));
     assert.ok(notes.includes(share));
     assert.ok(notes.includes(anchors));
     assert.ok(!notes.includes('Latest: Topic conversation'));
