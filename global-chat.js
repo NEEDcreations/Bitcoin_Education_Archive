@@ -1753,7 +1753,15 @@ window.toggleChatOverlay = function() {
         window.bqModal.open(panel, { onClose: function() {
             if (window._chatOverlayOpen && typeof window.toggleChatOverlay === 'function') window.toggleChatOverlay();
         } });
-    } else if (!_overlayOpen && window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(panel);
+    } else if (!_overlayOpen && window.bqModal && typeof window.bqModal.release === 'function') {
+        window.bqModal.release(panel);
+    }
+    if (!_overlayOpen) {
+        // bqModal.open writes z-index with !important. Assigning style.zIndex
+        // does not clear that priority, so drop it before restoring 250000.
+        if (panel.style && panel.style.removeProperty) panel.style.removeProperty('z-index');
+        panel.style.zIndex = '250000';
+    }
     if (typeof window.syncFabHold === 'function') window.syncFabHold();
     // Shift leaderboard button up when chat is open so it doesn't cover input buttons
     var _lbFab = document.getElementById('lbFloatBtn');
@@ -2030,6 +2038,9 @@ window.renderChatHub = function(tab) {
         if (panel) {
             panel.classList.remove('chat-panel-open');
             panel.style.transform = 'translateY(100%)';
+            if (window.bqModal && typeof window.bqModal.release === 'function') window.bqModal.release(panel);
+            if (panel.style && panel.style.removeProperty) panel.style.removeProperty('z-index');
+            panel.style.zIndex = '250000';
         }
         if (typeof window.syncFabHold === 'function') window.syncFabHold();
         if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }

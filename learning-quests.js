@@ -1062,7 +1062,7 @@ window._lqLaunchFlashcards = function(topicName) {
             window.startFlashcards(topicName);
         } else {
             var s = document.createElement('script');
-            s.src = 'scholar.js?v=20261026_v2404';
+            s.src = window.SCHOLAR_SCRIPT || 'scholar.js';
             s.onload = function() { if (typeof window.startFlashcards === 'function') window.startFlashcards(topicName); };
             document.head.appendChild(s);
         }
