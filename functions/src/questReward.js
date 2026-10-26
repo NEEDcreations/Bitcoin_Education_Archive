@@ -197,22 +197,80 @@ function choiceCorrect(question, ans) {
     return false;
 }
 
+function triviaSlots(question) {
+    if (!question || !Array.isArray(question.options)) return [];
+    const limit = Math.min(question.options.length, 4);
+    const slots = [];
+    for (let i = 0; i < limit; i++) {
+        const text = String(question.options[i] || '').trim();
+        slots.push({ text: text, id: optionId(text) });
+    }
+    return slots;
+}
+
+function slotByText(slots, text) {
+    if (!text) return -1;
+    for (let i = 0; i < slots.length; i++) {
+        if (slots[i].text === text) return i;
+    }
+    return -1;
+}
+
+function slotById(slots, id) {
+    if (!id) return -1;
+    for (let i = 0; i < slots.length; i++) {
+        if (slots[i].id === id) return i;
+    }
+    return -1;
+}
+
+// One bank slot for grading and for the tally. A valid optionId wins.
+// Otherwise the matched answer text is used. A numeric index is never
+// trusted. When text and optionId both resolve and disagree, the choice
+// is unmatched so it is neither graded nor counted.
+function triviaOptionIndex(question, chosen) {
+    if (!question || chosen == null || typeof chosen === 'number') return -1;
+    const slots = triviaSlots(question);
+    if (!slots.length) return -1;
+    if (typeof chosen === 'string') {
+        const raw = chosen.trim();
+        if (!raw) return -1;
+        const byText = slotByText(slots, raw);
+        const byId = slotById(slots, raw);
+        if (byText >= 0 && byId >= 0 && byText !== byId) return -1;
+        if (byId >= 0 && byText < 0) return byId;
+        return byText;
+    }
+    if (typeof chosen !== 'object' || Array.isArray(chosen)) return -1;
+    const text = String(chosen.text || chosen.chosen || chosen.chosenText || '').trim();
+    const id = typeof chosen.optionId === 'string' ? chosen.optionId.trim() : '';
+    const byText = slotByText(slots, text);
+    const byId = slotById(slots, id);
+    if (text && id && byText >= 0 && byId >= 0 && byText !== byId) return -1;
+    if (id && byId >= 0) return byId;
+    return byText;
+}
+
 function triviaChoiceCorrect(question, chosen) {
     if (!question || chosen == null || typeof chosen === 'number') return false;
-    const correctText = String(question.options[question.answer] || '').trim();
-    const correctOpt = optionId(correctText);
-    if (typeof chosen === 'string') {
-        const text = chosen.trim();
-        return text === correctText || text === correctOpt;
+    const slot = triviaOptionIndex(question, chosen);
+    if (slot < 0) return false;
+    return slot === Number(question.answer);
+}
+
+// Top-level optionId and chosen.optionId are the same field. Two different
+// ids are a mismatch. A bare string plus an optionId is one choice.
+function triviaChoiceFrom(src) {
+    const chosen = src ? src.chosen : undefined;
+    const extra = src && typeof src.optionId === 'string' ? src.optionId.trim() : '';
+    if (chosen && typeof chosen === 'object' && !Array.isArray(chosen)) {
+        const own = typeof chosen.optionId === 'string' ? chosen.optionId.trim() : '';
+        if (extra && own && extra !== own) return null;
+        if (extra && !own) return Object.assign({}, chosen, { optionId: extra });
+        return chosen;
     }
-    if (typeof chosen === 'object') {
-        const text = String(chosen.text || chosen.chosen || chosen.chosenText || '').trim();
-        const id = String(chosen.optionId || '').trim();
-        if (text && text === correctText) return true;
-        if (id && id === correctOpt) return true;
-        return false;
-    }
-    return false;
+    if (extra) return { text: typeof chosen === 'string' ? chosen : '', optionId: extra };
+    return chosen;
 }
 
 function clientQuestionText(src) {
@@ -263,17 +321,19 @@ function gradeTrivia(input) {
     const today = offsetDateKey(now);
     const dayKey = String(src.dayKey || '');
     if (dayKey !== today) {
-        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'wrong-day' };
+        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'wrong-day', optionIndex: -1 };
     }
-    const selected = selectTriviaQuestion(src, now);
+    const choice = triviaChoiceFrom(src);
+    const selected = selectTriviaQuestion(Object.assign({}, src, { chosen: choice }), now);
     if (!selected.ok) {
-        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: selected.reason, questionIndex: selected.questionIndex };
+        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: selected.reason, questionIndex: selected.questionIndex, optionIndex: -1 };
     }
     const question = selected.question;
     const expected = selected.questionIndex;
-    const correct = triviaChoiceCorrect(question, src.chosen);
+    const optionIndex = choice == null ? -1 : triviaOptionIndex(question, choice);
+    const correct = optionIndex >= 0 && triviaChoiceCorrect(question, choice);
     if (src.banned === true) {
-        return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected };
+        return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected, optionIndex: optionIndex };
     }
     const pts = correct ? TRIVIA_CORRECT_XP : 0;
     const split = planDailyXp(src.dailyUsed || 0, pts);
@@ -286,6 +346,7 @@ function gradeTrivia(input) {
         pts: pts,
         reason: correct ? '' : 'incorrect',
         questionIndex: expected,
+        optionIndex: optionIndex,
     };
 }
 

@@ -55,6 +55,16 @@ function deviceMaterial(raw) {
     return id ? ('device:' + id) : '';
 }
 
+// Network identity for a referral visit. IPv6 uses networkKeys rangeId,
+// the /64, so a second device on the same prefix is the same network.
+// IPv4 uses networkKeys exactId, the address the faucet already keys.
+function networkMaterial(ip) {
+    const keys = faucetGuard.networkKeys(ip);
+    if (!keys) return '';
+    if (keys.version === 6) return String(keys.rangeId || '');
+    return String(keys.exactId || '');
+}
+
 function ipMaterials(value) {
     const raw = Array.isArray(value) ? value : String(value || '').split(/[,\s]+/);
     const hmacs = [];
@@ -63,11 +73,11 @@ function ipMaterials(value) {
         const text = String(item || '').trim();
         if (!text) return;
         if (/^[a-f0-9]{64}$/i.test(text)) hmacs.push(text.toLowerCase());
-        else if (faucetGuard.networkKeys(text)) pending.push(text);
+        else if (networkMaterial(text)) pending.push(networkMaterial(text));
     });
-    pending.forEach(function (ip) {
-        const mac = hmacOrEmpty(ip);
-        if (mac) hmacs.push(mac);
+    pending.forEach(function (material) {
+        const mac = hmacOrEmpty(material);
+        if (mac && hmacs.indexOf(mac) === -1) hmacs.push(mac);
     });
     return hmacs;
 }
@@ -80,13 +90,14 @@ function handleLogReferralVisit(deps, data, context) {
     const deviceId = faucetGuard.fingerprintDocId(data && data.fingerprint);
     if (!deviceId) throw httpsError(HttpsError, 'invalid-argument', 'Device check failed');
     const rawIp = faucetGuard.clientIpFromRequest(context && context.rawRequest);
-    if (!rawIp || rawIp.toLowerCase() === 'unknown' || !faucetGuard.networkKeys(rawIp)) {
+    const visitNet = networkMaterial(rawIp);
+    if (!rawIp || rawIp.toLowerCase() === 'unknown' || !visitNet) {
         throw httpsError(HttpsError, 'failed-precondition', 'Could not verify this visit');
     }
     let visitIpHmac = '';
     let visitDeviceHmac = '';
     try {
-        visitIpHmac = hmacOrEmpty(rawIp);
+        visitIpHmac = hmacOrEmpty(visitNet);
         visitDeviceHmac = hmacOrEmpty(deviceMaterial(deviceId));
     } catch (err) {
         throw httpsError(HttpsError, 'failed-precondition', 'Visits cannot be recorded right now');
@@ -201,5 +212,6 @@ module.exports = {
     bindLogReferralVisit: bindLogReferralVisit,
     handleLogReferralVisit: handleLogReferralVisit,
     deviceMaterial: deviceMaterial,
+    networkMaterial: networkMaterial,
     ipMaterials: ipMaterials,
 };

@@ -6,10 +6,11 @@
 // can influence are ignored.
 //
 // Stamps live on users/{uid}.claimReq and are written only by Cloud
-// Functions. chatAt: a global chat message the server filter accepted.
-// tctvAt: the watch meter has recorded at least 30 seconds. referralAt:
-// the referral link was opened from a different device and a different
-// IP than the ones already known for that player.
+// Functions. chatAt plus chatMsgId: a global chat message the server
+// filter accepted. Claim time re-reads that message. tctvAt: the watch
+// meter has recorded at least 30 seconds. referralAt: the referral link
+// was opened from a different device and a different network than the
+// ones already known for that player. IPv6 networks are the /64.
 
 const { classifyChatText } = require('./chatProfanity');
 const {
@@ -28,6 +29,7 @@ const VISIT_HOUR_MS = 60 * 60 * 1000;
 const VISIT_IP_MAX = 20;
 const VISIT_CODE_MAX = 40;
 const KNOWN_CAP = 20;
+const CHAT_MSG_CAP = 5;
 
 const ITEM_LABEL = {
     chat: 'send 1 chat message',
@@ -81,24 +83,6 @@ function missingItems(user, createdMs) {
     return missing;
 }
 
-const VPN_OFF_ERROR = 'Turn off your VPN and try again.';
-
-// claimSats uses this when the connection check rejects a VPN, proxy,
-// datacenter, or Tor exit. Other hold reasons keep their own message.
-function blockedConnectionError(reason) {
-    const key = String(reason || '');
-    if (key === 'vpn' || key === 'proxy' || key === 'datacenter' || key === 'tor') return VPN_OFF_ERROR;
-    return '';
-}
-
-function connectionClaimResult(gate) {
-    if (!gate || (gate.action !== 'deny' && gate.action !== 'hold')) return null;
-    const friendly = blockedConnectionError(gate.reason);
-    if (friendly) return { success: false, error: friendly, code: String(gate.reason) };
-    if (gate.message) return { success: false, error: String(gate.message), code: String(gate.reason || '') };
-    return null;
-}
-
 function missingError(missing) {
     const labels = [];
     (missing || []).forEach(function (key) {
@@ -123,7 +107,12 @@ function isBotUid(uid) {
 function chatQualifies(msg) {
     if (!msg || typeof msg !== 'object') return false;
     if (msg.deleted === true || msg.removed === true || msg.status === 'deleted') return false;
+    if (msg.status === 'hidden' || msg.status === 'moderated' || msg.status === 'removed') return false;
     if (msg.deletedAt != null && msg.deletedAt !== '') return false;
+    if (msg.hidden === true || msg.moderated === true || msg.flagged === true || msg.spam === true) return false;
+    if (msg.moderationRejected === true || msg.filterRejected === true || msg.rejected === true) return false;
+    if (msg.shadowbanned === true || msg.shadowBan === true || msg.isShadowbanned === true || msg.shadowBanned === true) return false;
+    if (msg.uid === 'deleted') return false;
     if (msg.isNachoAuto === true || msg.isSystemPost === true || msg.source === 'telegram') return false;
     if (isBotUid(msg.uid)) return false;
     const text = withoutRemovedLinks(extractSayHiText(msg));
@@ -134,6 +123,48 @@ function chatQualifies(msg) {
     if (EMAIL_RE.test(text) || PHONE_RE.test(text)) return false;
     if (meaningfulLength(text) < MIN_CHAT_CHARS) return false;
     return true;
+}
+
+function normalizeChatMsgId(id) {
+    const text = String(id || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(text)) return '';
+    return text;
+}
+
+function chatMsgIdsOf(req) {
+    const src = req && typeof req === 'object' ? req : {};
+    const ids = [];
+    function push(id) {
+        const clean = normalizeChatMsgId(id);
+        if (!clean || ids.indexOf(clean) !== -1) return;
+        ids.push(clean);
+    }
+    if (Array.isArray(src.chatMsgIds)) src.chatMsgIds.forEach(push);
+    push(src.chatMsgId);
+    if (ids.length > CHAT_MSG_CAP) return ids.slice(ids.length - CHAT_MSG_CAP);
+    return ids;
+}
+
+function nextChatMsgIds(req, msgId) {
+    const clean = normalizeChatMsgId(msgId);
+    const ids = chatMsgIdsOf(req).filter(function (id) { return id !== clean; });
+    if (clean) ids.push(clean);
+    if (ids.length > CHAT_MSG_CAP) return ids.slice(ids.length - CHAT_MSG_CAP);
+    return ids;
+}
+
+// A stored id counts only when that global_chat doc is still there and the
+// same filter still accepts it. A deleted, hidden, or moderated message does
+// not. A stamp with no surviving id does not.
+function chatRequirementMet(user, rows) {
+    const ids = chatMsgIdsOf(claimReqOf(user));
+    if (!ids.length) return false;
+    const list = Array.isArray(rows) ? rows : [];
+    return ids.some(function (id) {
+        const row = list.filter(function (item) { return item && item.id === id; })[0];
+        if (!row || row.exists !== true) return false;
+        return chatQualifies(row.data);
+    });
 }
 
 function tctvQualifies(seconds) {
@@ -235,15 +266,17 @@ module.exports = {
     VISIT_IP_MAX: VISIT_IP_MAX,
     VISIT_CODE_MAX: VISIT_CODE_MAX,
     KNOWN_CAP: KNOWN_CAP,
+    CHAT_MSG_CAP: CHAT_MSG_CAP,
     ITEM_LABEL: ITEM_LABEL,
     stampMillis: stampMillis,
     isExempt: isExempt,
     missingItems: missingItems,
-    VPN_OFF_ERROR: VPN_OFF_ERROR,
-    blockedConnectionError: blockedConnectionError,
-    connectionClaimResult: connectionClaimResult,
     missingError: missingError,
     chatQualifies: chatQualifies,
+    normalizeChatMsgId: normalizeChatMsgId,
+    chatMsgIdsOf: chatMsgIdsOf,
+    nextChatMsgIds: nextChatMsgIds,
+    chatRequirementMet: chatRequirementMet,
     tctvQualifies: tctvQualifies,
     normalizeHmacList: normalizeHmacList,
     nextKnownHmacs: nextKnownHmacs,

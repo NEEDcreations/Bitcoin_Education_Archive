@@ -1480,6 +1480,23 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
     return { ok: true, skipped: 'server_mirror' };
 });
 
+// A chat stamp counts only when one of the stored global_chat ids still
+// exists and still passes the server filter. reader is doc.get or t.get.
+async function claimChatStillLive(userData, reader) {
+    const ids = claimReqs.chatMsgIdsOf(userData && userData.claimReq);
+    if (!ids.length) return false;
+    const rows = [];
+    for (let ci = 0; ci < ids.length; ci++) {
+        const msgSnap = await reader(db.collection('global_chat').doc(ids[ci]));
+        rows.push({
+            id: ids[ci],
+            exists: !!(msgSnap && msgSnap.exists),
+            data: msgSnap && msgSnap.exists ? msgSnap.data() : null,
+        });
+    }
+    return claimReqs.chatRequirementMet(userData, rows);
+}
+
 // ===== SATS FAUCET - claimSats Cloud Function =====
 // Lookup retries can run about two minutes, so the timeout sits above that.
 exports.claimSats = functionsV1.runWith({
@@ -1564,10 +1581,12 @@ exports.claimSats = functionsV1.runWith({
             return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
         }
         const authCreatedMs = creationDate.getTime();
-        const earlyMissing = claimReqs.missingItems(
-            userPreSnap.exists ? userPreSnap.data() : {},
-            authCreatedMs
-        );
+        const earlyUser = userPreSnap.exists ? userPreSnap.data() : {};
+        const earlyMissing = claimReqs.missingItems(earlyUser, authCreatedMs);
+        if (!claimReqs.isExempt(authCreatedMs) && earlyMissing.indexOf('chat') === -1) {
+            const chatLive = await claimChatStillLive(earlyUser, function (ref) { return ref.get(); });
+            if (!chatLive) earlyMissing.push('chat');
+        }
         if (earlyMissing.length) {
             return { success: false, error: claimReqs.missingError(earlyMissing) };
         }
@@ -1661,12 +1680,14 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
     }
 
-    let connectionGate = null;
+    // VPN, proxy, and datacenter blocking is assessReward in
+    // functions/src/ipReputation.js. One call so that merge stays here.
+    let rewardGate = null;
     try {
         const ipReputation = require('./src/ipReputation');
         if (ipReputation && typeof ipReputation.assessReward === 'function') {
             const rewardHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
-            connectionGate = await ipReputation.assessReward({
+            rewardGate = await ipReputation.assessReward({
                 db: db,
                 ip: clientIP,
                 uid: uid,
@@ -1676,11 +1697,12 @@ exports.claimSats = functionsV1.runWith({
                 purpose: 'faucet',
             });
         }
-    } catch (connectionErr) {
-        if (!connectionErr || connectionErr.code !== 'MODULE_NOT_FOUND') throw connectionErr;
+    } catch (rewardErr) {
+        if (!rewardErr || rewardErr.code !== 'MODULE_NOT_FOUND') throw rewardErr;
     }
-    const connectionClaim = claimReqs.connectionClaimResult(connectionGate);
-    if (connectionClaim) return connectionClaim;
+    if (rewardGate && (rewardGate.action === 'deny' || rewardGate.action === 'hold')) {
+        return { success: false, error: rewardGate.message, code: rewardGate.reason };
+    }
 
     const fingerprint = (data.fingerprint || '').trim();
     const fpId = faucetGuard.fingerprintDocId(fingerprint);
@@ -1728,7 +1750,12 @@ exports.claimSats = functionsV1.runWith({
             if (!userDoc.exists) deny('User profile not found.');
             const user = userDoc.data();
             const ledger = ledgerDoc.exists ? ledgerDoc.data() : {};
-            const claimMissing = claimReqs.missingItems(user, new Date(userRecord.metadata.creationTime).getTime());
+            const claimCreatedMs = new Date(userRecord.metadata.creationTime).getTime();
+            const claimMissing = claimReqs.missingItems(user, claimCreatedMs);
+            if (!claimReqs.isExempt(claimCreatedMs) && claimMissing.indexOf('chat') === -1) {
+                const chatLive = await claimChatStillLive(user, function (ref) { return t.get(ref); });
+                if (!chatLive) claimMissing.push('chat');
+            }
             if (claimMissing.length) deny(claimReqs.missingError(claimMissing));
             displayName = faucetGuard.publicDisplayName(user);
 
@@ -4715,17 +4742,22 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         if (data.uid && String(data.text || '').trim()) {
             await grantServerTickets(data.uid, 'daily_chat_ticket');
         }
-        if (claimReqs.chatQualifies(data)) {
+        if (claimReqs.chatQualifies(data) && claimReqs.normalizeChatMsgId(_context.params.msgId)) {
             try {
+                const chatMsgId = claimReqs.normalizeChatMsgId(_context.params.msgId);
                 const chatUserRef = db.collection('users').doc(String(data.uid));
                 await db.runTransaction(async function (t) {
                     const chatUser = await t.get(chatUserRef);
                     if (!chatUser.exists) return;
                     const req = chatUser.data().claimReq || {};
-                    if (claimReqs.stampMillis(req.chatAt)) return;
-                    t.update(chatUserRef, {
-                        'claimReq.chatAt': admin.firestore.FieldValue.serverTimestamp(),
-                    });
+                    const patch = {
+                        'claimReq.chatMsgId': chatMsgId,
+                        'claimReq.chatMsgIds': claimReqs.nextChatMsgIds(req, chatMsgId),
+                    };
+                    if (!claimReqs.stampMillis(req.chatAt)) {
+                        patch['claimReq.chatAt'] = admin.firestore.FieldValue.serverTimestamp();
+                    }
+                    t.update(chatUserRef, patch);
                 });
             } catch (claimErr) {
                 console.warn('[onChatMessageCreated] claimReq', claimErr && claimErr.message);

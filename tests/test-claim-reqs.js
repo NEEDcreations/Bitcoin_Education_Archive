@@ -98,6 +98,29 @@ test('chat counts only a short real message the filter would keep', () => {
     assert.strictEqual(claimReqs.chatQualifies({ uid: 'abc', text: 'aaaaaaa' }), false);
     assert.strictEqual(claimReqs.chatQualifies({ uid: 'abc', text: 'mail me at pleb@example.com' }), false);
     assert.strictEqual(claimReqs.chatQualifies({ uid: 'abc', text: 'double your bitcoin now' }), false);
+    assert.strictEqual(claimReqs.chatQualifies({ uid: 'abc', text: 'hey', hidden: true }), false);
+    assert.strictEqual(claimReqs.chatQualifies({ uid: 'abc', text: 'hey', moderated: true }), false);
+    assert.strictEqual(claimReqs.chatQualifies({ uid: 'abc', text: 'hey', status: 'hidden' }), false);
+});
+
+test('a deleted or hidden chat message does not satisfy the requirement', () => {
+    const kept = { uid: 'abc', text: 'hey' };
+    const stamped = { claimReq: { chatAt: START, chatMsgId: 'msgOne', chatMsgIds: ['msgOne'] } };
+    assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: false, data: null }]), false);
+    assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: { uid: 'abc', text: 'hey', deleted: true } }]), false);
+    assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: { uid: 'abc', text: 'hey', hidden: true } }]), false);
+    assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: { uid: 'abc', text: 'hey', moderated: true } }]), false);
+    assert.strictEqual(claimReqs.chatRequirementMet({ claimReq: { chatAt: START } }, []), false);
+    assert.strictEqual(claimReqs.chatRequirementMet(stamped, [{ id: 'msgOne', exists: true, data: kept }]), true);
+    const ids = claimReqs.nextChatMsgIds({ chatMsgIds: ['msgOne'] }, 'msgTwo');
+    assert.deepStrictEqual(ids, ['msgOne', 'msgTwo']);
+    const replaced = { claimReq: { chatAt: START, chatMsgId: 'msgTwo', chatMsgIds: ids } };
+    assert.strictEqual(claimReqs.chatRequirementMet(replaced, [
+        { id: 'msgOne', exists: false, data: null },
+        { id: 'msgTwo', exists: true, data: kept },
+    ]), true);
+    const capped = claimReqs.nextChatMsgIds({ chatMsgIds: ['a1', 'b2', 'c3', 'd4', 'e5'] }, 'f6');
+    assert.deepStrictEqual(capped, ['b2', 'c3', 'd4', 'e5', 'f6']);
 });
 
 test('Timechain TV counts at 30 recorded seconds', () => {
@@ -161,27 +184,73 @@ test('known IP material is hashed and raw addresses are not kept', () => {
     });
     assert.strictEqual(visitMod.deviceMaterial('abc_1234'), 'device:abc_1234');
     assert.strictEqual(visitMod.deviceMaterial('short'), '');
+    assert.strictEqual(visitMod.networkMaterial(raw), '203_0_113_10');
+    assert.notStrictEqual(visitMod.networkMaterial('203.0.113.10'), visitMod.networkMaterial('203.0.113.11'));
+});
+
+test('IPv6 visits on the same /64 are the same network', () => {
+    const home = '2001:db8:1:2::1';
+    const secondDevice = '2001:db8:1:2::abcd';
+    const other = '2001:db8:1:3::1';
+    assert.strictEqual(visitMod.networkMaterial(home), visitMod.networkMaterial(secondDevice));
+    assert.notStrictEqual(visitMod.networkMaterial(home), visitMod.networkMaterial(other));
+    assert.ok(visitMod.networkMaterial(home).indexOf('64') !== -1);
+    assert.strictEqual(visitMod.networkMaterial('::ffff:203.0.113.10'), visitMod.networkMaterial('203.0.113.10'));
+    const ownerNet = visitMod.ipMaterials([home])[0];
+    const sameNet = visitMod.ipMaterials([secondDevice])[0];
+    const otherNet = visitMod.ipMaterials([other])[0];
+    assert.strictEqual(ownerNet, sameNet);
+    assert.notStrictEqual(ownerNet, otherNet);
+    assert.ok(ownerNet.indexOf(home) === -1);
+    assert.ok(/^[a-f0-9]{64}$/.test(ownerNet));
+    const same = claimReqs.assessReferralVisit({
+        visitDeviceHmac: HEX.devB,
+        visitIpHmac: sameNet,
+        ownerDeviceHmacs: [HEX.devA],
+        ownerIpHmacs: [ownerNet],
+    });
+    assert.strictEqual(same.count, false);
+    assert.strictEqual(same.reason, 'same-ip');
+    const diff = claimReqs.assessReferralVisit({
+        visitDeviceHmac: HEX.devB,
+        visitIpHmac: otherNet,
+        ownerDeviceHmacs: [HEX.devA],
+        ownerIpHmacs: [ownerNet],
+    });
+    assert.strictEqual(diff.count, true);
+    assert.strictEqual(diff.reason, 'counted');
+    const visitSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'claimReqVisit.js'), 'utf8');
+    assert.ok(visitSrc.includes('keys.rangeId'));
+    assert.ok(visitSrc.includes('keys.exactId'));
+    assert.ok(visitSrc.includes('hmacOrEmpty(visitNet)'));
+    assert.ok(!visitSrc.includes('hmacOrEmpty(rawIp)'));
 });
 
 test('claimSats decides from Auth creation time and returns the missing list', () => {
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     const early = index.indexOf('const authCreatedMs = creationDate.getTime()');
     assert.ok(early !== -1);
-    const earlyBlock = index.slice(early, early + 500);
+    const earlyBlock = index.slice(early, early + 900);
     assert.ok(earlyBlock.includes('claimReqs.missingItems'));
     assert.ok(earlyBlock.includes('claimReqs.missingError'));
     assert.ok(earlyBlock.includes('success: false'));
     assert.ok(!earlyBlock.includes('user.created'));
     assert.ok(!earlyBlock.includes('.created'));
-    const tx = index.indexOf('const claimMissing = claimReqs.missingItems');
+    const tx = index.indexOf('const claimCreatedMs = new Date(userRecord.metadata.creationTime).getTime()');
     assert.ok(tx !== -1);
-    const txBlock = index.slice(tx, tx + 220);
-    assert.ok(txBlock.includes('userRecord.metadata.creationTime'));
+    const txBlock = index.slice(tx, tx + 520);
+    assert.ok(txBlock.includes('claimReqs.missingItems'));
+    assert.ok(txBlock.includes('claimChatStillLive'));
     assert.ok(txBlock.includes('deny(claimReqs.missingError'));
     const chat = index.indexOf("exports.onChatMessageCreated");
-    const chatBlock = index.slice(chat, chat + 1800);
+    const chatBlock = index.slice(chat, chat + 2200);
     assert.ok(chatBlock.includes('claimReqs.chatQualifies'));
     assert.ok(chatBlock.includes("'claimReq.chatAt'"));
+    assert.ok(chatBlock.includes("'claimReq.chatMsgId'"));
+    assert.ok(chatBlock.includes("'claimReq.chatMsgIds'"));
+    assert.ok(index.includes('claimChatStillLive'));
+    assert.ok(index.includes('claimReqs.chatRequirementMet'));
+    assert.strictEqual((index.match(/assessReward\s*\(/g) || []).length, 1);
     assert.ok(index.includes('exports.logReferralVisit'));
     assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 5);
 });
@@ -214,25 +283,17 @@ test('watch heartbeat and the visit callable stamp server-side only', () => {
     assert.ok(!fields.includes('claimReq'));
 });
 
-test('a VPN, proxy, or datacenter rejection tells the player to turn the VPN off', () => {
-    const text = 'Turn off your VPN and try again.';
-    assert.strictEqual(claimReqs.blockedConnectionError('vpn'), text);
-    assert.strictEqual(claimReqs.blockedConnectionError('proxy'), text);
-    assert.strictEqual(claimReqs.blockedConnectionError('datacenter'), text);
-    assert.strictEqual(claimReqs.blockedConnectionError('tor'), text);
-    assert.strictEqual(claimReqs.blockedConnectionError('network_hard'), '');
-    const denied = claimReqs.connectionClaimResult({ action: 'deny', reason: 'datacenter', message: 'Try home Wi-Fi.' });
-    assert.strictEqual(denied.error, text);
-    assert.strictEqual(denied.code, 'datacenter');
-    const held = claimReqs.connectionClaimResult({ action: 'hold', reason: 'proxy', message: 'long hold copy' });
-    assert.strictEqual(held.error, text);
-    assert.strictEqual(claimReqs.connectionClaimResult({ action: 'allow', reason: 'clean' }), null);
-    assert.strictEqual(claimReqs.connectionClaimResult({ action: 'hold', reason: 'device-fraud', message: 'This device is already linked to another account.' }).error, 'This device is already linked to another account.');
+test('claimSats has one assessReward call for the connection check', () => {
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
-    const at = index.indexOf('const connectionClaim = claimReqs.connectionClaimResult');
-    assert.ok(at !== -1);
-    assert.ok(index.indexOf("require('./src/ipReputation')") !== -1);
-    assert.ok(index.indexOf("connectionErr.code !== 'MODULE_NOT_FOUND'") !== -1);
+    assert.strictEqual((index.match(/assessReward\s*\(/g) || []).length, 1);
+    assert.ok(index.includes('functions/src/ipReputation.js'));
+    assert.ok(index.includes("require('./src/ipReputation')"));
+    assert.ok(index.includes("rewardErr.code !== 'MODULE_NOT_FOUND'"));
+    assert.ok(index.includes("rewardGate.action === 'deny' || rewardGate.action === 'hold'"));
+    assert.ok(index.includes('error: rewardGate.message'));
+    assert.ok(!index.includes('connectionClaimResult'));
+    assert.ok(!index.includes('blockedConnectionError'));
+    assert.ok(!fs.existsSync(path.join(root, 'functions', 'src', 'ipReputation.js')));
 });
 
 test('the Requirements card shows the three rows, Go, and Share', () => {
