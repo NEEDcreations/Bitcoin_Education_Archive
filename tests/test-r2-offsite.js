@@ -1117,6 +1117,70 @@ test('bq-backup gets legacyBucketReader and objectAdmin on the uploads backup bu
         }
     });
 
+    await testAsync('a manual r2 re-run after 05:00 keeps the cleanup alert', async function () {
+        const store = fakeDb();
+        const date = new Date().toISOString().slice(0, 10);
+        const finishedAt = date + 'T05:00:00.000Z';
+        await status.writeBackupResults(store.db, adminStub, verifiedEvents(date, finishedAt).concat([{
+            job: 'r2',
+            date: date,
+            ok: true,
+            startedAt: date + 'T04:00:00.000Z',
+            finishedAt: date + 'T04:20:00.000Z',
+            detail: 'copied 1 objects, 2 bytes; uploads cleanup skipped, streak 3',
+            objectCount: 1,
+            bytes: 2,
+        }]), finishedAt, { r2Required: true, cleanupAlert: true });
+        assert.strictEqual(store.docs['backup_status/latest'].ok, false);
+        assert.strictEqual(store.docs['backup_status/latest'].verifiedAt, finishedAt);
+        store.docs['backup_status/r2_cleanup'] = { skipStreak: 3, lastSkipDate: date };
+        const orig = console.error;
+        console.error = function () {};
+        try {
+            await r2.runNightlyR2Copy({
+                date: date,
+                copy: async function () {
+                    return {
+                        ok: true,
+                        cleanupSkipped: true,
+                        objectCount: 1,
+                        bytes: 2,
+                        detail: 'copied 1 objects, 2 bytes',
+                        date: date,
+                    };
+                },
+                readCleanup: async function () {
+                    return JSON.parse(JSON.stringify(store.docs['backup_status/r2_cleanup']));
+                },
+                writeCleanup: async function (state) {
+                    store.docs['backup_status/r2_cleanup'] = {
+                        skipStreak: state.skipStreak,
+                        lastSkipDate: state.lastSkipDate,
+                    };
+                },
+                write: function (event) {
+                    return status.writeBackupResult(store.db, adminStub, event);
+                },
+            });
+        } finally {
+            console.error = orig;
+        }
+        const latest = store.docs['backup_status/latest'];
+        assert.strictEqual(latest.ok, false);
+        assert.strictEqual(latest.detail, 'uploads cleanup skipped 3 nights in a row');
+        assert.strictEqual(latest.jobs.r2.ok, true);
+        assert.strictEqual(latest.verifiedAt, finishedAt);
+        assert.deepStrictEqual(Object.keys(latest).sort(), ['date', 'detail', 'jobs', 'ok', 'updatedAt', 'verifiedAt']);
+        assert.deepStrictEqual(store.docs['backup_status/r2_cleanup'], { skipStreak: 3, lastSkipDate: date });
+        historyRows(store.docs).forEach(function (row) {
+            assert.strictEqual(Object.prototype.hasOwnProperty.call(row, 'cleanupAlert'), false);
+        });
+        assert.deepStrictEqual(status.checkerVerdict(latest, date + 'T06:00:00.000Z'), {
+            ok: false,
+            detail: 'uploads cleanup skipped 3 nights in a row',
+        });
+    });
+
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
 })();

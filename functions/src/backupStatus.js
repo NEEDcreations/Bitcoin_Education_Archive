@@ -188,7 +188,8 @@ async function writeBackupResults(db, admin, events, nowIso, options) {
 }
 
 async function writeBackupResult(db, admin, event) {
-    const ids = await writeBackupResults(db, admin, [event]);
+    const options = event && event.cleanupAlert ? { cleanupAlert: true } : undefined;
+    const ids = await writeBackupResults(db, admin, [event], undefined, options);
     return ids[0];
 }
 

@@ -10,7 +10,9 @@
 // A failed run is recorded as job "r2" on backup_status/latest, which makes
 // latest.ok false. That is the existing failure alert. A skipped uploads
 // cleanup does not fail the copy. Its streak lives on backup_status/r2_cleanup
-// so the 02:00 rebuild of latest cannot clear it. No email or chat.
+// so the 02:00 rebuild of latest cannot clear it. A streak of 3 or more is
+// passed on the copy's own status write, so a manual re-run after 05:00
+// cannot clear that alert. No email or chat.
 
 const crypto = require('crypto');
 const health = require('./backupHealth');
@@ -649,6 +651,7 @@ async function runNightlyR2Copy(deps) {
         result = { ok: false, objectCount: 0, bytes: 0, detail: 'r2 copy failed', date: date };
     }
     if (!result) result = { ok: false, objectCount: 0, bytes: 0, detail: 'r2 copy failed', date: date };
+    let cleanupAlert = false;
     if (typeof result.cleanupSkipped === 'boolean') {
         const stored = nextSkipStreak(previous, result.date || date, result.cleanupSkipped);
         if (typeof deps.writeCleanup === 'function') {
@@ -668,6 +671,9 @@ async function runNightlyR2Copy(deps) {
                 console.error('[r2-backup] uploads cleanup skipped ' + stored.skipStreak + ' nights in a row');
             }
         }
+        // A later manual re-run keeps same-day verifiedAt. Without this flag
+        // that rewrite would turn latest.ok true and hide the 05:00 alert.
+        cleanupAlert = stored.skipStreak >= 3 && stored.lastSkipDate === (result.date || date);
     }
     const finishedAt = new Date().toISOString();
     await deps.write({
@@ -679,6 +685,7 @@ async function runNightlyR2Copy(deps) {
         detail: result.detail || (result.ok === true ? 'r2 copy finished' : 'r2 copy failed'),
         objectCount: Number.isFinite(result.objectCount) ? result.objectCount : 0,
         bytes: Number.isFinite(result.bytes) ? result.bytes : 0,
+        cleanupAlert: cleanupAlert,
     });
     if (result.ok !== true) throw new Error('r2 copy failed');
     return result;
