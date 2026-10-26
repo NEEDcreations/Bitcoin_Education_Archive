@@ -377,9 +377,18 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
+    assert.ok(notes.indexOf("Latest: Completing one of the 11 badge collections pays the full server bonus you have not already received, that bonus is not limited by the daily XP cap, it adds 10 Satoshi's Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.") > 0);
+    assert.ok(notes.indexOf("Latest: Nacho now announces") === -1);
+    assert.ok(notes.indexOf("Latest: The 32 badge collections") === -1);
+    assert.ok(notes.indexOf("Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") > 0);
+    assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
+    assert.ok(notes.indexOf("Latest: The home page is simpler") === -1);
     assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
-    assert.ok(notes.indexOf('Latest: Completing one of the 11 badge collections pays the full server bonus you have not already received, that bonus is not limited by the daily XP cap, it adds 10 Satoshi\'s Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.') > 0);
+    assert.ok(notes.indexOf("Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.") > 0);
+    assert.ok(notes.indexOf("Latest: Global chat messages") === -1);
+    assert.ok(notes.indexOf('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.') > 0);
+    assert.ok(notes.indexOf('Latest: Usernames') === -1);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 

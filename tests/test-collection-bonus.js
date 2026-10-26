@@ -741,15 +741,24 @@ queue.push(test('the award trigger skips unrelated badges and retries a pending 
     assert.strictEqual(await collectionBonus.awardAlreadySettled(pendingDb, 'u', col.bonusId, {}), true);
 
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
-    const block = index.slice(index.indexOf('exports.onBadgeAwardCreated'), index.indexOf('exports.onBadgeAwardCreated') + 1200);
+    assert.strictEqual((index.match(/exports\.onBadgeAwardCreated\s*=/g) || []).length, 1);
+    const block = index.slice(index.indexOf('exports.onBadgeAwardCreated'), index.indexOf('exports.onBadgeAwardCreated') + 1600);
     assert.ok(block.includes('exports.onBadgeAwardCreated'));
     assert.ok(block.includes("document: 'users/{uid}/badge_awards/{badgeId}'"));
-    assert.ok(block.includes('maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances'));
+    assert.ok(block.includes('retry: true'));
+    assert.ok(!block.includes('maxInstances'));
+    assert.ok(block.includes('queueBadgeGg(db, admin, uid, badgeId, data, Date.now())'));
     assert.ok(block.includes('collectionsTouching(badgeId)'));
-    assert.ok(block.includes('awardAlreadySettled(db, uid, badgeId, awardData)'));
+    assert.ok(block.includes('awardAlreadySettled(db, uid, badgeId, data)'));
     assert.ok(block.includes('maybeGrantForBadge(db, admin, uid, badgeId)'));
     const awardSrc = fs.readFileSync(path.join(root, 'functions/src/awardBadge.js'), 'utf8');
     assert.ok(awardSrc.includes('[collectionBonus] retry'));
+    assert.ok(awardSrc.includes('const result = await db.runTransaction'));
+    assert.ok(awardSrc.includes('nowMs: result.nowMs'));
+    assert.ok(awardSrc.includes('day: result.day'));
+    const clockAt = awardSrc.indexOf('const nowMs = Number(options.nowMs) || Date.now();');
+    const txAt = awardSrc.indexOf('const result = await db.runTransaction');
+    assert.ok(txAt > 0 && clockAt > txAt);
     const badges = fs.readFileSync(path.join(root, 'badges.js'), 'utf8');
     assert.ok(badges.includes('XP bonus (not limited by the daily cap)'));
     assert.ok(badges.includes('_collectionMemberLists'));
@@ -837,8 +846,32 @@ queue.push(test('a quiet collection award skips GGs and an expired window stamps
     const liveAward = live.docs['users/u/badge_awards/' + col.bonusId];
     assert.strictEqual(posted.chatPosted, true);
     assert.strictEqual(liveAward.favorPoint, true);
-    assert.strictEqual(Object.prototype.hasOwnProperty.call(liveAward, 'ggSkip'), false);
+    assert.strictEqual(liveAward.ggSkip, true);
     assert.strictEqual(chatDocs(live).length, 1);
+    const badgeGg = require('../functions/src/badgeGg');
+    assert.strictEqual(badgeGg.skipBadgeGg({ source: 'collection_bonus', ggSkip: true, favorPoint: true }), true);
+    assert.strictEqual(badgeGg.skipBadgeGg({ source: 'collection_bonus', favorPoint: true }), false);
+    const openBurst = memoryDb({
+        'users/u': { username: 'BuilderFan' },
+        'badge_gg_bursts/u': {
+            uid: 'u',
+            startedAtMs: now - 120000,
+            flushAfterMs: now - 60000,
+            posted: false,
+            items: [{ badgeId: 'say_hi_1', favorPoint: true }],
+        },
+    });
+    const skippedBurst = await badgeGg.queueBadgeGg(openBurst, admin, 'u', col.bonusId, liveAward, now);
+    assert.strictEqual(skippedBurst.reason, 'skip');
+    assert.strictEqual(openBurst.docs['badge_gg_bursts/u'].posted, false);
+    assert.strictEqual(Object.keys(openBurst.docs).some(function (key) { return key.indexOf('announcements/') === 0; }), false);
+    assert.strictEqual(openBurst.docs['badge_gg_claims/u__' + col.bonusId], undefined);
+    const wouldFlush = await badgeGg.queueBadgeGg(openBurst, admin, 'u', col.bonusId, {
+        source: 'collection_bonus',
+        favorPoint: true,
+    }, now);
+    assert.strictEqual(wouldFlush.queued, true);
+    assert.strictEqual(Object.keys(openBurst.docs).some(function (key) { return key.indexOf('announcements/badgegg_') === 0; }), true);
 
     const open = memoryDb(seedAwards(members, {
         'satoshiFavor/current': {

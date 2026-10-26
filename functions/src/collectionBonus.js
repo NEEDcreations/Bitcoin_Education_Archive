@@ -609,10 +609,12 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             source: 'collection_bonus',
             congratsPending: options.postChat === false ? false : true,
             favorPoint: favorCtx.favorPoint === true,
+            // This create re-enters onBadgeAwardCreated. ggSkip keeps the bonus
+            // out of the GGs burst, so it neither joins an open burst nor flushes
+            // one. Nacho posts the collection line in Global Chat when postChat is on.
+            // Backfill and any postChat:false grant also stay quiet in GGs.
+            ggSkip: true,
         };
-        // Backfill passes postChat false. GGs posts on every badge_awards create,
-        // so that path has to say it is not a chat announcement.
-        if (options.postChat === false) awardDoc.ggSkip = true;
         t.set(awardRef, awardDoc);
         t.update(userRef, update);
         return {

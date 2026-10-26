@@ -1023,13 +1023,7 @@ function showBadgeToast(badge) {
 
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-    // Announce major badge earns in GG chat
-    if (typeof window.nachoGlobalAnnounce === 'function') {
-        var _gcBadgeUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-        if (_gcBadgeUser) {
-            window.nachoGlobalAnnounce('🏅 @' + _gcBadgeUser + ' just earned the ' + badge.emoji + ' ' + badge.name + ' badge! 🎉');
-        }
-    }
+    // GGs posts for badge earns are written by the server, grouped per player.
 }
 
 function copyBadgeLink(emoji, name) {

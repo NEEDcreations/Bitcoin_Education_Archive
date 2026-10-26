@@ -416,6 +416,20 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2371'"));
+    assert.ok(!sw.includes('btc-archive-v2363'));
+    assert.ok(!sw.includes('btc-archive-v2373'));
+    assert.ok(!sw.includes('btc-archive-v2366'));
+    assert.ok(!sw.includes('btc-archive-v2365'));
+    assert.ok(!sw.includes('btc-archive-v2368'));
+    assert.ok(!sw.includes('btc-archive-v2370'));
+    assert.ok(!sw.includes('btc-archive-v2369'));
+    assert.ok(!sw.includes('btc-archive-v2366'));
+    assert.ok(!sw.includes('btc-archive-v2367'));
+    assert.ok(!sw.includes('btc-archive-v2365'));
+    assert.ok(!sw.includes('btc-archive-v2366'));
+    assert.ok(!sw.includes('btc-archive-v2363'));
+    assert.ok(!sw.includes('btc-archive-v2364'));
+    assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2362'));
     assert.ok(!sw.includes('btc-archive-v2361'));
     assert.ok(!sw.includes('btc-archive-v2360'));
@@ -780,6 +794,10 @@ test('playback with no server clock asks the server to start it and does not inv
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
     const latest = 'Latest: Completing one of the 11 badge collections pays the full server bonus you have not already received, that bonus is not limited by the daily XP cap, it adds 10 Satoshi\'s Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.';
+    const usernames = 'Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.';
+    assert.ok(notes.includes(usernames));
+    assert.ok(!notes.includes('Latest: Usernames'));
+    const favor = 'Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.';
     const deleted = 'You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.';
     const topicLinks = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const share = 'The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.';
@@ -794,10 +812,12 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
-    assert.ok(notes.includes('The 32 badge collections are now 11. Completing one pays the server bonus you have not already received from the old sets.'));
     assert.ok(!notes.includes('Latest: The 32 badge collections'));
-    assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
-    assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
+    assert.ok(!notes.includes('Latest: Nacho now announces'));
+    assert.ok(!notes.includes('Latest: The home page is simpler'));
+    assert.ok(!notes.includes('Latest: Global chat messages that tag'));
+    assert.ok(notes.includes(favor));
+    assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes(deleted));
     assert.ok(!notes.includes('Latest: You can delete your account'));
     assert.ok(notes.includes(topicLinks));

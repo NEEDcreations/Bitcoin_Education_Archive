@@ -1060,26 +1060,6 @@ exports.onArticleBadgeCount = onDocumentCreated({
     return null;
 });
 
-// Retries a collection bonus if awardBadge committed the last member and the
-// grant hook then failed. Existing award docs do not fire this, so a deploy
-// does not pay historical completions. The grant itself stays idempotent.
-// A badge that is not in any collection returns before any read. A collection
-// that is already recorded, with no congrats still pending, does too.
-exports.onBadgeAwardCreated = onDocumentCreated({
-    document: 'users/{uid}/badge_awards/{badgeId}',
-    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
-}, async (event) => {
-    const uid = event.params && event.params.uid;
-    const badgeId = event.params && event.params.badgeId;
-    if (!uid || !badgeId) return null;
-    const collectionBonus = require('./src/collectionBonus');
-    if (!collectionBonus.collectionsTouching(badgeId).length) return null;
-    const awardData = event.data && typeof event.data.data === 'function' ? (event.data.data() || {}) : {};
-    if (await collectionBonus.awardAlreadySettled(db, uid, badgeId, awardData)) return null;
-    await collectionBonus.maybeGrantForBadge(db, admin, uid, badgeId);
-    return null;
-});
-
 exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
     admin: admin,
     db: db,
@@ -1465,162 +1445,29 @@ exports.checkDailyLimit = functionsV1.https.onCall(async (data, context) => {
 // AUDIT FIX: Forum Content Moderation
 // Server-side profanity filter with leetspeak detection
 // =============================================
+const { moderateText } = require('./src/moderateText');
 exports.moderateContent = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const text = (data.text || '').trim();
-    if (!text) return { clean: true };
-
-    // Normalize leetspeak
-    const normalized = text.toLowerCase()
-        .replace(/[@4]/g, 'a')
-        .replace(/[8]/g, 'b')
-        .replace(/[3€]/g, 'e')
-        .replace(/[1!|]/g, 'i')
-        .replace(/[0]/g, 'o')
-        .replace(/[$5]/g, 's')
-        .replace(/[7+]/g, 't')
-        .replace(/[*._\-]/g, '')
-        .replace(/\s+/g, ' ');
-
-    const profanityList = [
-        'fuck', 'shit', 'bitch', 'asshole', 'damn', 'cunt',
-        'dick', 'cock', 'pussy', 'whore', 'slut', 'fag',
-        'nigger', 'nigga', 'retard', 'kill yourself', 'kys'
-    ];
-
-    // Word boundary matching to avoid Scunthorpe problem
-    for (const word of profanityList) {
-        const regex = new RegExp('\\b' + word + '\\b', 'i');
-        if (regex.test(normalized)) {
-            return { clean: false, reason: 'Content contains inappropriate language' };
-        }
-    }
-
-    // Check for scam patterns
-    const scamPatterns = [
-        /send me \d+ btc/i,
-        /double your bitcoin/i,
-        /guaranteed.*return/i,
-        /invest.*guaranteed/i,
-        /free bitcoin.*send/i,
-    ];
-
-    for (const pattern of scamPatterns) {
-        if (pattern.test(text)) {
-            return { clean: false, reason: 'Content contains potential scam patterns' };
-        }
-    }
-
+    const result = moderateText((data && data.text) || '');
+    if (!result.clean) return { clean: false, reason: result.reason };
     return { clean: true };
 });
 
 
 // =============================================
-// [C1] SECURE TELEGRAM BRIDGE
-// Bridge secret lives here, NOT in client code
+// TELEGRAM
+// Chat posts are mirrored by onGlobalChatTelegram / onAnnouncementsTelegram.
+// This callable stays so older clients do not post a second copy.
 // =============================================
 const {
-    postToTelegramBridge,
-    buildWebBridgePayload,
-    redactForLog,
-    WEB_BRIDGE_TIMEOUT_MS,
     mirrorShoutoutOnce,
 } = require('./src/telegramBridge');
 
+// Older clients still call this after they write chat. Posting here would
+// duplicate the onCreate mirror, so the callable acknowledges and does not send.
 exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing content');
-    }
-
-    // Server-side content filtering - prevents bypassing client-side filters via direct CF calls
-    if (data.text) {
-        const text = data.text.toLowerCase()
-            .replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e').replace(/4/g,'a')
-            .replace(/5/g,'s').replace(/7/g,'t').replace(/\$/g,'s').replace(/@/g,'a')
-            .replace(/!/g,'i').replace(/\*/g,'').replace(/_/g,'').replace(/-/g,'');
-        const BAD = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','faggot','retard',
-            'nazi','hitler','kkk','porn','hentai','rape','pedo','slut','whore','cum','dildo','tits','nude','naked',
-            'suicide','terrorist','jihad','genocide','lynch','blowjob','handjob','threesome','gangbang','bondage',
-            'deepthroat','masturbat','hooker','stripper','onlyfans','pornhub','xvideos','xnxx',
-            'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie',
-            'maga','trump','biden','democrat','republican','antifa','qanon','white power','sieg heil',
-            'kill yourself','kys','kill myself','self harm','death to','gas the'];
-        const words = text.split(/\s+/);
-        for (const bad of BAD) {
-            if (bad.includes(' ')) { if (text.includes(bad)) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter'); }
-            else { for (const w of words) { if (w === bad) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter'); } }
-            if (bad.length >= 4 && text.includes(bad)) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter');
-        }
-    }
-
-    // Rate limit: 1 bridge call per 3 seconds per user
-    const uid = context.auth.uid;
-        // Rate limit bridge: 3 seconds between calls (atomic transaction)
-    const rateLimitRef = db.collection('rate_limits').doc('bridge_' + uid);
-    await db.runTransaction(async (tx) => {
-        const rateLimitDoc = await tx.get(rateLimitRef);
-        if (rateLimitDoc.exists) {
-            const lastCall = rateLimitDoc.data().lastCall;
-            if (lastCall && Date.now() - (lastCall.toDate ? lastCall.toDate() : new Date(lastCall)).getTime() < 3000) {
-                throw new functionsV1.https.HttpsError('resource-exhausted', 'Too fast - wait 3 seconds');
-            }
-        }
-        tx.set(rateLimitRef, { lastCall: admin.firestore.FieldValue.serverTimestamp() });
-    });
-
-    // Secret lives ONLY in server-side environment variables (.env)
-    const BRIDGE_SECRET = process.env.BRIDGE_SECRET;
-
-    if (!BRIDGE_SECRET) {
-        console.error('[BRIDGE] No bridge secret configured - run: firebase functions:config:set bridge.secret="YOUR_SECRET"');
-        return { ok: false, error: 'Bridge not configured' };
-    }
-
-    try {
-        // Look up the caller's actual username from Firestore (don't trust client-supplied name)
-        let verifiedUsername = 'Anon';
-        try {
-            const userDoc = await db.collection('users').doc(uid).get();
-            if (userDoc.exists && userDoc.data().username) {
-                verifiedUsername = userDoc.data().username.substring(0, 50);
-            }
-        } catch(e) {}
-
-        // The client-supplied name is ignored. The worker renders payload.user as "[🌐 name]".
-        const payload = buildWebBridgePayload(verifiedUsername, uid, data);
-        const json = await postToTelegramBridge(payload, {
-            secret: BRIDGE_SECRET,
-            timeoutMs: WEB_BRIDGE_TIMEOUT_MS,
-        });
-
-        // Store telegramMsgId if returned by bridge worker
-        if (json.telegramMsgId && json.chatId) {
-            try {
-                // The caller should pass the Firestore message ID as data.messageId
-                if (data.messageId) {
-                    const msgRef = db.collection('global_chat').doc(data.messageId);
-                    const msgDoc = await msgRef.get();
-                    if (!msgDoc.exists || msgDoc.data().uid !== uid) {
-                        console.warn('[BRIDGE] telegramMsgId stamp rejected: caller does not own message', data.messageId);
-                    } else {
-                        await msgRef.update({
-                            telegramMsgId: json.telegramMsgId.toString(),
-                            telegramChatId: json.chatId.toString()
-                        });
-                    }
-                }
-            } catch (e) {
-                console.log('[BRIDGE] Could not store telegramMsgId:', e.message);
-            }
-        }
-
-        return { ok: json.ok || false, telegramMsgId: json.telegramMsgId };
-    } catch(e) {
-        console.error('[BRIDGE] Error:', redactForLog(e && e.message, BRIDGE_SECRET));
-        return { ok: false };
-    }
+    return { ok: true, skipped: 'server_mirror' };
 });
 
 // ===== SATS FAUCET - claimSats Cloud Function =====
@@ -5015,7 +4862,7 @@ exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
 // PII (email, known_ips, fingerprint, lightningAddress, nostr, etc.) is never copied.
 // ============================================================
 const PUBLIC_PROFILE_FIELDS = [
-    'username', 'username_lower', 'displayName', 'profilePic', 'faction',
+    'username', 'username_lower', 'usernameMigratedFrom', 'displayName', 'profilePic', 'faction',
     'country', 'bio', 'twitter', 'website',
     'points', 'weeklyXP', 'monthlyXP', 'level',
     'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
@@ -6282,7 +6129,7 @@ exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals, resetExpiredFavor } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
@@ -6293,61 +6140,13 @@ exports.getFactionTotals = getFactionTotals;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
 exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {
-    const stateRef = db.collection('satoshiFavor').doc('current');
-    const stateDoc = await stateRef.get();
-    if (!stateDoc.exists) return;
-
-    const stateData = stateDoc.data();
-    if (!stateData.favorActive) return;
-
-    const now = Date.now();
-    const favorEndBase = stateData.favorEndBase ? stateData.favorEndBase.toMillis() : 0;
-    const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
-    const effectiveEnd = favorEndBase + bonusMs;
-
-    if (now > effectiveEnd) {
-        // Archive window stats BEFORE resetting
-        try {
-            const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
-            const DIFFICULTY_TARGET = 10000; // keep in sync with satoshiFavor.js
-            await lastWindowRef.set({
-                cycleId: stateData.currentCycleId || null,
-                startedAt: stateData.favorStart || null,
-                endedAt: admin.firestore.Timestamp.fromMillis(effectiveEnd),
-                durationMinutes: (function() {
-                    if (!stateData.favorStart) return 0;
-                    const durMs = effectiveEnd - stateData.favorStart.toMillis();
-                    return durMs > 0 ? Math.round(durMs / 60000) : 0;
-                })(),
-                totalHashes: stateData.totalHashes || 0,
-                lowestHash: stateData.lowestHashThisWindow || null,
-                difficultyTarget: DIFFICULTY_TARGET,
-                winner: stateData.lowestHashThisWindowUid ? {
-                    uid: stateData.lowestHashThisWindowUid,
-                    username: stateData.lowestHashThisWindowUsername || null,
-                } : null,
-                archivedAt: admin.firestore.Timestamp.now(),
-                archivedBy: 'cron',
-            }, { merge: false });
-            console.log('[SF-CRON] Archived lastWindow — hashes:', stateData.totalHashes || 0, 'lowest:', stateData.lowestHashThisWindow || 'none');
-        } catch (e) {
-            console.warn('[SF-CRON] Failed to archive lastWindow:', e.message);
+    try {
+        const result = await resetExpiredFavor();
+        if (result && result.reset) {
+            console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
         }
-        // Reset state
-        await stateRef.set({
-            points: 0,
-            favorActive: false,
-            favorStart: null,
-            favorEndBase: null,
-            bonusMinutes: 0,
-            totalHashes: 0,
-            lowestHashThisWindow: null,
-            lowestHashThisWindowUid: null,
-            lowestHashThisWindowUsername: null,
-            lastReset: admin.firestore.Timestamp.now(),
-            currentCycleId: stateData.currentCycleId || null,
-        });
-        console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
+    } catch (e) {
+        console.warn('[SF-CRON] reset failed:', e.message);
     }
 });
 
@@ -8018,6 +7817,112 @@ exports.refreshHotTopicsForce = functionsV1.runWith({
 // ── Satoshi's Favor → X auto-post ────────────────────────────────────────────
 const { tweetSatoshisFavor } = require('./src/tweetSatoshisFavor');
 exports.tweetSatoshisFavor = tweetSatoshisFavor;
+
+const { handleFavorLiveWrite } = require('./src/favorLiveAnnounce');
+exports.onSatoshiFavorLive = onDocumentWritten({ document: 'satoshiFavor/current', retry: true }, async (event) => {
+    const beforeSnap = event.data && event.data.before;
+    const afterSnap = event.data && event.data.after;
+    const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
+    const after = afterSnap && afterSnap.exists ? afterSnap.data() : null;
+    try {
+        await handleFavorLiveWrite(db, admin, before, after);
+    } catch (e) {
+        console.error('[SF LIVE] announce failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+    return null;
+});
+
+const { queueBadgeGg, flushDueBursts } = require('./src/badgeGg');
+// One create handler. GGs claims the award first, then a collection that this
+// badge finishes can grant. Existing award docs do not fire this, so a deploy
+// does not pay historical completions. A badge outside every collection returns
+// before the collection read. A settled collection, with no congrats pending,
+// does too. Either failure throws so the platform retries; the GGs claim doc
+// keeps a retry from posting the same badge twice.
+exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_awards/{badgeId}', retry: true }, async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const uid = event.params && event.params.uid;
+    const badgeId = event.params && event.params.badgeId;
+    const data = typeof snap.data === 'function' ? (snap.data() || {}) : {};
+    try {
+        await queueBadgeGg(db, admin, uid, badgeId, data, Date.now());
+    } catch (e) {
+        console.error('[BADGE GG] queue failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+    if (!uid || !badgeId) return null;
+    const collectionBonus = require('./src/collectionBonus');
+    if (!collectionBonus.collectionsTouching(badgeId).length) return null;
+    if (await collectionBonus.awardAlreadySettled(db, uid, badgeId, data)) return null;
+    await collectionBonus.maybeGrantForBadge(db, admin, uid, badgeId);
+    return null;
+});
+exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+    try {
+        await flushDueBursts(db, admin, Date.now());
+    } catch (e) {
+        console.error('[BADGE GG] flush failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+});
+
+const { handleChatMirror, flushTelegramMirror, retractMirroredChat } = require('./src/chatTelegramMirror');
+async function mirrorChatCreate(collection, docId, data) {
+    try {
+        await handleChatMirror(db, collection, docId, data || {});
+    } catch (e) {
+        console.error('[TG MIRROR] ' + collection + ' failed');
+        throw e;
+    }
+    return null;
+}
+function snapData(snap) {
+    if (!snap || snap.exists === false) return null;
+    try { return snap.data() || null; } catch (err) { return null; }
+}
+async function mirrorChatRetract(beforeSnap, afterSnap) {
+    try {
+        await retractMirroredChat(db, snapData(beforeSnap), snapData(afterSnap));
+    } catch (e) {
+        console.error('[TG MIRROR] retract failed');
+        throw e;
+    }
+    return null;
+}
+exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
+});
+exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    return mirrorChatCreate('announcements', event.params.msgId, snap.data());
+});
+exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+    const change = event.data || {};
+    return mirrorChatRetract(change.before, change.after);
+});
+exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+    return mirrorChatRetract(event.data, null);
+});
+exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+    const change = event.data || {};
+    return mirrorChatRetract(change.before, change.after);
+});
+exports.onAnnouncementsTelegramDeleted = onDocumentDeleted({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+    return mirrorChatRetract(event.data, null);
+});
+exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+    try {
+        await flushTelegramMirror(db, Date.now());
+    } catch (e) {
+        console.error('[TG MIRROR] flush failed');
+        throw e;
+    }
+});
 
 // ── GIF Search Proxy (Tenor v2) ───────────────────────────────────────────────
 // Proxies Tenor v2 requests server-side so the API key never leaks to the client
