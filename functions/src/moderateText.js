@@ -99,13 +99,21 @@ const LOOKALIKE = {
     '\u0446': 'u', // Cyrillic tse, the u shape
     '\u0192': 'f', // Latin f with hook
     '\u057d': 'u', // Armenian seh
-    '\u04c0': 'i', // palochka. JS lowercases this to U+04CF before the map runs, so the i reading is a second fold.
+    '\u0584': 'f', // Armenian keh
+    '\u0581': 'g', // Armenian co
+    '\u0570': 'h', // Armenian ho
+    '\u0578': 'n', // Armenian vo
+    '\u057c': 'n', // Armenian ra
+    '\u0585': 'o', // Armenian oh
+    '\u0563': 'q', // Armenian gim
+    '\u0566': 'q', // Armenian za
+    '\u0561': 'w', // Armenian ayb
+    '\u04cf': 'i', // lowercase palochka. U+04C0 lowercases to this. Live also reads it as l.
     '\u03b3': 'y', // Greek gamma
     '\u0458': 'j', // Cyrillic je
     '\u051b': 'q', // Cyrillic qa
     '\u051d': 'w', // Cyrillic we
     '\u0475': 'v', // Cyrillic izhitsa
-    '\u04cf': 'l', // Cyrillic palochka
     '\u03b1': 'a', // Greek alpha
     '\u03b2': 'b', // Greek beta
     '\u03b5': 'e', // Greek epsilon
@@ -385,6 +393,8 @@ function foldBase(text) {
     const raw = String(text || '');
     if (/^[\u0000-\u007f]*$/.test(raw)) return raw.toLowerCase();
     let s = raw.normalize('NFKC').normalize('NFKD');
+    // A keycap is a digit plus marks. Marks are stripped below, so keep one pictograph.
+    s = s.replace(/[0-9#*]\uFE0F?\u20E3/g, '\u2764');
     s = s.replace(/[\p{M}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     s = s.replace(/\p{Cf}/gu, '');
@@ -393,14 +403,15 @@ function foldBase(text) {
     return foldLookalikes(s.toLowerCase());
 }
 
-// Live lowercases U+04C0 to U+04CF and reads that as l. The second fold
-// reads the same character as i, so both shapes still match.
+// The map reads palochka as i. Live reads the same letter as l, so a line
+// that only spells a slur in the l shape is checked again.
 function foldedBases(text) {
     const primary = foldBase(text);
-    if (String(text || '').indexOf('\u04C0') === -1) return [primary];
-    const alt = foldBase(String(text).replace(/\u04C0/g, 'i'));
-    if (alt === primary) return [primary];
-    return [primary, alt];
+    const raw = String(text || '');
+    if (raw.indexOf('\u04C0') === -1 && raw.indexOf('\u04CF') === -1) return [primary];
+    const asL = foldBase(raw.replace(/\u04C0|\u04CF/g, 'l'));
+    if (asL === primary) return [primary];
+    return [primary, asL];
 }
 
 // pr: mid-word @ joins a short disguise and splits a long pair.
@@ -497,12 +508,24 @@ function joinedFragmentSlur(joined, first, nameTokens) {
     return false;
 }
 
-// A single symbol, a doubled separator or double space, or one emoji with
-// spaces around it. Checked before leet, so "|" and "+" stay separators.
+// One emoji cluster: a pictograph with optional skin tone, a flag, a ZWJ
+// sequence, or a keycap. Spaces around it are not part of the cluster.
+const EMOJI_CLUSTER = /^(?:(?:\p{Regional_Indicator}{2})|(?:[0-9#*]\uFE0F?\u20E3)|(?:\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\uFE0F|\u20E3)?(?:\u200D?\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\uFE0F)?)*))$/u;
+
+function isEmojiGap(gap) {
+    const wrapped = /^\s+(.+?)\s+$/u.exec(gap);
+    if (!wrapped) return false;
+    return EMOJI_CLUSTER.test(wrapped[1]);
+}
+
+// A single symbol, a doubled separator or double space, a short mix of
+// those ("f ~uck"), or one emoji with spaces around it. Checked before
+// leet, so "|" and "+" stay separators.
 function slurGap(gap) {
     if (gap.length === 1 && !/[\p{L}\p{N}]/u.test(gap)) return true;
     if (/^(.)\1+$/u.test(gap) && gap.length >= 2 && !/[\p{L}\p{N}]/u.test(gap)) return true;
-    if (/^\s+\p{Extended_Pictographic}\p{M}*\s+$/u.test(gap)) return true;
+    if (isEmojiGap(gap)) return true;
+    if (gap.length >= 2 && gap.length <= 4 && /[^\s]/u.test(gap) && !/[\p{L}\p{N}]/u.test(gap)) return true;
     return false;
 }
 
@@ -579,6 +602,40 @@ function maskDoubledAllowlist(text, nameTokens) {
         if (reduced && allowlistedSpelling(reduced, nameTokens)) return ' '.repeat(word.length);
         return word;
     });
+}
+
+// Starts of runs of exactly two identical letters. A triple stays with
+// squeezeVariants. "puussy" collapses the extra u, or the extra s, once each.
+function doublePairStarts(word) {
+    const chars = Array.from(word);
+    const starts = [];
+    let i = 0;
+    let unit = 0;
+    while (i < chars.length) {
+        let j = i + 1;
+        while (j < chars.length && chars[j] === chars[i]) j++;
+        if (j - i === 2) starts.push(unit);
+        unit += j - i;
+        i = j;
+    }
+    return starts;
+}
+
+function exactCollapsedDoubleHit(text) {
+    if (exactTermHit(dropSingleDouble(text))) return true;
+    const re = /\p{L}+/gu;
+    let match;
+    while ((match = re.exec(text))) {
+        const word = match[0];
+        const starts = doublePairStarts(word);
+        if (starts.length < 2) continue;
+        for (let i = 0; i < starts.length; i++) {
+            const at = starts[i];
+            const reduced = word.slice(0, at) + word.slice(at + 1);
+            if (SLUR_EXACT[reduced]) return true;
+        }
+    }
+    return false;
 }
 
 function exactTermHit(text) {
@@ -682,6 +739,7 @@ function plainBc1Question(text) {
     if (!/\bbc1q?\b/i.test(raw)) return false;
     const question = /\?/.test(raw) || /^\s*(how|what|why|when|where|who|which|can|could|do|does|did|is|are|should|would|explain)\b/i.test(raw);
     if (!question) return false;
+    if (/\b(?:double[ds]?|doubling|2x|x2|triple|giveaways?|airdrops?|free|win|winners?|prizes?|bonus|rewards?|promo|guarantee[ds]?|profit|returns?|invest(?:ment)?|dm|pm|inbox|whats ?app|telegram|asap|urgent|now|hurry|first \d+)\b/i.test(raw)) return false;
     if (/\b\d+(?:[.,]\d+)?\s*(?:sats|btc(?:to)?|bitcoin)\b/i.test(raw)) return false;
     if (/\bsend\s+(?:me\s+)?\d/i.test(raw)) return false;
     return true;
@@ -701,7 +759,7 @@ function formHits(prepared, nameTokens) {
     const variants = squeezeVariants(prepared.text);
     for (let i = 0; i < variants.length; i++) {
         const variant = variants[i];
-        if (exactTermHit(dropSingleDouble(variant))) return true;
+        if (exactCollapsedDoubleHit(variant)) return true;
         if (bridgeHit(maskDoubledAllowlist(variant, nameTokens), prepared.unbroken, nameTokens)) return true;
     }
     return false;

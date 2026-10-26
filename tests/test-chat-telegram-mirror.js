@@ -1662,6 +1662,77 @@ test('separator classes live still blocks stay blocked, and the shared misses to
     assert.ok(Number(process.hrtime.bigint() - started) > 0);
 });
 
+test('scam questions stay blocked and plain bc1 questions still forward', function () {
+    const blocked = [
+        'pls send sats to bc1q for a giveaway?',
+        'should I send bitcoin to bc1 to double it?',
+        'is the airdrop send sats to bc1q?',
+        'can I send btc to bc1q for free?',
+        'do I send sats to bc1q to win?',
+        'please send bitcoin to bc1 and dm me?',
+        'send sats to bc1q asap?',
+        'how do I send sats to bc1q now?',
+    ];
+    blocked.forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text);
+        assert.strictEqual(decision.reason, 'scam', text + ' ' + decision.reason);
+    });
+    [
+        'how do I send bitcoin to a bc1 address?',
+        'how do I send sats to a bc1q wallet?',
+        'can I send bitcoin to bc1q?',
+    ].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, true, text + ' ' + decision.reason);
+    });
+});
+
+test('mixed gaps, extra doubles, emoji clusters, and leet surnames', function () {
+    const mod = require('../functions/src/moderateText');
+    const blocked = [
+        ['mix-tilde', ['f', ' ~', 'uck']],
+        ['mix-tilde-pad', ['f', '~ ', 'uck']],
+        ['two-doubles', ['p', 'uu', 'ssy']],
+        ['skin', ['fu', ' \uD83D\uDC4D\uD83C\uDFFB ', 'ck']],
+        ['flag', ['fu', ' \uD83C\uDDFA\uD83C\uDDF8 ', 'ck']],
+        ['zwj', ['fu', ' \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67 ', 'ck']],
+        ['keycap', ['fu', ' 1\uFE0F\u20E3 ', 'ck']],
+        ['arm-f', ['\u0584', 'uck']],
+        ['arm-w', ['\u0561', 'ho', 're']],
+        ['pal-i', ['n', '\u04CF', 'gger']],
+        ['pal-l', ['\u04CF', 'ynch']],
+    ];
+    blocked.forEach(function (row) {
+        const text = mask(row[1]);
+        const verdict = mod.moderateText(text, { strict: true });
+        assert.strictEqual(verdict.clean, false, row[0] + ' passed');
+        const body = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(body.forward, false, row[0] + ' body');
+    });
+    ['committee', 'successful', 'balloon', 'graape', 'pedomeeter', 'hello \uD83D\uDC4D\uD83C\uDFFB world'].forEach(function (text) {
+        const verdict = mod.moderateText(text, { strict: true });
+        assert.strictEqual(verdict.clean, true, text + ' ' + verdict.reason);
+    });
+    const leetName = ['R', '4', 'per'].join('');
+    const leetBody = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: leetName }) });
+    assert.strictEqual(leetBody.forward, false, 'leet surname body');
+    assert.strictEqual(leetBody.reason, 'profanity');
+    const leet = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: leetName, text: 'hello there' }),
+    });
+    assert.strictEqual(leet.forward, true, leet.reason);
+    assert.strictEqual(leet.name, 'A player');
+    const plainName = ['Ra', 'per'].join('');
+    const plain = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: plainName, text: 'hello there' }),
+    });
+    assert.strictEqual(plain.forward, true, plain.reason);
+    assert.strictEqual(plain.name, plainName);
+});
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

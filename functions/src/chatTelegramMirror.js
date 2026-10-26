@@ -262,7 +262,7 @@ function contentSkipReason(body, displayName) {
 function publicMirrorName(data) {
     const name = mirrorName(data);
     if (!name || name === '🦌 Nacho' || name === 'Someone' || name === 'A player') return name;
-    const hit = moderateText(name, { strict: true, displayName: true });
+    const hit = moderateText(name, { strict: true, displayName: name });
     if (!hit.clean) return 'A player';
     return name;
 }

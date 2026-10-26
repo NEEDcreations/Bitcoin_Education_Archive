@@ -171,7 +171,7 @@ function mention(display) {
 function visiblePlayerName(raw) {
     const name = sanitizeDisplayName(raw);
     if (!name) return 'A player';
-    const hit = moderateText(name, { strict: true, displayName: true });
+    const hit = moderateText(name, { strict: true, displayName: name });
     if (!hit.clean) return 'A player';
     return name;
 }
