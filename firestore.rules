@@ -2050,12 +2050,35 @@ service cloud.firestore {
       }
     }
 
-    // Faction totals — public read, server writes only
-    // Announce dedup doc — clients race to claim start/end announce slots (prevents spam)
+    // Announce dedup — server only. Clients may still read it. The live
+    // window post is written by the Admin SDK, not by this doc.
     match /satoshiFavor/announceDedup {
       allow read: if true;
-      allow create, update: if request.auth != null
-        && request.resource.data.keys().hasOnly(['startAnnouncedAt', 'endAnnouncedAt']);
+      allow write: if false;
+    }
+
+    // One live-window announcement per cycle. Admin SDK only.
+    match /sf_live_announcements/{cycleId} {
+      allow read, write: if false;
+    }
+
+    // Badge GGs burst queue and per-award claims. Admin SDK only.
+    match /badge_gg_bursts/{uid} {
+      allow read, write: if false;
+    }
+    match /badge_gg_claims/{claimId} {
+      allow read, write: if false;
+    }
+
+    // Telegram mirror queue. One claim per chat doc. Admin SDK only.
+    match /telegram_mirror_claims/{claimId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_queue/{itemId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_state/{docId} {
+      allow read, write: if false;
     }
 
     match /satoshiFavor/factionTotals {

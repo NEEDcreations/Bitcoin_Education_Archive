@@ -322,6 +322,11 @@ function world() {
         'dm_conversations/u2_u3/messages/m9': { senderUid: 'u2', text: 'keep this thread' },
         'conversations/legacy1': { participants: ['u1', 'u9'] },
         'conversations/legacy1/messages/old1': { text: 'legacy dm' },
+        'telegram_mirror_queue/global_chat__m1': { uid: 'u1', line: '[Global] Alice: hello secret', status: 'pending' },
+        'telegram_mirror_queue/global_chat__m2': { uid: 'u2', line: '[Global] Bob: keep', status: 'sent' },
+        'telegram_mirror_claims/global_chat__m1': { uid: 'u1', status: 'queued' },
+        'telegram_mirror_state/rate_u1': { uid: 'u1', recentAtMs: [1] },
+        'telegram_mirror_state/group': { sentAtMs: [1] },
         'global_chat/m1': {
             uid: 'u1', name: 'Alice', text: 'hello secret', replyTo: 'older', replyToName: 'Bob', replyToText: 'yo',
             imageUrl: 'https://cdn.example/a.png', gifUrl: 'https://cdn.example/a.gif', caption: 'cap', faction: 'hornet',
@@ -620,6 +625,11 @@ function auth(uid, extras) {
         assert.ok(db.commits.every(function(n) { return n <= del.BATCH_LIMIT; }));
 
         assert.strictEqual(db.docs.has('users/u1'), false);
+        assert.strictEqual(db.docs.has('telegram_mirror_queue/global_chat__m1'), false);
+        assert.ok(db.docs.has('telegram_mirror_queue/global_chat__m2'));
+        assert.strictEqual(db.docs.has('telegram_mirror_claims/global_chat__m1'), false);
+        assert.strictEqual(db.docs.has('telegram_mirror_state/rate_u1'), false);
+        assert.ok(db.docs.has('telegram_mirror_state/group'));
         assert.strictEqual(db.docs.has('users/u1/daily_points/2026-10-22'), false);
         assert.strictEqual(db.docs.has('users/u1/daily_action_counts/2026-10-22'), false);
         assert.strictEqual(db.docs.has('users/u1/badge_awards/b1'), false);
