@@ -50,6 +50,7 @@ function visible(html) {
     ctx.window = ctx;
     ctx.globalThis = ctx;
     ctx.self = ctx;
+    ctx.auth = { currentUser: { getIdToken: async function () { return 'routing-token'; } } };
     ctx.fetch = async function (_url, opts) {
         const body = JSON.parse(opts.body);
         const result = await logic.answerTurn({ question: body.question }, {
