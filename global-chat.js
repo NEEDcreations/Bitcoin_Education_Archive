@@ -3945,54 +3945,102 @@ function ggNameAt(slice, i, name) {
     return true;
 }
 
+// The catalog stores some ids as their own name (titles such as irl_set_t).
+// The server then posts the title-cased id ("Irl Set T") while the client
+// shows the title ("IRL Champion"). That auto-title is the alias.
+function ggCatalogOwnsName(id) {
+    var cat = (typeof window !== 'undefined' && window && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    var row = cat && cat[id];
+    if (!row) return false;
+    var raw = GG_NAME_OVERRIDE[id] || row.name || '';
+    var cleaned = ggCleanLabel(raw);
+    return !!(cleaned && cleaned !== id);
+}
+
+function ggServerAutoTitle(id) {
+    var safe = String(id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+    if (!safe) return '';
+    var candidate = ggFlexName(safe) || ggPuzzleName(safe) || ggStripPrefixes(safe).split('_').filter(Boolean).map(ggTitleWord).join(' ');
+    var cleaned = ggCleanLabel(candidate);
+    if (!cleaned || cleaned === safe) return '';
+    return cleaned;
+}
+
+function ggServerMatchName(id, displayName) {
+    if (ggCatalogOwnsName(id)) return String(displayName || '');
+    return ggServerAutoTitle(id) || String(displayName || '');
+}
+
+function ggCompareMatchers(order) {
+    return function(a, b) {
+        return b.match.length - a.match.length || (a.alias - b.alias) || String(a.match).localeCompare(String(b.match)) || ((order[a.badge.id] || 0) - (order[b.badge.id] || 0));
+    };
+}
+
+function ggBucketMatchers(matchers) {
+    var byChar = {};
+    for (var i = 0; i < matchers.length; i++) {
+        var ch = String(matchers[i].match).charAt(0).toLowerCase();
+        var bucket = byChar[ch];
+        if (!bucket) byChar[ch] = bucket = [];
+        bucket.push(matchers[i]);
+    }
+    return byChar;
+}
+
 // Sorted once, then grouped by the lowercased first character, so a scan
-// tries only the names that can start at this character.
+// tries only the names that can start at this character. A server auto-title
+// is indexed beside the display name, and it wins when both strings match.
 function ggBuildNameIndex(list) {
     var byId = {};
     var order = {};
-    var matchable = [];
-    var i, badge, ch, bucket;
+    var serverOf = {};
+    var matchers = [];
+    var i, badge, name, server;
     for (i = 0; i < list.length; i++) {
         badge = list[i];
         if (!badge || !badge.id) continue;
         byId[badge.id] = badge;
         order[badge.id] = i;
-        if (badge.name && String(badge.name).length >= 2) matchable.push(badge);
+        name = badge.name ? String(badge.name) : '';
+        server = ggServerMatchName(badge.id, name);
+        serverOf[badge.id] = server;
+        if (server && server.length >= 2) matchers.push({ badge: badge, match: server, alias: 0 });
     }
-    matchable.sort(function(a, b) {
-        return b.name.length - a.name.length || String(a.name).localeCompare(String(b.name)) || ((order[a.id] || 0) - (order[b.id] || 0));
-    });
-    var byChar = {};
-    for (i = 0; i < matchable.length; i++) {
-        ch = String(matchable[i].name).charAt(0).toLowerCase();
-        bucket = byChar[ch];
-        if (!bucket) byChar[ch] = bucket = [];
-        bucket.push(matchable[i]);
+    var serverNames = {};
+    for (i = 0; i < matchers.length; i++) serverNames[matchers[i].match] = true;
+    for (i = 0; i < list.length; i++) {
+        badge = list[i];
+        if (!badge || !badge.id) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = serverOf[badge.id] || '';
+        if (!name || name.length < 2 || name === server || serverNames[name]) continue;
+        matchers.push({ badge: badge, match: name, alias: 1 });
     }
-    return { byId: byId, byChar: byChar, order: order };
+    matchers.sort(ggCompareMatchers(order));
+    return { byId: byId, byChar: ggBucketMatchers(matchers), order: order, serverOf: serverOf };
 }
 
 function ggBucketsForIds(index, ids) {
-    var few = [];
-    var n, badge;
+    var matchers = [];
+    var n, badge, name, server;
     for (n = 0; n < ids.length; n++) {
         badge = index.byId[ids[n]];
-        if (badge && badge.name && String(badge.name).length >= 2) few.push(badge);
+        if (!badge) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = (index.serverOf && index.serverOf[badge.id]) || ggServerMatchName(badge.id, name);
+        if (server && server.length >= 2) matchers.push({ badge: badge, match: server, alias: 0 });
     }
-    if (few.length > 1) {
-        var order = index.order || {};
-        few.sort(function(a, b) {
-            return b.name.length - a.name.length || String(a.name).localeCompare(String(b.name)) || ((order[a.id] || 0) - (order[b.id] || 0));
-        });
+    for (n = 0; n < ids.length; n++) {
+        badge = index.byId[ids[n]];
+        if (!badge) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = (index.serverOf && index.serverOf[badge.id]) || ggServerMatchName(badge.id, name);
+        if (!name || name.length < 2 || name === server) continue;
+        matchers.push({ badge: badge, match: name, alias: 1 });
     }
-    var byChar = {};
-    for (n = 0; n < few.length; n++) {
-        var ch = String(few[n].name).charAt(0).toLowerCase();
-        var bucket = byChar[ch];
-        if (!bucket) byChar[ch] = bucket = [];
-        bucket.push(few[n]);
-    }
-    return byChar;
+    if (matchers.length > 1) matchers.sort(ggCompareMatchers(index.order || {}));
+    return ggBucketMatchers(matchers);
 }
 
 function ggLegacyRegions(text) {
@@ -4033,16 +4081,16 @@ function ggBadgeSegments(text, message, registry) {
             var bucket = buckets[slice.charAt(i).toLowerCase()];
             if (bucket) {
                 for (var k = 0; k < bucket.length; k++) {
-                    var name = bucket[k].name;
-                    if (!ggNameAt(slice, i, name)) continue;
+                    var matched = bucket[k].match;
+                    if (!ggNameAt(slice, i, matched)) continue;
                     var before = i === 0 ? raw.charAt(start - 1) : slice.charAt(i - 1);
-                    var after = slice.charAt(i + name.length);
+                    var after = slice.charAt(i + matched.length);
                     if (ggBoundary(before) && ggBoundary(after)) { found = bucket[k]; break; }
                 }
             }
             if (found) {
-                hits.push({ at: start + i, len: found.name.length, badge: found });
-                i += found.name.length;
+                hits.push({ at: start + i, len: found.match.length, badge: found.badge });
+                i += found.match.length;
             } else {
                 i += 1;
             }
