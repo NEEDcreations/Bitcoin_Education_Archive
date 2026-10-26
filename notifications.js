@@ -970,8 +970,7 @@ function _getUnreadPointsCount() {
         local = _visibleLocalRewards().filter(function(e) { return !e.read; }).length;
     } catch (e) {}
     try {
-        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-        return log.filter(function(e) { return !e.read; }).length + local;
+        return _pointsLog().filter(function(e) { return !e.read; }).length + local;
     } catch(e) { return local; }
 }
 
@@ -1003,18 +1002,42 @@ function _updatePointsBadge() {
 // Mark all local points as read
 function _markAllPointsRead() {
     try {
-        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-        log.forEach(function(e) { e.read = true; });
+        var uid = _pointsUid();
+        var log = _pointsLogAll();
+        log.forEach(function(e) { if (e && uid && e.uid === uid) e.read = true; });
         localStorage.setItem('btc_points_log', JSON.stringify(log));
     } catch(e) {}
     _updatePointsBadge();
 }
 
 // Today's earnings reads the same cache as the Today meter. The lines below
-// are a history. They are not the total, and this tab never writes the counter.
-function _pointsLog() {
+// are this user's history only. They are not the total, and this tab never writes the counter.
+function _pointsUid() {
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) return auth.currentUser.uid || '';
+    } catch (e) {}
+    return '';
+}
+
+function _pointsLogAll() {
     try { return JSON.parse(localStorage.getItem('btc_points_log') || '[]'); } catch (e) { return []; }
 }
+
+function _pointsLog() {
+    var uid = _pointsUid();
+    if (!uid) return [];
+    return _pointsLogAll().filter(function (e) { return e && e.uid === uid; });
+}
+
+window._clearPointsHistory = function () {
+    var uid = _pointsUid();
+    var keep = _pointsLogAll().filter(function (e) { return uid && e && e.uid !== uid; });
+    try {
+        if (!keep.length) localStorage.removeItem('btc_points_log');
+        else localStorage.setItem('btc_points_log', JSON.stringify(keep));
+    } catch (e) {}
+    _renderPointsTab();
+};
 
 function _earningsFigures() {
     var log = _pointsLog();
@@ -1099,7 +1122,7 @@ function _renderPointsTab() {
             '</div>' +
         '</div>';
     }
-    html += '<div style="text-align:center;padding:12px;"><button onclick="if(confirm(\'Clear XP history?\')){{localStorage.removeItem(\'btc_points_log\');_renderPointsTab()}}" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">Clear history</button></div>';
+    html += '<div style="text-align:center;padding:12px;"><button onclick="if(confirm(\'Clear XP history?\')){if(window._clearPointsHistory)window._clearPointsHistory()}" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">Clear history</button></div>';
     body.innerHTML = html;
 }
 

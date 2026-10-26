@@ -19,10 +19,6 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-function comma(n) {
-    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
 function loadCard(opts) {
     opts = opts || {};
     const els = {};
@@ -101,60 +97,96 @@ test('meter and earnings show the cap counter, not the notification sum', functi
     w._paintDailyXpMeter({
         signedIn: true,
         loaded: true,
+        source: 'live',
         dailyXp: 42,
-        uncappedXp: 2100,
-        day: day
+        day: day,
+        uid: 'u1'
     });
     const log = [
-        { pts: 8, ts: beforeReset, reason: 'yesterday' },
-        { pts: 13, ts: afterReset, reason: 'quiz' }
+        { pts: 8, ts: beforeReset, reason: 'yesterday', uid: 'u1' },
+        { pts: 5, ts: afterReset, reason: 'quiz', uid: 'u1' },
+        { pts: 100, ts: afterReset, reason: 'other account', uid: 'u2' }
     ];
     const figs = w._dailyXpFigures(w._serverDailyXp, log);
     assert.strictEqual(figs.used, 42);
-    assert.strictEqual(figs.uncapped, 2100);
-    assert.strictEqual(figs.sum, 13);
-    assert.strictEqual(figs.meterLine, (42).toLocaleString() + '/1000 XP today (+' + comma(2100) + ' uncapped)');
-    assert.strictEqual(figs.earningsAmount, '+' + (42).toLocaleString() + ' XP (+' + comma(2100) + ' uncapped)');
+    assert.strictEqual(figs.sum, 5);
+    assert.strictEqual(figs.meterLine, (42).toLocaleString() + '/1000 XP today');
+    assert.strictEqual(figs.earningsAmount, '+' + (42).toLocaleString() + ' XP');
     assert.strictEqual(figs.note, 'Includes XP from activities without a notification');
+    assert.ok(figs.meterLine.indexOf('uncapped') === -1);
     assert.strictEqual(page.els.dailyXpMeterText.textContent, figs.meterLine);
     assert.strictEqual(page.els.dailyXpMeterFill.style.width, '4.2%');
     assert.ok(seen.indexOf(42) !== -1);
 
-    w._paintDailyXpMeter({ signedIn: true, dailyXp: 50, day: day, dailyCap: 1000 });
+    w._paintDailyXpMeter({ signedIn: true, source: 'live', dailyXp: 50, day: day, dailyCap: 1000, uid: 'u1' });
     const held = w._dailyXpFigures(w._serverDailyXp, log);
     assert.strictEqual(held.used, 50);
-    assert.strictEqual(held.uncapped, 2100);
-    assert.strictEqual(page.els.dailyXpMeterText.textContent, held.meterLine);
+    assert.strictEqual(held.note, 'Includes XP from activities without a notification');
     assert.ok(seen.indexOf(50) !== -1);
-    assert.strictEqual(held.meterLine.indexOf('(+2,100 uncapped)') > 0, true);
-    assert.strictEqual(held.earningsAmount.indexOf('(+2,100 uncapped)') > 0, true);
 });
 
-test('uncapped XP is omitted on both views when the server did not record any', function () {
+test('the earnings note is hidden when this user\'s lines are not below the server total', function () {
     const page = loadCard();
     const w = page.sandbox.window;
-    w._paintDailyXpMeter({ signedIn: true, dailyXp: 42, uncappedXp: 0, day: '2026-10-26' });
-    const same = [
-        { pts: 42, ts: Date.UTC(2026, 9, 26, 12, 0), reason: 'trivia' }
-    ];
-    const figs = w._dailyXpFigures(w._serverDailyXp, same);
-    assert.strictEqual(figs.meterLine, (42).toLocaleString() + '/1000 XP today');
-    assert.strictEqual(figs.earningsAmount, '+' + (42).toLocaleString() + ' XP');
-    assert.strictEqual(figs.note, '');
-    assert.strictEqual(page.els.dailyXpMeterText.textContent, figs.meterLine);
-    assert.ok(figs.meterLine.indexOf('uncapped') === -1);
-    assert.ok(figs.earningsAmount.indexOf('uncapped') === -1);
+    const day = '2026-10-26';
+    const ts = Date.UTC(2026, 9, 26, 12, 0);
+    w._paintDailyXpMeter({ signedIn: true, source: 'live', dailyXp: 42, day: day, uid: 'u1' });
+    const equal = w._dailyXpFigures(w._serverDailyXp, [{ pts: 42, ts: ts, uid: 'u1' }]);
+    assert.strictEqual(equal.note, '');
+    assert.strictEqual(equal.sum, 42);
+    const over = w._dailyXpFigures(w._serverDailyXp, [{ pts: 80, ts: ts, uid: 'u1' }]);
+    assert.strictEqual(over.sum, 80);
+    assert.strictEqual(over.note, '');
+    assert.strictEqual(over.meterLine, (42).toLocaleString() + '/1000 XP today');
 });
 
-test('a cap overflow displays as 1,000 on both views and certifications stay outside that number', function () {
+test('a late lower award does not replace a newer live total for the same day', function () {
     const page = loadCard();
     const w = page.sandbox.window;
-    w._paintDailyXpMeter({ signedIn: true, dailyXp: 2500, uncappedXp: 2100, day: '2026-10-26' });
+    const day = '2026-10-26';
+    w._paintDailyXpMeter({ signedIn: true, source: 'live', dailyXp: 42, day: day, uid: 'u1' });
+    const liveAt = Date.now();
+    w._paintDailyXpMeter({
+        signedIn: true,
+        source: 'award',
+        sentAt: liveAt - 1000,
+        dailyXp: 13,
+        day: day,
+        uid: 'u1'
+    });
+    assert.strictEqual(w._serverDailyXp.dailyXp, 42);
+    assert.strictEqual(w._serverDailyXp.day, day);
+    w._paintDailyXpMeter({
+        signedIn: true,
+        source: 'award',
+        sentAt: Date.now() + 1000,
+        dailyXp: 50,
+        day: day,
+        uid: 'u1'
+    });
+    assert.strictEqual(w._serverDailyXp.dailyXp, 50);
+    w._paintDailyXpMeter({
+        signedIn: true,
+        source: 'award',
+        sentAt: Date.now(),
+        dailyXp: 90,
+        day: '2026-10-25',
+        uid: 'u1'
+    });
+    assert.strictEqual(w._serverDailyXp.dailyXp, 50);
+    assert.strictEqual(w._serverDailyXp.day, day);
+    assert.strictEqual(page.els.dailyXpMeterText.textContent, (50).toLocaleString() + '/1000 XP today');
+});
+
+test('a cap overflow displays as 1,000 on both views', function () {
+    const page = loadCard();
+    const w = page.sandbox.window;
+    w._paintDailyXpMeter({ signedIn: true, source: 'live', dailyXp: 2500, day: '2026-10-26', uid: 'u1' });
     const figs = w._dailyXpFigures(w._serverDailyXp, []);
     assert.strictEqual(figs.used, 1000);
-    assert.strictEqual(figs.uncapped, 2100);
-    assert.strictEqual(figs.meterLine, (1000).toLocaleString() + '/1000 XP today (+2,100 uncapped)');
-    assert.strictEqual(figs.earningsAmount, '+' + (1000).toLocaleString() + ' XP (+2,100 uncapped)');
+    assert.strictEqual(figs.meterLine, (1000).toLocaleString() + '/1000 XP today');
+    assert.strictEqual(figs.earningsAmount, '+' + (1000).toLocaleString() + ' XP');
+    assert.ok(figs.meterLine.indexOf('uncapped') === -1);
     assert.strictEqual(figs.note, 'Includes XP from activities without a notification');
 });
 
@@ -178,7 +210,7 @@ test('the daily_points listener is read-only and publishes the same snapshot', f
             onSnapshot: function (ok) {
                 ok({
                     exists: true,
-                    data: function () { return { total: 42, uncapped: 2100 }; }
+                    data: function () { return { total: 42 }; }
                 });
                 return function () {};
             },
@@ -212,16 +244,71 @@ test('the daily_points listener is read-only and publishes the same snapshot', f
     });
     const text = page.els.dailyXpMeterText.textContent;
     const figs = page.sandbox.window._dailyXpFigures(page.sandbox.window._serverDailyXp, [
-        { pts: 13, ts: Date.now(), reason: 'quiz' }
+        { pts: 13, ts: Date.now(), reason: 'quiz', uid: 'fixture-user' }
     ]);
     assert.strictEqual(text, figs.meterLine);
     assert.strictEqual(figs.used, 42);
-    assert.strictEqual(figs.uncapped, 2100);
-    assert.ok(text.indexOf('42/1000 XP today') === 0);
-    assert.ok(text.indexOf('(+2,100 uncapped)') > 0);
-    assert.strictEqual(figs.earningsAmount.indexOf('+42 XP') , 0);
+    assert.strictEqual(figs.sum, 13);
+    assert.strictEqual(text, '42/1000 XP today');
+    assert.ok(text.indexOf('uncapped') === -1);
+    assert.strictEqual(figs.earningsAmount, '+42 XP');
+    assert.strictEqual(figs.note, 'Includes XP from activities without a notification');
     assert.deepStrictEqual(writes, []);
     assert.deepStrictEqual(page.writes, []);
+});
+
+test('a denied live read retries once on the next repaint after auth refresh', function () {
+    let snaps = 0;
+    let tokenCb = null;
+    const day = new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10);
+    function dailyDoc() {
+        return {
+            onSnapshot: function (ok, err) {
+                snaps += 1;
+                if (snaps === 1) err({ code: 'permission-denied' });
+                else ok({ exists: true, data: function () { return { total: 42 }; } });
+                return function () {};
+            }
+        };
+    }
+    const page = loadCard({
+        auth: {
+            currentUser: { uid: 'fixture-user', isAnonymous: false },
+            onIdTokenChanged: function (cb) { tokenCb = cb; }
+        },
+        firebase: {
+            firestore: {},
+            functions: function () {
+                return { httpsCallable: function () { return function () {
+                    return { then: function (ok) { ok({ data: { dailyXp: 7, day: day, dailyCap: 1000 } }); return { catch: function () {} }; } };
+                }; } };
+            }
+        },
+        db: {
+            collection: function () {
+                return { doc: function () { return {
+                    collection: function (name) {
+                        return { doc: function () { return name === 'daily_points' ? dailyDoc() : {
+                            onSnapshot: function (ok) {
+                                ok({ exists: false, data: function () { return {}; } });
+                                return function () {};
+                            }
+                        }; } };
+                    }
+                }; } };
+            }
+        }
+    });
+    assert.strictEqual(snaps, 1);
+    assert.strictEqual(page.els.dailyXpMeterText.textContent, '7/1000 XP today');
+    page.sandbox.window._ensureDailyXp();
+    assert.strictEqual(snaps, 1);
+    tokenCb(page.sandbox.auth.currentUser);
+    page.sandbox.window._ensureDailyXp();
+    assert.strictEqual(snaps, 2);
+    assert.strictEqual(page.els.dailyXpMeterText.textContent, '42/1000 XP today');
+    page.sandbox.window._ensureDailyXp();
+    assert.strictEqual(snaps, 2);
 });
 
 test('rules, callable, and the XP tab do not let the client write the counter', function () {
@@ -233,27 +320,40 @@ test('rules, callable, and the XP tab do not let the client write the counter', 
     assert.ok(!block.includes('allow read, write: if false'));
 
     const quest = read('functions/src/questCallables.js');
-    assert.ok(quest.includes('uncappedXp: uncapped'));
-    assert.ok(quest.includes('doc.uncapped'));
+    assert.ok(!quest.includes('uncapped'));
     assert.ok(quest.includes('offsetDateKey'));
+    assert.ok(quest.includes('meterFrom(used, 0)'));
 
     const card = read('today-card.js');
     const watch = card.slice(card.indexOf('function watchDailyXp'), card.indexOf('function loadDailyXpMeter'));
     assert.ok(watch.includes("collection('daily_points')"));
     assert.ok(watch.includes('onSnapshot'));
+    assert.ok(watch.includes('dailyDeniedGen'));
+    assert.ok(card.includes('onIdTokenChanged'));
     assert.ok(!watch.includes('.set('));
     assert.ok(!watch.includes('.update('));
     assert.ok(!watch.includes('.add('));
+    assert.ok(!card.includes('uncapped'));
+    assert.ok(card.includes('if (sum < used) note = EARNINGS_NOTE'));
+    assert.ok(card.includes("source === 'award'"));
     assert.ok(card.includes("used.toLocaleString() + '/1000 XP today'"));
+
+    const ranking = read('ranking.js');
+    assert.ok(ranking.includes("source: 'award'"));
+    assert.ok(ranking.includes('sentAt: _awardSentAt'));
+    assert.ok(ranking.includes('uid: uid'));
 
     const notes = read('notifications.js');
     assert.ok(card.includes('Includes XP from activities without a notification'));
     assert.ok(notes.includes('todayEarningsNote'));
     assert.ok(notes.includes('_dailyXpFigures'));
     assert.ok(notes.includes('_subscribeDailyXp'));
+    assert.ok(notes.includes('function _pointsUid'));
+    assert.ok(notes.includes('e.uid === uid'));
+    assert.ok(notes.includes('window._clearPointsHistory'));
     assert.ok(!notes.includes('todayTotal'));
     assert.ok(!notes.includes("collection('daily_points')"));
-    assert.ok(notes.includes("localStorage.removeItem(\\'btc_points_log\\')"));
+    assert.ok(notes.includes("localStorage.removeItem('btc_points_log')"));
 
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2397'"));

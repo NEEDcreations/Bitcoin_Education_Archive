@@ -283,26 +283,22 @@
         return n;
     }
 
-    // XP the server recorded outside the daily cap (certifications when they bypass it).
-    // The cap counter itself never includes this amount.
-    function uncappedNumber(raw) {
-        var n = Math.round(Number(raw) || 0);
-        if (!isFinite(n) || n < 0) n = 0;
-        if (n > 10000000) n = 10000000;
-        return n;
+    function viewerUid() {
+        try {
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return auth.currentUser.uid || '';
+            }
+        } catch (e) {}
+        return '';
     }
 
-    function comma(n) {
-        var s = String(Math.max(0, Math.round(Number(n) || 0)));
-        return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-
-    function sumLogForDay(log, day) {
+    // Only this user's lines count. Another account on the same browser does not.
+    function sumLogForDay(log, day, uid) {
         var sum = 0;
-        if (!day || !log || !log.length) return 0;
+        if (!day || !uid || !log || !log.length) return 0;
         for (var i = 0; i < log.length; i++) {
             var entry = log[i];
-            if (!entry || entry.ts == null) continue;
+            if (!entry || entry.ts == null || entry.uid !== uid) continue;
             if (offsetDay(entry.ts) !== day) continue;
             var pts = Math.round(Number(entry.pts) || 0);
             if (pts > 0) sum += pts;
@@ -312,14 +308,14 @@
 
     // One display model for the Today meter and Notifications → Today's earnings.
     // `used` is users/{uid}/daily_points/{offsetDay}.total, clamped to the cap.
+    // The cap counter is the only number both views show.
     window._dailyXpFigures = function (snap, log) {
         snap = snap || {};
         var signed = snap.signedIn === true;
         var loaded = signed && snap.loaded === true;
         var used = loaded ? meterNumber(snap) : 0;
-        var uncapped = loaded ? uncappedNumber(snap.uncappedXp) : 0;
         var day = loaded ? (snap.day || offsetDay(Date.now())) : '';
-        var suffix = uncapped > 0 ? ' (+' + comma(uncapped) + ' uncapped)' : '';
+        var uid = loaded ? (snap.uid || viewerUid()) : '';
         var meterLine = SIGN_IN_XP;
         var earningsAmount = SIGN_IN_XP;
         var note = '';
@@ -328,17 +324,17 @@
             meterLine = '…';
             earningsAmount = '…';
         } else if (loaded) {
-            meterLine = used.toLocaleString() + '/1000 XP today' + suffix;
-            earningsAmount = '+' + used.toLocaleString() + ' XP' + suffix;
-            sum = sumLogForDay(log, day);
-            if (sum !== used) note = EARNINGS_NOTE;
+            meterLine = used.toLocaleString() + '/1000 XP today';
+            earningsAmount = '+' + used.toLocaleString() + ' XP';
+            sum = sumLogForDay(log, day, uid);
+            if (sum < used) note = EARNINGS_NOTE;
         }
         return {
             signedIn: signed,
             loaded: loaded,
             used: used,
-            uncapped: uncapped,
             day: day,
+            uid: uid,
             meterLine: meterLine,
             earningsAmount: earningsAmount,
             note: note,
@@ -357,13 +353,16 @@
     }
 
     var dailyListeners = [];
-    var heldUncapped = 0;
     var heldDay = '';
     var dailyWatchId = '';
     var dailyUnsub = null;
     var dailyLive = false;
     var dailyListenDenied = false;
+    var dailyAuthGen = 0;
+    var dailyDeniedGen = -1;
+    var dailyAuthHooked = false;
     var dailyFetch = null;
+    var liveAt = 0;
 
     function emitDailyXp() {
         var snap = window._serverDailyXp;
@@ -396,39 +395,53 @@
     }
 
     // Display cache only. Nothing here writes users/{uid}/daily_points.
+    // An award response keeps the max for its offset day, so a late lower
+    // total cannot replace a newer live snapshot. A live snapshot always wins.
     function publishDailyXp(snap) {
         snap = snap || {};
         if (snap.signedIn === false) {
-            heldUncapped = 0;
             heldDay = '';
             dailyLive = false;
+            liveAt = 0;
             window._serverDailyXp = {
                 signedIn: false,
                 loaded: false,
                 dailyXp: 0,
-                uncappedXp: 0,
                 day: '',
+                uid: '',
                 dailyCap: 1000
             };
             paintMeter(window._serverDailyXp);
             emitDailyXp();
             return;
         }
-        if (snap.uncappedXp != null || snap.uncapped != null) {
-            heldUncapped = uncappedNumber(snap.uncappedXp != null ? snap.uncappedXp : snap.uncapped);
+        var prev = window._serverDailyXp;
+        var incomingDay = snap.day ? String(snap.day) : '';
+        if (snap.source === 'award' && prev && prev.loaded && prev.signedIn && prev.day && incomingDay && incomingDay < prev.day) {
+            return;
         }
+        if (snap.source === 'award' && prev && prev.loaded && prev.signedIn && prev.day && incomingDay === prev.day) {
+            var kept = meterNumber(prev);
+            var incoming = meterNumber(snap);
+            var stale = snap.sentAt && liveAt && Number(snap.sentAt) < liveAt;
+            if (incoming < kept || stale && incoming <= kept) {
+                snap = Object.assign({}, snap, { dailyXp: kept, day: prev.day });
+            }
+        }
+        if (snap.source === 'live') liveAt = Date.now();
         if (snap.day) heldDay = String(snap.day);
         var loaded = snap.loaded !== false;
         var used = loaded ? meterNumber(snap) : 0;
+        var day = loaded ? (heldDay || offsetDay(Date.now())) : (heldDay || '');
         window._serverDailyXp = {
             signedIn: true,
             loaded: loaded,
             dailyXp: used,
-            uncappedXp: loaded ? heldUncapped : 0,
-            day: loaded ? (heldDay || offsetDay(Date.now())) : (heldDay || ''),
-            dailyCap: snap.dailyCap || 1000,
-            fullUntil: snap.fullUntil || 500,
-            halfUntil: snap.halfUntil || 900,
+            day: day,
+            uid: snap.uid || viewerUid() || (prev && prev.uid) || '',
+            dailyCap: snap.dailyCap || (prev && prev.dailyCap) || 1000,
+            fullUntil: snap.fullUntil || (prev && prev.fullUntil) || 500,
+            halfUntil: snap.halfUntil || (prev && prev.halfUntil) || 900,
             pastCap: loaded && used >= 1000
         };
         paintMeter(window._serverDailyXp);
@@ -451,6 +464,17 @@
         dailyWatchId = '';
         dailyLive = false;
         dailyListenDenied = false;
+        dailyDeniedGen = -1;
+    }
+
+    function watchDailyAuth() {
+        if (dailyAuthHooked) return;
+        dailyAuthHooked = true;
+        try {
+            if (typeof auth === 'undefined' || !auth) return;
+            var fn = typeof auth.onIdTokenChanged === 'function' ? auth.onIdTokenChanged : auth.onAuthStateChanged;
+            if (typeof fn === 'function') fn.call(auth, function () { dailyAuthGen += 1; });
+        } catch (e) {}
     }
 
     function fetchDailyXpStatus() {
@@ -465,8 +489,8 @@
                 publishDailyXp({
                     signedIn: true,
                     loaded: true,
+                    source: 'status',
                     dailyXp: data.dailyXp,
-                    uncappedXp: data.uncappedXp,
                     day: data.day,
                     dailyCap: data.dailyCap,
                     fullUntil: data.fullUntil,
@@ -480,11 +504,15 @@
     }
 
     // Live read of the cap counter. Writes stay denied in firestore.rules.
+    // A permission denial stays off until the next auth refresh, then one repaint retries.
     function watchDailyXp() {
         if (window._todayStubUser) return;
+        watchDailyAuth();
         var uid = flexUid();
         var canRead = uid && typeof db !== 'undefined' && db && typeof firebase !== 'undefined' && firebase.firestore;
-        if (!canRead || dailyListenDenied) return;
+        if (!canRead) return;
+        if (dailyListenDenied && dailyDeniedGen === dailyAuthGen) return;
+        if (dailyListenDenied && dailyDeniedGen !== dailyAuthGen) dailyListenDenied = false;
         var day = todayKey();
         var id = uid + '/' + day;
         if (dailyWatchId === id && dailyUnsub) return;
@@ -500,12 +528,14 @@
                 var data = {};
                 if (snap && snap.exists && typeof snap.data === 'function') data = snap.data() || {};
                 dailyLive = true;
+                dailyListenDenied = false;
                 publishDailyXp({
                     signedIn: true,
                     loaded: true,
+                    source: 'live',
                     dailyXp: data.total,
-                    uncappedXp: data.uncapped || 0,
-                    day: day
+                    day: day,
+                    uid: uid
                 });
             }, function (err) {
                 if (dailyWatchId === id) {
@@ -514,7 +544,10 @@
                     dailyLive = false;
                 }
                 var code = err && err.code ? String(err.code) : '';
-                if (code.indexOf('permission') !== -1) dailyListenDenied = true;
+                if (code.indexOf('permission') !== -1) {
+                    dailyListenDenied = true;
+                    dailyDeniedGen = dailyAuthGen;
+                }
                 fetchDailyXpStatus();
             });
         } catch (e3) {
