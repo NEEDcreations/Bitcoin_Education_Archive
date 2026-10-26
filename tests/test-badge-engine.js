@@ -1574,6 +1574,149 @@ queue.push(test('unbacked legacy counts only after server criteria, and hidden-o
     assert.ok(legacy.write.indexOf('gift_open_1') !== -1);
 }));
 
+queue.push(test('explorer hidden-only delta pays once and dry-run reruns pay nothing', function () {
+    const dry = require('../functions/src/backfillDryRun');
+    const badgeXp = require('../functions/src/badgeXpTable');
+    const { HIDDEN_ONLY_GRANT_MODE, HIDDEN_ONLY_GRANT_FAVOR, hiddenOnlyGrantPlan } = require('../functions/src/awardBadge');
+    const { planUserBadges } = require('../functions/src/badgeXpBackfill');
+    const backfill = require('../scripts/backfill-badge-favor');
+    const counters = require('../functions/scripts/backfill_badge_counters');
+
+    assert.strictEqual(HIDDEN_ONLY_GRANT_MODE, 'delta');
+    assert.strictEqual(HIDDEN_ONLY_GRANT_FAVOR, true);
+    assert.strictEqual(dry.parseMode(['--dry-run', '--apply']).apply, false);
+    assert.strictEqual(dry.parseMode(['--apply']).apply, true);
+    assert.strictEqual(dry.parseMode([]).dryRun, true);
+
+    const ids = ['first_channel', 'explorer_5', 'explorer_10', 'explorer_25', 'explorer_50', 'explorer_100', 'explorer_all'];
+    const uid = 'explorerUser0123456789';
+    let xp = 0;
+    let favor = 0;
+    const awardById = {};
+    ids.forEach(function (id) {
+        const catalog = badgeRules.xpOf(id);
+        const old = badgeXp.oldXpOf(id);
+        const plan = hiddenOnlyGrantPlan(id, catalog);
+        const recorded = old == null ? 0 : old;
+        assert.strictEqual(plan.xp, Math.max(0, catalog - recorded), id);
+        assert.strictEqual(plan.favor, true, id);
+        assert.strictEqual(plan.priorXp, recorded, id);
+        xp += plan.xp;
+        favor += 1;
+        awardById[id] = {
+            xp: plan.xp,
+            priorXp: plan.priorXp,
+            source: 'awardBadge',
+            hiddenOnlyGrant: 'delta',
+        };
+    });
+    assert.strictEqual(xp, 20);
+    assert.strictEqual(favor, 7);
+    assert.strictEqual(dry.userLine(uid, xp, favor), 'user explorer... xp 20 favor 7');
+    assert.strictEqual(dry.userLine(uid, xp, favor).indexOf(uid), -1);
+    assert.strictEqual(dry.grandLine(xp, favor), 'grand xp 20 favor 7');
+    assert.strictEqual(hiddenOnlyGrantPlan('explorer_25', 50).xp, 20);
+    assert.strictEqual(hiddenOnlyGrantPlan('explorer_10', 10).xp, 0);
+    assert.strictEqual(hiddenOnlyGrantPlan('explorer_all', 150).xp, 0);
+
+    const topped = planUserBadges({
+        user: { points: xp, channelsVisited: 999, hiddenBadges: ids.slice() },
+        awardIds: ids.slice(),
+        awardById: awardById,
+    });
+    assert.strictEqual(topped.xp, 0);
+    assert.strictEqual(topped.favorPoints, 0);
+    assert.ok(topped.topUps.every(function (row) { return row.topUp === 0; }));
+    assert.strictEqual(dry.grandLine(topped.xp, topped.favorPoints), 'grand xp 0 favor 0');
+
+    const hiddenOnly = backfill.classifyHeld({
+        user: { hiddenBadges: ids.slice(), channelsVisited: 999 },
+        awardIds: [],
+        awardById: {},
+    });
+    assert.strictEqual(hiddenOnly.credit.length, 0);
+    const afterGrant = backfill.classifyHeld({
+        user: { hiddenBadges: ids.slice(), channelsVisited: 999 },
+        awardIds: ids.slice(),
+        awardById: awardById,
+    });
+    assert.strictEqual(afterGrant.credit.length, ids.length);
+    const heldFavor = backfill.planUser({
+        uid: uid,
+        user: {},
+        held: afterGrant.credit,
+        contributorIds: ids.map(function (id) { return uid + '_badge_' + id; }),
+    });
+    assert.strictEqual(heldFavor.missing.length, 0);
+    const freshFavor = backfill.planUser({
+        uid: 'favorUser0123456789abcdef',
+        user: {},
+        held: ['say_hi_1', 'peer_1'],
+        contributorIds: [],
+    });
+    assert.strictEqual(freshFavor.missing.length, 2);
+    assert.strictEqual(freshFavor.missing[0].doc.tag, 'badge_favor_backfill');
+    assert.strictEqual(dry.userLine('favorUser0123456789abcdef', 0, 2), 'user favorUse... xp 0 favor 2');
+    const markedFavor = backfill.planUser({
+        uid: 'favorUser0123456789abcdef',
+        user: {},
+        held: ['say_hi_1', 'peer_1'],
+        contributorIds: freshFavor.missing.map(function (row) { return row.docId; }),
+    });
+    assert.strictEqual(markedFavor.missing.length, 0);
+
+    const unbacked = planUserBadges({
+        user: { points: 0, sayHiDays: 1 },
+        awardIds: ['say_hi_1'],
+        awardById: { say_hi_1: { source: 'legacy', xp: 0 } },
+    });
+    assert.strictEqual(unbacked.xp, 0);
+    assert.strictEqual(unbacked.favorPoints, 0);
+
+    const streak = planUserBadges({
+        user: { points: 130, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 50 } },
+    });
+    assert.strictEqual(streak.xp, 100);
+    assert.strictEqual(streak.favorPoints, 2);
+    const streakAgain = planUserBadges({
+        user: { points: 230, bestStreak: 7, badges: ['streak_7'] },
+        awardIds: ['streak_7'],
+        awardById: { streak_7: { xp: 150, xpSource: 'badge_backfill' } },
+        markerIds: ['streak_7'],
+        levelContributorIds: streak.levelUps.map(function (row) { return row.name; }),
+    });
+    assert.strictEqual(streakAgain.xp, 0);
+    assert.strictEqual(streakAgain.favorPoints, 0);
+    assert.strictEqual(dry.grandLine(streakAgain.xp, streakAgain.favorPoints), 'grand xp 0 favor 0');
+
+    const pay = counters.planBadgePay({ points: 0 }, ['onboarding_complete'], [], []);
+    assert.ok(pay.xp > 0);
+    assert.strictEqual(pay.badgeFavor, 1);
+    const payAgain = counters.planBadgePay(
+        { points: pay.xp },
+        ['onboarding_complete'],
+        ['onboarding_complete'],
+        pay.levelUps.map(function (row) { return row.name; })
+    );
+    assert.strictEqual(payAgain.xp, 0);
+    assert.strictEqual(payAgain.favorPoints, 0);
+    assert.strictEqual(counters.legacyPayAmount('explorer_25'), 20);
+    assert.strictEqual(counters.legacyPayAmount('explorer_10'), 0);
+    assert.strictEqual(counters.legacyPayAmount('explorer_50'), 0);
+    assert.strictEqual(counters.legacyPayAmount('explorer_100'), 0);
+    assert.strictEqual(counters.legacyPayAmount('explorer_all'), 0);
+
+    ['scripts/backfill-badge-favor.js', 'functions/scripts/backfill_badge_xp.js', 'functions/scripts/backfill_badge_counters.js'].forEach(function (rel) {
+        const src = fs.readFileSync(path.join(root, rel), 'utf8');
+        assert.ok(src.indexOf('--dry-run') !== -1, rel);
+        assert.ok(src.indexOf('userLine(') !== -1, rel);
+        assert.ok(src.indexOf('grandLine(') !== -1, rel);
+        assert.ok(src.indexOf('args.dryRun') !== -1, rel);
+    });
+}));
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

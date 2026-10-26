@@ -22,10 +22,15 @@
  * equippedBadge are excluded, and so are ids that are not in the catalog.
  * Dry-run prints those excluded counts by reason.
  *
- * Banned users are skipped. Dry-run is the default and prints counts per
- * faction. --apply writes. Do not run it as part of a deploy.
+ * Banned users are skipped. Dry-run is the default. --dry-run is the same
+ * mode and wins over --apply. It prints one line per user who would receive
+ * Favor (uid truncated to 8 characters) and a grand total. XP on this script
+ * is always 0. --apply writes. The contributor doc {uid}_badge_{badgeId} is
+ * the marker: a second run sees it and pays nothing. Do not run --apply as
+ * part of a deploy.
  *
  *   node scripts/backfill-badge-favor.js
+ *   node scripts/backfill-badge-favor.js --dry-run
  *   node scripts/backfill-badge-favor.js --apply
  */
 'use strict';
@@ -33,6 +38,7 @@
 const { rewardBlocked } = require('../functions/src/cipherClaim');
 const badgeRules = require('../functions/src/badgeRules');
 const { collectIds, canonicalBadgeId, awardCountsForBonus } = require('../functions/src/badgeProfile');
+const { userLine, grandLine, parseMode } = require('../functions/src/backfillDryRun');
 
 const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'donationBadges'];
 const HIDDEN_LIST_FIELDS = ['hiddenBadges'];
@@ -43,18 +49,17 @@ const PAGE = 200;
 
 function helpText() {
     return [
-        'Usage: node scripts/backfill-badge-favor.js [--apply]',
+        'Usage: node scripts/backfill-badge-favor.js [--dry-run] [--apply]',
         '',
-        'Dry-run prints counts per faction and writes nothing. --apply writes',
-        'contributor docs and increments faction totals. The live pool is not touched.',
+        'Dry-run prints per-user Favor (truncated uids), a grand total, and',
+        'counts per faction. It writes nothing. --dry-run wins over --apply.',
+        '--apply writes contributor marker docs and increments faction totals.',
+        'The live pool is not touched. A second run pays nothing.',
     ].join('\n');
 }
 
 function parseArgs(argv) {
-    return {
-        help: argv.indexOf('--help') !== -1 || argv.indexOf('-h') !== -1,
-        apply: argv.indexOf('--apply') !== -1,
-    };
+    return parseMode(argv);
 }
 
 function keyPart(value) {
@@ -184,6 +189,7 @@ function planUser(input) {
                 pointsAdded: 1,
                 faction: faction,
                 backfill: true,
+                tag: 'badge_favor_backfill',
             },
         });
     });
@@ -211,6 +217,8 @@ async function main() {
         byFaction: { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 },
         excluded: { 'client-writable-field': 0, 'not-in-catalog': 0, 'hidden-only': 0, 'unbacked-legacy': 0 },
     };
+    const reportLines = [];
+    let reportFavor = 0;
     let cursor = null;
     let batch = db.batch();
     let pending = 0;
@@ -267,6 +275,10 @@ async function main() {
             });
             counts.badgeRecords += classified.credit.length;
             counts.alreadyCredited += (classified.credit.length - plan.missing.length);
+            if (args.dryRun && plan.missing.length > 0) {
+                reportLines.push(userLine(userDoc.id, 0, plan.missing.length));
+                reportFavor += plan.missing.length;
+            }
             plan.missing.forEach(function (row) {
                 counts.missing += 1;
                 counts.byFaction[factionBucket(plan.faction)] += 1;
@@ -292,6 +304,10 @@ async function main() {
             totals.lastUpdated = admin.firestore.FieldValue.serverTimestamp();
             await db.collection('satoshiFavor').doc('factionTotals').set(totals, { merge: true });
         }
+    }
+    if (args.dryRun) {
+        reportLines.forEach(function (line) { console.log(line); });
+        console.log(grandLine(0, reportFavor));
     }
     console.log(args.apply ? 'applied' : 'dry-run');
     console.log('cyber_hornets: ' + counts.byFaction.cyber_hornets);

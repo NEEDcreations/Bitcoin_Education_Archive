@@ -37,7 +37,14 @@
  * already exists, so it is not marked unread or shown again. Output is
  * counts only. No user ids or emails.
  *
+ * Dry-run is the default. --dry-run is the same mode and wins over --apply.
+ * It prints one line per user for the XP and Favor that --apply --pay-xp
+ * would write (uid truncated to 8 characters) and a grand total. It writes
+ * nothing. xp_ledger/{badgeId} and the contributor doc {uid}_badge_{badgeId}
+ * are the markers. A second --apply --pay-xp pays nothing for those badges.
+ *
  *   node functions/scripts/backfill_badge_counters.js
+ *   node functions/scripts/backfill_badge_counters.js --dry-run
  *   node functions/scripts/backfill_badge_counters.js --apply
  *   node functions/scripts/backfill_badge_counters.js --apply --pay-xp
  *
@@ -54,6 +61,7 @@ const { profileBadgeIds, awardCountsForBonus, serverHoldsBadge, progressAwardIds
 const { applyDailyXp } = require('../src/applyDailyXp');
 const badgeXpTable = require('../src/badgeXpTable');
 const rewardNotify = require('../src/rewardNotify');
+const { userLine, grandLine, parseMode } = require('../src/backfillDryRun');
 
 const PAGE = 200;
 const GIFTS_FOR_LEVEL = [0, 1, 21, 44, 144, 210];
@@ -97,19 +105,22 @@ const BADGE_IDS = badgeIds();
 
 function helpText() {
     return [
-        'Usage: node functions/scripts/backfill_badge_counters.js [--apply] [--pay-xp]',
+        'Usage: node functions/scripts/backfill_badge_counters.js [--dry-run] [--apply] [--pay-xp]',
         '',
-        'Dry-run prints users, banned skips, counter raises, badges, and XP',
-        'for both the unpaid mode and the --pay-xp mode. --apply writes',
-        'counters and badge rows. --pay-xp also pays catalog XP and Favor.',
-        '--pay-xp does nothing unless --apply is set.',
+        'Dry-run prints per-user XP and Favor for --apply --pay-xp (truncated',
+        'uids), a grand total, and the unpaid-mode counts. It writes nothing.',
+        '--dry-run wins over --apply. --apply writes counters and badge rows.',
+        '--pay-xp also pays catalog XP and Favor, and writes marker docs.',
+        '--pay-xp does nothing unless --apply is set. A second pay run pays nothing.',
     ].join('\n');
 }
 
 function parseArgs(argv) {
+    const mode = parseMode(argv);
     return {
-        help: argv.indexOf('--help') !== -1 || argv.indexOf('-h') !== -1,
-        apply: argv.indexOf('--apply') !== -1,
+        help: mode.help,
+        apply: mode.apply,
+        dryRun: mode.dryRun,
         payXp: argv.indexOf('--pay-xp') !== -1,
     };
 }
@@ -574,6 +585,9 @@ async function main() {
         unpaid: { users: 0, badges: 0, xp: 0 },
         pay: { users: 0, badges: 0, xp: 0, favorPoints: 0 },
     };
+    const reportLines = [];
+    let reportXp = 0;
+    let reportFavor = 0;
 
     async function forEachDoc(baseQuery, onDoc) {
         let cursor = null;
@@ -807,6 +821,11 @@ async function main() {
                 if (!favorIds[userDoc.id + '_badge_' + item.badgeId]) favorWouldWrite += 1;
             });
             pay.levelUps.forEach(function (rank) { favorWouldWrite += rank.points; });
+            if (args.dryRun && (pay.xp > 0 || favorWouldWrite > 0)) {
+                reportLines.push(userLine(userDoc.id, pay.xp, favorWouldWrite));
+                reportXp += pay.xp;
+                reportFavor += favorWouldWrite;
+            }
             if (pay.paying.length) {
                 counts.pay.users += 1;
                 counts.pay.badges += pay.paying.length;
@@ -1021,6 +1040,10 @@ async function main() {
         if (snap.size < PAGE) break;
     }
 
+    if (args.dryRun) {
+        reportLines.forEach(function (line) { console.log(line); });
+        console.log(grandLine(reportXp, reportFavor));
+    }
     console.log('[backfill-counters] users ' + counts.users);
     console.log('[backfill-counters] banned skipped ' + counts.bannedSkipped);
     console.log('[backfill-counters] users with changes ' + counts.usersChanged);

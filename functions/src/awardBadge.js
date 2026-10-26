@@ -20,11 +20,15 @@ const { serverHoldsBadge, hiddenOnlyBadge, progressAwardIds } = require('./badge
 const ALIASES = { country_set: 'global_citizen' };
 
 // Hidden-only badges (hiddenBadges, no server list, no award row) were paid
-// from the old XP table. The mode chooses XP only. 'delta' pays catalog XP
-// minus that old amount, so explorer_* cannot be paid twice. 'full' pays the
-// catalog amount. 'zero' pays no XP and records the catalog amount as already
-// settled. Favor is HIDDEN_ONLY_GRANT_FAVOR, independent of the mode.
-// Phil confirms both live values.
+// from the old XP table. Phil confirmed the live values on 2026-10-26:
+// mode 'delta', Favor on. The mode chooses XP only. 'delta' pays catalog XP
+// minus that old amount, so explorer_* cannot be paid twice. explorer_25
+// pays 20 (catalog 50, old 30). explorer_5, explorer_10, explorer_50,
+// explorer_100, and explorer_all pay 0 because the old amount is already at
+// least the catalog amount. priorXp stores the amount already counted so a
+// later top-up does not pay it again. 'full' pays the catalog amount.
+// 'zero' pays no XP and records the catalog amount as already settled.
+// Favor is HIDDEN_ONLY_GRANT_FAVOR, including when the mode is 'zero'.
 const HIDDEN_ONLY_GRANT_MODE = 'delta';
 const HIDDEN_ONLY_GRANT_FAVOR = true;
 
