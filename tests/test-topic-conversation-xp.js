@@ -202,7 +202,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(notes.includes("Latest: When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak."));
     assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
     assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
     assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));

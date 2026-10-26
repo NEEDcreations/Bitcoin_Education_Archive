@@ -323,6 +323,53 @@ function renderAppPage(page, origin) {
 </html>`;
 }
 
+// Static per-type achievement previews. The ref query is ignored and never copied here.
+const ACHIEVEMENT_OG = {
+    sf_block: { title: "Satoshi's Favor block found", desc: "A Satoshi's Favor block was found on Bitcoin Quest." },
+    badge: { title: 'Rare badge on Bitcoin Quest', desc: 'A rare badge was earned on Bitcoin Quest.' },
+    cert_scholar: { title: 'Bitcoin Scholar', desc: 'A Bitcoin Scholar certification was earned on Bitcoin Quest.' },
+    cert_protocol: { title: 'Protocol Expert', desc: 'A Protocol Expert certification was earned on Bitcoin Quest.' },
+    rank: { title: 'Rank up on Bitcoin Quest', desc: 'A notable rank was reached on Bitcoin Quest.' },
+    raid: { title: 'Raid boss defeated', desc: 'A raid boss was defeated on Bitcoin Quest.' },
+    streak: { title: 'Streak on Bitcoin Quest', desc: 'A streak milestone on Bitcoin Quest.' },
+    daily: { title: 'Daily quests done', desc: 'Daily quests were completed on Bitcoin Quest.' },
+    xp: { title: 'Bitcoin Quest progress', desc: 'Progress on Bitcoin Quest.' },
+};
+
+function renderAchievementPage(type, origin) {
+    const info = ACHIEVEMENT_OG[type];
+    const title = escapeHtml(info.title);
+    const desc = escapeHtml(info.desc);
+    const url = origin + '/';
+    const ogImg = origin + '/og/achievements/' + type + '.png';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} — Bitcoin Quest</title>
+    <meta name="description" content="${desc}">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="${url}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${url}">
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${desc}">
+    <meta property="og:image" content="${ogImg}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${title}">
+    <meta name="twitter:description" content="${desc}">
+    <meta name="twitter:image" content="${ogImg}">
+    <meta http-equiv="refresh" content="0;url=${url}">
+</head>
+<body>
+    <h1>${title}</h1>
+    <p>${desc}</p>
+    <p><a href="${url}">Open Bitcoin Quest</a></p>
+</body>
+</html>`;
+}
+
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 
 export default {
@@ -427,6 +474,18 @@ export default {
                 });
             } catch(e) {
                 return new Response('Auth proxy error', { status: 502 });
+            }
+        }
+
+        // Bots requesting a known achievement type get a static preview.
+        // Humans fall through so the app can read ?ref=. The ref value is not rendered.
+        if ((path === '/' || path === '/index.html') && request.method === 'GET' && isBot(ua)) {
+            const ach = url.searchParams.get('a');
+            if (ach && Object.prototype.hasOwnProperty.call(ACHIEVEMENT_OG, ach)) {
+                return new Response(renderAchievementPage(ach, origin), {
+                    status: 200,
+                    headers: botPageHeaders(nonce),
+                });
             }
         }
 

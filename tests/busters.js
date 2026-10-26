@@ -1,11 +1,11 @@
-// Cache-buster pin. This ship branch is btc-archive-v2378.
+// Cache-buster pin. This ship branch is btc-archive-v2412.
 // Live gh-pages was v2377. timechain-tv.js stays 20261024_v2353.
 // bundle.min.js, modules.js, scholar.js, and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // gifting.js, ranking.js, and global-chat.js are 20261026_v2378. quests.js stays 20261026_v2381.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js stays 20261026_v2373. today-card.js stays 20261026_v2371.
-// features.registry.js stays 20261024_v2368.
+// features.registry.js is 20261026_v2412. achievement-share.js is 20261026_v2412.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261026_v2378.
 // notifications.js stays 20261024_v2357.
@@ -32,9 +32,9 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2378', () => {
+test('service worker cache is v2412', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2378'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2412'"));
     assert.ok(!sw.includes('btc-archive-v2399'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
@@ -224,7 +224,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
+    assert.ok(html.includes('features.registry.js?v=20261026_v2412'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2359'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2358'));
@@ -324,7 +324,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2378');
+    assert.ok(swVersion && swVersion[1] === 'v2412');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -366,7 +366,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(notes.includes("Latest: When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak."));
+    assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(!notes.includes('Latest: Inventory explains'));
     assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
     assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
     assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));

@@ -391,7 +391,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
+    assert.ok(html.includes('features.registry.js?v=20261026_v2412'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
@@ -416,7 +416,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2378'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2412'"));
     assert.ok(!sw.includes('btc-archive-v2399'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
@@ -853,7 +853,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const certNote = 'Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.';
     assert.ok(notes.includes(certNote));
     assert.ok(!notes.includes('Latest: ' + certNote));
-    const latest = 'Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
+    const latest = "Latest: When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
     assert.ok(notes.includes(faction));
