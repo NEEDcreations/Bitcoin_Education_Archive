@@ -1749,6 +1749,7 @@ window.toggleChatOverlay = function() {
     document.body.classList.toggle('chat-panel-open', _overlayOpen);
     panel.classList.toggle('chat-panel-open', _overlayOpen);
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
+    if (!_overlayOpen) panel.style.zIndex = '250000';
     if (typeof window.syncFabHold === 'function') window.syncFabHold();
     // Shift leaderboard button up when chat is open so it doesn't cover input buttons
     var _lbFab = document.getElementById('lbFloatBtn');
@@ -2025,6 +2026,7 @@ window.renderChatHub = function(tab) {
         if (panel) {
             panel.classList.remove('chat-panel-open');
             panel.style.transform = 'translateY(100%)';
+            panel.style.zIndex = '250000';
         }
         if (typeof window.syncFabHold === 'function') window.syncFabHold();
         if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
