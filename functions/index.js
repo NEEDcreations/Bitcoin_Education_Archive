@@ -157,6 +157,7 @@ const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets
 const doubleXp = require('./src/doubleXp');
 const referralService = require('./src/referralService');
 const referralDecisions = require('./src/referrals');
+const claimReqs = require('./src/claimReqs');
 const tipService = require('./src/tipService');
 // DNS check shared with confirmTipSent. String-only host checks are not enough.
 const { assertPublicHost } = require('./src/publicHost');
@@ -1348,6 +1349,15 @@ exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret, del
     return referralService.registerReferral(data, context);
 });
 
+// Referral-link visits for the new-account claim requirement. App Check and
+// the IP HMAC secret live on the module so this file's App Check count stays put.
+const { bindLogReferralVisit } = require('./src/claimReqVisit');
+exports.logReferralVisit = bindLogReferralVisit(functionsV1, {
+    admin: admin,
+    db: db,
+    secrets: [referralIpSecret],
+});
+
 exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) => {
     return referralService.deleteMyReferralSignal(data, context);
 });
@@ -1553,6 +1563,14 @@ exports.claimSats = functionsV1.runWith({
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
             return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
         }
+        const authCreatedMs = creationDate.getTime();
+        const earlyMissing = claimReqs.missingItems(
+            userPreSnap.exists ? userPreSnap.data() : {},
+            authCreatedMs
+        );
+        if (earlyMissing.length) {
+            return { success: false, error: claimReqs.missingError(earlyMissing) };
+        }
     } catch (e) {
         console.error('[FAUCET] Could not verify account age:', e.message);
         return { success: false, error: 'Could not verify account age. Try again later.' };
@@ -1689,6 +1707,8 @@ exports.claimSats = functionsV1.runWith({
             if (!userDoc.exists) deny('User profile not found.');
             const user = userDoc.data();
             const ledger = ledgerDoc.exists ? ledgerDoc.data() : {};
+            const claimMissing = claimReqs.missingItems(user, new Date(userRecord.metadata.creationTime).getTime());
+            if (claimMissing.length) deny(claimReqs.missingError(claimMissing));
             displayName = faucetGuard.publicDisplayName(user);
 
             const ban = faucetGuard.assessBan(user, ledger);
@@ -4673,6 +4693,22 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         if (data.isNachoAuto === true) return null;
         if (data.uid && String(data.text || '').trim()) {
             await grantServerTickets(data.uid, 'daily_chat_ticket');
+        }
+        if (claimReqs.chatQualifies(data)) {
+            try {
+                const chatUserRef = db.collection('users').doc(String(data.uid));
+                await db.runTransaction(async function (t) {
+                    const chatUser = await t.get(chatUserRef);
+                    if (!chatUser.exists) return;
+                    const req = chatUser.data().claimReq || {};
+                    if (claimReqs.stampMillis(req.chatAt)) return;
+                    t.update(chatUserRef, {
+                        'claimReq.chatAt': admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                });
+            } catch (claimErr) {
+                console.warn('[onChatMessageCreated] claimReq', claimErr && claimErr.message);
+            }
         }
         try {
             await db.collection('stats').doc('global').set({

@@ -7147,6 +7147,20 @@ function accountDeleteRowHtml(user) {
         var acctCreated = user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime) : null;
         var acctAgeDays = acctCreated ? Math.floor((now - acctCreated.getTime()) / 86400000) : 0;
         var hasEmail = user.email && user.emailVerified;
+        // Auth creation time only. Same instant as functions/src/claimReqs.js.
+        var claimExempt = !!(acctCreated && acctCreated.getTime() < Date.parse('2026-10-26T21:00:00.000Z'));
+        function claimStampMs(value) {
+            if (!value) return 0;
+            if (typeof value === 'number' && isFinite(value)) return value;
+            if (typeof value.seconds === 'number') return value.seconds * 1000;
+            if (typeof value.toMillis === 'function') return value.toMillis();
+            var parsed = Date.parse(value);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        var claimReqMap = (currentUser && currentUser.claimReq && typeof currentUser.claimReq === 'object') ? currentUser.claimReq : {};
+        var chatReqMet = claimStampMs(claimReqMap.chatAt) > 0;
+        var tctvReqMet = claimStampMs(claimReqMap.tctvAt) > 0;
+        var referralReqMet = claimStampMs(claimReqMap.referralAt) > 0;
         var holdRaw = currentUser ? currentUser.satsHold : 0;
         var holdUntil = 0;
         if (holdRaw && typeof holdRaw.seconds === 'number') holdUntil = holdRaw.seconds * 1000;
@@ -7155,8 +7169,9 @@ function accountDeleteRowHtml(user) {
         if (window._satsHoldUntil && Number(window._satsHoldUntil) > holdUntil) holdUntil = Number(window._satsHoldUntil);
         var satsHeld = holdUntil > now;
 
-        // Eligibility checks
-        var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10;
+        // Eligibility checks. New accounts also need the three server stamps.
+        var newReqsMet = claimExempt || (chatReqMet && tctvReqMet && referralReqMet);
+        var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10 && newReqsMet;
         var meetsMin = satsBalance >= 100;
 
         // Sub-tab switcher
@@ -7231,13 +7246,40 @@ function accountDeleteRowHtml(user) {
             { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics - read ' + (10 - channelsRead) + ' more' },
             { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' }
         ];
+        if (!claimExempt) {
+            checks.push({ met: chatReqMet, label: 'Send 1 message in Chat', detail: chatReqMet ? '✓ Message sent' : 'Send a short real message in Chat', go: 'openClaimChat()' });
+            checks.push({ met: tctvReqMet, label: 'Watch Timechain TV', detail: tctvReqMet ? '✓ 30 seconds watched' : 'Watch at least 30 seconds of a video', go: 'openClaimTv()' });
+            checks.push({ met: referralReqMet, label: 'Share your referral link', detail: referralReqMet ? '✓ Someone opened your link' : 'A different device and network has to open it', go: 'shareClaimReferral()', goLabel: 'Share' });
+        }
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
             html += '<span style="font-size:1.1rem;">' + (c.met ? '✅' : '⬜') + '</span>';
             html += '<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
-            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div></div>';
+            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div>';
+            if (!c.met && c.go) {
+                html += '<button type="button" onclick="event.stopPropagation();' + c.go + '" style="flex-shrink:0;padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + (c.goLabel || 'Go') + '</button>';
+            }
+            html += '</div>';
         });
         html += '</div>';
+        if (!claimExempt && !referralReqMet && typeof logReferralVisit === 'function' && typeof getReferralCode === 'function' && !window._claimReqVisitNoted) {
+            window._claimReqVisitNoted = true;
+            logReferralVisit(getReferralCode());
+        }
+        if (!window._claimReqPull && typeof db !== 'undefined' && db && user && user.uid) {
+            window._claimReqPull = true;
+            db.collection('users').doc(user.uid).get().then(function(snap) {
+                window._claimReqPull = false;
+                if (!snap.exists || typeof currentUser === 'undefined' || !currentUser) return;
+                var nextReq = snap.data().claimReq || null;
+                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt) + ':' + claimStampMs(claimReqMap.referralAt);
+                var nextMap = (nextReq && typeof nextReq === 'object') ? nextReq : {};
+                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt) + ':' + claimStampMs(nextMap.referralAt);
+                if (prevKey === nextKey) return;
+                currentUser.claimReq = nextReq;
+                if (settingsTab === 'sats' && window._satsSubTab !== 'donate') showSettingsPage('sats');
+            }).catch(function() { window._claimReqPull = false; });
+        }
 
         // Rules & Limits
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
@@ -10860,6 +10902,60 @@ window.initSatsClaim = function() {
             size: 'flexible',
         });
     }
+};
+
+window.openClaimChat = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+};
+
+window.openClaimTv = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (typeof go === 'function') go('timechain-tv');
+};
+
+function copyClaimReferralLink(link) {
+    var copied = false;
+    try {
+        var ta = document.createElement('textarea');
+        ta.value = link;
+        ta.setAttribute('readonly', 'readonly');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy');
+        ta.remove();
+    } catch (e) {}
+    function toastCopied() {
+        if (typeof showToast === 'function') showToast('Referral link copied');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(toastCopied).catch(function() {
+            if (copied) toastCopied();
+            else if (typeof showToast === 'function') showToast(link);
+        });
+        return;
+    }
+    if (typeof showToast === 'function') showToast(copied ? 'Referral link copied' : link);
+}
+
+window.shareClaimReferral = function() {
+    var link = (typeof getReferralLink === 'function') ? getReferralLink() : '';
+    if (!link) {
+        if (typeof showToast === 'function') showToast('Sign in to get your referral link');
+        return;
+    }
+    if (typeof logReferralVisit === 'function' && typeof getReferralCode === 'function') logReferralVisit(getReferralCode());
+    var payload = { title: 'Bitcoin Quest', text: 'Learn Bitcoin with me on Bitcoin Quest.', url: link };
+    if (navigator.share) {
+        navigator.share(payload).catch(function(err) {
+            if (err && err.name === 'AbortError') return;
+            copyClaimReferralLink(link);
+        });
+        return;
+    }
+    copyClaimReferralLink(link);
 };
 
 // Device fingerprint for multi-account detection (Fix #3)

@@ -202,7 +202,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
+    assert.ok(notes.includes('Latest: New accounts send one chat message, watch 30 seconds of Timechain TV, and get a referral-link visit from another device and network before claiming sats.'));
     assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
     assert.ok(!notes.includes('Latest: On a computer'));
     assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
