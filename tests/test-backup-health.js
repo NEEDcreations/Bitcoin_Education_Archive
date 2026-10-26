@@ -251,8 +251,11 @@ test('backup modules do not call chat bridges or send mail', function () {
         'functions/src/backupStatus.js',
         'functions/src/authBackupCrypto.js',
         'functions/src/authBackupFormat.js',
+        'functions/src/r2BackupCrypto.js',
+        'functions/src/r2Offsite.js',
         'scripts/restore_auth_export.js',
         'scripts/decrypt_auth_export.js',
+        'scripts/decrypt_r2_object.js',
         'scripts/backup_infra_setup.sh',
     ];
     const nightlySrc = fs.readFileSync(path.join(__dirname, '..', 'functions/src/nightlyBackup.js'), 'utf8');

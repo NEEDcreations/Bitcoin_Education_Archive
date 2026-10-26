@@ -21,6 +21,10 @@
 # not set a retention policy or a retention lock. It does not create SMTP
 # secrets. Backup results stay in Firestore for an external checker.
 # It does not generate AUTH_BACKUP_KEY. Phil pipes that in Cloud Shell.
+# It does not create the Cloudflare R2 bucket, the R2 API token, or the
+# Secret Manager secrets R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+# R2_SECRET_ACCESS_KEY, R2_BUCKET, and BACKUP_ENCRYPTION_KEY. Phil does
+# that once, from the steps this script prints.
 #
 # AUTH_BACKUP_KEY (32 bytes). After both flags, Phil generates the version
 # in Cloud Shell, never on the deploy box. The pipe does not print the key.
@@ -40,6 +44,7 @@ UPLOADS_BACKUP_BUCKET="${UPLOADS_BACKUP_BUCKET:-bitcoin-education-archive-upload
 SOURCE_UPLOADS_BUCKET="${SOURCE_UPLOADS_BUCKET:-bitcoin-education-archive.firebasestorage.app}"
 AUTH_BACKUP_LOCATION="${AUTH_BACKUP_LOCATION:-us}"
 AUTH_BACKUP_SA="${AUTH_BACKUP_SA:-bq-auth-backup@${PROJECT_ID}.iam.gserviceaccount.com}"
+R2_COPY_SA="${R2_COPY_SA:-bq-r2-copy@${PROJECT_ID}.iam.gserviceaccount.com}"
 
 OWNER=0
 APPLY=0
@@ -67,6 +72,9 @@ Project: ${PROJECT_ID}
 Mode: $([[ "${OWNER}" == "1" || "${APPLY}" == "1" ]] && echo MUTATE || echo DRY-RUN)
 No buckets are deleted. No retention lock is set. No email secrets are created.
 No key material is generated. Phil pipes AUTH_BACKUP_KEY in Cloud Shell.
+This script does not create the R2 bucket, the R2 API token, or these
+secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET,
+BACKUP_ENCRYPTION_KEY.
 
 Owner section (--owner-apply, Cloud Shell, once):
 WOULD enable APIs:
@@ -86,6 +94,12 @@ WOULD create ${AUTH_BACKUP_SA} if it is missing.
 WOULD create or update custom role authBackupReader with
   firebaseauth.users.get, firebaseauth.configs.get, and
   firebaseauth.configs.getHashConfig, and bind it only to ${AUTH_BACKUP_SA}.
+WOULD stop if that custom role cannot be created or bound.
+WOULD create ${R2_COPY_SA} if it is missing.
+WOULD create or update custom role backupStatusWriter with
+  datastore.entities.get, datastore.entities.list, datastore.entities.create,
+  and datastore.entities.update. The role has no delete permission. Bind it
+  only to ${R2_COPY_SA}.
 WOULD stop if that custom role cannot be created or bound.
 
 Bucket section (--apply, deploy account). Run this after --owner-apply.
@@ -152,6 +166,71 @@ WOULD grant roles/storage.objectViewer and roles/storage.legacyBucketReader
 WOULD grant the Storage Transfer service agent objectViewer and
   legacyBucketReader on the source, and legacyBucketWriter plus objectViewer
   on gs://${UPLOADS_BACKUP_BUCKET}.
+WOULD grant ${R2_COPY_SA} roles/storage.objectViewer and
+  roles/storage.legacyBucketReader on the Firestore backup bucket, the auth
+  backup bucket, and the uploads backup bucket. That account is not granted
+  a role on the live uploads bucket, and it is not granted a role that
+  deletes Cloud Storage objects. Old ciphertext is deleted only in R2.
+
+One-time Cloudflare R2 setup. Phil approves and runs this himself. This
+script does not call Cloudflare and does not create these secrets.
+
+1. Create an R2 bucket. Example name: bitcoin-quest-backups. The name Phil
+   chooses is the value stored in R2_BUCKET. Turn on Object Lock when the
+   bucket is created. Object Lock cannot be enabled later.
+
+2. Set the bucket default retention rule to Governance for 30 days. That
+   blocks delete and overwrite for 30 days. Use Governance, not Compliance,
+   so Phil can bypass the lock in an emergency. The nightly function deletes
+   objects older than 90 days. The 30 day lock has expired by then, so that
+   delete does not need a bypass. The function does not set a per-object
+   retention. Dashboard: bucket, Settings, Object Lock, default retention,
+   Governance, 30 days. Or, with the bucket token, after the bucket exists:
+
+   aws s3api put-bucket-object-lock-configuration \\
+     --bucket bitcoin-quest-backups \\
+     --object-lock-configuration '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"GOVERNANCE","Days":30}}}' \\
+     --endpoint-url https://ACCOUNT_ID.r2.cloudflarestorage.com
+
+3. Create an R2 API token scoped to that bucket only. Permission: Object Read & Write.
+   Do not grant Admin Read or Admin Write. Do not include any
+   other bucket. Save the Access Key ID, the Secret Access Key, and the
+   Cloudflare account id. The token can delete objects in this bucket. That
+   is what the 90 day cleanup uses.
+
+4. In Cloud Shell, never on the deploy box, create the five secrets. Paste
+   each value into the version command. --data-file=- reads stdin and does
+   not print the value. Then clear the screen. Skip a create line when that
+   secret already exists. Do not generate these values on the deploy box.
+
+   gcloud secrets create R2_ACCOUNT_ID --project=${PROJECT_ID} --replication-policy=automatic
+   gcloud secrets versions add R2_ACCOUNT_ID --project=${PROJECT_ID} --data-file=-
+   gcloud secrets create R2_ACCESS_KEY_ID --project=${PROJECT_ID} --replication-policy=automatic
+   gcloud secrets versions add R2_ACCESS_KEY_ID --project=${PROJECT_ID} --data-file=-
+   gcloud secrets create R2_SECRET_ACCESS_KEY --project=${PROJECT_ID} --replication-policy=automatic
+   gcloud secrets versions add R2_SECRET_ACCESS_KEY --project=${PROJECT_ID} --data-file=-
+   gcloud secrets create R2_BUCKET --project=${PROJECT_ID} --replication-policy=automatic
+   gcloud secrets versions add R2_BUCKET --project=${PROJECT_ID} --data-file=-
+   gcloud secrets create BACKUP_ENCRYPTION_KEY --project=${PROJECT_ID} --replication-policy=automatic
+   openssl rand -base64 32 | gcloud secrets versions add BACKUP_ENCRYPTION_KEY \\
+     --project=${PROJECT_ID} --data-file=-
+   gcloud secrets versions access latest --secret=BACKUP_ENCRYPTION_KEY \\
+     --project=${PROJECT_ID}
+   clear
+
+5. Run --owner-apply once (it is safe to repeat), then --apply, so
+   ${R2_COPY_SA} and its read grants exist before deploy. Deploy grants that
+   account access to the five secrets because the function lists them.
+
+6. A same-day retry skips an R2 key that is already present. The 30 day
+   lock blocks an overwrite.
+
+7. To restore one object, download the ciphertext with the bucket token,
+   then decrypt it where the key is available. Do not print the key on the
+   deploy box:
+
+   BACKUP_ENCRYPTION_KEY=... node scripts/decrypt_r2_object.js \\
+     --file object.bin --out restored.bin
 
 WOULD create empty secret AUTH_BACKUP_KEY if it is missing, without adding
   a version, and grant roles/secretmanager.secretAccessor to ${AUTH_BACKUP_SA}
@@ -179,7 +258,7 @@ output in the password manager, then clear the screen:
 
 Then deploy:
 
-  firebase deploy --only functions:dailyFirestoreBackup,functions:nightlyAuthExport,functions:nightlyUploadsCopy,functions:nightlyConfigSnapshot,functions:backupHealthCheck
+  firebase deploy --only functions:dailyFirestoreBackup,functions:nightlyAuthExport,functions:nightlyUploadsCopy,functions:nightlyConfigSnapshot,functions:backupHealthCheck,functions:nightlyR2Copy
 
 EOF
 
@@ -450,6 +529,30 @@ run_owner() {
   fi
   bind_project "serviceAccount:${AUTH_BACKUP_SA}" "projects/${PROJECT_ID}/roles/authBackupReader"
   echo "OWNER: granted projects/${PROJECT_ID}/roles/authBackupReader to ${AUTH_BACKUP_SA}"
+
+  echo "OWNER: r2 copy service account"
+  if gcloud iam service-accounts describe "${R2_COPY_SA}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
+    echo "OWNER: ${R2_COPY_SA} already exists."
+  else
+    gcloud iam service-accounts create "${R2_COPY_SA%%@*}" \
+      --project "${PROJECT_ID}" \
+      --display-name "Bitcoin Quest R2 backup copy"
+  fi
+
+  local status_perms="datastore.entities.get,datastore.entities.list,datastore.entities.create,datastore.entities.update"
+  if gcloud iam roles describe backupStatusWriter --project "${PROJECT_ID}" >/dev/null 2>&1; then
+    gcloud iam roles update backupStatusWriter --project "${PROJECT_ID}" \
+      --permissions "${status_perms}" \
+      --stage GA
+  else
+    gcloud iam roles create backupStatusWriter --project "${PROJECT_ID}" \
+      --title "Backup status writer" \
+      --description "Read and write backup status documents. No delete." \
+      --permissions "${status_perms}" \
+      --stage GA
+  fi
+  bind_project "serviceAccount:${R2_COPY_SA}" "projects/${PROJECT_ID}/roles/backupStatusWriter"
+  echo "OWNER: granted projects/${PROJECT_ID}/roles/backupStatusWriter to ${R2_COPY_SA}"
 }
 
 run_apply() {
@@ -509,6 +612,10 @@ EOF
   bind_bucket_creator "${AUTH_BACKUP_BUCKET}" "serviceAccount:${AUTH_BACKUP_SA}"
   bind_bucket_reader "${AUTH_BACKUP_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
   bind_bucket_reader "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${FUNCTIONS_SA}"
+  echo "APPLY: r2 copy account reads the three backup buckets only"
+  bind_bucket_reader "${FIRESTORE_BACKUP_BUCKET}" "serviceAccount:${R2_COPY_SA}"
+  bind_bucket_reader "${AUTH_BACKUP_BUCKET}" "serviceAccount:${R2_COPY_SA}"
+  bind_bucket_reader "${UPLOADS_BACKUP_BUCKET}" "serviceAccount:${R2_COPY_SA}"
 
   bind_bucket "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${sts_sa}" "roles/storage.objectViewer"
   bind_bucket "${SOURCE_UPLOADS_BUCKET}" "serviceAccount:${sts_sa}" "roles/storage.legacyBucketReader"
@@ -583,7 +690,13 @@ ${AUTH_BACKUP_SA}. This script does not grant that again.
 
 Deploy:
 
-  firebase deploy --only functions:dailyFirestoreBackup,functions:nightlyAuthExport,functions:nightlyUploadsCopy,functions:nightlyConfigSnapshot,functions:backupHealthCheck
+  firebase deploy --only functions:dailyFirestoreBackup,functions:nightlyAuthExport,functions:nightlyUploadsCopy,functions:nightlyConfigSnapshot,functions:backupHealthCheck,functions:nightlyR2Copy
+
+Create the R2 bucket, the 30 day Governance lock, the bucket-scoped Object
+Read & Write token, and the five secrets before that deploy. The steps are
+in the plan printed at the start of this script. This script does not create
+them. BACKUP_ENCRYPTION_KEY is piped in Cloud Shell the same way as
+AUTH_BACKUP_KEY, then the screen is cleared.
 
 An external checker reads backup_status/latest with the Admin SDK after
 05:00 UTC. These scripts do not send email or chat messages.

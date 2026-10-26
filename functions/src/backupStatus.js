@@ -49,8 +49,19 @@ function statusDetail(date, failed, verifiedAt, nowIso) {
     return 'all checks passed';
 }
 
+function finiteCount(value, fallback) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+    const prior = Number(fallback);
+    return Number.isFinite(prior) ? prior : 0;
+}
+
 function nextLatest(previous, event, nowIso) {
-    if (JOB_NAMES.indexOf(event.job) === -1) throw new Error('unknown backup job');
+    // r2 is optional. The 05:00 check still requires the four nightly jobs.
+    // A present r2 failure is added to the failed list, so latest.ok is false
+    // and the existing checker alerts. A missing r2 job does not fail the day.
+    const isR2 = event.job === 'r2';
+    if (!isR2 && JOB_NAMES.indexOf(event.job) === -1) throw new Error('unknown backup job');
     const date = event.date;
     const sameDay = !!(previous && previous.date === date && previous.jobs);
     const jobs = {};
@@ -58,21 +69,39 @@ function nextLatest(previous, event, nowIso) {
         const name = JOB_NAMES[i];
         if (sameDay && previous.jobs[name]) jobs[name] = previous.jobs[name];
     }
-    const prior = jobs[event.job] || {};
-    jobs[event.job] = {
-        ok: event.ok === true,
-        startedAt: event.startedAt || prior.startedAt || null,
-        finishedAt: event.finishedAt || null,
-        detail: jobDetail(event),
-    };
+    if (sameDay && previous.jobs.r2 && !isR2) jobs.r2 = previous.jobs.r2;
+    if (isR2) {
+        const prior = (sameDay && previous.jobs.r2) || {};
+        jobs.r2 = {
+            ok: event.ok === true,
+            startedAt: event.startedAt || prior.startedAt || null,
+            finishedAt: event.finishedAt || null,
+            detail: jobDetail(event),
+            objectCount: finiteCount(event.objectCount, prior.objectCount),
+            bytes: finiteCount(event.bytes, prior.bytes),
+        };
+    } else {
+        const prior = jobs[event.job] || {};
+        jobs[event.job] = {
+            ok: event.ok === true,
+            startedAt: event.startedAt || prior.startedAt || null,
+            finishedAt: event.finishedAt || null,
+            detail: jobDetail(event),
+        };
+    }
     const failed = [];
     for (let i = 0; i < JOB_NAMES.length; i++) {
         const name = JOB_NAMES[i];
         if (!jobs[name] || jobs[name].ok !== true) failed.push(name);
     }
-    // A job write clears verification. Only an event that carries verifiedAt
-    // (the 05:00 health check) can make the overall status ok.
-    const verifiedAt = event.verifiedAt || null;
+    if (jobs.r2 && jobs.r2.ok !== true) failed.push('r2');
+    // A nightly job write clears verification. The r2 copy keeps a same-day
+    // verifiedAt so a later ciphertext copy does not hide a 05:00 check.
+    // Only an event that carries verifiedAt (the 05:00 health check) can
+    // set it. The health rewrite keeps jobs.r2, including a failure.
+    const verifiedAt = isR2
+        ? (event.verifiedAt || (sameDay ? (previous.verifiedAt || null) : null))
+        : (event.verifiedAt || null);
     const detail = statusDetail(date, failed, verifiedAt, nowIso);
     return {
         ok: detail === 'all checks passed',
@@ -85,7 +114,7 @@ function nextLatest(previous, event, nowIso) {
 }
 
 function historyDoc(event, expireAt) {
-    return {
+    const doc = {
         runId: event.runId,
         job: event.job,
         date: event.date,
@@ -95,6 +124,11 @@ function historyDoc(event, expireAt) {
         detail: jobDetail(event),
         expireAt: expireAt,
     };
+    if (event.job === 'r2') {
+        doc.objectCount = finiteCount(event.objectCount, 0);
+        doc.bytes = finiteCount(event.bytes, 0);
+    }
+    return doc;
 }
 
 async function writeBackupResults(db, admin, events, nowIso) {

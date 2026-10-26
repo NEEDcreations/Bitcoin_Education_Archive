@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1157.0",
+    "@aws-sdk/lib-storage": "^3.1157.0",
     "@firebase/app": "^0.16.0",
     "@getalby/sdk": "^7.0.0",
     "@noble/secp256k1": "^1.7.1",

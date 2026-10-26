@@ -8850,6 +8850,11 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
 // Auth ciphertext uses AUTH_BACKUP_KEY. Results are written to
 // backup_status/latest and backup_history. No email, Telegram, or Discord.
 const authBackupKey = defineSecret('AUTH_BACKUP_KEY');
+const r2AccountId = defineSecret('R2_ACCOUNT_ID');
+const r2AccessKeyId = defineSecret('R2_ACCESS_KEY_ID');
+const r2SecretAccessKey = defineSecret('R2_SECRET_ACCESS_KEY');
+const r2Bucket = defineSecret('R2_BUCKET');
+const backupEncryptionKey = defineSecret('BACKUP_ENCRYPTION_KEY');
 
 function backupSchedule(cron, extra) {
     return Object.assign({
@@ -8876,6 +8881,36 @@ exports.nightlyUploadsCopy = onSchedule(backupSchedule('0 3 * * *'), async () =>
 
 exports.nightlyConfigSnapshot = onSchedule(backupSchedule('30 3 * * *'), async () => {
     await nightlyBackup.snapshotConfig();
+});
+
+// Off-site copy. Runs after the nightly jobs and before the 05:00 health
+// check. Secrets are read inside the handler and are not logged. R2 stores
+// only the sealed ciphertext produced by r2BackupCrypto.
+exports.nightlyR2Copy = onSchedule(backupSchedule('45 4 * * *', {
+    memory: '1GiB',
+    timeoutSeconds: 1800,
+    secrets: [r2AccountId, r2AccessKeyId, r2SecretAccessKey, r2Bucket, backupEncryptionKey],
+    serviceAccount: 'bq-r2-copy@bitcoin-education-archive.iam.gserviceaccount.com',
+}), async () => {
+    const r2Offsite = require('./src/r2Offsite');
+    const backupStatus = require('./src/backupStatus');
+    const date = new Date().toISOString().slice(0, 10);
+    await r2Offsite.runNightlyR2Copy({
+        date: date,
+        copy: function () {
+            return r2Offsite.copyToday({
+                date: date,
+                accountId: r2AccountId.value(),
+                accessKeyId: r2AccessKeyId.value(),
+                secretAccessKey: r2SecretAccessKey.value(),
+                bucket: r2Bucket.value(),
+                key: backupEncryptionKey.value(),
+            });
+        },
+        write: function (event) {
+            return backupStatus.writeBackupResult(admin.firestore(), admin, event);
+        },
+    });
 });
 
 exports.backupHealthCheck = onSchedule(backupSchedule('0 5 * * *'), async () => {
