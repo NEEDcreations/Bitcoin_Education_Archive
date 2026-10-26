@@ -1792,6 +1792,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // One certification completion bonus per cert type. gradeScholarExam
+    // writes prop or tech. Clients cannot create or edit the marker.
+    match /users/{userId}/cert_bonuses/{docId} {
+      allow read, write: if false;
+    }
+
     // Action cooldown tracking (Cloud Function only)
     match /action_cooldowns/{docId} {
       allow read, write: if false;

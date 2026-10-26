@@ -382,6 +382,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: Trivia") === -1);
     assert.ok(notes.indexOf("The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.") > 0);
     assert.ok(notes.indexOf("Latest: The daily XP bar") === -1);
+    assert.ok(notes.indexOf("Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.") > 0);
+    assert.ok(notes.indexOf("Latest: Passing the Bitcoin Scholar") === -1);
     assert.ok(notes.indexOf("On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.") > 0);
     assert.ok(notes.indexOf("Latest: On a computer") === -1);
     assert.ok(notes.indexOf("A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
@@ -392,7 +394,6 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: Nacho") === -1);
     assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
     assert.ok(notes.indexOf("Latest: The home page is simpler") === -1);
-    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
     assert.ok(notes.indexOf("Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.") > 0);
     assert.ok(notes.indexOf("Latest: Global chat messages") === -1);
