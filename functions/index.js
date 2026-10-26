@@ -8745,30 +8745,107 @@ exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
 // Exports all collections to gs://bitcoin-education-archive-backups/
 // Runs daily at 2 AM UTC. Bucket lifecycle deletes exports older than 90 days.
 // Bucket must be in 'us' multi-region (us-central1 causes INVALID_ARGUMENT).
-exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
-    const projectId = 'bitcoin-education-archive';
-    const bucket = `gs://${projectId}-backups`;
-    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const exportPath = `${bucket}/${timestamp}`;
+const nightlyBackup = require('./src/nightlyBackup');
+const BACKUP_SA = 'bq-backup@bitcoin-education-archive.iam.gserviceaccount.com';
 
-    const token = await admin.app().options.credential.getAccessToken();
-    const res = await fetch(
-        `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default):exportDocuments`,
-        {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token.access_token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ outputUriPrefix: exportPath })
-        }
-    );
-    const result = await res.json();
-    if (result.error) {
-        console.error('[BACKUP] Export failed:', JSON.stringify(result.error));
-        throw new Error(result.error.message);
-    }
-    console.log(`[BACKUP] Export started → ${exportPath}`, result.name);
+// Nightly backups. Scheduled only — do not add onRequest/onCall wrappers.
+// Auth ciphertext uses AUTH_BACKUP_KEY. Results are written to
+// backup_status/latest and backup_history. No email, Telegram, or Discord.
+const authBackupKey = defineSecret('AUTH_BACKUP_KEY');
+const r2AccountId = defineSecret('R2_ACCOUNT_ID');
+const r2AccessKeyId = defineSecret('R2_ACCESS_KEY_ID');
+const r2SecretAccessKey = defineSecret('R2_SECRET_ACCESS_KEY');
+const r2Bucket = defineSecret('R2_BUCKET');
+const backupEncryptionKey = defineSecret('BACKUP_ENCRYPTION_KEY');
+
+function backupSchedule(cron, extra) {
+    return Object.assign({
+        schedule: cron,
+        timeZone: 'UTC',
+        region: 'us-central1',
+        timeoutSeconds: 540,
+        memory: '512MiB',
+        maxInstances: 1,
+    }, extra || {});
+}
+
+exports.dailyFirestoreBackup = onSchedule(backupSchedule('0 2 * * *', {
+    timeoutSeconds: 1800,
+    serviceAccount: BACKUP_SA,
+}), async () => {
+    await nightlyBackup.exportFirestore();
+});
+
+exports.nightlyAuthExport = onSchedule(backupSchedule('30 2 * * *', {
+    memory: '1GiB',
+    secrets: [authBackupKey],
+    serviceAccount: 'bq-auth-backup@bitcoin-education-archive.iam.gserviceaccount.com',
+}), async () => {
+    await nightlyBackup.exportAuthUsers({ key: authBackupKey.value() });
+});
+
+exports.nightlyUploadsCopy = onSchedule(backupSchedule('0 3 * * *', {
+    serviceAccount: BACKUP_SA,
+}), async () => {
+    await nightlyBackup.copyUploads();
+});
+
+exports.nightlyConfigSnapshot = onSchedule(backupSchedule('30 3 * * *', {
+    serviceAccount: BACKUP_SA,
+}), async () => {
+    await nightlyBackup.snapshotConfig();
+});
+
+// Off-site copy. Starts at 04:00 UTC so a normal night finishes before the
+// 05:00 health check. Each object waits only for the time left in the copy
+// budget, inside the 1800 second function timeout. Secrets are read inside
+// the handler and are not logged. R2 stores only the sealed ciphertext
+// produced by r2BackupCrypto.
+exports.nightlyR2Copy = onSchedule(backupSchedule('0 4 * * *', {
+    memory: '1GiB',
+    timeoutSeconds: 1800,
+    secrets: [r2AccountId, r2AccessKeyId, r2SecretAccessKey, r2Bucket, backupEncryptionKey],
+    serviceAccount: 'bq-r2-copy@bitcoin-education-archive.iam.gserviceaccount.com',
+}), async () => {
+    const r2Offsite = require('./src/r2Offsite');
+    const backupStatus = require('./src/backupStatus');
+    const date = new Date().toISOString().slice(0, 10);
+    await r2Offsite.runNightlyR2Copy({
+        date: date,
+        readCleanup: async function () {
+            try {
+                const snap = await admin.firestore().collection('backup_status').doc('r2_cleanup').get();
+                return snap.exists ? snap.data() : null;
+            } catch (err) {
+                return null;
+            }
+        },
+        writeCleanup: function (state) {
+            return admin.firestore().collection('backup_status').doc('r2_cleanup').set({
+                skipStreak: state.skipStreak,
+                lastSkipDate: state.lastSkipDate,
+            });
+        },
+        copy: function () {
+            return r2Offsite.copyToday({
+                date: date,
+                accountId: r2AccountId.value(),
+                accessKeyId: r2AccessKeyId.value(),
+                secretAccessKey: r2SecretAccessKey.value(),
+                bucket: r2Bucket.value(),
+                key: backupEncryptionKey.value(),
+            });
+        },
+        write: function (event) {
+            return backupStatus.writeBackupResult(admin.firestore(), admin, event);
+        },
+    });
+});
+
+exports.backupHealthCheck = onSchedule(backupSchedule('0 5 * * *', {
+    serviceAccount: BACKUP_SA,
+}), async () => {
+    await nightlyBackup.checkBackupHealth();
 });
 
 // ================================================================

@@ -416,8 +416,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2378'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2403'"));
     assert.ok(!sw.includes('btc-archive-v2399'));
+    assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
@@ -799,16 +800,19 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const minerNote = "A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.";
-    assert.ok(notes.includes(minerNote));
-    assert.ok(!notes.includes('Latest: ' + minerNote));
-    const previousLatest = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
-    const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
-    assert.ok(notes.includes(gifts));
-    assert.ok(!notes.includes('Latest: Opening gifts'));
+    const miner = "A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.";
+    const sidebar = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    assert.ok(notes.includes(miner));
+    assert.ok(!notes.includes("Latest: A miner's public name"));
+    assert.ok(notes.includes(sidebar));
+    assert.ok(!notes.includes('Latest: Sidebar topic names'));
+    const previousLatest = sidebar;
     const invite = 'The Invite button now stays on the home screen as a small pill, so you can always invite a friend.';
     assert.ok(notes.includes(invite));
     assert.ok(!notes.includes('Latest: The Invite button'));
+    const gift = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
+    assert.ok(notes.includes(gift));
+    assert.ok(!notes.includes('Latest: Opening gifts'));
     const favorLive = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
     const topics = 'On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
     assert.ok(notes.includes(topics));
@@ -853,7 +857,10 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const certNote = 'Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.';
     assert.ok(notes.includes(certNote));
     assert.ok(!notes.includes('Latest: ' + certNote));
-    const latest = 'Latest: Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
+    const inventory = 'Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.';
+    assert.ok(notes.includes(inventory));
+    assert.ok(!notes.includes('Latest: Inventory explains'));
+    const latest = 'Latest: Encrypted account backups keep email addresses, phone numbers, and password hashes for 90 days.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
     assert.ok(notes.includes(faction));

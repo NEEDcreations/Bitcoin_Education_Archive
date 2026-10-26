@@ -4,6 +4,11 @@ test.sh
 scripts/*
 !scripts/migrate-push-optin.js
 !scripts/backfill-badge-favor.js
+!scripts/backup_infra_setup.sh
+!scripts/decrypt_auth_export.js
+!scripts/decrypt_r2_object.js
+!scripts/restore_auth_export.js
+!scripts/BACKUP_RESTORE.md
 .keys/
 firebase-debug.log
 firestore-debug.log

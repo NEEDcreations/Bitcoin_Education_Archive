@@ -2411,6 +2411,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Nightly backup status. Admin SDK only. Clients cannot read or write.
+    match /backup_status/{docId} {
+      allow read, write: if false;
+    }
+    match /backup_history/{docId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

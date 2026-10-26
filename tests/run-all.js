@@ -38,6 +38,8 @@ const TESTS = [
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Chat Telegram mirror', file: 'test-chat-telegram-mirror.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
+    { name: 'Backup health', file: 'test-backup-health.js' },
+    { name: 'R2 offsite copy', file: 'test-r2-offsite.js' },
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
     { name: 'Trivia tally transaction', file: 'test-answer-trivia.js' },
@@ -97,6 +99,7 @@ const TESTS = [
     { name: 'SF chat rules', file: 'rules/sf-chat-rules.js' },
     { name: 'Username repick rules', file: 'rules/username-repick-rules.js' },
     { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },
+    { name: 'Backup status rules', file: 'rules/backup-status-rules.js' },
     { name: 'Certification bonus', file: 'test-cert-bonus.js' },
     { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
 ];
