@@ -1,7 +1,7 @@
-// Cache-buster pin. This ship branch is btc-archive-v2373.
+// Cache-buster pin. This ship branch is btc-archive-v2366.
 // timechain-tv.js stays 20261024_v2353.
-// bundle.min.js and ranking.js are 20261026_v2373. features.registry.js stays 20261024_v2361.
-// global-chat.js is 20261026_v2373. patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
+// bundle.min.js and ranking.js are 20261026_v2366. features.registry.js stays 20261024_v2361.
+// global-chat.js is 20261026_v2366. patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
 // gifting.js and onboarding.js stay 20261024_v2358. quests.js is 20261024_v2362.
 // notifications.js stays 20261024_v2357.
 // satoshi-favor.js and username-repick.js stay 20261024_v2352.
@@ -27,9 +27,9 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2373', () => {
+test('service worker cache is v2366', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2373'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2366'"));
     assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2362'));
     assert.ok(!sw.includes('btc-archive-v2361'));
@@ -45,7 +45,7 @@ test('service worker cache is v2373', () => {
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -53,8 +53,8 @@ test('service worker cache is v2373', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2373/g) || []).length, 2);
-    assert.ok(html.includes('bundle.min.js?v=20261026_v2373'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2366/g) || []).length, 2);
+    assert.ok(html.includes('bundle.min.js?v=20261026_v2366'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
@@ -94,9 +94,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261026_v2373'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2366'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2373'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2366'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -121,8 +121,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2373'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2373/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261026_v2366'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2366/g) || []).length, 5);
     assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2350'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2349'));
@@ -220,7 +220,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2373');
+    assert.ok(swVersion && swVersion[1] === 'v2366');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -258,6 +258,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
+    assert.ok(notes.includes('Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.'));
+    assert.ok(!notes.includes('Latest: Global chat'));
     assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
     assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));

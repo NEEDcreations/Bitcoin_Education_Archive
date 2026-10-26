@@ -485,8 +485,10 @@ queue.push(test('a stale cached username retries a chat send and a listing once,
     assert.deepStrictEqual(tokens, ['chill_guy2', 'chill']);
     assert.ok(chat.includes("where('usernameMigratedFrom', '==', username)"));
     const sendAt = chat.indexOf('sendWithFreshUsername(function(name) {');
-    const mentionAt = chat.indexOf('var mentionRegex = /@([a-zA-Z0-9_-]+)/g;');
-    assert.ok(mentionAt > 0 && sendAt > mentionAt, 'text send retries without rewriting mention matching');
+    const mentionAt = chat.indexOf('var _mentionTargets = _chatMentionTargets(text);');
+    assert.ok(mentionAt > 0 && sendAt > mentionAt, 'text send retries after the mention matcher');
+    assert.ok(chat.includes('function _longestKnownUsername'));
+    assert.strictEqual(chat.indexOf('/@([a-zA-Z0-9_-]+)/'), -1);
 
     const storage = {
         btc_profile_cache: JSON.stringify({ data: { username: 'chill guy', points: 4 } }),

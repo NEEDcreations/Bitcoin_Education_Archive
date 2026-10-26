@@ -203,6 +203,8 @@ test('rules, terms, and the client toast come from the server payload', () => {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
+    assert.ok(notes.includes('Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.'));
+    assert.ok(!notes.includes('Latest: Global chat'));
     assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
     assert.ok(!notes.includes('Latest: Satoshi'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));
