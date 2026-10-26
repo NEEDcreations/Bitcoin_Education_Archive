@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2368" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2369" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -475,8 +475,9 @@
         /* FAB minimize/expand controls */
         #fabMinimizeBtn { position:fixed; right:240px; bottom:10px; z-index:200001; width:24px; height:24px; border-radius:50%; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.38); font-size:0.95rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:opacity 0.15s, background 0.15s; }
         #fabMinimizeBtn:hover { background:rgba(255,255,255,0.13); color:rgba(255,255,255,0.6); }
-        #fabExpandBtn { position:fixed; right:16px; bottom:10px; z-index:200003; width:34px; height:34px; border-radius:50%; border:1px solid rgba(247,147,26,0.22); background:rgba(247,147,26,0.09); color:rgba(255,255,255,0.38); font-size:0.75rem; cursor:pointer; display:none; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); transition:opacity 0.15s, background 0.15s; }
-        #fabExpandBtn:hover { background:rgba(247,147,26,0.2); color:rgba(255,255,255,0.6); }
+        #fabExpandBtn { position:fixed; right:calc(16px + 48px + 10px); bottom:calc(10px + (48px - 44px) / 2); z-index:200003; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; border-radius:50%; border:1px solid rgba(247,147,26,0.45); background:rgba(15,23,42,0.92); color:#fff; font-size:1.35rem; font-family:inherit; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); transition:background 0.15s, color 0.15s; box-shadow:0 4px 16px rgba(0,0,0,0.35); }
+        #fabExpandBtn:hover, #fabExpandBtn[aria-expanded="true"] { background:rgba(247,147,26,0.28); color:#fff; }
+        #fabExpandBtn:focus-visible { outline:2px solid #f7931a; outline-offset:2px; }
 
         /* Phones and tablets: the row clears the real bottom nav.
            --bnav-h is the nav height above the safe-area inset (measured).
@@ -513,10 +514,13 @@
                 bottom: calc(var(--fab-bottom) + (var(--fab-size) - var(--fab-min)) / 2) !important;
             }
             #fabExpandBtn {
-                width: 44px;
-                height: 44px;
-                right: var(--fab-edge) !important;
-                bottom: var(--fab-bottom) !important;
+                display: flex !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px;
+                min-height: 44px;
+                right: calc(var(--fab-edge) + (var(--fab-size) + var(--fab-space)) * 2) !important;
+                bottom: calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2) !important;
             }
             #floatingRandomBtn { bottom: var(--fab-bottom) !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             #mobileSearchBtn { bottom: var(--fab-bottom) !important; }
@@ -1031,12 +1035,47 @@
     #todayRaidLine::before { content:'· '; }
     #todayRaidLine[hidden] { display:none !important; }
     #raidBossHomeCard, #continueReading, #dailyChannel { display:none !important; }
-    #aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn, #fabMinimizeBtn, #fabExpandBtn, #mobileSearchBtn { display:none !important; }
+    #fabMinimizeBtn, #mobileSearchBtn { display:none !important; }
+    /* Collapsed by default. !important beats inline display:flex from leaderboard close. */
+    #aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn { display:none !important; }
+    @media (min-width: 901px) {
+        #chatOverlayBtn { right:16px !important; bottom:10px !important; }
+        body.fab-tools-open #aiToolsBtn,
+        body.fab-tools-open #dashboardFloatBtn,
+        body.fab-tools-open #lbFloatBtn {
+            display:flex !important;
+            right:calc(16px + 48px + 10px) !important;
+            width:48px !important;
+            height:48px !important;
+            z-index:200004;
+        }
+        body.fab-tools-open #lbFloatBtn { bottom:calc(10px + (48px - 44px) / 2 + 44px + 10px) !important; }
+        body.fab-tools-open #dashboardFloatBtn { bottom:calc(10px + (48px - 44px) / 2 + 44px + 10px + 48px + 10px) !important; }
+        body.fab-tools-open #aiToolsBtn { bottom:calc(10px + (48px - 44px) / 2 + 44px + 10px + (48px + 10px) * 2) !important; }
+    }
     @media (max-width: 900px) {
         .home-page { padding:12px 12px calc(72px + env(safe-area-inset-bottom, 0px)); }
         #chatOverlayBtn { right:calc(var(--fab-edge) + var(--fab-size) + var(--fab-space)) !important; }
         #nacho-toggle { right:var(--fab-edge) !important; left:auto !important; bottom:var(--fab-bottom) !important; width:var(--fab-size) !important; height:var(--fab-size) !important; }
+        body.fab-tools-open #aiToolsBtn,
+        body.fab-tools-open #dashboardFloatBtn,
+        body.fab-tools-open #lbFloatBtn {
+            display:flex !important;
+            right:calc(var(--fab-edge) + (var(--fab-size) + var(--fab-space)) * 2) !important;
+            z-index:200004;
+        }
+        body.fab-tools-open #lbFloatBtn { bottom:calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2 + 44px + var(--fab-space)) !important; }
+        body.fab-tools-open #dashboardFloatBtn { bottom:calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2 + 44px + var(--fab-space) + var(--fab-size) + var(--fab-space)) !important; }
+        body.fab-tools-open #aiToolsBtn { bottom:calc(var(--fab-bottom) + (var(--fab-size) - 44px) / 2 + 44px + var(--fab-space) + (var(--fab-size) + var(--fab-space)) * 2) !important; }
     }
+    body.fab-tools-open #aiToolsBtn[data-em-hidden],
+    body.fab-tools-open #dashboardFloatBtn[data-em-hidden],
+    body.fab-tools-open #lbFloatBtn[data-em-hidden],
+    body.fab-tools-unavailable #fabExpandBtn,
+    body.chat-fab-hidden #fabExpandBtn,
+    body.chat-fab-hidden #aiToolsBtn,
+    body.chat-fab-hidden #dashboardFloatBtn,
+    body.chat-fab-hidden #lbFloatBtn { display:none !important; }
     .whats-new-dot { width:8px; height:8px; border-radius:50%; background:#f7931a; display:inline-block; }
     .whats-new-dot[hidden] { display:none !important; }
     #bnavSettings .whats-new-dot { position:absolute; top:6px; right:18%; }
@@ -1643,6 +1682,9 @@
                                 <button onclick="go('bitcoin-beats')" class="apps-grid-btn"><span class="app-title">🎵 Bitcoin Beats</span><span class="app-desc">Community music player — Bitcoin-themed tracks &amp; beats</span></button>
                                 <button onclick="go('timechain-tv')" class="apps-grid-btn"><span class="app-title">📺 Timechain TV</span><span class="app-desc">21 channels of Bitcoin video — free-to-air, always on</span></button>
                                 <button onclick="showProofOfWalk()" class="apps-grid-btn"><span class="app-title">👟 Proof of Walk</span><span class="app-desc">Earn XP for real-world steps — connect Strava to stack sats</span></button>
+                                <button onclick="toggleAITools()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">🤖 AI Tools</span><span class="app-desc">Bitcoin AI helpers and tools</span></button>
+                                <button onclick="toggleDashboard()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">📊 Metrics</span><span class="app-desc">Live Bitcoin dashboard and stats</span></button>
+                                <button onclick="toggleLeaderboard()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">🏆 Leaderboard</span><span class="app-desc">Top players, XP and rankings</span></button>
                             </div>
                         </div>
 
@@ -1816,33 +1858,91 @@
     </div>
 
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
-    <!-- FAB row: [−] Chat | AI Tools | Metrics | Leaderboard -->
-    <button id="fabMinimizeBtn" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
-    <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();}" title="Global Chat" aria-label="Open Chat">💬</button>
+    <!-- FAB row: More tools | Chat, with Nacho in the right slot. AI, Metrics, and Leaderboard stack above More tools. -->
+    <button id="fabMinimizeBtn" type="button" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
+    <button id="fabExpandBtn" type="button" onclick="toggleFabMinimize()" title="More tools" aria-label="More tools" aria-expanded="false" aria-controls="aiToolsBtn dashboardFloatBtn lbFloatBtn">⋯</button>
     <button id="aiToolsBtn"     class="fab-btn" onclick="if(typeof toggleAITools==='function')toggleAITools();else showToast('AI Tools loading...')" title="AI Tools" aria-label="Open AI Tools">🤖</button>
-    <div    id="dashboardFloatBtn" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics" role="button" tabindex="0">📊</div>
+    <button id="dashboardFloatBtn" type="button" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics">📊</button>
     <button id="lbFloatBtn"     class="fab-btn" onclick="toggleLeaderboard()" title="Leaderboard" aria-label="Open Leaderboard">🏆</button>
-    <button id="fabExpandBtn" onclick="toggleFabMinimize()" title="Show buttons" aria-label="Expand floating buttons">···</button>
+    <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();}" title="Global Chat" aria-label="Open Chat">💬</button>
     <script>
     (function(){
-      var FAB_BTNS = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
-      window.toggleFabMinimize = function(){
-        var minimized = localStorage.getItem('fabMinimized')==='1';
-        minimized = !minimized;
-        localStorage.setItem('fabMinimized', minimized ? '1' : '0');
-        _applyFabState(minimized);
-      };
-      function _applyFabState(minimized){
-        FAB_BTNS.forEach(function(id){
-          var el = document.getElementById(id);
-          if(!el) return;
-          el.style.display = minimized ? 'none' : '';
-        });
-        var exp = document.getElementById('fabExpandBtn');
-        if(exp) exp.style.display = minimized ? 'flex' : 'none';
+      var TOOL_IDS = ['aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn'];
+      function chatHidden() {
+        var chat = document.getElementById('chatOverlayBtn');
+        if (!chat) return true;
+        var cs = window.getComputedStyle(chat);
+        return cs.display === 'none' || cs.visibility === 'hidden';
       }
-      document.addEventListener('DOMContentLoaded', function(){
-        _applyFabState(localStorage.getItem('fabMinimized')==='1');
+      // A tool is offered unless experience mode or an important inline hide removed it.
+      // The collapsed stylesheet rule is display:none !important with no inline style, so
+      // that does not count as unavailable.
+      function toolOffered(el) {
+        if (!el || el.hasAttribute('data-em-hidden')) return false;
+        if (el.style.getPropertyValue('display') === 'none' && el.style.getPropertyPriority('display') === 'important') return false;
+        return true;
+      }
+      function toolsAvailable() {
+        for (var i = 0; i < TOOL_IDS.length; i++) {
+          if (toolOffered(document.getElementById(TOOL_IDS[i]))) return true;
+        }
+        return false;
+      }
+      function setExpanded(open) {
+        if (open && (chatHidden() || !toolsAvailable())) open = false;
+        document.body.classList.toggle('fab-tools-open', !!open);
+        var exp = document.getElementById('fabExpandBtn');
+        if (exp) exp.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      function syncChrome() {
+        var chatGone = chatHidden();
+        var offered = !chatGone && toolsAvailable();
+        document.body.classList.toggle('chat-fab-hidden', chatGone);
+        document.body.classList.toggle('fab-tools-unavailable', !offered);
+        if (!offered) setExpanded(false);
+      }
+      window.toggleFabMinimize = function() {
+        if (chatHidden() || !toolsAvailable()) {
+          setExpanded(false);
+          return;
+        }
+        setExpanded(!document.body.classList.contains('fab-tools-open'));
+      };
+      window.syncFabToolsToggle = syncChrome;
+      document.addEventListener('click', function(e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        if (t.closest('#aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn')) {
+          setExpanded(false);
+          return;
+        }
+        if (t.closest('#fabExpandBtn')) return;
+        if (document.body.classList.contains('fab-tools-open')) setExpanded(false);
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' || !document.body.classList.contains('fab-tools-open')) return;
+        setExpanded(false);
+        var exp = document.getElementById('fabExpandBtn');
+        if (exp) exp.focus();
+      });
+      function watchChrome() {
+        var chat = document.getElementById('chatOverlayBtn');
+        if (chat && !chat._fabWatch) {
+          chat._fabWatch = true;
+          new MutationObserver(syncChrome).observe(chat, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+        }
+        TOOL_IDS.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (!el || el._fabToolWatch) return;
+          el._fabToolWatch = true;
+          new MutationObserver(syncChrome).observe(el, { attributes: true, attributeFilter: ['style', 'data-em-hidden'] });
+        });
+      }
+      syncChrome();
+      watchChrome();
+      document.addEventListener('DOMContentLoaded', function() {
+        syncChrome();
+        watchChrome();
       });
     })();
     </script>
@@ -1948,7 +2048,7 @@
     <script src="ranking.js?v=20261026_v2367" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2368" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2369" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2361" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2365" defer></script>
