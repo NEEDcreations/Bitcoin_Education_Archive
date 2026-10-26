@@ -785,6 +785,26 @@ async function payIfQualified(referredUid, opts) {
             outcome = { paid: false, reason: decision.reason };
             return;
         }
+        if (decision.action === 'pay' && referrals.payoutBudgetReason(freshGate)) {
+            const existingHold = referrals.connectionHoldState(referralDoc.data(), signal);
+            const since = existingHold && existingHold.reason === 'budget' && existingHold.since
+                ? existingHold.since
+                : Date.now();
+            t.update(refRef, Object.assign({
+                status: 'held_connection',
+                ticketsAwarded: false,
+                verified: false,
+            }, clearFlags));
+            t.set(signalRef, {
+                ipqsHold: { reason: 'budget', since: since, checkedAt: 0 },
+                ipqsAction: 'fallback',
+                ipqsReason: 'budget',
+                ipqsCheckedAtMs: 0,
+                flags: [],
+            }, { merge: true });
+            outcome = { paid: false, reason: 'unchecked', held: true };
+            return;
+        }
         if (decision.action !== 'pay' || referrals.blocksUncheckedPay(requestIp, verdict)) {
             outcome = { paid: false, reason: decision.action === 'pay' ? 'unchecked' : (decision.reason || 'skip') };
             return;

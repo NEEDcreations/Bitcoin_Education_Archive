@@ -391,7 +391,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2361'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
+    assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2350'));
@@ -420,6 +421,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
+    assert.ok(!sw.includes('btc-archive-v2373'));
+    assert.ok(!sw.includes('btc-archive-v2372'));
+    assert.ok(!sw.includes('btc-archive-v2369'));
     assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2367'));
@@ -821,9 +825,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     assert.ok(notes.includes(faction));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(notes.includes(deleted));
-    assert.ok(!notes.includes('Latest: You can delete your account'));
-    assert.ok(notes.includes(topicLinks));
-    assert.ok(!notes.includes('Latest: Topic conversation links'));
+    assert.ok(!notes.includes('Latest: You can delete'));
+    assert.ok(notes.includes("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one."));
+    assert.ok(!notes.includes("Latest: Satoshi"));
     assert.ok(notes.includes(share));
     assert.ok(notes.includes(anchors));
     assert.ok(!notes.includes('Latest: Topic conversation'));

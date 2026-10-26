@@ -24,7 +24,7 @@ const HOLD_REFERRAL = "To prevent abuse, invite rewards aren't paid over a VPN, 
 const HOLD_REFERRAL_DEVICE = 'Your invite reward is on hold because this device is already linked to another account. Contact support if this is a shared household.';
 const USER_HOLD = 'Too many connection checks from this account today. Try again tomorrow.';
 const NEVER_CLAIMED_HOLD = "New accounts can't claim sats right now. Try again later.";
-const REFERRAL_BUDGET_WAIT = 'Invite rewards are waiting for a connection check. You can still use everything else in the app.';
+const REFERRAL_BUDGET_WAIT = 'To prevent abuse, invite rewards are waiting for a connection check. You can still use everything else in the app.';
 const PURPOSE_CAPS = { faucet: 20, favor: 5, referral: 5 };
 const USER_DAILY_CAP = 3;
 const LOOKUP_BACKOFF_MS = 60 * 60 * 1000;
@@ -474,14 +474,15 @@ async function releaseLookup(db, now, bindings, purpose) {
     });
 }
 
-async function releaseReferralLookup(opts) {
-    if (!opts || purposeName(opts.purpose) !== 'referral') return;
+async function releaseFailedLookup(opts) {
+    if (!opts) return;
+    const purpose = purposeName(opts.purpose);
     try {
-        await releaseLookup(opts.db, opts.now, opts.bindings, 'referral');
+        await releaseLookup(opts.db, opts.now, opts.bindings, purpose);
     } catch (e) {
-        console.error('[ipqs] referral release failed');
+        console.error('[ipqs] lookup release failed');
     }
-    if (!opts.uid) return;
+    if (purpose !== 'referral' || !opts.uid) return;
     try {
         await setReferralBackoff(opts.db, opts.now, opts.uid, opts.bindings);
     } catch (e) {
@@ -718,9 +719,10 @@ function lookupIp(opts) {
     const run = lookupIpOnce(opts);
     if (!key) return run;
     map.set(key, run);
-    run.finally(function() {
+    const cleanup = function() {
         if (map.get(key) === run) map.delete(key);
-    });
+    };
+    run.then(cleanup, cleanup);
     return run;
 }
 
@@ -789,7 +791,7 @@ async function lookupIpOnce(opts) {
     } catch (e) {
         const reason = e && e.code === 'timeout' ? 'timeout' : 'http';
         await recordError(opts, reason);
-        await releaseReferralLookup(opts);
+        await releaseFailedLookup(opts);
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);
     }
@@ -797,7 +799,7 @@ async function lookupIpOnce(opts) {
     if (scored.action === 'fallback' || (body && body.success === false)) {
         const reason = failureReason(body, status);
         await recordError(opts, reason);
-        await releaseReferralLookup(opts);
+        await releaseFailedLookup(opts);
         if (reason === 'credits') await recordOpsAlert(opts.db, now, opts.bindings, 'credits');
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);

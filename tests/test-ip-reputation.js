@@ -974,6 +974,85 @@ test('concurrent lookups for one account share a single vendor call', async func
     assert.strictEqual(db._docs['ipqs_usage/2023-11-14'].referral, 1);
 });
 
+test('a usage-counter contention error falls open for every shared caller', async function() {
+    const db = memoryDb();
+    const events = [];
+    function onReject(err) {
+        if (err && String(err.message || err) === 'contention') events.push(err);
+    }
+    process.on('unhandledRejection', onReject);
+    try {
+        db.runTransaction = async function() {
+            const err = new Error('contention');
+            throw err;
+        };
+        let fetches = 0;
+        const opts = gateOpts(db, {
+            fetchImpl: function() {
+                fetches++;
+                return Promise.resolve(jsonResponse(200, cleanBody({ fraud_score: 10 })));
+            },
+            now: 1_700_000_000_000,
+            ip: '203.0.113.41',
+            purpose: 'referral',
+            userCap: 3,
+        });
+        const both = await Promise.all([
+            rep.assessReward(opts),
+            rep.assessReward(Object.assign({}, opts)),
+        ]);
+        assert.strictEqual(both[0].action, 'fallback');
+        assert.strictEqual(both[1].action, 'fallback');
+        assert.strictEqual(both[0].reason, 'lookup');
+        assert.strictEqual(both[1].reason, 'lookup');
+        assert.strictEqual(fetches, 0);
+        await new Promise(function(resolve) { setImmediate(resolve); });
+        assert.strictEqual(events.length, 0);
+    } finally {
+        process.removeListener('unhandledRejection', onReject);
+    }
+});
+
+test('a failed faucet or favor lookup refunds its purpose cap', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = function() {
+        fetches++;
+        const err = new Error('timeout');
+        err.code = 'timeout';
+        return Promise.reject(err);
+    };
+    const faucet = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '198.51.100.21',
+        purpose: 'faucet',
+        uid: 'faucet01',
+        userCap: 3,
+    }));
+    const favor = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '198.51.100.22',
+        purpose: 'favor',
+        uid: 'favor01',
+        userCap: 3,
+    }));
+    assert.strictEqual(faucet.action, 'fallback');
+    assert.strictEqual(faucet.reason, 'timeout');
+    assert.strictEqual(favor.action, 'fallback');
+    assert.strictEqual(favor.reason, 'timeout');
+    assert.strictEqual(fetches, 2);
+    const usage = db._docs['ipqs_usage/2023-11-14'];
+    assert.strictEqual(usage.lookups, 0);
+    assert.strictEqual(usage.faucet, 0);
+    assert.strictEqual(usage.favor, 0);
+    assert.ok(usage.errors >= 2);
+    assert.ok(!db._docs['ipqs_usage/b_faucet_faucet01']);
+    assert.ok(!db._docs['ipqs_usage/b_favor_favor01']);
+});
+
 test('an exhausted purpose cap does not hold a later faucet check', async function() {
     const db = memoryDb();
     const now = 1_700_000_000_000;
@@ -995,6 +1074,7 @@ test('an exhausted purpose cap does not hold a later faucet check', async functi
     assert.strictEqual(referral.reason, 'quota');
     assert.strictEqual(referral.ipVerdict, null);
     assert.strictEqual(referral.message, rep.REFERRAL_BUDGET_WAIT);
+    assert.strictEqual(referral.message.indexOf('To prevent abuse,'), 0);
     assert.strictEqual(fetches, 0);
     const faucet = await rep.assessReward(gateOpts(db, {
         fetchImpl: fetchImpl,

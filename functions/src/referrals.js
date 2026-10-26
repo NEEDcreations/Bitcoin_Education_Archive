@@ -359,6 +359,19 @@ function blocksUncheckedPay(requestIp, verdict) {
     return !realServerVerdict(verdict);
 }
 
+// A budget, backoff, or per-account cap at payout is not a clean lookup.
+// The scheduler and the Maxi trigger have no request IP, so they must not
+// pay from the signup verdict while one of these holds is the fresh result.
+function payoutBudgetReason(gate) {
+    if (!gate || typeof gate !== 'object') return '';
+    const verdict = gate.ipVerdict;
+    if (verdict && (verdict.action === 'allow' || verdict.action === 'hold' || verdict.action === 'deny')) return '';
+    if (gate.action !== 'hold') return '';
+    const reason = String(gate.reason || '');
+    if (reason === 'quota' || reason === 'backoff' || reason === 'user-quota') return reason;
+    return '';
+}
+
 function assessReferralPayout(input) {
     const src = input || {};
     const referral = src.referral;
@@ -655,6 +668,7 @@ module.exports = {
     payoutLookupIp: payoutLookupIp,
     referralCheckIsFinal: referralCheckIsFinal,
     blocksUncheckedPay: blocksUncheckedPay,
+    payoutBudgetReason: payoutBudgetReason,
     assessReferralPayout: assessReferralPayout,
     resolveReferrerUid: resolveReferrerUid,
     buildCodeIndex: buildCodeIndex,

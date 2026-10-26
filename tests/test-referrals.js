@@ -654,6 +654,7 @@ test('signup keeps a vpn invite pending-for-pay and flags a deny', () => {
     assert.ok(service.includes('payoutLookupIp'));
     assert.ok(service.includes('blocksUncheckedPay'));
     assert.ok(service.includes('referralCheckIsFinal'));
+    assert.ok(service.includes('payoutBudgetReason(freshGate)'));
     const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('expires unpaid after 30 days'));
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
@@ -755,6 +756,12 @@ test('a ready app-open payout checks the request ip and final invites stop', () 
     const blocked = referrals.signupConnection(['ipqs-deny'], null, NOW, { budgetWait: true });
     assert.strictEqual(blocked.status, 'rejected');
     assert.strictEqual(blocked.ipqsHold, null);
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'quota', ipVerdict: null }), 'quota');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'backoff', ipVerdict: null }), 'backoff');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'user-quota', ipVerdict: null }), 'user-quota');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'allow', reason: 'clean', ipVerdict: { action: 'allow', reason: 'clean' } }), '');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'vpn', ipVerdict: { action: 'hold', reason: 'vpn' } }), '');
+    assert.strictEqual(referrals.payoutBudgetReason(null), '');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
