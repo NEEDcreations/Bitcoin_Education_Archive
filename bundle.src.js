@@ -4189,6 +4189,8 @@ function createNacho() {
         #nacho-container.nacho-bubble-below #nacho-bubble::before,
         #nacho-container.nacho-bubble-below #nacho-bubble::after { display: none; }
         #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+        #nacho-container.nacho-section-front { z-index: 2100004; }
+        #nacho-container.nacho-section-front #nacho-bubble { z-index: 2100004; position: fixed; }
 
         .nacho-header {
             display: flex;
@@ -5156,6 +5158,13 @@ window.hideBubble = function(force) {
 
     // Clear busy state — allow queued popups to show
     window._nachoBusy = false;
+    window._nachoSectionSession = null;
+    var _ncFront = document.getElementById('nacho-container');
+    if (_ncFront) {
+        _ncFront.classList.remove('nacho-section-front');
+        _ncFront.style.zIndex = '';
+    }
+    if (bubble) bubble.style.zIndex = '';
 
     // Mark interaction for badge — delay badge check so it doesn't pop immediately
     localStorage.setItem('btc_nacho_clicked', 'true');
@@ -23165,8 +23174,12 @@ window.toggleAITools = function() {
             '.td-name{font-weight:800;font-size:0.82rem;color:var(--heading,#fff);}',
             '.td-name.td-nacho{color:#22c55e;}',
             '.td-time,.td-anchor{font-size:0.72rem;color:var(--text-faint,#64748b);white-space:nowrap;}',
-            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:12px 0 16px;padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
+            '.td-convo-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%;box-sizing:border-box;margin:12px 0 16px;}',
+            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:0;padding:8px 14px;min-height:40px;flex:1 1 auto;min-width:0;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
             '.td-convo-btn:hover,.td-convo-btn:focus-visible{background:rgba(249,115,22,0.16);outline:2px solid var(--accent,#f97316);outline-offset:2px;}',
+            '.td-nacho-btn{flex:0 0 auto;width:40px;height:40px;padding:4px;border-radius:999px;border:1px solid rgba(247,147,26,0.75);background:rgba(247,147,26,0.12);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}',
+            '.td-nacho-btn img{width:28px;height:28px;display:block;pointer-events:none;}',
+            '.td-nacho-btn:hover,.td-nacho-btn:focus-visible{background:rgba(247,147,26,0.22);outline:2px solid #f7931a;outline-offset:2px;}',
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
             '.td-btn{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#1e293b);background:none;color:var(--text-muted,#94a3b8);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;}',
@@ -23191,7 +23204,7 @@ window.toggleAITools = function() {
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
             '@media (max-width:900px){.td-section{margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}.td-follow,.td-topic{scroll-margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}}',
-            '@media (max-width:420px){.td-section{margin:20px 10px calc(180px + env(safe-area-inset-bottom, 0px));}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 14px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
+            '@media (max-width:420px){.td-section{margin:20px 10px calc(180px + env(safe-area-inset-bottom, 0px));}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-row{margin:10px 0 14px;gap:6px;}.td-convo-btn{padding:10px 12px;min-height:44px;font-size:0.8rem;}.td-nacho-btn{width:44px;height:44px;}}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -23517,6 +23530,15 @@ window.toggleAITools = function() {
 
     window.bqAnchorFingerprint = anchorFingerprint;
     window.bqAcceptTopicAnchor = acceptClientAnchor;
+    window.bqContentParagraphs = function(msgs) {
+        var out = [];
+        (Array.isArray(msgs) ? msgs : []).forEach(function(msg) {
+            contentParagraphsFromSource(msg && msg.text).forEach(function(block) {
+                out.push(String(block && block.text || ''));
+            });
+        });
+        return out;
+    };
 
     function setOpen(open) {
         var body = document.getElementById('topic-discussion-body');
@@ -24319,8 +24341,8 @@ window.toggleAITools = function() {
     function atomicKind(node) {
         if (!node || node.nodeType !== 1) return '';
         if (node.classList && node.classList.contains('td-inline')) return 'chrome';
-        if (node.classList && (node.classList.contains('yt-embed') || node.classList.contains('tw-preview') || node.classList.contains('td-convo-btn'))) {
-            return node.classList.contains('td-convo-btn') ? 'button' : 'embed';
+        if (node.classList && (node.classList.contains('yt-embed') || node.classList.contains('tw-preview') || node.classList.contains('td-convo-btn') || node.classList.contains('td-convo-row') || node.classList.contains('td-nacho-btn'))) {
+            return node.classList.contains('td-convo-btn') || node.classList.contains('td-convo-row') || node.classList.contains('td-nacho-btn') ? 'button' : 'embed';
         }
         var tag = node.tagName;
         if (tag === 'IFRAME') return 'embed';
@@ -24355,7 +24377,7 @@ window.toggleAITools = function() {
         var found = [];
         function walk(node) {
             if (!node) return;
-            if (node.nodeType === 1 && node.classList && node.classList.contains('td-convo-btn')) found.push(node);
+            if (node.nodeType === 1 && node.classList && (node.classList.contains('td-convo-row') || node.classList.contains('td-convo-btn') || node.classList.contains('td-nacho-btn'))) found.push(node);
             var child = node.firstChild;
             while (child) {
                 var next = child.nextSibling;
@@ -24623,6 +24645,61 @@ window.toggleAITools = function() {
         });
         return button;
     }
+    function conversationForAnchor(accepted) {
+        var found = '';
+        if (!accepted) return found;
+        (state.posts || []).forEach(function(post) {
+            if (found || !post || post.deleted || post.hidden || post.moderated || post.parentId) return;
+            if (Number(post.anchorIndex) === accepted.index && String(post.anchorHash || '') === accepted.hash) found = post.id;
+        });
+        return found;
+    }
+    function openSectionNacho(spec, tries) {
+        if (typeof window.nachoAskSection === 'function') {
+            window.nachoAskSection(spec);
+            return;
+        }
+        if ((tries || 0) > 15) {
+            toast('Nacho is still waking up. Try again in a moment.');
+            return;
+        }
+        setTimeout(function() { openSectionNacho(spec, (tries || 0) + 1); }, 200);
+    }
+    function nachoSectionButton(index, text) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'td-nacho-btn';
+        button.setAttribute('aria-label', 'Ask Nacho about this section');
+        var img = document.createElement('img');
+        img.src = '/nacho-deer.svg';
+        img.alt = '';
+        img.width = 28;
+        img.height = 28;
+        button.appendChild(img);
+        button.addEventListener('click', function(event) {
+            if (event && event.preventDefault) event.preventDefault();
+            if (event && event.stopPropagation) event.stopPropagation();
+            var accepted = acceptClientAnchor(index, anchorFingerprint(text));
+            var spec = {
+                channelId: window.currentChannelId || state.channelId || '',
+                anchorIndex: accepted ? accepted.index : '',
+                anchorHash: accepted ? accepted.hash : ''
+            };
+            var conversationId = conversationForAnchor(accepted);
+            if (conversationId) spec.conversationId = conversationId;
+            openSectionNacho(spec);
+        });
+        return button;
+    }
+    function conversationRow(index, text) {
+        var row = document.createElement('div');
+        row.className = 'td-convo-row';
+        var accepted = acceptClientAnchor(index, anchorFingerprint(text));
+        if (accepted) row.setAttribute('data-anchor-index', String(accepted.index));
+        row.appendChild(conversationButton(index, text));
+        row.appendChild(nachoSectionButton(index, text));
+        return row;
+    }
     function tightenPromptGap(button) {
         var next = button && button.nextSibling;
         if (!next || next.nodeType !== 3) return;
@@ -24730,7 +24807,7 @@ window.toggleAITools = function() {
                 points.push({ end: bubbleEnd(rendered[index].end), index: index, text: rendered[index].text });
             }
         });
-        for (var s = points.length - 1; s >= 0; s--) insertPromptAt(points[s].end, conversationButton(points[s].index, points[s].text));
+        for (var s = points.length - 1; s >= 0; s--) insertPromptAt(points[s].end, conversationRow(points[s].index, points[s].text));
     }
     window.bqInjectTopicPrompts = injectTopicPrompts;
 

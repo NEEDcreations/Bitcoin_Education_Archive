@@ -415,7 +415,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2368'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2381'"));
     assert.ok(!sw.includes('btc-archive-v2363'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2366'));
@@ -793,7 +793,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
+    const latest = 'Latest: A Nacho button next to each topic conversation asks Nacho privately about that section, with a short summary and follow-up questions.';
     const usernames = 'Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.';
     assert.ok(notes.includes(usernames));
     assert.ok(!notes.includes('Latest: Usernames'));

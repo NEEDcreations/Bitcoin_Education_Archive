@@ -4749,6 +4749,152 @@ function renderNachoAnswer(textEl, answerHtml, match) {
 }
 
 
+function nachoRaisePanel() {
+    if (typeof window.showNacho === 'function') {
+        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 99;
+        if (visits > 2 || localStorage.getItem('btc_nacho_tour_shown')) window.showNacho();
+    }
+    var nc = document.getElementById('nacho-container');
+    if (nc) {
+        nc.classList.remove('hidden');
+        nc.classList.add('nacho-engaged');
+        nc.classList.add('nacho-section-front');
+        nc.style.zIndex = '2100004';
+    }
+    var toggle = document.getElementById('nacho-toggle');
+    if (toggle) toggle.style.display = 'none';
+    var bubble = document.getElementById('nacho-bubble');
+    if (!bubble) return null;
+    bubble.setAttribute('data-interactive', 'true');
+    bubble.classList.add('show');
+    bubble.style.zIndex = '2100004';
+    clearTimeout(window._nachoBubbleTimeout);
+    return bubble;
+}
+
+function nachoPaintSection(textEl, data) {
+    stopNachoThinking();
+    while (textEl.firstChild) textEl.removeChild(textEl.firstChild);
+    var answer = document.createElement('div');
+    answer.style.color = 'var(--text,#eee)';
+    answer.style.lineHeight = '1.6';
+    answer.textContent = String(data && data.answer || "I'm not sure — I don't want to guess.");
+    textEl.appendChild(answer);
+    var links = data && Array.isArray(data.links) ? data.links : [];
+    var followUps = data && Array.isArray(data.followUps) ? data.followUps : [];
+    if (links.length) {
+        var learn = document.createElement('div');
+        learn.setAttribute('data-bq-links', '1');
+        learn.style.marginTop = '10px';
+        var learnLabel = document.createElement('div');
+        learnLabel.style.fontSize = '0.7rem';
+        learnLabel.style.marginBottom = '6px';
+        learnLabel.textContent = 'Learn more';
+        learn.appendChild(learnLabel);
+        links.slice(0, 3).forEach(function(link) {
+            var id = String(link && link.id || '').replace(/[^a-z0-9_-]/gi, '');
+            if (!id) return;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.setAttribute('data-bq-topic', id);
+            btn.textContent = '📖 ' + String(link.title || id);
+            btn.style.cssText = 'display:block;width:100%;margin-top:4px;padding:8px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:inherit;text-align:left;';
+            btn.addEventListener('click', function(event) {
+                if (event) { event.preventDefault(); event.stopPropagation(); }
+                if (typeof go === 'function') go(id);
+            });
+            learn.appendChild(btn);
+        });
+        textEl.appendChild(learn);
+    }
+    if (followUps.length) {
+        var chips = document.createElement('div');
+        chips.setAttribute('data-bq-followups', '1');
+        chips.style.marginTop = '8px';
+        var chipLabel = document.createElement('div');
+        chipLabel.style.fontSize = '0.7rem';
+        chipLabel.style.marginBottom = '4px';
+        chipLabel.textContent = 'You might also ask:';
+        chips.appendChild(chipLabel);
+        followUps.slice(0, 3).forEach(function(item) {
+            var q = String(item || '').replace(/[<>]/g, '').trim();
+            if (!q) return;
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.setAttribute('data-bq-chip', '1');
+            chip.setAttribute('data-q', q);
+            chip.textContent = q;
+            chip.style.cssText = 'display:block;width:100%;margin-top:4px;padding:6px 8px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#aaa);font-size:0.78rem;cursor:pointer;font-family:inherit;text-align:left;';
+            chip.addEventListener('click', function(event) {
+                if (event) { event.preventDefault(); event.stopPropagation(); }
+                if (window.bqAskFollowUp) window.bqAskFollowUp(q);
+            });
+            chips.appendChild(chip);
+        });
+        textEl.appendChild(chips);
+    }
+    var more = document.createElement('button');
+    more.type = 'button';
+    more.textContent = 'Ask a follow-up';
+    more.style.cssText = 'width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;';
+    more.addEventListener('click', function(event) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        if (typeof showNachoInput === 'function') showNachoInput();
+    });
+    textEl.appendChild(more);
+    window._nachoBusy = false;
+    if (typeof setPose === 'function') setPose('brain');
+}
+
+function nachoSectionPayload(question) {
+    var session = window._nachoSectionSession || {};
+    var payload = {
+        channelId: session.channelId,
+        anchorIndex: session.anchorIndex,
+        anchorHash: session.anchorHash
+    };
+    if (session.conversationId) payload.conversationId = session.conversationId;
+    if (question) payload.question = question;
+    return payload;
+}
+
+function nachoSectionRequest(question, textEl) {
+    var payload = nachoSectionPayload(question);
+    if (typeof firebase === 'undefined' || !firebase.functions) {
+        nachoPaintSection(textEl, { answer: 'Sign in to ask Nacho about this section.', links: [], followUps: [] });
+        return;
+    }
+    firebase.functions().httpsCallable('askNachoAboutSection')(payload).then(function(res) {
+        nachoPaintSection(textEl, res && res.data ? res.data : (res || {}));
+    }).catch(function(err) {
+        var message = err && err.message ? String(err.message) : 'Nacho could not read that section.';
+        if (message.length > 180) message = 'Nacho could not read that section.';
+        nachoPaintSection(textEl, { answer: message, links: [], followUps: [] });
+    });
+}
+
+window.nachoAskSection = function(spec) {
+    spec = spec || {};
+    var channelId = String(spec.channelId || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var anchorHash = String(spec.anchorHash || '').replace(/[^a-z0-9]/g, '');
+    var anchorIndex = spec.anchorIndex;
+    if (typeof anchorIndex === 'string' && /^[0-9]+$/.test(anchorIndex)) anchorIndex = Number(anchorIndex);
+    if (!channelId || !anchorHash || typeof anchorIndex !== 'number') return;
+    var conversationId = spec.conversationId ? String(spec.conversationId).replace(/[^A-Za-z0-9_-]/g, '') : '';
+    window._nachoSectionSession = {
+        channelId: channelId,
+        anchorIndex: anchorIndex,
+        anchorHash: anchorHash,
+        conversationId: conversationId
+    };
+    var bubble = nachoRaisePanel();
+    var textEl = document.getElementById('nacho-text');
+    if (!bubble || !textEl) return;
+    window._nachoBusy = true;
+    showNachoThinking(textEl);
+    nachoSectionRequest('', textEl);
+};
+
 // Bubble Q&A — uses the same unified brain as Nacho Mode
 window.nachoAnswer = function() {
     var inp = document.getElementById('nachoInput');
@@ -4799,6 +4945,12 @@ window.nachoAnswer = function() {
 
     // Show thinking animation
     showNachoThinking(textEl);
+
+    // A section Nacho stays in this same panel. The server reloads the section.
+    if (window._nachoSectionSession && window._nachoSectionSession.channelId && window._nachoSectionSession.anchorHash) {
+        nachoSectionRequest(q, textEl);
+        return;
+    }
 
     // Use the unified brain (same as Nacho Mode)
     if (typeof nachoUnifiedAnswer === 'function') {

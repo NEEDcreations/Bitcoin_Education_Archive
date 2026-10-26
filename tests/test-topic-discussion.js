@@ -585,6 +585,21 @@ test('conversation buttons open the discussion and posts show server date-time',
         assert.strictEqual(button.type, 'button');
         assert.strictEqual(button.textContent, '💬 Start a conversation');
         assert.strictEqual(button.getAttribute('aria-label'), 'Start a conversation about 🌋mining');
+        var row = button.parentNode;
+        assert.ok(row && row.classList && row.classList.contains('td-convo-row'));
+        var nachoBtn = null;
+        (row.childNodes || []).forEach(function(child) {
+            if (child.classList && child.classList.contains('td-nacho-btn')) nachoBtn = child;
+        });
+        assert.ok(nachoBtn);
+        assert.strictEqual(nachoBtn.tagName, 'BUTTON');
+        assert.strictEqual(nachoBtn.getAttribute('aria-label'), 'Ask Nacho about this section');
+        var avatar = null;
+        (nachoBtn.childNodes || []).forEach(function(child) {
+            if (child.tagName === 'IMG') avatar = child;
+        });
+        assert.ok(avatar);
+        assert.strictEqual(avatar.getAttribute('src') || avatar.src, '/nacho-deer.svg');
         if (button.getAttribute('data-anchor-index') === '3') {
             assert.strictEqual(button.getAttribute('data-anchor-hash'), plan.bqAnchorFingerprint(paras[3]));
         }

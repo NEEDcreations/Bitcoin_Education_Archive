@@ -2414,6 +2414,10 @@ service cloud.firestore {
     match /topic_discussion_private/{docId} {
       allow read, write: if false;
     }
+    // Per-user counters for private section summaries. Clients cannot read or reset them.
+    match /nacho_section_limits/{uid} {
+      allow read, write: if false;
+    }
     match /key_gift_credits/{docId} {
       allow read, write: if false;
     }

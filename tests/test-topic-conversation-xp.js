@@ -202,7 +202,8 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(notes.includes('Latest: A Nacho button next to each topic conversation asks Nacho privately about that section, with a short summary and follow-up questions.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(notes.includes('The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.'));
     assert.ok(!notes.includes('Latest: The home page is simpler'));

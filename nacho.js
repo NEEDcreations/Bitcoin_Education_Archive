@@ -658,6 +658,8 @@ function createNacho() {
         #nacho-container.nacho-bubble-below #nacho-bubble::before,
         #nacho-container.nacho-bubble-below #nacho-bubble::after { display: none; }
         #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+        #nacho-container.nacho-section-front { z-index: 2100004; }
+        #nacho-container.nacho-section-front #nacho-bubble { z-index: 2100004; position: fixed; }
 
         .nacho-header {
             display: flex;
@@ -1625,6 +1627,13 @@ window.hideBubble = function(force) {
 
     // Clear busy state — allow queued popups to show
     window._nachoBusy = false;
+    window._nachoSectionSession = null;
+    var _ncFront = document.getElementById('nacho-container');
+    if (_ncFront) {
+        _ncFront.classList.remove('nacho-section-front');
+        _ncFront.style.zIndex = '';
+    }
+    if (bubble) bubble.style.zIndex = '';
 
     // Mark interaction for badge — delay badge check so it doesn't pop immediately
     localStorage.setItem('btc_nacho_clicked', 'true');
