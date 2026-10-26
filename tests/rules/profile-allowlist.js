@@ -118,6 +118,9 @@ function valueFor(field) {
         await expect('experienceMode advanced', function () {
             return updateDoc(ref, { experienceMode: 'advanced' });
         }, true);
+        await expect('experienceMode lite', function () {
+            return updateDoc(ref, { experienceMode: 'lite' });
+        }, true);
         await expect('deny experienceMode expert', function () {
             return updateDoc(ref, { experienceMode: 'expert' });
         }, false);

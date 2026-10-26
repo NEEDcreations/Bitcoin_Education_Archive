@@ -375,7 +375,8 @@ service cloud.firestore {
           && (!changed.hasAny(['experienceMode'])
             || request.resource.data.experienceMode == 'beginner'
             || request.resource.data.experienceMode == 'intermediate'
-            || request.resource.data.experienceMode == 'advanced')
+            || request.resource.data.experienceMode == 'advanced'
+            || request.resource.data.experienceMode == 'lite')
           && (!changed.hasAny(['pvpAlertsMuted'])
             || request.resource.data.pvpAlertsMuted == true
             || request.resource.data.pvpAlertsMuted == false)
