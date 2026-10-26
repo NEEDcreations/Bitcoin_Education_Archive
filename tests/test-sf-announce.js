@@ -392,7 +392,9 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
+    assert.ok(notes.includes('Latest: On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
+    assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
+    assert.ok(!notes.includes('Latest: A More tools button'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));

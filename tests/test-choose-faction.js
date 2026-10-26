@@ -377,7 +377,9 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
+    assert.ok(notes.indexOf("Latest: On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.") > 0);
+    assert.ok(notes.indexOf("A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
+    assert.ok(notes.indexOf("Latest: A More tools button") === -1);
     assert.ok(notes.indexOf("Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") > 0);
     assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") === -1);
     assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") === -1);
