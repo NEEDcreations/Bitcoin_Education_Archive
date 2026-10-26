@@ -32,6 +32,7 @@ const TESTS = [
     { name: 'Cipher share rewards', file: 'test-cipher-share.js' },
     { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
     { name: 'Activity Shoutouts', file: 'test-activity-shoutout.js' },
+    { name: 'Chat Mentions', file: 'test-chat-mentions.js' },
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Chat Telegram mirror', file: 'test-chat-telegram-mirror.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },

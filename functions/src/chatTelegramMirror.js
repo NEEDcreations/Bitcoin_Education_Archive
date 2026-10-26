@@ -34,6 +34,9 @@ const SEND_TIMEOUT_MS = 10 * 1000;
 // expires and a second worker sends the same batch.
 const SENDING_LEASE_MS = 30 * 1000;
 const MAX_ATTEMPTS = 5;
+// A wrong token or a missing chat is an outage, not a bad line. Hold those
+// forever and cap the wait so a long outage does not spin the queue.
+const CHAT_HOLD_MAX_MS = 5 * 60 * 1000;
 const USER_GAP_MS = 3 * 1000;
 const USER_MAX_PER_MINUTE = 10;
 const RETAIN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -124,6 +127,9 @@ function visibleBody(data, note) {
         ? toTelegramText(src.caption)
         : toTelegramText(src.text || '');
     text = neutralizePings(stripContacts(stripUid(stripUid(text, src.uid), src.mentionUid)));
+    // A short label spliced into a word is not part of the word: fu[x](url)ck
+    // is the same word as the letters around it. Other links keep their label.
+    text = text.replace(/(\p{L})\[[^\]]{1,3}\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)(?=\p{L})/giu, '$1');
     text = text.replace(/\[([^\]]+)\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)/gi, '$1');
     text = text.replace(/[`]/g, '');
     if (note && note !== '[image]' && collapseSpace(text) === note) text = '';
@@ -357,6 +363,16 @@ function backoffMs(attempt, retryAfterSec) {
     const fromHeader = Math.max(0, Number(retryAfterSec) || 0) * 1000;
     const exp = Math.min(WINDOW_MS, 1000 * Math.pow(2, Math.min(Number(attempt) || 0, 6)));
     return Math.max(fromHeader, exp, 1000);
+}
+
+function chatHoldMs(attempt) {
+    const exp = 1000 * Math.pow(2, Math.min(Number(attempt) || 0, 9));
+    return Math.min(CHAT_HOLD_MAX_MS, Math.max(exp, 1000));
+}
+
+function logChatHold(status) {
+    const code = Number(status) || 0;
+    console.error('[TG MIRROR] hold ' + code);
 }
 
 function defaultFetchImpl() {
@@ -597,6 +613,21 @@ async function reserveSendSlot(db, nowMs) {
     return outcome;
 }
 
+async function releaseSendSlot(db, nowMs) {
+    const stateRef = db.collection(STATE).doc(STATE_ID);
+    await db.runTransaction(async function (tx) {
+        const stateSnap = await tx.get(stateRef);
+        const prev = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : {};
+        const sent = Array.isArray(prev.sentAtMs) ? prev.sentAtMs.slice() : [];
+        const idx = sent.lastIndexOf(nowMs);
+        if (idx !== -1) sent.splice(idx, 1);
+        const nextState = Object.assign({
+            sentAtMs: sent.slice(-MAX_SENDS_PER_MINUTE),
+        }, retentionFields(nowMs));
+        if (typeof tx.set === 'function') tx.set(stateRef, nextState);
+    });
+}
+
 async function touchLease(db, items, stamp) {
     if (!items || !items.length) return;
     await patchDocs(db, items.map(function (item) {
@@ -700,7 +731,7 @@ function attemptCount(item) {
 }
 
 function shouldFailItem(item, result) {
-    if (isChatLevel(result)) return attemptCount(item) >= MAX_ATTEMPTS;
+    if (isChatLevel(result)) return false;
     if (isPermanentHttp(result)) return true;
     return attemptCount(item) >= MAX_ATTEMPTS;
 }
@@ -787,7 +818,7 @@ async function holdForRetry(db, items, result, nowMs) {
     const attempt = items.reduce(function (max, item) {
         return Math.max(max, Number(item.attempts) || 0);
     }, 0) + 1;
-    const wait = backoffMs(attempt, result && result.retryAfter);
+    const wait = isChatLevel(result) ? chatHoldMs(attempt) : backoffMs(attempt, result && result.retryAfter);
     await patchDocs(db, items.map(function (item) {
         return {
             ref: db.collection(QUEUE).doc(item.id),
@@ -818,11 +849,15 @@ async function sendOneBatch(db, nowMs, options) {
         return { sent: 0, waitUntil: claimed && claimed.waitUntil ? claimed.waitUntil : 0 };
     }
     const live = await dropBlocked(db, plan, nowMs);
-    if (!live.items.length) return { sent: 0, reason: 'blocked' };
+    if (!live.items.length) {
+        await releaseSendSlot(db, nowMs);
+        return { sent: 0, reason: 'blocked' };
+    }
     const secret = opts.token != null ? opts.token : (opts.env && opts.env.TG_BOT_TOKEN);
     const result = await sendTelegramText(live.text, opts);
     const label = result.ok ? 'sent' : (isChatLevel(result) ? ('hold ' + result.status) : (result.error || 'retry'));
     safeMirrorLog(opts.log, secret, 'mirror ' + label);
+    if (isChatLevel(result)) logChatHold(result.status);
     if (result.ok) {
         await stampSent(db, live.items, result, nowMs);
         return { sent: 1, telegramMsgId: result.telegramMsgId, count: live.items.length };
@@ -854,6 +889,7 @@ async function sendOneBatch(db, nowMs, options) {
             }
             if (isChatLevel(one) || Number(one.status) === 429) {
                 safeMirrorLog(opts.log, secret, 'mirror hold ' + (Number(one.status) || 0));
+                if (isChatLevel(one)) logChatHold(one.status);
                 const held = await settleItems(db, rest, one, nowMs);
                 return {
                     sent: sent,
@@ -956,6 +992,8 @@ module.exports = {
     decideMirror: decideMirror,
     planBatch: planBatch,
     backoffMs: backoffMs,
+    chatHoldMs: chatHoldMs,
+    CHAT_HOLD_MAX_MS: CHAT_HOLD_MAX_MS,
     enqueueChatMirror: enqueueChatMirror,
     flushTelegramMirror: flushTelegramMirror,
     handleChatMirror: handleChatMirror,

@@ -309,6 +309,17 @@ queue.push(test('backfill and admin awards are not posted', async function () {
     assert.ok(email.indexOf('10.0.0.8') === -1);
     assert.ok(email.indexOf('🏅 A player') !== -1);
     assert.strictEqual(email.indexOf('@A player'), -1);
+    const rudeDb = memoryDb({ 'users/rude': { username: 'fuck' } });
+    await badgeGg.queueBadgeGg(rudeDb, admin, 'rude', 'quest_1', { source: 'awardBadge', favorPoint: false }, start);
+    const rudeFlush = await badgeGg.flushDueBursts(rudeDb, admin, start + badgeGg.BURST_WINDOW_MS);
+    assert.strictEqual(rudeFlush.length, 1);
+    assert.strictEqual(rudeFlush[0].text, '🏅 A player earned Quester');
+    assert.strictEqual(rudeFlush[0].text.indexOf('fuck'), -1);
+    assert.strictEqual(rudeFlush[0].text.indexOf('@A player'), -1);
+    const namedDb = memoryDb({ 'users/dickens': { username: 'Dickens' } });
+    await badgeGg.queueBadgeGg(namedDb, admin, 'dickens', 'quest_1', { source: 'awardBadge', favorPoint: false }, start);
+    const namedFlush = await badgeGg.flushDueBursts(namedDb, admin, start + badgeGg.BURST_WINDOW_MS);
+    assert.strictEqual(namedFlush[0].text, '🏅 @Dickens earned Quester');
 }));
 
 queue.push(test('an expired reset keeps eraHashes inside the transaction', async function () {

@@ -11,6 +11,7 @@
 // The text uses the display name only. mentionUid is a field, never the text.
 
 const badgeRules = require('./badgeRules');
+const { moderateText } = require('./moderateText');
 
 const BURST_WINDOW_MS = 60 * 1000;
 
@@ -165,8 +166,18 @@ function mention(display) {
     return '@' + display;
 }
 
+// A username that fails the strict filter is "A player" in the GGs line,
+// so the Telegram mirror still posts the burst.
+function visiblePlayerName(raw) {
+    const name = sanitizeDisplayName(raw);
+    if (!name) return 'A player';
+    const hit = moderateText(name, { strict: true });
+    if (!hit.clean) return 'A player';
+    return name;
+}
+
 function formatBadgeGg(name, items) {
-    const who = mention(sanitizeDisplayName(name) || 'A player');
+    const who = mention(visiblePlayerName(name));
     const list = (items || []).filter(function (item) { return item && item.badgeId; });
     const suffix = sfSuffix(favorCount(list));
     if (!list.length) return '🏅 ' + who + ' earned a badge' + suffix;
@@ -210,9 +221,7 @@ function announcementId(uid, startedAtMs) {
 
 function displayNameFromUser(user) {
     const data = user || {};
-    const name = sanitizeDisplayName(data.username || '');
-    if (!name) return 'A player';
-    return name;
+    return visiblePlayerName(data.username || '');
 }
 
 function stageAnnouncement(t, db, adminSdk, burst, user, existingSnap) {

@@ -411,7 +411,9 @@ test('a 429 keeps the batch queued with backoff', async function () {
     assert.ok(logs.join('\n').indexOf(token) === -1);
     const src = fs.readFileSync(path.join(root, 'functions', 'src', 'chatTelegramMirror.js'), 'utf8');
     assert.strictEqual(src.indexOf('console.log'), -1);
-    assert.strictEqual(src.indexOf('console.error'), -1);
+    assert.ok(src.indexOf("console.error('[TG MIRROR] hold ' + code)") !== -1);
+    assert.strictEqual((src.match(/console\.error/g) || []).length, 1);
+    assert.strictEqual(src.indexOf('ops alert'), -1);
 });
 
 test('clients and the callable do not post, and mirror collections are server-only', function () {
@@ -748,6 +750,63 @@ test('disguised profanity, the old bridge list, decimals, and bad usernames are 
     });
     assert.strictEqual(blockedSend.sent, 0);
     assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__latebad'].status, 'skipped');
+    assert.strictEqual((db.docs['telegram_mirror_state/group'].sentAtMs || []).length, 0);
+});
+
+test('disguised letters, lookalikes, and ordinary words', function () {
+    const blocked = [
+        ['vs', 'f\uFE0Fuck'],
+        ['mark', 'fuc\u0301k'],
+        ['spaced', 'f u c k you'],
+        ['shit-spaced', 's h i t'],
+        ['kike-spaced', 'k i k e'],
+        ['newline', 'fu\nck'],
+        ['line-letters', 'f\nu\nc\nk'],
+        ['star', 'f*ck'],
+        ['stars', 'f**k'],
+        ['star-sep', 'f*u*c*k'],
+        ['cyr', 'fu\u0441k'],
+        ['splice', 'fu[x](https://a.b)ck'],
+        ['ph-space', 'ph uck'],
+        ['ph-word', 'phuck'],
+        ['leet', 'p0rn'],
+        ['tits', 't1ts'],
+        ['exact-dick', 'dick'],
+        ['exact-cock', 'cock'],
+        ['exact-rape', 'rape'],
+        ['exact-spic', 'a spic'],
+        ['exact-trump', 'vote trump'],
+        ['exact-republican', 'republican'],
+        ['exact-maga', 'maga'],
+        ['exact-shit', 'shit'],
+        ['exact-cunt', 'cunt'],
+        ['slur', 'nigger'],
+    ];
+    blocked.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, false, row[0] + ' forwarded: ' + (decision.line || decision.reason));
+        assert.strictEqual(decision.reason, 'profanity', row[0]);
+    });
+    const allowed = [
+        ['magazine', 'Bitcoin Magazine'],
+        ['suspicious', 'that looks suspicious'],
+        ['block', 'block 71750'],
+        ['spicy', 'spicy'],
+        ['grape', 'a grape'],
+        ['dickens', 'Dickens wrote that'],
+        ['trumpet', 'a trumpet'],
+        ['cocktail', 'a cocktail'],
+        ['scunthorpe', 'Scunthorpe'],
+        ['republicans', 'the republicans'],
+        ['democratic', 'a democratic vote'],
+        ['therapist', 'a therapist'],
+        ['class', 'classic class'],
+        ['phone', 'my phone'],
+    ];
+    allowed.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, true, row[0] + ' blocked: ' + decision.reason);
+    });
 });
 
 test('isolation refreshes the lease and stops on 429', async function () {
@@ -927,6 +986,87 @@ test('the group cap is reserved before the send', async function () {
     assert.strictEqual(held.sent, 0);
     assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__g20'].status, 'pending');
     assert.ok(held.waitUntil > now + 20000);
+});
+
+test('chat-level errors stay queued past five attempts', async function () {
+    const now = 1700000000000;
+    const db = memoryDb({
+        'global_chat/hold': msg({ uid: 'user_hold', text: 'still queued' }),
+    });
+    await mirror.enqueueChatMirror(db, 'global_chat', 'hold', db.docs['global_chat/hold'], null, now);
+    let at = now;
+    for (let n = 0; n < 6; n++) {
+        const result = await mirror.flushTelegramMirror(db, at, {
+            token: 'test-token-value',
+            chatId: '-100',
+            log: function () {},
+            fetch: async function () {
+                return {
+                    ok: false,
+                    status: 401,
+                    json: async function () { return { ok: false, error_code: 401, description: 'Unauthorized' }; },
+                };
+            },
+        });
+        const row = db.docs['telegram_mirror_queue/global_chat__hold'];
+        assert.strictEqual(result.sent, 0);
+        assert.strictEqual(row.status, 'pending');
+        assert.ok(row.nextAttemptAt > at);
+        assert.ok(row.nextAttemptAt - at <= mirror.CHAT_HOLD_MAX_MS);
+        at = row.nextAttemptAt;
+    }
+    const row = db.docs['telegram_mirror_queue/global_chat__hold'];
+    assert.ok(row.attempts >= 6);
+    assert.strictEqual(row.status, 'pending');
+    assert.strictEqual(row.lastError, undefined);
+    assert.strictEqual(mirror.chatHoldMs(12), mirror.CHAT_HOLD_MAX_MS);
+    const src = fs.readFileSync(path.join(root, 'functions', 'src', 'chatTelegramMirror.js'), 'utf8');
+    assert.ok(src.indexOf("console.error('[TG MIRROR] hold ' + code)") !== -1);
+    assert.strictEqual(src.indexOf('console.error(result'), -1);
+    assert.strictEqual(src.indexOf("collection('announcements')"), -1);
+});
+
+test('a fully filtered batch does not spend a group slot', async function () {
+    const now = 1700000000000;
+    const db = memoryDb({
+        'global_chat/a': msg({ uid: 'user_a', text: 'clean one' }),
+        'global_chat/b': msg({ uid: 'user_b', text: 'clean two' }),
+    });
+    await mirror.enqueueChatMirror(db, 'global_chat', 'a', db.docs['global_chat/a'], null, now);
+    await mirror.enqueueChatMirror(db, 'global_chat', 'b', db.docs['global_chat/b'], null, now + 10);
+    db.docs['global_chat/a'].text = 'fuck';
+    db.docs['global_chat/b'].text = 'shit';
+    const blocked = await mirror.flushTelegramMirror(db, now + 10, {
+        token: 'test-token-value',
+        chatId: '-100',
+        log: function () {},
+        fetch: async function () { throw new Error('filtered batch was sent'); },
+    });
+    assert.strictEqual(blocked.sent, 0);
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__a'].status, 'skipped');
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__b'].status, 'skipped');
+    assert.strictEqual((db.docs['telegram_mirror_state/group'].sentAtMs || []).length, 0);
+
+    db.docs['global_chat/c'] = msg({ uid: 'user_c', text: 'keep me' });
+    db.docs['global_chat/d'] = msg({ uid: 'user_d', text: 'drop me' });
+    await mirror.enqueueChatMirror(db, 'global_chat', 'c', db.docs['global_chat/c'], null, now + 20);
+    await mirror.enqueueChatMirror(db, 'global_chat', 'd', db.docs['global_chat/d'], null, now + 30);
+    db.docs['global_chat/d'].text = 'fuck';
+    let calls = 0;
+    const mixed = await mirror.flushTelegramMirror(db, now + 30, {
+        token: 'test-token-value',
+        chatId: '-100',
+        log: function () {},
+        fetch: async function () {
+            calls += 1;
+            return { ok: true, status: 200, json: async function () { return { ok: true, result: { message_id: 3, chat: { id: -100 } } }; } };
+        },
+    });
+    assert.strictEqual(mixed.sent, 1);
+    assert.strictEqual(calls, 1);
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__c'].status, 'sent');
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__d'].status, 'skipped');
+    assert.strictEqual(db.docs['telegram_mirror_state/group'].sentAtMs.length, 1);
 });
 
 Promise.all(queue).then(function () {

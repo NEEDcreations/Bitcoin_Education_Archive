@@ -5,6 +5,8 @@
 // matched the same way: a phrase or a term of 4+ characters matches
 // inside a word, and a shorter term has to be a whole word.
 // Political terms are the old bridge list, unchanged.
+// An allowlist is applied only before the in-word search, so a standalone
+// slur or political term still matches as its own word.
 
 const PROFANITY = [
     'fuck', 'shit', 'bitch', 'asshole', 'damn', 'cunt',
@@ -25,6 +27,20 @@ const BRIDGE_TERMS = [
     'motherfucker', 'fuckers', 'bullshit', 'gas the jews', 'asshole', 'damn',
 ];
 
+// Whole words that contain a 4+ letter term but are ordinary English.
+// Checked only before in-word matching. Exact standalone terms still hit.
+const ALLOWLIST = [
+    'magazine', 'suspicious', 'suspicion', 'spicy', 'spice', 'despicable',
+    'conspicuous', 'auspicious', 'hospice', 'cocktail', 'cockpit', 'cocky',
+    'peacock', 'hancock', 'hitchcock', 'dickens', 'dickinson', 'grape',
+    'grapefruit', 'drape', 'scrape', 'skyscraper', 'parapet', 'trapeze',
+    'therapeutic', 'trumpet', 'torpedo', 'raccoon', 'cocoon', 'tycoon',
+    'democratic', 'democrats', 'republican', 'republicans', 'scunthorpe',
+];
+
+const ALLOW = {};
+ALLOWLIST.forEach(function (word) { ALLOW[word] = true; });
+
 const SCAM_PATTERNS = [
     /send me \d+(?:[.,]\d+)? btc/i,
     /double your bitcoin/i,
@@ -36,6 +52,20 @@ const SCAM_PATTERNS = [
 
 const REASON_PROFANITY = 'Content contains inappropriate language';
 const REASON_SCAM = 'Content contains potential scam patterns';
+
+const LOOKALIKE = {
+    '\u0430': 'a', // Cyrillic a
+    '\u0435': 'e', // Cyrillic e
+    '\u043e': 'o', // Cyrillic o
+    '\u0440': 'p', // Cyrillic er
+    '\u0441': 'c', // Cyrillic es
+    '\u0443': 'y', // Cyrillic u
+    '\u0445': 'x', // Cyrillic ha
+    '\u0456': 'i', // Cyrillic i
+    '\u0455': 's', // Cyrillic dze
+    '\u0501': 'd', // Cyrillic komi de
+    '\u03ba': 'k', // Greek kappa
+};
 
 function normalizeModerateText(text) {
     return String(text || '').toLowerCase()
@@ -50,60 +80,177 @@ function normalizeModerateText(text) {
         .replace(/\s+/g, ' ');
 }
 
+// Loop until stable so a nested tag cannot survive one pass
+// (<scr<script>ipt> → <script> → empty). CodeQL flags a single replace.
+function stripTags(text) {
+    let s = String(text || '');
+    let prev;
+    do {
+        prev = s;
+        s = s.replace(/<[^>]*>/g, '');
+    } while (s !== prev);
+    return s;
+}
+
 // Same visible-text cleanup the mirror applies before Telegram sees a line:
 // HTML tags, %%tokens%%, markdown links, and invisible characters.
+// A short link spliced between letters is dropped so fu[x](url)ck matches
+// the surrounding word. Any other link is its display text.
 function sanitizeOutgoing(text) {
     let out = String(text || '');
     out = out.replace(/<span\b[^>]*\bdata-profile-uid\s*=\s*["'][^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, '$1');
-    out = out.replace(/<[^>]*>/g, '');
+    out = stripTags(out);
     out = out.replace(/%%[A-Za-z0-9_]+%%/g, '');
+    out = out.replace(/(\p{L})\[[^\]]{1,3}\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)(?=\p{L})/giu, '$1');
     out = out.replace(/\[([^\]]+)\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)/gi, '$1');
     out = out.replace(/[\u200B-\u200D\uFEFF]/g, '');
     return out;
 }
 
+// A run of 2+ digits is a number (a block height), not leet. A single
+// digit inside a word still folds (p0rn, t1ts).
 function applyLeet(text) {
-    return String(text || '')
-        .replace(/[@4]/g, 'a')
-        .replace(/[8]/g, 'b')
-        .replace(/[3€]/g, 'e')
-        .replace(/[1!|]/g, 'i')
-        .replace(/[0]/g, 'o')
-        .replace(/[$5]/g, 's')
-        .replace(/[7+]/g, 't');
+    return String(text || '').replace(/\d+|[^0-9]+/g, function (chunk) {
+        if (/^\d{2,}$/.test(chunk)) return chunk;
+        return chunk
+            .replace(/[@4]/g, 'a')
+            .replace(/8/g, 'b')
+            .replace(/[3€]/g, 'e')
+            .replace(/[1!|]/g, 'i')
+            .replace(/0/g, 'o')
+            .replace(/[$5]/g, 's')
+            .replace(/[7+]/g, 't');
+    });
 }
 
-// NFKC folds fullwidth. Format characters (soft hyphen, zero-width) are
-// removed. Separators between letters collapse so fuck-off matches fuck.
-function normalizeStrictText(text) {
-    let s = String(text || '').normalize('NFKC');
-    s = s.replace(/\p{Cf}/gu, '');
-    s = applyLeet(s.toLowerCase());
+function foldLookalikes(text) {
+    return String(text || '').replace(/[\u0430\u0435\u043e\u0440\u0441\u0443\u0445\u0456\u0455\u0501\u03ba]/g, function (ch) {
+        return LOOKALIKE[ch] || ch;
+    });
+}
+
+// fu\nck joins. hello\nworld stays two words. Leftover breaks become spaces
+// so "f \n u \n c \n k" is the same shape as "f u c k".
+function joinShortLineBreaks(text) {
+    let s = String(text || '').replace(/[^\S\r\n]*[\r\n]+[^\S\r\n]*/g, '\n');
     let prev = '';
     while (s !== prev) {
         prev = s;
-        s = s.replace(/(\p{L})[-_.*]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(^|[^\p{L}\n])(\p{L}+)\n(\p{L}+)(?!\p{L})/gu, function (_m, lead, left, right) {
+            if (left.length <= 2 || right.length <= 2) return lead + left + right;
+            return lead + left + ' ' + right;
+        });
     }
+    return s.replace(/\n/g, ' ');
+}
+
+function collapseSeparators(text) {
+    let s = String(text || '');
+    let prev = '';
+    while (s !== prev) {
+        prev = s;
+        s = s.replace(/(\p{L})[-_.]+(?=\p{L})/gu, '$1');
+    }
+    return s;
+}
+
+// "phuck" and "ph uck" fold toward "fuck". "phone" becomes "fone".
+// "graphic" does not start with ph, so it is left alone.
+function foldPh(text) {
+    return String(text || '')
+        .replace(/\bph\s+/g, 'f')
+        .replace(/\bph/g, 'f');
+}
+
+// Three or more single letters split by spaces or punctuation: "f u c k".
+function collapseSpacedLetters(text) {
+    return String(text || '').replace(/(^|[^\p{L}])(\p{L}(?:[^\p{L}\p{N}*]+)\p{L}(?:[^\p{L}\p{N}*]+\p{L})+)/gu, function (full, lead, run) {
+        return lead + run.replace(/[^\p{L}]/gu, '');
+    });
+}
+
+// NFKC, then NFKD, strip marks and variation selectors, then NFC.
+// Format characters (soft hyphen, zero-width) are removed after that.
+function normalizeStrictText(text) {
+    let s = String(text || '').normalize('NFKC').normalize('NFKD');
+    s = s.replace(/[\p{M}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
+    s = s.normalize('NFC');
+    s = s.replace(/\p{Cf}/gu, '');
+    s = foldLookalikes(s.toLowerCase());
+    s = applyLeet(s);
+    s = joinShortLineBreaks(s);
+    s = collapseSeparators(s);
+    s = foldPh(s);
+    s = collapseSpacedLetters(s);
     s = s.replace(/\s+/g, ' ').trim();
     return s;
+}
+
+function allowlistedWord(word) {
+    const w = String(word || '');
+    if (ALLOW[w]) return true;
+    if (w.length > 3 && w.charAt(w.length - 1) === 's' && ALLOW[w.slice(0, -1)]) return true;
+    if (w.length > 4 && w.slice(-2) === 'es' && ALLOW[w.slice(0, -2)]) return true;
+    return false;
+}
+
+function maskAllowlist(text) {
+    return String(text || '').replace(/\p{L}+/gu, function (word) {
+        if (!allowlistedWord(word)) return word;
+        return ' '.repeat(word.length);
+    });
+}
+
+// "*" stands in for one character ("f*ck", "sh*t", "f**k"). At least two
+// real letters must agree, so a string of only stars does not match.
+function starWindow(text, term) {
+    const src = String(text || '');
+    if (src.indexOf('*') === -1) return false;
+    const n = term.length;
+    if (n < 2 || src.length < n) return false;
+    for (let i = 0; i + n <= src.length; i++) {
+        let literals = 0;
+        let ok = true;
+        for (let j = 0; j < n; j++) {
+            const ch = src.charAt(i + j);
+            if (ch === '*') continue;
+            literals += 1;
+            if (ch !== term.charAt(j)) {
+                ok = false;
+                break;
+            }
+        }
+        if (ok && literals >= 2) return true;
+    }
+    return false;
 }
 
 function bridgeHit(normalized) {
     const text = String(normalized || '');
     if (!text) return false;
-    const compact = text.replace(/\s+/g, '');
     const words = text.split(/\s+/).filter(Boolean);
     for (let i = 0; i < BRIDGE_TERMS.length; i++) {
         const bad = BRIDGE_TERMS[i];
         if (bad.indexOf(' ') !== -1) {
             if (text.indexOf(bad) !== -1) return true;
-            if (compact.indexOf(bad.replace(/\s+/g, '')) !== -1) return true;
             continue;
         }
         for (let w = 0; w < words.length; w++) {
             if (words[w] === bad) return true;
         }
-        if (bad.length >= 4 && text.indexOf(bad) !== -1) return true;
+    }
+    const masked = maskAllowlist(text);
+    const bare = masked.replace(/\*/g, '');
+    const starred = masked.replace(/\s*\*\s*/g, '*');
+    const compact = bare.replace(/\s+/g, '');
+    for (let i = 0; i < BRIDGE_TERMS.length; i++) {
+        const bad = BRIDGE_TERMS[i];
+        if (bad.indexOf(' ') !== -1) {
+            if (compact.indexOf(bad.replace(/\s+/g, '')) !== -1) return true;
+            continue;
+        }
+        if (bad.length >= 4 && bare.indexOf(bad) !== -1) return true;
+        if (starWindow(starred, bad)) return true;
     }
     return false;
 }
@@ -141,6 +288,7 @@ module.exports = {
     moderateText: moderateText,
     PROFANITY: PROFANITY,
     BRIDGE_TERMS: BRIDGE_TERMS,
+    ALLOWLIST: ALLOWLIST,
     SCAM_PATTERNS: SCAM_PATTERNS,
     sanitizeOutgoing: sanitizeOutgoing,
     normalizeStrictText: normalizeStrictText,
