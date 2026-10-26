@@ -5848,6 +5848,8 @@ window.toggleAITools = function() {
 
     window._aiToolsOpen = !window._aiToolsOpen;
     panel.style.transform = window._aiToolsOpen ? 'translateY(0)' : 'translateY(100%)';
+    if (window._aiToolsOpen && typeof window.frontOverlay === 'function') window.frontOverlay(panel);
+    else if (!window._aiToolsOpen && typeof window.releaseOverlay === 'function') window.releaseOverlay(panel);
 
     // Update button appearance
     var btn = document.getElementById('aiToolsBtn');

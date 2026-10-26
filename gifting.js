@@ -358,12 +358,26 @@ function _playGiftOpen(stage) {
 
 function _confetti() {
     var colors = ['#f7931a', '#fbbf24', '#a78bfa', '#34d399', '#f472b6', '#60a5fa'];
+    var z = (typeof window.nextOverlayZ === 'function') ? window.nextOverlayZ() : 120001;
     for (var i = 0; i < 12; i++) {
         var dot = document.createElement('div');
-        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:120001;left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
+        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:' + z + ';left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
         document.body.appendChild(dot);
         setTimeout(function(d) { if (d && d.parentNode) d.parentNode.removeChild(d); }, 1400, dot);
     }
+}
+
+// Gift popups use the shared stack. frontOverlay reads the current top layer
+// (Settings is z-index 2100008) and places this overlay two above it.
+// Do not add a private scan (_raiseGiftLayer / _numericZ / _layerOpen).
+function _placeGiftOverlay(overlay) {
+    if (!overlay) return;
+    if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
+    if (typeof window.frontOverlay === 'function') {
+        window.frontOverlay(overlay, { focus: true });
+        return;
+    }
+    overlay.style.zIndex = '480000';
 }
 
 function _btn(label, bg) {
@@ -428,8 +442,6 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     var overlay = document.createElement('div');
     overlay.id = 'postSpinGiftOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
-
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
 
@@ -495,7 +507,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     actions.appendChild(_soundButton('giftSoundToggle'));
     modal.appendChild(actions);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
 };
 
 function _markGiftRow(giftId, rw, failed) {
@@ -1106,7 +1118,6 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     var overlay = document.createElement('div');
     overlay.id = 'decryptCipherOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     var own = key.status === 'inventory';
@@ -1117,7 +1128,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
         '<div id="dcStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Checking the key…</div>' +
         '<div id="dcResult" style="display:none;"></div>';
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
 
     var hexEl = document.getElementById('dcHex');
     var statusEl = document.getElementById('dcStatus');
@@ -1214,7 +1225,6 @@ window.showCipherClaim = function(win) {
     var overlay = document.createElement('div');
     overlay.id = 'cipherClaimOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     modal.style.textAlign = 'left';
@@ -1271,7 +1281,7 @@ window.showCipherClaim = function(win) {
     modal.appendChild(input);
     modal.appendChild(row);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
     setTimeout(function() { input.focus(); }, 50);
 };
 
@@ -1300,7 +1310,6 @@ window.showPeerPickerForKeys = async function(keyIds) {
     var overlay = document.createElement('div');
     overlay.id = 'peerPickerOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;';
@@ -1348,7 +1357,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
     sheet.appendChild(close);
     overlay.appendChild(sheet);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
 };
 
 window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
@@ -1369,7 +1378,6 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     var overlay = document.createElement('div');
     overlay.id = 'keyPickerOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow:auto;border:1px solid #334155;';
@@ -1403,7 +1411,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
             closeBlocked.onclick = function() { overlay.remove(); };
             sheet.appendChild(closeBlocked);
             overlay.appendChild(sheet);
-            document.body.appendChild(overlay);
+            _placeGiftOverlay(overlay);
             return;
         }
     } catch (e) { /* server still enforces the cap */ }
@@ -1468,7 +1476,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     close.onclick = function() { overlay.remove(); };
     sheet.appendChild(close);
     overlay.appendChild(sheet);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
 };
 
 // ─── Settings blurb: pending gifts only (the explanation is in the page) ────
@@ -1512,8 +1520,7 @@ window.openNookInventory = function() {
         window._nookSubTab = 'inventory';
         if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
         var hub = document.getElementById('questHubOverlay');
-        var settings = document.getElementById('usernameModal');
-        if (hub && settings && settings.classList.contains('open')) hub.style.zIndex = '450000';
+        if (hub && typeof window.frontOverlay === 'function') window.frontOverlay(hub);
     }, 120);
 };
 
@@ -1620,7 +1627,6 @@ function _drainCipherShareQueue() {
     var overlay = document.createElement('div');
     overlay.id = 'cipherShareOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     var who = notice.openerUsername || 'a Bitcoiner';
@@ -1632,7 +1638,7 @@ function _drainCipherShareQueue() {
         '<div id="csHex" style="font-family:monospace;font-size:0.7rem;color:#f7931a;word-break:break-all;min-height:48px;margin-bottom:12px;padding:10px;background:rgba(247,147,26,0.05);border-radius:8px;"></div>' +
         '<div id="csResult" style="display:none;"></div>';
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    _placeGiftOverlay(overlay);
     var hexEl = document.getElementById('csHex');
     _playHex(hexEl, 1200).then(function() {
         if (!overlay.parentNode) return;

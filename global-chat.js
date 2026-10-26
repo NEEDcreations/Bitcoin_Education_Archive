@@ -1749,6 +1749,8 @@ window.toggleChatOverlay = function() {
     document.body.classList.toggle('chat-panel-open', _overlayOpen);
     panel.classList.toggle('chat-panel-open', _overlayOpen);
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
+    if (_overlayOpen && typeof window.frontOverlay === 'function') window.frontOverlay(panel);
+    else if (!_overlayOpen && typeof window.releaseOverlay === 'function') window.releaseOverlay(panel);
     if (typeof window.syncFabHold === 'function') window.syncFabHold();
     // Shift leaderboard button up when chat is open so it doesn't cover input buttons
     var _lbFab = document.getElementById('lbFloatBtn');

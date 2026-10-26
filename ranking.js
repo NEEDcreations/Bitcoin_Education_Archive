@@ -127,9 +127,9 @@ function tosBlocking() {
 window.tosBlocking = tosBlocking;
 
 function chromeBlocksToasts() {
+    // Terms is a legal gate and keeps toasts queued. Settings stays up under a
+    // toast, so the toast stacks above it instead of waiting.
     if (tosBlocking()) return true;
-    var signup = document.getElementById('usernameModal');
-    if (signup && signup.classList.contains('open')) return true;
     return false;
 }
 
@@ -5461,6 +5461,7 @@ async function toggleLeaderboard() {
         lb.classList.remove('open');
         lb.classList.remove('minimized');
         if (fab) fab.style.display = 'flex';
+        if (typeof window.releaseOverlay === 'function') window.releaseOverlay(lb);
         return;
     }
     // Daily challenge tracking: leaderboard viewed today
@@ -5486,6 +5487,7 @@ async function toggleLeaderboard() {
     lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
     lb.classList.add('open');
+    if (typeof window.frontOverlay === 'function') window.frontOverlay(lb);
     if (fab) fab.style.display = 'none';
 
     // Leaderboard open sound - dramatic reveal
@@ -5996,9 +5998,9 @@ window._showToastNow = function _showToastNow(msg, duration) {
     // Strip dangerous tags but allow emoji and simple formatting
     t.innerHTML = _raw.replace(/<(script|svg|img|iframe|object|embed|form|input|link|style|meta|base)[^>]*>/gi, '').replace(/on\w+\s*=/gi, 'data-blocked=');
     if (typeof msg === 'object' && msg.duration) ms = msg.duration;
-    // Above Settings (400000) and the peer/gift dialogs (480000–540000).
-    t.style.zIndex = '620000';
+    t.style.setProperty('display', 'block', 'important');
     document.body.appendChild(t);
+    if (typeof window.frontOverlay === 'function') window.frontOverlay(t, { toast: true, restoreFocus: false, focus: false });
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, ms);
 }
@@ -6083,6 +6085,7 @@ function showUsernamePrompt() {
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        if (typeof window.frontOverlay === 'function') window.frontOverlay(document.getElementById('usernameModal'));
         // Push history state so back button closes modal instead of exiting app
         history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
     } catch(e) {
@@ -6104,6 +6107,7 @@ window.showSignInOnly = function() {
     var modal = document.getElementById('usernameModal');
     if (!modal) return;
     modal.classList.add('open');
+    if (typeof window.frontOverlay === 'function') window.frontOverlay(modal);
     history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
 
     // Hide signup-only fields
@@ -6420,6 +6424,7 @@ function showSettingsPage(tab) {
     // If no auth user resolved yet, show sign-up form instead of crashing
     if (!user) {
         modal.classList.add('open');
+        if (typeof window.frontOverlay === 'function') window.frontOverlay(modal);
         return;
     }
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
@@ -8182,6 +8187,7 @@ function accountDeleteRowHtml(user) {
     if (profileLn) profileLn.textContent = shownLn;
     if (satsLn) satsLn.textContent = shownLn;
     modal.classList.add('open');
+    if (typeof window.frontOverlay === 'function') window.frontOverlay(modal);
     if (settingsTab === 'prefs') {
         setTimeout(function() {
             var fill = function() {
@@ -9348,7 +9354,9 @@ window.hideUsernamePrompt = function() {
     const modal = document.getElementById('usernameModal');
     if (modal) {
         modal.classList.remove('open');
-        modal.style.zIndex = '';
+        if (modal.style && modal.style.removeProperty) modal.style.removeProperty('z-index');
+        else modal.style.zIndex = '';
+        if (typeof window.releaseOverlay === 'function') window.releaseOverlay(modal);
     }
     if (typeof flushAfterTos === 'function' && !tosBlocking()) {
         if (!chromeBlocksToasts() && typeof _toastQueue !== 'undefined' && _toastQueue.length && typeof window._showToastNow === 'function') {
@@ -10778,6 +10786,53 @@ window.saveSatsLnAddress = function() {
     openWithdrawalAddress({ mode: 'reset', address: addr, start: addr ? 'confirm' : 'input' });
 };
 
+function _ensureSatsClaimSpinnerCss() {
+    if (document.getElementById('satsClaimSpinnerCss')) return;
+    var s = document.createElement('style');
+    s.id = 'satsClaimSpinnerCss';
+    s.textContent = '@keyframes satsClaimSpin{to{transform:rotate(360deg)}}#satsClaimBtn{display:flex;align-items:center;justify-content:center;gap:8px;}#satsClaimBtn .sats-claim-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:satsClaimSpin .7s linear infinite;flex:0 0 auto;}';
+    (document.head || document.documentElement).appendChild(s);
+}
+function _satsClaimClearSlow() {
+    if (window._satsClaimSlowTimer) {
+        clearTimeout(window._satsClaimSlowTimer);
+        window._satsClaimSlowTimer = null;
+    }
+}
+function _satsClaimAnnounce(text) {
+    var live = document.getElementById('satsClaimStatus');
+    if (live) live.textContent = text || '';
+}
+function _satsClaimShowSending(slow) {
+    var btn = document.getElementById('satsClaimBtn');
+    var text = slow ? 'Still sending… this can take a moment' : 'Sending your sats…';
+    if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.style.opacity = '0.85';
+        btn.innerHTML = '<span class="sats-claim-spinner" aria-hidden="true"></span><span>' + text + '</span>';
+    }
+    _satsClaimAnnounce(text);
+}
+function _satsClaimResetBtn() {
+    _satsClaimClearSlow();
+    window._satsClaimInProgress = false;
+    var btn = document.getElementById('satsClaimBtn');
+    if (!btn) return;
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+    btn.style.opacity = '1';
+    btn.textContent = '⚡ Send Sats to My Wallet';
+}
+function _satsClaimArmSlow() {
+    _satsClaimClearSlow();
+    window._satsClaimSlowTimer = setTimeout(function() {
+        window._satsClaimSlowTimer = null;
+        if (!window._satsClaimInProgress) return;
+        _satsClaimShowSending(true);
+    }, 20000);
+}
+
 window.initSatsClaim = function() {
     console.log('[SATS] initSatsClaim called', { currentUser: !!currentUser, auth: !!auth, authUser: !!auth?.currentUser, isAnon: auth?.currentUser?.isAnonymous });
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
@@ -10800,6 +10855,7 @@ window.initSatsClaim = function() {
         return;
     }
     console.log('[SATS] Passed all checks, showing overlay');
+    _ensureSatsClaimSpinnerCss();
 
     var overlay = document.createElement('div');
     overlay.id = 'satsClaimOverlay';
@@ -10846,12 +10902,14 @@ window.initSatsClaim = function() {
 
     html += '<div id="satsClaimTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
 
+    html += '<div id="satsClaimStatus" role="status" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"></div>';
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
     html += '</div>';
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    if (typeof window.frontOverlay === 'function') window.frontOverlay(overlay, { focus: true });
     // Re-render Turnstile widget now that the element is in the DOM
     if (window.turnstile) {
         window.turnstile.render('#satsClaimTurnstile', {
@@ -10921,20 +10979,19 @@ window.submitSatsClaim = async function() {
         return;
     }
     var savedNow = normalizeClientLn((typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || currentUser.lnAddress || '') : '');
-    if (!savedNow || savedNow !== lnAddr) {
-        var confirmedAddr = await openWithdrawalAddress({ mode: 'claim', address: lnAddr, start: 'confirm' });
-        if (!confirmedAddr) return;
-        lnAddr = confirmedAddr;
-    }
     claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
-
-    // Hide previous errors
     if (errorEl) errorEl.style.display = 'none';
-
+    // Lock the button before any await so a second press cannot send twice.
     window._satsClaimInProgress = true;
     btn.disabled = true;
-    btn.textContent = '⏳ Sending to your address...';
-    btn.style.opacity = '0.6';
+    if (!savedNow || savedNow !== lnAddr) {
+        var confirmedAddr = await openWithdrawalAddress({ mode: 'claim', address: lnAddr, start: 'confirm' });
+        if (!confirmedAddr) { _satsClaimResetBtn(); return; }
+        lnAddr = confirmedAddr;
+        claimPayload.lightningAddress = lnAddr;
+    }
+    _satsClaimShowSending(false);
+    _satsClaimArmSlow();
 
     try {
         try {
@@ -10943,10 +11000,7 @@ window.submitSatsClaim = async function() {
             await firebase.appCheck().getToken(false);
         } catch (appCheckErr) {
             if (errorEl) { errorEl.textContent = 'Security check failed. Refresh the page and try again.'; errorEl.style.display = 'block'; }
-            btn.disabled = false;
-            btn.textContent = '⚡ Send Sats to My Wallet';
-            btn.style.opacity = '1';
-            window._satsClaimInProgress = false;
+            _satsClaimResetBtn();
             return;
         }
         var claimSats = firebase.functions().httpsCallable('claimSats');
@@ -10957,19 +11011,28 @@ window.submitSatsClaim = async function() {
         var _tsToken = _tsEl ? (_tsEl.value || '') : '';
         if (!_tsToken) {
             if (errorEl) { errorEl.textContent = 'Security check pending — please wait a moment and try again.'; errorEl.style.display = 'block'; }
-            btn.disabled = false; btn.textContent = '⚡ Send Sats to My Wallet'; btn.style.opacity = '1';
-            window._satsClaimInProgress = false;
+            _satsClaimResetBtn();
             if (window.turnstile) window.turnstile.reset('#satsClaimTurnstile');
             return;
         }
         var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
         if (result.data && result.data.success) {
-            var paidAmount = result.data.amount || 0;
-            currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
-            currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
-            currentUser.lastSatsClaim = new Date();
-            document.getElementById('satsClaimOverlay').remove();
+            var paidAmount = result.data.amount;
+            _satsClaimClearSlow();
             window._satsClaimInProgress = false;
+            var _claimDone = document.getElementById('satsClaimOverlay');
+            if (_claimDone) _claimDone.remove();
+            try {
+                if (typeof db !== 'undefined' && db && auth && auth.currentUser) {
+                    var _freshSnap = await db.collection('users').doc(auth.currentUser.uid).get();
+                    var _freshUser = _freshSnap && typeof _freshSnap.data === 'function' ? _freshSnap.data() : null;
+                    if (_freshUser && currentUser) {
+                        ['points', 'pointsClaimed', 'pointsDonated', 'pointsExchanged', 'satsWithdrawn', 'lastSatsClaim', 'pendingOverflow'].forEach(function(key) {
+                            if (Object.prototype.hasOwnProperty.call(_freshUser, key)) currentUser[key] = _freshUser[key];
+                        });
+                    }
+                }
+            } catch (refreshErr) {}
             // Secret badge: Dust Collector - track consecutive faucet claim days
             try {
                 var _fcToday = new Date().toISOString().split('T')[0];
@@ -10997,7 +11060,7 @@ window.submitSatsClaim = async function() {
             _celebOverlay.onclick = function(e) { if (e.target === _celebOverlay) _celebOverlay.remove(); };
             _celebOverlay.innerHTML = '<div style="background:linear-gradient(135deg,#1a1b2e,#12131f);border:2px solid #f7931a;border-radius:24px;padding:32px;max-width:360px;width:100%;text-align:center;animation:nachoPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);">' +
                 '<div style="font-size:4rem;margin-bottom:12px;">⚡🎉</div>' +
-                '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">Sats Claimed!</h2>' +
+                '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">⚡ Sent ' + paidAmount + ' sats!</h2>' +
                 '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + paidAmount + ' sats</div>' +
                 '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡<br>Check your wallet to confirm!</div>' +
                 '<div style="padding:10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;margin-bottom:12px;">' +
@@ -11010,28 +11073,23 @@ window.submitSatsClaim = async function() {
                 '<button onclick="document.getElementById(\'satsCelebration\').remove()" style="padding:14px 32px;background:#f7931a;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;">🚀 Stack more sats!</button>' +
             '</div>';
             document.body.appendChild(_celebOverlay);
+            if (typeof window.frontOverlay === 'function') window.frontOverlay(_celebOverlay);
 
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+            _satsClaimResetBtn();
             if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
                 try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
                 openWithdrawalAddress({ mode: 'reset', address: lnAddr });
             }
-            window._satsClaimInProgress = false;
-            btn.disabled = false;
-            btn.textContent = '⚡ Send Sats to My Wallet';
-            btn.style.opacity = '1';
         }
     } catch(e) {
         console.error('Sats claim error:', e);
         var errMsg = e.message || 'Claim failed - try again';
         if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
-        window._satsClaimInProgress = false;
-        btn.disabled = false;
-        btn.textContent = '⚡ Send Sats to My Wallet';
-        btn.style.opacity = '1';
+        _satsClaimResetBtn();
     }
 };
 

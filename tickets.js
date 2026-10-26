@@ -375,6 +375,7 @@ function _applyInviteState(state) {
     if (!card) return;
     card.setAttribute('data-state', state);
     card.setAttribute('data-show', state === 'off' ? '0' : '1');
+    if (state === 'open' && typeof window.frontOverlay === 'function') window.frontOverlay(card, { focus: false, restoreFocus: false });
     placeInvitePill();
 }
 

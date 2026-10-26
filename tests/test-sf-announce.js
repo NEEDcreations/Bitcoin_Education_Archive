@@ -392,7 +392,8 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(notes.includes('Latest: A button that opens a window now stacks it in front of the one already open, and claiming sats shows Sending your sats, then the amount the server actually sent.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
 }));
 
