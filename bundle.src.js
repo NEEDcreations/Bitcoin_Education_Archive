@@ -13781,31 +13781,27 @@ window.awardOrangeTickets = function() {
     return { success: false, awarded: 0, tickets: 0 };
 };
 
-// setFloatingElementsVisible — show/hide floating buttons when sidebar opens
-// Respects fabMinimized state: FAB group buttons stay hidden if user minimized them
+// setFloatingElementsVisible — show/hide floating buttons when the sidebar opens.
+// The More tools toggle hides wherever chat hides. AI Tools, Metrics, and
+// Leaderboard stay collapsed unless that toggle is open. Experience-mode
+// hides (data-em-hidden) are left alone.
 window.setFloatingElementsVisible = function(visible) {
-    var fabMinimized = localStorage.getItem('fabMinimized') === '1';
-    // FAB group — respect user's minimize preference
-    var fabGroupIds = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
-    // Regular floating elements — always follow sidebar show/hide
-    var regularIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom'];
-    regularIds.concat(fabGroupIds).forEach(function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        if (!visible) {
-            el.style.display = 'none';
-        } else if (fabGroupIds.indexOf(id) !== -1) {
-            // Only show FAB group buttons if not minimized
-            el.style.display = fabMinimized ? 'none' : '';
-        } else {
-            el.style.display = '';
-        }
-    });
-    // Keep expand button in sync
-    if (visible) {
+    var showIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','fabExpandBtn'];
+    var toolIds = ['aiToolsBtn','dashboardFloatBtn','lbFloatBtn'];
+    var minBtn = document.getElementById('fabMinimizeBtn');
+    if (minBtn) minBtn.style.setProperty('display', 'none', 'important');
+    if (!visible) {
+        document.body.classList.remove('fab-tools-open');
         var exp = document.getElementById('fabExpandBtn');
-        if (exp) exp.style.display = fabMinimized ? 'flex' : 'none';
+        if (exp) exp.setAttribute('aria-expanded', 'false');
     }
+    showIds.concat(toolIds).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el || el.hasAttribute('data-em-hidden')) return;
+        if (!visible) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+    });
+    if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
 };
 
 // ========== CELEBRATION SYSTEM ==========
@@ -17228,6 +17224,13 @@ document.addEventListener('btcProfileSaved', function() {
     }
 
     function toggleMenu() {
+        // Desktop sidebar is already on screen. Browse topics opens the full list instead.
+        if (!isMobile()) {
+            var existing = document.getElementById('topicsBrowser');
+            if (existing && !existing.hidden) closeTopicsBrowser();
+            else openTopicsBrowser();
+            return;
+        }
         var sidebar = document.getElementById('sidebar');
         if (sidebar) {
             sidebar.classList.toggle('open');
@@ -17237,6 +17240,514 @@ document.addEventListener('btcProfileSaved', function() {
             }
         }
     }
+
+    // Full-screen topics browser. Categories, order, and per-topic state come from
+    // the sidebar DOM. Titles and descriptions come from that DOM plus CHANNELS.
+    var _topicsOpener = null;
+    var _topicsScrollLock = null;
+    var _topicsBrowserCache = null;
+    var _topicsInerted = [];
+    var _topicsPushed = false;
+    var _topicsSwallowPop = false;
+    var _topicsMuting = false;
+    var _topicsHomeWasHidden = false;
+    var _topicsSegmenter = null;
+    var _topicsSegmenterReady = false;
+
+    function topicsSegmenter() {
+        if (_topicsSegmenterReady) return _topicsSegmenter;
+        _topicsSegmenterReady = true;
+        try {
+            if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+                _topicsSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+            }
+        } catch (e) {}
+        return _topicsSegmenter;
+    }
+
+    // Keycap sequences in the sidebar sometimes omit U+FE0F. Insert it only
+    // for the glyph we draw so the title text stays unchanged.
+    function presentKeycap(emoji) {
+        if (!emoji || emoji.indexOf('\u20E3') === -1) return emoji;
+        return String(emoji).replace(/\uFE0F?\u20E3/g, '\uFE0F\u20E3');
+    }
+
+    function isEmojiGrapheme(g) {
+        if (!g || g === '#' || g === '✓' || g === '\u2713') return false;
+        if (g.indexOf('\u20E3') !== -1) return true;
+        try {
+            if (/^\p{Extended_Pictographic}/u.test(g)) return true;
+        } catch (e) {}
+        if (/[\u{1F1E6}-\u{1F1FF}]/u.test(g)) return true;
+        if (/^[\u2100-\u214F\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF\u2B00-\u2BFF\u2900-\u297F\uFE0F\u200D]/u.test(g)) return true;
+        return false;
+    }
+
+    function splitLeadEmoji(text) {
+        var s = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!s) return { emoji: '', rest: '' };
+        var parts = [];
+        var seg = topicsSegmenter();
+        if (seg) {
+            var item;
+            for (item of seg.segment(s)) parts.push(item.segment);
+        } else {
+            parts = [s];
+        }
+        var i = 0;
+        while (i < parts.length && isEmojiGrapheme(parts[i])) i++;
+        if (i > 0) {
+            return { emoji: parts.slice(0, i).join(''), rest: parts.slice(i).join('').replace(/^\s+/, '') };
+        }
+        return { emoji: '', rest: s };
+    }
+
+    function cleanButtonLabel(btn) {
+        var clone = btn.cloneNode(true);
+        var junk = clone.querySelectorAll('.ch-done, .ch-progress, .trail-dot, .ch-lock, .lock-badge, .new-badge, .ch-new, .topic-new, .badge-new');
+        var i;
+        for (i = 0; i < junk.length; i++) junk[i].remove();
+        return (clone.textContent || '').replace(/[✓\u2713]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function readTopicState(btn) {
+        var visited = btn.classList.contains('visited') || !!btn.querySelector('.ch-done');
+        var locked = btn.classList.contains('tier-locked') || btn.classList.contains('locked') || btn.hasAttribute('data-locked') || btn.getAttribute('aria-disabled') === 'true' || !!btn.querySelector('.ch-lock, .lock-badge, [data-locked]');
+        var isNew = btn.classList.contains('is-new') || btn.classList.contains('ch-new') || btn.getAttribute('data-new') === '1' || btn.getAttribute('data-new') === 'true' || !!btn.querySelector('.new-badge, .ch-new, .topic-new, .badge-new');
+        if (!isNew) {
+            var nodes = btn.children;
+            var n;
+            for (n = 0; n < nodes.length; n++) {
+                if ((nodes[n].textContent || '').trim().toLowerCase() === 'new') { isNew = true; break; }
+            }
+        }
+        return { visited: visited, locked: locked, isNew: isNew };
+    }
+
+    function categoryName(label) {
+        var clone = label.cloneNode(true);
+        var arrow = clone.querySelector('.cat-arrow');
+        if (arrow) arrow.remove();
+        return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function readSidebarTopicGroups() {
+        var list = document.getElementById('channelList');
+        var groups = [];
+        if (!list) return groups;
+        var labels = list.querySelectorAll('.cat-label.cat-toggle');
+        var g;
+        for (g = 0; g < labels.length; g++) {
+            var label = labels[g];
+            var group = label.nextElementSibling;
+            if (!group || !group.classList.contains('cat-group')) continue;
+            var buttons = group.querySelectorAll('.ch-btn');
+            var topics = [];
+            var b;
+            for (b = 0; b < buttons.length; b++) {
+                var btn = buttons[b];
+                var match = (btn.getAttribute('onclick') || '').match(/go\(['"]([^'"]+)['"]/);
+                if (!match) continue;
+                var id = match[1];
+                var ch = (typeof CHANNELS !== 'undefined' && CHANNELS) ? CHANNELS[id] : null;
+                var labelText = cleanButtonLabel(btn);
+                var parts = splitLeadEmoji(labelText);
+                var emoji = parts.emoji;
+                var title = parts.rest || labelText;
+                if (!emoji && ch && ch.title) {
+                    var fromChannel = splitLeadEmoji(String(ch.title));
+                    if (fromChannel.emoji) emoji = fromChannel.emoji;
+                }
+                if (!title && ch && ch.title) title = splitLeadEmoji(String(ch.title)).rest;
+                if (!title) title = id;
+                var desc = (ch && ch.desc != null) ? String(ch.desc).trim() : '';
+                var state = readTopicState(btn);
+                topics.push({
+                    id: id,
+                    emoji: emoji,
+                    title: title,
+                    desc: desc,
+                    find: (title + '\n' + id + '\n' + desc).toLowerCase(),
+                    visited: state.visited,
+                    locked: state.locked,
+                    isNew: state.isNew
+                });
+            }
+            if (!topics.length) continue;
+            groups.push({ name: categoryName(label) || 'Topics', topics: topics });
+        }
+        return groups;
+    }
+
+    function topicCardStatus(topic) {
+        var node = document.createElement('span');
+        node.className = 'topic-card-status';
+        if (topic.visited) {
+            var check = document.createElement('span');
+            check.className = 'topic-card-check';
+            check.setAttribute('aria-hidden', 'true');
+            check.textContent = '✓';
+            node.appendChild(check);
+            var checkText = document.createElement('span');
+            checkText.className = 'topic-card-sr';
+            checkText.textContent = 'Completed';
+            node.appendChild(checkText);
+        }
+        if (topic.locked) {
+            var lock = document.createElement('span');
+            lock.className = 'topic-card-lock';
+            lock.setAttribute('aria-hidden', 'true');
+            lock.textContent = '🔒';
+            node.appendChild(lock);
+            var lockText = document.createElement('span');
+            lockText.className = 'topic-card-sr';
+            lockText.textContent = 'Locked';
+            node.appendChild(lockText);
+        }
+        if (topic.isNew) {
+            var badge = document.createElement('span');
+            badge.className = 'topic-card-new';
+            badge.textContent = 'new';
+            node.appendChild(badge);
+        }
+        return node;
+    }
+
+    function renderTopicsBrowser(filter) {
+        var body = document.getElementById('topicsBrowserBody');
+        var live = document.getElementById('topicsBrowserLive');
+        if (!body) return;
+        _topicsMuting = true;
+        var q = String(filter || '').trim().toLowerCase();
+        body.textContent = '';
+        if (!_topicsBrowserCache) _topicsBrowserCache = readSidebarTopicGroups();
+        var groups = _topicsBrowserCache;
+        var shown = 0;
+        var g;
+        for (g = 0; g < groups.length; g++) {
+            var group = groups[g];
+            var section = document.createElement('section');
+            section.className = 'topics-browser-section';
+            var heading = document.createElement('h3');
+            heading.textContent = group.name;
+            var grid = document.createElement('div');
+            grid.className = 'topics-browser-grid';
+            var t;
+            for (t = 0; t < group.topics.length; t++) {
+                var topic = group.topics[t];
+                if (q && topic.find.indexOf(q) === -1) continue;
+                shown++;
+                var card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'topic-card';
+                if (topic.visited) card.classList.add('is-visited');
+                if (topic.locked) card.classList.add('is-locked');
+                if (topic.isNew) card.classList.add('is-new');
+                card.setAttribute('data-topic-id', topic.id);
+                var top = document.createElement('span');
+                top.className = 'topic-card-top';
+                if (topic.emoji) {
+                    var emoji = document.createElement('span');
+                    emoji.className = 'topic-card-emoji';
+                    emoji.setAttribute('aria-hidden', 'true');
+                    emoji.textContent = presentKeycap(topic.emoji);
+                    top.appendChild(emoji);
+                }
+                top.appendChild(topicCardStatus(topic));
+                card.appendChild(top);
+                var title = document.createElement('span');
+                title.className = 'topic-card-title';
+                title.textContent = topic.title;
+                card.appendChild(title);
+                if (topic.desc) {
+                    var desc = document.createElement('span');
+                    desc.className = 'topic-card-desc';
+                    desc.textContent = topic.desc;
+                    card.appendChild(desc);
+                }
+                card.addEventListener('click', (function(id) {
+                    return function() {
+                        closeTopicsBrowser({ fromHistory: true });
+                        if (typeof window.go === 'function') window.go(id);
+                    };
+                })(topic.id));
+                grid.appendChild(card);
+            }
+            if (!grid.childNodes.length) continue;
+            section.appendChild(heading);
+            section.appendChild(grid);
+            body.appendChild(section);
+        }
+        if (!shown) {
+            var empty = document.createElement('p');
+            empty.className = 'topics-browser-empty';
+            empty.textContent = 'No topics match that search.';
+            body.appendChild(empty);
+        }
+        if (live) {
+            live.textContent = shown ? (shown + (shown === 1 ? ' topic' : ' topics')) : 'No topics match that search.';
+        }
+        _topicsMuting = false;
+    }
+
+    function topicsBrowserFocusables(dlg) {
+        var nodes = dlg.querySelectorAll('button, input, a[href], select, textarea, [tabindex]:not([tabindex="-1"])');
+        var out = [];
+        var i;
+        for (i = 0; i < nodes.length; i++) {
+            var el = nodes[i];
+            if (el.disabled || el.getAttribute('aria-hidden') === 'true') continue;
+            if (el.closest('[hidden]')) continue;
+            if (!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)) continue;
+            out.push(el);
+        }
+        return out;
+    }
+
+    function onTopicsBrowserKeydown(e) {
+        var dlg = document.getElementById('topicsBrowser');
+        if (!dlg || dlg.hidden) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeTopicsBrowser();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        var items = topicsBrowserFocusables(dlg);
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        var active = document.activeElement;
+        if (items.indexOf(active) === -1) {
+            e.preventDefault();
+            (e.shiftKey ? last : first).focus();
+            return;
+        }
+        if (e.shiftKey && active === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && active === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function setTopicsBackgroundInert(on) {
+        var i;
+        if (!on) {
+            for (i = 0; i < _topicsInerted.length; i++) {
+                if (_topicsInerted[i]) _topicsInerted[i].removeAttribute('inert');
+            }
+            _topicsInerted = [];
+            return;
+        }
+        var nodes = [document.getElementById('sidebar'), document.getElementById('main'), document.querySelector('.mobile-bar')];
+        _topicsInerted = [];
+        for (i = 0; i < nodes.length; i++) {
+            if (!nodes[i] || nodes[i].hasAttribute('inert')) continue;
+            nodes[i].setAttribute('inert', '');
+            _topicsInerted.push(nodes[i]);
+        }
+    }
+
+    function lockTopicsScroll() {
+        var main = document.getElementById('main');
+        var sidebar = document.getElementById('sidebar');
+        _topicsScrollLock = {
+            html: document.documentElement.style.overflow,
+            body: document.body.style.overflow,
+            main: main ? main.style.overflow : null,
+            sidebar: sidebar ? sidebar.style.overflow : null
+        };
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        if (main) main.style.overflow = 'hidden';
+        if (sidebar) sidebar.style.overflow = 'hidden';
+    }
+
+    function unlockTopicsScroll() {
+        if (!_topicsScrollLock) return;
+        var main = document.getElementById('main');
+        var sidebar = document.getElementById('sidebar');
+        document.documentElement.style.overflow = _topicsScrollLock.html;
+        document.body.style.overflow = _topicsScrollLock.body;
+        if (main && _topicsScrollLock.main !== null) main.style.overflow = _topicsScrollLock.main;
+        if (sidebar && _topicsScrollLock.sidebar !== null) sidebar.style.overflow = _topicsScrollLock.sidebar;
+        _topicsScrollLock = null;
+    }
+
+    function ensureTopicsBrowser() {
+        var dlg = document.getElementById('topicsBrowser');
+        if (dlg) return dlg;
+        dlg = document.createElement('div');
+        dlg.id = 'topicsBrowser';
+        dlg.hidden = true;
+        dlg.setAttribute('role', 'dialog');
+        dlg.setAttribute('aria-modal', 'true');
+        dlg.setAttribute('aria-labelledby', 'topicsBrowserTitle');
+        var bar = document.createElement('div');
+        bar.className = 'topics-browser-bar';
+        var title = document.createElement('h2');
+        title.id = 'topicsBrowserTitle';
+        title.textContent = 'Browse topics';
+        var search = document.createElement('input');
+        search.type = 'search';
+        search.id = 'topicsBrowserSearch';
+        search.className = 'topics-browser-search';
+        search.placeholder = 'Filter topics';
+        search.setAttribute('aria-label', 'Filter topics by title, description, or id');
+        search.setAttribute('aria-controls', 'topicsBrowserBody');
+        search.autocomplete = 'off';
+        search.autocorrect = 'off';
+        search.spellcheck = false;
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.id = 'topicsBrowserClose';
+        closeBtn.className = 'topics-browser-close';
+        closeBtn.setAttribute('aria-label', 'Close topics');
+        closeBtn.textContent = 'Close';
+        var live = document.createElement('div');
+        live.id = 'topicsBrowserLive';
+        live.className = 'topic-card-sr';
+        live.setAttribute('aria-live', 'polite');
+        var body = document.createElement('div');
+        body.id = 'topicsBrowserBody';
+        body.className = 'topics-browser-body';
+        bar.appendChild(title);
+        bar.appendChild(search);
+        bar.appendChild(closeBtn);
+        dlg.appendChild(bar);
+        dlg.appendChild(live);
+        dlg.appendChild(body);
+        document.body.appendChild(dlg);
+        search.addEventListener('input', function() {
+            renderTopicsBrowser(search.value);
+        });
+        closeBtn.addEventListener('click', function() { closeTopicsBrowser(); });
+        dlg.addEventListener('keydown', onTopicsBrowserKeydown, true);
+        return dlg;
+    }
+
+    function topicsBrowserIsOpen() {
+        var dlg = document.getElementById('topicsBrowser');
+        return !!(dlg && !dlg.hidden);
+    }
+
+    function topicsElementShown(el) {
+        if (!el || el.hidden) return false;
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    function topicsForeignSurface() {
+        var home = document.getElementById('home');
+        if (home && home.classList.contains('hidden') && !_topicsHomeWasHidden) return true;
+        var search = document.getElementById('searchOverlay');
+        if (search && search.getAttribute('data-open') === '1' && topicsElementShown(search)) return true;
+        var ids = ['usernameModal', 'questModal', 'leaderboard', 'tosModal', 'questHubOverlay', 'guideOverlay', 'onboardingOverlay', 'pvpNameOverlay', 'pvpOverlay', 'tipOverlay', 'donateModal', 'lnAuthModal', 'nostrAuthOverlay', 'spinModal', 'nachoModeScreen', 'lb'];
+        var i;
+        for (i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el || !topicsElementShown(el)) continue;
+            if (el.classList.contains('open') || el.getAttribute('data-open') === '1' || ids[i] === 'lb' || el.id.indexOf('Overlay') !== -1 || el.id.indexOf('Modal') !== -1 || el.id === 'nachoModeScreen' || el.id === 'spinModal') return true;
+        }
+        var dialogs = document.querySelectorAll('[role="dialog"]');
+        for (i = 0; i < dialogs.length; i++) {
+            var d = dialogs[i];
+            if (!d || d.id === 'topicsBrowser' || (d.closest && d.closest('#topicsBrowser'))) continue;
+            if (topicsElementShown(d)) return true;
+        }
+        return false;
+    }
+
+    function topicsYieldIfCovered() {
+        if (_topicsMuting || !topicsBrowserIsOpen()) return;
+        if (topicsForeignSurface()) closeTopicsBrowser({ fromHistory: true });
+    }
+
+    function ensureTopicsYieldWatch() {
+        if (window._topicsYieldWatch) return;
+        var queued = false;
+        window._topicsYieldWatch = new MutationObserver(function() {
+            if (queued || _topicsMuting || !topicsBrowserIsOpen()) return;
+            queued = true;
+            Promise.resolve().then(function() {
+                queued = false;
+                topicsYieldIfCovered();
+            });
+        });
+        window._topicsYieldWatch.observe(document.body, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'hidden', 'data-open']
+        });
+    }
+
+    function openTopicsBrowser() {
+        if (isMobile()) return;
+        var home = document.getElementById('home');
+        _topicsHomeWasHidden = !!(home && home.classList.contains('hidden'));
+        var dlg = ensureTopicsBrowser();
+        ensureTopicsYieldWatch();
+        var opener = document.activeElement;
+        _topicsOpener = (opener && opener !== document.body && typeof opener.focus === 'function') ? opener : document.getElementById('homeLearnBrowse');
+        _topicsBrowserCache = null;
+        var search = document.getElementById('topicsBrowserSearch');
+        if (search) search.value = '';
+        renderTopicsBrowser('');
+        dlg.hidden = false;
+        setTopicsBackgroundInert(true);
+        lockTopicsScroll();
+        if (!_topicsPushed) {
+            try {
+                history.pushState({ topicsBrowser: true }, '', window.location.href);
+                _topicsPushed = true;
+            } catch (err) {}
+        }
+        var focusTarget = search || document.getElementById('topicsBrowserClose');
+        if (focusTarget) focusTarget.focus();
+    }
+
+    function closeTopicsBrowser(opts) {
+        opts = opts || {};
+        var dlg = document.getElementById('topicsBrowser');
+        if (!dlg || dlg.hidden) return;
+        dlg.hidden = true;
+        setTopicsBackgroundInert(false);
+        unlockTopicsScroll();
+        _topicsBrowserCache = null;
+        var back = _topicsOpener;
+        _topicsOpener = null;
+        var pushed = _topicsPushed;
+        _topicsPushed = false;
+        if (pushed && !opts.fromHistory) {
+            _topicsSwallowPop = true;
+            try { history.back(); } catch (err) { _topicsSwallowPop = false; }
+        }
+        var target = (back && document.contains(back)) ? back : document.getElementById('homeLearnBrowse');
+        if (target && typeof target.focus === 'function') {
+            try { target.focus(); } catch (err) {}
+        }
+    }
+
+    window.addEventListener('resize', function() {
+        if (!isMobile()) return;
+        if (topicsBrowserIsOpen()) closeTopicsBrowser();
+    });
+
+    window.addEventListener('hashchange', function() {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
+    });
+
+    window.addEventListener('popstate', function(e) {
+        if (!_topicsPushed && !_topicsSwallowPop) return;
+        var open = topicsBrowserIsOpen();
+        _topicsSwallowPop = false;
+        _topicsPushed = false;
+        if (open) closeTopicsBrowser({ fromHistory: true });
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }, true);
 
     function toggleSidebarCollapse() {
         var sidebar = document.getElementById('sidebar');
@@ -20188,6 +20699,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         window.currentPage = 'home';
         window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
@@ -20491,8 +21003,15 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === 'j') { document.getElementById('main').scrollBy({ top: 300, behavior: 'smooth' }); return; }
         // K = scroll up
         if (key === 'k') { document.getElementById('main').scrollBy({ top: -300, behavior: 'smooth' }); return; }
-        // Space = page down (unless in modal)
-        if (key === ' ') { e.preventDefault(); document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }); return; }
+        // Space = page down, unless a button or link is focused so Space can activate it
+        if (key === ' ') {
+            var spaceTag = e.target && e.target.tagName;
+            var spaceRole = e.target && e.target.getAttribute && e.target.getAttribute('role');
+            if (spaceTag === 'BUTTON' || spaceTag === 'A' || spaceTag === 'SELECT' || spaceTag === 'SUMMARY' || spaceRole === 'button') return;
+            e.preventDefault();
+            document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+            return;
+        }
 
         // === Info ===
         // ? = show keyboard shortcuts help
@@ -21074,6 +21593,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         if (id === 'questhub' || id === 'raid' || id === 'raid-hub') {
             if (typeof window.openRaidHub === 'function') window.openRaidHub();
             else if (typeof showQuestHub === 'function') {
@@ -22818,6 +23338,8 @@ if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
 if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
 if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
 if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
+if (typeof openTopicsBrowser !== 'undefined') window.openTopicsBrowser = openTopicsBrowser;
+if (typeof closeTopicsBrowser !== 'undefined') window.closeTopicsBrowser = closeTopicsBrowser;
 if (typeof toggleSidebarCollapse !== 'undefined') window.toggleSidebarCollapse = toggleSidebarCollapse;
 if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
@@ -26446,8 +26968,8 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
     function applyMode(mode) {
         _restoreAll();
-        if (!mode || mode === 'advanced') return;
-        applyDynamic(mode);
+        if (mode && mode !== 'advanced') applyDynamic(mode);
+        if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
     }
 
     function run() {
@@ -26624,7 +27146,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
+        // Desktop Explore Apps matches mobile #appsMenu. Beginner hides Proof of
+        // Play, Pleb Talk, Lightning Mart, IRL Sync, Bitcoin Beats, and Proof of
+        // Walk. AI Tools, Metrics, and Leaderboard stay for beginner, intermediate,
+        // and advanced (data-app-modes on those three cards).
         var APPS_HIDE_ONCLICK = {
             beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
             intermediate: []
@@ -26653,8 +27178,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         var appsMenu = document.getElementById('homeAppsMenu');
         if (appsMenu) {
             appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var modes = btn.getAttribute('data-app-modes');
+                var shouldHide;
+                if (modes) {
+                    shouldHide = modes.split(/\s+/).indexOf(mode) === -1;
+                } else {
+                    var oc = btn.getAttribute('onclick') || '';
+                    shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                }
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';
