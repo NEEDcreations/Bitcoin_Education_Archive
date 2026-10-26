@@ -136,10 +136,41 @@ function isPremium() {
     return typeof currentUser !== 'undefined' && currentUser && currentUser.premium && currentUser.premium.active === true;
 }
 
-/** Get sat redemption cap based on tier */
+// Server faucet cap (functions/index.js FAUCET.MAX_LIFETIME_PER_USER_SATS).
+// Exposed on window so ranking.js still sees it after the bundle is minified.
+var SAT_LIFETIME_CAP = 15000;
+window.SAT_LIFETIME_CAP = SAT_LIFETIME_CAP;
+
+/** Lifetime sat cap. The server faucet is a flat 15,000 for every account. */
 function getSatCap() {
-    return isPremium() ? 21000 : 15000;
+    return SAT_LIFETIME_CAP;
 }
+window.getSatCap = getSatCap;
+
+// Claimable sats from server-maintained counters only.
+// floor(max(0, points - pointsClaimed - pointsDonated - pointsExchanged) / 10),
+// then limited by satsWithdrawn against the lifetime cap.
+function claimableSats(user, cap) {
+    var u = user || {};
+    var points = Number(u.points) || 0;
+    var claimed = Number(u.pointsClaimed) || 0;
+    var donated = Number(u.pointsDonated) || 0;
+    var exchanged = Number(u.pointsExchanged) || 0;
+    var withdrawn = Number(u.satsWithdrawn) || 0;
+    if (withdrawn < 0) withdrawn = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    var limit = (typeof cap === 'number' && isFinite(cap)) ? cap : SAT_LIFETIME_CAP;
+    if (cap == null && typeof getSatCap === 'function') limit = getSatCap();
+    var lifetimeLeft = Math.max(0, limit - withdrawn);
+    return {
+        balance: balance,
+        lifetimeLeft: lifetimeLeft,
+        claimable: Math.min(balance, lifetimeLeft),
+        cap: limit,
+        withdrawn: withdrawn
+    };
+}
+window.claimableSats = claimableSats;
 
 /** Premium tier constants */
 // ---- Faction Username Styling ----

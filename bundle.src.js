@@ -136,10 +136,41 @@ function isPremium() {
     return typeof currentUser !== 'undefined' && currentUser && currentUser.premium && currentUser.premium.active === true;
 }
 
-/** Get sat redemption cap based on tier */
+// Server faucet cap (functions/index.js FAUCET.MAX_LIFETIME_PER_USER_SATS).
+// Exposed on window so ranking.js still sees it after the bundle is minified.
+var SAT_LIFETIME_CAP = 15000;
+window.SAT_LIFETIME_CAP = SAT_LIFETIME_CAP;
+
+/** Lifetime sat cap. The server faucet is a flat 15,000 for every account. */
 function getSatCap() {
-    return isPremium() ? 21000 : 15000;
+    return SAT_LIFETIME_CAP;
 }
+window.getSatCap = getSatCap;
+
+// Claimable sats from server-maintained counters only.
+// floor(max(0, points - pointsClaimed - pointsDonated - pointsExchanged) / 10),
+// then limited by satsWithdrawn against the lifetime cap.
+function claimableSats(user, cap) {
+    var u = user || {};
+    var points = Number(u.points) || 0;
+    var claimed = Number(u.pointsClaimed) || 0;
+    var donated = Number(u.pointsDonated) || 0;
+    var exchanged = Number(u.pointsExchanged) || 0;
+    var withdrawn = Number(u.satsWithdrawn) || 0;
+    if (withdrawn < 0) withdrawn = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    var limit = (typeof cap === 'number' && isFinite(cap)) ? cap : SAT_LIFETIME_CAP;
+    if (cap == null && typeof getSatCap === 'function') limit = getSatCap();
+    var lifetimeLeft = Math.max(0, limit - withdrawn);
+    return {
+        balance: balance,
+        lifetimeLeft: lifetimeLeft,
+        claimable: Math.min(balance, lifetimeLeft),
+        cap: limit,
+        withdrawn: withdrawn
+    };
+}
+window.claimableSats = claimableSats;
 
 /** Premium tier constants */
 // ---- Faction Username Styling ----
@@ -2689,11 +2720,21 @@ window.awardTickets = async function() {
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
 
+function _invitePreviewOn() {
+    try {
+        var host = String(location.hostname || '');
+        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
+    } catch (e) { return false; }
+    return !!window._homePreviewUser;
+}
+
 function _inviteSignedIn() {
+    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
+    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -2707,12 +2748,14 @@ function _inviteReadStored(uid) {
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
         fromUser = String(currentUser.inviteCard);
     }
+    if (fromUser === 'off') return 'min';
     if (INVITE_STATES[fromUser]) return fromUser;
     try {
         var local = localStorage.getItem(_inviteStorageKey(uid));
+        if (local === 'off') return 'min';
         if (INVITE_STATES[local]) return local;
     } catch (e) {}
-    return 'open';
+    return 'min';
 }
 
 function _inviteWriteStored(state) {
@@ -2816,7 +2859,44 @@ function _applyInviteState(state) {
     if (!card) return;
     card.setAttribute('data-state', state);
     card.setAttribute('data-show', state === 'off' ? '0' : '1');
+    placeInvitePill();
 }
+
+function placeInvitePill() {
+    var card = document.getElementById('inviteCard');
+    var today = document.getElementById('todayCard');
+    if (!card) return;
+    var state = card.getAttribute('data-state');
+    var shown = card.getAttribute('data-show') === '1' && state !== 'off';
+    if (!shown) {
+        card.style.top = '';
+        if (today) today.style.marginTop = '';
+        return;
+    }
+    var anchorBottom = 0;
+    ['homeWalletStrip', 'homeGuestActions', 'homeHero'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var cs = window.getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return;
+        var rect = el.getBoundingClientRect();
+        if (rect.height > 1 && rect.bottom > anchorBottom) anchorBottom = rect.bottom;
+    });
+    var top = 8;
+    var bar = document.querySelector('.mobile-bar');
+    if (bar && window.innerWidth <= 900 && window.getComputedStyle(bar).display !== 'none') {
+        top = Math.round(bar.getBoundingClientRect().bottom + 8);
+    }
+    if (anchorBottom > 1) top = Math.max(top, Math.round(anchorBottom + 8));
+    card.style.top = top + 'px';
+    if (today && (state === 'min' || state === 'guest')) {
+        var pillH = card.getBoundingClientRect().height || 40;
+        today.style.marginTop = Math.round(pillH + 12) + 'px';
+    } else if (today) {
+        today.style.marginTop = '';
+    }
+}
+window.placeInvitePill = placeInvitePill;
 
 function refreshInviteCard() {
     var card = document.getElementById('inviteCard');
@@ -2884,8 +2964,7 @@ function dismissInviteCard() {
         _applyInviteState('off');
         return;
     }
-    _inviteWriteStored('off');
-    _applyInviteState('off');
+    minimizeInviteCard();
 }
 
 function toggleInviteHow() {
@@ -2981,6 +3060,12 @@ if (typeof window !== 'undefined') {
         }, 1000);
     }
     refreshInviteCard();
+    if (!window._invitePillWatch) {
+        window._invitePillWatch = true;
+        window.addEventListener('resize', function() { placeInvitePill(); });
+        var inviteMain = document.getElementById('main');
+        if (inviteMain) inviteMain.addEventListener('scroll', function() { placeInvitePill(); }, { passive: true });
+    }
 }
 // Phase 10: Loyalty & Learning Boosts 🎓
 
@@ -4055,6 +4140,9 @@ function createNacho() {
             padding: 16px 20px 16px 18px;
             max-width: 300px;
             min-width: 160px;
+            max-height: 45vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             color: var(--text, #f8f8f8);
             font-size: 0.9rem;
             line-height: 1.55;
@@ -4130,7 +4218,7 @@ function createNacho() {
             padding: 2px 4px;
         }
         .nacho-x:hover { opacity: 1; }
-        #nacho-text { word-wrap: break-word; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
+        #nacho-text { word-wrap: break-word; max-height: none; overflow: visible; padding-right: 4px; }
 
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
@@ -4374,7 +4462,7 @@ function createNacho() {
                 max-width: none !important;
                 width: auto !important;
                 min-width: 0 !important;
-                max-height: 40vh;
+                max-height: 45vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 font-size: 0.85rem;
@@ -4390,7 +4478,7 @@ function createNacho() {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
             #nacho-avatar { width: 48px; height: 48px; }
             #nacho-bubble {
-                max-height: 38vh;
+                max-height: 45vh;
                 font-size: 0.82rem;
                 padding: 12px 14px;
             }
@@ -4412,8 +4500,8 @@ function createNacho() {
         }
         #nacho-toggle:hover { opacity: 1; transform: scale(1.1); box-shadow: 0 4px 20px rgba(247,147,26,0.4), 0 0 0 4px rgba(247,147,26,0.25); }
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
-        @media (max-width: 900px) { #nacho-toggle { bottom: calc(50vh - 30px); left: 12px; width: 46px; height: 46px; font-size: 1.3rem; } }
-        @media (max-width: 480px) { #nacho-toggle { bottom: calc(50vh - 40px); left: 10px; width: 44px; height: 44px; font-size: 1.2rem; } }
+        @media (max-width: 900px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: var(--fab-size, 48px); height: var(--fab-size, 48px); font-size: 1.3rem; } }
+        @media (max-width: 480px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: 44px; height: 44px; font-size: 1.2rem; } }
     `;
     document.head.appendChild(style);
 
@@ -4546,7 +4634,7 @@ function createNacho() {
 
     const toggle = document.createElement('div');
     toggle.id = 'nacho-toggle';
-    toggle.innerHTML = '🦌';
+    toggle.innerHTML = '<img src="/nacho-deer.svg" alt="" width="32" height="32" style="width:70%;height:70%;object-fit:contain;pointer-events:none;">';
     toggle.title = 'Bring back Nacho';
     toggle.setAttribute('role', 'button');
     toggle.setAttribute('aria-label', 'Bring Nacho back');
@@ -13456,6 +13544,8 @@ window.updatePredictionLabel = function() {
 
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
+    var more = document.getElementById('homeMore');
+    if (more && more.hidden) return;
     var el = document.getElementById('explorationMap');
     if (!el) return;
     if (typeof CHANNELS === 'undefined') return;
@@ -13918,7 +14008,7 @@ function initBottomNav() {
             '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
             '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
             '<button onclick="if(typeof toggleNotifOverlay===\'function\')toggleNotifOverlay()" class="bnav-btn" id="bnavNotif" style="position:relative;"><span class="bnav-icon">🔔</span><span class="bnav-label">Alerts</span><span id="bnavNotifBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
-            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span></button>' +
+            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings" style="position:relative;"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span><span class="whats-new-dot" hidden></span></button>' +
         '</div>';
 
     // Add styles
@@ -13935,6 +14025,7 @@ function initBottomNav() {
     document.head.appendChild(style);
     document.body.appendChild(nav);
     watchBottomNavHeight();
+    if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
 }
 
 // --bnav-h is the nav's height above the safe-area inset. CSS adds
@@ -14389,6 +14480,15 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
     }
 
     el.innerHTML = html;
+    var raidLine = document.getElementById('todayRaidLine');
+    if (raidLine) {
+        if (activeBoss) {
+            raidLine.textContent = '⚔️ Raid: ' + (activeBoss.name || 'Boss') + ' ' + (activeBoss.current || 0) + '/' + (activeBoss.target || 0);
+        } else if (upcomingBoss) {
+            raidLine.textContent = '⚔️ Raid: ' + (upcomingBoss.name || 'soon');
+        }
+        raidLine.hidden = false;
+    }
 
     // Update countdowns every second
     window._raidHomeTimer = setInterval(function() {
@@ -16869,6 +16969,8 @@ var _NEW_COUNTRY_MS = 10 * 24 * 60 * 60 * 1000; // 10 days
 
 /* ───────────────── Public entry point ───────────────── */
 window.renderUserWorldMap = function() {
+    var more = document.getElementById('homeMore');
+    if (more && more.hidden) return;
     var el = document.getElementById('communityWorldMap');
     if (!el) return;
 
@@ -20237,7 +20339,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const lastCh = localStorage.getItem('btc_last_channel');
         if (lastCh && CHANNELS[lastCh]) {
             const meta = CHANNELS[lastCh];
-            el.style.display = 'block';
+            el.style.display = 'none';
             el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\''+ lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
                 '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:800;margin-bottom:6px;">📖 Continue Reading</div>' +
                 '<div style="color:var(--heading);font-size:1.05rem;font-weight:700;margin-bottom:2px;">' + meta.title + '</div>' +
@@ -20245,7 +20347,113 @@ window.nachoQuizAnswer = function(btn, correct) {
         } else {
             el.style.display = 'none';
         }
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
+
+    function homeLearnTitle(id) {
+        var wanted = "go('" + id + "'";
+        var nodes = document.querySelectorAll('.ch-btn');
+        for (var i = 0; i < nodes.length; i++) {
+            var oc = nodes[i].getAttribute('onclick') || '';
+            if (oc.indexOf(wanted) !== -1) {
+                var text = (nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) return text;
+            }
+        }
+        if (typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].title) {
+            return String(CHANNELS[id].title).trim();
+        }
+        return '';
+    }
+    window.paintHomeLearnCard = function() {
+        var title = document.getElementById('homeLearnTitle');
+        if (!title) return;
+        var last = '';
+        try { last = localStorage.getItem('btc_last_channel') || ''; } catch (e) {}
+        var kicker = document.getElementById('homeLearnKicker');
+        var desc = document.getElementById('homeLearnDesc');
+        function paintChannel(id, daily) {
+            var name = homeLearnTitle(id);
+            if (kicker) kicker.textContent = 'LEARN · CONTINUE';
+            title.textContent = name || 'Learn Bitcoin';
+            if (desc) desc.textContent = daily ? 'Channel of the day' : ((typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].cat) || 'Continue reading');
+            window._homeLearnId = name ? id : '';
+        }
+        if (last && typeof CHANNELS !== 'undefined' && CHANNELS[last]) {
+            paintChannel(last, false);
+            return;
+        }
+        var daily = window._channelOfTheDay;
+        if (daily && typeof CHANNELS !== 'undefined' && CHANNELS[daily]) {
+            paintChannel(daily, true);
+            return;
+        }
+        if (kicker) kicker.textContent = 'LEARN';
+        title.textContent = 'Learn Bitcoin';
+        if (desc) desc.textContent = 'Pick a topic and start reading';
+        window._homeLearnId = '';
+    };
+    window.openHomeLearn = function() {
+        if (window._homeLearnId && typeof go === 'function') {
+            go(window._homeLearnId);
+            return;
+        }
+        if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
+        else if (typeof toggleMenu === 'function') toggleMenu();
+    };
+    window.ensureIntroVideo = function(play) {
+        var video = document.getElementById('introVideo');
+        if (!video) return;
+        if (!video.querySelector('source')) {
+            var src = video.getAttribute('data-src');
+            if (src) {
+                var source = document.createElement('source');
+                source.src = src;
+                source.type = 'video/mp4';
+                video.appendChild(source);
+                video.load();
+            }
+        }
+        if (play && video.play) video.play().catch(function() {});
+    };
+    window.toggleHomeMore = function() {
+        var more = document.getElementById('homeMore');
+        var btn = document.getElementById('homeMoreToggle');
+        if (!more) return;
+        var open = !!more.hidden;
+        more.hidden = !open;
+        window._homeMoreOpen = open;
+        if (btn) {
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.textContent = open ? 'More ▾' : 'More ▸';
+        }
+        if (open) {
+            var videoSection = document.getElementById('introVideoSection');
+            var videoHidden = videoSection && videoSection.getAttribute('data-simplified-hidden') === '1' && !window._forceIntroVideo;
+            if (!videoHidden) window.ensureIntroVideo(!!window._forceIntroVideo);
+            if (typeof renderExplorationMap === 'function') renderExplorationMap();
+            if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
+        }
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+    };
+    window.watchIntroVideo = function() {
+        window._forceIntroVideo = true;
+        var section = document.getElementById('introVideoSection');
+        if (section) {
+            section.style.display = '';
+            section.removeAttribute('data-simplified-hidden');
+            var full = document.getElementById('introVideoFull');
+            var mini = document.getElementById('introVideoMini');
+            if (full) full.style.display = '';
+            if (mini) mini.style.display = 'none';
+        }
+        var more = document.getElementById('homeMore');
+        if (more && more.hidden) window.toggleHomeMore();
+        else window.ensureIntroVideo(true);
+        if (section && section.scrollIntoView) {
+            try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { section.scrollIntoView(true); }
+        }
+    };
 
     // Keyboard shortcuts (desktop) — MMORPG style!
     document.addEventListener('keydown', function(e) {
@@ -21850,13 +22058,17 @@ window.nachoQuizAnswer = function(btn, correct) {
         const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
         const dailyKey = keys[dayOfYear % keys.length];
         const ch = CHANNELS[dailyKey];
+        window._channelOfTheDay = dailyKey;
         if (ch) {
             const el = document.getElementById('dailyChannel');
-            el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
-                '<div class="daily-title">' + ch.title + '</div>' +
-                '<div class="daily-desc">' + ch.desc + '</div>';
-            el.onclick = () => go(dailyKey);
+            if (el) {
+                el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
+                    '<div class="daily-title">' + ch.title + '</div>' +
+                    '<div class="daily-desc">' + ch.desc + '</div>';
+                el.onclick = () => go(dailyKey);
+            }
         }
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     })();
 
     // Daily Bitcoin quote
@@ -21967,7 +22179,10 @@ if (locked) {
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
                         _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
                         appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
-                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : ''
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : '',
+                        appBtn('🤖', 'AI Tools', "if(typeof toggleAITools==='function')toggleAITools()", false),
+                        appBtn('📊', 'Metrics', "if(typeof toggleDashboard==='function')toggleDashboard()", false),
+                        appBtn('🏆', 'Leaderboard', "if(typeof toggleLeaderboard==='function')toggleLeaderboard()", false)
                     ];
                     return _all.join('');
                 })() +
@@ -26201,14 +26416,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     // IDs to hide per mode
     var HIDE_IDS = {
         beginner: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailySpinBanner', 'em-quick-actions',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'
         ],
         intermediate: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
             'dailyChallengeCard', 'raidBossHomeCard',
             'donateSection', 'quoteOfDay', 'dailyChannel',
             'hotTopicsSectionWrapper'
