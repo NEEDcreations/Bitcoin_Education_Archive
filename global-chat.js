@@ -827,7 +827,7 @@ function _longestKnownUsername(text, multiWordOnly) {
         if (!/[\p{L}\p{N}_\-\u2026.]/u.test(cand)) continue;
         if (multiWordOnly && cand.indexOf(' ') === -1) continue;
         if (knownName && cand.length <= knownName.length) continue;
-        if (text.indexOf(cand) !== 0) continue;
+        if (text.lastIndexOf(cand, 0) !== 0) continue;
         var nextCh = text.charAt(cand.length);
         if (nextCh && nextCh !== ' ' && nextCh !== '.' && nextCh !== '\u2026' && _mentionChar(nextCh)) continue;
         knownName = cand;
