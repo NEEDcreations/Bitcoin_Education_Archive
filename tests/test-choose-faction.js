@@ -378,6 +378,10 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf('Latest: Encrypted account backups keep email addresses, phone numbers, and password hashes for 90 days.') > 0);
+    assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
+    assert.ok(notes.indexOf('Latest: Opening gifts') === -1);
+    assert.ok(notes.indexOf('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.') > 0);
+    assert.ok(notes.indexOf('Latest: The Invite button') === -1);
     assert.ok(notes.indexOf('Trivia and poll community totals now update the moment you answer and stay live while the results are open.') > 0);
     assert.strictEqual(notes.indexOf('Latest: Trivia and poll community totals'), -1);
     assert.ok(notes.indexOf('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.') > 0);
