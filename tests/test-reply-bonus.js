@@ -616,7 +616,11 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261024_v2360'));
+    assert.ok(html.includes('global-chat.js?v=20261026_v2368'));
+    assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2373'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2363'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2350'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2345'));
     assert.ok(!html.includes('global-chat.js?v=20261023_v2343'));
@@ -628,7 +632,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261024_v2361'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2367'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
@@ -645,7 +650,23 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261023_v2333'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2368'"));
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2375'"));
+    assert.ok(!swText.includes('btc-archive-v2368'));
+    assert.ok(!swText.includes('btc-archive-v2363'));
+    assert.ok(!swText.includes('btc-archive-v2373'));
+    assert.ok(!swText.includes('btc-archive-v2366'));
+    assert.ok(!swText.includes('btc-archive-v2365'));
+    assert.ok(!swText.includes('btc-archive-v2371'));
+    assert.ok(!swText.includes('btc-archive-v2370'));
+    assert.ok(!swText.includes('btc-archive-v2369'));
+    assert.ok(!swText.includes('btc-archive-v2366'));
+    assert.ok(!swText.includes('btc-archive-v2367'));
+    assert.ok(!swText.includes('btc-archive-v2365'));
+    assert.ok(!swText.includes('btc-archive-v2366'));
+    assert.ok(!swText.includes('btc-archive-v2363'));
+    assert.ok(!swText.includes('btc-archive-v2364'));
+    assert.ok(!swText.includes('btc-archive-v2372'));
+    assert.ok(!swText.includes('btc-archive-v2362'));
     assert.ok(!swText.includes('btc-archive-v2361'));
     assert.ok(!swText.includes('btc-archive-v2360'));
     assert.ok(!swText.includes('btc-archive-v2359'));
@@ -676,11 +697,9 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2331'));
     assert.ok(!swText.includes('btc-archive-v2330'));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    // Pin only: the patch-notes page shows the whole card. 11200 keeps the
-    // shoutout inside after the daily XP line, the Favor line, the shared-cipher
-    // line, the Music station line, the demoted username line, the Flex XP note,
-    // and the Nacho notes.
-    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 11200);
+    // Pin only: the patch-notes page shows the whole card. The window keeps
+    // the shoutout inside after the daily XP line, the live-window line, the home note, and the mention note.
+    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 15000);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
     assert.ok(notesHtml.includes('Marketplace fixed: you can post, edit, remove and save listings again.'));

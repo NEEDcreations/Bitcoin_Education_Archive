@@ -102,7 +102,9 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261024_v2368') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2375') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2365') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261024_v2368') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261024_v2351') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261023_v2349') === -1);
     assert.ok(card.indexOf("meter.setAttribute('aria-label', label)") > 0);
@@ -116,7 +118,7 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(quests.indexOf('FLEX_ACTIONS.every') === -1);
     assert.ok(quests.indexOf('_flexDayGoal') > 0);
     assert.ok(quests.indexOf('5 * 3600000') > 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2368/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
@@ -143,7 +145,7 @@ test('Say hi stays labeled Say hi, and an active Favor banner can pulse', functi
     assert.ok(html.indexOf('todayEarnPulse 2s') > 0);
     assert.ok(html.indexOf('prefers-reduced-motion: reduce') > 0);
     assert.ok(html.indexOf('#todayFavorStrip.is-favor-active, #todayFavorStrip.is-favor-active::after, #todayEarnFavor.is-favor-active { animation: none;') > 0);
-    assert.ok(card.indexOf("Satoshi's Favor is Active!") > 0);
+    assert.ok(card.indexOf("Satoshi's Favor is LIVE") > 0);
     const notes = read('patch-notes.html');
     assert.ok(notes.indexOf('Flex counts as done after 5 in a day.') > 0);
     assert.ok(notes.indexOf('Say hi!') > 0);

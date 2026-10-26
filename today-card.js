@@ -223,34 +223,24 @@
         var earn = document.getElementById('todayEarnFavor');
         var pointsEl = document.getElementById('todayFavorPoints');
         var cd = document.getElementById('todayFavorCountdown');
-        if (!pointsEl || !cd) return;
+        if (!title || !cd) return;
         var info = window._todayFavorInfo;
         // info.active is isFavorEffectivelyActive(): the countdown is running.
         var active = !!(info && info.active);
         if (strip) strip.classList.toggle('is-favor-active', active);
         if (earn) earn.classList.toggle('is-favor-active', active);
-        if (title) title.textContent = active ? "Satoshi's Favor is Active!" : "Satoshi's Favor";
-        if (!signedIn() && !active) {
-            pointsEl.textContent = 'Earn Favor daily, payouts every epoch';
-            cd.hidden = true;
-            cd.textContent = '';
-            delete cd.dataset.live;
-            return;
-        }
-        if (!info) {
-            pointsEl.textContent = signedIn() ? 'Favor points' : 'Earn Favor daily, payouts every epoch';
-            cd.hidden = !cd.dataset.live;
-            return;
-        }
-        pointsEl.textContent = info.points + ' Favor points';
-        cd.hidden = false;
+        if (pointsEl) pointsEl.textContent = '';
         if (active) {
+            title.textContent = "Satoshi's Favor is LIVE";
+            cd.hidden = false;
             cd.dataset.live = '1';
             return;
         }
         delete cd.dataset.live;
-        var remain = Math.max(0, (info.target || 21) - info.points);
-        cd.textContent = remain ? (remain + ' more until the next hashing window') : 'Payout ready';
+        cd.hidden = true;
+        cd.textContent = '';
+        if (info && signedIn()) title.textContent = "Satoshi's Favor · " + info.points + ' points';
+        else title.textContent = "Satoshi's Favor";
     }
 
     window._paintTodayFavor = function (info) {
