@@ -760,6 +760,8 @@ test('a ready app-open payout checks the request ip and final invites stop', () 
     assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'quota', ipVerdict: null }), 'quota');
     assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'backoff', ipVerdict: null }), 'backoff');
     assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'user-quota', ipVerdict: null }), 'user-quota');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'http', ipVerdict: null }), 'http');
+    assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'lookup', ipVerdict: null }), 'lookup');
     assert.strictEqual(referrals.payoutBudgetReason({ action: 'allow', reason: 'clean', ipVerdict: { action: 'allow', reason: 'clean' } }), '');
     assert.strictEqual(referrals.payoutBudgetReason({ action: 'hold', reason: 'vpn', ipVerdict: { action: 'hold', reason: 'vpn' } }), '');
     assert.strictEqual(referrals.payoutBudgetReason(null), '');

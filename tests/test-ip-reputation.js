@@ -210,6 +210,12 @@ test('a failed lookup or a credit error falls open', function() {
     const missing = rep.scoreIpLookup({ success: false, message: 'Insufficient credits remaining' });
     assert.strictEqual(missing.action, 'fallback');
     assert.strictEqual(missing.reason, 'credits');
+    const empty = rep.scoreIpLookup({}, { status: 500 });
+    assert.strictEqual(empty.action, 'fallback');
+    assert.notStrictEqual(empty.action, 'allow');
+    assert.strictEqual(rep.scoreIpLookup({ success: true, fraud_score: 10 }, { status: 500 }).action, 'fallback');
+    assert.strictEqual(rep.scoreIpLookup({ success: true }, { status: 200 }).action, 'fallback');
+    assert.strictEqual(rep.scoreIpLookup({ success: true, fraud_score: 'nope' }, { status: 200 }).action, 'fallback');
     assert.strictEqual(rep.failureReason({ message: 'nope' }, 402), 'credits');
     assert.strictEqual(rep.failureReason({ success: false }, 500), 'http');
     assert.strictEqual(rep.DENY_CONNECTION, "To prevent abuse, sats can't be claimed from this connection. You can still use everything else in the app. Try claiming from your home Wi-Fi or mobile data.");
@@ -1088,6 +1094,112 @@ test('an exhausted purpose cap does not hold a later faucet check', async functi
     assert.strictEqual(fetches, 1);
     const userKey = 'ipqs_usage/2023-11-14_u_alice01';
     assert.strictEqual(db._docs[userKey].lookups, 1);
+});
+
+test('an HTTP 500 with an empty body is not a verdict', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = function() {
+        fetches++;
+        return Promise.resolve(jsonResponse(500, {}));
+    };
+    const faucet = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.70',
+        purpose: 'faucet',
+        uid: 'http500a',
+    }));
+    assert.strictEqual(faucet.action, 'fallback');
+    assert.strictEqual(faucet.reason, 'http');
+    assert.strictEqual(faucet.ipVerdict, null);
+    const favor = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.71',
+        purpose: 'favor',
+        uid: 'http500b',
+    }));
+    assert.strictEqual(favor.action, 'fallback');
+    assert.strictEqual(favor.reason, 'http');
+    assert.strictEqual(favor.ipVerdict, null);
+    const referral = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.72',
+        purpose: 'referral',
+        uid: 'http500c',
+    }));
+    assert.strictEqual(referral.action, 'hold');
+    assert.strictEqual(referral.reason, 'http');
+    assert.strictEqual(referral.ipVerdict, null);
+    assert.strictEqual(referral.message, rep.REFERRAL_BUDGET_WAIT);
+    assert.strictEqual(fetches, 3);
+    const cached = Object.keys(db._docs).some(function(key) { return key.indexOf('ip_reputation/') === 0; });
+    assert.strictEqual(cached, false);
+    assert.strictEqual(db._docs['ipqs_usage/2023-11-14'].lookups, 0);
+    assert.ok(!db._docs['ipqs_usage/b_faucet_http500a']);
+    assert.ok(!db._docs['ipqs_usage/b_favor_http500b']);
+});
+
+test('a healthy referral account cap uses the invite waiting text', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = scriptedFetch(function() {
+        fetches++;
+        return jsonResponse(200, cleanBody({ fraud_score: 10 }));
+    });
+    for (let i = 0; i < 3; i++) {
+        const got = await rep.assessReward(gateOpts(db, {
+            fetchImpl: fetchImpl,
+            now: now,
+            ip: '203.0.113.' + (20 + i),
+            purpose: 'referral',
+            userCap: 3,
+            uid: 'friend02',
+        }));
+        assert.strictEqual(got.action, 'allow');
+    }
+    const held = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '203.0.113.29',
+        purpose: 'referral',
+        userCap: 3,
+        uid: 'friend02',
+    }));
+    assert.strictEqual(held.action, 'hold');
+    assert.strictEqual(held.reason, 'user-quota');
+    assert.strictEqual(held.message, rep.REFERRAL_BUDGET_WAIT);
+    assert.strictEqual(held.ipVerdict, null);
+    assert.strictEqual(fetches, 3);
+});
+
+test('a non-timeout response clears the timeout streak', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = function() {
+        fetches++;
+        if (fetches === 2) return Promise.resolve(jsonResponse(500, {}));
+        const err = new Error('timeout');
+        err.code = 'timeout';
+        return Promise.reject(err);
+    };
+    for (let i = 0; i < 4; i++) {
+        const got = await rep.assessReward(gateOpts(db, {
+            fetchImpl: fetchImpl,
+            now: now + i,
+            ip: '198.51.100.' + (41 + i),
+            purpose: 'faucet',
+            uid: 'streak01',
+        }));
+        assert.strictEqual(got.action, 'fallback');
+        assert.notStrictEqual(got.action, 'allow');
+    }
+    assert.strictEqual(fetches, 4);
 });
 
 test('a referral at the account cap is held while the day is degraded', async function() {

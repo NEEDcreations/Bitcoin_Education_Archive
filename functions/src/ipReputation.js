@@ -89,20 +89,45 @@ function holdNeverClaimed(opts) {
     return envSwitch('IPQS_HOLD_NEVER_CLAIMED', opts, 'holdNeverClaimed');
 }
 
+function finiteFraudScore(value) {
+    if (typeof value === 'number') return Number.isFinite(value);
+    if (typeof value === 'string' && value.trim() !== '') return Number.isFinite(Number(value));
+    return false;
+}
+
+function httpStatusOk(status) {
+    const code = Number(status);
+    return code >= 200 && code < 300;
+}
+
+// A verdict is real only for an HTTP 2xx body with success true and a finite score.
+// Anything else is a vendor error: no allow, and the caller must not cache it.
+function validIpqsVerdict(body, status) {
+    if (status != null && status !== '' && !httpStatusOk(status)) return false;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+    if (body.success !== true) return false;
+    return finiteFraudScore(body.fraud_score);
+}
+
+function emptyScore(reason) {
+    return {
+        action: 'fallback',
+        reason: reason || 'lookup',
+        fraudScore: null,
+        vpn: false,
+        proxy: false,
+        tor: false,
+        datacenter: false,
+        recentAbuse: false,
+        botnet: false,
+        countryCode: '',
+    };
+}
+
 function scoreIpLookup(body, opts) {
-    if (!body || typeof body !== 'object' || body.success === false) {
-        return {
-            action: 'fallback',
-            reason: failureReason(body, 0),
-            fraudScore: null,
-            vpn: false,
-            proxy: false,
-            tor: false,
-            datacenter: false,
-            recentAbuse: false,
-            botnet: false,
-            countryCode: '',
-        };
+    const status = opts && Object.prototype.hasOwnProperty.call(opts, 'status') ? opts.status : null;
+    if (!validIpqsVerdict(body, status)) {
+        return emptyScore(failureReason(body, status == null || status === '' ? 0 : status));
     }
     const score = Number(body.fraud_score);
     const fraudScore = Number.isFinite(score) ? score : null;
@@ -836,11 +861,13 @@ async function lookupIpOnce(opts) {
         await recordError(opts, reason);
         await releaseFailedLookup(opts);
         if (reason === 'timeout') noteOutageTimeout(opts.db, now, opts.purpose);
+        else clearOutageTimeouts(opts.db);
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);
     }
-    const scored = scoreIpLookup(body);
-    if (scored.action === 'fallback' || (body && body.success === false)) {
+    clearOutageTimeouts(opts.db);
+    const scored = scoreIpLookup(body, { status: status });
+    if (scored.action === 'fallback' || !httpStatusOk(status) || (body && body.success !== true)) {
         const reason = failureReason(body, status);
         await recordError(opts, reason);
         await releaseFailedLookup(opts);
@@ -850,7 +877,6 @@ async function lookupIpOnce(opts) {
     }
     if (opts.uid) await noteUserLookup(opts.db, now, opts.uid, opts.bindings);
     await clearDegraded(opts);
-    clearOutageTimeouts(opts.db);
     const doc = verdictDoc(scored, now, opts.bindings);
     await opts.db.collection('ip_reputation').doc(docId).set(doc);
     logVerdict(docId, scored.action, scored.reason, scored.fraudScore);
@@ -1023,6 +1049,16 @@ async function assessReward(opts) {
         if (packed.ip && packed.ip !== 'unknown' && packed.db) {
             ipResult = await lookupIp(packed);
         }
+        if (packed.purpose === 'referral' && (ipResult.reason === 'quota' || ipResult.reason === 'backoff' || ipResult.reason === 'user-quota' || ipResult.reason === 'http' || ipResult.reason === 'lookup')) {
+            return {
+                action: 'hold',
+                reason: ipResult.reason,
+                message: REFERRAL_BUDGET_WAIT,
+                ipVerdict: null,
+                deviceHmac: '',
+                deviceAction: 'off',
+            };
+        }
         if (ipResult.action === 'deny' || ipResult.action === 'hold') {
             const reason = ipResult.reason;
             const message = reason === 'user-quota'
@@ -1033,16 +1069,6 @@ async function assessReward(opts) {
                 reason: reason,
                 message: message,
                 ipVerdict: ipResult.verdict,
-                deviceHmac: '',
-                deviceAction: 'off',
-            };
-        }
-        if (packed.purpose === 'referral' && (ipResult.reason === 'quota' || ipResult.reason === 'backoff' || ipResult.reason === 'user-quota')) {
-            return {
-                action: 'hold',
-                reason: ipResult.reason,
-                message: REFERRAL_BUDGET_WAIT,
-                ipVerdict: null,
                 deviceHmac: '',
                 deviceAction: 'off',
             };

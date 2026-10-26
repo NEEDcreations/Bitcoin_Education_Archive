@@ -323,7 +323,7 @@ async function registerReferral(data, context) {
     if (referrer) {
         referrer.emailHistoryHashes = await emailHistoryHashes(referrer.uid);
     }
-    const budgetWait = reward.action === 'hold' && (reward.reason === 'quota' || reward.reason === 'backoff' || reward.reason === 'user-quota');
+    const budgetWait = reward.action === 'hold' && (reward.reason === 'quota' || reward.reason === 'backoff' || reward.reason === 'user-quota' || reward.reason === 'http' || reward.reason === 'lookup');
     const flags = referrer ? referrals.fraudFlags(referred, referrer, rawIp) : [];
     const refereeAlreadyPaid = !!(tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
     if (refereeAlreadyPaid) referred.priorReferral = true;

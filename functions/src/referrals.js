@@ -368,7 +368,7 @@ function payoutBudgetReason(gate) {
     if (verdict && (verdict.action === 'allow' || verdict.action === 'hold' || verdict.action === 'deny')) return '';
     if (gate.action !== 'hold') return '';
     const reason = String(gate.reason || '');
-    if (reason === 'quota' || reason === 'backoff' || reason === 'user-quota') return reason;
+    if (reason === 'quota' || reason === 'backoff' || reason === 'user-quota' || reason === 'http' || reason === 'lookup') return reason;
     return '';
 }
 
