@@ -255,7 +255,7 @@ test('single-field index is declared for tctv_presence.ts', () => {
 
 test('cache name is v2358 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2368'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2380'"));
     assert.ok(!sw.includes('btc-archive-v2363'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2366'));
@@ -361,7 +361,7 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
     assert.ok(!html.includes('gifting.js?v=20261022_lightfix'));
     assert.ok(!html.includes('notifications.js?v=20261022_gifts'));
-    assert.ok(html.includes("'quests.js?v=20261026_v2368'"));
+    assert.ok(html.includes("'quests.js?v=20261026_v2380'"));
     assert.ok(!html.includes("'quests.js?v=20261024_v2358'"));
     assert.ok(!html.includes("'quests.js?v=20261024_v2352'"));
     assert.ok(!html.includes("'quests.js?v=20261024_v2351'"));
@@ -424,7 +424,7 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2261'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2252'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2246'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2368'));
+    assert.ok(html.includes('global-chat.js?v=20261026_v2380'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2373'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2363'));
