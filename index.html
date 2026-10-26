@@ -1036,7 +1036,8 @@
     #todayRaidLine[hidden] { display:none !important; }
     #raidBossHomeCard, #continueReading, #dailyChannel { display:none !important; }
     #fabMinimizeBtn, #mobileSearchBtn { display:none !important; }
-    #aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn { display:none; }
+    /* Collapsed by default. !important beats inline display:flex from leaderboard close. */
+    #aiToolsBtn, #dashboardFloatBtn, #lbFloatBtn { display:none !important; }
     @media (min-width: 901px) {
         #chatOverlayBtn { right:16px !important; bottom:10px !important; }
         body.fab-tools-open #aiToolsBtn,
