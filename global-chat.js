@@ -805,6 +805,55 @@ function _mentionRe(flags) {
 function _mentionWordRe(flags) {
     return new RegExp('@([\\p{L}\\p{N}_\\-\\u2026.]+)', flags || 'gu');
 }
+// Letters, numbers, and the extra characters usernames already use.
+// Space separates words; it is not part of a single token.
+function _mentionChar(ch) {
+    return /[\p{L}\p{N}_\-\u2026.]/u.test(ch);
+}
+// Longest username in _chatUsers that is a prefix of text and ends on a word
+// boundary: end, space, ".", "…", or any character the mention regex would
+// not consume (so "!" and "?" match the same way they do in the renderer,
+// where the capture stops before them). multiWordOnly is the renderer path;
+// single-word chips stay with _mentionWordRe. The uid is the first cache
+// entry with that name. Text is never treated as a uid.
+function _longestKnownUsername(text, multiWordOnly) {
+    var knownName = null;
+    var knownUid = null;
+    if (!text || typeof text !== 'string') return null;
+    for (var uid in _chatUsers) {
+        if (!Object.prototype.hasOwnProperty.call(_chatUsers, uid)) continue;
+        var cand = _chatUsers[uid];
+        if (typeof cand !== 'string' || !cand) continue;
+        if (!/[\p{L}\p{N}_\-\u2026.]/u.test(cand)) continue;
+        if (multiWordOnly && cand.indexOf(' ') === -1) continue;
+        if (knownName && cand.length <= knownName.length) continue;
+        if (text.indexOf(cand) !== 0) continue;
+        var nextCh = text.charAt(cand.length);
+        if (nextCh && nextCh !== ' ' && nextCh !== '.' && nextCh !== '\u2026' && _mentionChar(nextCh)) continue;
+        knownName = cand;
+        knownUid = uid;
+    }
+    if (!knownName) return null;
+    return { uid: knownUid, name: knownName };
+}
+// Same shape as firestore notifIdOk. A cache key that rules would reject
+// is not a recipient.
+function _mentionRecipientOk(uid) {
+    return typeof uid === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(uid);
+}
+function _chatMentionTargets(text) {
+    var out = [];
+    var seen = Object.create(null);
+    var src = String(text || '');
+    for (var i = 0; i < src.length; i++) {
+        if (src.charAt(i) !== '@') continue;
+        var hit = _longestKnownUsername(src.slice(i + 1), false);
+        if (!hit || seen[hit.uid] || !_mentionRecipientOk(hit.uid)) continue;
+        seen[hit.uid] = true;
+        out.push({ uid: hit.uid, name: hit.name });
+    }
+    return out;
+}
 
 // Format chat text: links, #channels, @mentions, inline images/GIFs
 function formatChatText(text, mentionUid) {
@@ -915,26 +964,20 @@ function formatChatText(text, mentionUid) {
         if (_mentionHandled) return match; // already handled by uid branch above
         var safeName = name.trim().replace(/['"]/g, '');
         if (!safeName) return match;
-        // If regex captured multiple words, verify the name actually exists as a known user.
-        // Prevents greedy matching: "@Username extra words" would consume extra words as part of the name.
+        // The regex is greedy: "@chill guy2 hi there" captures "chill guy2 hi there".
+        // Chip only the longest known multi-word username at the start of the capture,
+        // and give back the rest of the capture as plain text (it used to be dropped).
+        var rest = '';
         if (safeName.indexOf(' ') !== -1) {
-            var knownName = null;
-            var parts = safeName.split(' ');
-            while (parts.length > 1) {
-                var cand = parts.join(' ');
-                for (var _uid in _chatUsers) {
-                    if (_chatUsers[_uid] === cand) { knownName = cand; break; }
-                }
-                if (knownName) break;
-                parts.pop();
-            }
+            var known = _longestKnownUsername(safeName, true);
             // Multi-word name not found in known users — return unchanged, let single-word fallback handle
-            if (!knownName) return match;
-            safeName = knownName;
+            if (!known) return match;
+            rest = safeName.slice(known.name.length);
+            safeName = known.name;
         }
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
         _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
-        return placeholder;
+        return placeholder + rest;
     });
     // Fallback: single-word @mentions (user-typed, no space in name)
     text = text.replace(_mentionWordRe('gu'), function(match, name) {
@@ -1261,17 +1304,15 @@ window.sendGlobalChat = function() {
     var _sendBtn = document.getElementById('gcSendBtn');
     if (_sendBtn) { _sendBtn.disabled = true; _sendBtn.textContent = '…'; }
 
-    // Notify @mentioned users
-    var mentionRegex = /@([a-zA-Z0-9_-]+)/g;
-    var mention;
-    while ((mention = mentionRegex.exec(text)) !== null) {
-        var mentionedName = mention[1];
-        // Find uid from cached users
-        for (var muid in _chatUsers) {
-            if (_chatUsers[muid] === mentionedName && typeof notifyChatMention === 'function') {
-                notifyChatMention(muid, username, text.substring(0, 60));
-                break;
-            }
+    // Notify @mentioned users. Same longest-known-username match as the
+    // renderer, so a name with a space or a non-English letter resolves.
+    // Uids come only from the loaded chat cache and must pass notifIdOk.
+    // User messages do not store a tagged profile id. Chat create rules
+    // reject unknown keys, and the server push keeps its own check.
+    var _mentionTargets = _chatMentionTargets(text);
+    for (var _mti = 0; _mti < _mentionTargets.length; _mti++) {
+        if (typeof notifyChatMention === 'function') {
+            notifyChatMention(_mentionTargets[_mti].uid, username, text.substring(0, 60));
         }
     }
 
@@ -4315,6 +4356,7 @@ function _maybeClaimReplyBonus(messageId) {
 }
 // REPLY-BONUS END
 window.formatChatText = formatChatText;
+window._chatMentionTargets = _chatMentionTargets;
 console.log('[CHAT] Global chat module loaded');
 }();
 
