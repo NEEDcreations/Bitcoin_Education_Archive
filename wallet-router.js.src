@@ -43,6 +43,7 @@ window.go = async function(id, btn, fromPopState) {
     if (typeof nachoOnPage === 'function') nachoOnPage('wallet');
     if (typeof awardPoints === 'function') awardPoints(5, 'Visited Lightning Wallet');
 };
+window._bqWalletRouteReady = true;
 
 // ─── Handle hash on page load ────────────────────────────
 (function() {

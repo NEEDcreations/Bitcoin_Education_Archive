@@ -156,7 +156,7 @@
             guideSection('🎯 Daily Activities', dailyCards) +
 
             // -- APPS TO EXPLORE --
-            guideSection('🔓 Apps to Explore', appsCards) +
+            guideSection('Apps to Explore', appsCards) +
 
             // -- MORE FEATURES (advanced only) --
             moreFeaturesHtml +
@@ -191,17 +191,6 @@
             '<div style="width:42px;height:42px;border-radius:12px;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + icon + '</div>' +
             '<div style="flex:1;min-width:0;"><div style="font-size:0.88rem;font-weight:700;color:#fff;margin:0 0 2px;display:block;">' + title + '</div><div style="font-size:0.75rem;color:#94a3b8;line-height:1.45;margin:0;display:block;">' + desc + '</div>' + tag + '</div>' +
             '<div style="color:#4b5563;font-size:0.8rem;margin-top:8px;flex-shrink:0;">›</div>' +
-        '</div>';
-    }
-
-    // ---- Helper: unlock tier row ----
-    function unlockTier(icon, name, req, locked, onclick) {
-        var clickAttr = onclick ? ' onclick="' + onclick + '" style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;cursor:pointer;"'
-            : ' style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;"';
-        return '<div' + clickAttr + '>' +
-            '<div style="font-size:1.1rem;width:28px;text-align:center;flex-shrink:0;">' + icon + '</div>' +
-            '<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:700;color:#e2e8f0;">' + name + '</div><div style="font-size:0.68rem;color:#64748b;">' + req + '</div></div>' +
-            '<div style="font-size:0.8rem;color:' + (locked ? '#4b5563' : '#22c55e') + ';">' + (locked ? '🔒' : '✅') + '</div>' +
         '</div>';
     }
 
@@ -430,7 +419,7 @@
         if (existing) { existing.remove(); return; }
 
         var faqs = [
-            { q: 'What is this app for?', a: 'Bitcoin Education Archive is a free platform with 146+ organized channels of Bitcoin knowledge. Read content, earn XP, unlock mini-apps, and stack real sats (bitcoin) just by learning. Built for everyone — total beginners to hardcore Bitcoiners.' },
+            { q: 'What is this app for?', a: 'Bitcoin Education Archive is a free platform with 146+ organized channels of Bitcoin knowledge. Read content, earn XP, use the apps, and stack real sats (bitcoin) just by learning. Built for everyone — total beginners to hardcore Bitcoiners.' },
             { q: 'Do I need to sign up?', a: 'No! You can start reading and earning XP immediately without an account. Creating a free account lets you save your progress, appear on the leaderboard, receive Lightning tips from other users, and withdraw earned sats to your wallet.' },
             { q: 'Where do I start?', a: 'Tap any channel in the sidebar to start reading. Beginners: try "One-Stop Shop" or "Why Bitcoin?" first. You can also tap "Your Quest Begins" above for a full walkthrough, or let Nacho (the deer in the corner) guide you with a 5-step quest.' },
             { q: 'How do I earn XP and sats?', a: 'You earn XP by reading channels (25 XP each), completing daily quizzes (+10 XP per correct answer), spinning the daily wheel, winning PVP trivia matches, logging streaks, earning badges, participating in Global Chat, and more. One daily counter, reset at 5:00 UTC, pays full XP through 500, half through 900, then a quarter until 1,000. Each tier rounds down, and extra XP is not saved. XP converts to sats: 1,000 XP = 100 sats, redeemable to your Lightning wallet.' },
@@ -440,8 +429,13 @@
             { q: 'What is Satoshi\'s Favor all about?', a: 'Satoshi\'s Favor (SF) is our in-app hashing game. A window opens periodically and users compete to find the lowest hash. The player who mines the lowest hash value below the difficulty target wins 21,000 sats sent directly to their Lightning address. It teaches you how Bitcoin proof-of-work mining actually feels — while giving you a real shot at winning bitcoin.' },
             { q: 'What is PVP Battle?', a: 'PVP (Player vs Player) lets you challenge other users to live Bitcoin trivia duels. Both players answer the same questions simultaneously — fastest and most accurate wins. It\'s a real-time head-to-head match. You earn points and badges for wins.' },
             { q: 'What are Orange Tickets?', a: 'Orange Tickets are earned by completing special actions (hosting IRL events, winning PVP streaks, daily spins, etc). You can spend them in the Ticket Redemption store for XP boosts, hint tokens, streak freezes, and bonus spins.' },
-            { q: 'What are ranks and how do I level up?', a: 'Your rank is based on your total XP. Starting at Pleb, you progress through Hodler, Stacker, Satoshi\'s Student, Lightning Node, Full Node, and all the way up to Whale and Bitcoin Legend. Each rank unlocks new features and apps.' },
-            { q: 'What mini-apps are in the Archive?', a: 'The Archive has 7 built-in apps: Timechain TV (Bitcoin video streaming), Bitcoin Beats (music by Bitcoiners), PVP Battle (trivia duels), Proof of Play (Lightning-powered arcade games), Nacho Q&A (AI Bitcoin tutor), Quest Hub (quizzes, trails, Scholar certification), and IRL Sync (local Bitcoin meetups).' },
+            { q: 'What are ranks and how do I level up?', a: 'Your rank is a title based on your total XP. It starts at Normie and climbs through Curious, Pleb, Stacker, Maxi, Papa John, Full Node, Whale, Sovereign, and Cypherpunk up to Satoshi. The title and its emoji show on your profile and the leaderboard.' },
+            { q: 'What mini-apps are in the Archive?', a: (function() {
+                var apps = (typeof window.exploreAppsForMode === 'function') ? window.exploreAppsForMode() : [];
+                if (!apps.length) return 'Open Explore Apps for Nacho Mode, Timechain TV, and the rest.';
+                var names = apps.map(function(item) { return item.title; });
+                return 'Explore Apps lists ' + names.length + ' apps: ' + names.join(', ') + '.';
+            })() },
             { q: 'What is Nacho?', a: 'Nacho is your AI Bitcoin guide — a friendly deer who lives in the corner of the app. Tap Nacho to ask any Bitcoin question in plain English. Nacho has a database of 500+ curated Bitcoin answers and can explain anything from "What is a private key?" to "How does the Lightning Network work?"' },
             { q: 'What is the Scholar Certification?', a: 'Scholar Certification is a timed exam covering Bitcoin fundamentals — mining, wallets, Lightning, security, and more. Pass with 80%+ to earn your certificate, a special badge, bonus XP, and Orange Tickets. Access it from Quest Hub once you\'ve reached a sufficient rank.' },
             { q: 'Is this app free?', a: 'Yes — 100% free, forever. No subscriptions, no ads, no paywalls. The sats you earn are real bitcoin. The app runs on community support.' },

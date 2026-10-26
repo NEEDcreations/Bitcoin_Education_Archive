@@ -54,6 +54,8 @@ const TESTS = [
     { name: 'Push Notifications', file: 'test-push.js' },
     { name: 'Push Opt-in Migration', file: 'test-push-optin-migration.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
+    { name: 'Mobile Learn and Explore Apps', file: 'test-mobile-menus.js' },
+    { name: 'Wallet tap failure', file: 'test-wallet-tap.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Flex day goal', file: 'test-flex-day.js' },
     { name: 'LNURL resolve', file: 'test-lnurl-resolve.js' },
