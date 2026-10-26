@@ -1339,6 +1339,126 @@ test('a fully filtered batch does not spend a group slot', async function () {
     assert.strictEqual(db.docs['telegram_mirror_state/group'].sentAtMs.length, 1);
 });
 
+test('mirrored text drops @handles so Telegram does not ping them', function () {
+    const rows = [
+        'hey @satoshi_user',
+        '@@Other_Name',
+        'ping @\u200Bhidden_name please',
+        'fullwidth \uFF20satoshi_user',
+    ];
+    rows.forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, true, text + ' ' + decision.reason);
+        assert.ok(!/@[A-Za-z0-9_]/.test(decision.line), decision.line);
+        assert.ok(!/\uFF20/.test(decision.line), decision.line);
+        assert.strictEqual(decision.line.indexOf('\u200B'), -1, decision.line);
+    });
+    const named = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: '@satoshi_user', text: 'hello there' }),
+    });
+    assert.strictEqual(named.forward, true, named.reason);
+    assert.strictEqual(named.name.indexOf('@'), -1, named.name);
+    assert.ok(!/@[A-Za-z0-9_]/.test(named.line), named.line);
+    assert.ok(named.line.indexOf('satoshi_user') !== -1, named.line);
+    const chip = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'hi <span data-profile-uid="uid_phil">@phil</span>' }),
+    });
+    assert.strictEqual(chip.forward, true, chip.reason);
+    assert.strictEqual(chip.line.indexOf('@phil'), -1, chip.line);
+    assert.strictEqual(chip.line.indexOf('uid_phil'), -1, chip.line);
+    assert.ok(chip.line.indexOf('phil') !== -1, chip.line);
+});
+
+test('profile span unwrap stays linear on a long unclosed tag', function () {
+    const mod = require('../functions/src/moderateText');
+    const bridge = require('../functions/src/telegramBridge');
+    const long = '<span ' + 'a'.repeat(200000);
+    const started = Date.now();
+    const sanitized = mod.sanitizeOutgoing(long);
+    const telegram = bridge.toTelegramText(long);
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 500, 'span scan took ' + elapsed + 'ms');
+    assert.ok(sanitized.length > 200000);
+    assert.ok(telegram.length > 200000);
+    const chip = '<span class="mention" data-profile-uid="uid_phil">@phil</span>';
+    assert.strictEqual(mod.sanitizeOutgoing(chip), '@phil');
+    assert.strictEqual(mod.unwrapProfileSpans('<SPAN DATA-PROFILE-UID=\'uid_phil\'>@phil</SPAN>'), '@phil');
+    assert.strictEqual(bridge.toTelegramText('Shoutout to ' + chip + '!'), 'Shoutout to @phil!');
+    const klass = '[^>]*\\bdata-profile-uid';
+    const modSrc = fs.readFileSync(path.join(root, 'functions/src/moderateText.js'), 'utf8');
+    const bridgeSrc = fs.readFileSync(path.join(root, 'functions/src/telegramBridge.js'), 'utf8');
+    assert.strictEqual(modSrc.includes(klass), false);
+    assert.strictEqual(bridgeSrc.includes(klass), false);
+});
+
+test('em and en dashes between ordinary words are not slurs', function () {
+    const allowed = [
+        ['grape-en', 'a grape\u2013and cheese plate'],
+        ['drama-em', 'drama\u2014game night'],
+    ];
+    allowed.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, true, row[0] + ' blocked: ' + decision.reason);
+    });
+    const blocked = [
+        ['en-dash', 'f\u2013uck'],
+        ['em-dash', 'f\u2014uck'],
+    ];
+    blocked.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, false, row[0]);
+        assert.strictEqual(decision.reason, 'profanity', row[0]);
+    });
+});
+
+test('filter line breaks match the mirror splitter', function () {
+    ['\r', '\n', '\u000B', '\u000C', '\u0085', '\u2028', '\u2029'].forEach(function (br) {
+        const decision = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ text: 'fu' + br + 'ck' }),
+        });
+        const label = 'U+' + br.codePointAt(0).toString(16);
+        assert.strictEqual(decision.forward, false, label + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', label);
+    });
+    const hello = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'hello\u2028world' }),
+    });
+    assert.strictEqual(hello.forward, true, hello.reason);
+    assert.strictEqual(hello.line.indexOf('\u2028'), -1);
+    const klass = '[\\r\\n\\u000B\\u000C\\u0085\\u2028\\u2029]';
+    const mirrorSrc = fs.readFileSync(path.join(root, 'functions/src/chatTelegramMirror.js'), 'utf8');
+    const modSrc = fs.readFileSync(path.join(root, 'functions/src/moderateText.js'), 'utf8');
+    assert.ok(mirrorSrc.includes(klass), 'splitter break class');
+    assert.ok(modSrc.includes(klass), 'filter break class');
+});
+
+test('btcto is caught and a plain comma amount still forwards', function () {
+    const mod = require('../functions/src/moderateText');
+    ['send 0.01 btcto to bc1qxyz', 'send me 2 btcto', 'please send me 5 btcto today'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text);
+        assert.strictEqual(decision.reason, 'scam', text);
+        assert.strictEqual(mod.moderateText(text).clean, false, text);
+    });
+    const toy = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: 'send me 2 btctoy' }) });
+    assert.strictEqual(toy.forward, true, toy.reason);
+    const comma = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: 'send 0,01 BTC' }) });
+    assert.strictEqual(comma.forward, true, comma.reason);
+    assert.strictEqual(mod.moderateText('send 0,01 BTC').clean, true);
+});
+
+test('punctuation inserted in a slur is still profanity', function () {
+    ['f:uck', 'f,uck', 'f;uck'].forEach(function (text) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: text }) });
+        assert.strictEqual(decision.forward, false, text + ' forwarded');
+        assert.strictEqual(decision.reason, 'profanity', text);
+    });
+});
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

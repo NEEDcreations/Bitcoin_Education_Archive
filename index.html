@@ -428,10 +428,10 @@
         .username-box button:hover { background: #ea580c; }
         .username-box .skip { color: var(--text-muted); font-size: 0.85rem; margin-top: 12px; cursor: pointer; display: block; }
         .username-box .skip:hover { color: var(--text-dim); }
-        /* Consent rows: the checkbox label is the tap target. Links sit outside it. */
-        .tos-check-row, .consent-row { display:flex; align-items:center; gap:12px; text-align:left; min-height:48px; margin:0 0 4px; }
+        /* Consent rows: the checkbox sits inside its label. Links sit outside it. */
+        .tos-check-row, .consent-row { display:flex; align-items:center; gap:12px; text-align:left; min-height:48px; margin:0 0 4px; cursor:pointer; }
         .tos-check-row input[type=checkbox], .consent-row input[type=checkbox] { flex-shrink:0; width:24px; height:24px; margin:0; accent-color:#f7931a; cursor:pointer; }
-        .tos-check-row label, .consent-row label { align-self:stretch; display:flex; align-items:center; flex:1; min-height:48px; font-size:0.9rem; color:#cbd5e1; line-height:1.35; cursor:pointer; }
+        .tos-check-row > span, .consent-row > span { align-self:stretch; display:flex; align-items:center; flex:1; min-height:48px; font-size:0.9rem; color:#cbd5e1; line-height:1.35; cursor:pointer; }
         .consent-links { text-align:left; font-size:0.85rem; margin:0 0 8px 36px; line-height:1.4; }
         .consent-links a { color:#f7931a; text-decoration:underline; }
         .consent-hint { color:#f97316; font-size:0.85rem; font-weight:800; margin:0 0 8px; text-align:left; }
@@ -763,12 +763,9 @@
         .daily-xp-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px; }
         .daily-xp-mark-full { left: 50%; }
         .daily-xp-mark-half { left: 90%; }
-        .daily-xp-scale { position: relative; height: 16px; margin-top: 4px; font-size: 0.65rem; font-weight: 700; color: #94a3b8; }
-        .daily-xp-scale span { white-space: nowrap; }
-        .daily-xp-scale span:first-child { position: absolute; left: 0; }
-        .daily-xp-scale span:nth-child(2) { position: absolute; left: 50%; transform: translateX(-50%); color: #e2e8f0; }
-        .daily-xp-scale span:nth-child(3) { position: absolute; left: 90%; transform: translateX(-100%); padding-right: 6px; color: #e2e8f0; }
-        .daily-xp-scale span:last-child { position: absolute; right: 0; }
+        .daily-xp-scale { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 0.75em; row-gap: 0.2em; height: auto; min-height: 1.2em; margin-top: 4px; font-size: 0.65rem; font-weight: 700; color: #94a3b8; }
+        .daily-xp-scale span { position: static; transform: none; white-space: nowrap; }
+        .daily-xp-scale span:nth-child(2), .daily-xp-scale span:nth-child(3) { color: #e2e8f0; }
         #todayCard:focus { outline: none; }
         #todayCard:focus-visible, #todayCard button:focus-visible { outline: 2px solid var(--accent, #f7931a); outline-offset: 2px; }
         #todayCard.today-highlight { box-shadow: 0 0 0 2px #f7931a, 0 0 28px rgba(247,147,26,0.45); }
@@ -1548,12 +1545,11 @@
                 <script>if(localStorage.getItem('btc_guide_collapsed')==='1'){var _gf=document.getElementById('questGuideFull');var _gm=document.getElementById('questGuideMini');if(_gf)_gf.style.display='none';if(_gm)_gm.style.display='flex';}</script>
                 <div id="progressRings" style="margin-bottom:16px;"></div>
                 <section id="todayCard" aria-labelledby="todayCardTitle">
-                    <div id="todayFavorStrip" role="button" tabindex="0" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">
+                    <div id="todayFavorStrip" role="button" tabindex="0" onclick="if(window.todayEarnFavor)window.todayEarnFavor()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();if(window.todayEarnFavor)window.todayEarnFavor();}">
                         <div id="todayFavorTitle">Satoshi's Favor</div>
                         <div id="todayFavorPoints">Earn Favor daily, payouts every epoch</div>
                         <div id="todayFavorCountdown" aria-live="polite" hidden></div>
                         <span class="today-favor-go" aria-hidden="true">›</span>
-                        <button type="button" id="todayEarnFavor" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">Earn Favor</button>
                     </div>
                     <div class="today-body">
                         <div class="today-check-head">
@@ -1803,10 +1799,10 @@
                 </div>
             </div>
             <div class="tos-footer">
-                <div class="consent-row" id="tosConsentRow">
+                <label class="consent-row" id="tosConsentRow">
                     <input type="checkbox" id="tosModalCheck">
-                    <label for="tosModalCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
-                </div>
+                    <span>I have read and agree to the Terms of Service and Privacy Policy.</span>
+                </label>
                 <div class="consent-links"><a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> · <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
                 <p id="tosNeedTick" class="consent-hint" hidden>Tick the box to agree first.</p>
                 <button id="tosAcceptBtn" class="tos-accept-btn" onclick="window._acceptTos&&window._acceptTos()">Accept &amp; Continue →</button>
@@ -1887,10 +1883,10 @@
             </div>
             </details>
             <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
-            <div class="tos-check-row" id="signupConsentRow">
+            <label class="tos-check-row" id="signupConsentRow">
                 <input type="checkbox" id="signupTosCheck">
-                <label for="signupTosCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
-            </div>
+                <span>I have read and agree to the Terms of Service and Privacy Policy.</span>
+            </label>
             <div class="consent-links"><a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
             <p id="signupNeedTick" class="consent-hint" hidden>Tick the box to agree first.</p>
             <button id="signupStartBtn" onclick="submitUsername()">Start Learning →</button>

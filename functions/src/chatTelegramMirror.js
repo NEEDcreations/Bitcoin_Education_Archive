@@ -76,6 +76,14 @@ function neutralizePings(value) {
         .replace(/@(everyone|here|channel|all)\b/gi, '$1');
 }
 
+// Applied to the outgoing line only, after moderation. @ still folds to "a"
+// inside the filter, and a shoutout's toTelegramText keeps its @name.
+function stripHandles(value) {
+    return String(value == null ? '' : value)
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/[\uFF20@]+(?=[A-Za-z0-9_])/g, '');
+}
+
 function stripContacts(value) {
     return String(value == null ? '' : value)
         .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ')
@@ -326,8 +334,8 @@ function decideMirror(input) {
     const flat = collapseSpace(flattenLines(body));
     const contentReason = contentSkipReason(body) || contentSkipReason(flat);
     if (contentReason) return { forward: false, reason: contentReason };
-    const name = publicMirrorName(data);
-    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + flat;
+    const name = stripHandles(publicMirrorName(data));
+    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + stripHandles(flat);
     return { forward: true, reason: '', line: escapeHtml(line), name: name };
 }
 

@@ -45,12 +45,13 @@ const ALLOW = {};
 ALLOWLIST.forEach(function (word) { ALLOW[word] = true; });
 
 const SCAM_PATTERNS = [
-    /send me \d+(?:[.,]\d+)? btc/i,
+    /send me \d+(?:[.,]\d+)? btc(?:to)?\b/i,
     /double your bitcoin/i,
     /guaranteed.*return/i,
     /invest.*guaranteed/i,
     /free bitcoin.*send/i,
-    /send\s+(?:me\s+)?(?:\d+(?:[.,]\d+)?\s*)?(?:sats|btc|bitcoin)\b[^.\n]{0,48}\bbc1/i,
+    // Same break class as chatTelegramMirror.flattenLines. "btcto" is "btc".
+    /send\s+(?:me\s+)?(?:\d+(?:[.,]\d+)?\s*)?(?:sats|btc(?:to)?|bitcoin)\b[^.\r\n\u000B\u000C\u0085\u2028\u2029]{0,48}\bbc1/i,
 ];
 
 const REASON_PROFANITY = 'Content contains inappropriate language';
@@ -134,13 +135,83 @@ function stripTags(text) {
     return s;
 }
 
+// Profile chips unwrap in one forward scan. The old span regex was
+// nested and super-linear on a long "<span" with no closing bracket.
+function unwrapProfileSpans(text) {
+    const src = String(text || '');
+    if (src.indexOf('<') === -1) return src;
+    const lower = src.toLowerCase();
+    let out = '';
+    let i = 0;
+    while (i < src.length) {
+        const start = lower.indexOf('<span', i);
+        if (start < 0) {
+            out += src.slice(i);
+            break;
+        }
+        const boundary = src.charAt(start + 5);
+        if (boundary && !/[\s>/]/.test(boundary)) {
+            out += src.slice(i, start + 5);
+            i = start + 5;
+            continue;
+        }
+        const gt = src.indexOf('>', start + 5);
+        if (gt < 0) {
+            out += src.slice(i);
+            break;
+        }
+        if (!profileUidAttr(lower.slice(start, gt))) {
+            out += src.slice(i, start + 5);
+            i = start + 5;
+            continue;
+        }
+        const close = lower.indexOf('</span>', gt + 1);
+        if (close < 0) {
+            out += src.slice(i);
+            break;
+        }
+        out += src.slice(i, start);
+        out += src.slice(gt + 1, close);
+        i = close + 7;
+    }
+    return out;
+}
+
+function profileUidAttr(openLower) {
+    const key = 'data-profile-uid';
+    let from = 0;
+    while (from < openLower.length) {
+        const at = openLower.indexOf(key, from);
+        if (at < 0) return false;
+        const prev = at > 0 ? openLower.charAt(at - 1) : '';
+        if (prev && /[a-z0-9_]/.test(prev)) {
+            from = at + 1;
+            continue;
+        }
+        let j = at + key.length;
+        while (j < openLower.length && /\s/.test(openLower.charAt(j))) j++;
+        if (openLower.charAt(j) !== '=') {
+            from = at + 1;
+            continue;
+        }
+        j++;
+        while (j < openLower.length && /\s/.test(openLower.charAt(j))) j++;
+        const quote = openLower.charAt(j);
+        if (quote !== '"' && quote !== "'") {
+            from = at + 1;
+            continue;
+        }
+        return openLower.indexOf(quote, j + 1) !== -1;
+    }
+    return false;
+}
+
 // Same visible-text cleanup the mirror applies before Telegram sees a line:
 // HTML tags, %%tokens%%, markdown links, and invisible characters.
 // A short link spliced between letters is dropped so fu[x](url)ck matches
 // the surrounding word. Any other link is its display text.
 function sanitizeOutgoing(text) {
-    let out = String(text || '');
-    out = out.replace(/<span\b[^>]*\bdata-profile-uid\s*=\s*["'][^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, '$1');
+    let out = unwrapProfileSpans(text);
     out = stripTags(out);
     out = out.replace(/%%[A-Za-z0-9_]+%%/g, '');
     out = out.replace(/(\p{L})\[[^\]]{1,3}\]\((?:https?:\/\/|mailto:|javascript:)[^)]*\)(?=\p{L})/giu, '$1');
@@ -196,8 +267,10 @@ function squeezeVariants(text) {
 
 // fu\nck joins. hello\nworld stays two words. Leftover breaks become spaces
 // so "f \n u \n c \n k" is the same shape as "f u c k".
+// The break set matches chatTelegramMirror.flattenLines:
+// [\r\n\u000B\u000C\u0085\u2028\u2029]
 function joinShortLineBreaks(text) {
-    let s = String(text || '').replace(/[^\S\r\n]*[\r\n]+[^\S\r\n]*/g, '\n');
+    let s = String(text || '').replace(/[^\S\r\n\u000B\u000C\u0085\u2028\u2029]*[\r\n\u000B\u000C\u0085\u2028\u2029]+[^\S\r\n\u000B\u000C\u0085\u2028\u2029]*/g, '\n');
     let prev = '';
     while (s !== prev) {
         prev = s;
@@ -211,10 +284,14 @@ function joinShortLineBreaks(text) {
 
 function collapseSeparators(text) {
     let s = String(text || '');
+    // An em or en dash between ordinary words is a separator. Joining
+    // grape–and or drama—game would invent "rape" and "maga". A short
+    // side is still obfuscation: f–uck and f—uck collapse below.
+    s = s.replace(/(\p{L}{3,})[\u2012\u2013\u2014\u2015]+(?=\p{L}{3,})/gu, '$1 ');
     let prev = '';
     while (s !== prev) {
         prev = s;
-        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(\p{L})[-_.,:;\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
     }
     return s;
 }
@@ -385,5 +462,6 @@ module.exports = {
     ALLOWLIST: ALLOWLIST,
     SCAM_PATTERNS: SCAM_PATTERNS,
     sanitizeOutgoing: sanitizeOutgoing,
+    unwrapProfileSpans: unwrapProfileSpans,
     normalizeStrictText: normalizeStrictText,
 };

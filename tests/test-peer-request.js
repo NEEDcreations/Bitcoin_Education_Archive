@@ -385,7 +385,8 @@ queue.push(test('More quests opens Nook/Inv from the Today card', function() {
     assert.ok(buttons[0].includes('>Nook/Inventory</span>'));
     assert.ok(html.includes('id="todayCard"'));
     assert.ok(html.includes('id="todayFavorStrip"'));
-    assert.ok(html.includes('>Earn Favor</button>'));
+    assert.ok(!html.includes('id="todayEarnFavor"'));
+    assert.ok(!html.includes('>Earn Favor</button>'));
     assert.ok(html.includes('More quests'));
     assert.strictEqual(html.includes('id="qhTabNook"'), false);
     assert.strictEqual(quests.includes('id="qhTabNook"'), false);
@@ -516,7 +517,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2368'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2382'"));
     assert.ok(!sw.includes('btc-archive-v2363'));
     assert.ok(!sw.includes('btc-archive-v2373'));
     assert.ok(!sw.includes('btc-archive-v2366'));

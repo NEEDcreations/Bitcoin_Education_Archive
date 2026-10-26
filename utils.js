@@ -127,15 +127,6 @@ function timeAgo(ts) {
     });
 })();
 
-// ============================================================
-// 🟠 Premium Tier System
-// ============================================================
-
-/** Check if current user has active premium */
-function isPremium() {
-    return typeof currentUser !== 'undefined' && currentUser && currentUser.premium && currentUser.premium.active === true;
-}
-
 // Server faucet cap (functions/index.js FAUCET.MAX_LIFETIME_PER_USER_SATS).
 // Exposed on window so ranking.js still sees it after the bundle is minified.
 var SAT_LIFETIME_CAP = 15000;
@@ -190,7 +181,6 @@ window._factionNameStyle = function(faction) {
 
 var PREMIUM_CONFIG = {
     FREE_SAT_CAP: 15000,
-    PREMIUM_SAT_CAP: 21000,
     FREE_SPINS: 1,
     PREMIUM_SPINS: 3,
     MONTHLY_PRICE_USD: 4.99,

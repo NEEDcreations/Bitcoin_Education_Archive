@@ -127,15 +127,6 @@ function timeAgo(ts) {
     });
 })();
 
-// ============================================================
-// 🟠 Premium Tier System
-// ============================================================
-
-/** Check if current user has active premium */
-function isPremium() {
-    return typeof currentUser !== 'undefined' && currentUser && currentUser.premium && currentUser.premium.active === true;
-}
-
 // Server faucet cap (functions/index.js FAUCET.MAX_LIFETIME_PER_USER_SATS).
 // Exposed on window so ranking.js still sees it after the bundle is minified.
 var SAT_LIFETIME_CAP = 15000;
@@ -190,7 +181,6 @@ window._factionNameStyle = function(faction) {
 
 var PREMIUM_CONFIG = {
     FREE_SAT_CAP: 15000,
-    PREMIUM_SAT_CAP: 21000,
     FREE_SPINS: 1,
     PREMIUM_SPINS: 3,
     MONTHLY_PRICE_USD: 4.99,
@@ -20335,20 +20325,37 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
     }
 
+    // Sidebar labels look like "✔ use-cases". Drop that symbol and show the words.
+    function prettyLearnTitle(raw) {
+        var text = String(raw || '').replace(/\s+/g, ' ').trim();
+        text = text.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+        if (!text) return '';
+        if (/^[\p{Ll}\p{N}]+(?:[-\s][\p{Ll}\p{N}]+)*$/u.test(text)) {
+            var words = text.split(/[-\s]+/);
+            var out = [];
+            for (var i = 0; i < words.length; i++) {
+                if (!words[i]) continue;
+                out.push(words[i].charAt(0).toUpperCase() + words[i].slice(1));
+            }
+            return out.join(' ');
+        }
+        return text;
+    }
     function homeLearnTitle(id) {
         var wanted = "go('" + id + "'";
         var nodes = document.querySelectorAll('.ch-btn');
+        var text = '';
         for (var i = 0; i < nodes.length; i++) {
             var oc = nodes[i].getAttribute('onclick') || '';
             if (oc.indexOf(wanted) !== -1) {
-                var text = (nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
-                if (text) return text;
+                text = (nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) break;
             }
         }
-        if (typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].title) {
-            return String(CHANNELS[id].title).trim();
+        if (!text && typeof CHANNELS !== 'undefined' && CHANNELS[id] && CHANNELS[id].title) {
+            text = String(CHANNELS[id].title).trim();
         }
-        return '';
+        return prettyLearnTitle(text);
     }
     window.paintHomeLearnCard = function() {
         var title = document.getElementById('homeLearnTitle');

@@ -12,6 +12,8 @@
 // Do not log the secret, a URL query string, or a response body. Telegram
 // errors and misconfigured URLs can echo tokens.
 
+const { unwrapProfileSpans } = require('./moderateText');
+
 const DEFAULT_BRIDGE_URL = 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
 const DEFAULT_TIMEOUT_MS = 5000;
 // Normal chat posts can carry a photo. They keep a long timeout so moving
@@ -50,8 +52,7 @@ function defaultFetchImpl() {
 // the composer also understands HTML chips, @[name](uid), and [label](#route).
 // Telegram only needs the visible name.
 function toTelegramText(text) {
-    let out = String(text || '');
-    out = out.replace(/<span\b[^>]*\bdata-profile-uid\s*=\s*["'][^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, '$1');
+    let out = unwrapProfileSpans(text);
     out = out.replace(/<[^>]*>/g, '');
     out = out.replace(/@\[([^\]]+)\]\([^)]*\)/g, '@$1');
     // Activity shoutouts deep-link in chat. Telegram needs a tappable URL.

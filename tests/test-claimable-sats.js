@@ -75,6 +75,36 @@ test('ranking no longer falls back to a 10000 cap', () => {
     assert.ok(src.includes('homeLearnCard'));
 });
 
+test('no premium cap, learn titles, consent labels, and the xp scale', () => {
+    const utils = read('utils.js');
+    assert.ok(!utils.includes('function isPremium'));
+    assert.ok(!utils.includes('PREMIUM_SAT_CAP'));
+    assert.ok(utils.includes('SAT_LIFETIME_CAP = 15000'));
+    const app = read('app.js');
+    const start = app.indexOf('function prettyLearnTitle');
+    const end = app.indexOf('function homeLearnTitle');
+    assert.ok(start > 0 && end > start);
+    const pretty = new Function(app.slice(start, end) + '\nreturn prettyLearnTitle;')();
+    assert.strictEqual(pretty('\u2714 use-cases'), 'Use Cases');
+    assert.strictEqual(pretty('📄 whitepaper'), 'Whitepaper');
+    assert.strictEqual(pretty('👪 decentralized-censorship-resistant'), 'Decentralized Censorship Resistant');
+    assert.strictEqual(pretty('™ secure-fungible'), 'Secure Fungible');
+    assert.strictEqual(pretty('💯 100 Sats'), '100 Sats');
+    const html = read('index.html');
+    assert.ok(html.includes('<label class="consent-row" id="tosConsentRow">'));
+    assert.ok(html.includes('<label class="tos-check-row" id="signupConsentRow">'));
+    assert.ok(html.indexOf('id="tosModalCheck"') > html.indexOf('id="tosConsentRow"'));
+    assert.ok(html.indexOf('id="signupTosCheck"') > html.indexOf('id="signupConsentRow"'));
+    assert.ok(html.includes('flex-wrap: wrap'));
+    assert.ok(html.includes('column-gap: 0.75em'));
+    assert.ok(!html.includes('id="todayEarnFavor"'));
+    assert.ok(!html.includes('>Earn Favor</button>'));
+    assert.ok(html.includes("event.key==='Enter'||event.key===' '"));
+    const ranking = read('ranking.js');
+    assert.ok(ranking.includes('Lifetime withdrawn: \' + satsWithdrawn.toLocaleString() + \' / 15,000 sats'));
+    assert.ok(ranking.includes('Lifetime max: 15,000 sats'));
+});
+
 test('terms sheet blocks the page and the consent row is a real tap target', () => {
     const html = read('index.html');
     assert.ok(html.includes('z-index:2100010'));
