@@ -580,9 +580,13 @@ function registerOnboarding(deps) {
                 username_lower: decision.username_lower,
                 usernameNeedsRepick: admin.firestore.FieldValue.delete(),
             };
-            if (!selfHasSame && prevLower) {
+            const realRename = !selfHasSame && !!prevLower;
+            if (realRename) {
                 patch.usernameChangedAt = admin.firestore.FieldValue.serverTimestamp();
                 if (freeRename) patch.usernameFreeRename = admin.firestore.FieldValue.delete();
+                // A later name, including the one free change, drops the old name.
+                patch.usernameMigratedFrom = admin.firestore.FieldValue.delete();
+                patch.usernameMigratedAt = admin.firestore.FieldValue.delete();
             }
             if (!userSnap.exists) {
                 tx.set(userRef, Object.assign({
@@ -596,11 +600,13 @@ function registerOnboarding(deps) {
                 tx.update(userRef, patch);
             }
             if (profileSnap.exists) {
-                tx.update(profileRef, {
+                const profilePatch = {
                     username: decision.username,
                     username_lower: decision.username_lower,
                     usernameNeedsRepick: admin.firestore.FieldValue.delete(),
-                });
+                };
+                if (realRename) profilePatch.usernameMigratedFrom = admin.firestore.FieldValue.delete();
+                tx.update(profileRef, profilePatch);
             }
             return { ok: true, username: decision.username, already: selfHasSame };
         });

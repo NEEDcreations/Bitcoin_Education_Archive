@@ -270,10 +270,12 @@ queue.push(test('a free-rename flag skips the daily wait once and is then cleare
             username_lower: 'old_name',
             usernameChangedAt: recent,
             usernameFreeRename: true,
+            usernameMigratedFrom: 'spaced name',
+            usernameMigratedAt: recent,
             points: 9,
         },
         'usernames/old_name': { uid: 'user1', atMs: recent },
-        'public_profiles/user1': { username: 'old_name', points: 9 },
+        'public_profiles/user1': { username: 'old_name', points: 9, usernameMigratedFrom: 'spaced name' },
     });
     const out = await handler(mem).setUsername({ name: 'new_name' }, contextFor('user1'));
     assert.strictEqual(out.username, 'new_name');
@@ -281,6 +283,9 @@ queue.push(test('a free-rename flag skips the daily wait once and is then cleare
     assert.strictEqual(user.username, 'new_name');
     assert.strictEqual(user.username_lower, 'new_name');
     assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'usernameFreeRename'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'usernameMigratedFrom'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'usernameMigratedAt'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(mem.store['public_profiles/user1'], 'usernameMigratedFrom'), false);
     assert.strictEqual(user.points, 9);
     assert.ok(user.usernameChangedAt);
     assert.strictEqual(mem.store['usernames/new_name'].uid, 'user1');
@@ -312,12 +317,37 @@ queue.push(test('a free-rename flag skips the daily wait once and is then cleare
             username_lower: 'old_name',
             usernameChangedAt: recent,
             usernameFreeRename: true,
+            usernameMigratedFrom: 'spaced name',
+            usernameMigratedAt: recent,
         },
         'usernames/old_name': { uid: 'user1', atMs: recent },
+        'public_profiles/user1': { username: 'old_name', usernameMigratedFrom: 'spaced name' },
     });
     const kept = await handler(same).setUsername({ name: 'old_name' }, contextFor('user1'));
     assert.strictEqual(kept.already, true);
     assert.strictEqual(same.store['users/user1'].usernameFreeRename, true);
+    assert.strictEqual(same.store['users/user1'].usernameMigratedFrom, 'spaced name');
+    assert.strictEqual(same.store['users/user1'].usernameMigratedAt, recent);
+    assert.strictEqual(same.store['public_profiles/user1'].usernameMigratedFrom, 'spaced name');
+
+    const later = memDb({
+        'usernames_meta/backfill': { applied: true },
+        'users/user1': {
+            username: 'old_name',
+            username_lower: 'old_name',
+            usernameChangedAt: Date.now() - 48 * 60 * 60 * 1000,
+            usernameMigratedFrom: 'spaced name',
+            usernameMigratedAt: recent,
+            points: 9,
+        },
+        'usernames/old_name': { uid: 'user1', atMs: recent },
+        'public_profiles/user1': { username: 'old_name', usernameMigratedFrom: 'spaced name', points: 9 },
+    });
+    const renamed = await handler(later).setUsername({ name: 'fresh_name' }, contextFor('user1'));
+    assert.strictEqual(renamed.username, 'fresh_name');
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(later.store['users/user1'], 'usernameMigratedFrom'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(later.store['users/user1'], 'usernameMigratedAt'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(later.store['public_profiles/user1'], 'usernameMigratedFrom'), false);
 }));
 
 queue.push(test('guest linking keeps a valid name and drops one with whitespace', async function () {
@@ -419,6 +449,12 @@ queue.push(test('migration suffix, and skips for already migrated, renamed, or t
     assert.strictEqual(note.type, 'username_changed');
     assert.strictEqual(note.recipientId, 'usera00001');
     assert.strictEqual(await migrate.applyOne(ok.db, row, { notify: true }), 'already');
+    assert.strictEqual(ok.store['users/usera00001'].username, 'chill_guy');
+
+    const marked = memDb(baseStore());
+    marked.store['username_migrations/usera00001'] = { to: 'other_name', toLower: 'other_name' };
+    assert.strictEqual(await migrate.applyOne(marked.db, row, {}), 'marker');
+    assert.strictEqual(marked.store['users/usera00001'].username, 'chill guy');
 
     const renamed = memDb(baseStore());
     renamed.store['users/usera00001'].username = 'picked_already';
@@ -431,6 +467,12 @@ queue.push(test('migration suffix, and skips for already migrated, renamed, or t
     assert.strictEqual(await migrate.applyOne(taken.db, row, {}), 'conflict');
     assert.strictEqual(taken.store['users/usera00001'].username, 'chill guy');
 
+    const exact = memDb(baseStore());
+    exact.store['users/other000001'] = { username: 'chill_guy' };
+    assert.strictEqual(await migrate.applyOne(exact.db, row, {}), 'conflict');
+    assert.strictEqual(exact.store['users/usera00001'].username, 'chill guy');
+    assert.strictEqual(exact.store['username_migrations/usera00001'], undefined);
+
     const reserved = memDb(baseStore());
     reserved.store['usernames/chill_guy'] = { uid: 'other000001', atMs: now, anon: false };
     assert.strictEqual(await migrate.applyOne(reserved.db, row, {}), 'conflict');
@@ -438,6 +480,14 @@ queue.push(test('migration suffix, and skips for already migrated, renamed, or t
     const quiet = memDb(baseStore());
     assert.strictEqual(await migrate.applyOne(quiet.db, row, {}), 'ok');
     assert.strictEqual(quiet.store['notifications/uname_mig_usera00001'], undefined);
+
+    const cleaned = memDb(baseStore());
+    const cleanedRow = Object.assign({}, row, { sanitized: 'charset' });
+    assert.strictEqual(await migrate.applyOne(cleaned.db, cleanedRow, { notify: true }), 'ok');
+    assert.strictEqual(
+        cleaned.store['notifications/uname_mig_usera00001'].message,
+        migrate.noticeFor('chill_guy', { sanitized: true })
+    );
 
     const live = memDb({
         'marketplace/active1': { sellerUid: 'usera00001', sellerName: 'chill guy', status: 'active' },
@@ -459,12 +509,54 @@ queue.push(test('migration suffix, and skips for already migrated, renamed, or t
     assert.ok(script.includes('function short(uid)'));
     assert.ok(script.includes('short(r.uid)'));
     assert.ok(script.indexOf('email') === -1);
+    assert.strictEqual(script.indexOf('e.message'), -1);
+    assert.ok(script.includes('--plan'));
+    assert.ok(script.includes("where('username', '==', row.next)"));
     const copies = await migrate.patchLiveCopies(live.db, row);
     assert.strictEqual(copies.listings, 1);
     assert.strictEqual(live.store['marketplace/active1'].sellerName, 'chill_guy');
     assert.strictEqual(live.store['marketplace/sold1'].sellerName, 'chill guy');
     assert.strictEqual(live.store['marketplace/other1'].sellerName, 'chill guy');
     assert.strictEqual(live.store['global_chat/oldmsg'].name, 'chill guy');
+
+    live.store['marketplace/active1'].sellerName = 'chill guy';
+    live.store['username_migrations/usera00001'] = {
+        to: 'chill_guy', toLower: 'chill_guy',
+        patches: { listings: 'error', dms: 'ok', sf: 'ok' },
+    };
+    const retried = await migrate.resumePatches(live.db, row);
+    assert.strictEqual(retried.listings, 1);
+    assert.strictEqual(retried.status.dms, undefined);
+    assert.strictEqual(live.store['marketplace/active1'].sellerName, 'chill_guy');
+    assert.strictEqual(live.store['username_migrations/usera00001'].patches.listings, 'ok');
+    assert.strictEqual(live.store['username_migrations/usera00001'].patches.sf, 'ok');
+    live.store['marketplace/active1'].sellerName = 'chill guy';
+    const skipped = await migrate.resumePatches(live.db, row);
+    assert.strictEqual(skipped.listings, 0);
+    assert.strictEqual(live.store['marketplace/active1'].sellerName, 'chill guy');
+
+    const built = migrate.planFromRows([
+        { id: 'usera00001', data: { username: 'chill guy', username_lower: 'chill guy' } },
+        { id: 'userb00001', data: { username: 'chill guy', username_lower: 'chill guy' } },
+    ], [], [], [], now);
+    const doc = migrate.planDocument(built.counts, built.profileOnly, built.plan);
+    const loaded = migrate.loadReviewedPlan(JSON.parse(JSON.stringify(doc)));
+    assert.strictEqual(loaded[0].next, 'chill_guy');
+    assert.strictEqual(loaded[1].next, 'chill_guy2');
+    const tampered = JSON.parse(JSON.stringify(doc));
+    tampered.plan[1].next = 'chill_guy9';
+    let hashErr = null;
+    try { migrate.loadReviewedPlan(tampered); } catch (e) { hashErr = e; }
+    assert.ok(hashErr);
+    assert.strictEqual(hashErr.code, 'plan-hash');
+    assert.strictEqual(loaded[1].next, 'chill_guy2');
+    let missing = null;
+    try { migrate.assertApplyPlan(['node', 'migrate-username-spaces.js', '--apply']); } catch (e) { missing = e; }
+    assert.ok(missing);
+    assert.strictEqual(missing.code, 'plan-required');
+    assert.strictEqual(migrate.assertApplyPlan(['node', 'migrate-username-spaces.js', '--apply', '--plan', 'reviewed.json']), 'reviewed.json');
+    assert.strictEqual(migrate.noticeFor('Ahmed_ahmedibnhack', { sanitized: true }),
+        'Usernames can no longer contain spaces or special characters, so yours is now @Ahmed_ahmedibnhack. Want a different one? You get one free change in Settings → Advanced → Change Username.');
 }));
 
 queue.push(test('a stale cached username retries a chat send and a listing once, with no error the first time', function () {
@@ -594,6 +686,9 @@ queue.push(test('the three username screens block spaces and the public pages dr
     const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('no spaces'));
     assert.ok(privacy.includes('usernameMigratedFrom'));
+    assert.ok(privacy.includes('username_migrations'));
+    assert.ok(privacy.includes('usernameFreeRename'));
+    assert.ok(privacy.includes('until the account is deleted'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');

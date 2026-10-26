@@ -10,21 +10,28 @@
 // "chill_guy23"...), shortening the base so the result stays <= MAX_LEN.
 //
 //   node functions/scripts/migrate-username-spaces.js            (dry run, default)
-//   node functions/scripts/migrate-username-spaces.js --apply    (needs Phil's OK)
-//   ... --apply --notify   also writes one in-app notification per renamed user
+//   node functions/scripts/migrate-username-spaces.js --apply --plan FILE
+//   ... --apply --plan FILE --notify   also writes one in-app notification
 //   ... --out DIR          where the full (uid-bearing) plan/backup is written (mode 600)
 //
-// Apply is transactional per user and idempotent: a user whose name no longer
-// contains whitespace, or who already has username_migrations/{uid}, is skipped.
-// The transaction re-checks the old name and the new reservation, so a rename by
-// the user or a concurrent claim between plan and apply skips that user instead
-// of overwriting anything. Re-run to pick up skips.
+// The dry run writes plan-*.json (mode 600) plus a sha256 of {counts, profileOnly,
+// plan}. --apply refuses to run without --plan FILE, and it refuses when that
+// hash does not match. It renames only those rows, to exactly those target
+// names. It never recomputes a suffix. A target that was taken since the review
+// is skipped and reported. A user who already has a matching marker is left
+// as-is, and any live-copy patch that did not finish is retried.
+//
+// Apply is transactional per user. A user whose current name is no longer the
+// planned old name is skipped. The transaction re-checks the old name and the
+// new reservation (exact username and username_lower).
 //
 // Never prints full uids, mail addresses, or other private fields. stdout
 // carries counts and public usernames only; uids go to the --out files.
+// Failures log an error code only.
 //
 // Uses Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS).
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
@@ -95,9 +102,74 @@ function roleMayUseReserved(u) {
     return r === 'admin' || r === 'moderator';
 }
 
-function noticeFor(next) {
-    return 'Usernames can no longer contain spaces, so yours is now @' + next +
+function noticeFor(next, opts) {
+    const why = opts && opts.sanitized
+        ? 'Usernames can no longer contain spaces or special characters, so yours is now @'
+        : 'Usernames can no longer contain spaces, so yours is now @';
+    return why + next +
         '. Want a different one? You get one free change in Settings → Advanced → Change Username.';
+}
+
+function canonicalPlan(counts, profileOnly, plan) {
+    return JSON.stringify({ counts: counts, profileOnly: profileOnly, plan: plan });
+}
+
+function planSha256(counts, profileOnly, plan) {
+    return crypto.createHash('sha256').update(canonicalPlan(counts, profileOnly, plan), 'utf8').digest('hex');
+}
+
+function planDocument(counts, profileOnly, plan) {
+    return {
+        sha256: planSha256(counts, profileOnly, plan),
+        counts: counts,
+        profileOnly: profileOnly,
+        plan: plan,
+    };
+}
+
+function loadReviewedPlan(doc) {
+    if (!doc || typeof doc.sha256 !== 'string' || !doc.counts || !Array.isArray(doc.plan)) {
+        const err = new Error('plan file is incomplete');
+        err.code = 'invalid-plan';
+        throw err;
+    }
+    const got = planSha256(doc.counts, doc.profileOnly, doc.plan);
+    if (got !== doc.sha256) {
+        const err = new Error('plan hash mismatch');
+        err.code = 'plan-hash';
+        throw err;
+    }
+    if (doc.plan.some(function (row) { return row && row.invalid; })) {
+        const err = new Error('invalid names in plan');
+        err.code = 'invalid-plan';
+        throw err;
+    }
+    return doc.plan;
+}
+
+function assertApplyPlan(argv) {
+    const list = argv || [];
+    const apply = list.indexOf('--apply') !== -1;
+    const i = list.indexOf('--plan');
+    const file = i !== -1 ? list[i + 1] : '';
+    if (apply && (!file || String(file).charAt(0) === '-')) {
+        const err = new Error('--apply requires --plan FILE');
+        err.code = 'plan-required';
+        throw err;
+    }
+    return file || null;
+}
+
+function errCode(e) {
+    if (!e || e.code == null || e.code === '') return 'error';
+    if (typeof e.code === 'number' && isFinite(e.code)) return String(e.code);
+    if (typeof e.code !== 'string') return 'error';
+    if (e.code.length > 64 || e.code.indexOf('/') !== -1) return 'error';
+    return e.code;
+}
+
+function logCode(label, e) {
+    console.error(label, errCode(e));
 }
 
 function planFromRows(users, profiles, reservations, done, nowMs) {
@@ -209,7 +281,11 @@ async function applyOne(db, row, opts) {
         const [userSnap, pubSnap, newSnap, oldSnap, markSnap] = await Promise.all([
             tx.get(userRef), tx.get(pubRef), tx.get(newRef), oldRef ? tx.get(oldRef) : Promise.resolve(null), tx.get(markRef),
         ]);
-        if (markSnap.exists) return 'already';
+        if (markSnap.exists) {
+            const prev = markSnap.data() || {};
+            if (prev.to === row.next && prev.toLower === row.nextLower) return 'already';
+            return 'marker';
+        }
         if (!userSnap.exists) return 'gone';
         const cur = userSnap.data() || {};
         if (cur.username !== row.old) return 'changed';
@@ -218,12 +294,15 @@ async function applyOne(db, row, opts) {
             const view = { uid: d.uid || '', anon: d.anon === true, at: d.atMs, releasedAt: d.releasedAtMs, holdUid: d.holdUid || '' };
             if (names.reservationBlocks(view, row.uid, nowMs)) return 'conflict';
         }
-        const clash = await tx.get(db.collection('users').where('username_lower', '==', row.nextLower).limit(2));
-        if (clash.docs.some(d => d.id !== row.uid)) return 'conflict';
+        const clashLower = await tx.get(db.collection('users').where('username_lower', '==', row.nextLower).limit(2));
+        if (clashLower.docs.some(d => d.id !== row.uid)) return 'conflict';
+        const clashExact = await tx.get(db.collection('users').where('username', '==', row.next).limit(2));
+        if (clashExact.docs.some(d => d.id !== row.uid)) return 'conflict';
         tx.set(markRef, {
             uid: row.uid, from: row.old, fromLower: row.oldLower, to: row.next, toLower: row.nextLower,
             prevChangedAtMs: cur.usernameChangedAt && cur.usernameChangedAt.toMillis ? cur.usernameChangedAt.toMillis() : null,
             atMs: nowMs, at: FieldValue.serverTimestamp(),
+            patches: { listings: 'pending', dms: 'pending', sf: 'pending' },
         });
         tx.set(newRef, { uid: row.uid, at: FieldValue.serverTimestamp(), atMs: nowMs, anon: false, migratedFrom: row.oldLower });
         if (oldSnap && oldSnap.exists && (oldSnap.data() || {}).uid === row.uid) {
@@ -250,7 +329,7 @@ async function applyOne(db, row, opts) {
         if (opts.notify) {
             tx.set(db.collection('notifications').doc('uname_mig_' + row.uid), {
                 recipientId: row.uid, senderId: 'system', type: 'username_changed', icon: '✏️',
-                message: noticeFor(row.next),
+                message: noticeFor(row.next, { sanitized: !!row.sanitized }),
                 targetType: '', targetId: '', read: false, createdAt: FieldValue.serverTimestamp(),
             });
         }
@@ -258,26 +337,75 @@ async function applyOne(db, row, opts) {
     });
 }
 
-// Live (non-history) copies. Best effort, after the user's transaction.
-async function patchLiveCopies(db, row) {
-    const out = { listings: 0, dms: 0, sf: 0 };
-    const listings = await db.collection('marketplace').where('sellerUid', '==', row.uid).get();
-    for (const d of listings.docs) {
-        const x = d.data() || {};
-        if (x.status === 'active' && x.sellerName === row.old) { await d.ref.update({ sellerName: row.next }); out.listings++; }
+// Live (non-history) copies. Each category is isolated so one failure does not
+// skip the others. only limits a retry to categories that are not already ok.
+async function patchLiveCopies(db, row, only) {
+    const want = only || { listings: true, dms: true, sf: true };
+    const out = { listings: 0, dms: 0, sf: 0, status: {} };
+    if (want.listings) {
+        try {
+            const listings = await db.collection('marketplace').where('sellerUid', '==', row.uid).get();
+            for (const d of listings.docs) {
+                const x = d.data() || {};
+                if (x.status === 'active' && x.sellerName === row.old) { await d.ref.update({ sellerName: row.next }); out.listings++; }
+            }
+            out.status.listings = 'ok';
+        } catch (e) {
+            out.status.listings = 'error';
+            logCode('live-copy listings ' + short(row.uid), e);
+        }
     }
-    const dms = await db.collection('dm_conversations').where('participants', 'array-contains', row.uid).get();
-    for (const d of dms.docs) {
-        const pn = (d.data() || {}).participantNames || {};
-        if (pn[row.uid] === row.old) { await d.ref.update({ ['participantNames.' + row.uid]: row.next }); out.dms++; }
+    if (want.dms) {
+        try {
+            const dms = await db.collection('dm_conversations').where('participants', 'array-contains', row.uid).get();
+            for (const d of dms.docs) {
+                const pn = (d.data() || {}).participantNames || {};
+                if (pn[row.uid] === row.old) { await d.ref.update({ ['participantNames.' + row.uid]: row.next }); out.dms++; }
+            }
+            out.status.dms = 'ok';
+        } catch (e) {
+            out.status.dms = 'error';
+            logCode('live-copy dms ' + short(row.uid), e);
+        }
     }
-    const sfRef = db.collection('satoshiFavor').doc('current');
-    const sf = await sfRef.get();
-    if (sf.exists && (sf.data() || {}).lowestHashThisWindowUid === row.uid && sf.data().lowestHashThisWindowUsername === row.old) {
-        await sfRef.update({ lowestHashThisWindowUsername: row.next }); out.sf++;
+    if (want.sf) {
+        try {
+            const sfRef = db.collection('satoshiFavor').doc('current');
+            const sf = await sfRef.get();
+            if (sf.exists && (sf.data() || {}).lowestHashThisWindowUid === row.uid && sf.data().lowestHashThisWindowUsername === row.old) {
+                await sfRef.update({ lowestHashThisWindowUsername: row.next }); out.sf++;
+            }
+            const sess = await sfRef.collection('session_hashes').doc(row.uid).get();
+            if (sess.exists && (sess.data() || {}).username === row.old) { await sess.ref.update({ username: row.next }); out.sf++; }
+            out.status.sf = 'ok';
+        } catch (e) {
+            out.status.sf = 'error';
+            logCode('live-copy sf ' + short(row.uid), e);
+        }
     }
-    const sess = await sfRef.collection('session_hashes').doc(row.uid).get();
-    if (sess.exists && (sess.data() || {}).username === row.old) { await sess.ref.update({ username: row.next }); out.sf++; }
+    return out;
+}
+
+const PATCH_KEYS = ['listings', 'dms', 'sf'];
+
+async function resumePatches(db, row) {
+    const markRef = db.collection('username_migrations').doc(row.uid);
+    const mark = await markRef.get();
+    const prev = (mark.exists && (mark.data() || {}).patches) || {};
+    const only = {};
+    PATCH_KEYS.forEach(function (key) {
+        if (prev[key] !== 'ok') only[key] = true;
+    });
+    const out = await patchLiveCopies(db, row, only);
+    const patches = {};
+    PATCH_KEYS.forEach(function (key) {
+        patches[key] = out.status[key] || prev[key] || 'pending';
+    });
+    try {
+        await markRef.update({ patches: patches });
+    } catch (e) {
+        logCode('patch-status ' + short(row.uid), e);
+    }
     return out;
 }
 
@@ -292,28 +420,44 @@ function writePrivate(dir, file, body) {
     } finally { process.umask(old); }
 }
 
+function printRows(plan) {
+    plan.forEach(r => console.log([short(r.uid), JSON.stringify(r.old), '->', JSON.stringify(r.next), r.collided ? 'COLLISION' : '', r.sanitized ? 'SANITIZED' : '', r.invalid ? 'INVALID:' + r.invalid : '', (r.notes || []).join('; ')].filter(Boolean).join('  ')));
+}
+
 async function main() {
     const apply = process.argv.includes('--apply');
     const notify = process.argv.includes('--notify');
+    const planPath = assertApplyPlan(process.argv);
     const outDir = argValue('--out') || path.join(process.cwd(), 'username-spaces-private');
     if (!admin.apps.length) admin.initializeApp();
     const db = admin.firestore();
-    const { plan, counts, profileOnly } = await buildPlan(db);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    writePrivate(outDir, 'plan-' + stamp + '.json', JSON.stringify({ counts, profileOnly, plan }, null, 2));
+    if (!apply) {
+        const { plan, counts, profileOnly } = await buildPlan(db);
+        const doc = planDocument(counts, profileOnly, plan);
+        writePrivate(outDir, 'plan-' + stamp + '.json', JSON.stringify(doc, null, 2));
+        const summary = {
+            mode: 'dry-run', ...counts,
+            collisions: plan.filter(r => r.collided).length,
+            invalid: plan.filter(r => r.invalid).length,
+            sanitized: plan.filter(r => r.sanitized).length,
+            sha256: doc.sha256,
+        };
+        console.log(JSON.stringify(summary));
+        printRows(plan);
+        return;
+    }
+    const reviewed = loadReviewedPlan(JSON.parse(fs.readFileSync(planPath, 'utf8')));
     const summary = {
-        mode: apply ? 'apply' : 'dry-run', ...counts,
-        collisions: plan.filter(r => r.collided).length,
-        invalid: plan.filter(r => r.invalid).length,
-        sanitized: plan.filter(r => r.sanitized).length,
+        mode: 'apply',
+        rows: reviewed.length,
+        sanitized: reviewed.filter(r => r.sanitized).length,
     };
     console.log(JSON.stringify(summary));
-    plan.forEach(r => console.log([short(r.uid), JSON.stringify(r.old), '->', JSON.stringify(r.next), r.collided ? 'COLLISION' : '', r.sanitized ? 'SANITIZED' : '', r.invalid ? 'INVALID:' + r.invalid : '', r.notes.join('; ')].filter(Boolean).join('  ')));
-    if (!apply) return;
-    if (summary.invalid) throw new Error('invalid names in plan; fix before --apply');
-    // Backup of the old values, written before any write.
+    printRows(reviewed);
+    // Backup of the old values, written before any write. Names stay the reviewed ones.
     const backup = [];
-    for (const r of plan) {
+    for (const r of reviewed) {
         const u = await db.collection('users').doc(r.uid).get();
         const p = await db.collection('public_profiles').doc(r.uid).get();
         const ud = u.data() || {}, pd = p.data() || {};
@@ -321,21 +465,29 @@ async function main() {
             public_profiles: p.exists ? { username: pd.username, username_lower: pd.username_lower } : null, plannedTo: r.next });
     }
     writePrivate(outDir, 'backup-' + stamp + '.json', JSON.stringify(backup, null, 2));
-    const tally = { ok: 0, already: 0, changed: 0, conflict: 0, gone: 0, error: 0, listings: 0, dms: 0, sf: 0 };
-    for (const r of plan) {
+    const tally = { ok: 0, already: 0, changed: 0, conflict: 0, marker: 0, gone: 0, error: 0, listings: 0, dms: 0, sf: 0 };
+    for (const r of reviewed) {
         let res;
-        try { res = await applyOne(db, r, { notify }); } catch (e) { res = 'error'; console.error('fail', short(r.uid), e.code || e.message); }
+        try { res = await applyOne(db, r, { notify }); } catch (e) { res = 'error'; logCode('fail ' + short(r.uid), e); }
         tally[res] = (tally[res] || 0) + 1;
-        if (res === 'ok') {
-            try { const c = await patchLiveCopies(db, r); tally.listings += c.listings; tally.dms += c.dms; tally.sf += c.sf; }
-            catch (e) { console.error('live-copy fail', short(r.uid), e.code || e.message); }
+        if (res === 'conflict' || res === 'marker') {
+            console.log([res, short(r.uid), JSON.stringify(r.old), '->', JSON.stringify(r.next), 'skipped'].join('  '));
+        }
+        if (res === 'ok' || res === 'already') {
+            try {
+                const c = await resumePatches(db, r);
+                tally.listings += c.listings; tally.dms += c.dms; tally.sf += c.sf;
+            } catch (e) { logCode('live-copy fail ' + short(r.uid), e); }
         }
     }
     console.log(JSON.stringify({ applied: tally }));
 }
 
-module.exports = { convert, sanitize, withSuffix, HAS_WS, FUTURE_RE, planFromRows, applyOne, noticeFor, patchLiveCopies };
+module.exports = {
+    convert, sanitize, withSuffix, HAS_WS, FUTURE_RE, planFromRows, applyOne, noticeFor, patchLiveCopies,
+    planSha256, planDocument, loadReviewedPlan, assertApplyPlan, resumePatches,
+};
 
 if (require.main === module) {
-    main().then(() => process.exit(0)).catch(e => { console.error('fail', e.code || e.message); process.exit(1); });
+    main().then(() => process.exit(0)).catch(e => { console.error('fail', errCode(e)); process.exit(1); });
 }
