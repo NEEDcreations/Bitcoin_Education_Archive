@@ -1749,9 +1749,12 @@ service cloud.firestore {
       allow read, write: if false; // Cloud Function admin SDK only
     }
 
-    // Server-side daily points tracking (Cloud Function only)
+    // Daily cap counter. The owner may read it so the Today meter and
+    // Notifications earnings stay on the same live snapshot.
+    // Clients cannot write it. Cloud Functions are the only writers.
     match /users/{userId}/daily_points/{docId} {
-      allow read, write: if false;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
     }
 
     // Onboarding evidence (Nacho asked, copied quiz proof). Cloud Function only.

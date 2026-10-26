@@ -367,8 +367,10 @@ const triviaXpStatus = onCall(async (data, context) => {
     const uid = requireUser(context);
     const dayKey = reward.offsetDateKey(Date.now());
     const snap = await db.collection('users').doc(uid).collection('daily_points').doc(dayKey).get();
-    const used = snap.exists ? (Number((snap.data() || {}).total) || 0) : 0;
-    return Object.assign({ day: dayKey }, meterFrom(used, 0));
+    const doc = snap.exists ? (snap.data() || {}) : {};
+    const used = Number(doc.total) || 0;
+    const uncapped = Math.max(0, Math.round(Number(doc.uncapped) || 0));
+    return Object.assign({ day: dayKey, uncappedXp: uncapped }, meterFrom(used, 0));
 });
 
 module.exports = {

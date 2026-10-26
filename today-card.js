@@ -265,14 +265,86 @@
     }
 
     var RATE_GUIDE = 'Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap';
+    var EARNINGS_NOTE = 'Includes XP from activities without a notification';
+    var SIGN_IN_XP = "Sign in to see today's XP";
+
+    // Same 5 AM UTC boundary as functions/src/offsetDay.js and getDailyKey().
+    function offsetDay(ms) {
+        var n = Number(ms);
+        if (!isFinite(n)) n = Date.now();
+        return new Date(n - 5 * 3600000).toISOString().slice(0, 10);
+    }
 
     function meterNumber(snap) {
-        var raw = snap.dailyXp != null ? snap.dailyXp : snap.dailyQuizXp;
+        var raw = snap && snap.dailyXp != null ? snap.dailyXp : (snap && snap.dailyQuizXp);
         var n = Math.round(Number(raw) || 0);
         if (!isFinite(n) || n < 0) n = 0;
         if (n > 1000) n = 1000;
         return n;
     }
+
+    // XP the server recorded outside the daily cap (certifications when they bypass it).
+    // The cap counter itself never includes this amount.
+    function uncappedNumber(raw) {
+        var n = Math.round(Number(raw) || 0);
+        if (!isFinite(n) || n < 0) n = 0;
+        if (n > 10000000) n = 10000000;
+        return n;
+    }
+
+    function comma(n) {
+        var s = String(Math.max(0, Math.round(Number(n) || 0)));
+        return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function sumLogForDay(log, day) {
+        var sum = 0;
+        if (!day || !log || !log.length) return 0;
+        for (var i = 0; i < log.length; i++) {
+            var entry = log[i];
+            if (!entry || entry.ts == null) continue;
+            if (offsetDay(entry.ts) !== day) continue;
+            var pts = Math.round(Number(entry.pts) || 0);
+            if (pts > 0) sum += pts;
+        }
+        return sum;
+    }
+
+    // One display model for the Today meter and Notifications → Today's earnings.
+    // `used` is users/{uid}/daily_points/{offsetDay}.total, clamped to the cap.
+    window._dailyXpFigures = function (snap, log) {
+        snap = snap || {};
+        var signed = snap.signedIn === true;
+        var loaded = signed && snap.loaded === true;
+        var used = loaded ? meterNumber(snap) : 0;
+        var uncapped = loaded ? uncappedNumber(snap.uncappedXp) : 0;
+        var day = loaded ? (snap.day || offsetDay(Date.now())) : '';
+        var suffix = uncapped > 0 ? ' (+' + comma(uncapped) + ' uncapped)' : '';
+        var meterLine = SIGN_IN_XP;
+        var earningsAmount = SIGN_IN_XP;
+        var note = '';
+        var sum = 0;
+        if (signed && !loaded) {
+            meterLine = '…';
+            earningsAmount = '…';
+        } else if (loaded) {
+            meterLine = used.toLocaleString() + '/1000 XP today' + suffix;
+            earningsAmount = '+' + used.toLocaleString() + ' XP' + suffix;
+            sum = sumLogForDay(log, day);
+            if (sum !== used) note = EARNINGS_NOTE;
+        }
+        return {
+            signedIn: signed,
+            loaded: loaded,
+            used: used,
+            uncapped: uncapped,
+            day: day,
+            meterLine: meterLine,
+            earningsAmount: earningsAmount,
+            note: note,
+            sum: sum
+        };
+    };
 
     function describeMeter(line) {
         var meter = document.getElementById('dailyXpMeter');
@@ -284,45 +356,191 @@
         if (track) track.setAttribute('title', label);
     }
 
-    window._paintDailyXpMeter = function (snap) {
-        var text = document.getElementById('dailyXpMeterText');
-        var fill = document.getElementById('dailyXpMeterFill');
-        if (!text || !fill) return;
-        var signed = snap && snap.signedIn !== false && (snap.signedIn === true || signedIn());
-        if (!signed) {
-            var signedOut = "Sign in to see today's XP";
-            text.textContent = signedOut;
-            fill.style.width = '0%';
-            describeMeter(signedOut);
-            return;
+    var dailyListeners = [];
+    var heldUncapped = 0;
+    var heldDay = '';
+    var dailyWatchId = '';
+    var dailyUnsub = null;
+    var dailyLive = false;
+    var dailyListenDenied = false;
+    var dailyFetch = null;
+
+    function emitDailyXp() {
+        var snap = window._serverDailyXp;
+        for (var i = 0; i < dailyListeners.length; i++) {
+            try { dailyListeners[i](snap); } catch (e) {}
         }
-        var used = meterNumber(snap || {});
-        var line = used.toLocaleString() + '/1000 XP today';
-        text.textContent = line;
-        fill.style.width = (used / 10) + '%';
-        describeMeter(line);
+    }
+
+    window._subscribeDailyXp = function (fn) {
+        if (typeof fn !== 'function') return function () {};
+        dailyListeners.push(fn);
+        if (window._serverDailyXp) {
+            try { fn(window._serverDailyXp); } catch (e) {}
+        }
+        return function () {
+            var at = dailyListeners.indexOf(fn);
+            if (at >= 0) dailyListeners.splice(at, 1);
+        };
     };
 
-    function loadDailyXpMeter() {
-        if (!signedIn()) {
-            window._paintDailyXpMeter({ signedIn: false });
+    function paintMeter(snap) {
+        var text = document.getElementById('dailyXpMeterText');
+        var fill = document.getElementById('dailyXpMeterFill');
+        var figs = window._dailyXpFigures(snap, null);
+        if (!text || !fill) return figs;
+        text.textContent = figs.meterLine;
+        fill.style.width = (figs.loaded ? (figs.used / 10) : 0) + '%';
+        describeMeter(figs.meterLine);
+        return figs;
+    }
+
+    // Display cache only. Nothing here writes users/{uid}/daily_points.
+    function publishDailyXp(snap) {
+        snap = snap || {};
+        if (snap.signedIn === false) {
+            heldUncapped = 0;
+            heldDay = '';
+            dailyLive = false;
+            window._serverDailyXp = {
+                signedIn: false,
+                loaded: false,
+                dailyXp: 0,
+                uncappedXp: 0,
+                day: '',
+                dailyCap: 1000
+            };
+            paintMeter(window._serverDailyXp);
+            emitDailyXp();
             return;
         }
-        if (window._serverDailyXp) {
-            window._paintDailyXpMeter(Object.assign({ signedIn: true }, window._serverDailyXp));
-        } else {
-            window._paintDailyXpMeter({ signedIn: true, dailyXp: 0 });
+        if (snap.uncappedXp != null || snap.uncapped != null) {
+            heldUncapped = uncappedNumber(snap.uncappedXp != null ? snap.uncappedXp : snap.uncapped);
         }
+        if (snap.day) heldDay = String(snap.day);
+        var loaded = snap.loaded !== false;
+        var used = loaded ? meterNumber(snap) : 0;
+        window._serverDailyXp = {
+            signedIn: true,
+            loaded: loaded,
+            dailyXp: used,
+            uncappedXp: loaded ? heldUncapped : 0,
+            day: loaded ? (heldDay || offsetDay(Date.now())) : (heldDay || ''),
+            dailyCap: snap.dailyCap || 1000,
+            fullUntil: snap.fullUntil || 500,
+            halfUntil: snap.halfUntil || 900,
+            pastCap: loaded && used >= 1000
+        };
+        paintMeter(window._serverDailyXp);
+        emitDailyXp();
+    }
+
+    window._paintDailyXpMeter = function (snap) {
+        if (!snap || snap.signedIn === false) {
+            publishDailyXp({ signedIn: false });
+            return;
+        }
+        publishDailyXp(Object.assign({ signedIn: true, loaded: snap.loaded !== false }, snap));
+    };
+
+    function stopDailyWatch() {
+        if (dailyUnsub) {
+            try { dailyUnsub(); } catch (e) {}
+            dailyUnsub = null;
+        }
+        dailyWatchId = '';
+        dailyLive = false;
+        dailyListenDenied = false;
+    }
+
+    function fetchDailyXpStatus() {
+        if (dailyFetch || dailyLive) return;
         try {
             if (typeof firebase === 'undefined' || !firebase.functions) return;
             var callable = firebase.functions().httpsCallable('triviaXpStatus');
-            callable({}).then(function (res) {
+            dailyFetch = callable({}).then(function (res) {
+                dailyFetch = null;
+                if (dailyLive) return;
                 var data = (res && res.data) || {};
-                window._serverDailyXp = data;
-                window._paintDailyXpMeter(Object.assign({ signedIn: true }, data));
-            }).catch(function () {});
-        } catch (e) {}
+                publishDailyXp({
+                    signedIn: true,
+                    loaded: true,
+                    dailyXp: data.dailyXp,
+                    uncappedXp: data.uncappedXp,
+                    day: data.day,
+                    dailyCap: data.dailyCap,
+                    fullUntil: data.fullUntil,
+                    halfUntil: data.halfUntil,
+                    pastCap: data.pastCap
+                });
+            }).catch(function () { dailyFetch = null; });
+        } catch (e) {
+            dailyFetch = null;
+        }
     }
+
+    // Live read of the cap counter. Writes stay denied in firestore.rules.
+    function watchDailyXp() {
+        if (window._todayStubUser) return;
+        var uid = flexUid();
+        var canRead = uid && typeof db !== 'undefined' && db && typeof firebase !== 'undefined' && firebase.firestore;
+        if (!canRead || dailyListenDenied) return;
+        var day = todayKey();
+        var id = uid + '/' + day;
+        if (dailyWatchId === id && dailyUnsub) return;
+        if (dailyUnsub) {
+            try { dailyUnsub(); } catch (e2) {}
+            dailyUnsub = null;
+        }
+        dailyLive = false;
+        dailyWatchId = id;
+        try {
+            dailyUnsub = db.collection('users').doc(uid).collection('daily_points').doc(day).onSnapshot(function (snap) {
+                if (dailyWatchId !== id) return;
+                var data = {};
+                if (snap && snap.exists && typeof snap.data === 'function') data = snap.data() || {};
+                dailyLive = true;
+                publishDailyXp({
+                    signedIn: true,
+                    loaded: true,
+                    dailyXp: data.total,
+                    uncappedXp: data.uncapped || 0,
+                    day: day
+                });
+            }, function (err) {
+                if (dailyWatchId === id) {
+                    dailyUnsub = null;
+                    dailyWatchId = '';
+                    dailyLive = false;
+                }
+                var code = err && err.code ? String(err.code) : '';
+                if (code.indexOf('permission') !== -1) dailyListenDenied = true;
+                fetchDailyXpStatus();
+            });
+        } catch (e3) {
+            dailyWatchId = '';
+            dailyLive = false;
+            fetchDailyXpStatus();
+        }
+    }
+
+    function loadDailyXpMeter() {
+        if (!signedIn()) {
+            stopDailyWatch();
+            window._paintDailyXpMeter({ signedIn: false });
+            return;
+        }
+        watchDailyXp();
+        if (window._serverDailyXp && window._serverDailyXp.loaded && window._serverDailyXp.signedIn && window._serverDailyXp.day === todayKey()) {
+            window._paintDailyXpMeter(window._serverDailyXp);
+            if (!dailyLive) fetchDailyXpStatus();
+            return;
+        }
+        window._paintDailyXpMeter({ signedIn: true, loaded: false, dailyXp: 0 });
+        fetchDailyXpStatus();
+    }
+
+    window._ensureDailyXp = loadDailyXpMeter;
 
     window._paintTodayCard = function () {
         var q = quizDone();
