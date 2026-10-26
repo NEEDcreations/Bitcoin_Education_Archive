@@ -78,12 +78,13 @@ function valueFor(field) {
         const password = { firebase: { sign_in_provider: 'password' } };
         const user = env.authenticatedContext('user1', password).firestore();
         await env.withSecurityRulesDisabled(async function (ctx) {
-            await setDoc(doc(ctx.firestore(), 'users', 'user1'), {
+            const adminDb = ctx.firestore();
+            await setDoc(doc(adminDb, 'users', 'user1'), {
                 username: 'phil',
                 points: 10,
                 pendingLeaderboardReward: { xp: 5 },
             });
-            await setDoc(doc(ctx.firestore(), 'users', 'user2'), { username: 'ada', points: 0 });
+            await setDoc(doc(adminDb, 'users', 'user2'), { username: 'ada', points: 0 });
         });
         const ref = doc(user, 'users', 'user1');
         const fresh = doc(env.authenticatedContext('user2', password).firestore(), 'users', 'user2');
