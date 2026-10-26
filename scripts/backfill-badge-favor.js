@@ -32,7 +32,7 @@
 
 const { rewardBlocked } = require('../functions/src/cipherClaim');
 const badgeRules = require('../functions/src/badgeRules');
-const { collectIds } = require('../functions/src/badgeProfile');
+const { collectIds, canonicalBadgeId, awardCountsForBonus } = require('../functions/src/badgeProfile');
 
 const SERVER_LIST_FIELDS = ['badges', 'visibleBadges', 'donationBadges'];
 const HIDDEN_LIST_FIELDS = ['hiddenBadges'];
@@ -103,8 +103,9 @@ function classifyHeld(input) {
     const hidden = new Set();
     const client = new Set();
     const awards = new Set();
+    const excluded = { 'client-writable-field': 0, 'not-in-catalog': 0, 'hidden-only': 0, 'unbacked-legacy': 0 };
     collectIds(user, SERVER_LIST_FIELDS, []).forEach(function (id) {
-        const clean = keyPart(id);
+        const clean = canonicalBadgeId(id);
         if (clean) server.add(clean);
     });
     collectIds(user, HIDDEN_LIST_FIELDS, []).forEach(function (id) {
@@ -116,10 +117,17 @@ function classifyHeld(input) {
         if (clean) client.add(clean);
     });
     (src.awardIds || []).forEach(function (id) {
-        const clean = keyPart(id);
-        if (clean) awards.add(clean);
+        const clean = canonicalBadgeId(id);
+        if (!clean) return;
+        if (src.awardById) {
+            const award = src.awardById[clean] || src.awardById[id] || null;
+            if (!award || !awardCountsForBonus(user, clean, award)) {
+                if (award && award.source === 'legacy') excluded['unbacked-legacy'] += 1;
+                return;
+            }
+        }
+        awards.add(clean);
     });
-    const excluded = { 'client-writable-field': 0, 'not-in-catalog': 0, 'hidden-only': 0 };
     const credit = [];
     const seen = {};
     function consider(id) {
@@ -201,7 +209,7 @@ async function main() {
         missing: 0,
         written: 0,
         byFaction: { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 },
-        excluded: { 'client-writable-field': 0, 'not-in-catalog': 0, 'hidden-only': 0 },
+        excluded: { 'client-writable-field': 0, 'not-in-catalog': 0, 'hidden-only': 0, 'unbacked-legacy': 0 },
     };
     let cursor = null;
     let batch = db.batch();
@@ -231,13 +239,19 @@ async function main() {
                 continue;
             }
             const awards = await userDoc.ref.collection('badge_awards').get();
+            const awardById = {};
+            awards.docs.forEach(function (award) {
+                awardById[award.id] = award.data() || {};
+            });
             const classified = classifyHeld({
                 user: user,
                 awardIds: awards.docs.map(function (award) { return award.id; }),
+                awardById: awardById,
             });
             counts.excluded['client-writable-field'] += classified.excluded['client-writable-field'];
             counts.excluded['not-in-catalog'] += classified.excluded['not-in-catalog'];
             counts.excluded['hidden-only'] += classified.excluded['hidden-only'];
+            counts.excluded['unbacked-legacy'] += classified.excluded['unbacked-legacy'] || 0;
             const contrib = db.collection('satoshiFavor').doc('current').collection('contributors');
             const existing = await contrib
                 .orderBy(admin.firestore.FieldPath.documentId())
@@ -286,6 +300,7 @@ async function main() {
     console.log('excluded client-writable-field: ' + counts.excluded['client-writable-field']);
     console.log('excluded not-in-catalog: ' + counts.excluded['not-in-catalog']);
     console.log('excluded hidden-only: ' + counts.excluded['hidden-only']);
+    console.log('excluded unbacked-legacy: ' + counts.excluded['unbacked-legacy']);
     console.log(JSON.stringify(counts));
 }
 

@@ -50,7 +50,7 @@ const badgeRules = require('../src/badgeRules');
 const progress = require('../src/badgeProgress');
 const { familyFor } = require('../src/grantBadge');
 const { offsetDateKey } = require('../src/offsetDay');
-const { profileBadgeIds, awardCountsForBonus, serverHoldsBadge } = require('../src/badgeProfile');
+const { profileBadgeIds, awardCountsForBonus, serverHoldsBadge, progressAwardIds } = require('../src/badgeProfile');
 const { applyDailyXp } = require('../src/applyDailyXp');
 const badgeXpTable = require('../src/badgeXpTable');
 const rewardNotify = require('../src/rewardNotify');
@@ -200,7 +200,10 @@ function legacyDecision(user, awardIds, profileIds, awardById) {
         if (awards.has(id)) return;
         if (!profile.has(id)) return;
         const rule = badgeRules.ruleFor(id);
-        if (!rule || rule.cosmetic || !badgeRules.meets(rule, user, { awardSet: held })) {
+        if (!rule || rule.cosmetic || !badgeRules.meets(rule, user, {
+            awardSet: held,
+            payingCount: badgeRules.countPaying(held),
+        })) {
             skipped.push(id);
             return;
         }
@@ -764,9 +767,13 @@ async function main() {
             });
             const held = [];
             const counted = [];
+            const awardRows = [];
             Object.keys(awardIds).forEach(function (id) {
                 held.push(id);
-                if (awardCountsForBonus(user, id, awardById[id])) counted.push(id);
+                awardRows.push({ id: id, award: awardById[id] });
+            });
+            progressAwardIds(user, awardRows, { signedIn: true }).forEach(function (id) {
+                if (counted.indexOf(id) === -1) counted.push(id);
             });
             const profileIds = profileBadgeIds(user);
             profileIds.forEach(function (id) {

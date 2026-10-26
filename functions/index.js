@@ -3236,24 +3236,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             pts = xpBoost.points;
 
             if (matchedAction === 'badge_earned' && badgeKnown) {
-                const MILESTONE_BADGE_THRESHOLDS = {
-                    'hall_of_fame':       50,
-                    'the_archive':       100,
-                    'genesis_block':     150,
-                    'satoshis_ghost':    200,
-                    'block_250':         250,
-                    'the_hodler':        300,
-                    'satoshis_covenant': 350,
-                    'satoshis_cipher':   400,
-                };
-                if (MILESTONE_BADGE_THRESHOLDS[badgeId] !== undefined) {
-                    const required = MILESTONE_BADGE_THRESHOLDS[badgeId];
-                    const owned = Array.isArray(userData.visibleBadges) ? userData.visibleBadges.length : 0;
-                    if (owned < required) {
-                        console.warn(`[awardPoints] milestone badge rejected: ${badgeId} needs ${required} badges, user has ${owned} uid=${uid}`);
-                        throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
-                    }
-                }
                 if (badgeId === 'streak_365') {
                     if ((userData.bestStreak || 0) < 365) {
                         console.warn(`[awardPoints] streak_365 rejected: bestStreak=${userData.bestStreak} uid=${uid}`);
@@ -3349,7 +3331,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             // Save the badge even when the daily cap drops the XP.
             if (badgeAwardRef) {
                 t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: action });
-                userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
             const proofAction = matchedAction === 'flex_action' || matchedAction === 'trivia_correct' || matchedAction === 'lq_lesson';
             let progress = null;
@@ -7838,12 +7819,6 @@ exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_a
     const snap = event.data;
     if (!snap) return null;
     const data = snap.data() || {};
-    if (data.source === 'legacy') {
-        const { unbackedLegacyAward } = require('./src/badgeProfile');
-        const userSnap = await db.collection('users').doc(event.params.uid).get();
-        const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
-        if (unbackedLegacyAward(user, event.params.badgeId, data)) return null;
-    }
     try {
         await queueBadgeGg(db, admin, event.params.uid, event.params.badgeId, data, Date.now());
     } catch (e) {

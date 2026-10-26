@@ -1,7 +1,7 @@
 'use strict';
 
 const badgeRules = require('./badgeRules');
-const { serverHoldsBadge, awardCountsForBonus } = require('./badgeProfile');
+const { serverHoldsBadge, progressAwardIds } = require('./badgeProfile');
 
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
@@ -105,10 +105,6 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
     const userSnap = await userRef.get();
     const userExists = !!(userSnap && userSnap.exists);
     const user = userExists ? (userSnap.data() || {}) : {};
-    const countable = new Set();
-    awardRows.forEach(function (row) {
-        if (awardCountsForBonus(user, row.id, { source: row.source })) countable.add(row.id);
-    });
 
     let needFlex = false;
     for (let i = 0; i < pending.length; i++) {
@@ -122,6 +118,14 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
         const countsSnap = await userRef.collection('daily_action_counts').get();
         options.flexClaims = badgeRules.tallyFlexClaims(idsFromSnap(countsSnap));
     }
+    // earned stays the full id set for the already-have-it check above.
+    // countable is what milestones, sets, and collections are allowed to see.
+    const countable = progressAwardIds(user, awardRows.map(function (row) {
+        return { id: row.id, award: { source: row.source } };
+    }), {
+        signedIn: options.signedIn !== false,
+        flexClaims: options.flexClaims || null,
+    });
 
     for (let i = 0; i < pending.length; i++) {
         const badgeId = pending[i].badgeId;

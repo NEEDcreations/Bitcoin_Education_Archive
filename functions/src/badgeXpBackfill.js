@@ -11,7 +11,7 @@ const badgeRules = require('./badgeRules');
 const badgeXp = require('./badgeXpTable');
 const { rewardBlocked } = require('./cipherClaim');
 const { classifyHeld } = require('../../scripts/backfill-badge-favor');
-const { awardCountsForBonus } = require('./badgeProfile');
+const { awardCountsForBonus, progressAwardIds } = require('./badgeProfile');
 const { planLevelFavor, levelNameForPoints } = require('./satoshiFavor');
 
 function legacyZero(award) {
@@ -38,11 +38,17 @@ function alreadyPaid(award, badgeId) {
         const old = badgeXp.oldXpOf(badgeId);
         return old == null ? 0 : old;
     }
+    let paid = 0;
     if (award && Object.prototype.hasOwnProperty.call(award, 'xp') && award.xp != null) {
-        return Number(award.xp) || 0;
+        paid = Number(award.xp) || 0;
+    } else {
+        const old = badgeXp.oldXpOf(badgeId);
+        paid = old == null ? 0 : old;
     }
-    const old = badgeXp.oldXpOf(badgeId);
-    return old == null ? 0 : old;
+    // A hidden-only grant stores the old table amount (or the settled catalog
+    // amount, in zero mode) so a later top-up does not pay that XP again.
+    if (award && award.priorXp != null) paid += Number(award.priorXp) || 0;
+    return paid;
 }
 
 function newXpFor(rule) {
@@ -68,15 +74,18 @@ function planUserBadges(input) {
             excluded: { 'hidden-only': 0, 'client-writable-field': 0, 'not-in-catalog': 0 },
         };
     }
-    const classified = classifyHeld({ user: user, awardIds: src.awardIds || [] });
     const awardById = src.awardById || {};
-    const awardSet = new Set();
-    (src.awardIds || []).forEach(function (id) {
-        if (!awardCountsForBonus(user, id, awardById[id])) return;
-        awardSet.add(id);
+    const classified = classifyHeld({
+        user: user,
+        awardIds: src.awardIds || [],
+        awardById: src.awardById ? awardById : null,
     });
-    const payingCount = badgeRules.countPaying(awardSet);
     const flexClaims = badgeRules.tallyFlexClaims(src.flexClaimIds || []);
+    const awardRows = (src.awardIds || []).map(function (id) {
+        return { id: id, award: awardById[id] || {} };
+    });
+    const awardSet = progressAwardIds(user, awardRows, { signedIn: true, flexClaims: flexClaims });
+    const payingCount = badgeRules.countPaying(awardSet);
     const markers = {};
     (src.markerIds || []).forEach(function (id) { markers[id] = true; });
     const credited = {};
@@ -89,6 +98,7 @@ function planUserBadges(input) {
         const rule = badgeRules.ruleFor(id);
         if (!rule) return;
         const award = awardById[id] || null;
+        if (award && !awardCountsForBonus(user, id, award)) return;
         if (rule.cosmetic && !award) return;
         if (!rule.cosmetic && !badgeRules.meets(rule, user, {
             awardSet: awardSet,
