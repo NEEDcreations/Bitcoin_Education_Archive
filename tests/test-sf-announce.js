@@ -108,7 +108,9 @@ function memoryDb(seed) {
                     const copy = {};
                     Object.keys(w.data || {}).forEach(function (key) {
                         const value = w.data[key];
-                        copy[key] = Array.isArray(value) ? value.map(function (item) { return Object.assign({}, item); }) : value;
+                        copy[key] = Array.isArray(value) ? value.map(function (item) {
+                            return (item && typeof item === 'object') ? Object.assign({}, item) : item;
+                        }) : value;
                     });
                     docs[w.path] = copy;
                 });
@@ -204,6 +206,9 @@ queue.push(test('badges in one 60s burst become one GGs post', async function ()
     assert.strictEqual(flushed[0].text, '🏅 @Pat earned 12 flex badges (+12 SF points)');
     const annId = badgeGg.announcementId('pat', start);
     assert.strictEqual(db.docs['announcements/' + annId].text, flushed[0].text);
+    assert.deepStrictEqual(db.docs['announcements/' + annId].badgeIds, ids);
+    assert.strictEqual(db.docs['announcements/' + annId].text.indexOf('<'), -1);
+    assert.strictEqual(db.docs['announcements/' + annId].postedByUid, 'badge-gg');
     assert.strictEqual(db.docs['announcements/' + annId].mentionUid, 'pat');
     assert.strictEqual(db.docs['announcements/' + annId].uid, 'nacho-bot');
     assert.ok(flushed[0].text.indexOf('pat') === -1);
@@ -392,7 +397,9 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));
+    assert.ok(notes.includes('Latest: Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.'));
+    assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));
+    assert.ok(!notes.includes('Latest: The Invite'));
     assert.ok(notes.includes('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
     assert.ok(!notes.includes('Latest: The daily XP bar'));
     assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
