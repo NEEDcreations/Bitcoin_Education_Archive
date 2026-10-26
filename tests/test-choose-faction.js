@@ -377,8 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
-    assert.ok(notes.indexOf('Latest: Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.') > 0);
+    assert.ok(notes.indexOf("Latest: The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 
