@@ -636,6 +636,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(html.includes('ranking.js?v=20261026_v2401'));
+    assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
@@ -669,7 +671,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2366'));
     assert.ok(!swText.includes('btc-archive-v2365'));
     assert.ok(!swText.includes('btc-archive-v2364'));
-    assert.ok(!swText.includes('btc-archive-v2363'));
+    assert.ok(!swText.includes('btc-archive-v2372'));
+    assert.ok(!swText.includes('btc-archive-v2368'));
     assert.ok(!swText.includes('btc-archive-v2362'));
     assert.ok(!swText.includes('btc-archive-v2361'));
     assert.ok(!swText.includes('btc-archive-v2360'));

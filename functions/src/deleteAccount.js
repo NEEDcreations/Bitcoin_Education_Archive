@@ -97,6 +97,8 @@ const USER_SUBCOLLECTIONS = [
     // Daily article counters live on the profile. They are not the anti-replay
     // lock. article_xp stays, with the account id cleared.
     'article_publish_days',
+    'cert_bonuses',
+    'xp_ledger',
 ];
 
 // Dedupe rows. Removed only after the Auth user is deleted, with the caps.
