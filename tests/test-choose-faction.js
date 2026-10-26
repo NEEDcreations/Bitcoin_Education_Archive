@@ -378,6 +378,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf("Latest: Every account has the same 15,000 sat lifetime cap. Learn titles use the channel name, the terms checkbox is part of its label, Satoshi's Favor is one button, and mirrored chat does not ping Telegram names.") > 0);
+    assert.ok(notes.indexOf("Trivia and poll community totals now update the moment you answer and stay live while the results are open.") > 0);
+    assert.ok(notes.indexOf("Latest: Trivia") === -1);
     assert.ok(notes.indexOf("The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.") > 0);
     assert.ok(notes.indexOf("Latest: The daily XP bar") === -1);
     assert.ok(notes.indexOf("On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.") > 0);
