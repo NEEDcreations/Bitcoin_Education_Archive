@@ -4,7 +4,9 @@
 // r2BackupCrypto before it is uploaded. R2 never receives plaintext.
 // Uploads objects are stored once, at uploads/<name>#<generation> (or md5
 // when generation is missing). A small sealed manifest for the night lists
-// them. Dated Firestore, auth, and config keys still expire after 90 days.
+// them, including sha256 for objects streamed on that run. Dated Firestore,
+// auth, and config objects record sha256 in date/manifest.json. Objects are
+// not rewritten to attach a checksum. Dated keys still expire after 90 days.
 // A failed run is recorded as job "r2" on backup_status/latest, which makes
 // latest.ok false. That is the existing failure alert. No email or chat.
 
@@ -16,6 +18,8 @@ const { pipeline } = require('stream/promises');
 
 const DELETE_AFTER_DAYS = 90;
 const OBJECT_TIMEOUT_MS = 10 * 60 * 1000;
+// 25 minutes. The function timeout is 1800 seconds. Each object waits at
+// most the time left before this budget, so a late object cannot run past it.
 const COPY_BUDGET_MS = 25 * 60 * 1000;
 const PROJECT_ID = 'bitcoin-education-archive';
 const FIRESTORE_BACKUP_BUCKET = 'bitcoin-education-archive-backups';
@@ -146,6 +150,49 @@ function planNight(date, found) {
     return { uploads: uploads, missing: missing, ok: missing.length === 0 };
 }
 
+function stampManifests(date, planned, checksums) {
+    const sums = checksums || {};
+    const objects = [];
+    const manifests = [];
+    const list = planned || [];
+    for (let i = 0; i < list.length; i++) {
+        const item = list[i];
+        if (item.group !== 'manifest') {
+            objects.push(item);
+            continue;
+        }
+        const parsed = JSON.parse(Buffer.from(item.body).toString('utf8'));
+        const rows = parsed.objects || [];
+        for (let j = 0; j < rows.length; j++) {
+            const row = rows[j];
+            if (!row || !row.dest) continue;
+            if (sums[row.dest]) row.sha256 = sums[row.dest];
+            else delete row.sha256;
+        }
+        manifests.push({
+            group: 'manifest',
+            name: item.name,
+            dest: item.dest,
+            body: Buffer.from(JSON.stringify(parsed)),
+        });
+    }
+    const nightly = [];
+    for (let i = 0; i < objects.length; i++) {
+        const item = objects[i];
+        if (item.group === 'uploads') continue;
+        const row = { group: item.group, name: item.name, dest: item.dest };
+        if (sums[item.dest]) row.sha256 = sums[item.dest];
+        nightly.push(row);
+    }
+    manifests.push({
+        group: 'manifest',
+        name: date + '/manifest.json',
+        dest: date + '/manifest.json',
+        body: Buffer.from(JSON.stringify({ date: date, objects: nightly })),
+    });
+    return { objects: objects, manifests: manifests };
+}
+
 function keysOlderThan(keys, today, days) {
     const cutoff = health.addUtcDays(today, -(days || DELETE_AFTER_DAYS));
     const old = [];
@@ -188,16 +235,31 @@ function hashStream() {
     return { hasher: hasher, digest: function () { return hash.digest('hex'); } };
 }
 
+function mergeCopy(base, extra) {
+    const failed = (base.failedGroups || []).slice();
+    const more = extra && extra.failedGroups ? extra.failedGroups : [];
+    for (let i = 0; i < more.length; i++) {
+        if (failed.indexOf(more[i]) === -1) failed.push(more[i]);
+    }
+    return {
+        objectCount: (base.objectCount || 0) + (extra && extra.objectCount ? extra.objectCount : 0),
+        bytes: (base.bytes || 0) + (extra && extra.bytes ? extra.bytes : 0),
+        failedGroups: failed,
+        checksums: Object.assign({}, base.checksums, extra && extra.checksums),
+    };
+}
+
 async function copyPlanned(opts) {
     const planned = opts.planned || [];
     const encKey = opts.encKey;
-    const timeoutMs = opts.objectTimeoutMs || OBJECT_TIMEOUT_MS;
+    const capMs = opts.objectTimeoutMs || OBJECT_TIMEOUT_MS;
     let objectCount = 0;
     let bytes = 0;
     const failedGroups = [];
+    const checksums = {};
     for (let i = 0; i < planned.length; i++) {
         const item = planned[i];
-        if (opts.deadlineMs && Date.now() > opts.deadlineMs) {
+        if (opts.deadlineMs && Date.now() >= opts.deadlineMs) {
             if (failedGroups.indexOf(item.group) === -1) failedGroups.push(item.group);
             continue;
         }
@@ -225,6 +287,17 @@ async function copyPlanned(opts) {
                 if (!body.destroyed) body.destroy(err);
                 if (source && typeof source.destroy === 'function' && !source.destroyed) source.destroy(err);
             });
+            let waitMs = capMs;
+            if (opts.deadlineMs) {
+                const remaining = opts.deadlineMs - Date.now();
+                if (remaining <= 0) {
+                    const err = new Error('r2 copy budget exhausted');
+                    if (!body.destroyed) body.destroy(err);
+                    if (source && typeof source.destroy === 'function' && !source.destroyed) source.destroy(err);
+                    throw err;
+                }
+                waitMs = Math.min(capMs, remaining);
+            }
             let timer;
             const timeout = new Promise(function (_, reject) {
                 timer = setTimeout(function () {
@@ -232,7 +305,7 @@ async function copyPlanned(opts) {
                     if (!body.destroyed) body.destroy(err);
                     if (source && typeof source.destroy === 'function' && !source.destroyed) source.destroy(err);
                     reject(err);
-                }, timeoutMs);
+                }, waitMs);
             });
             const both = Promise.all([
                 pipeline(source, hashed.hasher, sealed, body),
@@ -241,14 +314,7 @@ async function copyPlanned(opts) {
             both.catch(function () {});
             try {
                 const stored = (await Promise.race([both, timeout]))[1];
-                const sha256 = hashed.digest();
-                if (typeof opts.tagObject === 'function') {
-                    try {
-                        await opts.tagObject(item.dest, { kid: kid, sha256: sha256 });
-                    } catch (tagErr) {
-                        console.error('[r2-backup]', item.group, 'checksum', safeDetail(tagErr));
-                    }
-                }
+                checksums[item.dest] = hashed.digest();
                 objectCount++;
                 bytes += Number(stored) || 0;
             } finally {
@@ -259,7 +325,7 @@ async function copyPlanned(opts) {
             if (failedGroups.indexOf(item.group) === -1) failedGroups.push(item.group);
         }
     }
-    return { objectCount: objectCount, bytes: bytes, failedGroups: failedGroups };
+    return { objectCount: objectCount, bytes: bytes, failedGroups: failedGroups, checksums: checksums };
 }
 
 function summarize(plan, copied) {
@@ -299,7 +365,7 @@ function r2Endpoint(accountId) {
 }
 
 function makeClient(opts) {
-    const { S3Client, HeadObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand } = require('@aws-sdk/client-s3');
+    const { S3Client, HeadObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
     const { Upload } = require('@aws-sdk/lib-storage');
     const account = r2Endpoint(opts.accountId);
     const accessKeyId = requireLabel(opts.accessKeyId, 'R2 access key');
@@ -320,7 +386,6 @@ function makeClient(opts) {
         ListObjectsV2Command: ListObjectsV2Command,
         DeleteObjectsCommand: DeleteObjectsCommand,
         GetObjectCommand: GetObjectCommand,
-        CopyObjectCommand: CopyObjectCommand,
         Upload: Upload,
     };
 }
@@ -395,16 +460,15 @@ async function copyToday(opts) {
         config: FIRESTORE_BACKUP_BUCKET,
         uploads: UPLOADS_BACKUP_BUCKET,
     };
-    const copied = await copyPlanned({
+    const deadlineMs = opts.deadlineMs || (Date.now() + COPY_BUDGET_MS);
+    const copyOpts = {
         encKey: encKey,
-        planned: plan.uploads,
-        deadlineMs: opts.deadlineMs || (Date.now() + COPY_BUDGET_MS),
+        deadlineMs: deadlineMs,
         objectTimeoutMs: opts.objectTimeoutMs,
         headObject: async function (key) {
             try {
                 const head = await made.client.send(new made.HeadObjectCommand({ Bucket: made.bucket, Key: key }));
-                const meta = head.Metadata || {};
-                return { exists: true, bytes: Number(head.ContentLength) || 0, sha256: meta.sha256 || '' };
+                return { exists: true, bytes: Number(head.ContentLength) || 0 };
             } catch (err) {
                 if (notFound(err)) return { exists: false, bytes: 0 };
                 throw err;
@@ -428,18 +492,12 @@ async function copyToday(opts) {
             const head = await made.client.send(new made.HeadObjectCommand({ Bucket: made.bucket, Key: key }));
             return Number(head.ContentLength) || 0;
         },
-        tagObject: async function (key, meta) {
-            const encoded = encodeURIComponent(key).replace(/%2F/g, '/');
-            await made.client.send(new made.CopyObjectCommand({
-                Bucket: made.bucket,
-                Key: key,
-                CopySource: made.bucket + '/' + encoded,
-                MetadataDirective: 'REPLACE',
-                ContentType: 'application/octet-stream',
-                Metadata: { kid: meta.kid || '', sha256: meta.sha256 || '' },
-            }));
-        },
-    });
+    };
+    const split = stampManifests(date, plan.uploads, {});
+    const copiedObjects = await copyPlanned(Object.assign({}, copyOpts, { planned: split.objects }));
+    const stamped = stampManifests(date, plan.uploads, copiedObjects.checksums);
+    const copiedManifests = await copyPlanned(Object.assign({}, copyOpts, { planned: stamped.manifests }));
+    const copied = mergeCopy(copiedObjects, copiedManifests);
     const deleted = await deleteOldObjects(made, date, encKey, {
         skipUploads: (copied.failedGroups || []).indexOf('manifest') !== -1,
     });
@@ -483,33 +541,40 @@ async function deleteOldObjects(made, today, encKey, flags) {
         } while (token);
         const dated = keysOlderThan(keys, today, DELETE_AFTER_DAYS);
         let uploadsDrop = [];
-        let manifestError = false;
         if (!skipUploads) {
             const cutoff = health.addUtcDays(today, -DELETE_AFTER_DAYS);
-            const referenced = [];
+            const recent = [];
             for (let i = 0; i < keys.length; i++) {
-                const key = keys[i];
-                const match = /^(\d{4}-\d{2}-\d{2})\/uploads-manifest\.json$/.exec(key);
-                if (!match || match[1] < cutoff) continue;
-                try {
-                    const obj = await made.client.send(new made.GetObjectCommand({ Bucket: made.bucket, Key: key }));
-                    const plain = seal.decryptBuffer(await readBody(obj.Body), encKey, key);
-                    const parsed = JSON.parse(plain.toString('utf8'));
-                    const objects = parsed.objects || [];
-                    for (let j = 0; j < objects.length; j++) {
-                        if (objects[j] && objects[j].dest) referenced.push(objects[j].dest);
-                    }
-                } catch (err) {
-                    console.error('[r2-backup] manifest', safeDetail(err));
-                    manifestError = true;
-                    break;
-                }
+                const match = /^(\d{4}-\d{2}-\d{2})\/uploads-manifest\.json$/.exec(keys[i]);
+                if (match && match[1] >= cutoff) recent.push(keys[i]);
             }
-            if (!manifestError) uploadsDrop = unreferencedUploads(keys, referenced);
+            if (!recent.length) {
+                console.error('[r2-backup] manifest missing; skipping uploads cleanup');
+            } else {
+                let manifestProblem = false;
+                const referenced = [];
+                for (let i = 0; i < recent.length; i++) {
+                    const key = recent[i];
+                    try {
+                        const obj = await made.client.send(new made.GetObjectCommand({ Bucket: made.bucket, Key: key }));
+                        const plain = seal.decryptBuffer(await readBody(obj.Body), encKey, key);
+                        const parsed = JSON.parse(plain.toString('utf8'));
+                        const objects = parsed.objects || [];
+                        for (let j = 0; j < objects.length; j++) {
+                            if (objects[j] && objects[j].dest) referenced.push(objects[j].dest);
+                        }
+                    } catch (err) {
+                        console.error('[r2-backup] manifest unreadable; skipping uploads cleanup', safeDetail(err));
+                        manifestProblem = true;
+                        break;
+                    }
+                }
+                if (!manifestProblem) uploadsDrop = unreferencedUploads(keys, referenced);
+            }
         }
         const drop = dated.concat(uploadsDrop);
         const batchError = await deleteBatches(made, drop);
-        return { count: batchError ? 0 : drop.length, error: manifestError || batchError };
+        return { count: batchError ? 0 : drop.length, error: !!batchError };
     } catch (err) {
         console.error('[r2-backup] delete', safeDetail(err));
         return { count: 0, error: true };
@@ -557,10 +622,12 @@ module.exports = {
     destKey,
     uploadsObjectKey,
     planNight,
+    stampManifests,
     keysOlderThan,
     unreferencedUploads,
     copyPlanned,
     summarize,
+    deleteOldObjects,
     copyToday,
     runNightlyR2Copy,
     r2Endpoint,

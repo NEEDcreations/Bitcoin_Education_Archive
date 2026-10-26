@@ -170,6 +170,37 @@ test('the night plan requires every backup and names ciphertext keys', function 
     );
 });
 
+test('incremental uploads copy keys a changed generation as a new object', function () {
+    assert.strictEqual(r2.uploadsObjectKey({ name: 'beats/a.mp3', generation: '17' }), 'uploads/beats/a.mp3#17');
+    assert.strictEqual(r2.uploadsObjectKey({ name: 'beats/a.mp3', generation: '18' }), 'uploads/beats/a.mp3#18');
+    const date = '2026-10-24';
+    const found = completeFound(date);
+    found.uploads = [{ name: 'beats/a.mp3', generation: '18', md5: 'def', size: 9 }];
+    const changed = r2.planNight(date, found);
+    assert.ok(changed.uploads.some((item) => item.dest === 'uploads/beats/a.mp3#18'));
+    assert.strictEqual(changed.uploads.some((item) => item.dest === 'uploads/beats/a.mp3#17'), false);
+});
+
+test('sha256 values are written into the manifests and omitted when not computed', function () {
+    const date = '2026-10-24';
+    const plan = r2.planNight(date, completeFound(date));
+    const sums = {};
+    sums['uploads/beats/a.mp3#17'] = 'abc';
+    sums[date + '/firestore/all_namespaces/all_kinds/output-0'] = 'def';
+    const stamped = r2.stampManifests(date, plan.uploads, sums);
+    assert.strictEqual(stamped.objects.some((item) => item.group === 'manifest'), false);
+    const uploadsManifest = stamped.manifests.filter((item) => item.dest === date + '/uploads-manifest.json')[0];
+    const listed = JSON.parse(uploadsManifest.body.toString('utf8'));
+    assert.strictEqual(listed.objects[0].dest, 'uploads/beats/a.mp3#17');
+    assert.strictEqual(listed.objects[0].sha256, 'abc');
+    const nightly = JSON.parse(stamped.manifests.filter((item) => item.dest === date + '/manifest.json')[0].body.toString('utf8'));
+    const firestore = nightly.objects.filter((row) => row.group === 'firestore')[0];
+    const auth = nightly.objects.filter((row) => row.group === 'auth')[0];
+    assert.strictEqual(firestore.sha256, 'def');
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(auth, 'sha256'), false);
+    assert.strictEqual(nightly.objects.some((row) => row.group === 'uploads'), false);
+});
+
 test('objects older than 90 days are deleted and a 90 day old key is kept', function () {
     const today = '2026-10-24';
     const cutoff = health.addUtcDays(today, -90);
@@ -203,7 +234,8 @@ test('nightlyR2Copy is scheduled with the five secrets and the copy account', fu
     const end = index.indexOf('exports.backupHealthCheck');
     assert.ok(start !== -1 && end > start);
     const block = index.slice(start, end);
-    assert.ok(block.indexOf("backupSchedule('45 4 * * *'") !== -1);
+    assert.ok(block.indexOf("backupSchedule('0 4 * * *'") !== -1);
+    assert.strictEqual(block.indexOf('45 4 * * *'), -1);
     assert.ok(block.indexOf("serviceAccount: 'bq-r2-copy@bitcoin-education-archive.iam.gserviceaccount.com'") !== -1);
     assert.ok(block.indexOf('timeoutSeconds: 1800') !== -1);
     assert.ok(block.indexOf("memory: '1GiB'") !== -1);
@@ -220,6 +252,9 @@ test('nightlyR2Copy is scheduled with the five secrets and the copy account', fu
     });
     const offsite = fs.readFileSync(path.join(__dirname, '..', 'functions/src/r2Offsite.js'), 'utf8');
     assert.ok(offsite.indexOf("throw new Error('r2 copy failed')") !== -1);
+    assert.strictEqual(offsite.indexOf('CopyObjectCommand'), -1);
+    assert.strictEqual(offsite.indexOf('MetadataDirective'), -1);
+    assert.ok(offsite.indexOf('COPY_BUDGET_MS') !== -1);
     assert.strictEqual(status.JOB_NAMES.join(','), 'firestore,auth,uploads,config');
 });
 
@@ -278,6 +313,27 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
     assert.ok(out.indexOf('functions:nightlyR2Copy') !== -1);
     assert.strictEqual(out.indexOf('APPLY:'), -1);
     assert.strictEqual(out.indexOf('OWNER:'), -1);
+    assert.ok(out.indexOf('git checkout -q PASTE_COMMIT') !== -1);
+    assert.ok(out.indexOf('04:00 UTC') !== -1);
+    assert.strictEqual(out.indexOf('cursor/nightly-backup-system-d6f0'), -1);
+    const pasteOpen = out.indexOf('{\nP=bitcoin-education-archive');
+    const pasteRead = out.indexOf('read -rsp', pasteOpen);
+    const pasteClose = out.indexOf('\n}\n', pasteRead);
+    assert.ok(pasteOpen !== -1 && pasteRead > pasteOpen && pasteClose > pasteRead);
+    assert.strictEqual(src.indexOf('cursor/nightly-backup-system-d6f0'), -1);
+});
+
+test('bq-backup gets legacyBucketReader and objectAdmin on the uploads backup bucket', function () {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts/backup_infra_setup.sh'), 'utf8');
+    const applyStart = src.indexOf('run_apply() {');
+    const afterApply = src.indexOf('\ngcloud config set project', applyStart);
+    assert.ok(applyStart !== -1 && afterApply > applyStart);
+    const apply = src.slice(applyStart, afterApply);
+    const objectAdmin = apply.indexOf('bind_bucket "${UPLOADS_BACKUP_BUCKET}" "serviceAccount:${BACKUP_SA}" "roles/storage.objectAdmin"');
+    const bucketRead = apply.indexOf('bind_bucket "${UPLOADS_BACKUP_BUCKET}" "serviceAccount:${BACKUP_SA}" "roles/storage.legacyBucketReader"');
+    assert.ok(objectAdmin !== -1, 'objectAdmin bind for bq-backup on uploads-backup');
+    assert.ok(bucketRead !== -1, 'legacyBucketReader bind for bq-backup on uploads-backup');
+    assert.ok(bucketRead > objectAdmin);
 });
 
 (async function () {
@@ -339,12 +395,14 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         const plain = Buffer.from('SENTINEL-plaintext-do-not-store');
         const stored = {};
         const opened = [];
+        let tagged = 0;
         const result = await r2.copyPlanned({
             encKey: key,
             planned: [
                 { group: 'config', name: 'config/d/firestore-rules.json', dest: 'd/config/firestore-rules.json' },
                 { group: 'auth', name: 'auth/d/manifest.json', dest: 'd/auth/manifest.json' },
             ],
+            tagObject: async function () { tagged++; },
             headObject: async function (dest) {
                 if (dest.indexOf('manifest') !== -1) return { exists: true, bytes: 40 };
                 return { exists: false, bytes: 0 };
@@ -376,6 +434,12 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         assert.deepStrictEqual(seal.decryptBuffer(sealed, key, 'd/config/firestore-rules.json'), plain);
         assert.ok(sealed.subarray(5, 5 + seal.KID_LEN).equals(seal.keyId(key)));
         assert.strictEqual(result.bytes, sealed.length + 40);
+        assert.strictEqual(tagged, 0);
+        assert.strictEqual(result.checksums['d/auth/manifest.json'], undefined);
+        assert.strictEqual(
+            result.checksums['d/config/firestore-rules.json'],
+            crypto.createHash('sha256').update(plain).digest('hex')
+        );
     });
 
     await testAsync('a failed copy writes r2 status and throws the generic error', async function () {
@@ -549,7 +613,8 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
     await testAsync('the decrypt script round-trips a sealed object', async function () {
         const key = key32();
         const plain = Buffer.from('round-trip plaintext for the restore script');
-        const blob = await seal.sealBuffer(plain, key);
+        const roundDest = '2026-10-24/firestore/output-0';
+        const blob = await seal.sealBuffer(plain, key, roundDest);
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r2-decrypt-'));
         const file = path.join(dir, 'object.bin');
         const out = path.join(dir, 'restored.bin');
@@ -558,7 +623,7 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         const src = fs.readFileSync(script, 'utf8');
         assert.ok(src.indexOf('process.env.BACKUP_ENCRYPTION_KEY') !== -1);
         assert.ok(!/process\.argv[\s\S]{0,80}BACKUP_ENCRYPTION_KEY/.test(src));
-        const log = execFileSync('node', [script, '--file', file, '--out', out], {
+        const log = execFileSync('node', [script, '--file', file, '--out', out, '--dest', roundDest], {
             encoding: 'utf8',
             env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
         });
@@ -566,11 +631,12 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         assert.strictEqual(fs.statSync(out).mode & 0o777, 0o600);
         assert.strictEqual(log.indexOf(key.toString('base64')), -1);
         assert.strictEqual(log.indexOf(file), -1);
-        const empty = await seal.sealBuffer(Buffer.alloc(0), key);
+        const emptyDest = '2026-10-24/config/empty.json';
+        const empty = await seal.sealBuffer(Buffer.alloc(0), key, emptyDest);
         const emptyFile = path.join(dir, 'empty.bin');
         const emptyOut = path.join(dir, 'empty.out');
         fs.writeFileSync(emptyFile, empty);
-        execFileSync('node', [script, '--file', emptyFile, '--out', emptyOut], {
+        execFileSync('node', [script, '--file', emptyFile, '--out', emptyOut, '--dest', emptyDest], {
             encoding: 'utf8',
             env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
         });
@@ -580,6 +646,30 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         const boundOut = path.join(dir, 'bound.out');
         fs.writeFileSync(boundFile, bound);
         const wrong = key32();
+        let missingDest = '';
+        try {
+            execFileSync('node', [script, '--file', boundFile, '--out', path.join(dir, 'missing-dest.out')], {
+                encoding: 'utf8',
+                env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
+                stdio: ['ignore', 'pipe', 'pipe'],
+            });
+        } catch (e) {
+            missingDest = e.stderr ? e.stderr.toString() : '';
+        }
+        assert.ok(missingDest.indexOf('Pass --dest with the R2 object key. Version 2 seals bind that key.') !== -1);
+        assert.strictEqual(fs.existsSync(path.join(dir, 'missing-dest.out')), false);
+        const iv = crypto.randomBytes(seal.IV_LEN);
+        const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+        const v1data = Buffer.concat([cipher.update(plain), cipher.final()]);
+        const v1 = Buffer.concat([Buffer.from('BQR2'), Buffer.from([seal.VERSION_V1]), iv, v1data, cipher.getAuthTag()]);
+        const v1File = path.join(dir, 'v1.bin');
+        const v1Out = path.join(dir, 'v1.out');
+        fs.writeFileSync(v1File, v1);
+        execFileSync('node', [script, '--file', v1File, '--out', v1Out], {
+            encoding: 'utf8',
+            env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
+        });
+        assert.deepStrictEqual(fs.readFileSync(v1Out), plain);
         execFileSync('node', [script, '--file', boundFile, '--out', boundOut, '--dest', 'uploads/photo.png#17'], {
             encoding: 'utf8',
             env: Object.assign({}, process.env, {
@@ -594,7 +684,7 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
         const badOut = path.join(dir, 'bad.bin');
         let rejected = false;
         try {
-            execFileSync('node', [script, '--file', file, '--out', badOut], {
+            execFileSync('node', [script, '--file', file, '--out', badOut, '--dest', roundDest], {
                 encoding: 'utf8',
                 env: Object.assign({}, process.env, { BACKUP_ENCRYPTION_KEY: key.toString('base64') }),
                 stdio: ['ignore', 'pipe', 'pipe'],
@@ -640,6 +730,200 @@ test('the setup steps name the bucket, the lock, the token, and the secrets', fu
             });
             await new Promise(function (resolve) { setTimeout(resolve, 30); });
             assert.deepStrictEqual(timed.failedGroups, ['config']);
+            assert.strictEqual(rejections.length, 0);
+        } finally {
+            process.off('unhandledRejection', onRejection);
+        }
+    });
+
+    function r2Client(keys, bodies, deleteError) {
+        const deleted = [];
+        function Command(kind) {
+            return class {
+                constructor(input) {
+                    this.input = input;
+                    this.kind = kind;
+                }
+            };
+        }
+        return {
+            deleted: deleted,
+            made: {
+                bucket: 'bq-backup-offsite',
+                ListObjectsV2Command: Command('list'),
+                GetObjectCommand: Command('get'),
+                DeleteObjectsCommand: Command('del'),
+                client: {
+                    send: async function (cmd) {
+                        if (cmd.kind === 'list') {
+                            return {
+                                Contents: keys.map(function (key) { return { Key: key }; }),
+                                IsTruncated: false,
+                            };
+                        }
+                        if (cmd.kind === 'get') {
+                            if (!bodies[cmd.input.Key]) throw new Error('manifest missing');
+                            return { Body: bodies[cmd.input.Key] };
+                        }
+                        const batch = (cmd.input.Delete.Objects || []).map(function (item) { return item.Key; });
+                        deleted.push.apply(deleted, batch);
+                        return deleteError ? { Errors: [{ Key: batch[0] || 'x' }] } : {};
+                    },
+                },
+            },
+        };
+    }
+
+    await testAsync('a missing manifest does not fail the night or delete uploads', async function () {
+        const today = '2026-10-24';
+        const older = health.addUtcDays(health.addUtcDays(today, -90), -1);
+        const client = r2Client([
+            older + '/firestore/a',
+            'uploads/beats/a.mp3#17',
+        ], {}, false);
+        const result = await r2.deleteOldObjects(client.made, today, key32(), {});
+        assert.strictEqual(result.error, false);
+        assert.deepStrictEqual(client.deleted, [older + '/firestore/a']);
+    });
+
+    await testAsync('an unreadable manifest does not fail the night or delete uploads', async function () {
+        const today = '2026-10-24';
+        const older = health.addUtcDays(health.addUtcDays(today, -90), -1);
+        const key = key32();
+        const manifestKey = today + '/uploads-manifest.json';
+        const sealed = await seal.sealBuffer(Buffer.from(JSON.stringify({
+            date: today,
+            objects: [{ dest: 'uploads/beats/a.mp3#17' }],
+        })), key32(), manifestKey);
+        const bodies = {};
+        bodies[manifestKey] = sealed;
+        const client = r2Client([
+            older + '/auth/users.jsonl.gz.enc',
+            'uploads/beats/a.mp3#17',
+            'uploads/beats/a.mp3#18',
+            manifestKey,
+        ], bodies, false);
+        const logs = [];
+        const orig = console.error;
+        console.error = function () { logs.push(Array.prototype.join.call(arguments, ' ')); };
+        let result;
+        try {
+            result = await r2.deleteOldObjects(client.made, today, key, {});
+        } finally {
+            console.error = orig;
+        }
+        assert.strictEqual(result.error, false);
+        assert.deepStrictEqual(client.deleted, [older + '/auth/users.jsonl.gz.enc']);
+        assert.ok(logs.join('\n').indexOf('manifest unreadable') !== -1);
+        assert.strictEqual(logs.join('\n').indexOf(key.toString('base64')), -1);
+    });
+
+    await testAsync('a readable manifest deletes only unreferenced uploads', async function () {
+        const today = '2026-10-24';
+        const older = health.addUtcDays(health.addUtcDays(today, -90), -1);
+        const key = key32();
+        const manifestKey = today + '/uploads-manifest.json';
+        const sealed = await seal.sealBuffer(Buffer.from(JSON.stringify({
+            date: today,
+            objects: [{ dest: 'uploads/beats/a.mp3#17', sha256: 'abc' }],
+        })), key, manifestKey);
+        const bodies = {};
+        bodies[manifestKey] = sealed;
+        const client = r2Client([
+            older + '/firestore/a',
+            'uploads/beats/a.mp3#17',
+            'uploads/beats/a.mp3#18',
+            manifestKey,
+        ], bodies, false);
+        const result = await r2.deleteOldObjects(client.made, today, key, {});
+        assert.strictEqual(result.error, false);
+        assert.deepStrictEqual(client.deleted, [older + '/firestore/a', 'uploads/beats/a.mp3#18']);
+    });
+
+    await testAsync('a delete API error still fails the night', async function () {
+        const today = '2026-10-24';
+        const older = health.addUtcDays(health.addUtcDays(today, -90), -1);
+        const client = r2Client([older + '/firestore/a'], {}, true);
+        const result = await r2.deleteOldObjects(client.made, today, key32(), {});
+        assert.strictEqual(result.error, true);
+        assert.strictEqual(result.count, 0);
+    });
+
+    await testAsync('r2 is required and a missing r2 run fails the day', async function () {
+        const day = '2026-10-24';
+        const finishedAt = day + 'T05:00:00.000Z';
+        const store = fakeDb();
+        await status.writeBackupResults(store.db, adminStub, verifiedEvents(day, finishedAt), finishedAt, { r2Required: true });
+        assert.strictEqual(store.docs['backup_status/latest'].ok, false);
+        assert.ok(store.docs['backup_status/latest'].detail.indexOf('failed: r2') !== -1);
+    });
+
+    await testAsync('r2 is required and a stale r2 run fails the day', async function () {
+        const day = '2026-10-24';
+        const finishedAt = day + 'T05:00:00.000Z';
+        const store = fakeDb();
+        await status.writeBackupResults(store.db, adminStub, verifiedEvents(day, finishedAt).concat([{
+            job: 'r2',
+            date: day,
+            ok: true,
+            startedAt: '2026-10-22T04:00:00.000Z',
+            finishedAt: '2026-10-22T04:20:00.000Z',
+            detail: 'copied',
+            objectCount: 1,
+            bytes: 2,
+        }]), finishedAt, { r2Required: true });
+        assert.strictEqual(store.docs['backup_status/latest'].ok, false);
+        assert.ok(store.docs['backup_status/latest'].detail.indexOf('r2') !== -1);
+    });
+
+    await testAsync('r2 is required and a fresh r2 run keeps the day ok', async function () {
+        const day = '2026-10-24';
+        const finishedAt = day + 'T05:00:00.000Z';
+        const store = fakeDb();
+        await status.writeBackupResults(store.db, adminStub, verifiedEvents(day, finishedAt).concat([{
+            job: 'r2',
+            date: day,
+            ok: true,
+            startedAt: day + 'T04:00:00.000Z',
+            finishedAt: day + 'T04:20:00.000Z',
+            detail: 'copied 1 objects, 2 bytes',
+            objectCount: 1,
+            bytes: 2,
+        }]), finishedAt, { r2Required: true });
+        assert.strictEqual(store.docs['backup_status/latest'].ok, true);
+        assert.strictEqual(store.docs['backup_status/latest'].detail, 'all checks passed');
+    });
+
+    await testAsync('an object timeout is capped at the remaining copy budget', async function () {
+        const rejections = [];
+        function onRejection(err) { rejections.push(err); }
+        process.on('unhandledRejection', onRejection);
+        const started = Date.now();
+        try {
+            let puts = 0;
+            const exhausted = await r2.copyPlanned({
+                encKey: key32(),
+                objectTimeoutMs: 10 * 60 * 1000,
+                deadlineMs: Date.now() - 5,
+                planned: [{ group: 'uploads', name: 'a', dest: 'uploads/a#1' }],
+                headObject: async function () { throw new Error('should not head'); },
+                openObject: async function () { throw new Error('should not open'); },
+                putObject: function () { puts += 1; return new Promise(function () {}); },
+            });
+            assert.deepStrictEqual(exhausted.failedGroups, ['uploads']);
+            assert.strictEqual(puts, 0);
+            const capped = await r2.copyPlanned({
+                encKey: key32(),
+                objectTimeoutMs: 10 * 60 * 1000,
+                deadlineMs: Date.now() + 150,
+                planned: [{ group: 'uploads', name: 'b', dest: 'uploads/b#1' }],
+                headObject: async function () { return { exists: false, bytes: 0 }; },
+                openObject: async function () { return Readable.from([Buffer.from('hello')]); },
+                putObject: function () { puts += 1; return new Promise(function () {}); },
+            });
+            assert.ok(Date.now() - started < 1000);
+            assert.deepStrictEqual(capped.failedGroups, ['uploads']);
+            assert.strictEqual(puts, 1);
             assert.strictEqual(rejections.length, 0);
         } finally {
             process.off('unhandledRejection', onRejection);

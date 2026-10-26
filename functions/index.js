@@ -8762,10 +8762,12 @@ exports.nightlyConfigSnapshot = onSchedule(backupSchedule('30 3 * * *', {
     await nightlyBackup.snapshotConfig();
 });
 
-// Off-site copy. Runs after the nightly jobs and before the 05:00 health
-// check. Secrets are read inside the handler and are not logged. R2 stores
-// only the sealed ciphertext produced by r2BackupCrypto.
-exports.nightlyR2Copy = onSchedule(backupSchedule('45 4 * * *', {
+// Off-site copy. Starts at 04:00 UTC so a normal night finishes before the
+// 05:00 health check. Each object waits only for the time left in the copy
+// budget, inside the 1800 second function timeout. Secrets are read inside
+// the handler and are not logged. R2 stores only the sealed ciphertext
+// produced by r2BackupCrypto.
+exports.nightlyR2Copy = onSchedule(backupSchedule('0 4 * * *', {
     memory: '1GiB',
     timeoutSeconds: 1800,
     secrets: [r2AccountId, r2AccessKeyId, r2SecretAccessKey, r2Bucket, backupEncryptionKey],

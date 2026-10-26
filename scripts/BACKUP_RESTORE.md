@@ -41,7 +41,11 @@ gcloud storage cp -r \
 
 R2 holds ciphertext only. Dated keys are `YYYY-MM-DD/...`. Each uploads
 object is stored once as `uploads/<name>#<generation>`. The night's
-`YYYY-MM-DD/uploads-manifest.json` lists `{name, generation, md5, bytes, dest}`.
+`YYYY-MM-DD/uploads-manifest.json` lists `{name, generation, md5, bytes, dest, sha256}`.
+`sha256` is the plaintext hash for objects streamed that night. A retry that
+skips an object already in R2 leaves `sha256` off that row. Dated Firestore,
+auth, and config objects record the same hash in `YYYY-MM-DD/manifest.json`.
+The upload does not rewrite an object to attach the hash.
 
 1. Download with the bucket-scoped Object Read & Write token. Do not use a
    token that can administer the account.

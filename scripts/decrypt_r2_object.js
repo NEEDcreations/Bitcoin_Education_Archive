@@ -9,7 +9,9 @@
 // The key is read from the environment, never from argv. Extra keys, comma
 // or newline separated, may be set in BACKUP_ENCRYPTION_KEYS. The file is
 // the sealed R2 object. Version 2 binds the header and the R2 object key, so
-// --dest must be that key. Version 1 objects have no key id and no binding.
+// --dest must be that key. Omitting --dest on a version 2 object stops
+// before decrypt and prints the reason. Version 1 objects have no key id
+// and no binding.
 // Plaintext is written to a mode 0600 temporary file and renamed only after
 // the authentication tag verifies. A bad tag deletes the temporary file.
 // Download the ciphertext with the bucket-scoped R2 token first. Do not
@@ -122,13 +124,20 @@ async function decryptFile(file, keys, dest, outPath) {
 async function main() {
     const file = argValue('--file');
     const out = argValue('--out');
-    const dest = argValue('--dest');
+    const destFlag = process.argv.indexOf('--dest');
+    const dest = destFlag === -1 ? '' : argValue('--dest');
     if (!file || !out) {
         fail('Usage: BACKUP_ENCRYPTION_KEY=... node scripts/decrypt_r2_object.js --file object.bin --out restored.bin --dest <r2-object-key>');
     }
     const keys = keysFromEnv();
     if (!keys.length) {
         fail('Set BACKUP_ENCRYPTION_KEY in the environment. Do not pass the key as an argument.');
+    }
+    if (destFlag === -1) {
+        const opened = readHeader(file);
+        if (opened.header[4] === seal.VERSION) {
+            fail('Pass --dest with the R2 object key. Version 2 seals bind that key.');
+        }
     }
     await decryptFile(file, keys, dest, out);
     console.log('Decrypted', path.basename(file), 'to', path.basename(out));

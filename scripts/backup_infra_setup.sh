@@ -258,18 +258,21 @@ month. Copying every uploads object every night would be about \$70 to \$75
 per month.
 
 (b) ONE Cloud Shell paste, below. Run it as Phil, never on the deploy box.
-Until this change is on gh-pages, it checks out
-cursor/nightly-backup-system-d6f0, which is the branch that contains this
-script. After merge, check out gh-pages instead. The paste prompts for the
-three R2 values with read -rsp so they are not echoed, sets R2_BUCKET to
-bq-backup-offsite without prompting, and generates AUTH_BACKUP_KEY and
-BACKUP_ENCRYPTION_KEY inside Secret Manager only when that secret has no
-version. It prints those two keys once. Save them offline, press Enter, and
-it clears the screen and the shell history. This script does not execute
-that paste and does not generate key material.
+The paste is one braced block, so read -rsp cannot swallow the following
+lines when bracketed paste is off. Replace PASTE_COMMIT with the gh-pages
+merge commit before you run it. The paste prompts for the three R2 values
+with read -rsp so they are not echoed, sets R2_BUCKET to bq-backup-offsite
+without prompting, and generates AUTH_BACKUP_KEY and BACKUP_ENCRYPTION_KEY
+inside Secret Manager only when that secret has no version. It prints those
+two keys once. Save them offline, press Enter, and it clears the screen and
+the shell history. This script does not execute that paste and does not
+generate key material.
 
-A same-day retry skips an R2 key that is already present. The 30 day bucket
-lock can block an overwrite of an object younger than 30 days.
+A same-day retry skips an R2 key that is already present. sha256 values are
+written into the sealed manifests, not by overwriting objects. The 30 day
+bucket lock can block an overwrite of an object younger than 30 days.
+nightlyR2Copy starts at 04:00 UTC so the 05:00 health check sees a finished
+R2 run on a normal night.
 
 Restore steps for Firestore, the uploads bucket, and a bulk R2 download are
 in scripts/BACKUP_RESTORE.md. Decrypt one object with
@@ -302,8 +305,9 @@ WOULD enable a TTL policy on collection group backup_history field expireAt:
 EOF
 
 cat <<'PHIL'
+{
 P=bitcoin-education-archive; gcloud config set project $P
-cd ~ && rm -rf bq && git clone -q https://github.com/NEEDcreations/Bitcoin_Education_Archive.git bq && cd bq && git fetch -q origin cursor/nightly-backup-system-d6f0 && git checkout -q cursor/nightly-backup-system-d6f0
+cd ~ && rm -rf bq && git clone -q https://github.com/NEEDcreations/Bitcoin_Education_Archive.git bq && cd bq && git fetch -q origin gh-pages && git checkout -q PASTE_COMMIT
 bash scripts/backup_infra_setup.sh --owner-apply
 mk(){ gcloud secrets describe "$1" >/dev/null 2>&1 || gcloud secrets create "$1" --replication-policy=automatic; }
 for s in R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do mk $s; read -rsp "Paste $s then Enter: " v; echo; printf '%s' "$v" | gcloud secrets versions add $s --data-file=-; unset v; done
@@ -311,6 +315,7 @@ mk R2_BUCKET; printf '%s' bq-backup-offsite | gcloud secrets versions add R2_BUC
 for s in AUTH_BACKUP_KEY BACKUP_ENCRYPTION_KEY; do mk $s; gcloud secrets versions list $s --format='value(name)' | grep -q . || openssl rand -base64 32 | tr -d '\n' | gcloud secrets versions add $s --data-file=-; done
 echo; echo "Copy these 2 lines into your password manager NOW:"; for s in AUTH_BACKUP_KEY BACKUP_ENCRYPTION_KEY; do printf '%s = ' $s; gcloud secrets versions access latest --secret=$s; echo; done
 read -rp "Press Enter after saving them..." _; clear; history -c
+}
 PHIL
 
 cat <<EOF
