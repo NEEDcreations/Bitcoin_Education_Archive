@@ -4,9 +4,11 @@
 // passes { strict: true } and uses the old bridgeToTelegram term list,
 // matched the same way: a phrase or a term of 4+ characters matches
 // inside a word, and a shorter term has to be a whole word.
-// Political terms are the old bridge list, unchanged.
-// An allowlist is applied only before the in-word search, so a standalone
-// slur or political term still matches as its own word.
+// Political terms are the old bridge list, unchanged. Singular and plural
+// democrat and republican stay blocked; democratic is an ordinary adjective.
+// An allowlist is applied only before the in-word search, and only when the
+// whole word appears unbroken before line-break joining, separator collapsing,
+// and spaced-letter collapsing. A standalone slur still matches as its own word.
 
 const PROFANITY = [
     'fuck', 'shit', 'bitch', 'asshole', 'damn', 'cunt',
@@ -35,7 +37,7 @@ const ALLOWLIST = [
     'peacock', 'hancock', 'hitchcock', 'dickens', 'dickinson', 'grape',
     'grapefruit', 'drape', 'scrape', 'skyscraper', 'parapet', 'trapeze',
     'therapeutic', 'trumpet', 'torpedo', 'raccoon', 'cocoon', 'tycoon',
-    'democratic', 'democrats', 'republican', 'republicans', 'scunthorpe',
+    'democratic', 'grapevine', 'scunthorpe',
 ];
 
 const ALLOW = {};
@@ -53,6 +55,8 @@ const SCAM_PATTERNS = [
 const REASON_PROFANITY = 'Content contains inappropriate language';
 const REASON_SCAM = 'Content contains potential scam patterns';
 
+// Greek, Cyrillic, and small-cap letters that look like Latin.
+// Greek sigma folds to o (the round shape), final sigma to c.
 const LOOKALIKE = {
     '\u0430': 'a', // Cyrillic a
     '\u0435': 'e', // Cyrillic e
@@ -64,8 +68,45 @@ const LOOKALIKE = {
     '\u0456': 'i', // Cyrillic i
     '\u0455': 's', // Cyrillic dze
     '\u0501': 'd', // Cyrillic komi de
+    '\u043a': 'k', // Cyrillic ka
+    '\u04bb': 'h', // Cyrillic shha
+    '\u043c': 'm', // Cyrillic em
+    '\u0442': 't', // Cyrillic te
+    '\u0432': 'b', // Cyrillic ve
+    '\u043d': 'h', // Cyrillic en
+    '\u0433': 'r', // Cyrillic ge
+    '\u0458': 'j', // Cyrillic je
+    '\u051b': 'q', // Cyrillic qa
+    '\u051d': 'w', // Cyrillic we
+    '\u0475': 'v', // Cyrillic izhitsa
+    '\u04cf': 'l', // Cyrillic palochka
+    '\u03b1': 'a', // Greek alpha
+    '\u03b2': 'b', // Greek beta
+    '\u03b5': 'e', // Greek epsilon
+    '\u03b9': 'i', // Greek iota
     '\u03ba': 'k', // Greek kappa
+    '\u03bd': 'v', // Greek nu
+    '\u03bf': 'o', // Greek omicron
+    '\u03c1': 'p', // Greek rho
+    '\u03c4': 't', // Greek tau
+    '\u03c5': 'u', // Greek upsilon
+    '\u03c7': 'x', // Greek chi
+    '\u03c2': 'c', // Greek final sigma
+    '\u03c3': 'o', // Greek sigma
+    '\u03b7': 'n', // Greek eta
+    '\u03bc': 'u', // Greek mu
+    '\u03c9': 'w', // Greek omega
+    '\u0261': 'g', // Latin script g
+    '\u0131': 'i', // dotless i
+    '\u1d00': 'a', '\u0299': 'b', '\u1d04': 'c', '\u1d05': 'd', '\u1d07': 'e',
+    '\ua730': 'f', '\u0262': 'g', '\u029c': 'h', '\u026a': 'i', '\u1d0a': 'j',
+    '\u1d0b': 'k', '\u029f': 'l', '\u1d0d': 'm', '\u0274': 'n', '\u1d0f': 'o',
+    '\u1d18': 'p', '\u0280': 'r', '\ua731': 's', '\u1d1b': 't', '\u1d1c': 'u',
+    '\u1d20': 'v', '\u1d21': 'w', '\u028f': 'y', '\u1d22': 'z',
 };
+
+// Longer suffixes first so "spiced" is spice+d, not spic+ed.
+const ALLOW_SUFFIXES = ['es', 'ed', 'er', 'ly', 's', 'd', 'r'];
 
 function normalizeModerateText(text) {
     return String(text || '').toLowerCase()
@@ -124,9 +165,30 @@ function applyLeet(text) {
 }
 
 function foldLookalikes(text) {
-    return String(text || '').replace(/[\u0430\u0435\u043e\u0440\u0441\u0443\u0445\u0456\u0455\u0501\u03ba]/g, function (ch) {
+    return Array.from(String(text || '')).map(function (ch) {
         return LOOKALIKE[ch] || ch;
+    }).join('');
+}
+
+function unbrokenWords(text) {
+    const words = new Set();
+    String(text || '').split(/[^\p{L}]+/u).forEach(function (word) {
+        if (word) words.add(word);
     });
+    return words;
+}
+
+// Runs of 3+ identical letters, reduced to one and to two. "niggger"
+// only matches once the run of g's is squeezed to two.
+function squeezeVariants(text) {
+    const t = String(text || '');
+    const once = t.replace(/(\p{L})\1{2,}/gu, '$1');
+    const twice = t.replace(/(\p{L})\1{2,}/gu, '$1$1');
+    const out = [];
+    [t, once, twice].forEach(function (variant) {
+        if (out.indexOf(variant) === -1) out.push(variant);
+    });
+    return out;
 }
 
 // fu\nck joins. hello\nworld stays two words. Leftover breaks become spaces
@@ -171,38 +233,61 @@ function collapseSpacedLetters(text) {
 
 // NFKC, then NFKD, strip marks and variation selectors, then NFC.
 // Format characters (soft hyphen, zero-width) are removed after that.
-function normalizeStrictText(text) {
+// Blank fillers and emoji between letters are removed before the
+// unbroken-word snapshot, which is taken after leet and before any join.
+function prepareStrict(text) {
     let s = String(text || '').normalize('NFKC').normalize('NFKD');
     s = s.replace(/[\p{M}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     s = s.replace(/\p{Cf}/gu, '');
+    s = s.replace(/[\u115F\u1160\u3164\uFFA0\u2800]/g, '');
+    s = s.replace(/(\p{L})[\p{Extended_Pictographic}\p{So}\u200D\uFE0F]+(?=\p{L})/gu, '$1');
     s = foldLookalikes(s.toLowerCase());
     s = applyLeet(s);
+    const unbroken = unbrokenWords(s);
     s = joinShortLineBreaks(s);
     s = collapseSeparators(s);
     s = foldPh(s);
     s = collapseSpacedLetters(s);
     s = s.replace(/\s+/g, ' ').trim();
-    return s;
+    return { text: s, unbroken: unbroken };
 }
 
-function allowlistedWord(word) {
+function normalizeStrictText(text) {
+    return prepareStrict(text).text;
+}
+
+// Same fold as profanity, without leet, so "0.01" and "bc1" survive.
+function scamFold(text) {
+    let s = String(text || '').normalize('NFKC').normalize('NFKD');
+    s = s.replace(/[\p{M}\p{Cf}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
+    s = s.normalize('NFC');
+    return foldLookalikes(s.toLowerCase());
+}
+
+function allowlistedWord(word, unbroken) {
     const w = String(word || '');
+    if (!w || !unbroken || !unbroken.has(w)) return false;
     if (ALLOW[w]) return true;
-    if (w.length > 3 && w.charAt(w.length - 1) === 's' && ALLOW[w.slice(0, -1)]) return true;
-    if (w.length > 4 && w.slice(-2) === 'es' && ALLOW[w.slice(0, -2)]) return true;
+    for (let i = 0; i < ALLOW_SUFFIXES.length; i++) {
+        const suffix = ALLOW_SUFFIXES[i];
+        if (w.length <= suffix.length + 2) continue;
+        if (w.slice(-suffix.length) !== suffix) continue;
+        if (ALLOW[w.slice(0, -suffix.length)]) return true;
+    }
     return false;
 }
 
-function maskAllowlist(text) {
+function maskAllowlist(text, unbroken) {
     return String(text || '').replace(/\p{L}+/gu, function (word) {
-        if (!allowlistedWord(word)) return word;
+        if (!allowlistedWord(word, unbroken)) return word;
         return ' '.repeat(word.length);
     });
 }
 
 // "*" stands in for one character ("f*ck", "sh*t", "f**k"). At least two
-// real letters must agree, so a string of only stars does not match.
+// real letters must agree, and the window must start and end on a letter,
+// so markdown emphasis ("*trap*") does not match.
 function starWindow(text, term) {
     const src = String(text || '');
     if (src.indexOf('*') === -1) return false;
@@ -220,12 +305,12 @@ function starWindow(text, term) {
                 break;
             }
         }
-        if (ok && literals >= 2) return true;
+        if (ok && literals >= 2 && src.charAt(i) !== '*' && src.charAt(i + n - 1) !== '*') return true;
     }
     return false;
 }
 
-function bridgeHit(normalized) {
+function bridgeHit(normalized, unbroken) {
     const text = String(normalized || '');
     if (!text) return false;
     const words = text.split(/\s+/).filter(Boolean);
@@ -239,7 +324,7 @@ function bridgeHit(normalized) {
             if (words[w] === bad) return true;
         }
     }
-    const masked = maskAllowlist(text);
+    const masked = maskAllowlist(text, unbroken);
     const bare = masked.replace(/\*/g, '');
     const starred = masked.replace(/\s*\*\s*/g, '*');
     const compact = bare.replace(/\s+/g, '');
@@ -266,8 +351,12 @@ function scamHit(text) {
 function moderateStrict(raw) {
     const sanitized = sanitizeOutgoing(raw).trim();
     if (!sanitized) return { clean: true, reason: '' };
-    if (bridgeHit(normalizeStrictText(sanitized))) return { clean: false, reason: REASON_PROFANITY };
-    if (scamHit(sanitized)) return { clean: false, reason: REASON_SCAM };
+    const prepared = prepareStrict(sanitized);
+    const variants = squeezeVariants(prepared.text);
+    for (let i = 0; i < variants.length; i++) {
+        if (bridgeHit(variants[i], prepared.unbroken)) return { clean: false, reason: REASON_PROFANITY };
+    }
+    if (scamHit(sanitized) || scamHit(scamFold(sanitized))) return { clean: false, reason: REASON_SCAM };
     return { clean: true, reason: '' };
 }
 

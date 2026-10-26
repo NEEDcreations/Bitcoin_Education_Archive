@@ -777,6 +777,9 @@ test('disguised letters, lookalikes, and ordinary words', function () {
         ['exact-spic', 'a spic'],
         ['exact-trump', 'vote trump'],
         ['exact-republican', 'republican'],
+        ['republicans', 'the republicans'],
+        ['exact-democrat', 'democrat'],
+        ['democrats', 'the democrats'],
         ['exact-maga', 'maga'],
         ['exact-shit', 'shit'],
         ['exact-cunt', 'cunt'],
@@ -797,11 +800,116 @@ test('disguised letters, lookalikes, and ordinary words', function () {
         ['trumpet', 'a trumpet'],
         ['cocktail', 'a cocktail'],
         ['scunthorpe', 'Scunthorpe'],
-        ['republicans', 'the republicans'],
         ['democratic', 'a democratic vote'],
         ['therapist', 'a therapist'],
         ['class', 'classic class'],
         ['phone', 'my phone'],
+    ];
+    allowed.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, true, row[0] + ' blocked: ' + decision.reason);
+    });
+});
+
+test('separator allowlist, lookalikes, squeeze, and scam fold', function () {
+    const blocked = [
+        ['s-cunt-horpe', 's-cunt-horpe'],
+        ['s.cunt.horpe', 's.cunt.horpe'],
+        ['scunt-horpe', 'scunt-horpe'],
+        ['g-rape', 'g-rape'],
+        ['g_rape', 'g_rape'],
+        ['spic-y', 'spic-y'],
+        ['s.pic.y', 's.pic.y'],
+        ['sus-pic-ious', 'sus-pic-ious'],
+        ['de-spic-able', 'de-spic-able'],
+        ['maga-zine', 'maga-zine'],
+        ['maga.zine', 'maga.zine'],
+        ['tor-pedo', 'tor-pedo'],
+        ['ty-coon', 'ty-coon'],
+        ['rac.coon', 'rac.coon'],
+        ['co_coon', 'co_coon'],
+        ['dick-ens', 'dick-ens'],
+        ['cock-tail', 'cock-tail'],
+        ['cock.pit', 'cock.pit'],
+        ['trump-et', 'trump-et'],
+        ['dem-ocrats', 'dem-ocrats'],
+        ['the-rapeutic', 'the-rapeutic'],
+        ['line-scunthorpe', 's\ncunthorpe'],
+        ['spaced-scunthorpe', 's c u n t h o r p e'],
+        ['scrape-d', 'scrape-d'],
+        ['trump-eter', 'trump-eter'],
+        ['suspicious-ly', 'suspicious-ly'],
+        ['spice-d', 'spice-d'],
+        ['concat-magazine', 'magazinemaga'],
+        ['concat-spicy', 'spicyspic'],
+        ['beside-maga', 'maga magazine'],
+        ['greek-upsilon', 'f\u03C5ck'],
+        ['greek-sigma', 'fu\u03C2k'],
+        ['greek-iota', 'sh\u03B9t'],
+        ['greek-omicron', 'p\u03BFrn'],
+        ['greek-alpha', 'n\u03B1zi'],
+        ['greek-kike', '\u03BA\u03B9\u03BAe'],
+        ['cyr-ka', 'fuc\u043Ak'],
+        ['cyr-shha', '\u0455\u04BBit'],
+        ['small-caps', '\uA730\u1D1C\u1D04\u1D0B'],
+        ['fill-115f', 'f\u115Fuck'],
+        ['fill-1160', 'f\u1160uck'],
+        ['fill-3164', 'f\u3164uck'],
+        ['fill-ffa0', 'f\uFFA0uck'],
+        ['fill-2800', 'f\u2800uck'],
+        ['emoji-fire', 'f\u{1F525}uck'],
+        ['emoji-poop', 'sh\u{1F4A9}it'],
+        ['repeat-fuck', 'fuuuck'],
+        ['repeat-fuck-long', 'fuuuuuuck'],
+        ['repeat-shit', 'shiiiit'],
+        ['repeat-bitch', 'biiitch'],
+        ['squeeze-to-two', 'niggger'],
+        ['cocked', 'cocked'],
+        ['grape-emoji', 'grape\u{1F347}juice'],
+        ['star-shit', 'sh*t'],
+        ['star-sit', 's*it'],
+    ];
+    blocked.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, false, row[0] + ' forwarded: ' + (decision.line || decision.reason));
+        assert.strictEqual(decision.reason, 'profanity', row[0]);
+    });
+    const scams = [
+        ['soft-send', 'sen\u00ADd 0.01 btc to bc1q'],
+        ['soft-addr', 'send 0.01 btc to b\u00ADc1q'],
+        ['fullwidth', '\uFF53\uFF45\uFF4E\uFF44 0.01 btc to bc1q'],
+        ['cyr-send', 's\u0435nd 0.01 btc to bc1q'],
+        ['plain', 'send 0.01 btc to bc1'],
+    ];
+    scams.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, false, row[0] + ' forwarded: ' + (decision.line || decision.reason));
+        assert.strictEqual(decision.reason, 'scam', row[0]);
+    });
+    const allowed = [
+        ['magazine', 'magazine'],
+        ['bitcoin-magazine', 'Bitcoin Magazine'],
+        ['scunthorpe', 'Scunthorpe'],
+        ['cocktail', 'cocktail'],
+        ['block', 'block 71750'],
+        ['trap', "it's a *trap*"],
+        ['sushi', '*sushi* tonight'],
+        ['adam', '*Adam* said'],
+        ['suspiciously', 'suspiciously'],
+        ['spiced', 'spiced'],
+        ['scraped', 'scraped'],
+        ['draped', 'draped'],
+        ['torpedoed', 'torpedoed'],
+        ['grapevine', 'grapevine'],
+        ['trumpeter', 'trumpeter'],
+        ['democratic', 'democratic'],
+        ['moon', 'Moooon'],
+        ['good', 'gooood'],
+        ['hey', 'heyyyy'],
+        ['yes', 'yesss'],
+        ['hmm', 'hmmm'],
+        ['woo', 'woooo'],
+        ['comma-btc', 'send 0,01 BTC'],
     ];
     allowed.forEach(function (row) {
         const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
