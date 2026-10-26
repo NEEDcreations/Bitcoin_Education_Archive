@@ -249,6 +249,11 @@ document.addEventListener('touchend', function(e) {
 
 // ---- #10: Daily Streak Banner ----
 function showStreakBanner() {
+    var streakMode = 'advanced';
+    try {
+        streakMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || localStorage.getItem('btc_experience_mode') || 'advanced';
+    } catch (eStreak) {}
+    if (streakMode === 'lite') return;
     var streak = 0;
     if (typeof currentUser !== 'undefined' && currentUser) streak = currentUser.streak || 0;
     if (streak < 2) return; // Only show for 2+ days

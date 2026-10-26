@@ -1794,7 +1794,7 @@
         { id: 'keys', modes: MODE_BE, reach: 'nook' },
         { id: 'gifting', modes: MODE_BE, reach: 'nook' },
         { id: 'inventoryExplainer', modes: MODE_BE, reach: 'nook' },
-        { id: 'invite', selector: '#inviteCard', modes: MODE_GBE, reach: 'home' },
+        { id: 'invite', selector: '#inviteCard, #homeInvitesTile', modes: MODE_GBE, reach: 'home' },
         { id: 'inviteGuest', selector: '#inviteGuestPill, #todayInviteGuest, #inviteGuest', modes: MODE_BE, reach: 'home' },
         { id: 'chat', selector: '#chatOverlayBtn', modes: MODE_GBE, reach: 'home', guide: { section: 'more', icon: '🌍', iconBg: 'rgba(236,72,153,0.12)', title: 'Global Chat', desc: 'Live chat with the community — messages, DMs, GIFs, reactions.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}" } },
         { id: 'ggPosts', selector: '#chatTabAnnouncements', modes: MODE_BE, reach: 'chat' },
@@ -1833,6 +1833,14 @@
         { id: 'meetup', modes: MODE_BE, reach: 'menu' },
         { id: 'referral', modes: MODE_GBE, reach: 'home' },
         { id: 'buddy', modes: MODE_BE, reach: 'menu' },
+        { id: 'progressRings', selector: '#progressRings', modes: MODE_E, reach: 'home' },
+        { id: 'explorationMap', selector: '#explorationMap', modes: MODE_E, reach: 'home' },
+        { id: 'continueReading', selector: '#continueReading', modes: MODE_BE, reach: 'home' },
+        { id: 'featuredOn', selector: '#featuredOnSection', modes: ['lite', 'beginner', 'advanced'], reach: 'home' },
+        { id: 'introVideo', selector: '#introVideoSection', modes: ['lite', 'beginner', 'advanced'], reach: 'home' },
+        { id: 'countryUsers', selector: '#countryUsersSection', modes: ['lite', 'beginner', 'advanced'], reach: 'home' },
+        { id: 'aiNacho', modes: LEARN_ALL, reach: 'guide', guide: { section: 'apps', icon: '🦌', iconBg: 'rgba(247,147,26,0.12)', title: 'AI Nacho Mode', desc: 'Your Bitcoin-savvy AI tutor powered by archive knowledge.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleNachoMode==='function')toggleNachoMode()},300)" } },
+        { id: 'lightningTip', modes: MODE_E, reach: 'guide', guide: { section: 'more', icon: '⚡', iconBg: 'rgba(250,204,21,0.12)', title: 'Lightning Tipping', desc: 'Set up your Lightning wallet to send and receive tips.', action: "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('lightning')}},300)" } },
         { id: 'confetti', modes: MODE_E, reach: 'flag', render: 'launchConfetti' },
         { id: 'banners', modes: MODE_E, reach: 'banner' }
     ];
@@ -1877,7 +1885,7 @@
         if (typeof document === 'undefined' || document.getElementById('bqSurfaceStyles')) return;
         var style = document.createElement('style');
         style.id = 'bqSurfaceStyles';
-        style.textContent = 'body.bq-invite-off #inviteCard,body.bq-invite-off #inviteGuestPill,body.bq-invite-off #todayInviteGuest{display:none!important}'
+        style.textContent = 'body.bq-invite-off #inviteCard,body.bq-invite-off #homeInvitesTile,body.bq-invite-off #inviteGuestPill,body.bq-invite-off #todayInviteGuest{display:none!important}'
             + 'body.bq-invite-min #inviteBody,body.bq-invite-min #inviteGuest,body.bq-invite-min #inviteGuestPill,body.bq-invite-min #todayInviteGuest{display:none!important}'
             + 'body.bq-invite-min #inviteCard[data-show="1"] #invitePill{display:inline-flex!important}';
         document.head.appendChild(style);
@@ -1895,9 +1903,16 @@
             var row = BQ_SURFACES[i];
             if (!row.selector || row.modes.indexOf(m) !== -1) continue;
             document.querySelectorAll(row.selector).forEach(function (el) {
+                if (el.id === 'introVideoSection' && win._forceIntroVideo) {
+                    el.style.removeProperty('display');
+                    el.removeAttribute('data-em-hidden');
+                    el.removeAttribute('data-simplified-hidden');
+                    return;
+                }
                 hidden[el] = true;
                 el.setAttribute('data-em-hidden', m);
                 el.style.setProperty('display', 'none', 'important');
+                if (el.id === 'introVideoSection') el.setAttribute('data-simplified-hidden', '1');
             });
         }
         document.querySelectorAll('[data-em-hidden]').forEach(function (el) {
@@ -1910,6 +1925,7 @@
             if (!still) {
                 el.style.removeProperty('display');
                 el.removeAttribute('data-em-hidden');
+                if (el.id === 'introVideoSection') el.removeAttribute('data-simplified-hidden');
             }
         });
         return m;
@@ -2035,7 +2051,8 @@
             + '.bq-mode-option>button{display:block;width:100%;text-align:left;min-height:44px;padding:12px;border-radius:12px;border:2px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-family:inherit;font-size:16px;line-height:1.35;cursor:pointer;}'
             + '.bq-mode-option>button[aria-pressed="true"]{border-color:var(--accent,#f7931a);}'
             + '.bq-mode-option .bq-mode-name{font-weight:800;font-size:16px;color:var(--heading,#f8fafc);}'
-            + '.bq-mode-option .bq-mode-summary{margin-top:4px;font-size:14px;font-weight:500;color:var(--text-muted,#94a3b8);}'
+            + '.bq-mode-option .bq-mode-summary{margin-top:4px;font-size:14px;font-weight:500;color:#94a3b8;}'
+            + '.bq-mode-option,.bq-mode-option ul,.bq-mode-option li{text-align:left;}'
             + '.bq-mode-option .bq-mode-flag{font-weight:700;color:var(--accent,#f7931a);}'
             + '.bq-mode-option details{margin-top:4px;}'
             + '.bq-mode-option summary{min-height:44px;display:flex;align-items:center;padding:8px 12px;font-size:14px;font-weight:800;cursor:pointer;color:var(--accent,#f7931a);}'
@@ -2051,7 +2068,6 @@
         var options = opts || {};
         container.textContent = '';
         var stored = bqStoredExperienceMode();
-        var recommend = !stored;
         BQ_EXPERIENCE_MODES.forEach(function (meta) {
             var brief = bqModeBrief(meta.id);
             var block = document.createElement('div');
@@ -2069,7 +2085,7 @@
                 current.className = 'bq-mode-flag';
                 current.textContent = ' (current)';
                 name.appendChild(current);
-            } else if (recommend && meta.id === 'beginner') {
+            } else if (meta.id === 'beginner') {
                 var rec = document.createElement('span');
                 rec.className = 'bq-mode-flag';
                 rec.textContent = ' · Recommended';

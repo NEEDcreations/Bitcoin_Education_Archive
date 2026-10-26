@@ -10957,7 +10957,12 @@ window.submitSatsClaim = async function() {
             } catch(e) {}
 
             if (typeof notifySelfSatsClaim === 'function') notifySelfSatsClaim(paidAmount);
-            // Fun celebration popup + confetti
+            // Celebration is Everything only. The claim itself already landed.
+            if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('confetti')) {
+                if (typeof showToast === 'function') showToast('Claimed ' + paidAmount + ' sats');
+                setTimeout(function() { showSettingsPage('sats'); }, 500);
+                return;
+            }
             if (typeof launchConfetti === 'function') launchConfetti();
             var _totalClaimed = currentUser.satsWithdrawn || paidAmount;
             var _claimCap = lifetimeSatCap();
@@ -11155,6 +11160,14 @@ function showLevelUpCelebration(lv) {
     // Suppress during Nacho Mode - track for exit summary instead
     if (window._nachoBusy || window._nachoMode) {
         if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
+        return;
+    }
+    var levelMode = 'advanced';
+    try {
+        levelMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || localStorage.getItem('btc_experience_mode') || 'advanced';
+    } catch (eLv) {}
+    if (levelMode === 'lite') {
+        if (typeof showToast === 'function') showToast('Level up: ' + ((lv && lv.name) ? lv.name : 'new rank'));
         return;
     }
     // Play triumphant sound

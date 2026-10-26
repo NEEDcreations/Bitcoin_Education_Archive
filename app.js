@@ -1122,6 +1122,10 @@
     }
 
     window.showSpinWheel = function() {
+        if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('spin')) {
+            if (typeof showToast === 'function') showToast('Daily Spin is in Settings → Experience Mode (Balanced or Everything).');
+            return;
+        }
         // Auth gate — must be signed in to spin
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
             if (typeof showSignInPrompt === 'function') showSignInPrompt();
@@ -1432,7 +1436,7 @@
                     var rt = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
                     localStorage.setItem('btc_orange_tickets', rt + rareAmount);
                 }
-                if (rareAmount >= 100) {
+                if (rareAmount >= 100 && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('confetti'))) {
                     if (typeof launchConfetti === 'function') launchConfetti();
                     if (typeof playBadgeSound === 'function') playBadgeSound();
                 }
@@ -3910,7 +3914,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (window._konamiBuffer.join(',') === _konamiSeq.join(',') && localStorage.getItem('btc_block42_found') !== 'true') {
             window._konamiBuffer = [];
             localStorage.setItem('btc_block42_found', 'true');
-            if (typeof launchConfetti === 'function') launchConfetti();
+            if ((typeof window.bqModeAllows !== 'function' || window.bqModeAllows('confetti')) && typeof launchConfetti === 'function') launchConfetti();
             if (typeof haptic === 'function') haptic('success');
             if (typeof showToast === 'function') showToast('🎱 Block 42 unlocked! Secret badge discovered...');
             setTimeout(function() {

@@ -337,13 +337,18 @@ function bqIsServerShoutout(m) {
     if (!m || bqChatFeature('chatShoutouts')) return false;
     if (m.topicChannel || m.topicPost) return false;
     var uid = m.uid || m.authorUid || '';
-    if (uid !== 'nacho-bot') return false;
-    if (m.activityRef || m.activityKind || m.cycleId) return true;
+    var serverShaped = uid === 'nacho-bot' || m.isSystemPost === true || m.pvpShout === true;
+    if (!serverShaped) return false;
+    if (m.activityRef || m.activityKind || m.cycleId || m.pvpShout === true || m.isSystemPost === true) return true;
     var docId = String(m._id || m.id || '');
-    if (/^(shoutout_|sf_live_|pvp_lobby|lobby_)/.test(docId)) return true;
-    var text = String(m.text || '');
-    if (/BLOCK FOUND|EPOCH #|Satoshi's Favor is LIVE|looking for a PvP|PvP match|PvP opponent|level up|leveled up/i.test(text)) return true;
+    if (/^(shoutout_|sf_live_|pvp_lobby_|pvp_result_|lobby_)/.test(docId)) return true;
     if (m.mentionUid && m.isNachoAuto === false) return true;
+    // Block-found and epoch posts have no shoutout field.
+    if (uid === 'nacho-bot') {
+        var text = String(m.text || '');
+        if (text.indexOf('⛏️ BLOCK FOUND!') === 0) return true;
+        if (/^⛏️ EPOCH #\d+/.test(text)) return true;
+    }
     return false;
 }
 function bqSkipAnnouncement(m) {

@@ -1155,13 +1155,24 @@ function createNacho() {
             setPose('wave');
             
             if (tourStep === 1) {
-                forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
-                    'Here\'s what you can do here:<br>' +
-                    '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
-                    '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
-                    '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
-                    '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
-                    '<button onclick="hideBubble(true)" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">I\'ll explore on my own</button></div>');
+                var spinWelcome = typeof window.bqModeAllows !== 'function' || window.bqModeAllows('spin');
+                if (spinWelcome) {
+                    forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
+                        'Here\'s what you can do here:<br>' +
+                        '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
+                        '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
+                        '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
+                        '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
+                        '<button onclick="hideBubble(true)" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">I\'ll explore on my own</button></div>');
+                } else {
+                    forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
+                        'Here\'s what you can do here:<br>' +
+                        '📚 <strong>Pick a topic</strong> — tap any in the sidebar<br>' +
+                        '🦌 <strong>Ask Nacho</strong> anything about Bitcoin<br>' +
+                        '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
+                        '<button onclick="hideBubble(true);go(\'whitepaper\')" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">Pick a topic</button>' +
+                        '<button onclick="hideBubble(true);if(typeof enterNachoMode===\'function\')enterNachoMode()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">Ask Nacho</button></div>');
+                }
                 localStorage.setItem('btc_nacho_onboarding', '2');
             } else if (tourStep === 2 && exploredCount >= 1) {
                 forceShowBubble('<div style="line-height:1.6;">Nice, you explored your first channel! 🎉<br><br>' +

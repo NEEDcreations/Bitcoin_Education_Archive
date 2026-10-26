@@ -845,8 +845,10 @@
                     }
                 });
             }
-            var firstMode = card.querySelector('[data-mode]');
-            if (firstMode && firstMode.focus) firstMode.focus();
+            if (title && title.focus) {
+                title.setAttribute('tabindex', '-1');
+                title.focus();
+            }
         }
         if (!data.mode) {
             var next = document.createElement('button');
@@ -1047,7 +1049,7 @@
             + '#bqModeMeterRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 4px;}'
             + '#bqModeMeterRow #dailyXpMeterText{margin:0;flex:1;min-width:0;}'
             + '#bqModeChip{flex:0 0 auto;min-height:44px;padding:6px 10px;border-radius:999px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;}'
-            + '#bqModeChipPanel{display:flex;flex-direction:column;gap:6px;margin:0 0 8px;padding:8px;border:1px solid var(--border,#334155);border-radius:12px;background:var(--bg,#020617);}'
+            + '#bqModeChipPanel{display:flex;flex-direction:column;gap:6px;margin:0 0 8px;padding:8px;border:1px solid var(--border,#334155);border-radius:12px;background:var(--bg,#020617);text-align:left;}'
             + '#bqModeChipPanel[hidden]{display:none;}'
             + '#bqModeChipPanel button{min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--border,#334155);background:transparent;color:var(--heading,#f8fafc);font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;}'
             + '#bqModeChipPanel button[aria-pressed="true"]{border-color:var(--accent,#f7931a);color:var(--accent,#f7931a);}'

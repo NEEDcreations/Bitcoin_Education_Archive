@@ -138,7 +138,11 @@ window.initNotifications = function() {
         .orderBy('createdAt', 'desc')
         .limit(20)
         .onSnapshot(function(snap) {
-            window._notifCount = snap.size;
+            var listed = 0;
+            snap.forEach(function(doc) {
+                if (notifListedInMode(doc.data())) listed++;
+            });
+            window._notifCount = listed;
             updateNotifBadge();
             // Track received tips for badge counter
             snap.docChanges().forEach(function(change) {
@@ -320,6 +324,15 @@ function notifEscape(value) {
         .replace(/'/g, '&#39;');
 }
 
+function notifListedInMode(n) {
+    var notifMode = 'advanced';
+    try { notifMode = localStorage.getItem('btc_experience_mode') || 'advanced'; } catch (eMode) {}
+    if (notifMode !== 'lite' && notifMode !== 'beginner' && notifMode !== 'intermediate' && notifMode !== 'advanced') notifMode = 'advanced';
+    if (notifMode !== 'lite' && notifMode !== 'beginner') return true;
+    var notifType = String((n && n.type) || '');
+    return notifType === 'reward' || notifType === 'reply' || notifType === 'sats' || notifType.indexOf('reply') !== -1;
+}
+
 function notifCardHtml(docId, n, variant) {
     n = n || {};
     var safeDoc = notifSafeId(docId, 128) ? docId : '';
@@ -355,14 +368,7 @@ function notifCardHtml(docId, n, variant) {
         extra = '<div class="notif-status" style="margin-top:6px;font-size:0.72rem;font-weight:800;color:var(--text-muted);">Completed</div>';
     }
     var message = n.message || '';
-    var notifMode = 'advanced';
-    try { notifMode = localStorage.getItem('btc_experience_mode') || 'advanced'; } catch (eLite) {}
-    if (notifMode !== 'lite' && notifMode !== 'beginner' && notifMode !== 'intermediate' && notifMode !== 'advanced') notifMode = 'advanced';
-    if (notifMode === 'lite' || notifMode === 'beginner') {
-        var notifType = String(n.type || '');
-        var rewardOrReply = notifType === 'reward' || notifType === 'reply' || notifType === 'sats' || notifType.indexOf('reply') !== -1;
-        if (!rewardOrReply) return '';
-    }
+    if (!notifListedInMode(n)) return '';
     if ((target.type === 'beats_track' || n.targetType === 'beats_track') && typeof beatsCensor === 'function') {
         message = beatsCensor(message);
     }

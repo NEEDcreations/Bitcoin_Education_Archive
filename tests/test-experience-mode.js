@@ -214,6 +214,56 @@ queue.push(test('earning paths do not read experienceMode', function () {
     assert.ok(!read('onboarding.js.src').includes('#homeAppsMenu'));
 }));
 
+queue.push(test('lite celebrations, spin, and picker follow the registry', function () {
+    assert.strictEqual(reg.bqModeAllows('confetti', 'lite'), false);
+    assert.strictEqual(reg.bqModeAllows('confetti', 'beginner'), false);
+    assert.strictEqual(reg.bqModeAllows('confetti', 'intermediate'), false);
+    assert.strictEqual(reg.bqModeAllows('confetti', 'advanced'), true);
+    assert.strictEqual(reg.bqModeAllows('progressRings', 'advanced'), true);
+    assert.strictEqual(reg.bqModeAllows('progressRings', 'beginner'), false);
+    assert.strictEqual(reg.bqModeAllows('progressRings', 'lite'), false);
+    assert.strictEqual(reg.bqModeAllows('explorationMap', 'intermediate'), false);
+    assert.strictEqual(reg.bqModeAllows('continueReading', 'beginner'), false);
+    assert.strictEqual(reg.bqModeAllows('continueReading', 'intermediate'), true);
+    assert.strictEqual(reg.bqModeAllows('featuredOn', 'beginner'), true);
+    assert.strictEqual(reg.bqModeAllows('featuredOn', 'intermediate'), false);
+    assert.strictEqual(reg.bqModeAllows('introVideo', 'lite'), true);
+    assert.strictEqual(reg.bqModeAllows('introVideo', 'intermediate'), false);
+    assert.strictEqual(reg.bqModeAllows('countryUsers', 'advanced'), true);
+    assert.strictEqual(reg.bqModeAllows('countryUsers', 'intermediate'), false);
+    var invite = reg.BQ_SURFACES.filter(function (row) { return row.id === 'invite'; })[0];
+    assert.ok(invite.selector.indexOf('#homeInvitesTile') !== -1);
+    var liteGuide = reg.bqGuideCards('lite');
+    var liteTitles = liteGuide.start.concat(liteGuide.daily, liteGuide.apps, liteGuide.more).map(function (g) { return g.title; });
+    assert.ok(liteTitles.indexOf('AI Nacho Mode') !== -1);
+    assert.ok(liteTitles.indexOf('Lightning Tipping') === -1);
+    var advGuide = reg.bqGuideCards('advanced');
+    var advTitles = advGuide.start.concat(advGuide.daily, advGuide.apps, advGuide.more).map(function (g) { return g.title; });
+    assert.ok(advTitles.indexOf('Lightning Tipping') !== -1);
+    assert.ok(advTitles.indexOf('AI Nacho Mode') !== -1);
+    assert.ok(read('badges.js').includes("window.bqModeAllows('confetti')"));
+    assert.ok(read('ranking.js').includes("'Level up: ' + "));
+    assert.ok(read('ranking.js').includes("window.bqModeAllows('confetti')"));
+    assert.ok(read('features.js').includes("'+' + badge.pts + ' XP · ' + secretName"));
+    assert.ok(read('features.js').includes("window.bqModeAllows('confetti')"));
+    assert.ok(read('app.js').includes("window.bqModeAllows('spin')"));
+    assert.ok(read('app.js').includes("window.bqModeAllows('confetti')"));
+    assert.ok(read('nacho.js').includes('Ask Nacho'));
+    assert.ok(read('nacho.js').includes("window.bqModeAllows('spin')"));
+    assert.ok(read('mobile-ux.js').includes("if (streakMode === 'lite') return;"));
+    assert.ok(read('notifications.js').includes('function notifListedInMode'));
+    assert.ok(read('global-chat.js').includes('m.pvpShout'));
+    assert.ok(read('global-chat.js').includes('m.cycleId'));
+    assert.ok(!read('global-chat.js').includes('leveled up'));
+    assert.ok(read('features.registry.js').includes('color:#94a3b8;'));
+    assert.ok(!read('features.registry.js').includes('var recommend = !stored'));
+    assert.ok(read('features.registry.js').includes("else if (meta.id === 'beginner')"));
+    var src = read('onboarding.js.src');
+    assert.ok(!src.includes('firstMode.focus'));
+    assert.ok(src.includes('#bqModeChipPanel{') && src.includes('text-align:left;'));
+    assert.ok(!read('nacho-live.js').includes('bqModeAllows(\'btcTicker\')'));
+}));
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

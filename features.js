@@ -1031,8 +1031,13 @@ window.checkHiddenBadges = function() {
             if (badge.check && badge.check()) {
                 earned.push(badge.id);
                 changed = true;
-                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' XP');
-                if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Badge: ' + (badge.revealName || badge.name), null, null, null, badge.id);
+                var secretName = badge.revealName || badge.name;
+                var badgesOn = typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges');
+                if (typeof showToast === 'function') {
+                    if (!badgesOn) showToast('+' + badge.pts + ' XP · ' + secretName);
+                    else showToast(badge.emoji + ' Secret Badge: ' + secretName + '! +' + badge.pts + ' XP');
+                }
+                if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Badge: ' + secretName, null, null, null, badge.id);
             }
         } catch(e) {}
     });
@@ -1098,6 +1103,12 @@ window.setFloatingElementsVisible = function(visible) {
 // ========== CELEBRATION SYSTEM ==========
 // Reusable celebration overlay for big achievements
 window.showCelebration = function(opts) {
+    opts = opts || {};
+    if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('confetti')) {
+        var quietTitle = opts.title || opts.message || 'Achievement unlocked';
+        if (typeof showToast === 'function') showToast(quietTitle);
+        return;
+    }
     var emoji = opts.emoji || '🎉';
     var title = opts.title || 'Achievement Unlocked!';
     var message = opts.message || '';

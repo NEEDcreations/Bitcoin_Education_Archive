@@ -1507,8 +1507,9 @@ function copyBadgeLink(emoji, name) {
     });
 }
 
-// Confetti explosion
+// Confetti explosion. The registry row is Everything only.
 function launchConfetti() {
+    if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('confetti')) return;
     const canvas = document.createElement('canvas');
     canvas.id = 'confettiCanvas';
     canvas.style.cssText = 'position:fixed;inset:0;z-index:500;pointer-events:none;';
@@ -4900,13 +4901,24 @@ function createNacho() {
             setPose('wave');
             
             if (tourStep === 1) {
-                forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
-                    'Here\'s what you can do here:<br>' +
-                    '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
-                    '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
-                    '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
-                    '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
-                    '<button onclick="hideBubble(true)" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">I\'ll explore on my own</button></div>');
+                var spinWelcome = typeof window.bqModeAllows !== 'function' || window.bqModeAllows('spin');
+                if (spinWelcome) {
+                    forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
+                        'Here\'s what you can do here:<br>' +
+                        '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
+                        '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
+                        '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
+                        '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
+                        '<button onclick="hideBubble(true)" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">I\'ll explore on my own</button></div>');
+                } else {
+                    forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
+                        'Here\'s what you can do here:<br>' +
+                        '📚 <strong>Pick a topic</strong> — tap any in the sidebar<br>' +
+                        '🦌 <strong>Ask Nacho</strong> anything about Bitcoin<br>' +
+                        '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
+                        '<button onclick="hideBubble(true);go(\'whitepaper\')" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">Pick a topic</button>' +
+                        '<button onclick="hideBubble(true);if(typeof enterNachoMode===\'function\')enterNachoMode()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">Ask Nacho</button></div>');
+                }
                 localStorage.setItem('btc_nacho_onboarding', '2');
             } else if (tourStep === 2 && exploredCount >= 1) {
                 forceShowBubble('<div style="line-height:1.6;">Nice, you explored your first channel! 🎉<br><br>' +
@@ -13954,8 +13966,13 @@ window.checkHiddenBadges = function() {
             if (badge.check && badge.check()) {
                 earned.push(badge.id);
                 changed = true;
-                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' XP');
-                if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Badge: ' + (badge.revealName || badge.name), null, null, null, badge.id);
+                var secretName = badge.revealName || badge.name;
+                var badgesOn = typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges');
+                if (typeof showToast === 'function') {
+                    if (!badgesOn) showToast('+' + badge.pts + ' XP · ' + secretName);
+                    else showToast(badge.emoji + ' Secret Badge: ' + secretName + '! +' + badge.pts + ' XP');
+                }
+                if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Badge: ' + secretName, null, null, null, badge.id);
             }
         } catch(e) {}
     });
@@ -14021,6 +14038,12 @@ window.setFloatingElementsVisible = function(visible) {
 // ========== CELEBRATION SYSTEM ==========
 // Reusable celebration overlay for big achievements
 window.showCelebration = function(opts) {
+    opts = opts || {};
+    if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('confetti')) {
+        var quietTitle = opts.title || opts.message || 'Achievement unlocked';
+        if (typeof showToast === 'function') showToast(quietTitle);
+        return;
+    }
     var emoji = opts.emoji || '🎉';
     var title = opts.title || 'Achievement Unlocked!';
     var message = opts.message || '';
@@ -14426,6 +14449,11 @@ document.addEventListener('touchend', function(e) {
 
 // ---- #10: Daily Streak Banner ----
 function showStreakBanner() {
+    var streakMode = 'advanced';
+    try {
+        streakMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || localStorage.getItem('btc_experience_mode') || 'advanced';
+    } catch (eStreak) {}
+    if (streakMode === 'lite') return;
     var streak = 0;
     if (typeof currentUser !== 'undefined' && currentUser) streak = currentUser.streak || 0;
     if (streak < 2) return; // Only show for 2+ days
@@ -19014,6 +19042,10 @@ document.addEventListener('btcProfileSaved', function() {
     }
 
     window.showSpinWheel = function() {
+        if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('spin')) {
+            if (typeof showToast === 'function') showToast('Daily Spin is in Settings → Experience Mode (Balanced or Everything).');
+            return;
+        }
         // Auth gate — must be signed in to spin
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
             if (typeof showSignInPrompt === 'function') showSignInPrompt();
@@ -19324,7 +19356,7 @@ document.addEventListener('btcProfileSaved', function() {
                     var rt = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
                     localStorage.setItem('btc_orange_tickets', rt + rareAmount);
                 }
-                if (rareAmount >= 100) {
+                if (rareAmount >= 100 && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('confetti'))) {
                     if (typeof launchConfetti === 'function') launchConfetti();
                     if (typeof playBadgeSound === 'function') playBadgeSound();
                 }
@@ -21802,7 +21834,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (window._konamiBuffer.join(',') === _konamiSeq.join(',') && localStorage.getItem('btc_block42_found') !== 'true') {
             window._konamiBuffer = [];
             localStorage.setItem('btc_block42_found', 'true');
-            if (typeof launchConfetti === 'function') launchConfetti();
+            if ((typeof window.bqModeAllows !== 'function' || window.bqModeAllows('confetti')) && typeof launchConfetti === 'function') launchConfetti();
             if (typeof haptic === 'function') haptic('success');
             if (typeof showToast === 'function') showToast('🎱 Block 42 unlocked! Secret badge discovered...');
             setTimeout(function() {

@@ -1041,8 +1041,9 @@ function copyBadgeLink(emoji, name) {
     });
 }
 
-// Confetti explosion
+// Confetti explosion. The registry row is Everything only.
 function launchConfetti() {
+    if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('confetti')) return;
     const canvas = document.createElement('canvas');
     canvas.id = 'confettiCanvas';
     canvas.style.cssText = 'position:fixed;inset:0;z-index:500;pointer-events:none;';
