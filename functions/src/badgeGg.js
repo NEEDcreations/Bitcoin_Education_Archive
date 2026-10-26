@@ -94,6 +94,13 @@ function flexDisplayName(id) {
     return parts.map(titleCaseWord).join(' ');
 }
 
+// p01..p80 are the mate-in-1 chess puzzles. The catalog stores the raw id.
+function puzzleDisplayName(id) {
+    const match = /^p(0[1-9]|[1-7]\d|80)$/.exec(String(id || ''));
+    if (!match) return '';
+    return 'Checkmate Puzzle ' + Number(match[1]);
+}
+
 function fallbackDisplayName(id) {
     const parts = stripIdPrefixes(id).split('_').filter(Boolean).map(titleCaseWord);
     return parts.join(' ');
@@ -109,7 +116,8 @@ function badgeName(badgeId) {
         if (cleaned && cleaned !== id) return cleaned;
     }
     const flex = flexDisplayName(id);
-    const candidate = flex || fallbackDisplayName(id);
+    const puzzle = puzzleDisplayName(id);
+    const candidate = flex || puzzle || fallbackDisplayName(id);
     const cleaned = cleanLabel(candidate);
     if (!cleaned || cleaned === id) return 'a badge';
     return cleaned;
@@ -152,33 +160,38 @@ function isMajor(item) {
 
 // One GGs line. Major badges keep "just earned the {emoji} {name} badge!"
 // and lead a mixed burst. "+N SF points" counts pool points only.
+function mention(display) {
+    if (!display || display === 'A player') return 'A player';
+    return '@' + display;
+}
+
 function formatBadgeGg(name, items) {
-    const display = sanitizeDisplayName(name) || 'A player';
+    const who = mention(sanitizeDisplayName(name) || 'A player');
     const list = (items || []).filter(function (item) { return item && item.badgeId; });
     const suffix = sfSuffix(favorCount(list));
-    if (!list.length) return '🏅 @' + display + ' earned a badge' + suffix;
+    if (!list.length) return '🏅 ' + who + ' earned a badge' + suffix;
     const majors = list.filter(isMajor);
     const rest = list.filter(function (item) { return !isMajor(item); });
     if (list.length === 1 && majors.length === 1) {
         const only = majors[0];
-        return '🏅 @' + display + ' just earned the ' + badgeEmoji(only.badgeId) + ' ' + badgeName(only.badgeId) + ' badge! 🎉' + suffix;
+        return '🏅 ' + who + ' just earned the ' + badgeEmoji(only.badgeId) + ' ' + badgeName(only.badgeId) + ' badge! 🎉' + suffix;
     }
     if (majors.length >= 1) {
         const lead = majors[0];
         const also = majors.slice(1).concat(rest).map(function (item) { return badgeName(item.badgeId); });
-        let text = '🏅 @' + display + ' just earned the ' + badgeEmoji(lead.badgeId) + ' ' + badgeName(lead.badgeId) + ' badge! 🎉';
+        let text = '🏅 ' + who + ' just earned the ' + badgeEmoji(lead.badgeId) + ' ' + badgeName(lead.badgeId) + ' badge! 🎉';
         if (also.length) text += ' Also: ' + joinNames(also);
         return text + suffix;
     }
     const flexOnly = list.length > 1 && list.every(isFlex);
     if (flexOnly) {
-        return '🏅 @' + display + ' earned ' + list.length + ' flex badges' + suffix;
+        return '🏅 ' + who + ' earned ' + list.length + ' flex badges' + suffix;
     }
     if (list.length === 1) {
-        return '🏅 @' + display + ' earned ' + badgeName(list[0].badgeId) + suffix;
+        return '🏅 ' + who + ' earned ' + badgeName(list[0].badgeId) + suffix;
     }
     const names = list.map(function (item) { return badgeName(item.badgeId); });
-    return '🏅 @' + display + ' earned ' + list.length + ' badges: ' + joinNames(names) + suffix;
+    return '🏅 ' + who + ' earned ' + list.length + ' badges: ' + joinNames(names) + suffix;
 }
 
 function newBurst(uid, item, nowMs) {

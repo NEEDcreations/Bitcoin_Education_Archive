@@ -85,13 +85,29 @@ function memoryDb(seed) {
             path: prefix,
             doc: function (id) { return ref(prefix + '/' + id); },
             where: function (field, op, value) {
+                const filters = [{ field: field, op: op, value: value }];
                 const query = {
-                    limit: function () { return query; },
+                    _limit: 0,
+                    where: function (nextField, nextOp, nextValue) {
+                        filters.push({ field: nextField, op: nextOp, value: nextValue });
+                        return query;
+                    },
+                    orderBy: function () { return query; },
+                    limit: function (n) { query._limit = n; return query; },
                     get: async function () {
-                        const list = rowsUnder(prefix).filter(function (doc) {
+                        let list = rowsUnder(prefix).filter(function (doc) {
                             const data = doc.data();
-                            return op === '==' && data[field] === value;
+                            return filters.every(function (filter) {
+                                const left = data[filter.field];
+                                if (filter.op === '==') return left === filter.value;
+                                if (filter.op === '<=') return Number(left) <= Number(filter.value);
+                                return false;
+                            });
                         });
+                        list.sort(function (a, b) {
+                            return (Number(a.data().nextAttemptAt) || 0) - (Number(b.data().nextAttemptAt) || 0);
+                        });
+                        if (query._limit) list = list.slice(0, query._limit);
                         return pack(list);
                     },
                 };
@@ -168,7 +184,11 @@ test('a chat doc is forwarded once and a retry does not send again', async funct
     assert.strictEqual(Object.prototype.hasOwnProperty.call(sent, 'image'), false);
     assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__m1'].status, 'sent');
     assert.strictEqual(db.docs['global_chat/m1'].telegramMirrored, true);
-    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__m1'].uid, undefined);
+    assert.strictEqual(db.docs['global_chat/m1'].telegramMsgId, '77');
+    assert.strictEqual(db.docs['global_chat/m1'].telegramBatched, undefined);
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__m1'].uid, 'user_pat');
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__m1'].expireAtMs, now + mirror.RETAIN_MS);
+    assert.ok(sent.text.indexOf('user_pat') === -1);
     const again = await mirror.flushTelegramMirror(db, now + 10, options);
     assert.strictEqual(again.sent, 0);
     assert.strictEqual(bodies.length, 1);
@@ -295,9 +315,9 @@ test('a burst is one Telegram message and a full minute stays queued', async fun
     };
     for (let i = 0; i < 25; i++) {
         const id = 'b' + i;
-        db.docs['global_chat/' + id] = msg({ text: 'line ' + i });
+        db.docs['global_chat/' + id] = msg({ uid: 'user_burst_' + i, text: 'line ' + i });
         const queued = await mirror.enqueueChatMirror(db, 'global_chat', id, db.docs['global_chat/' + id], null, now + i);
-        assert.strictEqual(queued.queued, true);
+        assert.strictEqual(queued.queued, true, id);
     }
     const flushed = await mirror.flushTelegramMirror(db, now + 24, options);
     assert.strictEqual(flushed.sent, 1);
@@ -306,7 +326,12 @@ test('a burst is one Telegram message and a full minute stays queued', async fun
     assert.ok(bodies[0].indexOf('[Global] Pat: line 0') !== -1);
     assert.ok(bodies[0].indexOf('[Global] Pat: line 24') !== -1);
     for (let i = 0; i < 25; i++) {
-        assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__b' + i].status, 'sent');
+        const queuedRow = db.docs['telegram_mirror_queue/global_chat__b' + i];
+        const source = db.docs['global_chat/b' + i];
+        assert.strictEqual(queuedRow.status, 'sent');
+        assert.strictEqual(queuedRow.telegramMsgId, undefined);
+        assert.strictEqual(source.telegramBatched, true);
+        assert.strictEqual(source.telegramMsgId, undefined);
     }
 
     const capped = memoryDb({
@@ -396,6 +421,8 @@ test('clients and the callable do not post, and mirror collections are server-on
     assert.ok(index.indexOf('exports.onGlobalChatTelegram') !== -1);
     assert.ok(index.indexOf('exports.onAnnouncementsTelegram') !== -1);
     assert.ok(index.indexOf('exports.flushTelegramMirror') !== -1);
+    assert.ok(index.indexOf('exports.onGlobalChatTelegramDeleted') !== -1);
+    assert.ok(index.indexOf('exports.onAnnouncementsTelegramUpdated') !== -1);
     assert.strictEqual(index.indexOf("handleChatMirror(db, 'dm_conversations'"), -1);
     assert.ok(index.indexOf("skipped: 'server_mirror'") !== -1);
     ['telegram_mirror_claims', 'telegram_mirror_queue', 'telegram_mirror_state'].forEach(function (name) {
@@ -406,6 +433,248 @@ test('clients and the callable do not post, and mirror collections are server-on
     });
     assert.strictEqual(mirror.DEFAULT_CHAT_ID, '-1003827558565');
     assert.strictEqual(mirror.MAX_SENDS_PER_MINUTE, 20);
+});
+
+function loneSurrogate(text) {
+    return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(text) || /(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(text);
+}
+
+test('truncation keeps whole emoji and does not split a surrogate', function () {
+    const split = 'x'.repeat(3498) + '😀' + 'y';
+    const clipped = mirror.clipLine(split);
+    assert.ok(clipped.length <= mirror.MAX_BATCH_CHARS);
+    assert.strictEqual(loneSurrogate(clipped), false);
+    assert.strictEqual(Buffer.from(clipped, 'utf8').toString('utf8'), clipped);
+    const body = 'a'.repeat(999) + '😀';
+    const decision = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: body }),
+    });
+    assert.strictEqual(decision.forward, true);
+    assert.strictEqual(loneSurrogate(decision.line), false);
+    assert.strictEqual(decision.line.indexOf('\uD83D'), decision.line.indexOf('😀'));
+    const family = '👨‍👩‍👧‍👦';
+    const familyLine = mirror.clipUnits('b'.repeat(999) + family, 1000);
+    assert.strictEqual(loneSurrogate(familyLine), false);
+    assert.ok(familyLine === 'b'.repeat(999) || familyLine.indexOf(family) !== -1);
+    assert.ok(familyLine.indexOf('\u200D') === -1 || familyLine.indexOf(family) !== -1);
+});
+
+test('profanity and scam text are not forwarded', async function () {
+    const now = 1700000000000;
+    const cases = [
+        { id: 'bad', text: 'fuck you scam send btc to bc1qexample', reason: 'profanity' },
+        { id: 'scam', text: 'please send me 5 btc today', reason: 'scam' },
+        { id: 'wallet', text: 'send sats to bc1qexampleaddress', reason: 'scam' },
+    ];
+    const db = memoryDb();
+    for (let i = 0; i < cases.length; i++) {
+        const row = cases[i];
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row.text }) });
+        assert.strictEqual(decision.forward, false, row.id);
+        assert.strictEqual(decision.reason, row.reason, row.id);
+        const queued = await mirror.enqueueChatMirror(db, 'global_chat', row.id, msg({ text: row.text }), null, now);
+        assert.strictEqual(queued.queued, false, row.id);
+        assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__' + row.id], undefined, row.id);
+    }
+});
+
+test('the same user is limited to one line per 3s and ten per minute', async function () {
+    const now = 1700000000000;
+    const db = memoryDb();
+    const first = await mirror.enqueueChatMirror(db, 'global_chat', 'r0', msg({ text: 'one' }), null, now);
+    assert.strictEqual(first.queued, true);
+    const fast = await mirror.enqueueChatMirror(db, 'global_chat', 'r1', msg({ text: 'two' }), null, now + 1000);
+    assert.strictEqual(fast.queued, false);
+    assert.strictEqual(fast.reason, 'rate');
+    let at = now;
+    let queued = 1;
+    for (let i = 1; i < 12; i++) {
+        at += mirror.USER_GAP_MS;
+        const result = await mirror.enqueueChatMirror(db, 'global_chat', 'm' + i, msg({ text: 'n' + i }), null, at);
+        if (result.queued) queued += 1;
+        else assert.strictEqual(result.reason, 'rate');
+    }
+    assert.strictEqual(queued, mirror.USER_MAX_PER_MINUTE);
+    const nacho = await mirror.enqueueChatMirror(db, 'announcements', 'n1', {
+        uid: 'nacho-bot', name: '🦌 Nacho', text: 'server one',
+    }, null, now);
+    const nacho2 = await mirror.enqueueChatMirror(db, 'announcements', 'n2', {
+        uid: 'nacho-bot', name: '🦌 Nacho', text: 'server two',
+    }, null, now + 10);
+    assert.strictEqual(nacho.queued, true);
+    assert.strictEqual(nacho2.queued, true);
+});
+
+test('a 400 batch is split and a poison line fails without blocking the rest', async function () {
+    const now = 1700000000000;
+    const db = memoryDb({
+        'global_chat/good': msg({ uid: 'user_good', text: 'hello there' }),
+        'global_chat/bad': msg({ uid: 'user_bad', text: 'BADLINE' }),
+    });
+    await mirror.enqueueChatMirror(db, 'global_chat', 'good', db.docs['global_chat/good'], null, now);
+    await mirror.enqueueChatMirror(db, 'global_chat', 'bad', db.docs['global_chat/bad'], null, now + mirror.USER_GAP_MS);
+    const calls = [];
+    const result = await mirror.flushTelegramMirror(db, now + mirror.USER_GAP_MS, {
+        token: 'test-token-value',
+        chatId: '-100',
+        log: function () {},
+        fetch: async function (_url, init) {
+            const text = JSON.parse(init.body).text;
+            calls.push(text);
+            if (text.indexOf('\n') !== -1 || text.indexOf('BADLINE') !== -1) {
+                return { ok: false, status: 400, json: async function () { return { ok: false, error_code: 400 }; } };
+            }
+            return { ok: true, status: 200, json: async function () { return { ok: true, result: { message_id: 5, chat: { id: -100 } } }; } };
+        },
+    });
+    assert.ok(result.sent >= 1);
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__good'].status, 'sent');
+    assert.strictEqual(db.docs['global_chat/good'].telegramMsgId, '5');
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__bad'].status, 'failed');
+    assert.ok(db.docs['telegram_mirror_queue/global_chat__bad'].lastError);
+    db.docs['global_chat/next'] = msg({ uid: 'user_next', text: 'still going' });
+    const later = await mirror.enqueueChatMirror(db, 'global_chat', 'next', db.docs['global_chat/next'], null, now + 60000);
+    assert.strictEqual(later.queued, true);
+    const follow = await mirror.flushTelegramMirror(db, now + 60000, {
+        token: 'test-token-value',
+        chatId: '-100',
+        log: function () {},
+        fetch: async function () {
+            return { ok: true, status: 200, json: async function () { return { ok: true, result: { message_id: 6, chat: { id: -100 } } }; } };
+        },
+    });
+    assert.strictEqual(follow.sent, 1);
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__bad'].status, 'failed');
+    assert.ok(calls.length >= 2);
+});
+
+test('retryable sends stop after five attempts', async function () {
+    const now = 1700000000000;
+    const db = memoryDb({ 'global_chat/retry': msg({ text: 'again' }) });
+    await mirror.enqueueChatMirror(db, 'global_chat', 'retry', db.docs['global_chat/retry'], null, now);
+    const options = {
+        token: 'test-token-value',
+        chatId: '-100',
+        log: function () {},
+        fetch: async function () {
+            return { ok: false, status: 500, json: async function () { return { ok: false, error_code: 500 }; } };
+        },
+    };
+    let at = now;
+    for (let i = 0; i < mirror.MAX_ATTEMPTS - 1; i++) {
+        await mirror.flushTelegramMirror(db, at, options);
+        const row = db.docs['telegram_mirror_queue/global_chat__retry'];
+        assert.strictEqual(row.status, 'pending', 'attempt ' + (i + 1));
+        at = row.nextAttemptAt;
+    }
+    await mirror.flushTelegramMirror(db, at, options);
+    const failed = db.docs['telegram_mirror_queue/global_chat__retry'];
+    assert.strictEqual(failed.status, 'failed');
+    assert.strictEqual(failed.attempts, mirror.MAX_ATTEMPTS);
+    assert.ok(failed.lastError);
+    let called = false;
+    await mirror.flushTelegramMirror(db, at + 999999, {
+        token: 'test-token-value',
+        chatId: '-100',
+        log: function () {},
+        fetch: async function () { called = true; return { ok: true, status: 200, json: async function () { return { ok: true }; } }; },
+    });
+    assert.strictEqual(called, false);
+});
+
+test('a hung send aborts and the lease outlasts the timeout', async function () {
+    assert.ok(mirror.SENDING_LEASE_MS > mirror.SEND_TIMEOUT_MS);
+    const now = 1700000000000;
+    const db = memoryDb({ 'global_chat/slow': msg({ text: 'slow line' }) });
+    await mirror.enqueueChatMirror(db, 'global_chat', 'slow', db.docs['global_chat/slow'], null, now);
+    const result = await mirror.flushTelegramMirror(db, now, {
+        token: 'test-token-value',
+        chatId: '-100',
+        timeoutMs: 20,
+        log: function () {},
+        fetch: function (_url, init) {
+            return new Promise(function (_resolve, reject) {
+                const timer = setTimeout(function () { reject(new Error('hung')); }, 1000);
+                if (init && init.signal) {
+                    init.signal.addEventListener('abort', function () {
+                        clearTimeout(timer);
+                        const err = new Error('aborted');
+                        err.name = 'AbortError';
+                        reject(err);
+                    });
+                }
+            });
+        },
+    });
+    assert.strictEqual(result.sent, 0);
+    const row = db.docs['telegram_mirror_queue/global_chat__slow'];
+    assert.strictEqual(row.status, 'pending');
+    assert.ok(row.attempts >= 1);
+});
+
+test('already mirrored docs and Nacho twins are not queued twice', async function () {
+    const now = 1700000000000;
+    const db = memoryDb();
+    const stamped = msg({ text: 'already out', telegramMirrored: true, telegramMsgId: '44' });
+    const skipped = await mirror.enqueueChatMirror(db, 'global_chat', 'old', stamped, null, now);
+    assert.strictEqual(skipped.reason, 'already_mirrored');
+    const block = '⛏️ BLOCK FOUND! ⚡\n\n@Pat solved a block';
+    const globalCopy = await mirror.enqueueChatMirror(db, 'global_chat', 'win', {
+        uid: 'nacho-bot', name: '🦌 Nacho', text: block,
+    }, null, now);
+    const ggsCopy = await mirror.enqueueChatMirror(db, 'announcements', 'win', {
+        uid: 'nacho-bot', name: '🦌 Nacho', text: block,
+    }, null, now);
+    assert.strictEqual(globalCopy.queued, true);
+    assert.strictEqual(ggsCopy.reason, 'duplicate');
+    const epoch = '⛏️ EPOCH #3 COMPLETE! 🎉\n\nwinners';
+    const epochCopy = await mirror.enqueueChatMirror(db, 'announcements', 'epoch', {
+        uid: 'nacho-bot', name: '🦌 Nacho', text: epoch,
+    }, null, now);
+    assert.strictEqual(epochCopy.reason, 'duplicate');
+});
+
+test('a ban at send time and a deleted single message are handled', async function () {
+    const now = 1700000000000;
+    const db = memoryDb({
+        'global_chat/late': msg({ uid: 'user_late', text: 'hello' }),
+        'users/user_late': { username: 'Late' },
+        'faucet_ledger/user_late': { banned: false },
+    });
+    await mirror.enqueueChatMirror(db, 'global_chat', 'late', db.docs['global_chat/late'], null, now);
+    db.docs['faucet_ledger/user_late'] = { banned: true };
+    const blocked = await mirror.flushTelegramMirror(db, now, {
+        token: 'test-token-value',
+        chatId: '-100',
+        log: function () {},
+        fetch: async function () { throw new Error('banned text was sent'); },
+    });
+    assert.strictEqual(blocked.sent, 0);
+    assert.strictEqual(db.docs['telegram_mirror_queue/global_chat__late'].status, 'skipped');
+
+    const calls = [];
+    const removed = await mirror.retractMirroredChat(db, {
+        telegramMsgId: '77',
+        telegramChatId: '-100',
+        text: 'hello',
+    }, { hidden: true }, {
+        token: 'test-token-value',
+        fetch: async function (url, init) {
+            calls.push(url + ' ' + init.body);
+            return { ok: true, status: 200, json: async function () { return { ok: true, result: true }; } };
+        },
+    });
+    assert.strictEqual(removed.deleted, true);
+    assert.ok(calls[0].indexOf('deleteMessage') !== -1);
+    const batched = await mirror.retractMirroredChat(db, {
+        telegramBatched: true,
+        telegramMsgId: '9',
+        text: 'hello',
+    }, null, {
+        fetch: async function () { throw new Error('batched delete'); },
+    });
+    assert.strictEqual(batched.reason, 'no_id');
 });
 
 Promise.all(queue).then(function () {

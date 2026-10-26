@@ -1445,53 +1445,11 @@ exports.checkDailyLimit = functionsV1.https.onCall(async (data, context) => {
 // AUDIT FIX: Forum Content Moderation
 // Server-side profanity filter with leetspeak detection
 // =============================================
+const { moderateText } = require('./src/moderateText');
 exports.moderateContent = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const text = (data.text || '').trim();
-    if (!text) return { clean: true };
-
-    // Normalize leetspeak
-    const normalized = text.toLowerCase()
-        .replace(/[@4]/g, 'a')
-        .replace(/[8]/g, 'b')
-        .replace(/[3€]/g, 'e')
-        .replace(/[1!|]/g, 'i')
-        .replace(/[0]/g, 'o')
-        .replace(/[$5]/g, 's')
-        .replace(/[7+]/g, 't')
-        .replace(/[*._\-]/g, '')
-        .replace(/\s+/g, ' ');
-
-    const profanityList = [
-        'fuck', 'shit', 'bitch', 'asshole', 'damn', 'cunt',
-        'dick', 'cock', 'pussy', 'whore', 'slut', 'fag',
-        'nigger', 'nigga', 'retard', 'kill yourself', 'kys'
-    ];
-
-    // Word boundary matching to avoid Scunthorpe problem
-    for (const word of profanityList) {
-        const regex = new RegExp('\\b' + word + '\\b', 'i');
-        if (regex.test(normalized)) {
-            return { clean: false, reason: 'Content contains inappropriate language' };
-        }
-    }
-
-    // Check for scam patterns
-    const scamPatterns = [
-        /send me \d+ btc/i,
-        /double your bitcoin/i,
-        /guaranteed.*return/i,
-        /invest.*guaranteed/i,
-        /free bitcoin.*send/i,
-    ];
-
-    for (const pattern of scamPatterns) {
-        if (pattern.test(text)) {
-            return { clean: false, reason: 'Content contains potential scam patterns' };
-        }
-    }
-
+    const result = moderateText((data && data.text) || '');
+    if (!result.clean) return { clean: false, reason: result.reason };
     return { clean: true };
 });
 
@@ -7897,12 +7855,25 @@ exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC'
     }
 });
 
-const { handleChatMirror, flushTelegramMirror } = require('./src/chatTelegramMirror');
+const { handleChatMirror, flushTelegramMirror, retractMirroredChat } = require('./src/chatTelegramMirror');
 async function mirrorChatCreate(collection, docId, data) {
     try {
         await handleChatMirror(db, collection, docId, data || {});
     } catch (e) {
         console.error('[TG MIRROR] ' + collection + ' failed');
+        throw e;
+    }
+    return null;
+}
+function snapData(snap) {
+    if (!snap || snap.exists === false) return null;
+    try { return snap.data() || null; } catch (err) { return null; }
+}
+async function mirrorChatRetract(beforeSnap, afterSnap) {
+    try {
+        await retractMirroredChat(db, snapData(beforeSnap), snapData(afterSnap));
+    } catch (e) {
+        console.error('[TG MIRROR] retract failed');
         throw e;
     }
     return null;
@@ -7916,6 +7887,20 @@ exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('announcements', event.params.msgId, snap.data());
+});
+exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+    const change = event.data || {};
+    return mirrorChatRetract(change.before, change.after);
+});
+exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+    return mirrorChatRetract(event.data, null);
+});
+exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+    const change = event.data || {};
+    return mirrorChatRetract(change.before, change.after);
+});
+exports.onAnnouncementsTelegramDeleted = onDocumentDeleted({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+    return mirrorChatRetract(event.data, null);
 });
 exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
     try {

@@ -14,6 +14,7 @@
 
 const { toTelegramText, redactForLog } = require('./telegramBridge');
 const { moderationBlock } = require('./topicDiscussion');
+const { moderateText } = require('./moderateText');
 
 const QUEUE = 'telegram_mirror_queue';
 const CLAIMS = 'telegram_mirror_claims';
@@ -27,7 +28,16 @@ const MAX_BATCH_CHARS = 3500;
 // Each queued line is read and written twice in one transaction (queue row
 // and source chat doc). Stay under Firestore's 500-op transaction cap.
 const MAX_BATCH_ITEMS = 30;
-const SENDING_LEASE_MS = 60 * 1000;
+const DUE_LIMIT = 30;
+const SEND_TIMEOUT_MS = 10 * 1000;
+// Longer than the send timeout so a slow call is aborted before the lease
+// expires and a second worker sends the same batch.
+const SENDING_LEASE_MS = 30 * 1000;
+const MAX_ATTEMPTS = 5;
+const USER_GAP_MS = 3 * 1000;
+const USER_MAX_PER_MINUTE = 10;
+const RETAIN_MS = 7 * 24 * 60 * 60 * 1000;
+const BODY_LIMIT = 1000;
 
 const SOURCE_TAG = {
     global_chat: 'Global',
@@ -119,9 +129,44 @@ function visibleBody(data, note) {
     if (note && note !== '[image]' && collapseSpace(text) === note) text = '';
     if (note === '[image]' && /^https?:\/\//i.test(collapseSpace(text))) text = '';
     if (note === '[image]' && text.length > 80 && text.indexOf(' ') === -1) text = '';
-    text = collapseSpace(text).slice(0, 1000);
+    text = clipUnits(collapseSpace(text), BODY_LIMIT);
     const extra = note ? String(note) : '';
-    return collapseSpace([text, extra].filter(Boolean).join(' '));
+    return clipUnits(collapseSpace([text, extra].filter(Boolean).join(' ')), BODY_LIMIT);
+}
+
+function graphemeParts(text) {
+    const s = String(text || '');
+    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+        const parts = [];
+        const seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+        const iter = seg.segment(s);
+        for (const part of iter) parts.push(part.segment);
+        return parts;
+    }
+    return Array.from(s);
+}
+
+function dropDanglingSurrogate(text) {
+    const s = String(text || '');
+    if (!s) return '';
+    const last = s.charCodeAt(s.length - 1);
+    if (last >= 0xD800 && last <= 0xDBFF) return s.slice(0, -1);
+    return s;
+}
+
+// Keep whole graphemes. A cut never ends on a high surrogate or half an emoji.
+function clipUnits(text, maxUnits) {
+    const s = String(text || '');
+    const max = Number(maxUnits) || 0;
+    if (max <= 0) return '';
+    if (s.length <= max) return dropDanglingSurrogate(s);
+    const parts = graphemeParts(s);
+    let out = '';
+    for (let i = 0; i < parts.length; i++) {
+        if (out.length + parts[i].length > max) break;
+        out += parts[i];
+    }
+    return dropDanglingSurrogate(out);
 }
 
 function mirrorName(data) {
@@ -146,10 +191,31 @@ function isPrivate(data) {
     return false;
 }
 
-function messageSkipReason(data) {
+function isNachoTwin(collection, data) {
+    if (collection !== 'announcements') return false;
+    const src = data || {};
+    if (src.uid !== 'nacho-bot') return false;
+    const text = String(src.text || '');
+    if (text.indexOf('⛏️ BLOCK FOUND!') === 0) return true;
+    if (/^⛏️ EPOCH #\d+ COMPLETE!/.test(text)) return true;
+    return false;
+}
+
+function removedForTelegram(data) {
+    const src = data || {};
+    if (src.deleted === true || src.uid === 'deleted') return true;
+    if (src.hidden === true) return true;
+    if (src.flagged === true || src.moderated === true || src.spam === true) return true;
+    if (src.moderationRejected === true || src.filterRejected === true || src.rejected === true) return true;
+    return false;
+}
+
+function messageSkipReason(data, collection) {
     const src = data || {};
     const source = String(src.source || src.bridgedFrom || '').toLowerCase();
     if (source === 'telegram' || src.fromTelegram === true) return 'telegram';
+    if (src.telegramMirrored === true || src.telegramMsgId) return 'already_mirrored';
+    if (isNachoTwin(collection, src)) return 'duplicate';
     if (src.deleted === true || src.uid === 'deleted') return 'deleted';
     if (src.hidden === true) return 'hidden';
     if (src.flagged === true || src.moderated === true || src.spam === true) return 'moderated';
@@ -157,6 +223,45 @@ function messageSkipReason(data) {
     if (src.shadowbanned === true || src.shadowBan === true || src.isShadowbanned === true || src.shadowBanned === true) return 'shadowbanned';
     if (isPrivate(src)) return 'private';
     return '';
+}
+
+function contentSkipReason(data) {
+    const src = data || {};
+    const blob = [src.text, src.caption].filter(Boolean).join('\n');
+    const result = moderateText(blob);
+    if (result.clean) return '';
+    if (result.reason === 'Content contains potential scam patterns') return 'scam';
+    return 'profanity';
+}
+
+function rateLimitedUid(uid) {
+    const id = String(uid || '');
+    if (!id || id === 'nacho-bot' || id === 'system' || id === 'deleted') return false;
+    return true;
+}
+
+function rateDocId(uid) {
+    return 'rate_' + String(uid || '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
+}
+
+function rateDecision(recentAtMs, nowMs) {
+    const now = Number(nowMs) || 0;
+    const recent = (recentAtMs || []).map(Number).filter(function (ts) {
+        return Number.isFinite(ts) && now - ts < WINDOW_MS && now - ts >= 0;
+    });
+    const last = recent.reduce(function (max, ts) { return Math.max(max, ts); }, 0);
+    if (last && now - last < USER_GAP_MS) return { ok: false, recent: recent };
+    if (recent.length >= USER_MAX_PER_MINUTE) return { ok: false, recent: recent };
+    recent.push(now);
+    return { ok: true, recent: recent };
+}
+
+function retentionFields(nowMs) {
+    const at = Number(nowMs) || Date.now();
+    return {
+        expireAtMs: at + RETAIN_MS,
+        expireAt: new Date(at + RETAIN_MS),
+    };
 }
 
 function userSkipReason(user, nowMs) {
@@ -176,10 +281,12 @@ function decideMirror(input) {
     const data = opts.data || null;
     if (!data || typeof data !== 'object') return { forward: false, reason: 'empty' };
     if (!SOURCE_TAG[collection]) return { forward: false, reason: 'collection' };
-    const messageReason = messageSkipReason(data);
+    const messageReason = messageSkipReason(data, collection);
     if (messageReason) return { forward: false, reason: messageReason };
     const userReason = userSkipReason(opts.user, opts.nowMs || Date.now());
     if (userReason) return { forward: false, reason: userReason };
+    const contentReason = contentSkipReason(data);
+    if (contentReason) return { forward: false, reason: contentReason };
     const note = attachmentNote(data);
     const body = visibleBody(data, note);
     if (!body) return { forward: false, reason: 'empty' };
@@ -190,8 +297,8 @@ function decideMirror(input) {
 
 function clipLine(line) {
     const text = String(line || '');
-    if (text.length <= MAX_BATCH_CHARS) return text;
-    let cut = text.slice(0, MAX_BATCH_CHARS - 1);
+    if (text.length <= MAX_BATCH_CHARS) return dropDanglingSurrogate(text);
+    let cut = clipUnits(text, MAX_BATCH_CHARS - 1);
     const amp = cut.lastIndexOf('&');
     if (amp > cut.length - 10) cut = cut.slice(0, amp);
     return cut + '…';
@@ -261,9 +368,13 @@ async function sendTelegramText(text, options) {
     if (!token) return { ok: false, error: 'not_configured', retry: true };
     if (!text) return { ok: false, error: 'empty', retry: false };
     const fetchImpl = opts.fetch || defaultFetchImpl();
+    const timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : SEND_TIMEOUT_MS;
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timer = null;
     let resp;
     try {
-        resp = await fetchImpl('https://api.telegram.org/bot' + token + '/sendMessage', {
+        if (controller) timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+        const init = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -272,9 +383,14 @@ async function sendTelegramText(text, options) {
                 parse_mode: 'HTML',
                 disable_web_page_preview: true,
             }),
-        });
+        };
+        if (controller) init.signal = controller.signal;
+        resp = await fetchImpl('https://api.telegram.org/bot' + token + '/sendMessage', init);
     } catch (err) {
-        return { ok: false, error: 'request_failed', retry: true };
+        const aborted = !!(err && (err.name === 'AbortError' || /abort/i.test(String(err && err.message || ''))));
+        return { ok: false, error: aborted ? 'timeout' : 'request_failed', retry: true };
+    } finally {
+        if (timer) clearTimeout(timer);
     }
     let json = null;
     try {
@@ -300,16 +416,17 @@ async function sendTelegramText(text, options) {
     };
 }
 
-function queuePayload(collection, docId, line, nowMs) {
-    return {
+function queuePayload(collection, docId, line, nowMs, uid) {
+    return Object.assign({
         status: 'pending',
         collection: collection,
         docId: String(docId),
+        uid: uid || '',
         line: line,
         createdAtMs: nowMs,
         attempts: 0,
         nextAttemptAt: nowMs,
-    };
+    }, retentionFields(nowMs));
 }
 
 async function enqueueChatMirror(db, collection, docId, data, user, nowMs) {
@@ -319,15 +436,32 @@ async function enqueueChatMirror(db, collection, docId, data, user, nowMs) {
     const decision = decideMirror({ collection: collection, data: data, user: user, nowMs: at });
     const claimRef = db.collection(CLAIMS).doc(id);
     const queueRef = db.collection(QUEUE).doc(id);
+    const uid = data && data.uid ? String(data.uid) : '';
+    const rateRef = rateLimitedUid(uid) ? db.collection(STATE).doc(rateDocId(uid)) : null;
     return db.runTransaction(async function (tx) {
         const claimSnap = await tx.get(claimRef);
         if (claimSnap && claimSnap.exists) return { queued: false, reason: 'claimed' };
-        if (!decision.forward) {
-            tx.set(claimRef, { status: 'skipped', reason: decision.reason, at: at });
-            return { queued: false, reason: decision.reason };
+        const rateSnap = rateRef ? await tx.get(rateRef) : null;
+        let rate = null;
+        if (rateRef) {
+            const prev = rateSnap && rateSnap.exists ? (rateSnap.data() || {}) : {};
+            rate = rateDecision(prev.recentAtMs, at);
         }
-        tx.set(claimRef, { status: 'queued', at: at });
-        tx.set(queueRef, queuePayload(collection, docId, decision.line, at));
+        if (!decision.forward || (rate && !rate.ok)) {
+            const reason = !decision.forward ? decision.reason : 'rate';
+            tx.set(claimRef, Object.assign({
+                status: 'skipped', reason: reason, at: at, uid: uid,
+            }, retentionFields(at)));
+            return { queued: false, reason: reason };
+        }
+        if (rateRef && rate && rate.ok) {
+            tx.set(rateRef, Object.assign({
+                uid: uid,
+                recentAtMs: rate.recent,
+            }, retentionFields(at)));
+        }
+        tx.set(claimRef, Object.assign({ status: 'queued', at: at, uid: uid }, retentionFields(at)));
+        tx.set(queueRef, queuePayload(collection, docId, decision.line, at, uid));
         return { queued: true, id: id };
     });
 }
@@ -337,8 +471,16 @@ async function loadMirrorUser(db, data) {
     if (!uid || uid === 'nacho-bot' || uid === 'system' || uid === 'deleted') return null;
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) return null;
     const snap = await db.collection('users').doc(uid).get();
-    if (!snap || !snap.exists) return null;
-    return snap.data() || {};
+    const user = snap && snap.exists ? (snap.data() || {}) : null;
+    let ledger = null;
+    try {
+        const ledgerSnap = await db.collection('faucet_ledger').doc(uid).get();
+        if (ledgerSnap && ledgerSnap.exists) ledger = ledgerSnap.data() || {};
+    } catch (err) {
+        ledger = null;
+    }
+    if (!user && !ledger) return null;
+    return Object.assign({}, user || {}, { ledger: ledger });
 }
 
 function rowsOf(snap) {
@@ -356,13 +498,28 @@ function rowsOf(snap) {
     return out;
 }
 
-async function readQueue(db, status) {
-    let query = db.collection(QUEUE).where('status', '==', status);
-    if (typeof query.limit === 'function') query = query.limit(40);
-    const snap = await query.get();
+function queryRows(snap) {
     return rowsOf(snap).map(function (row) {
         return Object.assign({ id: row.id }, row.data);
     });
+}
+
+// One indexed page of due pending rows. The cron also recovers a small
+// page of expired sending leases. Inline creates do not scan the queue twice.
+async function readDue(db, nowMs) {
+    let query = db.collection(QUEUE).where('status', '==', 'pending');
+    if (typeof query.where === 'function') query = query.where('nextAttemptAt', '<=', nowMs);
+    if (typeof query.orderBy === 'function') query = query.orderBy('nextAttemptAt', 'asc');
+    if (typeof query.limit === 'function') query = query.limit(DUE_LIMIT);
+    const snap = await query.get();
+    return queryRows(snap);
+}
+
+async function readExpiredSending(db, nowMs) {
+    let query = db.collection(QUEUE).where('status', '==', 'sending');
+    if (typeof query.limit === 'function') query = query.limit(10);
+    const snap = await query.get();
+    return queryRows(snap).filter(function (item) { return itemDue(item, nowMs); });
 }
 
 async function readState(db) {
@@ -426,8 +583,15 @@ async function dropBlocked(db, plan, nowMs) {
             drop.push(item);
             continue;
         }
-        const reason = messageSkipReason(snap.data() || {});
-        if (reason) drop.push(item);
+        const data = snap.data() || {};
+        const reason = messageSkipReason(data, item.collection) || contentSkipReason(data);
+        if (reason) {
+            drop.push(item);
+            continue;
+        }
+        const user = await loadMirrorUser(db, data);
+        const userReason = userSkipReason(user, nowMs);
+        if (userReason) drop.push(item);
         else keep.push(item);
     }
     if (drop.length) {
@@ -445,27 +609,47 @@ async function dropBlocked(db, plan, nowMs) {
     };
 }
 
+function isPermanentHttp(result) {
+    const status = Number(result && result.status) || 0;
+    return status >= 400 && status < 500 && status !== 429;
+}
+
+function attemptCount(item) {
+    return (Number(item && item.attempts) || 0) + 1;
+}
+
+function shouldFailItem(item, result) {
+    if (isPermanentHttp(result)) return true;
+    return attemptCount(item) >= MAX_ATTEMPTS;
+}
+
 async function stampSent(db, items, result, nowMs) {
+    const single = items.length === 1;
     const patches = items.map(function (item) {
-        return {
-            ref: db.collection(QUEUE).doc(item.id),
-            patch: {
-                status: 'sent',
-                sentAtMs: nowMs,
-                telegramMsgId: result.telegramMsgId || '',
-                telegramChatId: result.chatId || '',
-            },
+        const patch = {
+            status: 'sent',
+            sentAtMs: nowMs,
         };
+        if (single) {
+            patch.telegramMsgId = result.telegramMsgId || '';
+            patch.telegramChatId = result.chatId || '';
+        } else {
+            patch.telegramBatched = true;
+        }
+        return { ref: db.collection(QUEUE).doc(item.id), patch: patch };
     });
     items.forEach(function (item) {
         if (!SOURCE_TAG[item.collection]) return;
+        const patch = { telegramMirrored: true };
+        if (single) {
+            patch.telegramMsgId = result.telegramMsgId || '';
+            patch.telegramChatId = result.chatId || '';
+        } else {
+            patch.telegramBatched = true;
+        }
         patches.push({
             ref: db.collection(item.collection).doc(item.docId),
-            patch: {
-                telegramMirrored: true,
-                telegramMsgId: result.telegramMsgId || '',
-                telegramChatId: result.chatId || '',
-            },
+            patch: patch,
         });
     });
     const stateRef = db.collection(STATE).doc(STATE_ID);
@@ -481,9 +665,40 @@ async function stampSent(db, items, result, nowMs) {
         const prev = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : {};
         const sentAtMs = recentSends(prev.sentAtMs, nowMs);
         sentAtMs.push(nowMs);
-        const nextState = { sentAtMs: sentAtMs.slice(-MAX_SENDS_PER_MINUTE) };
+        const nextState = Object.assign({
+            sentAtMs: sentAtMs.slice(-MAX_SENDS_PER_MINUTE),
+        }, retentionFields(nowMs));
         if (typeof tx.set === 'function') tx.set(stateRef, nextState);
     });
+}
+
+async function markFailed(db, items, result, nowMs) {
+    const error = String((result && (result.error || result.status)) || 'failed').slice(0, 180);
+    await patchDocs(db, items.map(function (item) {
+        return {
+            ref: db.collection(QUEUE).doc(item.id),
+            patch: {
+                status: 'failed',
+                attempts: attemptCount(item),
+                lastError: error,
+                failedAtMs: nowMs,
+                nextAttemptAt: nowMs,
+            },
+        };
+    }));
+}
+
+async function settleItems(db, items, result, nowMs) {
+    const failing = [];
+    const waiting = [];
+    items.forEach(function (item) {
+        if (shouldFailItem(item, result)) failing.push(item);
+        else waiting.push(item);
+    });
+    if (failing.length) await markFailed(db, failing, result, nowMs);
+    let wait = 0;
+    if (waiting.length) wait = await holdForRetry(db, waiting, result, nowMs);
+    return { failed: failing.length, wait: wait };
 }
 
 async function holdForRetry(db, items, result, nowMs) {
@@ -505,8 +720,9 @@ async function holdForRetry(db, items, result, nowMs) {
 }
 
 async function sendOneBatch(db, nowMs, options) {
-    const pending = await readQueue(db, 'pending');
-    const sending = await readQueue(db, 'sending');
+    const opts = options || {};
+    const pending = await readDue(db, nowMs);
+    const sending = opts.recover ? await readExpiredSending(db, nowMs) : [];
     const state = await readState(db);
     const plan = planBatch(pending.concat(sending), state.sentAtMs, nowMs);
     if (!plan.items.length) return { sent: 0, waitUntil: plan.waitUntil || 0 };
@@ -517,19 +733,34 @@ async function sendOneBatch(db, nowMs, options) {
     }
     const live = await dropBlocked(db, plan, nowMs);
     if (!live.items.length) return { sent: 0, reason: 'blocked' };
-    const result = await sendTelegramText(live.text, options);
-    const secret = options && options.token != null ? options.token : (options && options.env && options.env.TG_BOT_TOKEN);
-    safeMirrorLog(options && options.log, secret, 'mirror ' + (result.ok ? 'sent' : (result.error || 'retry')));
+    const secret = opts.token != null ? opts.token : (opts.env && opts.env.TG_BOT_TOKEN);
+    const result = await sendTelegramText(live.text, opts);
+    safeMirrorLog(opts.log, secret, 'mirror ' + (result.ok ? 'sent' : (result.error || 'retry')));
     if (result.ok) {
         await stampSent(db, live.items, result, nowMs);
         return { sent: 1, telegramMsgId: result.telegramMsgId, count: live.items.length };
     }
-    if (result.retry !== false) {
-        const wait = await holdForRetry(db, live.items, result, nowMs);
-        return { sent: 0, reason: result.error || 'retry', waitUntil: nowMs + wait };
+    if (live.items.length > 1 && isPermanentHttp(result)) {
+        let sent = 0;
+        for (let i = 0; i < live.items.length; i++) {
+            const item = live.items[i];
+            const one = await sendTelegramText(item.line, opts);
+            safeMirrorLog(opts.log, secret, 'mirror line ' + (one.ok ? 'sent' : (one.error || 'retry')));
+            if (one.ok) {
+                await stampSent(db, [item], one, nowMs);
+                sent += 1;
+            } else {
+                await settleItems(db, [item], one, nowMs);
+            }
+        }
+        return { sent: sent, isolated: true, count: live.items.length };
     }
-    await holdForRetry(db, live.items, result, nowMs);
-    return { sent: 0, reason: result.error || 'retry' };
+    const settled = await settleItems(db, live.items, result, nowMs);
+    return {
+        sent: 0,
+        reason: settled.failed && !settled.wait ? 'failed' : (result.error || 'retry'),
+        waitUntil: settled.wait ? nowMs + settled.wait : 0,
+    };
 }
 
 async function flushTelegramMirror(db, nowMs, options) {
@@ -537,7 +768,7 @@ async function flushTelegramMirror(db, nowMs, options) {
     let sent = 0;
     let last = null;
     for (let n = 0; n < MAX_SENDS_PER_MINUTE; n++) {
-        last = await sendOneBatch(db, at + n, options);
+        last = await sendOneBatch(db, at + n, Object.assign({}, options, { recover: true }));
         if (!last || !last.sent) break;
         sent += last.sent;
     }
@@ -550,11 +781,48 @@ async function handleChatMirror(db, collection, docId, data, nowMs, options) {
     const queued = await enqueueChatMirror(db, collection, docId, data, user, at);
     if (!queued.queued) return queued;
     try {
-        const flushed = await flushTelegramMirror(db, at, options);
-        return Object.assign({}, queued, { sent: flushed.sent });
+        const flushed = await sendOneBatch(db, at, options);
+        return Object.assign({}, queued, { sent: flushed.sent || 0 });
     } catch (err) {
         return Object.assign({}, queued, { sent: 0, reason: 'flush_failed' });
     }
+}
+
+async function deleteTelegramMessage(chatId, messageId, options) {
+    const opts = options || {};
+    const env = opts.env || process.env;
+    const token = opts.token != null ? opts.token : (env.TG_BOT_TOKEN || '');
+    const chat = chatId || opts.chatId || env.TG_CHAT_ID || DEFAULT_CHAT_ID;
+    if (!token || !messageId) return { ok: false, error: 'not_configured' };
+    const fetchImpl = opts.fetch || defaultFetchImpl();
+    const timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : SEND_TIMEOUT_MS;
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timer = null;
+    try {
+        if (controller) timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+        const init = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: String(chat), message_id: Number(messageId) || messageId }),
+        };
+        if (controller) init.signal = controller.signal;
+        const resp = await fetchImpl('https://api.telegram.org/bot' + token + '/deleteMessage', init);
+        const json = resp && resp.json ? await resp.json() : null;
+        if (resp && resp.ok && json && json.ok !== false) return { ok: true };
+        return { ok: false, error: 'http', status: resp && resp.status };
+    } catch (err) {
+        return { ok: false, error: 'request_failed' };
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+async function retractMirroredChat(db, before, after, options) {
+    const prev = before || null;
+    if (!prev || prev.telegramBatched === true || !prev.telegramMsgId) return { deleted: false, reason: 'no_id' };
+    if (after && !removedForTelegram(after)) return { deleted: false, reason: 'visible' };
+    const result = await deleteTelegramMessage(prev.telegramChatId, prev.telegramMsgId, options);
+    return { deleted: !!result.ok, reason: result.ok ? '' : (result.error || 'http') };
 }
 
 function safeMirrorLog(log, secret, message) {
@@ -581,4 +849,15 @@ module.exports = {
     handleChatMirror: handleChatMirror,
     sendTelegramText: sendTelegramText,
     safeMirrorLog: safeMirrorLog,
+    clipLine: clipLine,
+    clipUnits: clipUnits,
+    SEND_TIMEOUT_MS: SEND_TIMEOUT_MS,
+    SENDING_LEASE_MS: SENDING_LEASE_MS,
+    MAX_ATTEMPTS: MAX_ATTEMPTS,
+    USER_GAP_MS: USER_GAP_MS,
+    USER_MAX_PER_MINUTE: USER_MAX_PER_MINUTE,
+    RETAIN_MS: RETAIN_MS,
+    DUE_LIMIT: DUE_LIMIT,
+    rateDocId: rateDocId,
+    retractMirroredChat: retractMirroredChat,
 };

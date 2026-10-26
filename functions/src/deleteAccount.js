@@ -147,6 +147,8 @@ const DELETION_QUERIES = [
     ['marketplace_messages', 'buyerUid', '==', []],
     ['marketplace_messages', 'sellerUid', '==', []],
     ['suggestions', 'uid', '==', []],
+    ['telegram_mirror_queue', 'uid', '==', []],
+    ['telegram_mirror_claims', 'uid', '==', []],
     ['beats_tracks', 'authorId', '==', ['comments']],
     ['irl_events', 'hostId', '==', []],
     ['notifications', 'recipientId', '==', []],
@@ -1250,6 +1252,9 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         deletedDocs += found.length;
     }
     await deleteOwnedGifts(db, batcher, uid, documentIdField);
+    const mirrorRateRef = db.collection('telegram_mirror_state').doc('rate_' + String(uid).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120));
+    const mirrorRateSnap = await mirrorRateRef.get();
+    if (mirrorRateSnap && mirrorRateSnap.exists) await batcher.remove(mirrorRateRef);
 
     if (typeof db.collectionGroup === 'function') {
         const comments = await collectDocs(

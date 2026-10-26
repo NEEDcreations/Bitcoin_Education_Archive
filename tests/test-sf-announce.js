@@ -240,8 +240,11 @@ queue.push(test('a retried award is claimed once and mixed badges share a line',
     const loneFlex = badgeGg.formatBadgeGg('Pat', [{ badgeId: 'flex_pattern_25', favorPoint: true }]);
     assert.strictEqual(loneFlex, '🏅 @Pat earned Pattern ×25 (+1 SF point)');
     const hidden = badgeGg.formatBadgeGg('Pat', [{ badgeId: 'p01', favorPoint: false }]);
-    assert.strictEqual(hidden, '🏅 @Pat earned P01');
+    assert.strictEqual(hidden, '🏅 @Pat earned Checkmate Puzzle 1');
     assert.strictEqual(hidden.indexOf('p01'), -1);
+    assert.strictEqual(hidden.indexOf('P01'), -1);
+    const lastPuzzle = badgeGg.formatBadgeGg('Pat', [{ badgeId: 'p80', favorPoint: false }]);
+    assert.strictEqual(lastPuzzle, '🏅 @Pat earned Checkmate Puzzle 80');
     const capped = badgeGg.formatBadgeGg('Pat', [
         { badgeId: 'quest_1', favorPoint: true },
         { badgeId: 'spin_1', favorPoint: true },
@@ -298,12 +301,14 @@ queue.push(test('backfill and admin awards are not posted', async function () {
     const anonDb = memoryDb({ 'users/anon': { name: 'Real Name' } });
     await badgeGg.queueBadgeGg(anonDb, admin, 'anon', 'quest_1', { source: 'awardBadge', favorPoint: false }, start);
     const anonFlush = await badgeGg.flushDueBursts(anonDb, admin, start + badgeGg.BURST_WINDOW_MS);
-    assert.strictEqual(anonFlush[0].text, '🏅 @A player earned Quester');
+    assert.strictEqual(anonFlush[0].text, '🏅 A player earned Quester');
+    assert.strictEqual(anonFlush[0].text.indexOf('@A player'), -1);
     assert.strictEqual(anonFlush[0].text.indexOf('Real Name'), -1);
     const email = badgeGg.formatBadgeGg('pat@example.com 10.0.0.8', [{ badgeId: 'quest_1', favorPoint: true }]);
     assert.ok(email.indexOf('@example.com') === -1);
     assert.ok(email.indexOf('10.0.0.8') === -1);
-    assert.ok(email.indexOf('@A player') !== -1 || email.indexOf('A player') !== -1);
+    assert.ok(email.indexOf('🏅 A player') !== -1);
+    assert.strictEqual(email.indexOf('@A player'), -1);
 }));
 
 queue.push(test('an expired reset keeps eraHashes inside the transaction', async function () {
