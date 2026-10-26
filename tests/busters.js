@@ -1,7 +1,7 @@
 // Cache-buster pin. This ship branch is btc-archive-v2369.
 // timechain-tv.js stays 20261024_v2353.
-// bundle.min.js and global-chat.js are 20261026_v2369.
-// quests.js and satoshi-favor.js stay 20261026_v2368.
+// bundle.min.js and global-chat.js are 20261026_img1.
+// quests.js is 20261026_img1. satoshi-favor.js stays 20261026_v2368.
 // ranking.js stays 20261026_v2367. onboarding.js and today-card.js stay 20261026_v2365.
 // features.registry.js stays 20261024_v2361.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
@@ -67,8 +67,8 @@ test('service worker cache is v2369', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2369/g) || []).length, 2);
-    assert.ok(html.includes('bundle.min.js?v=20261026_v2369'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_img1/g) || []).length, 2);
+    assert.ok(html.includes('bundle.min.js?v=20261026_img1'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2365'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2368'));
     assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
@@ -137,8 +137,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2369'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2369/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261026_img1'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_img1/g) || []).length, 5);
     assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
@@ -223,7 +223,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2368/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_img1/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2362/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);

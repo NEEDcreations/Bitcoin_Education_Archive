@@ -246,7 +246,7 @@
             const PAGE = (typeof isMobile === 'function' && isMobile()) ? 40 : 100;
             const showing = allImgs.slice(0, PAGE);
             showing.forEach(img => {
-                html += '<img src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.style.minHeight=\'40px\';this.style.background=\'var(--card-bg)\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
+                html += '<img src="' + img + '" alt="Topic image" width="160" height="160" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.style.minHeight=\'40px\';this.style.background=\'var(--card-bg)\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
             });
             html += '</div>';
             if (allImgs.length > PAGE) {
@@ -305,7 +305,7 @@
                         t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); var label = escapeHtml(typeof censorUrlLabel === 'function' ? censorUrlLabel(url) : url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + label + '</a>'; });
                         // Restore YouTube embeds
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
-                            return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+                            return '<div class="yt-embed"><iframe title="YouTube video player" src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
                         });
                         // Restore Twitter embeds as click-to-load cards
                         t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
@@ -327,10 +327,12 @@
                         html += '<div class="msg-text">' + t + '</div>';
                     }
                     if (m.imgs) m.imgs.forEach(img => {
+                        var imgAlt = (m.text ? String(m.text).replace(/\s+/g, ' ').trim().slice(0, 120) : 'Topic illustration');
+                        imgAlt = typeof escapeHtml === 'function' ? escapeHtml(imgAlt) : imgAlt.replace(/["<>]/g, '');
                         if (m.link && String(img).indexOf('images/') !== 0) {
-                            html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'"></a>';
+                            html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" alt="' + imgAlt + '" loading="lazy" decoding="async" title="Click to open source" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'"></a>';
                         } else {
-                            html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
+                            html += '<img class="msg-img" src="' + img + '" alt="' + imgAlt + '" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
                         }
                     });
                     var msgIdx = startIdx + bi;
@@ -372,7 +374,7 @@
         navHtml += '<button onclick="goRandomGraphic()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Graphic">📊</button>';
         navHtml += '<button onclick="goRandomArt()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Art">🎨</button>';
         navHtml += '<button onclick="goRandomMeme()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Meme">😂</button>';
-        navHtml += '<button onclick="go(\''+ nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
+        navHtml += '<button onclick="go(\''+ nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#1a1208;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
         navHtml += '</div>';
         navHtml += '<div style="text-align:center;padding-bottom:20px;">';
         navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual(currentChannelId)" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
@@ -382,7 +384,7 @@
             navHtml += renderReadNext(id);
         }
         // Educational content disclaimer (dim, bottom of every topic)
-        navHtml += '<div style="max-width:720px;margin:24px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:var(--text-faint);text-align:center;letter-spacing:0.2px;opacity:0.7;">' +
+        navHtml += '<div style="max-width:720px;margin:24px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:var(--text-faint);text-align:center;letter-spacing:0.2px;">' +
             '<div style="font-weight:700;font-size:0.58rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1.2px;">Disclaimer</div>' +
             'This Bitcoin education is presented authentically and from a first-principles standpoint that maximizes truth. However, this is <strong>not financial, investment, legal, or tax advice</strong> and anyone reading this material should still verify its validity by doing their own research. ' +
             'Bitcoin is volatile and you can lose money. Bitcoin Education Archive, its operators, and contributors make no warranty regarding the accuracy, completeness, or timeliness of any educational content and accept no liability for decisions made based on it. Always consult a licensed professional before making financial decisions. ' +
@@ -583,7 +585,11 @@
         next.forEach(img => {
             const el = document.createElement('img');
             el.src = img;
+            el.alt = 'Topic image';
+            el.width = 160;
+            el.height = 160;
             el.loading = 'lazy';
+            el.decoding = 'async';
             el.onclick = function() { openImg(this.src); };
             grid.appendChild(el);
         });
@@ -4161,7 +4167,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
                 '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
-                '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
+                '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" class="channel-logo-img" onclick="goHome()" width="80" height="80" fetchpriority="high" decoding="async" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
                 '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
@@ -4285,8 +4291,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 html += '<div class="msg" id="msg-' + (offset + bi) + '">';
                 html += ageNoteBadge(m);
                     html += updatedNoteBadge(m);
-                if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
-                if (m.imgs) m.imgs.forEach(img => { if (m.link && String(img).indexOf('images/') !== 0) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
+                if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe title="YouTube video player" src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.imgs) m.imgs.forEach(img => { var imgAlt = (m.text ? String(m.text).replace(/\s+/g, ' ').trim().slice(0, 120) : 'Topic illustration'); imgAlt = typeof escapeHtml === 'function' ? escapeHtml(imgAlt) : imgAlt.replace(/["<>]/g, ''); if (m.link && String(img).indexOf('images/') !== 0) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" alt="' + imgAlt + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" alt="' + imgAlt + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
                 html += '</div>';
             });
             btn.insertAdjacentHTML('beforebegin', html);
@@ -5103,16 +5109,8 @@ if (locked) {
             setTimeout(checkPredictionResult, 4000);
         }
 
-        // Pre-warm Pleb Shop iframe only — it's the marketplace landing tab.
-        // Other embeds load on demand. Delayed 5s to avoid competing with initial page load.
-        setTimeout(function() {
-            if (document.getElementById('plebshopIframeWrap')) return; // already loaded
-            var psWrap = document.createElement('div');
-            psWrap.id = 'plebshopIframeWrap';
-            psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-            psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-            document.body.appendChild(psWrap);
-        }, 5000);
+        // Pleb Shop used to preload off-screen after 5s, which pulled a multi-megabyte
+        // 603btc image on every page. marketplace.js creates the iframe when the shop opens.
 
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
@@ -5843,7 +5841,7 @@ window.toggleAITools = function() {
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
             '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
-            '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
+            '<iframe title="AI Tools" src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
         document.body.appendChild(panel);
 
         // Responsive style for desktop

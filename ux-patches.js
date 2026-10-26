@@ -283,7 +283,7 @@
         var html = '<div style="width:100%;max-width:640px;margin:0 auto;">';
         // Video embed
         html += '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;">' +
-            '<iframe src="https://www.youtube-nocookie.com/embed/' + item.id + '?rel=0" ' +
+            '<iframe title="' + String(item.title || 'YouTube video').replace(/"/g, '') + '" src="https://www.youtube-nocookie.com/embed/' + item.id + '?rel=0" ' +
             'style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" ' +
             'allowfullscreen loading="lazy"></iframe></div>';
         // Info + controls

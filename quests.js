@@ -5439,25 +5439,38 @@ function _raidVictoryBanner(boss) {
 
 // Boss name → image path fallback (for bosses created before image field was added)
 var RAID_BOSS_IMAGES = {
-    'Channel-Crawler': 'https://assets.bitcoineducation.quest/images/raid-bosses/channel-crawler.png',
-    'Quiz-Crusader': 'https://assets.bitcoineducation.quest/images/raid-bosses/quiz-crusader.png',
-    'TV-Titan': 'https://assets.bitcoineducation.quest/images/raid-bosses/tv-titan.png',
-    'Beats-Baron': 'https://assets.bitcoineducation.quest/images/raid-bosses/beats-baron.png',
-    'Flash-Flash': 'https://assets.bitcoineducation.quest/images/raid-bosses/flash-flash.png',
-    'XP-Hoarder': 'https://assets.bitcoineducation.quest/images/raid-bosses/xp-hoarder.png',
-    'Poll-Patroller': 'https://assets.bitcoineducation.quest/images/raid-bosses/poll-patroller.png',
-    'Chat-Charger': 'https://assets.bitcoineducation.quest/images/raid-bosses/chat-charger.png',
-    'Badge-Builder': 'https://assets.bitcoineducation.quest/images/raid-bosses/badge-builder.png',
-    'Streak-Sage': 'https://assets.bitcoineducation.quest/images/raid-bosses/streak-sage.png',
-    'Topic-Explorer': 'https://assets.bitcoineducation.quest/images/raid-bosses/topic-explorer.png',
-    'Lightning-Lancer': 'https://assets.bitcoineducation.quest/images/raid-bosses/lightning-lancer.png',
-    'Forum-Forge': 'https://assets.bitcoineducation.quest/images/raid-bosses/forum-forge.png',
-    'Trivia-Tactician': 'https://assets.bitcoineducation.quest/images/raid-bosses/trivia-tactician.png',
-    'Content-Conqueror': 'https://assets.bitcoineducation.quest/images/raid-bosses/content-conqueror.png'
+    'Channel-Crawler': '/images/raid-bosses/channel-crawler.jpg',
+    'Quiz-Crusader': '/images/raid-bosses/quiz-crusader.jpg',
+    'TV-Titan': '/images/raid-bosses/tv-titan.jpg',
+    'Beats-Baron': '/images/raid-bosses/beats-baron.jpg',
+    'Flash-Flash': '/images/raid-bosses/flash-flash.jpg',
+    'XP-Hoarder': '/images/raid-bosses/xp-hoarder.jpg',
+    'Poll-Patroller': '/images/raid-bosses/poll-patroller.jpg',
+    'Chat-Charger': '/images/raid-bosses/chat-charger.jpg',
+    'Badge-Builder': '/images/raid-bosses/badge-builder.jpg',
+    'Streak-Sage': '/images/raid-bosses/streak-sage.jpg',
+    'Topic-Explorer': '/images/raid-bosses/topic-explorer.jpg',
+    'Lightning-Lancer': '/images/raid-bosses/lightning-lancer.jpg',
+    'Forum-Forge': '/images/raid-bosses/forum-forge.jpg',
+    'Trivia-Tactician': '/images/raid-bosses/trivia-tactician.jpg',
+    'Content-Conqueror': '/images/raid-bosses/content-conqueror.jpg'
 };
 
 function _getRaidBossImage(boss) {
     return boss.image || RAID_BOSS_IMAGES[boss.name] || '';
+}
+
+// 1024px CDN PNGs display at 120–140px. Serve a 280px WebP with a JPEG fallback.
+function _raidBossPicture(url, alt, px, styleExtra) {
+    var safeAlt = String(alt || 'Raid boss').replace(/["<>]/g, '');
+    var m = String(url || '').match(/\/raid-bosses\/([a-z0-9-]+)\.(?:png|jpe?g|webp)(?:\?.*)?$/i);
+    var baseStyle = 'width:' + px + 'px;height:' + px + 'px;' + (styleExtra || '');
+    if (m) {
+        var base = '/images/raid-bosses/' + m[1];
+        return '<picture><source srcset="' + base + '.webp" type="image/webp"><img src="' + base + '.jpg" alt="' + safeAlt + '" width="' + px + '" height="' + px + '" loading="lazy" decoding="async" style="' + baseStyle + '"></picture>';
+    }
+    if (!url) return '';
+    return '<img src="' + url + '" alt="' + safeAlt + '" width="' + px + '" height="' + px + '" loading="lazy" decoding="async" style="' + baseStyle + '">';
 }
 
 function _renderRaidBossCard(container, boss) {
@@ -5470,7 +5483,7 @@ function _renderRaidBossCard(container, boss) {
     if (boss.placeholder) {
         var startDate = startMs ? new Date(startMs) : null;
         var dateStr = startDate ? startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Soon';
-        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">\u2694\uFE0F</div>';
+        var upcomingImgHtml = bossImage ? _raidBossPicture(bossImage, boss.name || 'Boss', 120, 'border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;') : '<div style="font-size:3rem;margin-bottom:12px;">\u2694\uFE0F</div>';
         container.innerHTML = '<div style="padding:20px 0;">' +
             upcomingImgHtml +
             '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss')) + '</div>' +
@@ -5506,7 +5519,7 @@ function _renderRaidBossCard(container, boss) {
             }
             winnersHtml += '</div>';
         }
-        var defeatedImgHtml = bossImage ? '<div style="position:relative;display:inline-block;margin-bottom:12px;"><img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid #22c55e;opacity:0.6;filter:grayscale(50%);"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;">\uD83D\uDC80</div></div>' : '<div style="font-size:3rem;margin-bottom:8px;">\uD83D\uDC80</div>';
+        var defeatedImgHtml = bossImage ? '<div style="position:relative;display:inline-block;margin-bottom:12px;">' + _raidBossPicture(bossImage, boss.name || 'Boss', 120, 'border-radius:16px;object-fit:cover;border:2px solid #22c55e;opacity:0.6;filter:grayscale(50%);') + '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;">\uD83D\uDC80</div></div>' : '<div style="font-size:3rem;margin-bottom:8px;">\uD83D\uDC80</div>';
         container.innerHTML = '<div style="padding:20px 0;">' +
             defeatedImgHtml +
             '<div style="padding:12px 24px;background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(34,197,94,0.05));border:2px solid #22c55e;border-radius:16px;margin-bottom:16px;">' +
@@ -5534,7 +5547,7 @@ function _renderRaidBossCard(container, boss) {
     var hpPct = Math.max(0, 100 - pct);
     var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
     var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
-    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">\uD83D\uDC79</div>';
+    var activeImgHtml = bossImage ? _raidBossPicture(bossImage, boss.name || 'Raid boss', 140, 'border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);') : '<div style="font-size:2.5rem;margin-bottom:8px;">\uD83D\uDC79</div>';
 
     container.innerHTML = '<div style="padding:12px 0;">' +
         // Boss header
