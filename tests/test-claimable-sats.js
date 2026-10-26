@@ -95,7 +95,7 @@ test('no premium cap, learn titles, consent labels, and the xp scale', () => {
     assert.ok(html.includes('<label class="tos-check-row" id="signupConsentRow">'));
     assert.ok(html.indexOf('id="tosModalCheck"') > html.indexOf('id="tosConsentRow"'));
     assert.ok(html.indexOf('id="signupTosCheck"') > html.indexOf('id="signupConsentRow"'));
-    assert.ok(html.includes('.daily-xp-scale { position: relative; height: 16px;'));
+    assert.ok(html.includes('.daily-xp-scale { position: relative; height: 22px;'));
     assert.ok(!html.includes('.daily-xp-scale { display: flex'));
     assert.ok(!html.includes('id="todayEarnFavor"'));
     assert.ok(!html.includes('#todayEarnFavor'));
