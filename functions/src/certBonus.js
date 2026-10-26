@@ -17,7 +17,9 @@
 // pays the full 2,100 for both certifications. The backfill script pays only
 // the shortfall (2,100 minus the XP that passing exam already credited) and
 // only with --apply. A missing or conflicting record is unknown and pays
-// nothing. Nothing here is callable from the browser.
+// nothing. A pass that already received 2,100 is left alone: no zero-amount
+// marker is written. A user who is banned now, or who was banned when they
+// passed, is skipped. Nothing here is callable from the browser.
 
 const { rewardBlocked } = require('./cipherClaim');
 const { offsetDateKey } = require('./offsetDay');
@@ -124,9 +126,9 @@ function ledgerData(uid, type, amount, day, nowMs, priorCredit) {
 }
 
 function writeMarkers(tx, adminSdk, fields, plan, nowMs) {
-    if (!plan || (!plan.pay && !plan.settle)) return;
+    if (!plan || plan.pay !== true || !(Number(plan.amount) > 0)) return;
     const when = Number(nowMs) || Date.now();
-    const amount = plan.pay ? plan.amount : 0;
+    const amount = Number(plan.amount);
     const prior = plan.priorCredit;
     tx.set(fields.markerRef, markerData(adminSdk, fields.uid, fields.type, amount, when, prior));
     tx.set(fields.ledgerRef, ledgerData(fields.uid, fields.type, amount, fields.day, when, prior));
@@ -137,6 +139,63 @@ function cleanAward(value) {
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0 || n > CERT_BONUS_XP || Math.round(n) !== n) return { present: true, bad: true };
     return { present: true, amount: n };
+}
+
+function timeMs(value) {
+    return gradedAtMs({ gradedAt: value });
+}
+
+function pushBanWindow(windows, startRaw, endRaw) {
+    const start = timeMs(startRaw);
+    const end = timeMs(endRaw);
+    if (start == null && end == null) return;
+    windows.push({ start: start, end: end });
+}
+
+function banWindows(user, faucet) {
+    const windows = [];
+    [user, faucet].forEach(function (doc) {
+        if (!doc || typeof doc !== 'object') return;
+        pushBanWindow(windows, doc.bannedAt, doc.unbannedAt || doc.banEndedAt || doc.unbanAt);
+        [doc.banHistory, doc.bans, doc.banWindows].forEach(function (list) {
+            if (!Array.isArray(list)) return;
+            list.forEach(function (row) {
+                if (!row || typeof row !== 'object') return;
+                pushBanWindow(
+                    windows,
+                    row.bannedAt || row.start || row.from,
+                    row.unbannedAt || row.banEndedAt || row.end || row.until
+                );
+            });
+        });
+    });
+    return windows.filter(function (win) { return win.end != null; });
+}
+
+// True when a passing exam falls inside a closed ban window, or a closed
+// window exists and that exam has no gradedAt. An open bannedAt with no end
+// is not a historical window: a current ban is rewardBlocked's job, and a
+// leftover start after an unban must not skip every later pass.
+function bannedAtPass(user, faucet, exams) {
+    const windows = banWindows(user, faucet);
+    if (!windows.length) return false;
+    const list = exams || [];
+    let sawPass = false;
+    let clean = false;
+    for (let i = 0; i < list.length; i++) {
+        if (!eligiblePass(list[i])) continue;
+        sawPass = true;
+        const when = gradedAtMs(list[i]);
+        if (when == null) continue;
+        let inside = false;
+        for (let w = 0; w < windows.length; w++) {
+            const win = windows[w];
+            const afterStart = win.start == null || when >= win.start;
+            if (afterStart && when < win.end) inside = true;
+        }
+        if (!inside) clean = true;
+    }
+    return sawPass && !clean;
 }
 
 function gradedAtMs(exam) {
@@ -267,10 +326,15 @@ function planBackfillRow(opts) {
     return row;
 }
 
-// Pays the shortfall for one older pass, or writes a zero marker when the
-// earlier credit was already 2,100. The transaction re-reads the exam, the
-// grade-result notice, the ledger, and both markers. A second call finds the
-// marker and pays 0. It does not touch daily_points.
+// --apply writes only when XP is still owed. Settled, banned, unknown, and
+// already-paid rows stay unmarked, including a zero amount.
+function shouldApplyBackfill(row) {
+    return !!(row && row.pay === true && Number(row.amount) > 0);
+}
+
+// Pays the shortfall for one older pass. The transaction re-reads the exam,
+// the grade-result notice, the ledger, and both markers. It does not write a
+// marker when nothing is owed, and it does not touch daily_points.
 async function creditExistingPass(db, adminSdk, uid, type, nowMs) {
     if (!uid || !TYPES[type]) return planCertBonus({ type: type });
     const userRef = db.collection('users').doc(uid);
@@ -308,26 +372,20 @@ async function creditExistingPass(db, adminSdk, uid, type, nowMs) {
             uid: uid,
             type: type,
             exams: examRows,
-            banned: !user || rewardBlocked(user, faucet),
+            banned: !user || rewardBlocked(user, faucet) || bannedAtPass(user, faucet, examRows),
             alreadyPaid: alreadyPaid(markerSnap, ledgerSnap),
             ledgerDocs: ledgerDocs,
             notice: notice,
         });
-        const skip = !userSnap.exists
-            || row.reason === 'unknown'
-            || row.reason === 'banned'
-            || row.reason === 'already'
-            || (!row.pay && row.reason !== 'settled');
-        if (skip) return row;
+        if (!userSnap.exists || !shouldApplyBackfill(row)) return row;
         const plan = {
-            pay: row.pay === true,
-            settle: row.reason === 'settled',
+            pay: true,
             amount: row.amount,
             priorCredit: row.credited,
             source: CERT_BONUS_SOURCE,
             capExempt: true,
         };
-        if (plan.pay) tx.update(userRef, bonusUserFields(adminSdk, plan));
+        tx.update(userRef, bonusUserFields(adminSdk, plan));
         writeMarkers(tx, adminSdk, {
             uid: uid,
             type: type,
@@ -355,6 +413,8 @@ module.exports = {
     gradeNoticeId: gradeNoticeId,
     resolvePriorCredit: resolvePriorCredit,
     planBackfillRow: planBackfillRow,
+    shouldApplyBackfill: shouldApplyBackfill,
+    bannedAtPass: bannedAtPass,
     bonusUserFields: bonusUserFields,
     writeMarkers: writeMarkers,
     creditExistingPass: creditExistingPass,

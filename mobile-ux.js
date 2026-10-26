@@ -755,7 +755,7 @@ window.dismissIOSA2HS = function() {
 };
 
 // ---- Learn menu (desktop panel and mobile sheet share one renderer) ----
-window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2378';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2379';
 
 function learnExperienceMode() {
     var mode = '';
@@ -857,12 +857,23 @@ function learnCatalog(view) {
     ];
 }
 
+function ensureLearnPanelStyle() {
+    if (document.getElementById('learnPanelStyle')) return;
+    var style = document.createElement('style');
+    style.id = 'learnPanelStyle';
+    style.textContent = '#homeLearnMenu,#mobileLearnMenu{background:var(--bg-side,#0f172a)!important;background-color:var(--bg-side,#0f172a)!important;opacity:1!important;z-index:10050!important;isolation:isolate;animation:none!important;}' +
+        '#mobileLearnMenu{position:fixed!important;}' +
+        '#homeLearnMenu{position:relative!important;}';
+    (document.head || document.documentElement).appendChild(style);
+}
+
 function learnButtonStyle(item) {
-    return 'padding:11px 14px;background:' + item.bg + ';border:1px solid ' + item.color + ';color:' + item.color + ';border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;';
+    return 'padding:11px 14px;background-color:var(--bg-side,#0f172a);background-image:' + item.bg + ';border:1px solid ' + item.color + ';color:' + item.color + ';border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;';
 }
 
 window.renderLearnMenu = function(container, view) {
     if (!container) return;
+    ensureLearnPanelStyle();
     var which = view === 'quests' ? 'quests' : 'root';
     var mode = learnExperienceMode();
     container.setAttribute('data-learn-view', which);
@@ -972,6 +983,12 @@ window.openHomeLearnMenu = function() {
     }
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
+    menu.style.position = 'relative';
+    menu.style.zIndex = '10050';
+    menu.style.background = 'var(--bg-side,#0f172a)';
+    menu.style.opacity = '1';
+    menu.style.isolation = 'isolate';
+    menu.style.animation = 'none';
     window.renderLearnMenu(menu, 'root');
     if (typeof playSound === 'function') playSound('pop');
 };
@@ -985,11 +1002,11 @@ window.toggleMobileLearnMenu = function() {
 
     var menu = document.createElement('div');
     menu.id = 'mobileLearnMenu';
-    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;z-index:250;' +
+    menu.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 8px));left:8px;right:8px;z-index:10050;' +
         'max-width:400px;margin:0 auto;' +
-        'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;' +
+        'background:var(--bg-side,#0f172a);background-color:var(--bg-side,#0f172a);border:1px solid var(--border);border-radius:20px;' +
         'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
-        'animation:fadeSlideIn 0.25s ease-out;max-height:70vh;overflow:auto;';
+        'opacity:1;isolation:isolate;animation:none;max-height:70vh;overflow:auto;';
     document.body.appendChild(menu);
     window.renderLearnMenu(menu, 'root');
 

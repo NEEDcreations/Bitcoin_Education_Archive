@@ -1,6 +1,7 @@
 // Cache-buster pin. This ship branch is btc-archive-v2378.
 // timechain-tv.js stays 20261024_v2353.
-// bundle.min.js, ranking.js, scholar.js, and modules.js are 20261026_v2378.
+// bundle.min.js, ranking.js, and modules.js are 20261026_v2378.
+// scholar.js is 20261026_v2379 in index.html and window.SCHOLAR_SCRIPT.
 // global-chat.js, quests.js, and satoshi-favor.js stay 20261026_v2368.
 // onboarding.js and today-card.js stay 20261026_v2365.
 // features.registry.js stays 20261024_v2361.
@@ -137,9 +138,19 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
-    assert.ok(html.includes('scholar.js?v=20261026_v2378'));
+    assert.ok(html.includes('scholar.js?v=20261026_v2379'));
+    assert.ok(!html.includes('scholar.js?v=20261026_v2378'));
     assert.ok(!html.includes('scholar.js?v=20261024_v2370'));
     assert.ok(!html.includes('scholar.js?v=20261023_v2330'));
+    const ux = read('mobile-ux.js');
+    const scholarPin = ux.match(/window\.SCHOLAR_SCRIPT\s*=\s*'([^']+)'/);
+    assert.ok(scholarPin, 'window.SCHOLAR_SCRIPT is set');
+    assert.strictEqual(scholarPin[1], 'scholar.js?v=20261026_v2379');
+    const scholarHits = html.match(/scholar\.js\?v=[^'"\s]+/g) || [];
+    assert.ok(scholarHits.length >= 1);
+    scholarHits.forEach(function (hit) {
+        assert.strictEqual(hit, scholarPin[1]);
+    });
     assert.strictEqual((html.match(/modules\.js\?v=20261026_v2378/g) || []).length, 2);
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));

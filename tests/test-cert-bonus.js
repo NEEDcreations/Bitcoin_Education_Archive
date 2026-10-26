@@ -145,6 +145,65 @@ test('backfill pays only the shortfall and never a second time', function () {
     assert.deepStrictEqual(script.parseArgs(['--apply']), { help: false, apply: true });
     assert.strictEqual(script.parseArgs([]).apply, false);
     assert.strictEqual(certBonus.planCertBonus({ type: 'technical', passed: true }).amount, 2100);
+    assert.strictEqual(certBonus.shouldApplyBackfill(preCap), false);
+    assert.strictEqual(certBonus.shouldApplyBackfill(tapered), true);
+    assert.strictEqual(certBonus.shouldApplyBackfill(missing), false);
+    assert.strictEqual(certBonus.shouldApplyBackfill(again), false);
+});
+
+test('backfill skips a current ban and a ban that covered the pass', function () {
+    const during = certBonus.bannedAtPass(
+        {},
+        { bannedAt: '2026-10-01T00:00:00.000Z', unbannedAt: '2026-10-20T00:00:00.000Z' },
+        [{ passed: true, score: 22, gradedAt: '2026-10-10T00:00:00.000Z' }]
+    );
+    assert.strictEqual(during, true);
+    const after = certBonus.bannedAtPass(
+        {},
+        { bannedAt: '2026-10-01T00:00:00.000Z', banEndedAt: '2026-10-20T00:00:00.000Z' },
+        [{ passed: true, score: 22, gradedAt: '2026-10-24T00:00:00.000Z' }]
+    );
+    assert.strictEqual(after, false);
+    const openStale = certBonus.bannedAtPass(
+        {},
+        { bannedAt: '2026-04-01T00:00:00.000Z' },
+        [{ passed: true, score: 22, gradedAt: '2026-10-24T00:00:00.000Z' }]
+    );
+    assert.strictEqual(openStale, false);
+    const undated = certBonus.bannedAtPass(
+        { banHistory: [{ start: '2026-01-01T00:00:00.000Z', end: '2026-02-01T00:00:00.000Z' }] },
+        {},
+        [{ passed: true, score: 21 }]
+    );
+    assert.strictEqual(undated, true);
+    const laterClean = certBonus.bannedAtPass(
+        {},
+        { bannedAt: '2026-04-01T00:00:00.000Z', unbannedAt: '2026-05-01T00:00:00.000Z' },
+        [
+            { passed: true, score: 22, gradedAt: '2026-04-15T00:00:00.000Z' },
+            { passed: true, score: 24, gradedAt: '2026-10-24T00:00:00.000Z' },
+        ]
+    );
+    assert.strictEqual(laterClean, false);
+    const bannedRow = certBonus.planBackfillRow({
+        uid: 'abcdefgh',
+        type: 'properties',
+        exam: { passed: true, score: 22, pointsAwarded: 1000, gradedAt: '2026-10-24T00:00:00.000Z' },
+        banned: true,
+    });
+    assert.strictEqual(bannedRow.pay, false);
+    assert.strictEqual(bannedRow.reason, 'banned');
+    assert.strictEqual(bannedRow.amount, 0);
+    assert.strictEqual(certBonus.shouldApplyBackfill(bannedRow), false);
+    const backfill = fs.readFileSync(path.join(__dirname, '..', 'functions', 'scripts', 'backfill_cert_bonus.js'), 'utf8');
+    assert.ok(backfill.indexOf('shouldApplyBackfill') !== -1);
+    assert.ok(backfill.indexOf('bannedAtPass') !== -1);
+    assert.ok(backfill.indexOf("row.reason === 'settled'") === -1);
+    const credit = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'certBonus.js'), 'utf8');
+    const fn = credit.slice(credit.indexOf('async function creditExistingPass'), credit.indexOf('module.exports'));
+    assert.ok(fn.indexOf('settle') === -1);
+    assert.ok(fn.indexOf('bannedAtPass') !== -1);
+    assert.ok(fn.indexOf('shouldApplyBackfill') !== -1);
 });
 
 test('gradeScholarExam pays cert_bonus and does not taper it', function () {

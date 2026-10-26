@@ -10,10 +10,10 @@
  * A recorded taper or 0 pays the difference. If those records are missing
  * or disagree, the row is unknown and pays nothing.
  *
- * --apply re-reads the pass inside a transaction. It writes the cert_bonuses
- * marker and the cert_bonus ledger row even when the shortfall is 0, so a
- * rerun and gradeScholarExam both pay 0. It does not change daily_points.
- * Unknown rows are not marked.
+ * --apply re-reads the pass inside a transaction and writes the marker only
+ * when the shortfall is greater than 0. A full prior credit, an unknown
+ * credit, a current ban, and a ban that covered the pass are not marked.
+ * It does not change daily_points.
  *
  *   node functions/scripts/backfill_cert_bonus.js
  *   node functions/scripts/backfill_cert_bonus.js --apply
@@ -127,7 +127,7 @@ async function main() {
         const user = userSnap.exists ? (userSnap.data() || {}) : {};
         const faucetSnap = await db.collection('faucet_ledger').doc(uid).get();
         const faucet = faucetSnap.exists ? (faucetSnap.data() || {}) : {};
-        const banned = !userSnap.exists || rewardBlocked(user, faucet);
+        const nowBanned = !userSnap.exists || rewardBlocked(user, faucet);
         const markerSnap = userSnap.exists ? await db.collection('users').doc(uid).collection('cert_bonuses').get() : null;
         const ledgerSnap = userSnap.exists ? await db.collection('users').doc(uid).collection('xp_ledger').get() : null;
         const markerIds = idsOf(markerSnap);
@@ -144,7 +144,7 @@ async function main() {
                 uid: uid,
                 type: type,
                 exams: bag[type],
-                banned: banned,
+                banned: nowBanned || certBonus.bannedAtPass(user, faucet, bag[type]),
                 alreadyPaid: markerIds.indexOf(certBonus.markerId(type)) !== -1
                     || ledgerIds.indexOf(certBonus.ledgerId(type)) !== -1,
                 ledgerDocs: ledgerDocs,
@@ -157,7 +157,7 @@ async function main() {
     console.log(args.apply ? 'APPLY cert bonus' : 'DRY RUN cert bonus (no writes)');
     for (let r = 0; r < rows.length; r++) {
         const row = rows[r];
-        if (args.apply && (row.pay || row.reason === 'settled')) {
+        if (args.apply && certBonus.shouldApplyBackfill(row)) {
             const result = await certBonus.creditExistingPass(db, admin, row.uid, row.type);
             if (result) {
                 row.pay = result.pay === true;
