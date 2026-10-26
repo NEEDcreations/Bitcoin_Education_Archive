@@ -153,6 +153,7 @@ const DELETION_QUERIES = [
     ['marketplace_messages', 'sellerUid', '==', []],
     ['suggestions', 'uid', '==', []],
     ['telegram_mirror_queue', 'uid', '==', []],
+    ['favor_ip_cache', 'uid', '==', []],
     ['telegram_mirror_claims', 'uid', '==', []],
     ['beats_tracks', 'authorId', '==', ['comments']],
     ['irl_events', 'hostId', '==', []],

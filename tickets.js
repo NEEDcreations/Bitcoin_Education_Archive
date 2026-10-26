@@ -106,16 +106,28 @@ async function attachReferral(uid) {
 }
 
 // A held invite is rechecked from the friend's own request. This does not
-// block sign-in, and a failure is ignored. The server still limits IPQS to
-// one lookup a day.
+// block sign-in. A successful call waits a day. An error retries after a
+// short delay. A final server state stops the daily call.
 var REFERRAL_RECHECK_MS = 24 * 60 * 60 * 1000;
+var REFERRAL_RETRY_MS = 5 * 60 * 1000;
 
-function shouldVerifyReferral(user, lastMs, nowMs) {
+function shouldVerifyReferral(user, state, nowMs) {
     if (!user || user.anonymous) return false;
     if (!user.referredBy || user.referralVerified === true) return false;
-    var last = Number(lastMs) || 0;
+    var lastOk = 0;
+    var lastError = 0;
+    var finalState = false;
+    if (state && typeof state === 'object') {
+        lastOk = Number(state.lastOk) || 0;
+        lastError = Number(state.lastError) || 0;
+        finalState = state.final === true;
+    } else {
+        lastOk = Number(state) || 0;
+    }
+    if (finalState) return false;
     var now = Number(nowMs) || 0;
-    if (last && now - last < REFERRAL_RECHECK_MS) return false;
+    if (lastOk && now - lastOk < REFERRAL_RECHECK_MS) return false;
+    if (lastError && now - lastError < REFERRAL_RETRY_MS) return false;
     return true;
 }
 
@@ -125,18 +137,32 @@ function maybeVerifyReferral() {
         if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
         var uid = String(auth.currentUser.uid || '');
         if (!uid) return;
-        var key = 'btc_referral_recheck_' + uid;
-        var last = 0;
-        try { last = Number(localStorage.getItem(key)) || 0; } catch (e) { last = 0; }
+        var okKey = 'btc_referral_recheck_' + uid;
+        var retryKey = 'btc_referral_retry_' + uid;
+        var finalKey = 'btc_referral_final_' + uid;
+        var lastOk = 0;
+        var lastError = 0;
+        var finalState = false;
+        try { lastOk = Number(localStorage.getItem(okKey)) || 0; } catch (e) { lastOk = 0; }
+        try { lastError = Number(localStorage.getItem(retryKey)) || 0; } catch (e) { lastError = 0; }
+        try { finalState = localStorage.getItem(finalKey) === '1'; } catch (e) { finalState = false; }
         var now = Date.now();
         if (!shouldVerifyReferral({
             referredBy: currentUser.referredBy,
             referralVerified: currentUser.referralVerified,
             anonymous: false,
-        }, last, now)) return;
-        try { localStorage.setItem(key, String(now)); } catch (e) {}
+        }, { lastOk: lastOk, lastError: lastError, final: finalState }, now)) return;
         if (typeof firebase === 'undefined' || !firebase.functions) return;
-        firebase.functions().httpsCallable('verifyReferral')({}).then(function() {}).catch(function() {});
+        firebase.functions().httpsCallable('verifyReferral')({}).then(function(res) {
+            var data = res && res.data ? res.data : {};
+            try {
+                if (data.final) localStorage.setItem(finalKey, '1');
+                else localStorage.setItem(okKey, String(Date.now()));
+                localStorage.removeItem(retryKey);
+            } catch (e) {}
+        }).catch(function() {
+            try { localStorage.setItem(retryKey, String(Date.now())); } catch (e) {}
+        });
     } catch (e) {}
 }
 

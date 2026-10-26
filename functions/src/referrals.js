@@ -207,15 +207,23 @@ function connectionHoldReason(reason) {
     return '';
 }
 
+function waitingReason(reason) {
+    if (connectionHoldReason(reason)) return connectionHoldReason(reason);
+    return lower(reason) === 'budget' ? 'budget' : '';
+}
+
 function normalizeIpqsHold(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const reason = connectionHoldReason(value.reason);
+    const reason = waitingReason(value.reason);
     const since = Number(value.since) || 0;
     if (!reason || !since) return null;
+    let checkedAt = since;
+    if (value.checkedAt === 0) checkedAt = 0;
+    else if (Number(value.checkedAt) > 0) checkedAt = Number(value.checkedAt);
     return {
         reason: reason,
         since: since,
-        checkedAt: Number(value.checkedAt) || since,
+        checkedAt: checkedAt,
     };
 }
 
@@ -306,7 +314,7 @@ function settleConnection(input) {
     return { effect: 'hold', ipqsHold: hold };
 }
 
-function signupConnection(flags, verdict, nowMs) {
+function signupConnection(flags, verdict, nowMs, extra) {
     const status = statusForFlags(flags);
     const reason = connectionHoldReason(verdict && verdict.reason);
     const action = verdict && verdict.action;
@@ -317,7 +325,38 @@ function signupConnection(flags, verdict, nowMs) {
             ipqsHold: { reason: reason, since: now, checkedAt: now },
         };
     }
+    if (status === 'pending' && extra && extra.budgetWait) {
+        return {
+            status: 'held_connection',
+            ipqsHold: { reason: 'budget', since: now, checkedAt: 0 },
+        };
+    }
     return { status: status, ipqsHold: null };
+}
+
+function payoutLookupIp(input) {
+    const src = input || {};
+    if (src.seen) return '';
+    const requestIp = String(src.requestIp || '');
+    if (src.recheckDue && requestIp) return requestIp;
+    const open = !!(src.ready && !src.hold && !src.legacy);
+    if (open && requestIp) return requestIp;
+    if (open && !requestIp) return String(src.checkIp || '');
+    return '';
+}
+
+function referralCheckIsFinal(referral, signal) {
+    if (!referral) return false;
+    if (alreadyPaid(referral)) return true;
+    const status = String(referral.status || '');
+    if (status === 'rejected' || status === 'expired' || status === 'late' || status === 'untrusted' || status === 'legacy') return true;
+    if (status === 'flagged' && !isLegacyConnectionHold(referral, signal)) return true;
+    return false;
+}
+
+function blocksUncheckedPay(requestIp, verdict) {
+    if (!String(requestIp || '')) return false;
+    return !realServerVerdict(verdict);
 }
 
 function assessReferralPayout(input) {
@@ -354,7 +393,7 @@ function assessReferralPayout(input) {
     } else if (settlement.effect === 'clear') {
         referred.ipqsAction = 'allow';
         referred.ipqsReason = 'clean';
-    } else if (settlement.effect === 'hold' && connectionHoldReason(referred.ipqsReason)) {
+    } else if (settlement.effect === 'hold' && waitingReason((settlement.ipqsHold && settlement.ipqsHold.reason) || referred.ipqsReason)) {
         referred.ipqsAction = '';
     }
     const flags = fraudFlags(referred, referrer, src.signupIpHmac || src.signupIp || '');
@@ -613,6 +652,9 @@ module.exports = {
     connectionRecheckDue: connectionRecheckDue,
     settleConnection: settleConnection,
     signupConnection: signupConnection,
+    payoutLookupIp: payoutLookupIp,
+    referralCheckIsFinal: referralCheckIsFinal,
+    blocksUncheckedPay: blocksUncheckedPay,
     assessReferralPayout: assessReferralPayout,
     resolveReferrerUid: resolveReferrerUid,
     buildCodeIndex: buildCodeIndex,

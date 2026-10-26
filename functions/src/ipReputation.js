@@ -24,8 +24,21 @@ const HOLD_REFERRAL = "To prevent abuse, invite rewards aren't paid over a VPN, 
 const HOLD_REFERRAL_DEVICE = 'Your invite reward is on hold because this device is already linked to another account. Contact support if this is a shared household.';
 const USER_HOLD = 'Too many connection checks from this account today. Try again tomorrow.';
 const NEVER_CLAIMED_HOLD = "New accounts can't claim sats right now. Try again later.";
+const REFERRAL_BUDGET_WAIT = 'Invite rewards are waiting for a connection check. You can still use everything else in the app.';
 const PURPOSE_CAPS = { faucet: 20, favor: 5, referral: 5 };
 const USER_DAILY_CAP = 3;
+const LOOKUP_BACKOFF_MS = 60 * 60 * 1000;
+const inflightByDb = new WeakMap();
+
+function inflightMap(db) {
+    if (!db || (typeof db !== 'object' && typeof db !== 'function')) return null;
+    let map = inflightByDb.get(db);
+    if (!map) {
+        map = new Map();
+        inflightByDb.set(db, map);
+    }
+    return map;
+}
 
 const IP_URL = 'https://ipqualityscore.com/api/json/ip/';
 const POSTBACK_URL = 'https://ipqualityscore.com/api/json/postback/';
@@ -425,6 +438,57 @@ function userUsageId(now, uid) {
     return dayKey(now) + '_u_' + safe;
 }
 
+function backoffDocId(purpose, uid) {
+    const safe = String(uid || '').replace(/\//g, '_').slice(0, 200);
+    return 'b_' + purposeName(purpose) + '_' + safe;
+}
+
+async function referralBackoffActive(db, now, uid) {
+    if (!db || !uid) return false;
+    const snap = await db.collection('ipqs_usage').doc(backoffDocId('referral', uid)).get();
+    if (!snap.exists) return false;
+    return (Number((snap.data() || {}).untilMs) || 0) > now;
+}
+
+async function setReferralBackoff(db, now, uid, bindings) {
+    if (!db || !uid) return;
+    await db.collection('ipqs_usage').doc(backoffDocId('referral', uid)).set({
+        untilMs: now + LOOKUP_BACKOFF_MS,
+        purpose: 'referral',
+        updatedAtMs: now,
+        expireAt: bindings.fromMillis(now + USAGE_TTL_MS),
+    }, { merge: true });
+}
+
+async function releaseLookup(db, now, bindings, purpose) {
+    if (!db) return;
+    const field = purposeName(purpose);
+    const ref = usageRef(db, now);
+    await db.runTransaction(async function(t) {
+        const update = {
+            lookups: bindings.increment(-1),
+            updatedAtMs: now,
+        };
+        update[field] = bindings.increment(-1);
+        t.set(ref, update, { merge: true });
+    });
+}
+
+async function releaseReferralLookup(opts) {
+    if (!opts || purposeName(opts.purpose) !== 'referral') return;
+    try {
+        await releaseLookup(opts.db, opts.now, opts.bindings, 'referral');
+    } catch (e) {
+        console.error('[ipqs] referral release failed');
+    }
+    if (!opts.uid) return;
+    try {
+        await setReferralBackoff(opts.db, opts.now, opts.uid, opts.bindings);
+    } catch (e) {
+        console.error('[ipqs] referral backoff failed');
+    }
+}
+
 async function reserveLookup(db, now, cap, bindings, purpose, purposeLimit) {
     if (!db) return false;
     const field = purposeName(purpose);
@@ -645,7 +709,22 @@ async function clearDegraded(opts) {
     }
 }
 
-async function lookupIp(opts) {
+function lookupIp(opts) {
+    const canon = canonicalIp(opts && opts.ip);
+    const uid = String((opts && opts.uid) || '');
+    const map = inflightMap(opts && opts.db);
+    const key = map && uid && canon ? (purposeName(opts.purpose) + '|' + uid + '|' + canon) : '';
+    if (key && map.has(key)) return map.get(key);
+    const run = lookupIpOnce(opts);
+    if (!key) return run;
+    map.set(key, run);
+    run.finally(function() {
+        if (map.get(key) === run) map.delete(key);
+    });
+    return run;
+}
+
+async function lookupIpOnce(opts) {
     const now = opts.now;
     const canon = canonicalIp(opts.ip);
     if (!canon) return fallback('bad-ip');
@@ -669,6 +748,10 @@ async function lookupIp(opts) {
     if (apiKey.length < 8) {
         await recordError(opts, 'secret');
         return fallback('secret');
+    }
+    if (purposeName(opts.purpose) === 'referral' && opts.uid && await referralBackoffActive(opts.db, now, opts.uid)) {
+        logVerdict(docId, 'fallback', 'backoff', null);
+        return fallback('backoff');
     }
     const userCap = userLookupCap(opts);
     if (opts.uid) {
@@ -706,6 +789,7 @@ async function lookupIp(opts) {
     } catch (e) {
         const reason = e && e.code === 'timeout' ? 'timeout' : 'http';
         await recordError(opts, reason);
+        await releaseReferralLookup(opts);
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);
     }
@@ -713,6 +797,7 @@ async function lookupIp(opts) {
     if (scored.action === 'fallback' || (body && body.success === false)) {
         const reason = failureReason(body, status);
         await recordError(opts, reason);
+        await releaseReferralLookup(opts);
         if (reason === 'credits') await recordOpsAlert(opts.db, now, opts.bindings, 'credits');
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);
@@ -905,6 +990,16 @@ async function assessReward(opts) {
                 deviceAction: 'off',
             };
         }
+        if (packed.purpose === 'referral' && (ipResult.reason === 'quota' || ipResult.reason === 'backoff')) {
+            return {
+                action: 'hold',
+                reason: ipResult.reason,
+                message: REFERRAL_BUDGET_WAIT,
+                ipVerdict: null,
+                deviceHmac: '',
+                deviceAction: 'off',
+            };
+        }
         if (holdNeverClaimed(src) && (ipResult.reason === 'quota' || ipResult.reason === 'credits') && packed.purpose === 'faucet' && src.neverClaimed === true) {
             return {
                 action: 'hold',
@@ -968,6 +1063,8 @@ module.exports = {
     HOLD_REFERRAL_DEVICE: HOLD_REFERRAL_DEVICE,
     USER_HOLD: USER_HOLD,
     NEVER_CLAIMED_HOLD: NEVER_CLAIMED_HOLD,
+    REFERRAL_BUDGET_WAIT: REFERRAL_BUDGET_WAIT,
+    LOOKUP_BACKOFF_MS: LOOKUP_BACKOFF_MS,
     PURPOSE_CAPS: PURPOSE_CAPS,
     USER_DAILY_CAP: USER_DAILY_CAP,
     scoreIpLookup: scoreIpLookup,

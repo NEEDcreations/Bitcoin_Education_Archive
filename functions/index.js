@@ -1349,6 +1349,7 @@ exports.verifyReferral = functionsV1.runWith({
     return {
         success: !!(result && result.paid),
         reason: result && result.reason,
+        final: !!(result && (result.final || result.paid)),
         referrerTickets: result && result.paid ? result.ticketsEach : 0,
         referredTickets: result && result.paid ? result.ticketsEach : 0,
     };

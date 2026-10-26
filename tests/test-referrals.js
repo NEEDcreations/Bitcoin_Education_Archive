@@ -641,6 +641,7 @@ test('signup keeps a vpn invite pending-for-pay and flags a deny', () => {
     const verify = indexJs.slice(indexJs.indexOf('exports.verifyReferral'), indexJs.indexOf('exports.registerReferral'));
     assert.ok(verify.includes('enforceAppCheck: true'));
     assert.ok(verify.includes('requestIp:'));
+    assert.ok(verify.includes('final:'));
     assert.strictEqual(verify.includes('data.ip'), false);
     assert.strictEqual(verify.includes('clearHold'), false);
     const claim = indexJs.slice(indexJs.indexOf('exports.claimSats'), indexJs.indexOf('exports.confirmTipSent') === -1 ? indexJs.indexOf('const _lnDomainRaw') : indexJs.indexOf('const _lnDomainRaw'));
@@ -650,6 +651,9 @@ test('signup keeps a vpn invite pending-for-pay and flags a deny', () => {
     assert.ok(claim.includes('Someone you invited reached Maxi. 50 Orange Tickets were added.'));
     assert.strictEqual(service.includes('if (lookupIp && !liveIpVerdict(freshGate)) checkedAt = Date.now()'), false);
     assert.ok(service.includes('if (live) checkedAt = Number(nextHold.checkedAt) || Date.now()'));
+    assert.ok(service.includes('payoutLookupIp'));
+    assert.ok(service.includes('blocksUncheckedPay'));
+    assert.ok(service.includes('referralCheckIsFinal'));
     const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('expires unpaid after 30 days'));
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
@@ -672,12 +676,85 @@ test('opening the app rechecks an unpaid invite and does not gate sign-in', () =
     assert.strictEqual(shouldVerifyReferral(null, 0, now), false);
     assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, now - day + 1000, now), false);
     assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, now - day - 1, now), true);
+    const retry = 5 * 60 * 1000;
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { lastError: now - retry + 1000 }, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { lastError: now - retry - 1 }, now), true);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { final: true }, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, { lastOk: 0, final: false }, now), true);
     assert.ok(src.includes("httpsCallable('verifyReferral')"));
-    assert.ok(src.includes('.then(function() {}).catch(function() {})'));
     assert.ok(src.includes('checkReferralQualifications().catch(function() {})'));
+    assert.ok(src.includes('btc_referral_final_'));
+    assert.ok(src.includes('btc_referral_retry_'));
     const maybe = src.slice(src.indexOf('function maybeVerifyReferral'), src.indexOf('async function checkReferralQualifications'));
     assert.strictEqual(maybe.includes('await '), false);
-    assert.ok(maybe.includes("localStorage.setItem(key, String(now))"));
+    const callAt = maybe.indexOf("httpsCallable('verifyReferral')");
+    const writeAt = maybe.indexOf('localStorage.setItem');
+    assert.ok(callAt !== -1 && writeAt > callAt);
+    assert.ok(maybe.indexOf('!firebase.functions') !== -1 && maybe.indexOf('!firebase.functions') < callAt);
+});
+
+test('a ready app-open payout checks the request ip and final invites stop', () => {
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: true,
+        hold: null,
+        legacy: false,
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+        seen: false,
+        recheckDue: false,
+    }), '203.0.113.9');
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: true,
+        hold: { reason: 'vpn' },
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+        recheckDue: true,
+    }), '203.0.113.9');
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: true,
+        requestIp: '',
+        checkIp: '198.51.100.1',
+    }), '198.51.100.1');
+    assert.strictEqual(referrals.payoutLookupIp({
+        seen: true,
+        ready: true,
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+    }), '');
+    assert.strictEqual(referrals.payoutLookupIp({
+        ready: false,
+        requestIp: '203.0.113.9',
+        checkIp: '198.51.100.1',
+    }), '');
+    assert.strictEqual(referrals.blocksUncheckedPay('203.0.113.9', null), true);
+    assert.strictEqual(referrals.blocksUncheckedPay('203.0.113.9', { action: 'fallback' }), true);
+    assert.strictEqual(referrals.blocksUncheckedPay('203.0.113.9', { action: 'allow' }), false);
+    assert.strictEqual(referrals.blocksUncheckedPay('', { action: 'allow' }), false);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'rejected' }, {}), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'expired' }, {}), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'flagged' }, { flags: ['same-ip'] }), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'paid' }, {}), true);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'pending' }, {}), false);
+    assert.strictEqual(referrals.referralCheckIsFinal({ status: 'held_connection' }, {}), false);
+    assert.strictEqual(referrals.referralCheckIsFinal({
+        status: 'flagged',
+    }, {
+        flags: ['ipqs-hold'],
+        ipqsAction: 'hold',
+        ipqsVpn: true,
+        ipqsReason: 'vpn',
+    }), false);
+    const budget = referrals.signupConnection([], null, NOW, { budgetWait: true });
+    assert.strictEqual(budget.status, 'held_connection');
+    assert.strictEqual(budget.ipqsHold.reason, 'budget');
+    assert.strictEqual(budget.ipqsHold.checkedAt, 0);
+    assert.strictEqual(referrals.connectionRecheckDue(budget.ipqsHold, NOW + 1000), true);
+    const seen = referrals.connectionHoldState({ status: 'held_connection' }, { ipqsHold: budget.ipqsHold });
+    assert.strictEqual(seen.reason, 'budget');
+    assert.strictEqual(seen.checkedAt, 0);
+    const blocked = referrals.signupConnection(['ipqs-deny'], null, NOW, { budgetWait: true });
+    assert.strictEqual(blocked.status, 'rejected');
+    assert.strictEqual(blocked.ipqsHold, null);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

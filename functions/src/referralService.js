@@ -323,6 +323,7 @@ async function registerReferral(data, context) {
     if (referrer) {
         referrer.emailHistoryHashes = await emailHistoryHashes(referrer.uid);
     }
+    const budgetWait = reward.action === 'hold' && (reward.reason === 'quota' || reward.reason === 'backoff');
     const flags = referrer ? referrals.fraudFlags(referred, referrer, rawIp) : [];
     const refereeAlreadyPaid = !!(tomb.summary && (tomb.summary.refereePaid || tomb.summary.referralRedeemed));
     if (refereeAlreadyPaid) referred.priorReferral = true;
@@ -333,7 +334,7 @@ async function registerReferral(data, context) {
         if (flags.indexOf('linked-account') === -1) flags.push('linked-account');
         if (flags.indexOf(reason) === -1) flags.push(reason);
     });
-    const connection = referrals.signupConnection(flags, reward.ipVerdict, now);
+    const connection = referrals.signupConnection(flags, reward.ipVerdict, now, { budgetWait: budgetWait });
     let status = gate.ok && referrer ? connection.status : gate.status;
     if (!gate.ok) status = gate.status;
     else if (!referrer) status = 'pending';
@@ -529,13 +530,21 @@ async function payIfQualified(referredUid, opts) {
     const referrerUid = current.data().referrerUid || await lookupReferrerUid(current.data().referrerCode, uid);
     if (!referrerUid) return { paid: false, reason: 'missing-user' };
     const extra = opts || {};
+    const signalPre = await signalRef.get();
+    const signalPreData = signalPre.exists ? (signalPre.data() || {}) : {};
+    if (referrals.referralCheckIsFinal(current.data(), signalPreData)) {
+        const row = current.data() || {};
+        return {
+            paid: false,
+            reason: referrals.alreadyPaid(row) ? 'already-paid' : (String(row.status || '') || 'final'),
+            final: true,
+        };
+    }
     let checkIp = '';
     if (!extra.requestIp && extra.applyObservation !== true) {
         const remembered = await referredRef.get();
         checkIp = rawIpFromUser(remembered.exists ? remembered.data() : null);
     }
-    const signalPre = await signalRef.get();
-    const signalPreData = signalPre.exists ? (signalPre.data() || {}) : {};
     const holdPre = referrals.connectionHoldState(current.data(), signalPreData);
     const legacyPre = referrals.isLegacyConnectionHold(current.data(), signalPreData);
     const devicesOn = ipReputation.deviceEnabled();
@@ -561,7 +570,15 @@ async function payIfQualified(referredUid, opts) {
     const seen = observedVerdict(extra);
     const requestIp = String(extra.requestIp || '');
     const recheckDue = (holdPre || legacyPre) && requestIp && referrals.connectionRecheckDue(holdPre || { checkedAt: 0 }, Date.now());
-    const lookupIp = seen ? '' : (recheckDue ? requestIp : ((ready && !holdPre && !legacyPre) ? checkIp : ''));
+    const lookupIp = referrals.payoutLookupIp({
+        seen: !!seen,
+        requestIp: requestIp,
+        checkIp: checkIp,
+        ready: ready,
+        hold: holdPre,
+        legacy: legacyPre,
+        recheckDue: !!recheckDue,
+    });
     if (seen) {
         freshGate = { ipVerdict: seen };
     } else if (lookupIp) {
@@ -700,8 +717,11 @@ async function payIfQualified(referredUid, opts) {
         if (decision.action === 'hold') {
             const nextHold = decision.ipqsHold || {};
             const live = liveIpVerdict(freshGate);
+            const reason = String(nextHold.reason || 'vpn').slice(0, 16);
+            const budget = reason === 'budget';
             let checkedAt = Number(nextHold.checkedAt) || 0;
             if (live) checkedAt = Number(nextHold.checkedAt) || Date.now();
+            if (budget) checkedAt = 0;
             t.update(refRef, Object.assign({
                 status: 'held_connection',
                 ticketsAwarded: false,
@@ -709,14 +729,14 @@ async function payIfQualified(referredUid, opts) {
             }, clearFlags));
             t.set(signalRef, {
                 ipqsHold: {
-                    reason: String(nextHold.reason || 'vpn').slice(0, 16),
+                    reason: reason,
                     since: Number(nextHold.since) || Date.now(),
                     checkedAt: checkedAt,
                 },
-                ipqsAction: 'hold',
-                ipqsReason: String(nextHold.reason || 'vpn').slice(0, 40),
-                ipqsCheckedAtMs: checkedAt,
-                flags: ['ipqs-hold'],
+                ipqsAction: budget ? 'fallback' : 'hold',
+                ipqsReason: budget ? 'budget' : reason,
+                ipqsCheckedAtMs: budget ? 0 : checkedAt,
+                flags: budget ? [] : ['ipqs-hold'],
             }, { merge: true });
             outcome = { paid: false, reason: decision.reason, held: true };
             return;
@@ -763,6 +783,10 @@ async function payIfQualified(referredUid, opts) {
             }, clearFlags));
             t.set(signalRef, Object.assign({ flags: decision.flags || [] }, dropHold), { merge: true });
             outcome = { paid: false, reason: decision.reason };
+            return;
+        }
+        if (decision.action !== 'pay' || referrals.blocksUncheckedPay(requestIp, verdict)) {
+            outcome = { paid: false, reason: decision.action === 'pay' ? 'unchecked' : (decision.reason || 'skip') };
             return;
         }
         const tickets = referrals.REFERRAL_TICKETS;

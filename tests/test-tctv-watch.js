@@ -418,12 +418,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2379'"));
     assert.ok(!sw.includes('btc-archive-v2363'));
     assert.ok(!sw.includes('btc-archive-v2373'));
-    assert.ok(!sw.includes('btc-archive-v2366'));
-    assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
-    assert.ok(!sw.includes('btc-archive-v2369'));
-    assert.ok(!sw.includes('btc-archive-v2366'));
+    assert.ok(!sw.includes('btc-archive-v2365'));
+    assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2367'));
     assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2366'));
@@ -797,6 +795,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const usernames = 'Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.';
     assert.ok(notes.includes(usernames));
     assert.ok(!notes.includes('Latest: Usernames'));
+    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces'));
     const favor = 'Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.';
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho'));

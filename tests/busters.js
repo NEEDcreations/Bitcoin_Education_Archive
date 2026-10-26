@@ -1,5 +1,6 @@
 // Cache-buster pin. This ship branch is btc-archive-v2379.
-// Live gh-pages was v2368. quests.js and global-chat.js stay 20261026_v2368.
+// Live gh-pages was v2369. global-chat.js is 20261026_v2369.
+// quests.js stays 20261026_v2368.
 // bundle.min.js, ranking.js, and satoshi-favor.js are 20261026_v2379.
 // onboarding.js and today-card.js stay 20261026_v2365.
 // features.registry.js stays 20261024_v2361.
@@ -37,8 +38,8 @@ test('service worker cache is v2379', () => {
     assert.ok(!sw.includes('btc-archive-v2372'));
     assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
-    assert.ok(!sw.includes('btc-archive-v2369'));
-    assert.ok(!sw.includes('btc-archive-v2366'));
+    assert.ok(!sw.includes('btc-archive-v2365'));
+    assert.ok(!sw.includes('btc-archive-v2368'));
     assert.ok(!sw.includes('btc-archive-v2367'));
     assert.ok(!sw.includes('btc-archive-v2365'));
     assert.ok(!sw.includes('btc-archive-v2366'));
@@ -138,8 +139,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261023_v2330'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2368'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2368/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261026_v2369'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2369/g) || []).length, 5);
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
     assert.ok(!html.includes('global-chat.js?v=20261024_v2350'));
@@ -285,11 +287,16 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Sats claims and Satoshi\'s Favor pause on a VPN, proxy, or Tor connection, and an invite from a friend on one waits and pays once they\'re on a regular connection.'));
+    assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
+    assert.ok(!notes.includes('Latest: A More tools'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho'));
     assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(notes.includes('The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.'));
     assert.ok(!notes.includes('Latest: The home page is simpler'));
+    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(notes.includes('Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.'));
     assert.ok(!notes.includes('Latest: Global chat messages'));
     assert.ok(notes.includes('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
