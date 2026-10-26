@@ -1062,10 +1062,12 @@ exports.onArticleBadgeCount = onDocumentCreated({
 });
 
 // Article XP. Separate from onArticleBadgeCount and from awardPoints.
-// A retry re-reads the article and the marker, so the same id cannot pay twice.
+// retry is on so a missing user doc (the only path that throws) runs again.
+// Every other outcome writes article_xp first, so a second delivery pays nothing.
 exports.onArticlePublishXp = onDocumentWritten({
     document: 'articles/{articleId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
 }, async (event) => {
     const change = event.data;
     if (!change) return null;

@@ -1385,12 +1385,18 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 10
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.body is string
+                    && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
                     && (
                       // Author can edit their own article, but cannot hand authorship to someone else.
                       resource.data.authorId == request.auth.uid
                       && request.resource.data.authorId == resource.data.authorId
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() <= 50000
+                      && request.resource.data.title is string
+                      && request.resource.data.title.size() >= 10
+                      && request.resource.data.title.size() <= 120
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely

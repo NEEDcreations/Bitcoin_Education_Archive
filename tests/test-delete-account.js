@@ -1690,6 +1690,34 @@ function auth(uid, extras) {
         process.env.DELETION_HMAC_SECRET = prev;
     });
 
+    await testAsync('article XP markers stay without the account id, and daily article counters are deleted', async function() {
+        const db = createFakeDb(world());
+        db.docs.set('users/u1/article_publish_days/2026-10-26', { count: 2, uid: 'u1', day: '2026-10-26' });
+        db.docs.set('article_xp/a1', { uid: 'u1', awarded: 30, reason: 'paid', reversed: false });
+        db.docs.set('article_xp/other', { uid: 'u2', awarded: 30, reason: 'paid', reversed: false });
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-article-xp',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.strictEqual(db.docs.has('users/u1/article_publish_days/2026-10-26'), false);
+        const marker = db.docs.get('article_xp/a1');
+        assert.ok(marker);
+        assert.strictEqual(marker.uid, '');
+        assert.strictEqual(marker.awarded, 30);
+        assert.strictEqual(marker.reason, 'paid');
+        assert.strictEqual(db.docs.get('article_xp/other').uid, 'u2');
+        const src = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+        assert.ok(src.includes("'article_publish_days'"));
+        assert.ok(src.includes("collection('article_xp').where('uid', '==', uid)"));
+    });
+
     await testAsync('posts other people replied to are anonymized and the rest are deleted', async function() {
         const db = createFakeDb(world());
         db.docs.set('forum_replies/fromBob', { authorId: 'u2', postId: 'p1', body: 'still here', parentReplyId: '' });

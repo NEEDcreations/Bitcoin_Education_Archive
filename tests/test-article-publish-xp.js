@@ -6,8 +6,11 @@ const path = require('path');
 const {
     handleArticlePublishWrite,
     grantArticlePublish,
+    stripMarkup,
     PUBLISH_XP,
     REVERSE_WINDOW_MS,
+    MAX_BODY_CHARS,
+    MIN_WORDS,
 } = require('../functions/src/articlePublishXp');
 
 const root = path.join(__dirname, '..');
@@ -315,11 +318,70 @@ queue.push(test('rules deny the marker, authorship cannot move, and awardPoints 
     assert.ok(articles.includes('request.resource.data.authorId == resource.data.authorId'));
     assert.ok(index.includes('exports.onArticlePublishXp'));
     assert.ok(index.includes('handleArticlePublishWrite'));
+    const trigger = index.slice(index.indexOf('exports.onArticlePublishXp'), index.indexOf('exports.dailyPollVote'));
+    assert.ok(trigger.includes('retry: true'));
+    assert.ok(articles.includes('request.resource.data.body.size() <= 50000'));
+    assert.ok(articles.includes('request.resource.data.title.size() <= 120'));
+    assert.ok(articles.includes('request.resource.data.title.size() >= 10'));
     assert.ok(!actions.includes('📝 Article published'));
     assert.ok(!payer.includes('boostPoints'));
     assert.ok(!payer.includes('doubleXp'));
     assert.ok(!forum.includes("awardPoints(30, '📝 Article published')"));
-    assert.ok(guide.includes('Publish an article: <strong>30 XP</strong>, once per article, up to 2 a day.'));
+    assert.ok(guide.includes('Publish an article: <strong>30 XP</strong>, once per article, up to 2 a day, at least 300 characters and 50 words'));
+    assert.strictEqual(guide.includes('Publish an article: <strong>30 XP</strong>, once per article, up to 2 a day.'), false);
+}));
+
+queue.push(test('a megabyte of angle brackets or square brackets pays nothing and finishes quickly', async function () {
+    const angles = '<'.repeat(1000000);
+    const brackets = '['.repeat(1000000);
+    const t0 = Date.now();
+    const strippedAngles = stripMarkup(angles);
+    const t1 = Date.now();
+    const strippedBrackets = stripMarkup(brackets);
+    const t2 = Date.now();
+    assert.strictEqual(strippedAngles, angles);
+    assert.strictEqual(strippedBrackets, brackets);
+    assert.ok(t1 - t0 < 200, 'angle strip took ' + (t1 - t0) + 'ms');
+    assert.ok(t2 - t1 < 200, 'bracket strip took ' + (t2 - t1) + 'ms');
+    const db = memoryDb(seedUser());
+    const g0 = Date.now();
+    const huge = await publish(db, 'artHuge', article({ body: angles }));
+    const g1 = Date.now();
+    const boxed = await publish(db, 'artBoxes', article({ body: brackets }));
+    const g2 = Date.now();
+    assert.ok(g1 - g0 < 200, 'angle grant took ' + (g1 - g0) + 'ms');
+    assert.ok(g2 - g1 < 200, 'bracket grant took ' + (g2 - g1) + 'ms');
+    assert.strictEqual(huge.reason, 'too_long');
+    assert.strictEqual(huge.awarded, 0);
+    assert.strictEqual(boxed.reason, 'too_long');
+    assert.strictEqual(boxed.awarded, 0);
+    assert.strictEqual(pointsOf(db), 10);
+    assert.strictEqual(db.docs['article_xp/artHuge'].reason, 'too_long');
+    assert.strictEqual(db.docs['article_xp/artBoxes'].reason, 'too_long');
+    assert.ok(angles.length > MAX_BODY_CHARS);
+    const again = await grantArticlePublish({
+        db: db, admin: admin, articleId: 'artHuge', uid: 'author1', nowMs: NOW,
+    });
+    assert.strictEqual(again.reason, 'already');
+}));
+
+queue.push(test('invisible padding and a one-letter body do not meet the minimum', async function () {
+    const db = memoryDb(seedUser());
+    const blanks = await publish(db, 'artBlank', article({ body: '\u200B'.repeat(300) }));
+    assert.strictEqual(blanks.reason, 'too_short');
+    assert.strictEqual(blanks.awarded, 0);
+    assert.strictEqual(db.docs['article_xp/artBlank'].reason, 'too_short');
+    const letters = await publish(db, 'artLetter', article({ body: 'a'.repeat(300) }));
+    assert.strictEqual(letters.reason, 'too_short');
+    assert.strictEqual(letters.awarded, 0);
+    const repeated = await publish(db, 'artSame', article({ body: 'aa '.repeat(80) }));
+    assert.strictEqual(repeated.reason, 'too_short');
+    assert.strictEqual(pointsOf(db), 10);
+    assert.ok(MIN_WORDS >= 50);
+    const tagged = stripMarkup('<p>Hello</p> [link](http://example.test) &amp; there');
+    assert.ok(tagged.indexOf('Hello') !== -1);
+    assert.ok(tagged.indexOf('there') !== -1);
+    assert.strictEqual(tagged.indexOf('example.test'), -1);
 }));
 
 Promise.all(queue).then(function () {
