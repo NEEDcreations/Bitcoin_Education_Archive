@@ -224,6 +224,12 @@ async function mirrorShoutoutOnce(options) {
 
     try {
         if (!docId) return { mirrored: false, reason: 'no_doc' };
+        // onCreate mirrors every global_chat and announcements doc. Callers
+        // that already have the chat doc defer so the shoutout is posted once.
+        // Pass force only for a backfill of a doc that will not fire onCreate.
+        if (opts.db && opts.force !== true) {
+            return { mirrored: false, reason: 'server_mirror' };
+        }
         const data = await getDoc(docId);
         if (!data) return { mirrored: false, reason: 'missing' };
         if (!shouldMirrorShoutout(data)) return { mirrored: false, reason: 'already_mirrored' };

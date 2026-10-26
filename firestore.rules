@@ -2068,6 +2068,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Telegram mirror queue. One claim per chat doc. Admin SDK only.
+    match /telegram_mirror_claims/{claimId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_queue/{itemId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_state/{docId} {
+      allow read, write: if false;
+    }
+
     match /satoshiFavor/factionTotals {
       allow read: if true;
       allow write: if false;

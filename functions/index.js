@@ -1497,110 +1497,19 @@ exports.moderateContent = functionsV1.https.onCall(async (data, context) => {
 
 
 // =============================================
-// [C1] SECURE TELEGRAM BRIDGE
-// Bridge secret lives here, NOT in client code
+// TELEGRAM
+// Chat posts are mirrored by onGlobalChatTelegram / onAnnouncementsTelegram.
+// This callable stays so older clients do not post a second copy.
 // =============================================
 const {
-    postToTelegramBridge,
-    buildWebBridgePayload,
-    redactForLog,
-    WEB_BRIDGE_TIMEOUT_MS,
     mirrorShoutoutOnce,
 } = require('./src/telegramBridge');
 
+// Older clients still call this after they write chat. Posting here would
+// duplicate the onCreate mirror, so the callable acknowledges and does not send.
 exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing content');
-    }
-
-    // Server-side content filtering - prevents bypassing client-side filters via direct CF calls
-    if (data.text) {
-        const text = data.text.toLowerCase()
-            .replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e').replace(/4/g,'a')
-            .replace(/5/g,'s').replace(/7/g,'t').replace(/\$/g,'s').replace(/@/g,'a')
-            .replace(/!/g,'i').replace(/\*/g,'').replace(/_/g,'').replace(/-/g,'');
-        const BAD = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','faggot','retard',
-            'nazi','hitler','kkk','porn','hentai','rape','pedo','slut','whore','cum','dildo','tits','nude','naked',
-            'suicide','terrorist','jihad','genocide','lynch','blowjob','handjob','threesome','gangbang','bondage',
-            'deepthroat','masturbat','hooker','stripper','onlyfans','pornhub','xvideos','xnxx',
-            'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie',
-            'maga','trump','biden','democrat','republican','antifa','qanon','white power','sieg heil',
-            'kill yourself','kys','kill myself','self harm','death to','gas the'];
-        const words = text.split(/\s+/);
-        for (const bad of BAD) {
-            if (bad.includes(' ')) { if (text.includes(bad)) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter'); }
-            else { for (const w of words) { if (w === bad) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter'); } }
-            if (bad.length >= 4 && text.includes(bad)) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter');
-        }
-    }
-
-    // Rate limit: 1 bridge call per 3 seconds per user
-    const uid = context.auth.uid;
-        // Rate limit bridge: 3 seconds between calls (atomic transaction)
-    const rateLimitRef = db.collection('rate_limits').doc('bridge_' + uid);
-    await db.runTransaction(async (tx) => {
-        const rateLimitDoc = await tx.get(rateLimitRef);
-        if (rateLimitDoc.exists) {
-            const lastCall = rateLimitDoc.data().lastCall;
-            if (lastCall && Date.now() - (lastCall.toDate ? lastCall.toDate() : new Date(lastCall)).getTime() < 3000) {
-                throw new functionsV1.https.HttpsError('resource-exhausted', 'Too fast - wait 3 seconds');
-            }
-        }
-        tx.set(rateLimitRef, { lastCall: admin.firestore.FieldValue.serverTimestamp() });
-    });
-
-    // Secret lives ONLY in server-side environment variables (.env)
-    const BRIDGE_SECRET = process.env.BRIDGE_SECRET;
-
-    if (!BRIDGE_SECRET) {
-        console.error('[BRIDGE] No bridge secret configured - run: firebase functions:config:set bridge.secret="YOUR_SECRET"');
-        return { ok: false, error: 'Bridge not configured' };
-    }
-
-    try {
-        // Look up the caller's actual username from Firestore (don't trust client-supplied name)
-        let verifiedUsername = 'Anon';
-        try {
-            const userDoc = await db.collection('users').doc(uid).get();
-            if (userDoc.exists && userDoc.data().username) {
-                verifiedUsername = userDoc.data().username.substring(0, 50);
-            }
-        } catch(e) {}
-
-        // The client-supplied name is ignored. The worker renders payload.user as "[🌐 name]".
-        const payload = buildWebBridgePayload(verifiedUsername, uid, data);
-        const json = await postToTelegramBridge(payload, {
-            secret: BRIDGE_SECRET,
-            timeoutMs: WEB_BRIDGE_TIMEOUT_MS,
-        });
-
-        // Store telegramMsgId if returned by bridge worker
-        if (json.telegramMsgId && json.chatId) {
-            try {
-                // The caller should pass the Firestore message ID as data.messageId
-                if (data.messageId) {
-                    const msgRef = db.collection('global_chat').doc(data.messageId);
-                    const msgDoc = await msgRef.get();
-                    if (!msgDoc.exists || msgDoc.data().uid !== uid) {
-                        console.warn('[BRIDGE] telegramMsgId stamp rejected: caller does not own message', data.messageId);
-                    } else {
-                        await msgRef.update({
-                            telegramMsgId: json.telegramMsgId.toString(),
-                            telegramChatId: json.chatId.toString()
-                        });
-                    }
-                }
-            } catch (e) {
-                console.log('[BRIDGE] Could not store telegramMsgId:', e.message);
-            }
-        }
-
-        return { ok: json.ok || false, telegramMsgId: json.telegramMsgId };
-    } catch(e) {
-        console.error('[BRIDGE] Error:', redactForLog(e && e.message, BRIDGE_SECRET));
-        return { ok: false };
-    }
+    return { ok: true, skipped: 'server_mirror' };
 });
 
 // ===== SATS FAUCET - claimSats Cloud Function =====
@@ -7984,6 +7893,35 @@ exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC'
         await flushDueBursts(db, admin, Date.now());
     } catch (e) {
         console.error('[BADGE GG] flush failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+});
+
+const { handleChatMirror, flushTelegramMirror } = require('./src/chatTelegramMirror');
+async function mirrorChatCreate(collection, docId, data) {
+    try {
+        await handleChatMirror(db, collection, docId, data || {});
+    } catch (e) {
+        console.error('[TG MIRROR] ' + collection + ' failed');
+        throw e;
+    }
+    return null;
+}
+exports.onGlobalChatTelegram = onDocumentCreated('global_chat/{msgId}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
+});
+exports.onAnnouncementsTelegram = onDocumentCreated('announcements/{msgId}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    return mirrorChatCreate('announcements', event.params.msgId, snap.data());
+});
+exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+    try {
+        await flushTelegramMirror(db, Date.now());
+    } catch (e) {
+        console.error('[TG MIRROR] flush failed');
         throw e;
     }
 });

@@ -146,8 +146,6 @@
             // Direct global_chat writes as "🦌 Nacho" also fail the username==profile rule.
             if (typeof window.nachoGlobalAnnounce === 'function') {
                 window.nachoGlobalAnnounce(msg, uid);
-            } else if (typeof bridgeToTelegram === 'function') {
-                bridgeToTelegram({ user: '🦌 Nacho', text: msg });
             }
         }).catch(function(err) {
             if (!err._dedupSkip) console.warn('[SF] announce txn failed:', err);

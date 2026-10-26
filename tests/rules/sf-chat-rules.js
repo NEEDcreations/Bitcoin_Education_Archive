@@ -100,6 +100,18 @@ const parts = emu.split(':');
         await expect('write badge claim', function () {
             return setDoc(doc(user, 'badge_gg_claims', 'user1__quest_1'), { badgeId: 'quest_1' });
         }, false);
+        await expect('read telegram mirror claim', function () {
+            return getDoc(doc(user, 'telegram_mirror_claims', 'global_chat__own1'));
+        }, false);
+        await expect('write telegram mirror claim', function () {
+            return setDoc(doc(user, 'telegram_mirror_claims', 'global_chat__own1'), { status: 'queued' });
+        }, false);
+        await expect('write telegram mirror queue', function () {
+            return setDoc(doc(user, 'telegram_mirror_queue', 'global_chat__own1'), { status: 'pending' });
+        }, false);
+        await expect('write telegram mirror state', function () {
+            return setDoc(doc(user, 'telegram_mirror_state', 'group'), { sentAtMs: [] });
+        }, false);
     } finally {
         await env.cleanup();
     }

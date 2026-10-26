@@ -9,24 +9,7 @@ var ANNOUNCEMENTS_COLLECTION = 'announcements';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
 var MAX_MSGS_DISPLAY = 100; // Fetch from Firestore
-// Bridge: forward message to Telegram via Cloud Function (secret is server-side only)
-function bridgeToTelegram(data) {
-    try {
-        if (typeof firebase !== 'undefined' && firebase.functions) {
-            var bridgeMsg = firebase.functions().httpsCallable('bridgeToTelegram');
-            bridgeMsg({
-                user: data.user || data.name || 'Anon',
-                text: data.text || '',
-                gifUrl: data.gifUrl || '',
-                imageUrl: data.imageUrl || '',
-                imageBase64: data.imageBase64 || '',
-                replyToName: data.replyToName || '',
-                replyToText: data.replyToText || '',
-                source: 'web'
-            }).catch(function(e) { console.warn('[BRIDGE] Cloud Function call failed:', e.message); });
-        }
-    } catch(e) {}
-}
+// Telegram forwarding is the server onCreate mirror. The client does not post.
 var CHAT_INITIAL_SHOW = 20; // Render initially (reduced to save Firestore reads)
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
@@ -1309,9 +1292,7 @@ window.sendGlobalChat = function() {
         db.collection('stats').doc('global').set({ chatMessages: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {});
         // Raid Boss: chat message
         if (typeof window._raidOnChatMessage === 'function') window._raidOnChatMessage();
-        // Bridge to Telegram with messageId for reaction sync
         if (docRef && docRef.id) {
-            bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '', messageId: docRef.id });
             if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
             if (replyData.replyTo) _maybeClaimReplyBonus(docRef.id);
         }
@@ -1444,9 +1425,6 @@ window.sendGlobalChat = function() {
                     text: answer,
                     isNachoAuto: true,
                     ts: firebase.firestore.FieldValue.serverTimestamp()
-                }).then(function() {
-                    console.log('[BRIDGE] Sending Nacho answer to Telegram, length:', answer.length);
-                    bridgeToTelegram({ user: '🦌 Nacho', text: answer });
                 }).catch(function(e) { console.error('[CHAT] Nacho reply failed:', e); });
             }, 2000 + Math.random() * 2000);
         });
@@ -2328,7 +2306,6 @@ window.sendGifMessage = function(url, caption) {
     }
 
     db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
-        bridgeToTelegram({ user: username, text: '', gifUrl: url });
         if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
         if (replyToId && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
     }).catch(function(e) {
@@ -2700,8 +2677,6 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
 
             return db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
                 if (typeof showToast === 'function') showToast('📷 Image sent!');
-                // Bridge https URL to Telegram
-                bridgeToTelegram({ user: username, text: caption || '', imageUrl: url });
                 if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
                 if (replyCopy && replyCopy.id && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
             });
@@ -4067,8 +4042,6 @@ window.nachoPostToGlobalChat = function(text, mentionUid) {
     db.collection(CHAT_COLLECTION).add(msgData).catch(function(e) {
         console.error('[CHAT] Nacho global post failed:', e);
     });
-    // Bridge to Telegram for visibility
-    if (typeof bridgeToTelegram === 'function') bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
 };
 
 // Announcements go to the ANNOUNCEMENTS_COLLECTION (separate from global chat)
@@ -4091,9 +4064,6 @@ window.nachoGlobalAnnounce = function(text, mentionUid) {
     firebase.functions().httpsCallable('nachoAnnounce')({
         text: text,
         mentionUid: effectiveMentionUid
-    }).then(function() {
-        // Still bridge to Telegram for visibility
-        bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
     }).catch(function(e) {
         console.error('[CHAT] Nacho announce failed:', e);
     });

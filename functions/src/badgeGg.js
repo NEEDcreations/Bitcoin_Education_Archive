@@ -62,10 +62,28 @@ function cleanLabel(raw) {
     return s;
 }
 
+function titleCaseWord(word) {
+    const s = String(word || '');
+    if (!s) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Catalog names that are just the raw id (flex_pattern_25) become a display
+// name ("Flex Pattern 25"). A real catalog name (Quester, Pathfinder) is kept.
+function flexDisplayName(id) {
+    if (String(id || '').indexOf('flex_') !== 0) return '';
+    const rest = id.slice(5).split('_').filter(Boolean).map(titleCaseWord).join(' ');
+    return rest ? ('Flex ' + rest) : '';
+}
+
 function badgeName(badgeId) {
     const id = String(badgeId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
     const rule = id ? badgeRules.ruleFor(id) : null;
-    return cleanLabel((rule && rule.name) || id || 'a badge') || 'a badge';
+    const catalog = rule && rule.name ? String(rule.name) : '';
+    if (catalog && catalog !== id) return cleanLabel(catalog) || 'a badge';
+    const flex = flexDisplayName(id);
+    if (flex) return cleanLabel(flex) || 'a badge';
+    return cleanLabel(catalog || id || 'a badge') || 'a badge';
 }
 
 function badgeEmoji(badgeId) {
