@@ -2820,7 +2820,7 @@ window.nachoQuizMe = function(topic) {
     var opts = q.options || [];
     for (var i = 0; i < opts.length; i++) {
         var isCorrect = opts[i] === q.answer;
-        html += '<button ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
     }
     html += '</div>';
     
@@ -2850,7 +2850,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         btn.style.opacity = '1';
         // awardPoints() fires its own toast on CF success — don't double-toast here.
         // If CF fails (network/cap), awardPoints() surfaces that too.
-        if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!');
+        var _nqQ = '';
+        var _nqA = '';
+        try {
+            _nqQ = decodeURIComponent(btn.getAttribute('data-q') || '');
+            _nqA = decodeURIComponent(btn.getAttribute('data-a') || '');
+        } catch (e) {}
+        if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _nqQ, quizChoice: _nqA || btn.textContent });
         var resultDiv = document.createElement('div');
         resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
         resultDiv.textContent = '✅ Correct! +10 XP';

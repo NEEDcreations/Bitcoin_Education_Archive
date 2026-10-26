@@ -416,7 +416,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2371'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2395'"));
+    assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2373'));
@@ -793,7 +794,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.';
+    const latest = 'Latest: XP awards now require server-checked evidence, and profile saves only allow known non-reward fields.';
     const topics = 'On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.';
     assert.ok(notes.includes(topics));
     assert.ok(!notes.includes('Latest: On a computer'));

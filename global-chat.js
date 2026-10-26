@@ -1397,6 +1397,7 @@ window.sendGlobalChat = function() {
         if (docRef && docRef.id) {
             if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
             if (replyData.replyTo) _maybeClaimReplyBonus(docRef.id);
+            _awardChatMessageXp(docRef.id);
         }
     }, function(err) {
         console.error('[CHAT] Send error:', err);
@@ -1417,36 +1418,44 @@ window.sendGlobalChat = function() {
     // Combo tracking
     if (typeof window._trackCombo === 'function') window._trackCombo('chat');
 
-    // Award points for first chat message of the day + streak tracking
-    var today = new Date().toISOString().split('T')[0];
-    var chatDay = 'btc_chat_day_' + new Date().toDateString();
-    if (!localStorage.getItem(chatDay)) {
+    // Chat XP waits until the message doc exists. The server checks that doc.
+    function _awardChatMessageXp(messageId) {
+        var today = new Date().toISOString().split('T')[0];
+        var chatDay = 'btc_chat_day_' + new Date().toDateString();
+        if (localStorage.getItem(chatDay)) return;
         localStorage.setItem(chatDay, '1');
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Global Chat');
+        var pending = null;
+        if (typeof awardPoints === 'function') {
+            pending = awardPoints(5, '💬 Global Chat', null, null, null, null, { messageId: messageId });
+        }
         if (typeof awardTickets === 'function') awardTickets(2, 'Daily chat');
-
-        // Update chat streak
         var lastChatDate = localStorage.getItem('btc_chat_last_date') || '';
-        var streak = parseInt(localStorage.getItem('btc_chat_streak') || '0');
+        var streak = parseInt(localStorage.getItem('btc_chat_streak') || '0', 10);
+        if (isNaN(streak)) streak = 0;
         if (lastChatDate) {
             var lastD = new Date(lastChatDate);
             var todayD = new Date(today);
             var diff = Math.round((todayD - lastD) / 86400000);
-            if (diff === 1) {
-                streak++;
-            } else if (diff > 1) {
-                streak = 1;
-            }
+            if (diff === 1) streak++;
+            else if (diff > 1) streak = 1;
         } else {
             streak = 1;
         }
         localStorage.setItem('btc_chat_streak', streak);
         localStorage.setItem('btc_chat_last_date', today);
-
-        // Bonus points for streaks
-        if (streak === 3 && typeof awardPoints === 'function') awardPoints(10, '🔥 3-day chat streak!');
-        if (streak === 7 && typeof awardPoints === 'function') awardPoints(25, '🔥 7-day chat streak!');
-        if (streak === 30 && typeof awardPoints === 'function') awardPoints(100, '💎 30-day chat streak!');
+        function payStreak(n) {
+            if (n === 3 && typeof awardPoints === 'function') awardPoints(10, '🔥 3-day chat streak!');
+            if (n === 7 && typeof awardPoints === 'function') awardPoints(25, '🔥 7-day chat streak!');
+            if (n === 30 && typeof awardPoints === 'function') awardPoints(100, '💎 30-day chat streak!');
+        }
+        if (pending && pending.then) {
+            pending.then(function(result) {
+                var serverStreak = result && result.data ? result.data.chatStreak : 0;
+                if (serverStreak) payStreak(serverStreak);
+            }).catch(function() {});
+        } else if (typeof currentUser !== 'undefined' && currentUser && currentUser._isLocal) {
+            payStreak(streak);
+        }
     }
 
     // Milestone rewards for total messages

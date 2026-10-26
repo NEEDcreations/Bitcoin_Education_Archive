@@ -54,6 +54,9 @@ test('users past 10k withdrawn still see claimable sats', () => {
     assert.strictEqual(oldBug.claimable, 0);
     const home = api.claimableSats({ points: 12340 }, 15000);
     assert.strictEqual(home.claimable, 1234);
+    const unverified = api.claimableSats({ points: 1000, unclaimableXp: 100 }, 15000);
+    assert.strictEqual(unverified.balance, 90);
+    assert.strictEqual(unverified.claimable, 90);
 });
 
 test('ranking no longer falls back to a 10000 cap', () => {

@@ -64,8 +64,8 @@ test('trifecta proof docs match the award claim ids', () => {
     const trivia = awardActions.resolveAction({ action: '🧠 Trivia Quest correct!', pts: 50 });
     const poll = awardActions.resolveAction({ action: '📊 Poll Quest vote', pts: 50 });
     const quiz = awardActions.resolveAction({ action: '🎮 Quiz correct!', pts: 5 });
-    assert.strictEqual(awardActions.claimId(trivia, '2026-10-22', 1), '2026-10-22_trivia_trivia');
-    assert.strictEqual(awardActions.claimId(poll, '2026-10-22', 1), '2026-10-22_poll_vote_poll');
+    assert.strictEqual(trivia.ok, false);
+    assert.strictEqual(poll.ok, false);
     assert.strictEqual(awardActions.countDocId(quiz, '2026-10-22'), '2026-10-22_quiz_correct');
 });
 
@@ -81,8 +81,8 @@ test('a doubled amount is rejected unless Double XP is active', () => {
     assert.strictEqual(plain.awarded, 5);
     assert.strictEqual(awardActions.resolveAction({ action: '🎮 Quiz correct!', pts: 10 }).requiresDoubleXp, false);
     assert.strictEqual(awardActions.resolveAction({ action: '🎮 Quiz correct!', pts: 20 }).requiresDoubleXp, true);
-    assert.strictEqual(awardActions.resolveAction({ action: 'Daily Spin', pts: 100 }).requiresDoubleXp, false);
-    assert.strictEqual(awardActions.resolveAction({ action: 'Daily Spin', pts: 200 }).requiresDoubleXp, true);
+    assert.strictEqual(awardActions.resolveAction({ action: 'Daily Spin', pts: 100 }).ok, false);
+    assert.strictEqual(awardActions.resolveAction({ action: 'Daily Spin', pts: 200 }).ok, false);
     const future = ticketGrants.doubleXpActive({ toMillis: function() { return Date.now() + 1000; } }, Date.now());
     const past = ticketGrants.doubleXpActive({ toMillis: function() { return Date.now() - 1000; } }, Date.now());
     assert.strictEqual(future, true);

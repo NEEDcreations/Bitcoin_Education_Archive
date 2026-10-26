@@ -101,6 +101,35 @@ service cloud.firestore {
     // stays out of this function: registerReferral owns it, and folding the
     // deny into one long && chain re-checks every helper and hits the
     // 1000-expression limit.
+    // Client updates may only touch these keys. Anything else, including a
+    // new reward field, is denied. pendingLeaderboardReward is listed so the
+    // owner can delete a server-written reward; profileUpdateBlocked still
+    // rejects setting one.
+    function profileClientFields() {
+      return [
+        'profilePic', 'displayName', 'country', 'bio',
+        'website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail',
+        'lightning', 'lightningAddress', 'lnAddress',
+        'nachoNickname', 'ghostMode', 'artistProfile',
+        'lastLogin', 'lastActive', 'lastSeen', 'isOnline',
+        'newsletterOptIn', 'newsletterOptInDate', 'celebratedState',
+        'tosVersion', 'tosAcceptedAt', 'signupSource',
+        'inviteCard', 'notificationPrefs', 'notifPrompt', 'beatsShowUncensored',
+        'blockedUsers', 'favorites', 'bookmarks',
+        'displayBadge', 'equippedBadge', 'pinnedBadgeId', 'chatFlairEmoji',
+        'activeTitle', 'earnedTitles',
+        'lqProgress', 'trailProgress', 'trailsPassed',
+        'nachoStoryProgress', 'nachoStoryDate', 'nachoStoryDays',
+        'nachoStoryComplete', 'nachoStoryCompletedAt',
+        'spinCount', 'completedQuests', 'questsCompletedToday',
+        'marketSaved', 'nachoMilestones', 'nachoInteractions', 'nachoQuestions',
+        'sfWindowStreak',
+        'explorationMilestone_25', 'explorationMilestone_50',
+        'explorationMilestone_75', 'explorationMilestone_100',
+        'pendingLeaderboardReward'
+      ];
+    }
+
     function userProfileServerOnlyKeys() {
       return [
         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
@@ -300,7 +329,8 @@ service cloud.firestore {
 
       function profileShapeOk() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
-        return (!changed.hasAny(['username'])
+        return changed.hasOnly(profileClientFields())
+          && (!changed.hasAny(['username'])
             || !('username' in request.resource.data)
             || (request.resource.data.username is string
                 && request.resource.data.username.size() >= 3

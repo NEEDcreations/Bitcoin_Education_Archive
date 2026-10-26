@@ -744,8 +744,9 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     const awardAt = index.indexOf('exports.awardPoints');
     const award = index.slice(awardAt, index.indexOf('exports.getFaucetStats', awardAt));
-    assert.ok(award.indexOf('triviaBank') !== -1);
-    assert.ok(award.indexOf('triviaGrade') < award.indexOf('progressBadges.progressSpec'));
+    assert.ok(award.indexOf('awardEvidence') !== -1);
+    assert.ok(award.indexOf('EVIDENCE:') !== -1);
+    assert.ok(award.indexOf('trivia_correct') !== -1);
     assert.ok(!award.includes("source: 'combo_bonus'"));
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     assert.ok(quests.includes("httpsCallable('answerTrivia')"));

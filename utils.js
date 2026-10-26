@@ -148,17 +148,21 @@ function getSatCap() {
 window.getSatCap = getSatCap;
 
 // Claimable sats from server-maintained counters only.
-// floor(max(0, points - pointsClaimed - pointsDonated - pointsExchanged) / 10),
+// floor(max(0, points - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp) / 10),
 // then limited by satsWithdrawn against the lifetime cap.
+// unclaimableXp is activity the server could not verify. It stays on points for the
+// profile total and is left out of sats, donations, and ticket exchange.
 function claimableSats(user, cap) {
     var u = user || {};
     var points = Number(u.points) || 0;
     var claimed = Number(u.pointsClaimed) || 0;
     var donated = Number(u.pointsDonated) || 0;
     var exchanged = Number(u.pointsExchanged) || 0;
+    var unclaimable = Number(u.unclaimableXp) || 0;
     var withdrawn = Number(u.satsWithdrawn) || 0;
     if (withdrawn < 0) withdrawn = 0;
-    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    if (unclaimable < 0) unclaimable = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged - unclaimable) / 10);
     var limit = (typeof cap === 'number' && isFinite(cap)) ? cap : SAT_LIFETIME_CAP;
     if (cap == null && typeof getSatCap === 'function') limit = getSatCap();
     var lifetimeLeft = Math.max(0, limit - withdrawn);
