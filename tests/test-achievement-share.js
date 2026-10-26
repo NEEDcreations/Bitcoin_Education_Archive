@@ -218,7 +218,8 @@ test('shown marker is an owner string and the worker OG is static', () => {
     state.shown['streak:30'] = 1;
     const compact = share.compactShown(state);
     assert.ok(compact.length <= 1500);
-    assert.ok(/^[a-z0-9_:,.\-]+$/.test(compact));
+    assert.ok(/^[a-z0-9_:,]+$/.test(compact));
+    assert.strictEqual(compact.includes('-'), false);
     const merged = share.mergeShown(compact, share.emptyState());
     assert.strictEqual(merged.popupDay, '2026-10-26');
     assert.strictEqual(merged.shown['streak:30'], 1);

@@ -45,7 +45,7 @@
     var LS_SHOWN = 'btc_share_cards_shown';
     var LS_TOGGLE = 'btc_share_cards';
     var LS_QUEUE = 'btc_share_cards_queue';
-    var SHOWN_RE = /^[a-z0-9_:,.\-]{0,1500}$/;
+    var SHOWN_RE = /^[a-z0-9_:,]{0,1500}$/;
     // Above #usernameModal (2100008), #questModal (400000), cert share (100020), exam guard (99998).
     var Z_SHEET = 2200000;
     // Above the streak banner (300) and #userDisplay (200). Below quest overlays (~9500) and settings.
@@ -81,6 +81,18 @@
 
     function slug(s) {
         return String(s || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_|_$/g, '').slice(0, 48);
+    }
+
+    function shownKey(id) {
+        return String(id || '').toLowerCase().replace(/[^a-z0-9_:]/g, '');
+    }
+
+    function dayKey(iso) {
+        return String(iso || '').replace(/-/g, '');
+    }
+
+    function isoDay(key) {
+        return /^\d{8}$/.test(key) ? key.slice(0, 4) + '-' + key.slice(4, 6) + '-' + key.slice(6, 8) : key;
     }
 
     function questDay(now) {
@@ -285,6 +297,7 @@
         var allowsPopup = opts.allowsPopup != null ? !!opts.allowsPopup : mode !== 'lite';
         var allowsInline = opts.allowsInline != null ? !!opts.allowsInline : true;
 
+        var key = shownKey(event.id);
         if (manual) {
             if (event.type === 'badge' && mode === 'lite') return { action: 'skip', state: s, reason: 'lite-badge' };
             if (opts.exam || opts.quest) return { action: 'queue', state: enqueue(s, event), reason: 'busy' };
@@ -295,18 +308,18 @@
 
         if (event.kind === 'toast' || event.type === 'daily') {
             if (!allowsInline) return { action: 'skip', state: s, reason: 'inline-off' };
-            if (s.shown[event.id] || (today && s.dailyToastDay === today)) return { action: 'skip', state: s, reason: 'daily-once' };
+            if ((key && s.shown[key]) || (today && s.dailyToastDay === today)) return { action: 'skip', state: s, reason: 'daily-once' };
             if (opts.busy || opts.exam || opts.quest) return { action: 'queue', state: enqueue(s, event), reason: 'busy' };
-            s.shown[event.id] = 1;
+            if (key) s.shown[key] = 1;
             s.dailyToastDay = today;
             return { action: 'toast', state: s, reason: 'daily' };
         }
 
         if (!allowsPopup || mode === 'lite') return { action: 'skip', state: s, reason: 'lite' };
-        if (s.shown[event.id]) return { action: 'skip', state: s, reason: 'shown' };
+        if (key && s.shown[key]) return { action: 'skip', state: s, reason: 'shown' };
         if (opts.busy || opts.exam || opts.quest) return { action: 'queue', state: enqueue(s, event), reason: 'busy' };
         if (today && s.popupDay === today) return { action: 'queue', state: enqueue(s, event), reason: 'cap' };
-        s.shown[event.id] = 1;
+        if (key) s.shown[key] = 1;
         s.popupDay = today;
         return { action: 'popup', state: s, reason: 'popup' };
     }
@@ -343,23 +356,23 @@
 
     function compactShown(s) {
         var parts = [];
-        if (s.popupDay && /^\d{4}-\d{2}-\d{2}$/.test(s.popupDay)) parts.push('popup:' + s.popupDay);
-        if (s.dailyToastDay && /^\d{4}-\d{2}-\d{2}$/.test(s.dailyToastDay)) parts.push('toast:' + s.dailyToastDay);
+        if (s.popupDay && /^\d{4}-\d{2}-\d{2}$/.test(s.popupDay)) parts.push('popup:' + dayKey(s.popupDay));
+        if (s.dailyToastDay && /^\d{4}-\d{2}-\d{2}$/.test(s.dailyToastDay)) parts.push('toast:' + dayKey(s.dailyToastDay));
         Object.keys(s.shown || {}).forEach(function (id) {
-            var clean = String(id).toLowerCase().replace(/[^a-z0-9_:]/g, '');
+            var clean = shownKey(id);
             if (clean) parts.push(clean);
         });
         var text = parts.join(',');
         if (text.length > 1500) text = text.slice(0, 1500).replace(/,[^,]*$/, '');
-        if (!SHOWN_RE.test(text)) text = text.replace(/[^a-z0-9_:,.\-]/g, '').slice(0, 1500);
+        if (!SHOWN_RE.test(text)) text = text.replace(/[^a-z0-9_:,]/g, '').slice(0, 1500);
         return text;
     }
 
     function mergeShown(text, s) {
         String(text || '').split(',').forEach(function (part) {
             if (!part) return;
-            if (part.indexOf('popup:') === 0) s.popupDay = part.slice(6);
-            else if (part.indexOf('toast:') === 0) s.dailyToastDay = part.slice(6);
+            if (part.indexOf('popup:') === 0) s.popupDay = isoDay(part.slice(6));
+            else if (part.indexOf('toast:') === 0) s.dailyToastDay = isoDay(part.slice(6));
             else s.shown[part] = 1;
         });
         return s;

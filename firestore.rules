@@ -305,7 +305,7 @@ service cloud.firestore {
         let v = request.resource.data.shareCardsShown;
         return v is string
           && v.size() <= 1500
-          && v.matches('^[a-z0-9_:,.\\-]{0,1500}$');
+          && v.matches('^[a-z0-9_:,]*$');
       }
 
       function profileShapeOk() {
