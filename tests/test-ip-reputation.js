@@ -1090,6 +1090,95 @@ test('an exhausted purpose cap does not hold a later faucet check', async functi
     assert.strictEqual(db._docs[userKey].lookups, 1);
 });
 
+test('a referral at the account cap is held while the day is degraded', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    db._docs['ipqs_usage/2023-11-14_u_friend01'] = { lookups: 3, expireAt: now + 100000 };
+    db._docs['ipqs_usage/2023-11-14'] = { lookups: 3, lastError: 'timeout', degraded: true, expireAt: now + 100000 };
+    let fetches = 0;
+    const result = await rep.assessReward(gateOpts(db, {
+        fetchImpl: function() {
+            fetches++;
+            return Promise.resolve(jsonResponse(200, cleanBody({ fraud_score: 10 })));
+        },
+        now: now,
+        ip: '203.0.113.91',
+        uid: 'friend01',
+        purpose: 'referral',
+        userCap: 3,
+    }));
+    assert.strictEqual(result.action, 'hold');
+    assert.strictEqual(result.reason, 'user-quota');
+    assert.strictEqual(result.ipVerdict, null);
+    assert.strictEqual(result.message, rep.REFERRAL_BUDGET_WAIT);
+    assert.strictEqual(fetches, 0);
+});
+
+test('consecutive faucet and favor timeouts open a short in-memory backoff', async function() {
+    const db = memoryDb();
+    const now = 1_700_000_000_000;
+    let fetches = 0;
+    const fetchImpl = function() {
+        fetches++;
+        const err = new Error('timeout');
+        err.code = 'timeout';
+        return Promise.reject(err);
+    };
+    const first = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now,
+        ip: '198.51.100.31',
+        purpose: 'faucet',
+        uid: 'outage01',
+    }));
+    assert.strictEqual(first.action, 'fallback');
+    assert.strictEqual(first.reason, 'timeout');
+    const second = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now + 1000,
+        ip: '198.51.100.32',
+        purpose: 'favor',
+        uid: 'outage01',
+    }));
+    assert.strictEqual(second.action, 'fallback');
+    assert.strictEqual(second.reason, 'timeout');
+    assert.strictEqual(fetches, 2);
+    const skipped = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now + 2000,
+        ip: '198.51.100.33',
+        purpose: 'faucet',
+        uid: 'outage02',
+    }));
+    assert.strictEqual(skipped.action, 'fallback');
+    assert.strictEqual(skipped.reason, 'timeout');
+    assert.strictEqual(skipped.message, '');
+    assert.strictEqual(fetches, 2);
+    const referral = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now + 3000,
+        ip: '198.51.100.35',
+        purpose: 'referral',
+        uid: 'outage04',
+    }));
+    assert.strictEqual(referral.action, 'fallback');
+    assert.strictEqual(referral.reason, 'timeout');
+    assert.strictEqual(fetches, 3);
+    const after = await rep.assessReward(gateOpts(db, {
+        fetchImpl: fetchImpl,
+        now: now + rep.OUTAGE_BACKOFF_MS + 2000,
+        ip: '198.51.100.34',
+        purpose: 'favor',
+        uid: 'outage03',
+    }));
+    assert.strictEqual(after.action, 'fallback');
+    assert.strictEqual(after.reason, 'timeout');
+    assert.strictEqual(fetches, 4);
+    assert.ok(!db._docs['ipqs_usage/b_faucet_outage01']);
+    assert.ok(!db._docs['ipqs_usage/b_favor_outage01']);
+    assert.strictEqual(rep.OUTAGE_BACKOFF_MS, 60 * 1000);
+});
+
 test('an account already at the cap fails open while the vendor is degraded', async function() {
     const db = memoryDb();
     const now = 1_700_000_000_000;

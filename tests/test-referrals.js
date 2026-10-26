@@ -657,6 +657,7 @@ test('signup keeps a vpn invite pending-for-pay and flags a deny', () => {
     assert.ok(service.includes('payoutBudgetReason(freshGate)'));
     const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('expires unpaid after 30 days'));
+    assert.ok(privacy.includes('A budget hold also expires unpaid after 30 days'));
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
     assert.ok(terms.includes('pays automatically once a later check from that friend is a regular connection'));
 });

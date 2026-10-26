@@ -28,7 +28,10 @@ const REFERRAL_BUDGET_WAIT = 'To prevent abuse, invite rewards are waiting for a
 const PURPOSE_CAPS = { faucet: 20, favor: 5, referral: 5 };
 const USER_DAILY_CAP = 3;
 const LOOKUP_BACKOFF_MS = 60 * 60 * 1000;
+const OUTAGE_BACKOFF_MS = 60 * 1000;
+const OUTAGE_TIMEOUT_STREAK = 2;
 const inflightByDb = new WeakMap();
+const outageByDb = new WeakMap();
 
 function inflightMap(db) {
     if (!db || (typeof db !== 'object' && typeof db !== 'function')) return null;
@@ -579,6 +582,42 @@ function fallback(reason) {
     return { action: 'fallback', reason: reason || 'lookup', verdict: null };
 }
 
+function outageState(db) {
+    if (!db || (typeof db !== 'object' && typeof db !== 'function')) return null;
+    let state = outageByDb.get(db);
+    if (!state) {
+        state = { timeouts: 0, untilMs: 0 };
+        outageByDb.set(db, state);
+    }
+    return state;
+}
+
+function outagePurpose(purpose) {
+    const name = purposeName(purpose);
+    return name === 'faucet' || name === 'favor';
+}
+
+function outageBackoffActive(db, now, purpose) {
+    if (!outagePurpose(purpose)) return false;
+    const state = outageState(db);
+    return !!(state && state.untilMs > now);
+}
+
+function noteOutageTimeout(db, now, purpose) {
+    if (!outagePurpose(purpose)) return;
+    const state = outageState(db);
+    if (!state) return;
+    state.timeouts += 1;
+    if (state.timeouts >= OUTAGE_TIMEOUT_STREAK) state.untilMs = now + OUTAGE_BACKOFF_MS;
+}
+
+function clearOutageTimeouts(db) {
+    const state = outageState(db);
+    if (!state) return;
+    state.timeouts = 0;
+    state.untilMs = 0;
+}
+
 function defaultFetch(url, options) {
     if (typeof fetch !== 'function') return Promise.reject(Object.assign(new Error('http'), { code: 'http' }));
     return fetch(url, options);
@@ -751,6 +790,10 @@ async function lookupIpOnce(opts) {
         await recordError(opts, 'secret');
         return fallback('secret');
     }
+    if (outageBackoffActive(opts.db, now, opts.purpose)) {
+        logVerdict(docId, 'fallback', 'timeout', null);
+        return fallback('timeout');
+    }
     if (purposeName(opts.purpose) === 'referral' && opts.uid && await referralBackoffActive(opts.db, now, opts.uid)) {
         logVerdict(docId, 'fallback', 'backoff', null);
         return fallback('backoff');
@@ -792,6 +835,7 @@ async function lookupIpOnce(opts) {
         const reason = e && e.code === 'timeout' ? 'timeout' : 'http';
         await recordError(opts, reason);
         await releaseFailedLookup(opts);
+        if (reason === 'timeout') noteOutageTimeout(opts.db, now, opts.purpose);
         logVerdict(docId, 'fallback', reason, null);
         return fallback(reason);
     }
@@ -806,6 +850,7 @@ async function lookupIpOnce(opts) {
     }
     if (opts.uid) await noteUserLookup(opts.db, now, opts.uid, opts.bindings);
     await clearDegraded(opts);
+    clearOutageTimeouts(opts.db);
     const doc = verdictDoc(scored, now, opts.bindings);
     await opts.db.collection('ip_reputation').doc(docId).set(doc);
     logVerdict(docId, scored.action, scored.reason, scored.fraudScore);
@@ -992,7 +1037,7 @@ async function assessReward(opts) {
                 deviceAction: 'off',
             };
         }
-        if (packed.purpose === 'referral' && (ipResult.reason === 'quota' || ipResult.reason === 'backoff')) {
+        if (packed.purpose === 'referral' && (ipResult.reason === 'quota' || ipResult.reason === 'backoff' || ipResult.reason === 'user-quota')) {
             return {
                 action: 'hold',
                 reason: ipResult.reason,
@@ -1067,6 +1112,7 @@ module.exports = {
     NEVER_CLAIMED_HOLD: NEVER_CLAIMED_HOLD,
     REFERRAL_BUDGET_WAIT: REFERRAL_BUDGET_WAIT,
     LOOKUP_BACKOFF_MS: LOOKUP_BACKOFF_MS,
+    OUTAGE_BACKOFF_MS: OUTAGE_BACKOFF_MS,
     PURPOSE_CAPS: PURPOSE_CAPS,
     USER_DAILY_CAP: USER_DAILY_CAP,
     scoreIpLookup: scoreIpLookup,
