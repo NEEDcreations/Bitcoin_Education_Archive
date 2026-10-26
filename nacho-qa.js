@@ -4393,7 +4393,7 @@ function deepContentSearch(query) {
 }
 
 // ---- Web search via proxy (for questions Nacho can't answer locally) ----
-var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+var NACHO_SEARCH_PROXY = 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
 
 // ---- Nacho AI (LLM via Cloudflare Workers AI) ----
 var NACHO_AI_DAILY_LIMIT = 30; // per user per day (AI is primary brain now)

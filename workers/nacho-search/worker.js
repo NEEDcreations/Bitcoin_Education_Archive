@@ -7,16 +7,21 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 // recycles, and is not shared across Cloudflare locations. Enough to slow a
 // single noisy client without a KV or rate-limit binding.
 var _rlBuckets = /* @__PURE__ */ new Map();
-function allowRequest(ip, bucket, limit) {
+function recentHits(ip, bucket) {
   const now = Date.now();
   const key = ip + ":" + bucket;
   const recent = (_rlBuckets.get(key) || []).filter((t) => now - t < 6e4);
-  if (recent.length >= limit) {
-    _rlBuckets.set(key, recent);
-    return false;
-  }
-  recent.push(now);
   _rlBuckets.set(key, recent);
+  return recent;
+}
+function recentCount(ip, bucket) {
+  return recentHits(ip, bucket).length;
+}
+function allowRequest(ip, bucket, limit) {
+  const recent = recentHits(ip, bucket);
+  if (recent.length >= limit) return false;
+  recent.push(Date.now());
+  _rlBuckets.set(ip + ":" + bucket, recent);
   trimBuckets(_rlBuckets, 4e3);
   return true;
 }
@@ -44,8 +49,12 @@ const CLOCK_SKEW_SEC = 60;
 const UID_LIMIT = 10;
 const ANON_UID_LIMIT = 3;
 const SITE_DAILY_CAP = 400;
-let _tokenless = 0;
+const GUEST_DAILY_SHARE = 0.25;
+const OPEN_IP_LIMIT = 20;
+const SIGNED_IP_LIMIT = 120;
+const _authCounts = { valid: 0, invalid: 0, missing: 0 };
 let _jwksCache = { keys: null, until: 0 };
+let _jwksKidRefetchAt = 0;
 function oldestStamp(value) {
   if (Array.isArray(value) && value.length) {
     let oldest = value[0];
@@ -92,6 +101,7 @@ function cacheTtlMs(res) {
 }
 function resetJwksCache() {
   _jwksCache = { keys: null, until: 0 };
+  _jwksKidRefetchAt = 0;
 }
 async function loadJwks(opts) {
   if (opts && opts.jwks && Array.isArray(opts.jwks.keys)) return opts.jwks;
@@ -133,7 +143,21 @@ async function verifyIdToken(token, opts) {
     return null;
   }
   if (!jwks || !Array.isArray(jwks.keys)) return null;
-  const jwk = jwks.keys.find((key) => key && key.kid === header.kid && key.kty === "RSA" && (!key.alg || key.alg === "RS256"));
+  const findKey = (set) => set && Array.isArray(set.keys) ? set.keys.find((key) => key && key.kid === header.kid && key.kty === "RSA" && (!key.alg || key.alg === "RS256")) : null;
+  let jwk = findKey(jwks);
+  if ((!jwk || !jwk.n || !jwk.e) && !(opts && opts.jwks)) {
+    const nowMs = Date.now();
+    if (nowMs - _jwksKidRefetchAt >= 6e4) {
+      _jwksKidRefetchAt = nowMs;
+      _jwksCache = { keys: null, until: 0 };
+      try {
+        jwks = await loadJwks(opts || {});
+      } catch (e) {
+        return null;
+      }
+      jwk = findKey(jwks);
+    }
+  }
   if (!jwk || !jwk.n || !jwk.e) return null;
   let key;
   try {
@@ -171,11 +195,16 @@ function authMode(env) {
   return String(env && env.AI_AUTH || "").trim().toLowerCase() === "enforce" ? "enforce" : "grace";
 }
 function readTokenlessCount() {
-  return _tokenless;
+  return _authCounts.missing;
 }
-function noteTokenless() {
-  _tokenless += 1;
-  console.log("nacho /ai token-less " + _tokenless);
+function readAuthCounts() {
+  return { valid: _authCounts.valid, invalid: _authCounts.invalid, missing: _authCounts.missing };
+}
+function noteAuth(kind) {
+  const key = kind === "valid" || kind === "invalid" ? kind : "missing";
+  _authCounts[key] += 1;
+  const label = key === "missing" ? "token-less" : "token " + key;
+  console.log("nacho /ai " + label + " " + _authCounts[key]);
 }
 class AiDailyCap {
   constructor(state) {
@@ -190,15 +219,20 @@ class AiDailyCap {
     }
     const day = String(body && body.day || "");
     const limit = Number(body && body.limit) > 0 ? Number(body.limit) : SITE_DAILY_CAP;
-    const stored = await this.state.storage.get("cap") || { day: "", count: 0 };
+    const guestLimit = Number(body && body.guestLimit) > 0 ? Number(body.guestLimit) : Math.floor(limit * GUEST_DAILY_SHARE);
+    const tier = body && body.tier === "signed" ? "signed" : "guest";
+    const stored = await this.state.storage.get("cap") || { day: "", count: 0, guest: 0 };
     let count = stored.day === day ? Number(stored.count) || 0 : 0;
-    if (count >= limit) return Response.json({ ok: false, count });
+    let guest = stored.day === day ? Number(stored.guest) || 0 : 0;
+    if (count >= limit) return Response.json({ ok: false, count, guest });
+    if (tier !== "signed" && guest >= guestLimit) return Response.json({ ok: false, count, guest });
     count += 1;
-    await this.state.storage.put("cap", { day, count });
-    return Response.json({ ok: true, count });
+    if (tier !== "signed") guest += 1;
+    await this.state.storage.put("cap", { day, count, guest });
+    return Response.json({ ok: true, count, guest });
   }
 }
-async function takeSiteDaily(env, nowMs) {
+async function takeSiteDaily(env, nowMs, tier) {
   if (!env || !env.AI_DAILY || typeof env.AI_DAILY.idFromName !== "function") return true;
   try {
     const day = new Date(nowMs).toISOString().slice(0, 10);
@@ -206,7 +240,12 @@ async function takeSiteDaily(env, nowMs) {
     const res = await stub.fetch("https://ai-daily/take", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ day, limit: SITE_DAILY_CAP })
+      body: JSON.stringify({
+        day,
+        limit: SITE_DAILY_CAP,
+        guestLimit: Math.floor(SITE_DAILY_CAP * GUEST_DAILY_SHARE),
+        tier: tier === "signed" ? "signed" : "guest"
+      })
     });
     const data = await res.json();
     return !!(data && data.ok);
@@ -474,23 +513,34 @@ function sanitizeInput(text) {
 }
 __name(sanitizeInput, "sanitizeInput");
 async function handleAI(request, env, corsHeaders, ip) {
-  if (!allowRequest(ip || "0.0.0.0", "ai", 20)) return aiJson(corsHeaders, 429, { error: "Slow down" });
+  const ipKey = ip || "0.0.0.0";
   const header = request.headers.get("Authorization") || "";
   const hasBearer = /^Bearer\s+\S+$/i.test(header.trim());
   let uid = "";
   let anonymous = false;
-  if (hasBearer) {
+  if (!hasBearer) {
+    if (!allowRequest(ipKey, "ai", OPEN_IP_LIMIT)) return aiJson(corsHeaders, 429, { error: "Slow down" });
+    if (authMode(env) === "enforce") return aiJson(corsHeaders, 401, { error: "Sign in required" });
+    noteAuth("missing");
+  } else {
+    if (recentCount(ipKey, "ai") >= OPEN_IP_LIMIT) return aiJson(corsHeaders, 429, { error: "Slow down" });
     const verified = await verifyFirebaseToken(request);
-    if (!verified || !verified.uid) return aiJson(corsHeaders, 401, { error: "Sign in required" });
+    if (!verified || !verified.uid) {
+      if (!allowRequest(ipKey, "ai", OPEN_IP_LIMIT)) return aiJson(corsHeaders, 429, { error: "Slow down" });
+      noteAuth("invalid");
+      return aiJson(corsHeaders, 401, { error: "Sign in required" });
+    }
+    noteAuth("valid");
     uid = verified.uid;
     anonymous = verified.anonymous === true;
+    if (anonymous) {
+      if (!allowRequest(ipKey, "ai", OPEN_IP_LIMIT)) return aiJson(corsHeaders, 429, { error: "Slow down" });
+    } else if (!allowRequest(ipKey, "ai-signed", SIGNED_IP_LIMIT)) {
+      return aiJson(corsHeaders, 429, { error: "Slow down" });
+    }
     if (!allowUid(uid, anonymous ? ANON_UID_LIMIT : UID_LIMIT)) return aiJson(corsHeaders, 429, { error: "Slow down" });
-  } else if (authMode(env) === "enforce") {
-    return aiJson(corsHeaders, 401, { error: "Sign in required" });
-  } else {
-    noteTokenless();
   }
-  if (!await takeSiteDaily(env, Date.now())) return aiJson(corsHeaders, 429, { error: "Nacho is resting, try tomorrow" });
+  const dailyTier = uid && !anonymous ? "signed" : "guest";
   try {
     const body = await request.json();
     let question = stripUntrustedMarkers((body.question || "").trim());
@@ -546,7 +596,14 @@ async function handleAI(request, env, corsHeaders, ip) {
       mode
     }, {
       data,
-      aiRun: (model, payload) => env.AI.run(model, payload)
+      aiRun: async (model, payload) => {
+        if (!await takeSiteDaily(env, Date.now(), dailyTier)) {
+          const err = new Error("daily-cap");
+          err.dailyCap = true;
+          throw err;
+        }
+        return env.AI.run(model, payload);
+      }
     });
     return new Response(JSON.stringify({
       answer: result.answer,
@@ -558,6 +615,7 @@ async function handleAI(request, env, corsHeaders, ip) {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   } catch (e) {
+    if (e && e.dailyCap) return aiJson(corsHeaders, 429, { error: "Nacho is resting, try tomorrow" });
     return new Response(JSON.stringify({
       error: "AI temporarily unavailable",
       fallback: true
@@ -578,8 +636,11 @@ export {
   verifyIdToken,
   resetJwksCache,
   readTokenlessCount,
+  readAuthCounts,
   AiDailyCap,
   JWKS_URL,
-  SITE_DAILY_CAP
+  SITE_DAILY_CAP,
+  GUEST_DAILY_SHARE,
+  SIGNED_IP_LIMIT
 };
 //# sourceMappingURL=nacho-ai-worker.js.map

@@ -1,8 +1,7 @@
 // =============================================
 // Nacho Search Proxy — Cloudflare Worker
 // Deploy this to Cloudflare Workers (free tier)
-// Then set the worker URL in localStorage:
-//   localStorage.setItem('btc_nacho_search_proxy', 'https://your-worker.workers.dev')
+// The site calls the fixed worker URL. A localStorage override is ignored.
 // =============================================
 //
 // SETUP:

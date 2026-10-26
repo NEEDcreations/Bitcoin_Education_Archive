@@ -1523,6 +1523,8 @@ function _showBubble(text, pose) {
     const textEl = document.getElementById('nacho-text');
     const avatar = document.getElementById('nacho-avatar');
     if (!bubble || !textEl) return;
+    // A new bubble replaces the section panel without hideBubble.
+    window._nachoSectionSession = null;
 
     shownMessages.add(text);
     sessionMsgCount++;

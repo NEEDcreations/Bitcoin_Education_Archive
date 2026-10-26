@@ -102,6 +102,8 @@ function decideSectionBudget(globalDoc, ipDoc, nowMs) {
     return {
         ok: true,
         global: { dayKey: day, dayCount: dayCount + 1, minuteKey: minuteKey, minuteCount: minuteCount + 1 },
+        // Every write of nacho_section_ip refreshes expireAt. Firestore TTL
+        // on that field deletes the row 48 hours after the last write.
         ip: { dayKey: day, dayCount: ipCount + 1, expireAt: new Date(Number(nowMs) + IP_TTL_MS) },
     };
 }
@@ -338,9 +340,10 @@ function docsOf(snap) {
     return out;
 }
 
-async function queryEqual(col, field, value, limitN) {
+async function queryEqual(col, field, value, limitN, orderField) {
     if (!col || typeof col.where !== 'function') return [];
     let query = col.where(field, '==', value);
+    if (orderField && query && typeof query.orderBy === 'function') query = query.orderBy(orderField, 'desc');
     if (query && typeof query.limit === 'function') query = query.limit(limitN);
     const snap = await query.get();
     return docsOf(snap).slice(0, limitN);
@@ -387,7 +390,7 @@ async function loadMessages(db, channelId, index, hash, conversationId) {
         root = tops[0] || null;
     }
     if (!root) return [];
-    const replies = await queryEqual(col, 'parentId', root.id, 12);
+    const replies = await queryEqual(col, 'parentId', root.id, 12, 'createdAtMs');
     const cache = new Map();
     const pool = [{ id: root.id, data: root.data }].concat(replies.filter(function(row) {
         return publicPost(row.data);

@@ -5,6 +5,8 @@
 // Nacho activity shoutouts from repeating a slur or spam title in chat.
 // No Firebase.
 
+const { scamHostAllowed } = require('./scamAllowHosts');
+
 const BAD_WORDS = [
     'fuck','shit','bitch','dick','cock','pussy','cunt','ass','bastard','slut','whore','penis','vagina','anal','cum','jizz','dildo','tits','boob','nude','naked','milf','orgasm','molest','wank','twat','piss','skank','thot','stfu','gtfo','incel',
     'blowjob','handjob','fingering','masturbat','threesome','gangbang','fetish','bondage','bdsm','kinky','horny','aroused','erection','erectile','climax','ejaculat','deepthroat','rimjob','creampie','cuckold','dominatrix','escort','prostitut','hooker','stripper','camgirl','sexting','nudes','send nudes','dick pic','twerk',
@@ -25,16 +27,218 @@ const HATE_PHRASES = [
     'send nudes','dick pic','show me your','want to fuck','wanna fuck','lets fuck','have sex with','suck my','sit on my','bend over','get on your knees','sexually','sexual favor',
 ];
 
+// Matched against normalizeScamText(), which has already folded confusables,
+// leet, spacing, and "dot" / "[.]" / "(.)". No /g flag: lastIndex would skip
+// later comments. Amounts stay numeric so "0.01" and "500" still match.
+const SCAM_TLDS = 'com|net|org|xyz|io|co|app|gg|me|info|biz|site|online|live|link|quest';
 const SCAM_PATTERNS = [
-    /send me \d+ btc/i,
-    /double your bitcoin/i,
-    /guaranteed.*return/i,
-    /invest.*guaranteed/i,
-    /free bitcoin.*send/i,
-    /send\s+\d+\s+sats?\s+to\s+verify/i,
-    /admin\s+will\s+dm\s+you/i,
-    /\b[a-z0-9][a-z0-9-]{1,62}\s+dot\s+(?:com|net|org|xyz|io|co|app|gg|me|info|biz|site|online|live|link)\b/i,
+    /send\s*me\s*\d+(?:[.,]\d+)?\s*btc/,
+    /double\s*your\s*(?:btc|bitcoin|sats?|money|crypto)/,
+    /guaranteed[\s\S]{0,48}returns?/,
+    /invest[\s\S]{0,40}guaranteed/,
+    /free\s*bitcoin[\s\S]{0,40}send/,
+    /(?:send|deposit|pay|transfer)[\s\S]{0,80}(?:sats?|btc|bitcoin)[\s\S]{0,80}(?:sync|verify|unlock|validate|wallet|seed)/,
+    /(?:sync|verify|unlock|validate)[\s\S]{0,40}(?:your\s*)?(?:wallet|account|rewards?)[\s\S]{0,40}(?:sats?|btc|bitcoin|seed|pay|send|deposit)/,
+    /(?:earn|win|claim|get)[\s\S]{0,48}\d[\d.,]*[\s\S]{0,24}sats?[\s\S]{0,48}(?:admin|mod\b|dm\b|message|seed|telegram)/,
+    /(?:dm|message)[\s\S]{0,32}(?:the\s*)?(?:admin|mod|moderator)\b/,
+    /(?:admin|mod|moderator)[\s\S]{0,24}(?:will\s*)?(?:dm|message)\s*(?:you|me|the)/,
+    /contact[\s\S]{0,40}support[\s\S]{0,48}(?:telegram|whatsapp|discord|recover|funds|seed|sats?|btc)/,
+    /recover\s*your\s*funds/,
+    /(?:send|share|give|enter|paste|dm|tell|provide)[\s\S]{0,36}(?:your\s*)?(?:seed|recovery)(?:\s*phrase)?/,
+    /your\s*(?:seed|recovery)(?:\s*phrase)?[\s\S]{0,28}(?:verify|validate|unlock|admin|mod\b|dm\b)/,
+    /(?:give\s*away|giveaway)[\s\S]{0,40}(?:sats?|btc|bitcoin|seed|wallet)/,
+    /(?:sats?|btc|bitcoin)[\s\S]{0,40}(?:give\s*away|giveaway)/,
+    /double\s*your/,
 ];
+
+// Greek, Cyrillic, and small-cap letters that look like Latin. A second
+// pass treats a few of these as the letter a scam page would swap in
+// (Cyrillic en as n, Cyrillic u as u) when the visual fold is different.
+const SCAM_LOOKALIKE = {
+    '\u0430': 'a', '\u0435': 'e', '\u043e': 'o', '\u0440': 'p', '\u0441': 'c',
+    '\u0443': 'y', '\u0445': 'x', '\u0456': 'i', '\u0455': 's', '\u0501': 'd',
+    '\u043a': 'k', '\u04bb': 'h', '\u043c': 'm', '\u0442': 't', '\u0432': 'b',
+    '\u043d': 'h', '\u0433': 'r', '\u0458': 'j', '\u051b': 'q', '\u051d': 'w',
+    '\u0475': 'v', '\u04cf': 'l', '\u0438': 'u', '\u0454': 'e', '\u0437': '3',
+    '\u03b1': 'a', '\u03b2': 'b', '\u03b5': 'e', '\u03b9': 'i', '\u03ba': 'k',
+    '\u03bd': 'v', '\u03bf': 'o', '\u03c1': 'p', '\u03c4': 't', '\u03c5': 'u',
+    '\u03c7': 'x', '\u03c2': 'c', '\u03c3': 'o', '\u03b7': 'n', '\u03bc': 'u',
+    '\u03c9': 'w', '\u0261': 'g', '\u0131': 'i',
+    '\u1d00': 'a', '\u0299': 'b', '\u1d04': 'c', '\u1d05': 'd', '\u1d07': 'e',
+    '\ua730': 'f', '\u0262': 'g', '\u029c': 'h', '\u026a': 'i', '\u1d0a': 'j',
+    '\u1d0b': 'k', '\u029f': 'l', '\u1d0d': 'm', '\u0274': 'n', '\u1d0f': 'o',
+    '\u1d18': 'p', '\u0280': 'r', '\ua731': 's', '\u1d1b': 't', '\u1d1c': 'u',
+    '\u1d20': 'v', '\u1d21': 'w', '\u028f': 'y', '\u1d22': 'z',
+};
+
+const SCAM_SMALL = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+    eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
+    fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+    nineteen: 19, twenty: 20,
+};
+const SCAM_SMALL_RE = 'zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty';
+
+function foldScamLookalikes(text, alt) {
+    return Array.from(String(text || '')).map(function(ch) {
+        if (alt) {
+            if (ch === '\u0443' || ch === '\u0423') return 'u';
+            if (ch === '\u043d' || ch === '\u041d') return 'n';
+            if (ch === '\u0433' || ch === '\u0413') return 'g';
+            if (ch === '\u043f' || ch === '\u041f') return 'n';
+        }
+        return SCAM_LOOKALIKE[ch] || ch;
+    }).join('');
+}
+
+// A standalone amount stays a number. A single digit inside a word still
+// folds (s3nd, d0t, 4dmin) so the scam words match.
+const LEET_DIGIT_WORDS = { sat: 1, sats: 1, to: 1, too: 1, tot: 1 };
+
+function leetDigitWord(num) {
+    if (!/^[0134578]{2,}$/.test(num)) return '';
+    const word = num.replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't').replace(/8/g, 'b');
+    return LEET_DIGIT_WORDS[word] ? word : '';
+}
+
+function applyScamLeet(text) {
+    const saved = [];
+    let s = String(text || '').replace(/\b\d+(?:[.,]\d+)?\b/g, function(num) {
+        if (leetDigitWord(num)) return num;
+        saved.push(num);
+        return '\uE000' + 'n'.repeat(saved.length) + '\uE001';
+    });
+    s = s
+        .replace(/[@4]/g, 'a')
+        .replace(/8/g, 'b')
+        .replace(/[3\u20ac]/g, 'e')
+        .replace(/[1!|]/g, 'i')
+        .replace(/0/g, 'o')
+        .replace(/[$5]/g, 's')
+        .replace(/[7+]/g, 't');
+    return s.replace(/\uE000n+\uE001/g, function(token) {
+        return saved[token.length - 3];
+    });
+}
+
+function foldScamNumberWords(text) {
+    let s = String(text || '');
+    const point = new RegExp('\\b(' + SCAM_SMALL_RE + ')\\s+point\\s+((?:' + SCAM_SMALL_RE + ')(?:\\s+(?:' + SCAM_SMALL_RE + '))*)\\b', 'g');
+    s = s.replace(point, function(_m, whole, frac) {
+        const digits = frac.split(/\s+/).map(function(word) { return String(SCAM_SMALL[word]); }).join('');
+        return String(SCAM_SMALL[whole]) + '.' + digits;
+    });
+    s = s.replace(new RegExp('\\b(' + SCAM_SMALL_RE + ')\\s+thousand\\b', 'g'), function(_m, word) {
+        return String(SCAM_SMALL[word] * 1000);
+    });
+    s = s.replace(new RegExp('\\b(' + SCAM_SMALL_RE + ')\\s+hundred\\b', 'g'), function(_m, word) {
+        return String(SCAM_SMALL[word] * 100);
+    });
+    s = s.replace(new RegExp('\\b(' + SCAM_SMALL_RE + '|hundred|thousand)\\s+(?=sats?\\b|btc\\b|bitcoin\\b)', 'g'), function(match) {
+        const word = match.trim();
+        if (word === 'hundred') return '100 ';
+        if (word === 'thousand') return '1000 ';
+        return String(SCAM_SMALL[word]) + ' ';
+    });
+    return s;
+}
+
+// "s e n d" and "b i t - q u e s t d o t x y z" become "send" and "bitquest.xyz".
+// Three single letters spelling dot become a period so the domain rule sees it.
+function joinScamSingles(text) {
+    return String(text || '').replace(/(?:[a-z](?:[^\p{L}\p{N}]+)){2,}[a-z]/giu, function(run) {
+        const chars = [];
+        for (let i = 0; i < run.length; i++) {
+            const ch = run.charAt(i);
+            if (/[a-z]/i.test(ch)) chars.push(ch.toLowerCase());
+        }
+        let out = '';
+        for (let i = 0; i < chars.length; i++) {
+            if (chars[i] === 'd' && chars[i + 1] === 'o' && chars[i + 2] === 't') {
+                out += '.';
+                i += 2;
+            } else {
+                out += chars[i];
+            }
+        }
+        return out;
+    });
+}
+
+function stripScamInnerPunct(text) {
+    return String(text || '').split(/(\s+)/).map(function(tok) {
+        if (!tok || /^\s+$/.test(tok) || tok === '.') return tok;
+        if (/^\d+(?:[.,]\d+)?$/.test(tok)) return tok;
+        if (/^[a-z0-9]+(?:-[a-z0-9]+)*\.[a-z]{2,24}$/.test(tok)) return tok;
+        return tok.replace(/[.\-_*'"`,;:!?]+/g, '');
+    }).join('');
+}
+
+function normalizeScamText(text, alt) {
+    let s = String(text || '').normalize('NFKC').normalize('NFKD');
+    s = s.replace(/[\p{M}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
+    s = s.normalize('NFC');
+    s = s.replace(/\p{Cf}/gu, '');
+    s = s.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ');
+    s = s.replace(/[\u2024\u2027\u2219\u22C5\u30FB\uFF0E\uFF61\u00B7]/g, '.');
+    s = foldScamLookalikes(s.toLowerCase(), alt);
+    let dotMarks = '';
+    do {
+        dotMarks = s;
+        s = s.replace(/\(\s*\.\s*\)|\[\s*\.\s*\]|\{\s*\.\s*\}/g, '.');
+    } while (s !== dotMarks);
+    s = applyScamLeet(s);
+    s = s.replace(/[\r\n]+/g, ' ');
+    s = joinScamSingles(s);
+    s = stripScamInnerPunct(s);
+    s = s.replace(/\bd0t\b/g, 'dot');
+    s = s.replace(/\bdot\b/g, '.');
+    s = foldScamNumberWords(s);
+    s = s.replace(/\s+/g, ' ').trim();
+    s = s.replace(/\s*\.\s*/g, '.');
+    return s;
+}
+
+const SUSPICIOUS_TLDS = { xyz: 1, top: 1, gq: 1, ml: 1, tk: 1, cf: 1, ga: 1, buzz: 1, click: 1, quest: 1 };
+
+function hadObfuscatedDot(text) {
+    const raw = String(text || '');
+    if (/\(\s*\.\s*\)|\[\s*\.\s*\]|\{\s*\.\s*\}/.test(raw)) return true;
+    if (/\bd0t\b/i.test(raw) || /\bdot\b/i.test(raw)) return true;
+    if (/[a-z0-9]\s+\.\s+[a-z0-9]/i.test(raw)) return true;
+    if (/[\u200B\u2060\u00AD]/.test(raw) && /\./.test(raw)) return true;
+    return false;
+}
+
+function unknownScamDomain(original) {
+    const norm = normalizeScamText(original, false);
+    const obfuscated = hadObfuscatedDot(original);
+    const re = new RegExp('\\b(?:[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.)+(?:' + SCAM_TLDS + ')\\b', 'g');
+    const found = norm.match(re);
+    if (!found) return false;
+    for (let i = 0; i < found.length; i++) {
+        if (scamHostAllowed(found[i])) continue;
+        const tld = found[i].slice(found[i].lastIndexOf('.') + 1);
+        if (obfuscated || SUSPICIOUS_TLDS[tld]) return true;
+    }
+    return false;
+}
+
+function scamHit(text) {
+    const forms = [normalizeScamText(text, false)];
+    const alt = normalizeScamText(text, true);
+    if (alt !== forms[0]) forms.push(alt);
+    for (let f = 0; f < forms.length; f++) {
+        const norm = forms[f];
+        if (!norm) continue;
+        if (unknownScamDomain(text)) return true;
+        const guarded = norm.replace(/\b(?:never|do not|don't|dont|not)\s+(?:share|send|give|enter|paste|tell|type|provide)\b/g, ' ');
+        for (let i = 0; i < SCAM_PATTERNS.length; i++) {
+            if (SCAM_PATTERNS[i].test(guarded)) return true;
+        }
+    }
+    return false;
+}
 
 function normalizeChatText(text) {
     return String(text || '')
@@ -73,9 +277,7 @@ function chatTextBlocked(text) {
     if (!raw.trim()) return '';
     if (containsProfanity(raw)) return 'profanity';
     if (isSpammy(raw)) return 'spam';
-    for (let i = 0; i < SCAM_PATTERNS.length; i++) {
-        if (SCAM_PATTERNS[i].test(raw)) return 'scam';
-    }
+    if (scamHit(raw)) return 'scam';
     return '';
 }
 
@@ -92,9 +294,7 @@ function classifyChatText(text) {
     const raw = String(text || '');
     if (!raw.trim()) return '';
     if (hateHit(raw)) return 'hate';
-    for (let i = 0; i < SCAM_PATTERNS.length; i++) {
-        if (SCAM_PATTERNS[i].test(raw)) return 'scam';
-    }
+    if (scamHit(raw)) return 'scam';
     if (isSpammy(raw)) return 'spam';
     if (containsProfanity(raw)) return 'profanity';
     return '';
@@ -135,4 +335,5 @@ module.exports = {
     chatTextBlocked: chatTextBlocked,
     classifyChatText: classifyChatText,
     maskChatProfanity: maskChatProfanity,
+    normalizeScamText: normalizeScamText,
 };
