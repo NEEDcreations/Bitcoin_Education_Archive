@@ -13736,31 +13736,26 @@ window.awardOrangeTickets = function() {
     return { success: false, awarded: 0, tickets: 0 };
 };
 
-// setFloatingElementsVisible — show/hide floating buttons when sidebar opens
-// Respects fabMinimized state: FAB group buttons stay hidden if user minimized them
+// setFloatingElementsVisible — show/hide floating buttons when the sidebar opens.
+// The More tools toggle hides wherever chat hides. AI Tools, Metrics, and
+// Leaderboard stay collapsed unless that toggle is open. Experience-mode
+// hides (data-em-hidden) are left alone.
 window.setFloatingElementsVisible = function(visible) {
-    var fabMinimized = localStorage.getItem('fabMinimized') === '1';
-    // FAB group — respect user's minimize preference
-    var fabGroupIds = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
-    // Regular floating elements — always follow sidebar show/hide
-    var regularIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom'];
-    regularIds.concat(fabGroupIds).forEach(function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        if (!visible) {
-            el.style.display = 'none';
-        } else if (fabGroupIds.indexOf(id) !== -1) {
-            // Only show FAB group buttons if not minimized
-            el.style.display = fabMinimized ? 'none' : '';
-        } else {
-            el.style.display = '';
-        }
-    });
-    // Keep expand button in sync
-    if (visible) {
+    var showIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','fabExpandBtn'];
+    var toolIds = ['aiToolsBtn','dashboardFloatBtn','lbFloatBtn'];
+    var minBtn = document.getElementById('fabMinimizeBtn');
+    if (minBtn) minBtn.style.setProperty('display', 'none', 'important');
+    if (!visible) {
+        document.body.classList.remove('fab-tools-open');
         var exp = document.getElementById('fabExpandBtn');
-        if (exp) exp.style.display = fabMinimized ? 'flex' : 'none';
+        if (exp) exp.setAttribute('aria-expanded', 'false');
     }
+    showIds.concat(toolIds).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el || el.hasAttribute('data-em-hidden')) return;
+        if (!visible) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+    });
 };
 
 // ========== CELEBRATION SYSTEM ==========

@@ -377,7 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
+    assert.ok(notes.indexOf("Latest: A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 
