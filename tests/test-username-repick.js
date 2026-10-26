@@ -314,7 +314,7 @@ queue.push(test('the client prompt cannot be skipped and calls setUsername', fun
     assert.ok(ranking.includes('applyServerUsername(name)'));
     assert.ok(ranking.includes('maybeShowUsernameRepick();\n        updateAuthButton();'));
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2373'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2377'));
     const favor = fs.readFileSync(path.join(root, 'satoshi-favor.js'), 'utf8');
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     assert.ok(favor.includes('patchBlankProfileNames'));
@@ -326,8 +326,13 @@ queue.push(test('the client prompt cannot be skipped and calls setUsername', fun
 queue.push(test('Satoshi\'s Favor fills a blank solver name from the public profile', function () {
     assert.strictEqual(resolveSolverName('Anonymous', 'SatoshiFan'), 'SatoshiFan');
     assert.strictEqual(resolveSolverName('Anon', 'SatoshiFan'), 'SatoshiFan');
-    assert.strictEqual(resolveSolverName('', ''), 'Anonymous');
-    assert.strictEqual(resolveSolverName('QuestFan', 'Other'), 'QuestFan');
+    assert.strictEqual(resolveSolverName('', ''), null);
+    assert.strictEqual(resolveSolverName('QuestFan', ''), 'QuestFan');
+    assert.strictEqual(resolveSolverName('QuestFan', 'Other'), 'Other');
+    assert.strictEqual(resolveSolverName('QuestFan', 'Anonymous'), 'QuestFan');
+    assert.strictEqual(resolveSolverName('0123456789abcdef', 'SatoshiFan'), 'SatoshiFan');
+    assert.strictEqual(resolveSolverName('0123456789abcdef', ''), '0123456789abcdef');
+    assert.strictEqual(resolveSolverName('a'.repeat(64), ''), null);
     const favor = fs.readFileSync(path.join(root, 'functions/src/satoshiFavor.js'), 'utf8');
     const start = favor.indexOf('// Get username');
     const end = favor.indexOf('const rigNum');

@@ -4196,22 +4196,75 @@ async function submitScholarQuest() {
         notifySelfPoints(pointsAwarded, (scholarType === 'technical' ? '🛠️ Protocol Expert' : '🎓 Bitcoin Scholar') + ' Certification Passed!');
     }
 
+    var certTitle = scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar';
     var headline = passed ? 'Congratulations!' : (blocked === 'already_certified' ? 'Already certified' : 'Not quite there yet');
+    var rewardText = '';
+    if (passed && pointsAwarded > 0) {
+        rewardText = '+' + formatCertXp(pointsAwarded) + ' XP, not limited by the daily cap';
+    }
     var detail = passed
-        ? ("You've earned the " + (scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar') + " certification and 2,100 XP!")
+        ? ("You've earned the " + certTitle + " certification.")
         : (blocked === 'already_certified'
             ? 'You already hold this certification. No extra XP was awarded.'
             : 'You needed 20 correct picks to pass. This quest is now locked for the day. Come back tomorrow for a fresh set of 25 questions!');
-    var nextBtn = (passed || blocked === 'already_certified')
-        ? "showScholarCertificate('" + scholarType + "')"
-        : "showSettingsPage('scholar')";
-    inner.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-        '<div style="font-size:4rem;margin-bottom:20px;">' + (passed ? '🎉' : '📝') + '</div>' +
-        '<h2 style="color:var(--heading);">' + headline + '</h2>' +
-        '<div style="font-size:1.5rem;font-weight:800;color:' + (passed ? '#22c55e' : '#ef4444') + ';margin:15px 0;">' + score + ' / 25 Correct</div>' +
-        '<p style="color:var(--text-muted);margin-bottom:30px;">' + detail + '</p>' +
-        '<button onclick="closeQuest(); ' + nextBtn + '" style="padding:14px 40px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:bold;cursor:pointer;">' + ((passed || blocked === 'already_certified') ? 'View Certificate' : 'Continue Learning') + '</button>' +
-    '</div>';
+    var viewCert = passed || blocked === 'already_certified';
+    renderScholarGradeResult(inner, {
+        passed: passed,
+        headline: headline,
+        score: score,
+        detail: detail,
+        rewardText: rewardText,
+        buttonLabel: viewCert ? 'View Certificate' : 'Continue Learning',
+        onButton: function () {
+            closeQuest();
+            if (viewCert) showScholarCertificate(scholarType);
+            else if (typeof showSettingsPage === 'function') showSettingsPage('scholar');
+        }
+    });
+}
+
+function formatCertXp(amount) {
+    var n = Math.max(0, Math.floor(Number(amount) || 0));
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function renderScholarGradeResult(inner, view) {
+    var src = view || {};
+    while (inner.firstChild) inner.removeChild(inner.firstChild);
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'text-align:center;padding:40px 20px;';
+    var emoji = document.createElement('div');
+    emoji.style.cssText = 'font-size:4rem;margin-bottom:20px;';
+    emoji.textContent = src.passed ? '🎉' : '📝';
+    var heading = document.createElement('h2');
+    heading.style.color = 'var(--heading)';
+    heading.textContent = src.headline || '';
+    var scoreEl = document.createElement('div');
+    scoreEl.style.cssText = 'font-size:1.5rem;font-weight:800;margin:15px 0;color:' + (src.passed ? '#22c55e' : '#ef4444') + ';';
+    scoreEl.textContent = String(src.score == null ? 0 : src.score) + ' / 25 Correct';
+    var detail = document.createElement('p');
+    detail.style.cssText = 'color:var(--text-muted);margin-bottom:12px;';
+    detail.textContent = src.detail || '';
+    wrap.appendChild(emoji);
+    wrap.appendChild(heading);
+    wrap.appendChild(scoreEl);
+    wrap.appendChild(detail);
+    if (src.rewardText) {
+        var reward = document.createElement('p');
+        reward.id = 'certBonusReward';
+        reward.style.cssText = 'color:#22c55e;font-weight:800;margin:0 0 30px;';
+        reward.textContent = src.rewardText;
+        wrap.appendChild(reward);
+    }
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.style.cssText = 'padding:14px 40px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:bold;cursor:pointer;';
+    button.textContent = src.buttonLabel || 'Continue';
+    button.addEventListener('click', function () {
+        if (typeof src.onButton === 'function') src.onButton();
+    });
+    wrap.appendChild(button);
+    inner.appendChild(wrap);
 }
 
 function cancelScholar() {

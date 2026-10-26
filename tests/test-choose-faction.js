@@ -378,6 +378,11 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.includes('Latest: Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.'));
+    assert.ok(notes.indexOf('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.') > 0);
+    assert.ok(notes.indexOf('Latest: Passing') === -1);
+    assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
+    assert.ok(notes.indexOf('Latest: A miner') === -1);
+    assert.ok(notes.indexOf('Latest: Satoshi') === -1);
     assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
     assert.ok(notes.indexOf('Latest: Opening gifts') === -1);
     assert.ok(notes.indexOf('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.') > 0);
@@ -399,7 +404,6 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") === -1);
     assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
     assert.ok(notes.indexOf("Latest: The home page is simpler") === -1);
-    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
     assert.ok(notes.indexOf("Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.") > 0);
     assert.ok(notes.indexOf("Latest: Global chat messages") === -1);

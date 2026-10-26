@@ -640,6 +640,38 @@ test('already mirrored docs and Nacho twins are not queued twice', async functio
     assert.strictEqual(epochCopy.reason, 'duplicate');
 });
 
+test('favor telegram copies drop a leading @ and other chat keeps it', function () {
+    const block = '⛏️ BLOCK FOUND! ⚡\n\n@SatoshiFan solved a block with hash 842 (target: < 20,000) 🎉\n\n👑 Congratulations! Will you be next? ⛏️';
+    const decision = mirror.decideMirror({
+        collection: 'global_chat',
+        data: { uid: 'nacho-bot', name: '🦌 Nacho', text: block },
+    });
+    assert.strictEqual(decision.forward, true);
+    assert.ok(decision.line.indexOf('SatoshiFan solved a block') !== -1);
+    assert.strictEqual(decision.line.indexOf('@'), -1);
+    assert.ok(block.indexOf('@SatoshiFan') !== -1);
+    const blank = mirror.decideMirror({
+        collection: 'global_chat',
+        data: { uid: 'nacho-bot', name: '🦌 Nacho', text: '⛏️ BLOCK FOUND! ⚡\n\na miner solved a block with hash 4,400' },
+    });
+    assert.ok(blank.line.indexOf('a miner solved a block') !== -1);
+    const epoch = '⛏️ EPOCH #4 COMPLETE! 🎉\n\n1. @MinerJoe (1,902)\n2. a miner (4,400)\n3. @HalStack (6,104)';
+    const epochDecision = mirror.decideMirror({
+        collection: 'global_chat',
+        data: { uid: 'nacho-bot', name: '🦌 Nacho', text: epoch },
+    });
+    assert.strictEqual(epochDecision.forward, true);
+    assert.ok(epochDecision.line.indexOf('MinerJoe') !== -1);
+    assert.ok(epochDecision.line.indexOf('a miner') !== -1);
+    assert.ok(epochDecision.line.indexOf('HalStack') !== -1);
+    assert.strictEqual(epochDecision.line.indexOf('@'), -1);
+    const chat = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'nice hash @SatoshiFan' }),
+    });
+    assert.ok(chat.line.indexOf('@SatoshiFan') !== -1);
+});
+
 test('a ban at send time and a deleted single message are handled', async function () {
     const now = 1700000000000;
     const db = memoryDb({
