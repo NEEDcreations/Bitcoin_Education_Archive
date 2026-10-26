@@ -110,6 +110,7 @@ async function main() {
         docId: parsed.id,
         collection: 'global_chat',
         text: data.text,
+        force: true,
     });
     if (!result.mirrored) {
         console.error('[mirror-shoutout] not mirrored (' + (result.reason || 'failed') + ').');

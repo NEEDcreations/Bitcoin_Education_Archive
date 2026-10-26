@@ -1349,7 +1349,25 @@ function _markDailyActivity(type) {
     localStorage.setItem('btc_daily_activities', JSON.stringify(state));
 }
 
-function _announceDailyTrifecta() {
+function _trifectaTail(info) {
+    info = info || {};
+    if (info.wasActive) return '+3 min';
+    if (info.opened) return 'window open';
+    var points = typeof info.points === 'number' ? info.points : null;
+    if (points == null && typeof window._resolveFavorState === 'function') {
+        var live = window._resolveFavorState();
+        if (live && live.favorActive) return 'window open';
+        if (live && typeof live.points === 'number') points = live.points;
+    }
+    if (typeof points === 'number') {
+        var rem = 21 - points;
+        if (rem <= 0) return 'window open';
+        return rem + ' more to go';
+    }
+    return 'window open';
+}
+
+function _announceDailyTrifecta(info) {
     var state = _getDailyActivities();
     if (state.announced) return;
     state.announced = true;
@@ -1358,7 +1376,7 @@ function _announceDailyTrifecta() {
         ? currentUser.username : null;
     if (username && typeof window.nachoGlobalAnnounce === 'function') {
         window.nachoGlobalAnnounce(
-            '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
+            '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! ' + _trifectaTail(info) + ' \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
             (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : ''
         );
     }
@@ -1385,15 +1403,25 @@ function _triggerDailyAllThreeSF(attempt) {
         if (attempt < 5) setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 2000);
         return;
     }
+    var wasActive = false;
+    if (typeof window._resolveFavorState === 'function') {
+        var before = window._resolveFavorState();
+        wasActive = !!(before && before.favorActive);
+    }
     window.contributeSatoshiFavor('daily_all_three').then(function(data) {
         if (data) console.log('[DAILY] SF point awarded:', data);
-        _announceDailyTrifecta();
+        var opened = !!(data && data.favorActive && !wasActive);
+        _announceDailyTrifecta({
+            wasActive: wasActive,
+            opened: opened,
+            points: data && typeof data.points === 'number' ? data.points : null
+        });
     }).catch(function(err) {
         var code = err && err.code;
         var msg  = err && (err.message || String(err));
         console.warn('[DAILY] contributeSatoshiFavor failed (attempt ' + attempt + '):', msg);
         // already-exists = dedup already recorded, silent success
-        if (code === 'already-exists') { _announceDailyTrifecta(); return; }
+        if (code === 'already-exists') { _announceDailyTrifecta({ wasActive: wasActive }); return; }
         // Retry on: docs not written yet (failed-precondition) or transient read error (internal)
         var shouldRetry = (code === 'failed-precondition' || code === 'internal') && attempt < 8;
         if (shouldRetry) {
