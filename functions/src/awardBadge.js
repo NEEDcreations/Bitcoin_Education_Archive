@@ -12,7 +12,7 @@ const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
-const { profileHoldsBadge } = require('./badgeProfile');
+const { serverHoldsBadge } = require('./badgeProfile');
 
 const ALIASES = { country_set: 'global_citizen' };
 
@@ -97,7 +97,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (awardSnap.exists) {
             return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
-        if (profileHoldsBadge(user, badgeId)) {
+        // Only a server-written badge field proves an old grant. displayBadge,
+        // equippedBadge, and earnedHidden are client fields, so they write nothing.
+        if (serverHoldsBadge(user, badgeId)) {
             t.set(awardRef, legacyAward(adminSdk, badgeId, day));
             return {
                 granted: false,

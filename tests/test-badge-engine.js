@@ -616,10 +616,12 @@ queue.push(test('a profile badge is recorded with 0 XP and does not touch the po
     const fromMap = await awardBadge(mapDb, admin, 'u', 'say_hi_1', day);
     assert.strictEqual(fromMap.reason, 'legacy');
     assert.strictEqual(mapDb.docs['satoshiFavor/current'], undefined);
-    const fieldDb = memoryDb({ 'users/u': { peerCount: 1, displayBadge: 'peer_1' } });
+    const fieldDb = memoryDb({ 'users/u': { peerCount: 0, displayBadge: 'peer_1', equippedBadge: 'peer_1', earnedHidden: ['peer_1'] } });
     const fromField = await awardBadge(fieldDb, admin, 'u', 'peer_1', day);
-    assert.strictEqual(fromField.reason, 'legacy');
-    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'].xp, 0);
+    assert.notStrictEqual(fromField.reason, 'legacy');
+    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'], undefined);
+    assert.strictEqual(fieldDb.docs['users/u'].points || 0, 0);
+    assert.strictEqual(fieldDb.docs['satoshiFavor/current'], undefined);
     const owned = memoryDb({
         'users/u': { sayHiDays: 1, points: 15 },
         'users/u/badge_awards/say_hi_1': { xp: 15, source: 'awardBadge' },

@@ -401,7 +401,8 @@ queue.push(test('the dry-run backfill prints counts and does not apply unless as
     assert.ok(src.includes('ggSkip'));
     assert.ok(!src.includes('--post-chat'));
     assert.ok(!src.includes("collection('xp_ledger')"));
-    assert.ok(src.includes('serverHeldBadgeIds'));
+    assert.ok(src.includes('heldIdsForCollection'));
+    assert.ok(src.includes('backfill: true'));
     assert.ok(!src.includes('profileBadgeIds'));
     assert.ok(!src.includes('console.log(uid'));
     assert.ok(!src.includes('console.log(email'));
@@ -459,18 +460,40 @@ queue.push(test('ten Favor points use the contributor total and the multi-point 
         'users/u': { points: 0, visibleBadges: collectionBonus.requiredMembers(col).slice(), faction: 'cyber_hornets' },
     });
     const db = memoryDb(seed);
-    const result = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: now, postChat: false });
+    const result = await collectionBonus.grantCollectionBonus(db, admin, 'u', col.id, { day: '2026-10-24', nowMs: now });
     assert.strictEqual(result.granted, true);
     assert.strictEqual(result.favor, true);
     const contributor = db.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId];
     assert.strictEqual(contributor.pointsAdded, 10);
     assert.strictEqual(contributor.source, 'badge_earned');
+    assert.strictEqual(contributor.backfill, undefined);
     assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
     assert.strictEqual(db.docs['satoshiFavor/factionTotals'].cyber_hornets, 10);
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 25);
     assert.strictEqual(db.docs['satoshiFavor/current'].favorActive, true);
     assert.strictEqual(db.docs['satoshiFavor/current'].bonusMinutes, 12);
-    assert.strictEqual(chatDocs(db).length, 0);
+
+    const backfill = memoryDb(seedAwards(collectionBonus.requiredMembers(col), {
+        'satoshiFavor/current': { points: 15, favorActive: false, bonusMinutes: 0 },
+        'users/u': { points: 0, visibleBadges: collectionBonus.requiredMembers(col).slice(), faction: 'cyber_hornets' },
+    }));
+    const quiet = await collectionBonus.grantCollectionBonus(backfill, admin, 'u', col.id, { day: '2026-10-24', nowMs: now, postChat: false, backfill: true });
+    assert.strictEqual(quiet.granted, true);
+    assert.strictEqual(quiet.favor, true);
+    const quietRow = backfill.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId];
+    assert.strictEqual(quietRow.backfill, true);
+    assert.strictEqual(quietRow.pointsAdded, 10);
+    assert.strictEqual(backfill.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
+    assert.strictEqual(backfill.docs['satoshiFavor/factionTotals'].cyber_hornets, 10);
+    assert.strictEqual(backfill.docs['satoshiFavor/current'].points, 15);
+    assert.strictEqual(backfill.docs['satoshiFavor/current'].favorActive, false);
+    assert.strictEqual(backfill.docs['satoshiFavor/current'].currentCycleId, undefined);
+    assert.strictEqual(chatDocs(backfill).length, 0);
+    const { shouldAnnounceLive } = require('../functions/src/favorLiveAnnounce');
+    assert.strictEqual(shouldAnnounceLive(
+        { points: 15, favorActive: false },
+        backfill.docs['satoshiFavor/current']
+    ), false);
 }));
 
 queue.push(test('Nacho tags a public username once and skips Anonymous', async function () {
@@ -597,6 +620,67 @@ queue.push(test('earnedHidden plus one cheap award does not complete a collectio
         visibleBadges: collectionBonus.requiredMembers(col).slice(),
     }, []);
     assert.strictEqual(collectionBonus.planGrant(col, corroborated).eligible, true);
+}));
+
+queue.push(test('client profile fields cannot mint an award or complete a collection', async function () {
+    const { awardBadge } = require('../functions/src/awardBadge');
+    const { legacyAwardCounts, heldIdsForCollection } = require('../functions/src/badgeProfile');
+    const col = collectionBonus.collectionById('col_daily_habits');
+    const members = collectionBonus.requiredMembers(col);
+    const day = { day: '2026-10-24', nowMs: 1700000000000 };
+    const clientFields = {
+        points: 0,
+        displayBadge: members[0],
+        equippedBadge: members[1],
+        earnedHidden: members.slice(),
+        visibleBadges: [],
+        badges: [],
+        donationBadges: [],
+        hiddenBadges: [],
+    };
+    assert.strictEqual(legacyAwardCounts(clientFields, members[0]), false);
+    const minted = memoryDb({ 'users/u': clientFields });
+    const attempt = await awardBadge(minted, admin, 'u', members[0], day);
+    assert.notStrictEqual(attempt.reason, 'legacy');
+    assert.strictEqual(attempt.granted, false);
+    assert.strictEqual(minted.docs['users/u/badge_awards/' + members[0]], undefined);
+    assert.strictEqual(minted.docs['users/u'].points, 0);
+    assert.strictEqual(minted.docs['satoshiFavor/current'], undefined);
+
+    const legacyRows = {};
+    const forgedDocs = { 'users/u': clientFields };
+    members.forEach(function (id) {
+        legacyRows[id] = { badge: id, xp: 0, source: 'legacy' };
+        forgedDocs['users/u/badge_awards/' + id] = legacyRows[id];
+    });
+    assert.strictEqual(collectionBonus.planGrant(col, heldIdsForCollection(clientFields, legacyRows)).reason, 'incomplete');
+    const forged = memoryDb(forgedDocs);
+    const paid = await collectionBonus.grantCollectionBonus(forged, admin, 'u', col.id, day);
+    assert.strictEqual(paid.granted, false);
+    assert.strictEqual(paid.reason, 'incomplete');
+    assert.strictEqual(forged.docs['users/u/xp_ledger/' + col.bonusId], undefined);
+    assert.strictEqual(forged.docs['users/u'].points, 0);
+    assert.strictEqual(forged.docs['satoshiFavor/userSfPoints/users/u'], undefined);
+    const triggered = await collectionBonus.maybeGrantForBadge(forged, admin, 'u', members[0], day);
+    assert.ok(triggered.every(function (row) { return row.granted !== true; }));
+    assert.strictEqual(forged.docs['users/u/badge_awards/' + col.bonusId], undefined);
+
+    const backedUser = {
+        points: 0,
+        visibleBadges: members.slice(),
+        badges: [],
+        donationBadges: [],
+        hiddenBadges: [],
+    };
+    const backedDocs = { 'users/u': backedUser };
+    members.forEach(function (id) {
+        backedDocs['users/u/badge_awards/' + id] = { badge: id, xp: 0, source: 'legacy' };
+    });
+    assert.strictEqual(legacyAwardCounts(backedUser, members[0]), true);
+    const backed = memoryDb(backedDocs);
+    const real = await collectionBonus.grantCollectionBonus(backed, admin, 'u', col.id, Object.assign({ postChat: false }, day));
+    assert.strictEqual(real.granted, true);
+    assert.ok(real.xp > 0);
 }));
 
 queue.push(test('Entertainment pays 150 when its three server-proof badges are held', async function () {
@@ -742,12 +826,14 @@ queue.push(test('the award trigger skips unrelated badges and retries a pending 
 
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.strictEqual((index.match(/exports\.onBadgeAwardCreated\s*=/g) || []).length, 1);
-    const block = index.slice(index.indexOf('exports.onBadgeAwardCreated'), index.indexOf('exports.onBadgeAwardCreated') + 1600);
+    const block = index.slice(index.indexOf('exports.onBadgeAwardCreated'), index.indexOf('exports.onBadgeAwardCreated') + 2200);
     assert.ok(block.includes('exports.onBadgeAwardCreated'));
     assert.ok(block.includes("document: 'users/{uid}/badge_awards/{badgeId}'"));
     assert.ok(block.includes('retry: true'));
     assert.ok(!block.includes('maxInstances'));
     assert.ok(block.includes('queueBadgeGg(db, admin, uid, badgeId, data, Date.now())'));
+    assert.ok(block.includes("data.source || '') === 'legacy'"));
+    assert.ok(block.includes('legacyAwardCounts(user, badgeId)'));
     assert.ok(block.includes('collectionsTouching(badgeId)'));
     assert.ok(block.includes('awardAlreadySettled(db, uid, badgeId, data)'));
     assert.ok(block.includes('maybeGrantForBadge(db, admin, uid, badgeId)'));
@@ -834,9 +920,12 @@ queue.push(test('a quiet collection award skips GGs and an expired window stamps
     assert.strictEqual(skipped.favor, true);
     const quietAward = quiet.docs['users/u/badge_awards/' + col.bonusId];
     assert.strictEqual(quietAward.ggSkip, true);
-    assert.strictEqual(quietAward.favorPoint, true);
+    assert.strictEqual(quietAward.favorPoint, false);
     assert.strictEqual(quietAward.congratsPending, false);
     assert.strictEqual(quietAward.source, 'collection_bonus');
+    assert.strictEqual(quiet.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId].backfill, true);
+    assert.strictEqual(quiet.docs['satoshiFavor/current'], undefined);
+    assert.strictEqual(quiet.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
     assert.strictEqual(chatDocs(quiet).length, 0);
 
     const live = memoryDb(seedAwards(members, {
@@ -881,7 +970,7 @@ queue.push(test('a quiet collection award skips GGs and an expired window stamps
             favorEndBase: { toMillis: function () { return now + 60000; } },
         },
     }));
-    const extended = await collectionBonus.grantCollectionBonus(open, admin, 'u', col.id, { day: '2026-10-24', nowMs: now, postChat: false });
+    const extended = await collectionBonus.grantCollectionBonus(open, admin, 'u', col.id, { day: '2026-10-24', nowMs: now });
     assert.strictEqual(extended.favor, true);
     const openAward = open.docs['users/u/badge_awards/' + col.bonusId];
     assert.strictEqual(openAward.favorPoint, false);
@@ -899,7 +988,7 @@ queue.push(test('a quiet collection award skips GGs and an expired window stamps
             favorEndBase: { toMillis: function () { return now - 60000; } },
         },
     }));
-    const reset = await collectionBonus.grantCollectionBonus(expired, admin, 'u', col.id, { day: '2026-10-24', nowMs: now, postChat: false });
+    const reset = await collectionBonus.grantCollectionBonus(expired, admin, 'u', col.id, { day: '2026-10-24', nowMs: now });
     assert.strictEqual(reset.favor, true);
     const state = expired.docs['satoshiFavor/current'];
     assert.deepStrictEqual(state.lastReset, { _serverNow: true });

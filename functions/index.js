@@ -7853,6 +7853,14 @@ exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_a
         throw e;
     }
     if (!uid || !badgeId) return null;
+    // A legacy row is written only for a server-shown badge. One that no
+    // trusted field backs up must not finish a collection.
+    if (String(data.source || '') === 'legacy') {
+        const badgeProfile = require('./src/badgeProfile');
+        const userSnap = await db.collection('users').doc(uid).get();
+        const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
+        if (!badgeProfile.legacyAwardCounts(user, badgeId)) return null;
+    }
     const collectionBonus = require('./src/collectionBonus');
     if (!collectionBonus.collectionsTouching(badgeId).length) return null;
     if (await collectionBonus.awardAlreadySettled(db, uid, badgeId, data)) return null;

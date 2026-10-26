@@ -15,7 +15,7 @@ const path = require('path');
 
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoints } = require('./favorPool');
-const { serverHeldBadgeIds } = require('./badgeProfile');
+const { heldIdsForCollection } = require('./badgeProfile');
 const { offsetDateKey } = require('./offsetDay');
 
 const SETS_FILE = path.join(__dirname, 'collection-sets.json');
@@ -284,13 +284,6 @@ function factionField(faction) {
     return 'unaffiliated';
 }
 
-function awardIdsFromSnap(snap) {
-    const ids = [];
-    if (!snap || typeof snap.forEach !== 'function') return ids;
-    snap.forEach(function (doc) { if (doc && doc.id) ids.push(doc.id); });
-    return ids;
-}
-
 function stageBadgeFavor(t, db, adminSdk, ctx) {
     const src = ctx || {};
     if (!src.contributorSnap || src.contributorSnap.exists) {
@@ -305,7 +298,10 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
     const pointsToAdd = COLLECTION_FAVOR_POINTS;
     const plan = planFavorPoints(stateData, nowMs, pointsToAdd);
     const faction = (src.user && src.user.faction) || null;
-    t.set(src.contributorRef, {
+    // Backfill records the player's 10 points, but it does not write the live
+    // pool. That write is what opens the window and posts "SF is LIVE".
+    const skipPool = src.skipPool === true;
+    const contributorDoc = {
         uid: src.uid,
         source: 'badge_earned',
         detail: src.badgeId,
@@ -314,12 +310,23 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         timestamp: adminSdk.firestore.FieldValue.serverTimestamp(),
         faction: faction,
         pointsAdded: pointsToAdd,
-    });
+    };
+    if (skipPool) contributorDoc.backfill = true;
+    t.set(src.contributorRef, contributorDoc);
     const field = factionField(faction);
     const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
     const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
     totalsWrite[field] = (Number(totals[field]) || 0) + pointsToAdd;
     t.set(src.totalsRef, Object.assign({}, totals, totalsWrite));
+    t.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(src.uid), {
+        uid: src.uid,
+        points: adminSdk.firestore.FieldValue.increment(pointsToAdd),
+        updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    if (skipPool) {
+        src.favorPoint = false;
+        return true;
+    }
     const next = Object.assign({}, stateData, {
         points: plan.points,
         favorActive: plan.favorActive,
@@ -351,11 +358,6 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         });
     }
     t.set(src.stateRef, next);
-    t.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(src.uid), {
-        uid: src.uid,
-        points: adminSdk.firestore.FieldValue.increment(pointsToAdd),
-        updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
     // Pool points only. An open window adds bonus minutes and does not count.
     src.favorPoint = plan.extended !== true;
     return true;
@@ -469,7 +471,7 @@ async function awardAlreadySettled(db, uid, badgeId, awardData) {
         const awardsSnap = await userRef.collection('badge_awards').get();
         const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
         const rows = awardRowsFromSnap(awardsSnap);
-        const held = serverHeldBadgeIds(user, Object.keys(rows));
+        const held = heldIdsForCollection(user, rows);
         for (let i = 0; i < hits.length; i++) {
             const col = hits[i];
             const plan = planGrant(col, held);
@@ -540,7 +542,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
         if (rewardBlocked(user, ledger)) {
             return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: col.bonusId };
         }
-        const held = serverHeldBadgeIds(user, awardIdsFromSnap(awardsSnap));
+        const held = heldIdsForCollection(user, awardRowsFromSnap(awardsSnap));
         const award = awardSnap && awardSnap.exists ? (awardSnap.data() || {}) : {};
         if (xpSnap.exists || awardSnap.exists || held.has(col.bonusId)) {
             return {
@@ -597,6 +599,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             stateRef: stateRef,
             contributorRef: contributorRef,
             totalsRef: totalsRef,
+            skipPool: options.backfill === true || options.postChat === false,
         };
         const favor = stageBadgeFavor(t, db, adminSdk, favorCtx);
         const awardDoc = {
@@ -668,7 +671,7 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
         const userSnap = await userRef.get();
         const awardsSnap = await userRef.collection('badge_awards').get();
         const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
-        held = serverHeldBadgeIds(user, awardIdsFromSnap(awardsSnap));
+        held = heldIdsForCollection(user, awardRowsFromSnap(awardsSnap));
     } catch (err) {
         held = null;
     }

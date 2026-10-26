@@ -8,12 +8,14 @@
  * to that day's capped total.
  *
  * --apply pays that remainder through grantCollectionBonus. That writes
- * xp_ledger with source collection_bonus, does not call applyDailyXp, does
- * not write daily_points, and adds ten Satoshi's Favor points. A remainder
- * of 0 still records the bonus so it cannot be paid later. Chat posts are
- * off, and congratsPending stays false. The badge_awards doc sets ggSkip
- * true so GGs does not post, and records favorPoint. There is no flag that
- * turns chat or GGs on.
+ * xp_ledger with source collection_bonus, does not call applyDailyXp, and
+ * does not write daily_points. The player's own 10 Satoshi's Favor points
+ * are recorded. They are not added to the live pool, so a backfill cannot
+ * open the window or post that Satoshi's Favor is live. The contributor row
+ * is marked backfill. A remainder of 0 still records the bonus so it cannot
+ * be paid later. Chat posts are off, and congratsPending stays false. The
+ * badge_awards doc sets ggSkip true so GGs does not post. There is no flag
+ * that turns chat or GGs on.
  *
  * Held badges are badge_awards plus badges, visibleBadges, and donationBadges.
  * A hiddenBadges id counts only when that same id is already in one of those.
@@ -28,7 +30,7 @@
 'use strict';
 
 const { rewardBlocked } = require('../src/cipherClaim');
-const { serverHeldBadgeIds } = require('../src/badgeProfile');
+const { heldIdsForCollection } = require('../src/badgeProfile');
 const collectionBonus = require('../src/collectionBonus');
 
 const PAGE = 200;
@@ -95,9 +97,11 @@ function printCounts(counts, apply) {
 
 async function heldIdsFor(userDoc, user) {
     const awards = await userDoc.ref.collection('badge_awards').get();
-    const ids = [];
-    awards.forEach(function (doc) { if (doc.id) ids.push(doc.id); });
-    return serverHeldBadgeIds(user, ids);
+    const rows = {};
+    awards.forEach(function (doc) {
+        if (doc.id) rows[doc.id] = doc.data() || {};
+    });
+    return heldIdsForCollection(user, rows);
 }
 
 async function main() {
@@ -135,6 +139,7 @@ async function main() {
                 if (!plan.eligible) continue;
                 await collectionBonus.grantCollectionBonus(db, admin, userDoc.id, summary.rows[r].id, {
                     postChat: false,
+                    backfill: true,
                 });
             }
         }

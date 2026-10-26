@@ -378,9 +378,13 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf("Latest: Completing one of the 11 badge collections pays the full server bonus you have not already received, that bonus is not limited by the daily XP cap, it adds 10 Satoshi's Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.") > 0);
-    assert.ok(notes.indexOf("Latest: Nacho now announces") === -1);
-    assert.ok(notes.indexOf("Latest: The 32 badge collections") === -1);
+    assert.ok(notes.indexOf('The 32 badge collections are now 11. Completing one pays the server bonus you have not already received from the old sets.') > 0);
+    assert.ok(notes.indexOf('Latest: The 32 badge collections') === -1);
+    assert.ok(notes.indexOf('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.') > 0);
+    assert.ok(notes.indexOf('Latest: A More tools') === -1);
     assert.ok(notes.indexOf("Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") > 0);
+    assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") === -1);
+    assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") === -1);
     assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
     assert.ok(notes.indexOf("Latest: The home page is simpler") === -1);
     assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
