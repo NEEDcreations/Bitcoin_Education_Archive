@@ -378,6 +378,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf('Latest: Encrypted account backups keep email addresses, phone numbers, and password hashes for 90 days.') > 0);
+    assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
+    assert.ok(notes.indexOf("Latest: A miner's public name") === -1);
     assert.ok(notes.indexOf('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.') > 0);
     assert.ok(notes.indexOf('Latest: Sidebar topic names') === -1);
     assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);

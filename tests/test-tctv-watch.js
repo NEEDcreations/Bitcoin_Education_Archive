@@ -796,7 +796,10 @@ test('playback with no server clock asks the server to start it and does not inv
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
     const latest = 'Latest: Encrypted account backups keep email addresses, phone numbers, and password hashes for 90 days.';
+    const miner = "A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.";
     const sidebar = 'Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.';
+    assert.ok(notes.includes(miner));
+    assert.ok(!notes.includes("Latest: A miner's public name"));
     assert.ok(notes.includes(sidebar));
     assert.ok(!notes.includes('Latest: Sidebar topic names'));
     const previousLatest = 'Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.';
