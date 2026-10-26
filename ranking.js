@@ -7261,6 +7261,7 @@ function accountDeleteRowHtml(user) {
             }
             html += '</div>';
         });
+        html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.45;margin-top:10px;">🔒 VPNs must be off to claim sats.</div>';
         html += '</div>';
         if (!claimExempt && !referralReqMet && typeof logReferralVisit === 'function' && typeof getReferralCode === 'function' && !window._claimReqVisitNoted) {
             window._claimReqVisitNoted = true;

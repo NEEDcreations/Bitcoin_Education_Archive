@@ -214,6 +214,27 @@ test('watch heartbeat and the visit callable stamp server-side only', () => {
     assert.ok(!fields.includes('claimReq'));
 });
 
+test('a VPN, proxy, or datacenter rejection tells the player to turn the VPN off', () => {
+    const text = 'Turn off your VPN and try again.';
+    assert.strictEqual(claimReqs.blockedConnectionError('vpn'), text);
+    assert.strictEqual(claimReqs.blockedConnectionError('proxy'), text);
+    assert.strictEqual(claimReqs.blockedConnectionError('datacenter'), text);
+    assert.strictEqual(claimReqs.blockedConnectionError('tor'), text);
+    assert.strictEqual(claimReqs.blockedConnectionError('network_hard'), '');
+    const denied = claimReqs.connectionClaimResult({ action: 'deny', reason: 'datacenter', message: 'Try home Wi-Fi.' });
+    assert.strictEqual(denied.error, text);
+    assert.strictEqual(denied.code, 'datacenter');
+    const held = claimReqs.connectionClaimResult({ action: 'hold', reason: 'proxy', message: 'long hold copy' });
+    assert.strictEqual(held.error, text);
+    assert.strictEqual(claimReqs.connectionClaimResult({ action: 'allow', reason: 'clean' }), null);
+    assert.strictEqual(claimReqs.connectionClaimResult({ action: 'hold', reason: 'device-fraud', message: 'This device is already linked to another account.' }).error, 'This device is already linked to another account.');
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const at = index.indexOf('const connectionClaim = claimReqs.connectionClaimResult');
+    assert.ok(at !== -1);
+    assert.ok(index.indexOf("require('./src/ipReputation')") !== -1);
+    assert.ok(index.indexOf("connectionErr.code !== 'MODULE_NOT_FOUND'") !== -1);
+});
+
 test('the Requirements card shows the three rows, Go, and Share', () => {
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     assert.ok(ranking.includes("Date.parse('2026-10-26T21:00:00.000Z')"));
@@ -225,6 +246,11 @@ test('the Requirements card shows the three rows, Go, and Share', () => {
     assert.ok(ranking.includes("go: 'shareClaimReferral()'"));
     assert.ok(ranking.includes("goLabel: 'Share'"));
     assert.ok(ranking.includes('if (!claimExempt)'));
+    const note = '🔒 VPNs must be off to claim sats.';
+    const noteAt = ranking.indexOf(note);
+    assert.ok(noteAt > ranking.indexOf('checks.forEach(function(c)'));
+    assert.ok(noteAt < ranking.indexOf('How It Works'));
+    assert.ok(ranking.includes('color:var(--text-muted)'));
     assert.ok(ranking.includes('navigator.share'));
     assert.ok(ranking.includes('copyClaimReferralLink'));
     assert.ok(ranking.includes("err.name === 'AbortError'"));

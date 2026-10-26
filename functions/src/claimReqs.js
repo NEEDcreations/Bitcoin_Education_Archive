@@ -81,6 +81,24 @@ function missingItems(user, createdMs) {
     return missing;
 }
 
+const VPN_OFF_ERROR = 'Turn off your VPN and try again.';
+
+// claimSats uses this when the connection check rejects a VPN, proxy,
+// datacenter, or Tor exit. Other hold reasons keep their own message.
+function blockedConnectionError(reason) {
+    const key = String(reason || '');
+    if (key === 'vpn' || key === 'proxy' || key === 'datacenter' || key === 'tor') return VPN_OFF_ERROR;
+    return '';
+}
+
+function connectionClaimResult(gate) {
+    if (!gate || (gate.action !== 'deny' && gate.action !== 'hold')) return null;
+    const friendly = blockedConnectionError(gate.reason);
+    if (friendly) return { success: false, error: friendly, code: String(gate.reason) };
+    if (gate.message) return { success: false, error: String(gate.message), code: String(gate.reason || '') };
+    return null;
+}
+
 function missingError(missing) {
     const labels = [];
     (missing || []).forEach(function (key) {
@@ -221,6 +239,9 @@ module.exports = {
     stampMillis: stampMillis,
     isExempt: isExempt,
     missingItems: missingItems,
+    VPN_OFF_ERROR: VPN_OFF_ERROR,
+    blockedConnectionError: blockedConnectionError,
+    connectionClaimResult: connectionClaimResult,
     missingError: missingError,
     chatQualifies: chatQualifies,
     tctvQualifies: tctvQualifies,

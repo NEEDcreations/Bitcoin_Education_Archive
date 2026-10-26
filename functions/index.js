@@ -1661,6 +1661,27 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
     }
 
+    let connectionGate = null;
+    try {
+        const ipReputation = require('./src/ipReputation');
+        if (ipReputation && typeof ipReputation.assessReward === 'function') {
+            const rewardHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
+            connectionGate = await ipReputation.assessReward({
+                db: db,
+                ip: clientIP,
+                uid: uid,
+                userAgent: rewardHeaders['user-agent'] || '',
+                language: rewardHeaders['accept-language'] || '',
+                requestId: data && data.ipqsRequestId,
+                purpose: 'faucet',
+            });
+        }
+    } catch (connectionErr) {
+        if (!connectionErr || connectionErr.code !== 'MODULE_NOT_FOUND') throw connectionErr;
+    }
+    const connectionClaim = claimReqs.connectionClaimResult(connectionGate);
+    if (connectionClaim) return connectionClaim;
+
     const fingerprint = (data.fingerprint || '').trim();
     const fpId = faucetGuard.fingerprintDocId(fingerprint);
     if (!fpId) {
