@@ -2383,6 +2383,18 @@ service cloud.firestore {
     match /topic_discussion_private/{docId} {
       allow read, write: if false;
     }
+    // Per-user counters for private section summaries. Clients cannot read or reset them.
+    match /nacho_section_limits/{uid} {
+      allow read, write: if false;
+    }
+    // Site-wide daily and per-minute budget for private section summaries.
+    match /nacho_section_global/{docId} {
+      allow read, write: if false;
+    }
+    // Per-network daily budget. The id is an HMAC, never a raw IP. expireAt is a TTL.
+    match /nacho_section_ip/{docId} {
+      allow read, write: if false;
+    }
     match /key_gift_credits/{docId} {
       allow read, write: if false;
     }

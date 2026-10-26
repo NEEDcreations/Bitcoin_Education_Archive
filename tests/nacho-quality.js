@@ -621,9 +621,12 @@ const CASES = [
     assert.ok(!/abandon/.test(mem.btc_nacho_convo_guest || ''));
     clientCtx._nachoConvoHistory.push({ q: SEED, a: 'please repeat ' + SEED, t: 2 });
     let posted = '';
+    clientCtx.auth = { currentUser: { getIdToken: async function () { return 'unit-token'; } } };
     clientCtx.fetch = function (_url, opts) {
         leftDevice += 1;
         posted = opts && opts.body ? String(opts.body) : '';
+        const headers = opts && opts.headers ? opts.headers : {};
+        assert.strictEqual(headers.Authorization, 'Bearer unit-token');
         return Promise.resolve({ json: async function () { return { answer: 'A satoshi is the smallest unit.' }; } });
     };
     await clientCtx.nachoAIAnswer('What is a satoshi?', function () {});

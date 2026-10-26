@@ -6,5 +6,38 @@ account_id = "bc12a6ce8540408b7552f1d658c45bf7"
 [ai]
 binding = "AI"
 
+# Site-wide daily cap for /ai. The worker skips the cap when this binding
+# is missing, so a deploy before the migration still answers. Phil must OK
+# the new Durable Object class before the first deploy that includes it.
+[durable_objects]
+bindings = [
+  { name = "AI_DAILY", class_name = "AiDailyCap" }
+]
+
+[[migrations]]
+tag = "v1-ai-daily-cap"
+new_sqlite_classes = ["AiDailyCap"]
+
 # BRAVE_API_KEY already exists on the live worker. Do not re-put it.
 # BRAVE_API_KEY
+#
+# /ai checks Firebase ID tokens for project bitcoin-education-archive against
+# the securetoken JWKS (public keys, not a secret). AI_AUTH=grace|enforce.
+# Missing or any value other than enforce means grace: verify a token when
+# the caller sends one, and allow token-less calls under the 20/minute IP
+# limit. Set AI_AUTH=enforce only after Phil says so. Do not set it in this PR.
+# Signed-in accounts are 10/minute. Anonymous tokens are 3/minute.
+# Requests with no token, or with a token that does not verify, share a
+# 20/minute IP limit, and that check runs before the token check.
+# A verified non-anonymous token uses a separate 120/minute IP bucket so
+# Cloud Functions egress is not stuck on the open 20/minute limit.
+# SQLite-backed Durable Objects: new_sqlite_classes. KV-backed new_classes
+# is rejected on accounts that do not already have a KV namespace.
+# The 400/day cap is taken only when the model runs. Token-less and
+# anonymous calls share 25% of it. Signed-in calls can use the rest.
+# One signed-in account is also capped at 40/day so it cannot spend the
+# whole site pool. 400 and 25% stay as constants until Phil says otherwise.
+# Deploy from this directory when ready (this PR does not deploy):
+#   npx wrangler@3 deploy --keep-vars
+# --keep-vars keeps BRAVE_API_KEY and AI_AUTH. Do not re-put BRAVE_API_KEY.
+# Redeploy askNachoAboutSection, postTopicComment, and deleteAccount in the same window.

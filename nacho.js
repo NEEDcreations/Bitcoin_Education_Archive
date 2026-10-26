@@ -658,6 +658,25 @@ function createNacho() {
         #nacho-container.nacho-bubble-below #nacho-bubble::before,
         #nacho-container.nacho-bubble-below #nacho-bubble::after { display: none; }
         #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+        #nacho-container.nacho-section-front { z-index: 2100004; }
+        #nacho-container.nacho-section-front #nacho-bubble {
+            z-index: 2100004;
+            position: fixed;
+            max-height: min(72vh, 720px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #nacho-container.nacho-section-front #nacho-text {
+            overflow-y: auto;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        #nacho-container.nacho-section-front .nacho-section-follow {
+            flex: 0 0 auto;
+            margin-top: 8px;
+            background: var(--bg-side, #111827);
+        }
 
         .nacho-header {
             display: flex;
@@ -1497,6 +1516,8 @@ function _showBubble(text, pose) {
     const textEl = document.getElementById('nacho-text');
     const avatar = document.getElementById('nacho-avatar');
     if (!bubble || !textEl) return;
+    // A new bubble replaces the section panel without hideBubble.
+    window._nachoSectionSession = null;
 
     shownMessages.add(text);
     sessionMsgCount++;
@@ -1618,6 +1639,17 @@ window.hideBubble = function(force) {
 
     // Clear busy state — allow queued popups to show
     window._nachoBusy = false;
+    window._nachoSectionSession = null;
+    var _ncFront = document.getElementById('nacho-container');
+    if (_ncFront) {
+        _ncFront.classList.remove('nacho-section-front');
+        _ncFront.style.zIndex = '';
+    }
+    if (bubble) {
+        bubble.style.zIndex = '';
+        var sectionFollow = bubble.querySelector('.nacho-section-follow');
+        if (sectionFollow && sectionFollow.parentNode) sectionFollow.parentNode.removeChild(sectionFollow);
+    }
 
     // Mark interaction for badge — delay badge check so it doesn't pop immediately
     localStorage.setItem('btc_nacho_clicked', 'true');

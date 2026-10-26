@@ -38,3 +38,10 @@ if [ $? -ne 0 ]; then
     echo "❌ Reward bank sync failed"
     exit 1
 fi
+
+echo "🔖 Building topic anchor index..."
+node functions/build-topic-anchors.js
+if [ $? -ne 0 ]; then
+    echo "❌ Topic anchor index build failed"
+    exit 1
+fi

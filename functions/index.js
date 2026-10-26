@@ -9002,6 +9002,25 @@ const topicDiscussion = createTopicDiscussion({
     HttpsError: functionsV1.https.HttpsError,
 });
 exports.postTopicComment = functionsV1.runWith({ timeoutSeconds: 30, memory: '256MB' }).https.onCall(topicDiscussion.postTopicComment);
+// Private section Nacho. Deploy askNachoAboutSection with the topic callables.
+// It reads topicAnchorIndex.json and topic_discussions, then calls the existing
+// nacho-search worker through defaultAskNacho. It does not write posts.
+const { createNachoSection } = require('./src/nachoSection');
+const nachoSectionApi = createNachoSection({
+    db: db,
+    admin: admin,
+    HttpsError: functionsV1.https.HttpsError,
+});
+// Binds REFERRAL_IP_HMAC_SECRET (already in Secret Manager; not a new secret).
+// Also redeploy postTopicComment so topic replies and the Pleb Talk forum
+// summary forward the caller's ID token, and deleteAccount so it removes
+// nacho_section_limits/{uid}. Worker deploy: npx wrangler@3 deploy --keep-vars.
+exports.askNachoAboutSection = functionsV1.runWith({
+    enforceAppCheck: true,
+    secrets: [referralIpSecret],
+    timeoutSeconds: 30,
+    memory: '256MB',
+}).https.onCall(nachoSectionApi.askNachoAboutSection);
 exports.reportTopicComment = functionsV1.https.onCall(topicDiscussion.reportTopicComment);
 exports.moderateTopicPost = functionsV1.https.onCall(topicDiscussion.moderateTopicPost);
 exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopicComment);

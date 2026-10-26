@@ -273,6 +273,15 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         }, 'What is a nonce in the block header?', 'Mining');
         assert.strictEqual(calls, 1);
         assert.strictEqual(ok, 'Miners search for a nonce that makes the block hash small enough.');
+        const forwarded = await mirror.summarizeOpener(async function(input) {
+            assert.strictEqual(input.authorization, 'Bearer forum-token');
+            return { answer: 'Miners search for a nonce that makes the block hash small enough.' };
+        }, 'What is a nonce in the block header?', 'Mining', 'Bearer forum-token');
+        assert.strictEqual(forwarded, 'Miners search for a nonce that makes the block hash small enough.');
+        const discussion = fs.readFileSync(path.join(root, 'functions/src/topicDiscussion.js'), 'utf8');
+        const patchAt = discussion.indexOf('forumMirror.patchForumSummary');
+        assert.ok(patchAt !== -1);
+        assert.ok(discussion.slice(patchAt, patchAt + 700).includes('authorization: bearerFrom(context)'));
         const advice = await mirror.summarizeOpener(async function() {
             calls += 1;
             return { answer: 'you should buy now' };
