@@ -3468,7 +3468,11 @@ async function applyServerUsername(name) {
     var res = await fn({ name: name });
     var data = res && res.data ? res.data : {};
     if (!data.ok || !data.username) throw new Error('Could not save that username.');
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = data.username;
+    var previousName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        currentUser.username = data.username;
+        if (previousName && previousName !== data.username) currentUser.usernameFreeRename = false;
+    }
     try { localStorage.setItem('btc_username', data.username); } catch (e) {}
     return data.username;
 }
@@ -3592,7 +3596,8 @@ window.submitUsernameRepick = async function () {
     if (!name) { fail('Please enter a username.'); return; }
     if (name.length < 3) { fail('Username must be at least 3 characters.'); return; }
     if (name.length > 20) { fail('Username must be 20 characters or less.'); return; }
-    if (/[^A-Za-z0-9 _\-.]/.test(name)) { fail('Use letters, numbers, spaces, underscores, hyphens, or dots.'); return; }
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { fail('No spaces, please. Try an underscore instead, like ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + '.'); return; }
+    if (/[^A-Za-z0-9_\-.]/.test(name)) { fail('Use letters, numbers, underscores, hyphens, or dots.'); return; }
     if (typeof containsProfanity === 'function' && containsProfanity(name)) { fail('That username is not allowed.'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
     fail('');
@@ -3747,15 +3752,21 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     }
     const uid = auth.currentUser.uid;
     username = sanitizeInput(username);
+    // Spaces, NBSP, and zero-width characters are rejected before the ASCII strip,
+    // so they are not silently deleted into a different name.
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(username)) {
+        showToast('⚠️ Usernames cannot contain spaces. Try ' + username.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.');
+        return;
+    }
     // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
     username = username.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
     if (!username || username.length < 3) {
         showToast('Username must be at least 3 characters.');
         return;
     }
-    // Only allow English letters, digits, spaces, underscores, hyphens, and dots
-    if (/[^A-Za-z0-9 _\-.]/g.test(username)) {
-        showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.');
+    // Only allow English letters, digits, underscores, hyphens, and dots. No spaces.
+    if (/[^A-Za-z0-9_\-.]/g.test(username)) {
+        showToast('⚠️ Username can only contain English letters, numbers, underscores, hyphens, and dots.');
         return;
     }
     if (containsProfanity(username)) {
@@ -6588,6 +6599,7 @@ function showSettingsPage(tab) {
         _advHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
+            ((currentUser && currentUser.usernameFreeRename === true) ? '<div style="color:var(--accent);font-size:0.8rem;margin-bottom:10px;">You have one free username change. It skips the 24 hour wait once.</div>' : '') +
             '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
             '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
             '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
@@ -9434,7 +9446,8 @@ window.submitUsername = async function() {
     if (!name) { showToast('Please enter a username!'); return; }
     if (name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username must be 20 characters or less'); return; }
-    if (/[^A-Za-z0-9 _\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.'); return; }
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { showToast('⚠️ Usernames cannot contain spaces. Try ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.'); return; }
+    if (/[^A-Za-z0-9_\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, underscores, hyphens, and dots.'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
 
     // INITIAL SIGNUP (usernameInput exists = signup modal)
@@ -9916,6 +9929,7 @@ window.setDisplayBadge = function(badgeId) {
 if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) {
     // Read from input if no name passed
     if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
+    if (name && /[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { showToast('⚠️ Usernames cannot contain spaces. Try ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.'); return; }
     // Strip non-ASCII (prevent Unicode/homoglyph bypass)
     if (name) name = name.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
     if (!name || name.length < 3) { showToast('Username must be at least 3 characters'); return; }

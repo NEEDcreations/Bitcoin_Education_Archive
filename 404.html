@@ -1071,14 +1071,11 @@
     body.fab-tools-open #aiToolsBtn[data-em-hidden],
     body.fab-tools-open #dashboardFloatBtn[data-em-hidden],
     body.fab-tools-open #lbFloatBtn[data-em-hidden],
-    body:has(#chatOverlayBtn[style*="display:none"]) #fabExpandBtn,
-    body:has(#chatOverlayBtn[style*="display: none"]) #fabExpandBtn,
-    body:has(#chatOverlayBtn[style*="display:none"]) #aiToolsBtn,
-    body:has(#chatOverlayBtn[style*="display: none"]) #aiToolsBtn,
-    body:has(#chatOverlayBtn[style*="display:none"]) #dashboardFloatBtn,
-    body:has(#chatOverlayBtn[style*="display: none"]) #dashboardFloatBtn,
-    body:has(#chatOverlayBtn[style*="display:none"]) #lbFloatBtn,
-    body:has(#chatOverlayBtn[style*="display: none"]) #lbFloatBtn { display:none !important; }
+    body.fab-tools-unavailable #fabExpandBtn,
+    body.chat-fab-hidden #fabExpandBtn,
+    body.chat-fab-hidden #aiToolsBtn,
+    body.chat-fab-hidden #dashboardFloatBtn,
+    body.chat-fab-hidden #lbFloatBtn { display:none !important; }
     .whats-new-dot { width:8px; height:8px; border-radius:50%; background:#f7931a; display:inline-block; }
     .whats-new-dot[hidden] { display:none !important; }
     #bnavSettings .whats-new-dot { position:absolute; top:6px; right:18%; }
@@ -1685,9 +1682,9 @@
                                 <button onclick="go('bitcoin-beats')" class="apps-grid-btn"><span class="app-title">🎵 Bitcoin Beats</span><span class="app-desc">Community music player — Bitcoin-themed tracks &amp; beats</span></button>
                                 <button onclick="go('timechain-tv')" class="apps-grid-btn"><span class="app-title">📺 Timechain TV</span><span class="app-desc">21 channels of Bitcoin video — free-to-air, always on</span></button>
                                 <button onclick="showProofOfWalk()" class="apps-grid-btn"><span class="app-title">👟 Proof of Walk</span><span class="app-desc">Earn XP for real-world steps — connect Strava to stack sats</span></button>
-                                <button onclick="toggleAITools()" class="apps-grid-btn"><span class="app-title">🤖 AI Tools</span><span class="app-desc">Bitcoin AI helpers and tools</span></button>
-                                <button onclick="toggleDashboard()" class="apps-grid-btn"><span class="app-title">📊 Metrics</span><span class="app-desc">Live Bitcoin dashboard and stats</span></button>
-                                <button onclick="toggleLeaderboard()" class="apps-grid-btn"><span class="app-title">🏆 Leaderboard</span><span class="app-desc">Top players, XP and rankings</span></button>
+                                <button onclick="toggleAITools()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">🤖 AI Tools</span><span class="app-desc">Bitcoin AI helpers and tools</span></button>
+                                <button onclick="toggleDashboard()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">📊 Metrics</span><span class="app-desc">Live Bitcoin dashboard and stats</span></button>
+                                <button onclick="toggleLeaderboard()" data-app-modes="beginner intermediate advanced" class="apps-grid-btn"><span class="app-title">🏆 Leaderboard</span><span class="app-desc">Top players, XP and rankings</span></button>
                             </div>
                         </div>
 
@@ -1865,28 +1862,53 @@
     <button id="fabMinimizeBtn" type="button" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
     <button id="fabExpandBtn" type="button" onclick="toggleFabMinimize()" title="More tools" aria-label="More tools" aria-expanded="false" aria-controls="aiToolsBtn dashboardFloatBtn lbFloatBtn">⋯</button>
     <button id="aiToolsBtn"     class="fab-btn" onclick="if(typeof toggleAITools==='function')toggleAITools();else showToast('AI Tools loading...')" title="AI Tools" aria-label="Open AI Tools">🤖</button>
-    <div    id="dashboardFloatBtn" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics" role="button" tabindex="0">📊</div>
+    <button id="dashboardFloatBtn" type="button" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics">📊</button>
     <button id="lbFloatBtn"     class="fab-btn" onclick="toggleLeaderboard()" title="Leaderboard" aria-label="Open Leaderboard">🏆</button>
     <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();}" title="Global Chat" aria-label="Open Chat">💬</button>
     <script>
     (function(){
-      try { localStorage.removeItem('fabMinimized'); } catch (e) {}
+      var TOOL_IDS = ['aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn'];
       function chatHidden() {
         var chat = document.getElementById('chatOverlayBtn');
         if (!chat) return true;
-        if (chat.style.display === 'none') return true;
         var cs = window.getComputedStyle(chat);
         return cs.display === 'none' || cs.visibility === 'hidden';
       }
+      // A tool is offered unless experience mode or an important inline hide removed it.
+      // The collapsed stylesheet rule is display:none !important with no inline style, so
+      // that does not count as unavailable.
+      function toolOffered(el) {
+        if (!el || el.hasAttribute('data-em-hidden')) return false;
+        if (el.style.getPropertyValue('display') === 'none' && el.style.getPropertyPriority('display') === 'important') return false;
+        return true;
+      }
+      function toolsAvailable() {
+        for (var i = 0; i < TOOL_IDS.length; i++) {
+          if (toolOffered(document.getElementById(TOOL_IDS[i]))) return true;
+        }
+        return false;
+      }
       function setExpanded(open) {
-        if (open && chatHidden()) open = false;
+        if (open && (chatHidden() || !toolsAvailable())) open = false;
         document.body.classList.toggle('fab-tools-open', !!open);
         var exp = document.getElementById('fabExpandBtn');
         if (exp) exp.setAttribute('aria-expanded', open ? 'true' : 'false');
       }
+      function syncChrome() {
+        var chatGone = chatHidden();
+        var offered = !chatGone && toolsAvailable();
+        document.body.classList.toggle('chat-fab-hidden', chatGone);
+        document.body.classList.toggle('fab-tools-unavailable', !offered);
+        if (!offered) setExpanded(false);
+      }
       window.toggleFabMinimize = function() {
+        if (chatHidden() || !toolsAvailable()) {
+          setExpanded(false);
+          return;
+        }
         setExpanded(!document.body.classList.contains('fab-tools-open'));
       };
+      window.syncFabToolsToggle = syncChrome;
       document.addEventListener('click', function(e) {
         var t = e.target;
         if (!t || !t.closest) return;
@@ -1903,19 +1925,24 @@
         var exp = document.getElementById('fabExpandBtn');
         if (exp) exp.focus();
       });
-      function watchChat() {
+      function watchChrome() {
         var chat = document.getElementById('chatOverlayBtn');
-        if (!chat || chat._fabWatch) return;
-        chat._fabWatch = true;
-        new MutationObserver(function() {
-          if (chatHidden()) setExpanded(false);
-        }).observe(chat, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+        if (chat && !chat._fabWatch) {
+          chat._fabWatch = true;
+          new MutationObserver(syncChrome).observe(chat, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+        }
+        TOOL_IDS.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (!el || el._fabToolWatch) return;
+          el._fabToolWatch = true;
+          new MutationObserver(syncChrome).observe(el, { attributes: true, attributeFilter: ['style', 'data-em-hidden'] });
+        });
       }
-      setExpanded(false);
-      watchChat();
+      syncChrome();
+      watchChrome();
       document.addEventListener('DOMContentLoaded', function() {
-        setExpanded(false);
-        watchChat();
+        syncChrome();
+        watchChrome();
       });
     })();
     </script>
@@ -2018,7 +2045,7 @@
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
-    <script src="ranking.js?v=20261026_v2365" defer></script>
+    <script src="ranking.js?v=20261026_v2367" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261026_v2369" defer fetchpriority="high"></script>
@@ -2038,11 +2065,11 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261026_v2363',
-            'satoshi-favor.js?v=20261024_v2352'
+            'global-chat.js?v=20261026_v2369',
+            'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261024_v2362',
+            'quests.js?v=20261026_v2368',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
             'scholar.js?v=20261023_v2330','beats.js?v=20261023_v2349',
@@ -2105,10 +2132,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2363'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2363'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2363'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2363'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2369'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2369'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2369'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2369'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261022_v2322'],
@@ -2116,9 +2143,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261023_v2324'],
             'learning-quests': ['learning-quests.js?v=20261023_v2324'],
-            'quests':        ['quests.js?v=20261024_v2362'],
-            'questhub':      ['quests.js?v=20261024_v2362'],
-            'app':           ['quests.js?v=20261024_v2362'],
+            'quests':        ['quests.js?v=20261026_v2368'],
+            'questhub':      ['quests.js?v=20261026_v2368'],
+            'app':           ['quests.js?v=20261026_v2368'],
             'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
             'tv':            ['timechain-tv.js?v=20261024_v2353']
         };

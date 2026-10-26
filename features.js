@@ -1063,15 +1063,6 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
                 .then(function(result) {
                 })
                 .catch(function() {});
-            // GG chat for significant hidden badge milestones
-            var _gcMajorHidden = ['trail_meadow', 'trail_mountain', 'trail_summit', 'lq_graduate'];
-            if (_gcMajorHidden.indexOf(badgeId) !== -1 && typeof window.nachoGlobalAnnounce === 'function') {
-                var _gcUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_gcUser) {
-                    var _gcBadgeEmoji = badgeId === 'trail_meadow' ? '🌿' : badgeId === 'trail_mountain' ? '⛰️' : badgeId === 'trail_summit' ? '🏔️' : '📖';
-                    window.nachoGlobalAnnounce('🏅 @' + _gcUser + ' just completed ' + (toastMsg || badgeId) + '! ' + _gcBadgeEmoji + '🎉');
-                }
-            }
         }
     }
 };
@@ -1101,6 +1092,7 @@ window.setFloatingElementsVisible = function(visible) {
         if (!visible) el.style.setProperty('display', 'none', 'important');
         else el.style.removeProperty('display');
     });
+    if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
 };
 
 // ========== CELEBRATION SYSTEM ==========

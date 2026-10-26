@@ -1489,13 +1489,7 @@ function showBadgeToast(badge) {
 
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-    // Announce major badge earns in GG chat
-    if (typeof window.nachoGlobalAnnounce === 'function') {
-        var _gcBadgeUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-        if (_gcBadgeUser) {
-            window.nachoGlobalAnnounce('🏅 @' + _gcBadgeUser + ' just earned the ' + badge.emoji + ' ' + badge.name + ' badge! 🎉');
-        }
-    }
+    // GGs posts for badge earns are written by the server, grouped per player.
 }
 
 function copyBadgeLink(emoji, name) {
@@ -10286,6 +10280,63 @@ window.showCreateListing = function() {
     document.body.appendChild(div.firstChild);
 };
 
+/* stale-username-retry */
+function isStaleUsernameDenial(err) {
+    var code = String((err && err.code) || '');
+    return code === 'permission-denied' || code.indexOf('permission-denied') !== -1;
+}
+function readServerUsername() {
+    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        return Promise.reject(new Error('no profile'));
+    }
+    return Promise.resolve().then(function() {
+        return db.collection('users').doc(auth.currentUser.uid).get({ source: 'server' });
+    }).then(function(doc) {
+        var data = doc && doc.exists ? (doc.data() || {}) : {};
+        return typeof data.username === 'string' ? data.username : '';
+    });
+}
+function rememberServerUsername(name) {
+    if (!name) return;
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = name;
+    try { localStorage.setItem('btc_username', name); } catch (e) {}
+    try {
+        var cached = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (cached && cached.data) {
+            cached.data.username = name;
+            localStorage.setItem('btc_profile_cache', JSON.stringify(cached));
+        }
+    } catch (e2) {}
+}
+function sendWithFreshUsername(write, sentName, onSuccess, onFail) {
+    function attempt(name, retried) {
+        return Promise.resolve().then(function() {
+            return write(name);
+        }).then(function(result) {
+            if (onSuccess) onSuccess(result);
+            return result;
+        }).catch(function(err) {
+            if (retried || !isStaleUsernameDenial(err)) {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            }
+            return readServerUsername().then(function(fresh) {
+                if (!fresh || fresh === name) {
+                    if (onFail) onFail(err);
+                    return Promise.reject(err);
+                }
+                rememberServerUsername(fresh);
+                return attempt(fresh, true);
+            }, function() {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            });
+        });
+    }
+    return attempt(sentName, false);
+}
+/* /stale-username-retry */
+
 // ---- Submit Listing to Firestore ----
 var _lastMktListingTime = 0;
 window.submitListing = function() {
@@ -10370,7 +10421,10 @@ window.submitListing = function() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         };
 
-        db.collection('marketplace').add(listing).then(function() {
+        sendWithFreshUsername(function(name) {
+            listing.sellerName = name;
+            return db.collection('marketplace').add(listing);
+        }, sellerName, function() {
             window._mktUploadedImage = null;
             var overlay = document.getElementById('createListingOverlay');
             if (overlay) overlay.remove();
@@ -10381,7 +10435,7 @@ window.submitListing = function() {
             if (auth && auth.currentUser) refreshMarketListingBadges(auth.currentUser.uid);
             renderMarketplace();
             finishSubmit();
-        }).catch(function(e) {
+        }, function(e) {
             finishSubmit(e);
         });
     }
@@ -13718,15 +13772,6 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
                 .then(function(result) {
                 })
                 .catch(function() {});
-            // GG chat for significant hidden badge milestones
-            var _gcMajorHidden = ['trail_meadow', 'trail_mountain', 'trail_summit', 'lq_graduate'];
-            if (_gcMajorHidden.indexOf(badgeId) !== -1 && typeof window.nachoGlobalAnnounce === 'function') {
-                var _gcUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_gcUser) {
-                    var _gcBadgeEmoji = badgeId === 'trail_meadow' ? '🌿' : badgeId === 'trail_mountain' ? '⛰️' : badgeId === 'trail_summit' ? '🏔️' : '📖';
-                    window.nachoGlobalAnnounce('🏅 @' + _gcUser + ' just completed ' + (toastMsg || badgeId) + '! ' + _gcBadgeEmoji + '🎉');
-                }
-            }
         }
     }
 };
@@ -13756,6 +13801,7 @@ window.setFloatingElementsVisible = function(visible) {
         if (!visible) el.style.setProperty('display', 'none', 'important');
         else el.style.removeProperty('display');
     });
+    if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
 };
 
 // ========== CELEBRATION SYSTEM ==========
@@ -26403,8 +26449,8 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
     function applyMode(mode) {
         _restoreAll();
-        if (!mode || mode === 'advanced') return;
-        applyDynamic(mode);
+        if (mode && mode !== 'advanced') applyDynamic(mode);
+        if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
     }
 
     function run() {
@@ -26581,7 +26627,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             intermediate: []
         };
 
-        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
+        // Desktop Explore Apps matches mobile #appsMenu. Beginner hides Proof of
+        // Play, Pleb Talk, Lightning Mart, IRL Sync, Bitcoin Beats, and Proof of
+        // Walk. AI Tools, Metrics, and Leaderboard stay for beginner, intermediate,
+        // and advanced (data-app-modes on those three cards).
         var APPS_HIDE_ONCLICK = {
             beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
             intermediate: []
@@ -26610,8 +26659,14 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         var appsMenu = document.getElementById('homeAppsMenu');
         if (appsMenu) {
             appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                var modes = btn.getAttribute('data-app-modes');
+                var shouldHide;
+                if (modes) {
+                    shouldHide = modes.split(/\s+/).indexOf(mode) === -1;
+                } else {
+                    var oc = btn.getAttribute('onclick') || '';
+                    shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                }
                 if (shouldHide) {
                     btn.setAttribute('data-em-desk-hidden', mode);
                     btn.style.display = 'none';
