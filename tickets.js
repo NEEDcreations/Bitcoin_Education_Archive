@@ -105,9 +105,46 @@ async function attachReferral(uid) {
     }
 }
 
+// A held invite is rechecked from the friend's own request. This does not
+// block sign-in, and a failure is ignored. The server still limits IPQS to
+// one lookup a day.
+var REFERRAL_RECHECK_MS = 24 * 60 * 60 * 1000;
+
+function shouldVerifyReferral(user, lastMs, nowMs) {
+    if (!user || user.anonymous) return false;
+    if (!user.referredBy || user.referralVerified === true) return false;
+    var last = Number(lastMs) || 0;
+    var now = Number(nowMs) || 0;
+    if (last && now - last < REFERRAL_RECHECK_MS) return false;
+    return true;
+}
+
+function maybeVerifyReferral() {
+    try {
+        if (typeof currentUser === 'undefined' || !currentUser) return;
+        if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        var uid = String(auth.currentUser.uid || '');
+        if (!uid) return;
+        var key = 'btc_referral_recheck_' + uid;
+        var last = 0;
+        try { last = Number(localStorage.getItem(key)) || 0; } catch (e) { last = 0; }
+        var now = Date.now();
+        if (!shouldVerifyReferral({
+            referredBy: currentUser.referredBy,
+            referralVerified: currentUser.referralVerified,
+            anonymous: false,
+        }, last, now)) return;
+        try { localStorage.setItem(key, String(now)); } catch (e) {}
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        firebase.functions().httpsCallable('verifyReferral')({}).then(function() {}).catch(function() {});
+    } catch (e) {}
+}
+
 // Referral records and ticket awards are server-side (registerReferral,
 // the user-doc trigger, and the hourly scan). The browser must not write them.
-async function checkReferralQualifications() {}
+async function checkReferralQualifications() {
+    maybeVerifyReferral();
+}
 
 
 async function ensureReferralCode() {}

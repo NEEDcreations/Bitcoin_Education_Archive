@@ -15,6 +15,7 @@ const ipqsApiKey = defineSecret('IPQS_API_KEY');
 const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const ipReputation = require('./ipReputation');
 const faucetGuard = require('./faucetGuard');
+const ipHmac = require('./ipHmac');
 
 // Resolved on first use so unit tests can import helpers before initializeApp().
 function firestoreDb() {
@@ -700,14 +701,21 @@ exports.hashForFavor = onCall({
   }
 
   const favorHeaders = request.rawRequest && request.rawRequest.headers ? request.rawRequest.headers : {};
+  const favorIp = faucetGuard.clientIpFromRequest(request.rawRequest) || '';
+  let favorIpHmac = '';
+  try {
+    favorIpHmac = ipHmac.hmacIp(favorIp);
+  } catch (hmacErr) {
+    favorIpHmac = '';
+  }
   const favorCycleId = String(stateData.currentCycleId || 'window');
-  const favorCacheId = favorCycleId.replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 40) + '_' + String(uid).replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 120);
-  const favorCacheRef = db.collection('favor_ip_cache').doc(favorCacheId);
+  const favorCacheId = favorCycleId.replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 40) + '_' + String(uid).replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 80) + '_' + String(favorIpHmac || '').slice(0, 32);
+  const favorCacheRef = favorIpHmac ? db.collection('favor_ip_cache').doc(favorCacheId) : null;
   let rewardGate = { action: 'fallback', message: '', reason: 'lookup' };
   try {
-    const cachedGate = await favorCacheRef.get();
-    const cachedData = cachedGate.exists ? (cachedGate.data() || {}) : null;
-    if (ipReputation.shouldReuseFavorCheck(cachedData, favorCycleId, now)) {
+    const cachedGate = favorCacheRef ? await favorCacheRef.get() : null;
+    const cachedData = cachedGate && cachedGate.exists ? (cachedGate.data() || {}) : null;
+    if (favorCacheRef && ipReputation.shouldReuseFavorCheck(cachedData, favorCycleId, now, favorIpHmac)) {
       rewardGate = {
         action: cachedData.action,
         message: cachedData.message || '',
@@ -717,7 +725,7 @@ exports.hashForFavor = onCall({
     } else {
       rewardGate = await ipReputation.assessReward({
         db: db,
-        ip: faucetGuard.clientIpFromRequest(request.rawRequest) || '',
+        ip: favorIp,
         uid: uid,
         userAgent: favorHeaders['user-agent'] || '',
         language: favorHeaders['accept-language'] || '',
@@ -726,10 +734,11 @@ exports.hashForFavor = onCall({
       });
       const favorVerdict = rewardGate.ipVerdict;
       const favorReal = favorVerdict && (favorVerdict.action === 'allow' || favorVerdict.action === 'hold' || favorVerdict.action === 'deny');
-      if (favorReal) {
+      if (favorReal && favorCacheRef) {
         await favorCacheRef.set({
           uid: uid,
           cycleId: favorCycleId,
+          ipHmac: favorIpHmac,
           action: favorVerdict.action,
           reason: String(favorVerdict.reason || '').slice(0, 40),
           message: String(rewardGate.message || '').slice(0, 240),

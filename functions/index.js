@@ -1324,7 +1324,10 @@ exports.nachoFeedbackReport = onSchedule({
 // Referral payouts are server-side. The old client path looked up `referredUid`
 // and paid 50 tickets from the referrer's browser; rules blocked that write, so
 // nobody was ever paid. This callable now only pays the signed-in referee, once.
-exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, ipqsApiKey, deletionHmacSecret] }).https.onCall(async (data, context) => {
+exports.verifyReferral = functionsV1.runWith({
+    secrets: [referralIpSecret, ipqsApiKey, deletionHmacSecret],
+    enforceAppCheck: true,
+}).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const verifyHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
     const result = await referralService.payIfQualified(context.auth.uid, {
@@ -1831,10 +1834,17 @@ exports.claimSats = functionsV1.runWith({
     });
     if (userPre.referredBy && rewardGate && rewardGate.ipVerdict) {
         try {
-            await referralService.payIfQualified(uid, {
+            const noted = await referralService.payIfQualified(uid, {
                 applyObservation: true,
                 serverVerdict: rewardGate.ipVerdict,
             });
+            if (noted && noted.paid && noted.referrerUid) {
+                await sendUserPush(noted.referrerUid, 'referrals', {
+                    title: 'Referral reward',
+                    body: 'Someone you invited reached Maxi. 50 Orange Tickets were added.',
+                    url: 'https://bitcoineducation.quest/#questhub'
+                });
+            }
         } catch (referralErr) {
             console.error('[referral] claim observation', referralErr && referralErr.message ? referralErr.message : referralErr);
         }

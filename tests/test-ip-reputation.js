@@ -581,6 +581,12 @@ test('claim and referral paths call the gate and keep new collections server-onl
     assert.ok(favor.includes('assessReward'));
     assert.ok(favor.includes('favor_ip_cache'));
     assert.ok(favor.includes('shouldReuseFavorCheck'));
+    assert.ok(favor.includes('ipHmac.hmacIp'));
+    assert.ok(favor.includes('ipHmac: favorIpHmac'));
+    const cacheSet = favor.slice(favor.indexOf('favorCacheRef.set'), favor.indexOf('expireAt:', favor.indexOf('favorCacheRef.set')));
+    assert.ok(cacheSet.includes('ipHmac: favorIpHmac'));
+    assert.strictEqual(cacheSet.includes('ip: favorIp'), false);
+    assert.strictEqual(cacheSet.includes('favorIp,'), false);
     const onboarding = read('functions/src/onboardingApi.js');
     const setAt = onboarding.indexOf('setUsername: functionsV1.runWith({');
     assert.ok(setAt !== -1);
@@ -934,41 +940,60 @@ test('a missing hmac secret cannot build a network doc id', function() {
     assert.strictEqual(rep.legacyNetworkIds('203.0.113.10').ipId, '203_0_113_10');
 });
 
-test('a favor verdict is reused only for the same window', function() {
+test('a favor verdict is reused only for the same window and the same connection', function() {
     const now = 1_700_000_000_000;
+    const mac = 'a'.repeat(64);
+    const other = 'b'.repeat(64);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-1',
+        ipHmac: mac,
+        action: 'hold',
+        expireAt: now + 1000,
+    }, 'cycle-1', now, mac), true);
     assert.strictEqual(rep.shouldReuseFavorCheck({
         cycleId: 'cycle-1',
         action: 'hold',
         expireAt: now + 1000,
-    }, 'cycle-1', now), true);
+    }, 'cycle-1', now, mac), false);
     assert.strictEqual(rep.shouldReuseFavorCheck({
         cycleId: 'cycle-1',
-        action: 'hold',
-        expireAt: now - 1,
-    }, 'cycle-1', now), false);
-    assert.strictEqual(rep.shouldReuseFavorCheck({
-        cycleId: 'cycle-2',
+        ipHmac: other,
         action: 'allow',
         expireAt: now + 1000,
-    }, 'cycle-1', now), false);
+    }, 'cycle-1', now, mac), false);
     assert.strictEqual(rep.shouldReuseFavorCheck({
         cycleId: 'cycle-1',
+        ipHmac: mac,
+        action: 'hold',
+        expireAt: now - 1,
+    }, 'cycle-1', now, mac), false);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-2',
+        ipHmac: mac,
+        action: 'allow',
+        expireAt: now + 1000,
+    }, 'cycle-1', now, mac), false);
+    assert.strictEqual(rep.shouldReuseFavorCheck({
+        cycleId: 'cycle-1',
+        ipHmac: mac,
         action: 'hold',
         reason: 'user-quota',
         expireAt: now + 1000,
-    }, 'cycle-1', now), false);
+    }, 'cycle-1', now, mac), false);
     assert.strictEqual(rep.shouldReuseFavorCheck({
         cycleId: 'cycle-1',
+        ipHmac: mac,
         action: 'fallback',
         reason: 'credits',
         expireAt: now + 1000,
-    }, 'cycle-1', now), false);
+    }, 'cycle-1', now, mac), false);
     assert.strictEqual(rep.shouldReuseFavorCheck({
         cycleId: 'cycle-1',
+        ipHmac: mac,
         action: 'hold',
         reason: 'vpn',
         expireAt: now + 1000,
-    }, 'cycle-1', now), true);
+    }, 'cycle-1', now, mac), true);
 });
 
 test('referral holds use invite wording', async function() {

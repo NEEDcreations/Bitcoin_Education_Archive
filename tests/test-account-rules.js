@@ -32,7 +32,7 @@ assert.ok(index.includes('exports.syncEmailChange'));
 assert.ok(index.includes('exports.confirmAccountLink'));
 // Five callables from the account/PvP surface, plus registerReferral and
 // approveHouseholdDevice from the IP reputation gate.
-assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 7);
+assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
 
 const emailSrc = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'emailChange.js'), 'utf8');
 assert.ok(emailSrc.includes('enforceAppCheck: true'));

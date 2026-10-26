@@ -394,8 +394,9 @@ function slotCovers(dest, source) {
     return true;
 }
 
-function shouldReuseFavorCheck(data, cycleId, now) {
-    if (!data || String(data.cycleId || '') !== String(cycleId || '')) return false;
+function shouldReuseFavorCheck(data, cycleId, now, ipHmac) {
+    if (!ipHmac || !data || String(data.ipHmac || '') !== String(ipHmac)) return false;
+    if (String(data.cycleId || '') !== String(cycleId || '')) return false;
     const exp = expireMillis(data.expireAt);
     if (exp && exp <= now) return false;
     const reason = String(data.reason || '');

@@ -202,7 +202,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Sats claims and Satoshi\'s Favor are held on a VPN, proxy, or Tor exit. An invite reward waits and pays once that friend is on a regular connection, and the rest of the app keeps working.'));
+    assert.ok(notes.includes('Latest: Sats claims and Satoshi\'s Favor pause on a VPN, proxy, or Tor connection, and an invite from a friend on one waits and pays once they\'re on a regular connection.'));
     assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(notes.includes('You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.'));

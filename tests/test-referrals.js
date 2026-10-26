@@ -568,6 +568,18 @@ test('a connection hold expires unpaid after 30 days', () => {
     assert.strictEqual(decision.action, 'expire');
     assert.strictEqual(decision.reason, 'connection-hold-expired');
     assert.notStrictEqual(decision.action, 'pay');
+    const lateClean = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+        serverVerdict: { action: 'allow', reason: 'clean' },
+    }));
+    assert.strictEqual(lateClean.action, 'expire');
+    assert.notStrictEqual(lateClean.action, 'pay');
+    const lateDeny = referrals.assessReferralPayout(payoutInput(referred, referrer, heldReferral(since), {
+        signal: holdSignal(since),
+        serverVerdict: { action: 'deny', reason: 'botnet' },
+    }));
+    assert.strictEqual(lateDeny.action, 'reject');
+    assert.strictEqual(lateDeny.reason, 'ipqs-deny');
 });
 
 test('zero credits and a forged client flag do not clear a hold', () => {
@@ -627,16 +639,45 @@ test('signup keeps a vpn invite pending-for-pay and flags a deny', () => {
     assert.strictEqual(service.includes('clientClear'), false);
     assert.strictEqual(service.includes('data.clearHold'), false);
     const verify = indexJs.slice(indexJs.indexOf('exports.verifyReferral'), indexJs.indexOf('exports.registerReferral'));
+    assert.ok(verify.includes('enforceAppCheck: true'));
     assert.ok(verify.includes('requestIp:'));
     assert.strictEqual(verify.includes('data.ip'), false);
     assert.strictEqual(verify.includes('clearHold'), false);
     const claim = indexJs.slice(indexJs.indexOf('exports.claimSats'), indexJs.indexOf('exports.confirmTipSent') === -1 ? indexJs.indexOf('const _lnDomainRaw') : indexJs.indexOf('const _lnDomainRaw'));
     assert.ok(claim.includes('applyObservation: true'));
     assert.ok(claim.includes('serverVerdict: rewardGate.ipVerdict'));
+    assert.ok(claim.includes("sendUserPush(noted.referrerUid, 'referrals'"));
+    assert.ok(claim.includes('Someone you invited reached Maxi. 50 Orange Tickets were added.'));
+    assert.strictEqual(service.includes('if (lookupIp && !liveIpVerdict(freshGate)) checkedAt = Date.now()'), false);
+    assert.ok(service.includes('if (live) checkedAt = Number(nextHold.checkedAt) || Date.now()'));
     const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('expires unpaid after 30 days'));
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
     assert.ok(terms.includes('pays automatically once a later check from that friend is a regular connection'));
+});
+
+test('opening the app rechecks an unpaid invite and does not gate sign-in', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
+    const start = src.indexOf('var REFERRAL_RECHECK_MS');
+    const end = src.indexOf('function maybeVerifyReferral');
+    const shouldVerifyReferral = new Function(src.slice(start, end) + '\nreturn shouldVerifyReferral;')();
+    const day = 24 * 60 * 60 * 1000;
+    const now = 1_700_000_000_000;
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc', referralVerified: false }, 0, now), true);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, 0, now), true);
+    assert.strictEqual(shouldVerifyReferral({}, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: '', referralVerified: false }, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc', referralVerified: true }, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc', anonymous: true }, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral(null, 0, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, now - day + 1000, now), false);
+    assert.strictEqual(shouldVerifyReferral({ referredBy: 'abc' }, now - day - 1, now), true);
+    assert.ok(src.includes("httpsCallable('verifyReferral')"));
+    assert.ok(src.includes('.then(function() {}).catch(function() {})'));
+    assert.ok(src.includes('checkReferralQualifications().catch(function() {})'));
+    const maybe = src.slice(src.indexOf('function maybeVerifyReferral'), src.indexOf('async function checkReferralQualifications'));
+    assert.strictEqual(maybe.includes('await '), false);
+    assert.ok(maybe.includes("localStorage.setItem(key, String(now))"));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

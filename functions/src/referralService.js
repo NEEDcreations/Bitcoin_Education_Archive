@@ -699,8 +699,9 @@ async function payIfQualified(referredUid, opts) {
         }
         if (decision.action === 'hold') {
             const nextHold = decision.ipqsHold || {};
-            let checkedAt = Number(nextHold.checkedAt) || Date.now();
-            if (lookupIp && !liveIpVerdict(freshGate)) checkedAt = Date.now();
+            const live = liveIpVerdict(freshGate);
+            let checkedAt = Number(nextHold.checkedAt) || 0;
+            if (live) checkedAt = Number(nextHold.checkedAt) || Date.now();
             t.update(refRef, Object.assign({
                 status: 'held_connection',
                 ticketsAwarded: false,

@@ -332,7 +332,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     const syncRule = rules.slice(rules.indexOf('match /satoshiFavor/factionSyncs'));
     assert.ok(syncRule.indexOf('allow write: if false;') > 0);
 
-    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 7);
+    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
     assert.ok(chooseSrc.indexOf('enforceAppCheck: true') > 0);
     assert.ok(index.indexOf('bindChooseFaction') > 0);
     assert.ok(index.indexOf('exports.chooseFaction') > 0);
@@ -379,7 +379,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.strictEqual(notes.indexOf("Latest: Satoshi's Favor now explains"), -1);
-    assert.ok(notes.indexOf("Latest: Sats claims and Satoshi's Favor are held on a VPN, proxy, or Tor exit. An invite reward waits and pays once that friend is on a regular connection, and the rest of the app keeps working.") > 0);
+    assert.ok(notes.indexOf("Latest: Sats claims and Satoshi's Favor pause on a VPN, proxy, or Tor connection, and an invite from a friend on one waits and pays once they're on a regular connection.") > 0);
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
 }));
 

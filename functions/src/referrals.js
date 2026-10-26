@@ -284,6 +284,10 @@ function settleConnection(input) {
     if (verdict && verdict.action === 'deny') {
         return { effect: 'deny', reason: connectionHoldReason(verdict.reason) || String(verdict.reason || 'ipqs-deny') };
     }
+    // A hold older than 30 days expires before a clean check can pay it.
+    if (hold && hold.since && now - hold.since >= CONNECTION_HOLD_MS) {
+        return { effect: 'expire', ipqsHold: hold };
+    }
     if (verdict && verdict.action === 'allow') {
         if (!watching && !hold) return { effect: 'none' };
         return { effect: 'clear' };

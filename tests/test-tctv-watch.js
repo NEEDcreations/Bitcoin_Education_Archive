@@ -779,7 +779,7 @@ test('playback with no server clock asks the server to start it and does not inv
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
     const notes = read('patch-notes.html');
-    const latest = 'Latest: Sats claims and Satoshi\'s Favor are held on a VPN, proxy, or Tor exit. An invite reward waits and pays once that friend is on a regular connection, and the rest of the app keeps working.';
+    const latest = 'Latest: Sats claims and Satoshi\'s Favor pause on a VPN, proxy, or Tor connection, and an invite from a friend on one waits and pays once they\'re on a regular connection.';
     const topicLinks = 'Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.';
     const faction = 'Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.';
     const share = 'The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.';
