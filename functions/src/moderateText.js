@@ -382,7 +382,9 @@ function collapseSpacedLetters(text) {
 // Blank fillers and emoji between letters are removed before the
 // unbroken-word snapshot, which is taken after leet and before any join.
 function foldBase(text) {
-    let s = String(text || '').normalize('NFKC').normalize('NFKD');
+    const raw = String(text || '');
+    if (/^[\u0000-\u007f]*$/.test(raw)) return raw.toLowerCase();
+    let s = raw.normalize('NFKC').normalize('NFKD');
     s = s.replace(/[\p{M}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     s = s.replace(/\p{Cf}/gu, '');
@@ -433,7 +435,9 @@ function normalizeStrictText(text) {
 
 // Same fold as profanity, without leet, so "0.01" and "bc1" survive.
 function scamFold(text) {
-    let s = String(text || '').normalize('NFKC').normalize('NFKD');
+    const raw = String(text || '');
+    if (/^[\u0000-\u007f]*$/.test(raw)) return raw.toLowerCase();
+    let s = raw.normalize('NFKC').normalize('NFKD');
     s = s.replace(/[\p{M}\p{Cf}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, '');
     s = s.normalize('NFC');
     return foldLookalikes(s.toLowerCase());
@@ -710,15 +714,25 @@ function nameTokenSet(displayName) {
     return new Set(tokens);
 }
 
+// pr and legacy diverge on separator characters. at diverges only when @ is present.
+// A line with neither is the same text in every form, so one pass is enough.
+const MODE_SPLIT = /[-_.,:;*~|/\\+\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]/;
+function modesFor(base) {
+    const hasAt = /[\uFF20@]/.test(base);
+    if (!hasAt && !MODE_SPLIT.test(base)) return ['pr'];
+    if (!hasAt) return ['pr', 'legacy'];
+    return ['pr', 'legacy', 'at'];
+}
+
 function moderateStrict(raw, displayName) {
     const sanitized = sanitizeOutgoing(raw).trim();
     if (!sanitized) return { clean: true, reason: '' };
     const nameTokens = nameTokenSet(displayName);
     const bases = foldedBases(sanitized);
-    const modes = ['pr', 'legacy', 'at'];
     for (let b = 0; b < bases.length; b++) {
         const base = bases[b];
         if (fragmentSlur(base, nameTokens)) return { clean: false, reason: REASON_PROFANITY };
+        const modes = modesFor(base);
         for (let i = 0; i < modes.length; i++) {
             if (formHits(prepareFromBase(base, modes[i]), nameTokens)) return { clean: false, reason: REASON_PROFANITY };
         }
