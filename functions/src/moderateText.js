@@ -214,7 +214,7 @@ function collapseSeparators(text) {
     let prev = '';
     while (s !== prev) {
         prev = s;
-        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027]+(?=\p{L})/gu, '$1');
+        s = s.replace(/(\p{L})[-_.\u00B7\u2022\u2027\u2010-\u2015\u2212\u2219\u22C5\u30FB\uFF65]+(?=\p{L})/gu, '$1');
     }
     return s;
 }

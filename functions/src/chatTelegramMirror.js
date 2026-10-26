@@ -126,11 +126,24 @@ function stripBidi(text) {
     return String(text || '').replace(/[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '');
 }
 
+// Invisible characters can split an email, IP or uid so the contact and uid
+// passes miss it. Drop them first, then run those passes.
+function stripInvisible(text) {
+    return stripBidi(text).replace(/[\u00AD\u034F\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200D\u2060-\u2064\u3164\uFEFF\uFFA0]|[\u{E0000}-\u{E0FFF}]/gu, '');
+}
+
+// One chat message is one Telegram line. A line break inside a message would
+// start a new line that looks like another sender, such as [GGs] 🦌 Nacho.
+function flattenLines(text) {
+    return String(text || '').replace(/[\r\n\u000B\u000C\u0085\u2028\u2029]+/g, ' ');
+}
+
 function visibleBody(data, note) {
     const src = data || {};
     let text = src.caption && (src.isGif === true || src.imageUrl || src.gifUrl)
         ? toTelegramText(src.caption)
         : toTelegramText(src.text || '');
+    text = stripInvisible(text);
     text = neutralizePings(stripContacts(stripUid(stripUid(text, src.uid), src.mentionUid)));
     // A short label spliced into a word is not part of the word: fu[x](url)ck
     // is the same word as the letters around it. Other links keep their label.
@@ -184,7 +197,7 @@ function clipUnits(text, maxUnits) {
 function mirrorName(data) {
     const src = data || {};
     if (src.uid === 'nacho-bot') return '🦌 Nacho';
-    let name = stripBidi(stripContacts(neutralizePings(toTelegramText(src.name || src.username || ''))));
+    let name = stripContacts(neutralizePings(flattenLines(stripInvisible(toTelegramText(src.name || src.username || '')))));
     name = name.replace(/[<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
     if (!name || (src.uid && name === String(src.uid))) return 'Someone';
     if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(name)) return 'Someone';
@@ -308,10 +321,13 @@ function decideMirror(input) {
     const note = attachmentNote(data);
     const body = visibleBody(data, note);
     if (!body) return { forward: false, reason: 'empty' };
-    const contentReason = contentSkipReason(body);
+    // Filtered with its line breaks (fu\nck is one word) and without them
+    // (send 0.01 btc\nto bc1q is one phrase), then sent as one line.
+    const flat = collapseSpace(flattenLines(body));
+    const contentReason = contentSkipReason(body) || contentSkipReason(flat);
     if (contentReason) return { forward: false, reason: contentReason };
     const name = publicMirrorName(data);
-    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + body;
+    const line = '[' + SOURCE_TAG[collection] + '] ' + name + ': ' + flat;
     return { forward: true, reason: '', line: escapeHtml(line), name: name };
 }
 

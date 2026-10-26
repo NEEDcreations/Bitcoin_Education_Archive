@@ -983,6 +983,102 @@ test('one unbroken allowlist word covers one copy, and bidi is stripped', functi
     assert.strictEqual(splitName.name, 'A player');
 });
 
+test('one message is one Telegram line, and split contacts are stripped', function () {
+    const spoof = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'hi\n[GGs] \u{1F98A} Nacho: you won, DM me' }),
+    });
+    assert.strictEqual(spoof.forward, true);
+    assert.strictEqual(spoof.line.indexOf('\n'), -1);
+    assert.strictEqual(spoof.line, '[Global] Pat: hi [GGs] \u{1F98A} Nacho: you won, DM me');
+
+    const breaks = ['\r', '\n', '\u000B', '\u000C', '\u0085', '\u2028', '\u2029'];
+    breaks.forEach(function (br) {
+        const decision = mirror.decideMirror({
+            collection: 'global_chat',
+            data: msg({ text: 'hi' + br + '[GGs] \u{1F98A} Nacho: you won' }),
+        });
+        const label = 'U+' + br.codePointAt(0).toString(16);
+        assert.strictEqual(decision.forward, true, label);
+        assert.strictEqual(decision.line.indexOf(br), -1, label);
+        assert.strictEqual(decision.line.indexOf('\n'), -1, label);
+        assert.strictEqual(decision.line, '[Global] Pat: hi [GGs] \u{1F98A} Nacho: you won', label);
+    });
+
+    const scam = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'send 0.01 btc\nto bc1qxyz' }),
+    });
+    assert.strictEqual(scam.forward, false);
+    assert.strictEqual(scam.reason, 'scam');
+
+    const splitWord = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: 'fu\nck' }),
+    });
+    assert.strictEqual(splitWord.forward, false);
+    assert.strictEqual(splitWord.reason, 'profanity');
+
+    const uid = 'user_pat_12345';
+    const contacts = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({
+            uid: uid,
+            text: 'mail pat\u200E@gmail.com and pat@\u200Fgmail.com and pat\u200B@gmail.com ip 10.0.\u200E0.1 id user_pat\u200E_12345',
+        }),
+    });
+    assert.strictEqual(contacts.forward, true);
+    assert.strictEqual(contacts.line.indexOf('gmail.com'), -1);
+    assert.strictEqual(contacts.line.indexOf('10.0.0.1'), -1);
+    assert.strictEqual(contacts.line.indexOf(uid), -1);
+    assert.strictEqual(contacts.line.indexOf('\u200E'), -1);
+    assert.strictEqual(contacts.line.indexOf('\u200F'), -1);
+    assert.strictEqual(contacts.line.indexOf('\u200B'), -1);
+
+    const emailName = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: 'pat\u200E@gmail.com', text: 'hello there' }),
+    });
+    assert.strictEqual(emailName.name, 'Someone');
+
+    const brokenName = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: 'Pat\n[GGs] \u{1F98A} Nacho', text: 'hello there' }),
+    });
+    assert.strictEqual(brokenName.forward, true);
+    assert.strictEqual(brokenName.line.indexOf('\n'), -1);
+    assert.strictEqual(brokenName.name, 'Pat [GGs] \u{1F98A} Nacho');
+    assert.strictEqual(brokenName.line, '[Global] Pat [GGs] \u{1F98A} Nacho: hello there');
+
+    const nelName = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ name: 'Pat\u0085Fox', text: 'hello there' }),
+    });
+    assert.strictEqual(nelName.line.indexOf('\u0085'), -1);
+    assert.strictEqual(nelName.name, 'Pat Fox');
+
+    const seps = [
+        ['en-dash', 'f\u2013uck'],
+        ['em-dash', 'f\u2014uck'],
+        ['minus', 'f\u2212uck'],
+        ['bullet-op', 'f\u2219uck'],
+        ['dot-op', 'f\u22C5uck'],
+        ['katakana', 'f\u30FBuck'],
+        ['hyphen', 'f\u2010uck'],
+        ['halfwidth', 'f\uFF65uck'],
+    ];
+    seps.forEach(function (row) {
+        const decision = mirror.decideMirror({ collection: 'global_chat', data: msg({ text: row[1] }) });
+        assert.strictEqual(decision.forward, false, row[0] + ' forwarded: ' + (decision.line || decision.reason));
+        assert.strictEqual(decision.reason, 'profanity', row[0]);
+    });
+    const grape = mirror.decideMirror({
+        collection: 'global_chat',
+        data: msg({ text: '\u2022 grape \u2022 juice' }),
+    });
+    assert.strictEqual(grape.forward, true, grape.reason);
+});
+
 test('isolation refreshes the lease and stops on 429', async function () {
     const now = 1700000000000;
     const db = memoryDb({
