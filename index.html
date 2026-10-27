@@ -1052,7 +1052,22 @@
     .mobile-bar h2 { letter-spacing:0; font-size:clamp(11px, 3.1vw, 0.85rem); line-height:1.05; }
     .mobile-bar h2 span { display:block; }
     @media (max-width: 380px) { .mobile-bar h2 { font-size:clamp(10px, 3.2vw, 0.72rem); letter-spacing:0; } }
-    #homeWalletStrip { display:none; grid-template-columns:1fr 1fr 1.15fr; gap:8px; margin:0 0 12px; text-align:left; }
+    #homeWalletStrip { display:none; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr); gap:8px; margin:0 0 12px; text-align:left; }
+    #homeInvitesTile { min-width:0; overflow:hidden; padding:8px 6px 6px; }
+    #homeInvitesTile .home-tile-kicker { font-size:0.58rem; letter-spacing:0.02em; white-space:nowrap; }
+    #homeInvitesTier, #homeInvitesNote, #homeInvitesProgress { display:block; min-width:0; overflow-wrap:break-word; line-height:1.15; }
+    #homeInvitesTier { font-size:0.68rem; font-weight:800; color:#f7931a; }
+    #homeInvitesNote, #homeInvitesProgress { font-size:0.6rem; color:#94a3b8; }
+    #referralTierLadder { position:fixed; inset:0; z-index:500000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55); padding:16px; }
+    #referralTierLadder[hidden] { display:none !important; }
+    .referral-tier-ladder-card { width:min(300px, calc(100vw - 32px)); background:#111827; border:1px solid #1e293b; border-radius:14px; padding:14px; color:#e2e8f0; text-align:left; }
+    .referral-tier-ladder-card h2 { margin:0 0 10px; font-size:1rem; color:#fff; }
+    .referral-tier-row { display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-top:1px solid #1e293b; font-size:0.85rem; }
+    .referral-tier-row.is-current { color:#f7931a; font-weight:800; }
+    .referral-tier-ladder-actions { display:flex; gap:8px; margin-top:12px; }
+    .referral-tier-ladder-actions button { flex:1; min-height:40px; border-radius:10px; font-family:inherit; font-weight:800; cursor:pointer; }
+    #referralTierLadderClose { background:transparent; color:#e2e8f0; border:1px solid #334155; }
+    #referralTierLadderInvite { background:#f7931a; color:#1a1208; border:none; }
     #homeSignedInChip { display:none; align-items:center; gap:8px; margin:0 0 10px; font-weight:800; color:var(--heading,#fff); }
     html.home-signed-in #homeSignedInChip.on { display:flex; }
     #homeSignedInChip img { width:28px; height:28px; border-radius:50%; object-fit:cover; }
@@ -1542,16 +1557,27 @@
                         <span class="home-tile-value" id="homeSatsValue">—</span>
                         <span class="home-tile-note">claimable</span>
                     </button>
-                    <button type="button" class="home-tile" id="homeInvitesTile" onclick="openHomeInvites()">
+                    <button type="button" class="home-tile" id="homeInvitesTile" onclick="openHomeInvites(event)">
                         <span class="home-tile-kicker">👥 INVITES</span>
-                        <span class="home-tile-value" id="homeInvitesValue">—</span>
+                        <span id="homeInvitesTier" data-tier-ladder="1">—</span>
                         <span class="home-tile-note" id="homeInvitesNote">reached Maxi</span>
+                        <span id="homeInvitesProgress" data-tier-ladder="1"></span>
                     </button>
                     <button type="button" class="home-tile home-tile-claim" id="homeWithdrawTile" onclick="openHomeWithdraw()">
                         <span class="home-tile-kicker" id="homeWithdrawKicker">WITHDRAW</span>
                         <span class="home-tile-value" id="homeWithdrawValue">—</span>
                         <span class="home-tile-note" id="homeWithdrawNote">—</span>
                     </button>
+                </div>
+                <div id="referralTierLadder" class="referral-tier-ladder" hidden role="dialog" aria-modal="true" aria-labelledby="referralTierLadderTitle">
+                    <div class="referral-tier-ladder-card">
+                        <h2 id="referralTierLadderTitle">Invite tiers</h2>
+                        <div id="referralTierLadderList"></div>
+                        <div class="referral-tier-ladder-actions">
+                            <button type="button" id="referralTierLadderClose">Close</button>
+                            <button type="button" id="referralTierLadderInvite">Invite friends</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="homeGuestActions">
                     <button type="button" id="homeGuestCta" class="home-guest-cta" onclick="showUsernamePrompt()">Sign up free and earn sats</button>
@@ -2121,7 +2147,8 @@
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
-    <script src="ranking.js?v=20261027_v2394" defer></script>
+    <script src="referral-tiers.js?v=20261027_v2400" defer></script>
+    <script src="ranking.js?v=20261027_v2400" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261027_v2395" defer fetchpriority="high"></script>

@@ -93,6 +93,7 @@ const TESTS = [
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
     { name: 'Quote of the Day', file: 'test-quotes.js' },
     { name: 'Referrals', file: 'test-referrals.js' },
+    { name: 'Referral tiers', file: 'test-referral-tiers.js' },
     { name: 'Double XP', file: 'test-double-xp.js' },
     { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },

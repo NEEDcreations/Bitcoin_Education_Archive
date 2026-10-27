@@ -13,7 +13,8 @@ const JS_FILES = [
     'tickets.js', 'features.js', 'quests.js', 'scholar.js', 'sw.js',
     'pvp.js', 'pvp-enhance.js', 'pvp-lobby-alert.js',
     'channel_index.js', 'topic-discussions.js', 'quest-defer.js', 'global-chat.js', 'notifications.js', 'gifting.js',
-    'achievement-share.js', 'auth-display.js', 'auth-boot.js', 'firebase-config.js', 'bundle-ready.js'
+    'achievement-share.js', 'auth-display.js', 'auth-boot.js', 'firebase-config.js', 'bundle-ready.js',
+    'referral-tiers.js'
 ];
 
 let passed = 0, failed = 0;

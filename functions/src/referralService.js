@@ -6,6 +6,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const referrals = require('./referrals');
+const referralTiers = require('../../referral-tiers');
 const rewardNotify = require('./rewardNotify');
 const faucetGuard = require('./faucetGuard');
 const ipHmac = require('./ipHmac');
@@ -517,11 +518,110 @@ async function payIfQualified(referredUid) {
     return outcome;
 }
 
+function maxiStandingChanged(before, after) {
+    const b = before || {};
+    const a = after || {};
+    if (referralTiers.holdsMaxiRank(b) !== referralTiers.holdsMaxiRank(a)) return true;
+    if ((b.banned === true) !== (a.banned === true)) return true;
+    if ((b.satsDisabled === true) !== (a.satsDisabled === true)) return true;
+    if ((b.referralVerified === true) !== (a.referralVerified === true)) return true;
+    return false;
+}
+
+async function readAll(refs) {
+    if (!refs.length) return [];
+    const firestore = db();
+    if (typeof firestore.getAll === 'function') return firestore.getAll.apply(firestore, refs);
+    const out = [];
+    for (let i = 0; i < refs.length; i++) out.push(await refs[i].get());
+    return out;
+}
+
+// Full recount. Credited referrals are the paid/verified/tickets stamp from
+// payIfQualified. The live count drops a referee who no longer holds Maxi or
+// who is banned, sats-disabled, ledger-banned, or deleted.
+async function countReferralMaxiFor(referrerUid) {
+    const uid = String(referrerUid || '');
+    if (!uid) return 0;
+    const snap = await db().collection('referrals').where('referrerUid', '==', uid).get();
+    const credited = [];
+    snap.forEach(function (doc) {
+        const data = Object.assign({ id: doc.id }, doc.data() || {});
+        if (!referralTiers.creditedReferral(data)) return;
+        const referredUid = referralTiers.referredUidOf(data);
+        if (!referredUid || referredUid === uid) return;
+        credited.push({ referral: data, referredUid: referredUid });
+    });
+    const rows = [];
+    const chunk = 30;
+    for (let i = 0; i < credited.length; i += chunk) {
+        const slice = credited.slice(i, i + chunk);
+        const userSnaps = await readAll(slice.map(function (row) {
+            return db().collection('users').doc(row.referredUid);
+        }));
+        const ledgerSnaps = await readAll(slice.map(function (row) {
+            return db().collection('faucet_ledger').doc(row.referredUid);
+        }));
+        for (let j = 0; j < slice.length; j++) {
+            const userSnap = userSnaps[j];
+            const ledgerSnap = ledgerSnaps[j];
+            rows.push({
+                referral: slice[j].referral,
+                referee: userSnap && userSnap.exists ? userSnap.data() : null,
+                ledger: ledgerSnap && ledgerSnap.exists ? ledgerSnap.data() : null,
+            });
+        }
+    }
+    return referralTiers.countCreditedMaxi(rows);
+}
+
+async function persistReferralMaxiCount(referrerUid) {
+    const uid = String(referrerUid || '');
+    if (!uid) return;
+    const userRef = db().collection('users').doc(uid);
+    const seen = await userRef.get();
+    if (!seen.exists) return;
+    const seenReferralCount = Number(seen.data().referralCount) || 0;
+    const count = await countReferralMaxiFor(uid);
+    await db().runTransaction(async function (t) {
+        const snap = await t.get(userRef);
+        if (!snap.exists) return;
+        const data = snap.data() || {};
+        // A payout landed while this recount was reading. That payout's trigger
+        // recounts. Do not overwrite it with this snapshot.
+        if ((Number(data.referralCount) || 0) !== seenReferralCount) return;
+        if (data.referralMaxiCount === count) return;
+        if ((data.referralMaxiCount === undefined || data.referralMaxiCount === null) && count === 0) return;
+        t.update(userRef, { referralMaxiCount: count });
+    });
+}
+
+async function syncReferralMaxiCount(uid, before, after) {
+    const deleted = !after;
+    const prev = before || {};
+    if (!deleted && (Number(prev.referralCount) || 0) !== (Number(after.referralCount) || 0)) {
+        await persistReferralMaxiCount(uid);
+    }
+    if (deleted || maxiStandingChanged(prev, after || {})) {
+        const referral = await db().collection('referrals').doc(uid).get();
+        if (!referral.exists) return;
+        const referrerUid = String((referral.data() || {}).referrerUid || '');
+        if (referrerUid && referrerUid !== uid) await persistReferralMaxiCount(referrerUid);
+    }
+}
+
 async function onUserWritten(event) {
     const afterSnap = event.data && event.data.after;
-    if (!afterSnap || !afterSnap.exists) return null;
-    const uid = event.params.uid;
     const beforeSnap = event.data && event.data.before;
+    const uid = event.params.uid;
+    if (!afterSnap || !afterSnap.exists) {
+        try {
+            await syncReferralMaxiCount(uid, beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : {}, null);
+        } catch (err) {
+            console.warn('[onUserReferral] maxi count', err && err.message ? err.message : err);
+        }
+        return null;
+    }
     const created = !beforeSnap || beforeSnap.exists !== true;
     if (created) {
         try {
@@ -547,6 +647,11 @@ async function onUserWritten(event) {
         if (crossed || (referredByNew && atMaxi)) await payIfQualified(uid);
     } catch (e) {
         console.error('[onUserReferral]', e && e.message ? e.message : e);
+    }
+    try {
+        await syncReferralMaxiCount(uid, before, after);
+    } catch (err) {
+        console.warn('[onUserReferral] maxi count', err && err.message ? err.message : err);
     }
     return null;
 }
@@ -600,4 +705,6 @@ module.exports = {
     ensureReferralCode: ensureReferralCode,
     lookupReferrerUid: lookupReferrerUid,
     deleteMyReferralSignal: deleteMyReferralSignal,
+    countReferralMaxiFor: countReferralMaxiFor,
+    persistReferralMaxiCount: persistReferralMaxiCount,
 };

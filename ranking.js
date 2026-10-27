@@ -3425,14 +3425,56 @@ function satsHomeSnapshot(user) {
 }
 window.satsHomeSnapshot = satsHomeSnapshot;
 
-function paintHomeStrip(snap, invited, maxi) {
+function referralTierApi() {
+    if (typeof referralTiers !== 'undefined' && referralTiers) return referralTiers;
+    if (typeof window !== 'undefined' && window.referralTiers) return window.referralTiers;
+    return null;
+}
+
+// Display count is the server field only. A missing field paints as 0.
+function serverMaxiReferralCount(user) {
+    var api = referralTierApi();
+    var raw = user && user.referralMaxiCount;
+    if (api && typeof api.normalizeCount === 'function') return api.normalizeCount(raw);
+    var n = Math.floor(Number(raw));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+window.serverMaxiReferralCount = serverMaxiReferralCount;
+
+function paintInviteTier(count) {
+    var api = referralTierApi();
+    var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
+    var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
+        tierLabel: '—',
+        countText: (n === 1 ? '1 reached Maxi' : n + ' reached Maxi'),
+        progressText: '',
+        level: 0
+    };
+    var tierEl = document.getElementById('homeInvitesTier');
+    var noteEl = document.getElementById('homeInvitesNote');
+    var progEl = document.getElementById('homeInvitesProgress');
+    var tile = document.getElementById('homeInvitesTile');
+    if (tierEl) tierEl.textContent = progress.tierLabel;
+    if (noteEl) noteEl.textContent = progress.countText;
+    if (progEl) progEl.textContent = progress.progressText;
+    if (tile) {
+        tile.setAttribute('data-referral-tier', String(progress.level));
+        var label = progress.tierLabel + ', ' + progress.countText;
+        if (progress.progressText) label += ', ' + progress.progressText;
+        tile.setAttribute('aria-label', label);
+    }
+    var ladder = document.getElementById('referralTierLadder');
+    if (ladder && !ladder.hidden) renderReferralTierLadder(progress);
+}
+window.paintInviteTier = paintInviteTier;
+
+function paintHomeStrip(snap) {
     var satsEl = document.getElementById('homeSatsValue');
     var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
-    var invEl = document.getElementById('homeInvitesValue');
-    if (invEl) invEl.textContent = String(invited || 0);
-    var invNote = document.getElementById('homeInvitesNote');
-    if (invNote) invNote.textContent = (Number(maxi) === 1) ? '1 reached Maxi' : (Number(maxi) || 0) + ' reached Maxi';
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    paintInviteTier(serverMaxiReferralCount(user));
     var kicker = document.getElementById('homeWithdrawKicker');
     var value = document.getElementById('homeWithdrawValue');
     var note = document.getElementById('homeWithdrawNote');
@@ -3468,24 +3510,14 @@ window.refreshHomeStrip = function() {
     document.documentElement.classList.toggle('home-signed-in', signed);
     if (document.body) document.body.classList.toggle('home-signed-in', signed);
     if (!signed) {
+        closeReferralTierLadder();
         if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
         return;
     }
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
-    var invited = Number(user.referralInvited) || 0;
-    var maxi = Number(user.referralCount) || 0;
-    paintHomeStrip(snap, invited, maxi);
-    if (typeof getReferralStats === 'function') {
-        getReferralStats().then(function(stats) {
-            if (!stats) return;
-            var gotInvited = (typeof stats.invited === 'number') ? stats.invited : invited;
-            var gotMaxi = (typeof stats.maxi === 'number') ? stats.maxi : maxi;
-            if (stats.failed && !gotInvited && !gotMaxi) return;
-            paintHomeStrip(snap, gotInvited, gotMaxi);
-        }).catch(function() {});
-    }
+    paintHomeStrip(snap);
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
     if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
 };
@@ -3496,7 +3528,105 @@ function openHomeSats() {
 }
 window.openHomeSats = openHomeSats;
 
-function openHomeInvites() {
+function invitesSurfaceHidden() {
+    var tile = document.getElementById('homeInvitesTile');
+    if (!tile) return true;
+    var node = tile;
+    while (node && node.nodeType === 1) {
+        if (node.getAttribute && node.hasAttribute('data-em-hidden')) return true;
+        if (typeof window.getComputedStyle === 'function') {
+            var cs = window.getComputedStyle(node);
+            if (cs && cs.display === 'none') return true;
+        }
+        node = node.parentElement;
+    }
+    if (tile.offsetWidth === 0 && tile.offsetHeight === 0) return true;
+    return false;
+}
+
+function renderReferralTierLadder(progress) {
+    var list = document.getElementById('referralTierLadderList');
+    var api = referralTierApi();
+    if (!list || !api || !api.TIERS) return;
+    var current = progress;
+    if (!current || typeof current.level !== 'number') {
+        var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+        current = api.tierProgress(serverMaxiReferralCount(user));
+    }
+    list.textContent = '';
+    var i;
+    for (i = 0; i < api.TIERS.length; i++) {
+        var tier = api.TIERS[i];
+        var row = document.createElement('div');
+        row.className = 'referral-tier-row' + (tier.level === current.level ? ' is-current' : '');
+        var label = document.createElement('span');
+        label.textContent = tier.emoji + ' ' + tier.name;
+        var need = document.createElement('span');
+        need.textContent = tier.min === 0 ? '0' : (tier.min + '+');
+        row.appendChild(label);
+        row.appendChild(need);
+        list.appendChild(row);
+    }
+}
+
+function closeReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog || dialog.hidden) return;
+    dialog.hidden = true;
+}
+
+function toggleReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    if (invitesSurfaceHidden()) {
+        closeReferralTierLadder();
+        return;
+    }
+    if (!dialog.hidden) {
+        closeReferralTierLadder();
+        return;
+    }
+    renderReferralTierLadder();
+    dialog.hidden = false;
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn && closeBtn.focus) closeBtn.focus();
+}
+
+var _tierLadderBound = false;
+function bindReferralTierLadder() {
+    if (_tierLadderBound) return;
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    _tierLadderBound = true;
+    dialog.addEventListener('click', function (ev) {
+        if (ev.target === dialog) closeReferralTierLadder();
+    });
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn) closeBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+    });
+    var inviteBtn = document.getElementById('referralTierLadderInvite');
+    if (inviteBtn) inviteBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+        if (typeof openInviteFriends === 'function') openInviteFriends(true);
+    });
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') closeReferralTierLadder();
+    });
+}
+bindReferralTierLadder();
+
+function openHomeInvites(ev) {
+    var target = ev && ev.target;
+    if (target && target.closest && target.closest('[data-tier-ladder]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleReferralTierLadder();
+        return;
+    }
+    if (invitesSurfaceHidden()) return;
     if (typeof openInviteFriends === 'function') openInviteFriends(true);
 }
 window.openHomeInvites = openHomeInvites;

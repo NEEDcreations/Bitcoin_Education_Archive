@@ -202,7 +202,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.'));
+    assert.ok(notes.includes('Latest: The homepage Invites card shows your meetup tier from friends who reached Maxi, and how close you are to the next tier.'));
     assert.ok(notes.includes('A returning signed-in player sees their home as soon as the page paints.'));
     assert.ok(!notes.includes('Latest: A returning signed-in player'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
