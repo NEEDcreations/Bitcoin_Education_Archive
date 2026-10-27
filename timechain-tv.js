@@ -3972,7 +3972,6 @@
                 {id:"Fx0OcKcLQ0A",title:"🧙 Bitcoin's creator unveiled? Theories about Satoshi Nakamoto",duration:1826},
                 {id:"EcYnz29l8_0",title:"Who ACTUALLY Created Bitcoin",duration:767},
                 {id:"4yFjOoDp6zY",title:'Bitcoin: History of "Pi-coins" (Outputs Worth Exactly 3.14 BTC or 3.14159265 BTC)',duration:104},
-                {id:"svtvfyqv-io",title:"BITCOIN SEASON | Official Trailer (Full film linked in description)",duration:151},
                 {id:"yt4L67C5_q8",title:"Historical Price of 1 USD in Terms of Bitcoin (11/12/24 Update)",duration:87},
                 {id:"oksraL7wN6Q",title:"God Bless Bitcoin | Full Movie | Documentary",duration:5352},
                 {id:"-Uv6qlP25dQ",title:"The New Rules of Bitcoin",duration:268},
