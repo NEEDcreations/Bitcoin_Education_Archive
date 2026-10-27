@@ -94,6 +94,9 @@ const USER_SUBCOLLECTIONS = [
     'proof_of_walk_stats',
     'shop_purchases',
     'notifications',
+    // Daily article counters live on the profile. They are not the anti-replay
+    // lock. article_xp stays, with the account id cleared.
+    'article_publish_days',
     'cert_bonuses',
     'xp_ledger',
 ];
@@ -234,6 +237,7 @@ const CONTENT_LOOKUPS = [
     ['forum_replies', 'postId', '==', []],
     ['forum_replies', 'parentReplyId', '==', []],
     ['articles', 'authorId', '==', []],
+    ['article_xp', 'uid', '==', []],
     ['article_replies', 'authorId', '==', []],
     ['article_replies', 'articleId', '==', []],
     ['article_replies', 'parentReplyId', '==', []],
@@ -1015,6 +1019,18 @@ async function settleAuthoredDoc(db, batcher, doc, uid, replyDocs, documentIdFie
     return 'delete';
 }
 
+// The marker document stays so the same article id cannot pay again.
+// Only the account id is removed.
+async function clearArticleXpUid(db, batcher, uid, documentIdField) {
+    const docs = await collectDocs(
+        db.collection('article_xp').where('uid', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < docs.length; i++) {
+        await batcher.update(docs[i].ref, { uid: '' });
+    }
+}
+
 async function anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField) {
     const posts = await collectDocs(
         db.collection('forum_posts').where('authorId', '==', uid),
@@ -1244,6 +1260,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     await removeBeatsLikes(db, batcher, uid, documentIdField);
     await deleteTopicPosts(db, batcher, uid, documentIdField);
     await anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField);
+    await clearArticleXpUid(db, batcher, uid, documentIdField);
     await dropPendingCipherReveals(db, batcher, uid, documentIdField);
 
     let deletedDocs = 0;

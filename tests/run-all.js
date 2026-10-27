@@ -22,6 +22,8 @@ const TESTS = [
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Marketplace Client', file: 'test-marketplace.js' },
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
+    { name: 'Article publish XP', file: 'test-article-publish-xp.js' },
+    { name: 'Earn XP guide', file: 'test-earn-xp-guide.js' },
     { name: 'Badge engine', file: 'test-badge-engine.js' },
     { name: 'SF live announce', file: 'test-sf-announce.js' },
     { name: 'GGs badge tooltips', file: 'test-gg-badge-tags.js' },

@@ -889,6 +889,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Separate from onForumPost so a mail failure cannot drop the chat post.
 const { announceActivity, retractActivity, retractIfRemoved } = require('./src/activityShoutout');
 const { countMarketplaceListing } = require('./src/marketListingCount');
+const { handleArticlePublishWrite } = require('./src/articlePublishXp');
 
 const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
 
@@ -1057,6 +1058,36 @@ exports.onArticleBadgeCount = onDocumentCreated({
     if (!event.data) return null;
     try { await activityCounters.recordArticle(db, admin, event.data.data()); }
     catch (e) { console.warn('[onArticleBadgeCount]', e && e.message); }
+    return null;
+});
+
+// Article XP. Separate from onArticleBadgeCount and from awardPoints.
+// retry is on so a missing user doc (the only path that throws) runs again.
+// Every other outcome writes article_xp first, so a second delivery pays nothing.
+exports.onArticlePublishXp = onDocumentWritten({
+    document: 'articles/{articleId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
+}, async (event) => {
+    const change = event.data;
+    if (!change) return null;
+    const beforeSnap = change.before;
+    const afterSnap = change.after;
+    const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
+    const after = afterSnap && afterSnap.exists ? afterSnap.data() : null;
+    try {
+        const result = await handleArticlePublishWrite({
+            db: db,
+            admin: admin,
+            articleId: event.params.articleId,
+            before: before,
+            after: after,
+        });
+        if (result && result.retry) throw new Error('article publish xp retry');
+    } catch (e) {
+        console.warn('[onArticlePublishXp]', e && e.message);
+        throw e;
+    }
     return null;
 });
 

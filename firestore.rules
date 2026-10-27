@@ -1385,11 +1385,18 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 10
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.body is string
+                    && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
                     && (
-                      // Author can edit their own article
+                      // Author can edit their own article, but cannot hand authorship to someone else.
                       resource.data.authorId == request.auth.uid
+                      && request.resource.data.authorId == resource.data.authorId
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() <= 50000
+                      && request.resource.data.title is string
+                      && request.resource.data.title.size() >= 10
+                      && request.resource.data.title.size() <= 120
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
@@ -1753,6 +1760,11 @@ service cloud.firestore {
 
     // Server-side daily points tracking (Cloud Function only)
     match /users/{userId}/daily_points/{docId} {
+      allow read, write: if false;
+    }
+
+    // Paying article publishes per offset day. Cloud Function only.
+    match /users/{userId}/article_publish_days/{docId} {
       allow read, write: if false;
     }
 
@@ -2331,6 +2343,11 @@ service cloud.firestore {
     // client cannot forge a Nacho post or reset the cap.
     // One marker per listing so onMarketplaceListingCount cannot double-count.
     match /market_listing_counts/{listingId} {
+      allow read, write: if false;
+    }
+
+    // One article-publish XP marker per article id. Cloud Function only.
+    match /article_xp/{articleId} {
       allow read, write: if false;
     }
 
