@@ -953,6 +953,25 @@ function badgeShownXp(badge) {
     return 0;
 }
 
+function badgeShareLink() {
+    if (typeof shareHomeUrl === 'function') return shareHomeUrl();
+    return 'https://bitcoineducation.quest';
+}
+
+function badgeShareLead(emoji, name, desc) {
+    var line = 'I just earned the ' + emoji + ' ' + name + ' badge on Bitcoin Quest!';
+    if (desc) line += ' ' + desc;
+    return line + '\nLearn Bitcoin and earn sats on Bitcoin Quest 👇';
+}
+
+function badgeShareText(emoji, name, desc) {
+    return badgeShareLead(emoji, name, desc) + '\n' + badgeShareLink();
+}
+
+function badgeShareCopy(emoji, name) {
+    return 'I earned the ' + emoji + ' ' + name + ' badge on Bitcoin Quest!\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + badgeShareLink();
+}
+
 function showBadgeToast(badge) {
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
@@ -996,9 +1015,12 @@ function showBadgeToast(badge) {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400;display:flex;justify-content:center;align-items:center;animation:fadeIn 0.3s ease-out;';
 
     const username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
-    const shareText = 'I just earned the ' + badge.emoji + ' ' + badge.name + ' badge on Bitcoin Education Archive! ' + badge.desc;
-    const shareUrl = 'https://bitcoineducation.quest';
-    const twitterUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl);
+    const shareLead = badgeShareLead(badge.emoji, badge.name, badge.desc);
+    const shareUrl = badgeShareLink();
+    const shareText = shareLead + '\n' + shareUrl;
+    window._badgeShareLead = shareLead;
+    window._badgeShareUrl = shareUrl;
+    const twitterUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText);
 
     let shareHtml = '';
     if (isMajor) {
@@ -1006,7 +1028,7 @@ function showBadgeToast(badge) {
             '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Share your achievement!</p>' +
             '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
             '<a href="' + twitterUrl + '" target="_blank" style="padding:8px 16px;background:#000;color:#fff;border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;">𝕏 Share on Twitter</a>' +
-            '<button onclick="shareNostr(\'' + shareText.replace(/[\\'"]/g, "") + '\',\'' + shareUrl + '\')" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
+            '<button onclick="shareNostr(window._badgeShareLead, window._badgeShareUrl)" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
             '<button onclick="copyBadgeLink(\'' + badge.emoji + '\',\'' + badge.name.replace(/[\\'"]/g, "") + '\')" style="padding:8px 16px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🔗 Copy Link</button>' +
             '</div></div>';
     }
@@ -1027,7 +1049,7 @@ function showBadgeToast(badge) {
 }
 
 function copyBadgeLink(emoji, name) {
-    const text = 'I earned the ' + emoji + ' ' + name + ' badge on Bitcoin Education Archive!\nhttps://bitcoineducation.quest';
+    const text = badgeShareCopy(emoji, name);
     navigator.clipboard.writeText(text).then(() => {
         if (typeof showToast === 'function') showToast('📋 Copied to clipboard!');
     });

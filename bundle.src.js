@@ -1441,6 +1441,25 @@ function badgeShownXp(badge) {
     return 0;
 }
 
+function badgeShareLink() {
+    if (typeof shareHomeUrl === 'function') return shareHomeUrl();
+    return 'https://bitcoineducation.quest';
+}
+
+function badgeShareLead(emoji, name, desc) {
+    var line = 'I just earned the ' + emoji + ' ' + name + ' badge on Bitcoin Quest!';
+    if (desc) line += ' ' + desc;
+    return line + '\nLearn Bitcoin and earn sats on Bitcoin Quest 👇';
+}
+
+function badgeShareText(emoji, name, desc) {
+    return badgeShareLead(emoji, name, desc) + '\n' + badgeShareLink();
+}
+
+function badgeShareCopy(emoji, name) {
+    return 'I earned the ' + emoji + ' ' + name + ' badge on Bitcoin Quest!\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + badgeShareLink();
+}
+
 function showBadgeToast(badge) {
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
@@ -1484,9 +1503,12 @@ function showBadgeToast(badge) {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400;display:flex;justify-content:center;align-items:center;animation:fadeIn 0.3s ease-out;';
 
     const username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
-    const shareText = 'I just earned the ' + badge.emoji + ' ' + badge.name + ' badge on Bitcoin Education Archive! ' + badge.desc;
-    const shareUrl = 'https://bitcoineducation.quest';
-    const twitterUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl);
+    const shareLead = badgeShareLead(badge.emoji, badge.name, badge.desc);
+    const shareUrl = badgeShareLink();
+    const shareText = shareLead + '\n' + shareUrl;
+    window._badgeShareLead = shareLead;
+    window._badgeShareUrl = shareUrl;
+    const twitterUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText);
 
     let shareHtml = '';
     if (isMajor) {
@@ -1494,7 +1516,7 @@ function showBadgeToast(badge) {
             '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Share your achievement!</p>' +
             '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
             '<a href="' + twitterUrl + '" target="_blank" style="padding:8px 16px;background:#000;color:#fff;border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;">𝕏 Share on Twitter</a>' +
-            '<button onclick="shareNostr(\'' + shareText.replace(/[\\'"]/g, "") + '\',\'' + shareUrl + '\')" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
+            '<button onclick="shareNostr(window._badgeShareLead, window._badgeShareUrl)" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
             '<button onclick="copyBadgeLink(\'' + badge.emoji + '\',\'' + badge.name.replace(/[\\'"]/g, "") + '\')" style="padding:8px 16px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🔗 Copy Link</button>' +
             '</div></div>';
     }
@@ -1515,7 +1537,7 @@ function showBadgeToast(badge) {
 }
 
 function copyBadgeLink(emoji, name) {
-    const text = 'I earned the ' + emoji + ' ' + name + ' badge on Bitcoin Education Archive!\nhttps://bitcoineducation.quest';
+    const text = badgeShareCopy(emoji, name);
     navigator.clipboard.writeText(text).then(() => {
         if (typeof showToast === 'function') showToast('📋 Copied to clipboard!');
     });
@@ -2536,6 +2558,141 @@ function getReferralLink() {
     return window.location.origin + window.location.pathname + '?ref=' + code;
 }
 
+function liveRefCode() {
+    var code = '';
+    try {
+        if (typeof getReferralCode === 'function') code = String(getReferralCode() || '');
+    } catch (e) { code = ''; }
+    if (!/^[A-Za-z0-9]{6,28}$/.test(code)) {
+        try {
+            var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+            code = user && user.referralCode ? String(user.referralCode) : '';
+        } catch (e2) { code = ''; }
+    }
+    return /^[A-Za-z0-9]{6,28}$/.test(code) ? code : '';
+}
+
+function shareHomeUrl(code) {
+    var c = code == null ? liveRefCode() : String(code || '');
+    if (!/^[A-Za-z0-9]{6,28}$/.test(c)) return 'https://bitcoineducation.quest';
+    return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c);
+}
+
+function shareDeepUrl(baseUrl, code) {
+    var c = code == null ? liveRefCode() : String(code || '');
+    var url = String(baseUrl || 'https://bitcoineducation.quest');
+    if (!/^[A-Za-z0-9]{6,28}$/.test(c)) return url || 'https://bitcoineducation.quest';
+    if (url.indexOf('ref=') !== -1) return url;
+    var hash = '';
+    var cut = url.indexOf('#');
+    if (cut >= 0) { hash = url.slice(cut); url = url.slice(0, cut); }
+    if (!url) url = 'https://bitcoineducation.quest';
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'ref=' + encodeURIComponent(c);
+    return url + hash;
+}
+
+function stripShareLinks(text) {
+    var s = String(text || '').slice(0, 1000);
+    var tlds = ' com org net io space quest info xyz app dev co me gg tv ly so to us uk news money finance bitcoin edu gov biz online site store tech live world cloud link page wiki blog shop ai cc it de fr ca au nz in jp nl se no fi ch at be es pt br mx club fun pro network media one bio cash email social exchange market fund example ';
+    function isGap(ch) {
+        return ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' ||
+            ch === '<' || ch === '>' || ch === '"' || ch === "'" ||
+            ch === '(' || ch === ')' || ch === '[' || ch === ']' ||
+            ch === '{' || ch === '}';
+    }
+    function isUrl(token) {
+        var t = token.toLowerCase();
+        return t.indexOf('https://') === 0 || t.indexOf('http://') === 0 || t.indexOf('www.') === 0;
+    }
+    function isEmail(token) {
+        var at = token.indexOf('@');
+        if (at <= 0 || token.indexOf('@', at + 1) !== -1) return false;
+        var domain = token.slice(at + 1);
+        var dot = domain.indexOf('.');
+        return dot > 0 && dot < domain.length - 1 && domain.indexOf('@') === -1;
+    }
+    function domainName(token) {
+        var i, ch, p;
+        if (!token || token.indexOf('@') !== -1) return null;
+        var slash = token.indexOf('/');
+        var host = slash === -1 ? token : token.slice(0, slash);
+        if (!host || host.indexOf('.') < 0) return null;
+        for (i = 0; i < host.length; i++) {
+            ch = host.charAt(i);
+            if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch === '.' || ch === '-')) return null;
+        }
+        var parts = host.split('.');
+        if (parts.length < 2) return null;
+        var tld = parts[parts.length - 1].toLowerCase();
+        if (!tld || tlds.indexOf(' ' + tld + ' ') === -1) return null;
+        for (i = 0; i < parts.length; i++) {
+            p = parts[i];
+            if (!p || p.length > 63 || p.charAt(0) === '-' || p.charAt(p.length - 1) === '-') return null;
+        }
+        return parts[parts.length - 2];
+    }
+    function rewrite(token) {
+        var lead = '';
+        var trail = '';
+        var core = token;
+        var wrap = '*_\'"\u2018\u2019\u201c\u201d';
+        while (core && wrap.indexOf(core.charAt(0)) !== -1) {
+            lead += core.charAt(0);
+            core = core.slice(1);
+        }
+        while (core && wrap.indexOf(core.charAt(core.length - 1)) !== -1) {
+            trail = core.charAt(core.length - 1) + trail;
+            core = core.slice(0, -1);
+        }
+        var guard = 0;
+        while (core && guard < 8 && '.,;:!?'.indexOf(core.charAt(core.length - 1)) !== -1) {
+            trail = core.charAt(core.length - 1) + trail;
+            core = core.slice(0, -1);
+            guard++;
+        }
+        if (core.length >= 2) {
+            var apost = core.charAt(core.length - 2);
+            var ess = core.charAt(core.length - 1);
+            if ((apost === "'" || apost === '\u2019') && (ess === 's' || ess === 'S')) {
+                var owned = core.slice(0, -2);
+                if (isUrl(owned) || isEmail(owned) || domainName(owned) != null) {
+                    trail = core.slice(-2) + trail;
+                    core = owned;
+                }
+            }
+        }
+        if (!core) return token;
+        if (isUrl(core) || isEmail(core)) return lead + trail;
+        var name = domainName(core);
+        if (name == null) return token;
+        return lead + name + trail;
+    }
+    var out = '';
+    var i = 0;
+    while (i < s.length) {
+        if (isGap(s.charAt(i))) { out += s.charAt(i); i++; continue; }
+        var j = i + 1;
+        while (j < s.length && !isGap(s.charAt(j))) j++;
+        out += rewrite(s.slice(i, j));
+        i = j;
+    }
+    out = out.replace(/[ \t]{2,}/g, ' ');
+    out = out.replace(/[ \t]+([,.;:!])/g, '$1');
+    out = out.replace(/\(\s*\)/g, '');
+    out = out.replace(/[ \t]+\n/g, '\n');
+    out = out.replace(/\n{3,}/g, '\n\n');
+    return out.replace(/^\s+|\s+$/g, '');
+}
+
+function inviteSharePayload(link) {
+    var url = String(link || '').trim() || shareHomeUrl();
+    return {
+        title: 'Bitcoin Quest',
+        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
+        url: url
+    };
+}
+
 // ---- Check for referral code in URL on page load ----
 function captureReferralCode() {
     const params = new URLSearchParams(window.location.search);
@@ -3226,12 +3383,8 @@ function copyInviteLink() {
 function shareInviteLink() {
     var linkEl = document.getElementById('inviteLink');
     var link = (linkEl && linkEl.textContent) || getReferralLink();
-    if (!link || !navigator.share) return;
-    navigator.share({
-        title: 'Bitcoin Quest',
-        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
-        url: link
-    }).catch(function() {});
+    if (!navigator.share) return;
+    navigator.share(inviteSharePayload(link)).catch(function() {});
 }
 
 function inviteGuestSignup() {
@@ -18733,8 +18886,14 @@ document.addEventListener('btcProfileSaved', function() {
         }
     };
 
+    function shareNote(text, url) {
+        var note = String(text || '');
+        if (url && note.indexOf(url) === -1) note = note + '\n\n' + url;
+        return note;
+    }
+
     function shareNostr(text, url) {
-        const note = text + '\n\n' + url;
+        var note = shareNote(text, url);
         // Copy to clipboard first
         navigator.clipboard.writeText(note).then(() => {
             showToast('📋 Note copied! Paste it in Primal to post.');
@@ -19374,6 +19533,31 @@ document.addEventListener('btcProfileSaved', function() {
             setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '🔗 Copy Link'; }, 2000);
         });
     }
+
+    function channelShareParts(id) {
+        var hero = document.getElementById('hero');
+        var h1 = hero ? hero.querySelector('h1') : null;
+        var title = (h1 && h1.textContent) ? h1.textContent : String(id || '');
+        var text = title + ' — Bitcoin Education Archive';
+        var base = 'https://bitcoineducation.quest/#' + id;
+        var url = (typeof shareDeepUrl === 'function') ? shareDeepUrl(base) : base;
+        return { text: text, url: url };
+    }
+
+    function shareChannel(kind, id, btn) {
+        if (!/^[a-z0-9_-]+$/.test(String(id || ''))) return;
+        var parts = channelShareParts(id);
+        if (kind === 'x') {
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(parts.text) + '&url=' + encodeURIComponent(parts.url), '_blank', 'noopener,noreferrer');
+            return;
+        }
+        if (kind === 'nostr') {
+            shareNostr(parts.text, parts.url);
+            return;
+        }
+        if (kind === 'copy' && btn) copyLink(parts.url, btn);
+    }
+    window.shareChannel = shareChannel;
 
     // goRandom defined above with floating button support
 
@@ -20241,11 +20425,22 @@ document.addEventListener('btcProfileSaved', function() {
     // =============================================
     // 📤 Share Answer
     // =============================================
+    function nachoSharePayload(text, code) {
+        var clean = String(text || '').slice(0, 1000).replace(/<[^>]+>/g, '').replace(/🦌/g, '');
+        if (typeof stripShareLinks === 'function') clean = stripShareLinks(clean);
+        var c = code == null ? (typeof liveRefCode === 'function' ? liveRefCode() : '') : String(code || '');
+        var url = /^[A-Za-z0-9]{6,28}$/.test(c)
+            ? 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c)
+            : 'https://bitcoineducation.quest';
+        var body = '🦌 I learned this from Nacho on Bitcoin Quest:\n\n' + clean.substring(0, 280) + '\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + url;
+        return { title: 'Bitcoin Fact from Nacho 🦌', text: body };
+    }
+
     window.nachoShareAnswer = function(text) {
-        var clean = text.replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
-        var shareText = '🦌 I learned this from Nacho at bitcoineducation.quest:\n\n' + clean.substring(0, 280);
+        var payload = nachoSharePayload(text);
+        var shareText = payload.text;
         if (navigator.share) {
-            navigator.share({ title: 'Bitcoin Fact from Nacho 🦌', text: shareText, url: 'https://bitcoineducation.quest' }).catch(function() {});
+            navigator.share(payload).catch(function() {});
         } else {
             // Fallback: copy to clipboard
             var ta = document.createElement('textarea');
@@ -22130,7 +22325,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof window.renderCertVerification === 'function') {
                 _showCertPage();
             } else {
-                var _certSrc = 'shareable-certs.js?v=20261026_v2386';
+                var _certSrc = 'shareable-certs.js?v=20261026_v2390';
                 var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
                 if (!_existingCertScript) {
                     var _certScript = document.createElement('script');
@@ -22349,8 +22544,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
         const isGallery = GALLERY_CHANNELS.includes(id);
 
-        const shareUrl = 'https://bitcoineducation.quest/#' + id;
-        const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
                 '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
@@ -22360,9 +22553,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
-                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'x\', \'' + id + '\')">𝕏 Share</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'nostr\', \'' + id + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'copy\', \'' + id + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
@@ -23886,6 +24079,7 @@ if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
 if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;
 if (typeof copyLink !== 'undefined') window.copyLink = copyLink;
+if (typeof shareChannel !== 'undefined') window.shareChannel = shareChannel;
 if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
 if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;

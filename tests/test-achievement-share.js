@@ -53,13 +53,13 @@ test('sharing grants nothing and client claims are ignored', () => {
 test('referral URL keeps a safe code and drops email or a long uid', () => {
     assert.strictEqual(share.buildShareUrl('abc12345', 'streak'), 'https://bitcoineducation.quest/?ref=abc12345&a=streak');
     const email = share.buildShareUrl('person@example.com', 'badge');
-    assert.strictEqual(email, 'https://bitcoineducation.quest/?a=badge');
+    assert.strictEqual(email, 'https://bitcoineducation.quest');
     assert.strictEqual(email.includes('@'), false);
     assert.strictEqual(email.includes('example.com'), false);
     const uid = 'a'.repeat(28) + 'ZZ';
     const bare = share.buildShareUrl(uid, 'xp');
     assert.strictEqual(bare.includes(uid), false);
-    assert.strictEqual(bare, 'https://bitcoineducation.quest/?a=xp');
+    assert.strictEqual(bare, 'https://bitcoineducation.quest');
     share.SHARE_TYPES.forEach(function (type) {
         assert.ok(share.buildShareUrl('abc12345', type).endsWith('&a=' + type));
     });
@@ -383,10 +383,10 @@ test('shown marker is an owner string and the worker OG is static', () => {
     });
 });
 
-test('pages ship one script, one Latest line, and the v2386 cache', () => {
+test('pages ship one script, one Latest line, and the v2390 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('achievement-share.js?v=20261026_v2384'));
+    assert.ok(html.includes('achievement-share.js?v=20261026_v2390'));
     assert.ok(html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
     const notes = read('patch-notes.html');
@@ -396,7 +396,8 @@ test('pages ship one script, one Latest line, and the v2386 cache', () => {
     assert.ok(!notes.includes('Latest: ' + SHARE_NOTE));
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2386'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2390'"));
+    assert.ok(!read('sw.js').includes('btc-archive-v2386'));
     assert.ok(!read('sw.js').includes('btc-archive-v2410'));
     assert.ok(!read('sw.js').includes('btc-archive-v2385'));
     assert.ok(!read('sw.js').includes('btc-archive-v2425'));
