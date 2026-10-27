@@ -14,7 +14,9 @@
     'use strict';
 
     var SITE = 'https://bitcoineducation.quest';
+    // Painted on the card image. The post text uses SHARE_LINE so the image stays the same.
     var CTA = 'Learn Bitcoin and earn sats at bitcoineducation.quest';
+    var SHARE_LINE = 'Learn Bitcoin and earn sats on Bitcoin Quest 👇';
     var REF_RE = /^[A-Za-z0-9]{6,28}$/;
     var SHARE_TYPES = ['sf_block', 'badge', 'cert_scholar', 'cert_protocol', 'rank', 'raid', 'streak', 'daily', 'xp'];
     var LONG_STREAKS = [30, 60, 100, 200, 365];
@@ -159,10 +161,9 @@
 
     function buildShareUrl(code, type) {
         var t = SHARE_TYPES.indexOf(type) >= 0 ? type : 'xp';
-        var url = SITE + '/?a=' + encodeURIComponent(t);
         var c = String(code || '');
-        if (REF_RE.test(c)) url = SITE + '/?ref=' + encodeURIComponent(c) + '&a=' + encodeURIComponent(t);
-        return url;
+        if (REF_RE.test(c)) return SITE + '/?ref=' + encodeURIComponent(c) + '&a=' + encodeURIComponent(t);
+        return SITE;
     }
 
     function rarityLabel(pct) {
@@ -357,7 +358,22 @@
     }
 
     function shareText(model) {
-        return model.title + '\n' + model.cta + '\n' + model.url;
+        return model.title + '\n' + SHARE_LINE + '\n' + model.url;
+    }
+
+    function nativeSharePayload(model) {
+        return { title: model.title, text: shareText(model) };
+    }
+
+    function xIntent(model) {
+        return 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText(model));
+    }
+
+    function telegramShare(model) {
+        return {
+            url: model.url,
+            text: model.title + '\n' + SHARE_LINE
+        };
     }
 
     function shareResult() {
@@ -1051,10 +1067,11 @@
             actions.appendChild(actionButton('Share', 'Share', function () { nativeShare(model, land); }));
         }
         actions.appendChild(actionButton('X', 'Share on X', function () {
-            host.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText(model)), '_blank', 'noopener,noreferrer');
+            host.open(xIntent(model), '_blank', 'noopener,noreferrer');
         }));
         actions.appendChild(actionButton('Telegram', 'Share on Telegram', function () {
-            host.open('https://t.me/share/url?url=' + encodeURIComponent(model.url) + '&text=' + encodeURIComponent(model.title + ' ' + model.cta), '_blank', 'noopener,noreferrer');
+            var tg = telegramShare(model);
+            host.open('https://t.me/share/url?url=' + encodeURIComponent(tg.url) + '&text=' + encodeURIComponent(tg.text), '_blank', 'noopener,noreferrer');
         }));
         actions.appendChild(actionButton('Facebook', 'Share on Facebook', function () {
             host.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(model.url), '_blank', 'noopener,noreferrer');
@@ -1135,7 +1152,7 @@
     function nativeShare(model, canvas) {
         var nav = host.navigator;
         if (!nav || !nav.share) return;
-        var payload = { title: model.title, text: shareText(model), url: model.url };
+        var payload = nativeSharePayload(model);
         function go(extra) {
             nav.share(Object.assign({}, payload, extra || {})).catch(function () {});
         }
@@ -1361,6 +1378,7 @@
         RARITY_THRESHOLDS: RARITY_THRESHOLDS,
         STREAK_PLACES: STREAK_PLACES,
         CTA: CTA,
+        SHARE_LINE: SHARE_LINE,
         Z_SHEET: Z_SHEET,
         Z_TOAST: Z_TOAST,
         emptyState: emptyState,
@@ -1377,6 +1395,9 @@
         decideShare: decideShare,
         cardModel: cardModel,
         shareText: shareText,
+        nativeSharePayload: nativeSharePayload,
+        xIntent: xIntent,
+        telegramShare: telegramShare,
         shareResult: shareResult,
         shareGrantsReward: shareGrantsReward,
         clientClaimEvents: clientClaimEvents,

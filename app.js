@@ -1111,8 +1111,14 @@
         }
     };
 
+    function shareNote(text, url) {
+        var note = String(text || '');
+        if (url && note.indexOf(url) === -1) note = note + '\n\n' + url;
+        return note;
+    }
+
     function shareNostr(text, url) {
-        const note = text + '\n\n' + url;
+        var note = shareNote(text, url);
         // Copy to clipboard first
         navigator.clipboard.writeText(note).then(() => {
             showToast('📋 Note copied! Paste it in Primal to post.');
@@ -2619,11 +2625,21 @@
     // =============================================
     // 📤 Share Answer
     // =============================================
+    function nachoSharePayload(text, code) {
+        var clean = String(text || '').replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
+        var c = code == null ? (typeof liveRefCode === 'function' ? liveRefCode() : '') : String(code || '');
+        var url = /^[A-Za-z0-9]{6,28}$/.test(c)
+            ? 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c)
+            : 'https://bitcoineducation.quest';
+        var body = '🦌 I learned this from Nacho on Bitcoin Quest:\n\n' + clean.substring(0, 280) + '\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + url;
+        return { title: 'Bitcoin Fact from Nacho 🦌', text: body };
+    }
+
     window.nachoShareAnswer = function(text) {
-        var clean = text.replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
-        var shareText = '🦌 I learned this from Nacho at bitcoineducation.quest:\n\n' + clean.substring(0, 280);
+        var payload = nachoSharePayload(text);
+        var shareText = payload.text;
         if (navigator.share) {
-            navigator.share({ title: 'Bitcoin Fact from Nacho 🦌', text: shareText, url: 'https://bitcoineducation.quest' }).catch(function() {});
+            navigator.share(payload).catch(function() {});
         } else {
             // Fallback: copy to clipboard
             var ta = document.createElement('textarea');
@@ -4673,7 +4689,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
         const isGallery = GALLERY_CHANNELS.includes(id);
 
-        const shareUrl = 'https://bitcoineducation.quest/#' + id;
+        const shareUrl = (typeof shareDeepUrl === 'function')
+            ? shareDeepUrl('https://bitcoineducation.quest/#' + id)
+            : 'https://bitcoineducation.quest/#' + id;
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +

@@ -3198,13 +3198,18 @@ window.beatsArtistPlayTrack = function(uid, idx) {
     });
 })();
 
-// Share a track link
+function beatsShareUrl(url) {
+    if (typeof shareDeepUrl === 'function') return shareDeepUrl(url);
+    return url;
+}
+
+// Share a track link. The caption has no link; the url field is the only one.
 window.beatsShareTrack = function(trackId, title) {
     var track = _beatsFindQueued(trackId);
     var raw = (track && track.title) ? track.title : (title || 'Track');
     var shown = (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
-    var url = 'https://bitcoineducation.quest/#beats/' + trackId;
-    var text = '🎸 Listen to "' + shown + '" on Bitcoin Beats!\n' + url;
+    var url = beatsShareUrl('https://bitcoineducation.quest/#beats/' + trackId);
+    var text = '🎸 Listen to "' + shown + '" on Bitcoin Beats!';
     if (navigator.share) {
         navigator.share({ title: shown + ' — Bitcoin Beats', text: text, url: url }).catch(function() {});
     } else {
@@ -3695,7 +3700,7 @@ window.beatsShufflePlaylist = function(playlistId) {
 
 window.beatsSharePlaylistLink = function(playlistId, name) {
     if (!auth || !auth.currentUser) return;
-    var url = 'https://bitcoineducation.quest/#beats/playlist/' + auth.currentUser.uid + '/' + playlistId;
+    var url = beatsShareUrl('https://bitcoineducation.quest/#beats/playlist/' + auth.currentUser.uid + '/' + playlistId);
     if (navigator.share) {
         navigator.share({ title: name + ' — Bitcoin Beats Playlist', url: url }).catch(function() {});
     } else {

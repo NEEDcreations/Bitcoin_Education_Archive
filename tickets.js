@@ -36,6 +36,48 @@ function getReferralLink() {
     return window.location.origin + window.location.pathname + '?ref=' + code;
 }
 
+function liveRefCode() {
+    var code = '';
+    try {
+        if (typeof getReferralCode === 'function') code = String(getReferralCode() || '');
+    } catch (e) { code = ''; }
+    if (!/^[A-Za-z0-9]{6,28}$/.test(code)) {
+        try {
+            var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+            code = user && user.referralCode ? String(user.referralCode) : '';
+        } catch (e2) { code = ''; }
+    }
+    return /^[A-Za-z0-9]{6,28}$/.test(code) ? code : '';
+}
+
+function shareHomeUrl(code) {
+    var c = code == null ? liveRefCode() : String(code || '');
+    if (!/^[A-Za-z0-9]{6,28}$/.test(c)) return 'https://bitcoineducation.quest';
+    return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c);
+}
+
+function shareDeepUrl(baseUrl, code) {
+    var c = code == null ? liveRefCode() : String(code || '');
+    var url = String(baseUrl || 'https://bitcoineducation.quest');
+    if (!/^[A-Za-z0-9]{6,28}$/.test(c)) return url || 'https://bitcoineducation.quest';
+    if (url.indexOf('ref=') !== -1) return url;
+    var hash = '';
+    var cut = url.indexOf('#');
+    if (cut >= 0) { hash = url.slice(cut); url = url.slice(0, cut); }
+    if (!url) url = 'https://bitcoineducation.quest';
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'ref=' + encodeURIComponent(c);
+    return url + hash;
+}
+
+function inviteSharePayload(link) {
+    var url = String(link || '').trim() || shareHomeUrl();
+    return {
+        title: 'Bitcoin Quest',
+        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
+        url: url
+    };
+}
+
 // ---- Check for referral code in URL on page load ----
 function captureReferralCode() {
     const params = new URLSearchParams(window.location.search);
@@ -726,12 +768,8 @@ function copyInviteLink() {
 function shareInviteLink() {
     var linkEl = document.getElementById('inviteLink');
     var link = (linkEl && linkEl.textContent) || getReferralLink();
-    if (!link || !navigator.share) return;
-    navigator.share({
-        title: 'Bitcoin Quest',
-        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
-        url: link
-    }).catch(function() {});
+    if (!navigator.share) return;
+    navigator.share(inviteSharePayload(link)).catch(function() {});
 }
 
 function inviteGuestSignup() {
