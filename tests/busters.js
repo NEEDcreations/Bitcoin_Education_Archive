@@ -1,12 +1,12 @@
-// Cache-buster pin. This ship is btc-archive-v2383.
-// Live gh-pages shipped at v2382. timechain-tv.js is 20261026_v2383.
+// Cache-buster pin. This ship is btc-archive-v2384.
+// gh-pages shipped #134 at v2383. timechain-tv.js is 20261026_v2383.
 // bundle.min.js, earn-xp-guide.js, ranking.js, and guide.js are 20261026_v2382.
 // modules.js, scholar.js, and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // global-chat.js stays 20261026_v2379. gifting.js stays 20261026_v2378. quests.js stays 20261026_v2381.
 // satoshi-favor.js stays 20261026_v2368.
-// today-card.js is 20261026_v2371.
-// features.registry.js is 20261024_v2368.
+// onboarding.js stays 20261026_v2373. today-card.js stays 20261026_v2371.
+// features.registry.js stays 20261024_v2368. achievement-share.js is 20261026_v2384.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261026_v2378.
 // notifications.js stays 20261024_v2357.
@@ -33,9 +33,11 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2383', () => {
+test('service worker cache is v2384', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2383'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2384'"));
+    assert.ok(!sw.includes('btc-archive-v2412'));
+    assert.ok(!sw.includes('btc-archive-v2383'));
     assert.ok(!sw.includes('btc-archive-v2420'));
     assert.ok(!sw.includes('btc-archive-v2382'));
     assert.ok(!sw.includes('btc-archive-v2381'));
@@ -88,7 +90,7 @@ test('service worker cache is v2383', () => {
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2420', 'v2407', 'v2406', 'v2405', 'v2404', 'v2403', 'v2402', 'v2401', 'v2400', 'v2399', 'v2398', 'v2397', 'v2396', 'v2395', 'v2394', 'v2393', 'v2392', 'v2391', 'v2390', 'v2382', 'v2381', 'v2380', 'v2379', 'v2378', 'v2377', 'v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2412', 'v2383', 'v2420', 'v2407', 'v2406', 'v2405', 'v2404', 'v2403', 'v2402', 'v2401', 'v2400', 'v2399', 'v2398', 'v2397', 'v2396', 'v2395', 'v2394', 'v2393', 'v2392', 'v2391', 'v2390', 'v2382', 'v2381', 'v2380', 'v2379', 'v2378', 'v2377', 'v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -257,6 +259,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
+    assert.ok(html.includes('achievement-share.js?v=20261026_v2384'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2359'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2358'));
@@ -359,7 +362,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2383');
+    assert.ok(swVersion && swVersion[1] === 'v2384');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
