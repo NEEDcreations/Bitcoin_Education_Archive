@@ -369,7 +369,7 @@ test('2FA verified flag is stored and compared per uid', () => {
     sandbox.window = sandbox;
     vm.createContext(sandbox);
     vm.runInContext(
-        extract('totpVerifiedFor') + '\n' + extract('noteTotpVerified') + '\n' + extract('clearTotpVerified') + '\n' + extract('syncTotpVerified'),
+        extract('totpVerifiedFor') + '\n' + extract('noteTotpVerified') + '\n' + extract('clearTotpVerified') + '\n' + extract('clearTotpHold') + '\n' + extract('syncTotpVerified'),
         sandbox
     );
     assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), false);

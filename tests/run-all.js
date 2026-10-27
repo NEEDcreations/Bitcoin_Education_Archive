@@ -17,6 +17,7 @@ const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
+    { name: '2FA hold release', file: 'test-totp-hold.js' },
     { name: 'Auth before bundle', file: 'test-auth-before-bundle.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },

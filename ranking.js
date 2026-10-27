@@ -86,9 +86,21 @@ function noteTotpVerified(uid) {
 function clearTotpVerified() {
     window._btcTotpVerifiedUid = '';
 }
+function noteTotpHold(uid) {
+    window._btcTotpHold = true;
+    if (uid) window._btcTotpHoldUid = uid;
+}
+function clearTotpHold() {
+    window._btcTotpHold = false;
+    window._btcTotpHoldUid = '';
+}
 function syncTotpVerified(user) {
     var uid = (user && !user.isAnonymous && user.uid) ? user.uid : '';
     if (!totpVerifiedFor(uid)) clearTotpVerified();
+    // The hold belongs to one signed-in uid. Sign-out, anonymous, and a
+    // different account must drop it, or the guest button keeps reopening
+    // the authenticator challenge and Settings stays closed.
+    if (!uid || (window._btcTotpHoldUid && window._btcTotpHoldUid !== uid)) clearTotpHold();
 }
 
 // Guest auth button. The 2FA hold path must put this back in full, including
@@ -2857,6 +2869,10 @@ async function loadUser(uid, prefetchedDoc) {
             window._btcTotpHold = true;
             holdAuthDisplayForTotp(uid);
         } else {
+            // Recovery and a stale "2FA on" cache both land here once the
+            // profile no longer has totpEnabled. Drop the hold before the
+            // button paint, or Settings stays blocked for this page load.
+            if (!currentUser.totpEnabled) clearTotpHold();
             publishAuthDisplay(uid, doc.data());
             updateAuthButton();
         }
@@ -2894,10 +2910,11 @@ async function loadUser(uid, prefetchedDoc) {
                 _showTotpSignInChallenge();
                 return;
             }
-            if (currentUser && currentUser.totpEnabled) {
-                noteTotpVerified(auth.currentUser.uid);
-                window._btcTotpHold = false;
-            }
+            // A passing server check means this session may use the account.
+            // That includes a recovery code that just turned 2FA off, so the
+            // hold clears even when totpEnabled is already false.
+            clearTotpHold();
+            if (currentUser && currentUser.totpEnabled) noteTotpVerified(auth.currentUser.uid);
             publishAuthDisplay(uid, currentUser);
             updateAuthButton();
             if (window._emailSyncUid !== uid) {
@@ -9181,7 +9198,7 @@ window.minimizeSignUpBanner = function() {
 // session's authenticator check succeeds. The stored marker has no username,
 // so the next boot cannot paint one before the check.
 function holdAuthDisplayForTotp(uid) {
-    window._btcTotpHold = true;
+    noteTotpHold(uid);
     if (!window.btcAuthDisplay || !uid) return;
     try {
         if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
@@ -9516,7 +9533,7 @@ async function signOutUser(force) {
     if ('caches' in window) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
     }
-    window._btcTotpHold = false;
+    clearTotpHold();
     clearTotpVerified();
     clearAuthDisplay();
     clearUserLocalStorage();
@@ -10278,7 +10295,7 @@ window.verifyMFACode = async function() {
 // TOTP sign-in challenge — shown when totpEnabled===true and session not yet verified.
 // Uses existing totpCheck Cloud Function. Calls loadUser again on success.
 window._showTotpSignInChallenge = function() {
-    window._btcTotpHold = true;
+    noteTotpHold(auth && auth.currentUser && auth.currentUser.uid);
     clearTotpVerified();
     if (auth && auth.currentUser) holdAuthDisplayForTotp(auth.currentUser.uid);
     if (tosBlocking()) {
@@ -10353,13 +10370,13 @@ window._submitTotpSignIn = async function() {
         if (ov) ov.remove();
         if (checkedData.recoveryCodes) window._showRecoveryCodes(checkedData.recoveryCodes);
         if (auth && auth.currentUser) noteTotpVerified(auth.currentUser.uid);
-        window._btcTotpHold = false;
+        clearTotpHold();
         _resumeAfterSecondFactor();
         if (typeof loadUser === 'function' && auth && auth.currentUser) {
             loadUser(auth.currentUser.uid).catch(function(e) { console.error('[TOTP] loadUser after verify failed:', e); });
         }
     } catch(e) {
-        window._btcTotpHold = true;
+        noteTotpHold(auth && auth.currentUser && auth.currentUser.uid);
         clearTotpVerified();
         clearAuthDisplay();
         if (auth && auth.currentUser && window.btcAuthDisplay && window.btcAuthDisplay.markNeeds2fa) {
