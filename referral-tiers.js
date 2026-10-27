@@ -74,6 +74,22 @@
         return Math.floor(Number(user.points) || 0) >= MAXI_RANK_POINTS;
     }
 
+    // Why the referrer's live count has to be recomputed from a users/{uid}
+    // write. The referral doc is not written again when the referee later
+    // reaches Maxi, is banned, is deleted, or is sats-disabled.
+    function recountReasons(before, after) {
+        if (!after) return ['deleted'];
+        var prev = before || {};
+        var reasons = [];
+        var wasMaxi = holdsMaxiRank(prev);
+        var nowMaxi = holdsMaxiRank(after);
+        if (wasMaxi !== nowMaxi) reasons.push(nowMaxi ? 'reached-maxi' : 'left-maxi');
+        if ((prev.banned === true) !== (after.banned === true)) reasons.push(after.banned === true ? 'banned' : 'unbanned');
+        if ((prev.satsDisabled === true) !== (after.satsDisabled === true)) reasons.push(after.satsDisabled === true ? 'sats-disabled' : 'sats-enabled');
+        if ((prev.referralVerified === true) !== (after.referralVerified === true)) reasons.push('referral-verified');
+        return reasons;
+    }
+
     function referredUidOf(referral) {
         if (!referral) return '';
         return String(referral.referredUid || referral.referredUserUid || referral.referredUser || referral.id || '');
@@ -213,6 +229,7 @@
         tierForCount: tierForCount,
         tierProgress: tierProgress,
         holdsMaxiRank: holdsMaxiRank,
+        recountReasons: recountReasons,
         referredUidOf: referredUidOf,
         creditedReferral: creditedReferral,
         refereeBlocked: refereeBlocked,

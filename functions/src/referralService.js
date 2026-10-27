@@ -518,16 +518,6 @@ async function payIfQualified(referredUid) {
     return outcome;
 }
 
-function maxiStandingChanged(before, after) {
-    const b = before || {};
-    const a = after || {};
-    if (referralTiers.holdsMaxiRank(b) !== referralTiers.holdsMaxiRank(a)) return true;
-    if ((b.banned === true) !== (a.banned === true)) return true;
-    if ((b.satsDisabled === true) !== (a.satsDisabled === true)) return true;
-    if ((b.referralVerified === true) !== (a.referralVerified === true)) return true;
-    return false;
-}
-
 async function readAll(refs) {
     if (!refs.length) return [];
     const firestore = db();
@@ -596,13 +586,16 @@ async function persistReferralMaxiCount(referrerUid) {
     });
 }
 
+// Called from onUserWritten, which is exports.onUserReferral on users/{uid}.
+// Reaching Maxi, a ban, sats-disabled, and account deletion are user-doc
+// writes. There is no referrals-collection trigger for this count.
 async function syncReferralMaxiCount(uid, before, after) {
     const deleted = !after;
     const prev = before || {};
     if (!deleted && (Number(prev.referralCount) || 0) !== (Number(after.referralCount) || 0)) {
         await persistReferralMaxiCount(uid);
     }
-    if (deleted || maxiStandingChanged(prev, after || {})) {
+    if (referralTiers.recountReasons(prev, deleted ? null : after).length) {
         const referral = await db().collection('referrals').doc(uid).get();
         if (!referral.exists) return;
         const referrerUid = String((referral.data() || {}).referrerUid || '');

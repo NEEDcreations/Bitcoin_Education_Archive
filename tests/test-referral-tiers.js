@@ -176,5 +176,25 @@ test('clients cannot write referralMaxiCount', () => {
     });
 });
 
+test('a user write names why the referrer count is recomputed', () => {
+    assert.deepStrictEqual(tiers.recountReasons({ points: 2139 }, { points: 2140 }), ['reached-maxi']);
+    assert.deepStrictEqual(tiers.recountReasons({ points: 100 }, { points: 500 }), []);
+    assert.deepStrictEqual(tiers.recountReasons({ points: 2140 }, { points: 2500 }), []);
+    assert.deepStrictEqual(tiers.recountReasons({ points: 3000 }, { points: 1000 }), ['left-maxi']);
+    assert.deepStrictEqual(tiers.recountReasons({ points: 5000 }, { points: 5000, banned: true }), ['banned']);
+    assert.deepStrictEqual(tiers.recountReasons({ points: 5000, banned: true }, { points: 5000, banned: false }), ['unbanned']);
+    assert.deepStrictEqual(tiers.recountReasons({ points: 5000 }, { points: 5000, satsDisabled: true }), ['sats-disabled']);
+    assert.deepStrictEqual(tiers.recountReasons({ points: 5000 }, null), ['deleted']);
+    const indexJs = read('functions/index.js');
+    const fn = indexJs.slice(indexJs.indexOf('exports.onUserReferral'), indexJs.indexOf('exports.payQualifiedReferrals'));
+    assert.ok(fn.includes("document: 'users/{uid}'"));
+    assert.ok(fn.includes('referralService.onUserWritten(event)'));
+    const service = read('functions/src/referralService.js');
+    const sync = service.slice(service.indexOf('async function syncReferralMaxiCount'), service.indexOf('async function onUserWritten'));
+    assert.ok(sync.includes('recountReasons'));
+    assert.ok(service.includes('await syncReferralMaxiCount(uid, before, after)'));
+    assert.ok(service.includes('await syncReferralMaxiCount(uid, beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : {}, null)'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
