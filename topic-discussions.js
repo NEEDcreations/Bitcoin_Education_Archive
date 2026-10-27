@@ -472,6 +472,23 @@
         return writeDraft(channelId || state.channelId || window.currentChannelId || '', text);
     };
 
+    window.bqClearTopicDrafts = function() {
+        Object.keys(drafts).forEach(function(key) { delete drafts[key]; });
+        try {
+            if (typeof sessionStorage === 'undefined' || !sessionStorage || typeof sessionStorage.key !== 'function') return;
+            var keys = [];
+            var i;
+            var total = typeof sessionStorage.length === 'number' ? sessionStorage.length : 0;
+            for (i = 0; i < total; i++) {
+                var key = sessionStorage.key(i);
+                if (key && key.indexOf('btc_td_draft_') === 0) keys.push(key);
+            }
+            keys.forEach(function(key) {
+                if (sessionStorage.removeItem) sessionStorage.removeItem(key);
+            });
+        } catch (e) {}
+    };
+
     var ANCHOR_INDEX_MAX = 8000;
 
     function normalizeAnchorSample(text) {
@@ -1687,11 +1704,6 @@
         if (area) {
             var text = area.value || '';
             writeDraft(channelId, text);
-            if (window._btcQuestReturn) {
-                window._btcQuestReturn.draft = text;
-                window._btcQuestReturn.channelId = channelId || window._btcQuestReturn.channelId;
-                window._btcQuestReturn.convoOpen = true;
-            }
             area.value = '';
             if (document.activeElement === area) {
                 if (typeof area.blur === 'function') {
@@ -1717,6 +1729,8 @@
             window._tdConvoHistory = false;
             window._tdConvoBackPending = false;
         }
+        if (typeof window.btcClearQuestReturn === 'function') window.btcClearQuestReturn();
+        else window._btcQuestReturn = null;
         if (typeof window.btcNoteSurfaceClosed === 'function') window.btcNoteSurfaceClosed();
     }
 
@@ -1726,16 +1740,22 @@
 
     window.bqRestoreTopicConversation = function(opts) {
         opts = opts || {};
-        var channelId = opts.channelId || state.channelId || window.currentChannelId || '';
+        var channelId = String(opts.channelId || '');
+        if (!channelId) return null;
+        if (state.channelId && state.channelId !== channelId) return null;
+        if (window.currentChannelId && window.currentChannelId !== channelId) return null;
         if (opts.draft != null) writeDraft(channelId, opts.draft);
-        if (channelId && !document.getElementById('topic-discussion-live') && typeof window.mountTopicDiscussion === 'function') {
+        if (!document.getElementById('topic-discussion-live') && typeof window.mountTopicDiscussion === 'function') {
             window.mountTopicDiscussion(channelId);
         }
+        if (state.channelId && state.channelId !== channelId) return null;
         setOpen(true);
         if (!document.getElementById('topic-discussion-composer')) return null;
         if (!document.getElementById('topic-discussion-input')) renderComposer();
-        openConvoSheet();
         var area = document.getElementById('topic-discussion-input');
+        if (area && state.channelId && state.channelId !== channelId) return null;
+        openConvoSheet();
+        area = document.getElementById('topic-discussion-input');
         var draft = opts.draft != null ? String(opts.draft) : readDraft(channelId);
         if (area) area.value = draft;
         if (opts.focus !== false && area && typeof area.focus === 'function') area.focus();
@@ -1940,6 +1960,10 @@
 
     window.mountTopicDiscussion = function(channelId) {
         if (!channelId || typeof document === 'undefined') return;
+        if (state.channelId && state.channelId !== channelId) {
+            if (typeof window.btcClearQuestReturn === 'function') window.btcClearQuestReturn();
+            else window._btcQuestReturn = null;
+        }
         state.channelId = channelId;
         state.posts = [];
         state.cursor = null;

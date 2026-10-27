@@ -663,6 +663,8 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
     assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2391'"));
+    assert.ok(!swText.includes('btc-archive-v2410'));
+    assert.ok(!swText.includes('btc-archive-v2385'));
     assert.ok(!swText.includes('btc-archive-v2425'));
     assert.ok(!swText.includes('btc-archive-v2384'));
     assert.ok(!swText.includes('btc-archive-v2412'));
@@ -673,6 +675,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!swText.includes('btc-archive-v2380'));
     assert.ok(!swText.includes('btc-archive-v2407'));
     assert.ok(!swText.includes('btc-archive-v2379'));
+    assert.ok(!swText.includes('btc-archive-v2378'));
     assert.ok(!swText.includes('btc-archive-v2399'));
     assert.ok(!swText.includes('btc-archive-v2378'));
     assert.ok(!swText.includes('btc-archive-v2377'));

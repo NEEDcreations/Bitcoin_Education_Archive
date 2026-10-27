@@ -113,7 +113,10 @@ function collect(root, sel) {
 function boot() {
     var document = {
         activeElement: null,
-        addEventListener: function() {},
+        _listeners: [],
+        addEventListener: function(type, fn) {
+            document._listeners.push({ type: type, fn: fn });
+        },
         createElement: makeEl,
         querySelectorAll: function(sel) { return collect(html, sel); }
     };
@@ -256,16 +259,38 @@ function wait(ms) {
     assert.notStrictEqual(window._questSubmitted, true);
     window.btcDismissQuest('back');
     assert.strictEqual(env.modal.classList.contains('open'), false);
-    assert.strictEqual(env.modal.style.display, 'none');
-    assert.strictEqual(env.modal.style.pointerEvents, 'none');
-    assert.strictEqual(env.modal.style.visibility, 'hidden');
+    assert.strictEqual(env.modal.style.display, '');
+    assert.strictEqual(env.modal.style.pointerEvents, '');
+    assert.strictEqual(env.modal.style.visibility, '');
+    assert.strictEqual(env.modal.getAttribute('aria-hidden'), 'true');
     assert.strictEqual(env.awards(), 0);
     assert.notStrictEqual(window._questSubmitted, true);
+    env.modal.classList.add('open');
+    assert.strictEqual(env.modal.style.display, '', 'exam and picker open from the class alone');
+    assert.strictEqual(env.modal.classList.contains('open'), true);
+    env.modal.classList.remove('open');
     await wait(350);
     var pill = window.document.getElementById('btc-quest-pill');
     assert.ok(pill, 'skipped quest stays tappable');
+    assert.strictEqual(env.modal.classList.contains('open'), false, 'Not now does not auto-open');
+    assert.ok(String(pill.style.cssText).indexOf('bottom:') !== -1, 'pill sits clear of the top logo');
+    var beforePill = env.shown.length;
+    function fireDoc(type, target) {
+        (window.document._listeners || []).forEach(function(entry) {
+            if (entry.type === type) entry.fn({ type: type, target: target, preventDefault: function() {}, stopPropagation: function() {} });
+        });
+    }
+    window._btcPointerDown = false;
+    window._btcGestureUntil = 0;
+    fireDoc('pointerdown', pill);
+    fireDoc('touchstart', pill);
+    assert.strictEqual(window._btcPointerDown, false, 'pill tap is not a gesture');
+    assert.ok(!window._btcGestureUntil || window._btcGestureUntil <= Date.now());
+    assert.strictEqual(window.btcUserBusy(), false);
     pill.click();
+    assert.ok(env.shown.length > beforePill, 'pill opens the quest at once');
     assert.strictEqual(env.shown[env.shown.length - 1].id, 'quest-mining');
+    assert.strictEqual(env.modal.classList.contains('open'), true);
     assert.strictEqual(env.awards(), 0);
     assert.notStrictEqual(window._questSubmitted, true);
 
@@ -275,6 +300,85 @@ function wait(ms) {
     window.btcDismissQuest('esc');
     assert.strictEqual(cancelled, 0);
     window._scholarExamActive = false;
+
+    var search = makeEl('input');
+    search.id = 'searchInput';
+    search.type = 'search';
+    search.value = 'nonce';
+    window.document.body.appendChild(search);
+    window.document.activeElement = window.document.body;
+    env.modal.classList.remove('open');
+    search.focus();
+    assert.strictEqual(window.btcUserBusy(), true, 'focused search is typing');
+    window.document.activeElement = window.document.body;
+    assert.strictEqual(window.btcUserBusy(), false, 'leftover search box');
+    var select = makeEl('select');
+    select.id = 'sortTopics';
+    window.document.body.appendChild(select);
+    select.focus();
+    assert.strictEqual(window.btcUserBusy(), false, 'select is not text entry');
+    var locked = makeEl('textarea');
+    locked.id = 'readonlyNote';
+    locked.readOnly = true;
+    locked.value = 'locked';
+    window.document.body.appendChild(locked);
+    locked.focus();
+    assert.strictEqual(window.btcUserBusy(), false, 'read-only field');
+    window.document.activeElement = window.document.body;
+    env.area.value = 'still drafting';
+    assert.strictEqual(window.btcUserBusy(), true, 'comment composer draft');
+    env.area.value = '';
+
+    var ranHeld = 0;
+    var ranReady = 0;
+    window._btcQuestHoldUntil = Date.now() + 120000;
+    window._btcQuestDeliberate = false;
+    window.btcQueueQuest(function() { ranHeld += 1; }, 'held-one', 120000);
+    window.btcQueueQuest(function() { ranReady += 1; }, 'ready-two', 0);
+    await wait(800);
+    assert.strictEqual(ranHeld, 0, 'held quest stays queued');
+    assert.strictEqual(ranReady, 1, 'a held quest does not block the queue');
+
+    window._btcQuestDeliberate = true;
+    var hubBefore = env.shown.filter(function(q) { return q && q.id === 'hub-quest'; }).length;
+    window.showQuest({ id: 'hub-quest' });
+    window._btcQuestDeliberate = false;
+    window._btcQuestHistoryPushed = false;
+    window.btcDismissQuest('button');
+    await wait(500);
+    var hubAfter = env.shown.filter(function(q) { return q && q.id === 'hub-quest'; }).length;
+    assert.strictEqual(hubAfter, hubBefore + 1, 'a deliberate quest is not auto-reopened');
+
+    var restores = [];
+    window.currentChannelId = 'whitepaper';
+    window.bqSaveTopicDraft = function(channelId, text) { restores.push(['save', channelId, text]); };
+    window.bqRestoreTopicConversation = function(opts) { restores.push(['restore', opts.channelId, opts.draft]); return null; };
+    env.sheet.hidden = false;
+    env.sheet.classList.add('open');
+    window._btcQuestReturn = null;
+    window._btcQuestDeliberate = false;
+    window.showQuest({ id: 'interrupt' });
+    window._btcQuestHistoryPushed = false;
+    assert.strictEqual(window._btcQuestReturn.interrupted, true);
+    assert.strictEqual(window._btcQuestReturn.channelId, 'whitepaper');
+    window.currentChannelId = 'organic';
+    window.btcDismissQuest('button');
+    assert.ok(!restores.some(function(row) { return row[0] === 'restore'; }), 'dismiss does not restore another topic');
+    window.currentChannelId = 'whitepaper';
+    window._btcQuestReturn = null;
+    env.sheet.hidden = false;
+    env.sheet.classList.add('open');
+    window.showQuest({ id: 'same-topic' });
+    window._btcQuestHistoryPushed = false;
+    window.btcClearQuestReturn();
+    window.btcDismissQuest('button');
+    assert.ok(!restores.some(function(row) { return row[0] === 'restore'; }), 'a closed conversation is not reopened');
+
+    var qsrc = fs.readFileSync(path.join(root, 'quest-defer.js'), 'utf8');
+    assert.ok(qsrc.indexOf('clearInterval') !== -1);
+    assert.strictEqual(qsrc.indexOf("modal.style.display = 'none'"), -1);
+    assert.strictEqual(qsrc.indexOf("modal.style.visibility = 'hidden'"), -1);
+    assert.ok(qsrc.indexOf('pillOnly') !== -1);
 
     var bundle = fs.readFileSync(path.join(root, 'bundle.min.js'), 'utf8');
     assert.ok(bundle.indexOf('btcDeferQuestIfBusy') !== -1);

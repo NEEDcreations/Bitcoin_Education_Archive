@@ -1706,6 +1706,80 @@ test('anchor shape is a bounded index plus a short hash, otherwise dropped', () 
         assert.ok(again.classList.contains('open'));
     });
 
+    test('a whitepaper draft never appears in the organic composer', function() {
+        var plan = bootTopicClient({ signedIn: true, reduceMotion: true });
+        plan.CHANNELS.whitepaper = { title: 'whitepaper' };
+        plan.CHANNELS.organic = { title: 'organic' };
+        hostTopic(plan, [
+            'The whitepaper describes a peer to peer electronic cash system in enough detail to quote.',
+            'Nodes collect transactions into a block and then work on the proof of work puzzle.'
+        ]);
+        plan.currentChannelId = 'whitepaper';
+        plan.mountTopicDiscussion('whitepaper');
+        plan.bqOpenTopicConversation();
+        var area = plan.document.getElementById('topic-discussion-input');
+        area.value = 'What does the whitepaper say about double spending?';
+        (area.listeners.input || []).forEach(function(fn) { fn(); });
+        plan._btcQuestReturn = { channelId: 'whitepaper', draft: area.value, interrupted: true };
+        plan.bqCloseTopicConversation('button');
+        assert.strictEqual(plan._btcQuestReturn, null);
+        assert.strictEqual(plan.bqReadTopicDraft('whitepaper'), 'What does the whitepaper say about double spending?');
+        assert.strictEqual(plan.bqReadTopicDraft('organic'), '');
+        plan.currentChannelId = 'organic';
+        plan.mountTopicDiscussion('organic');
+        var organic = plan.document.getElementById('topic-discussion-input');
+        assert.ok(organic);
+        assert.strictEqual(organic.value, '');
+        assert.strictEqual(plan.bqReadTopicDraft('whitepaper'), 'What does the whitepaper say about double spending?');
+        var leaked = plan.bqRestoreTopicConversation({
+            channelId: 'whitepaper',
+            draft: 'What does the whitepaper say about double spending?',
+            focus: true
+        });
+        assert.strictEqual(leaked, null);
+        assert.strictEqual(plan.document.getElementById('topic-discussion-input').value, '');
+        assert.strictEqual(plan.document.getElementById('topic-convo-modal').hidden, true);
+    });
+
+    test('sign-out clears topic drafts from memory and sessionStorage', function() {
+        var plan = bootTopicClient({ signedIn: true, reduceMotion: true });
+        var store = {};
+        var order = [];
+        plan.sessionStorage.getItem = function(key) {
+            return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
+        };
+        plan.sessionStorage.setItem = function(key, value) {
+            if (order.indexOf(key) === -1) order.push(key);
+            store[key] = String(value);
+        };
+        plan.sessionStorage.removeItem = function(key) {
+            delete store[key];
+            order = order.filter(function(item) { return item !== key; });
+        };
+        plan.sessionStorage.key = function(index) { return order[index] || null; };
+        Object.defineProperty(plan.sessionStorage, 'length', {
+            configurable: true,
+            get: function() { return order.length; }
+        });
+        hostTopic(plan, [
+            'Alpha paragraph explains what miners change inside a block header.',
+            'Bravo paragraph explains why the hash has to fall under the target.'
+        ]);
+        plan.mountTopicDiscussion('mining');
+        plan.bqOpenTopicConversation();
+        var area = plan.document.getElementById('topic-discussion-input');
+        area.value = 'draft to forget';
+        (area.listeners.input || []).forEach(function(fn) { fn(); });
+        assert.strictEqual(plan.sessionStorage.getItem('btc_td_draft_mining'), 'draft to forget');
+        plan.bqClearTopicDrafts();
+        assert.strictEqual(plan.bqReadTopicDraft('mining'), '');
+        assert.strictEqual(plan.sessionStorage.getItem('btc_td_draft_mining'), null);
+        var ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+        var signOut = ranking.slice(ranking.indexOf('async function signOutUser'), ranking.indexOf('window.hideUsernamePrompt'));
+        assert.ok(signOut.indexOf('clearUserLocalStorage') < signOut.indexOf('bqClearTopicDrafts'));
+        assert.ok(signOut.indexOf('bqClearTopicDrafts') < signOut.indexOf('auth.signOut'));
+    });
+
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
 })().catch(function(err) {

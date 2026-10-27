@@ -4,9 +4,19 @@
     var IDLE_MS = 2500;
     var GESTURE_MS = 700;
     var REOFFER_MS = 45000;
+    var COMPOSERS = {
+        'topic-discussion-input': 1,
+        'td-inline-input': 1,
+        'globalChatInput': 1,
+        'dmInput': 1,
+        'forumReplyInput': 1,
+        'articleReplyInput': 1,
+        'beatsCommentInput': 1
+    };
     var queue = [];
     var idleTimer = null;
     var idleSince = 0;
+    var wrapTimer = null;
 
     function idleDelay() {
         var n = window.BTC_QUEST_IDLE_MS;
@@ -36,16 +46,32 @@
         return document.getElementById(id);
     }
 
-    function isEditable(el) {
-        if (!el || el.nodeType !== 1) return false;
+    function isSearchField(el) {
+        if (!el) return false;
+        var id = String(el.id || '');
+        if (id === 'searchInput' || id === 'searchOverlayInput') return true;
+        return String(el.type || '').toLowerCase() === 'search';
+    }
+
+    function isLocked(el) {
+        if (!el) return false;
+        if (el.readOnly || el.disabled) return true;
+        if (!el.getAttribute) return false;
+        if (el.getAttribute('readonly') != null || el.getAttribute('disabled') != null) return true;
+        return false;
+    }
+
+    // Focused text entry counts. Selects, read-only fields, and search boxes do not.
+    function isTextEntry(el) {
+        if (!el || el.nodeType !== 1 || isLocked(el) || isSearchField(el)) return false;
         var tag = String(el.tagName || '').toUpperCase();
+        if (tag === 'SELECT') return false;
         if (tag === 'TEXTAREA') return true;
-        if (tag === 'SELECT') return true;
         if (el.isContentEditable) return true;
         if (el.getAttribute && el.getAttribute('contenteditable') === 'true') return true;
         if (tag === 'INPUT') {
             var type = String(el.type || 'text').toLowerCase();
-            if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'checkbox' || type === 'radio' || type === 'file' || type === 'range' || type === 'color' || type === 'image') return false;
+            if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'checkbox' || type === 'radio' || type === 'file' || type === 'range' || type === 'color' || type === 'image' || type === 'search') return false;
             return true;
         }
         return false;
@@ -72,23 +98,21 @@
         return !!el;
     }
 
-    function eachField(fn) {
-        if (document && typeof document.querySelectorAll === 'function') {
-            var list = document.querySelectorAll('textarea, input, select, [contenteditable="true"]');
-            var i;
-            for (i = 0; i < list.length; i++) fn(list[i]);
-            return;
-        }
-        ['topic-discussion-input', 'td-inline-input', 'nachoInput', 'nachoModeInput', 'searchInput', 'chatInput', 'dmInput'].forEach(function (id) {
-            var el = byId(id);
-            if (el) fn(el);
-        });
-    }
-
     function draftText(el) {
         if (!el) return '';
         if (el.value != null && String(el.tagName || '').toUpperCase() !== 'DIV') return String(el.value);
         return String(el.textContent || '');
+    }
+
+    function composerDraftBusy() {
+        var ids = Object.keys(COMPOSERS);
+        var i;
+        for (i = 0; i < ids.length; i++) {
+            var el = byId(ids[i]);
+            if (!el || isLocked(el) || !fieldVisible(el)) continue;
+            if (String(draftText(el) || '').trim()) return true;
+        }
+        return false;
     }
 
     function modalById(id, mode) {
@@ -123,16 +147,9 @@
         if (window._btcGestureUntil && Date.now() < window._btcGestureUntil) return true;
         if (window._chatOverlayOpen || window._nachoMode || window._nachoBusy || window._examActive || window._scholarExamActive || window._pvpActive || window._giftOpening) return true;
         var active = document && document.activeElement;
-        if (isEditable(active) && fieldVisible(active)) return true;
-        var draftBusy = false;
-        eachField(function (el) {
-            if (draftBusy || !isEditable(el) || !fieldVisible(el)) return;
-            if (el.id === 'btc-quest-pill') return;
-            var quest = byId('questModal');
-            if (quest && quest.contains && quest.contains(el) && classOpen(quest)) return;
-            if (String(draftText(el) || '').trim()) draftBusy = true;
-        });
-        if (draftBusy) return true;
+        if (isTextEntry(active) && fieldVisible(active)) return true;
+        if (active && active === document.activeElement && isSearchField(active) && !isLocked(active) && fieldVisible(active)) return true;
+        if (composerDraftBusy()) return true;
         if (modalById('topic-convo-modal', 'convo')) return true;
         var search = byId('searchOverlay');
         if (search && fieldVisible(search) && search.getAttribute && search.getAttribute('data-open') === '1') return true;
@@ -150,40 +167,42 @@
         return false;
     };
 
+    function conversationOpen() {
+        return !!(modalById('topic-convo-modal', 'convo') || (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()));
+    }
+
     function capturePlace() {
         if (window._btcQuestReturn) return window._btcQuestReturn;
         var channelId = window.currentChannelId || '';
         var area = byId('topic-discussion-input');
-        var inline = byId('td-inline-input');
         var draft = area ? String(area.value || '') : '';
         if (!draft && typeof window.bqReadTopicDraft === 'function') draft = String(window.bqReadTopicDraft(channelId) || '');
-        if (draft && typeof window.bqSaveTopicDraft === 'function') window.bqSaveTopicDraft(channelId, draft);
+        if (draft && channelId && typeof window.bqSaveTopicDraft === 'function') window.bqSaveTopicDraft(channelId, draft);
         var active = document && document.activeElement;
-        var writingHere = !!(area && active === area && fieldVisible(area));
+        var interrupted = conversationOpen();
         window._btcQuestReturn = {
             channelId: channelId,
             draft: draft,
-            inlineDraft: inline ? String(inline.value || '') : '',
-            convoOpen: !!(modalById('topic-convo-modal', 'convo') || writingHere),
-            focusId: (active && active.id) || (writingHere ? 'topic-discussion-input' : '')
+            interrupted: interrupted,
+            focusId: (active && active.id) || ''
         };
         return window._btcQuestReturn;
     }
 
+    window.btcClearQuestReturn = function () {
+        window._btcQuestReturn = null;
+    };
+
     function restorePlace() {
         var place = window._btcQuestReturn;
         window._btcQuestReturn = null;
-        if (!place) return;
-        if (place.draft && typeof window.bqSaveTopicDraft === 'function') window.bqSaveTopicDraft(place.channelId, place.draft);
-        if (place.convoOpen && typeof window.bqRestoreTopicConversation === 'function') {
-            window.bqRestoreTopicConversation({ channelId: place.channelId, draft: place.draft, focus: true });
-            return;
+        if (!place || !place.interrupted) return;
+        if (place.channelId && window.currentChannelId && place.channelId !== window.currentChannelId) return;
+        if (place.draft && place.channelId && typeof window.bqSaveTopicDraft === 'function') {
+            window.bqSaveTopicDraft(place.channelId, place.draft);
         }
-        if (place.focusId) {
-            var el = byId(place.focusId);
-            if (el && typeof el.focus === 'function') {
-                try { el.focus(); } catch (e) {}
-            }
+        if (typeof window.bqRestoreTopicConversation === 'function') {
+            window.bqRestoreTopicConversation({ channelId: place.channelId, draft: place.draft, focus: true });
         }
     }
 
@@ -192,6 +211,15 @@
         if (!pill) return;
         pill.hidden = true;
         if (pill.style) pill.style.display = 'none';
+    }
+
+    function eventOnPill(event) {
+        var pill = byId('btc-quest-pill');
+        if (!pill || !event) return false;
+        var target = event.target;
+        if (!target) return false;
+        if (target === pill) return true;
+        return typeof pill.contains === 'function' && pill.contains(target);
     }
 
     function showPill() {
@@ -203,41 +231,65 @@
             pill.type = 'button';
             pill.textContent = 'Quest ready';
             pill.setAttribute('aria-label', 'Quest ready. Tap to play it when you are free.');
-            pill.style.cssText = 'position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:360000;padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid #f7931a;background:#1a1208;color:#fff;font-weight:800;font-family:inherit;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.4);';
-            pill.addEventListener('click', function (event) {
+            // Bottom center, above the mobile nav. The home logo is top center.
+            pill.style.cssText = 'position:fixed;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom, 0px) + 36px);margin:0 auto;width:max-content;max-width:calc(100vw - 32px);z-index:360000;padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid #f7931a;background:#1a1208;color:#fff;font-weight:800;font-family:inherit;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.4);touch-action:manipulation;';
+            function takePill(event) {
                 if (event && event.preventDefault) event.preventDefault();
-                window._btcQuestHoldUntil = 0;
-                idleSince = Date.now() - idleDelay();
-                runQueue();
-            });
+                if (event && event.stopPropagation) event.stopPropagation();
+                window._btcPointerDown = false;
+                window._btcGestureUntil = 0;
+                openQueuedNow();
+            }
+            pill.addEventListener('pointerdown', takePill);
+            pill.addEventListener('click', takePill);
             document.body.appendChild(pill);
         }
         pill.hidden = false;
         if (pill.style) pill.style.display = 'block';
     }
 
-    function enqueue(open, id, holdMs) {
+    function enqueue(open, id, holdMs, opts) {
+        opts = opts || {};
         var key = id || 'quest';
         queue = queue.filter(function (item) { return item.id !== key; });
-        queue.push({ id: key, open: open, holdMs: holdMs || 0 });
-        if (holdMs) window._btcQuestHoldUntil = Math.max(window._btcQuestHoldUntil || 0, Date.now() + holdMs);
+        queue.push({
+            id: key,
+            open: open,
+            holdUntil: holdMs ? Date.now() + holdMs : 0,
+            pillOnly: !!opts.pillOnly
+        });
     }
 
-    function held() {
-        return Date.now() < (window._btcQuestHoldUntil || 0);
+    function openItem(item) {
+        hidePill();
+        idleSince = 0;
+        window._btcPointerDown = false;
+        window._btcGestureUntil = 0;
+        window._btcQuestBypassBusy = true;
+        try { if (item && item.open) item.open(); }
+        finally { window._btcQuestBypassBusy = false; }
+        if (queue.length) arm();
+    }
+
+    function openQueuedNow() {
+        if (!queue.length) { hidePill(); return; }
+        openItem(queue.shift());
     }
 
     function runQueue() {
         if (!queue.length) { hidePill(); return; }
         if (window.btcUserBusy()) { hidePill(); arm(); return; }
-        if (held()) { showPill(); arm(); return; }
-        var item = queue.shift();
-        hidePill();
-        idleSince = 0;
-        window._btcQuestBypassBusy = true;
-        try { item.open(); }
-        finally { window._btcQuestBypassBusy = false; }
-        if (queue.length) arm();
+        var idx = -1;
+        var i;
+        for (i = 0; i < queue.length; i++) {
+            var item = queue[i];
+            if (item.pillOnly) continue;
+            if (item.holdUntil && Date.now() < item.holdUntil) continue;
+            idx = i;
+            break;
+        }
+        if (idx < 0) { showPill(); arm(); return; }
+        openItem(queue.splice(idx, 1)[0]);
     }
 
     function arm() {
@@ -253,7 +305,7 @@
             }
             if (!idleSince) idleSince = Date.now();
             showPill();
-            if (!held() && Date.now() - idleSince >= idleDelay()) {
+            if (Date.now() - idleSince >= idleDelay()) {
                 runQueue();
                 return;
             }
@@ -273,10 +325,10 @@
         return true;
     };
 
-    window.btcQueueQuest = function (open, id, holdMs) {
+    window.btcQueueQuest = function (open, id, holdMs, opts) {
         if (typeof open !== 'function') return;
         capturePlace();
-        enqueue(open, id || 'quest', holdMs == null ? REOFFER_MS : holdMs);
+        enqueue(open, id || 'quest', holdMs == null ? REOFFER_MS : holdMs, opts);
         arm();
     };
 
@@ -290,14 +342,16 @@
         return !!(modal && classOpen(modal));
     }
 
+    // Drop the open class only. Inline display or visibility would hide the
+    // shared modal from the quiz picker and the Scholar exam, which only add open.
     window.btcReleaseQuestLayer = function () {
         var modal = byId('questModal');
         if (modal) {
             if (modal.classList) modal.classList.remove('open');
             if (modal.style) {
-                modal.style.display = 'none';
-                modal.style.pointerEvents = 'none';
-                modal.style.visibility = 'hidden';
+                modal.style.display = '';
+                modal.style.pointerEvents = '';
+                modal.style.visibility = '';
             }
             if (modal.setAttribute) modal.setAttribute('aria-hidden', 'true');
         }
@@ -374,7 +428,7 @@
     }
 
     function reofferQuest(quest) {
-        if (!quest) return;
+        if (!quest || window._btcLastQuestDeliberate) return;
         window.btcQueueQuest(function () {
             window._btcQuestBypassBusy = true;
             try {
@@ -382,7 +436,7 @@
             } finally {
                 window._btcQuestBypassBusy = false;
             }
-        }, 'reoffer-quest', REOFFER_MS);
+        }, 'reoffer-quest', 0, { pillOnly: true });
     }
 
     function popHistoryFirst(flagName, pendingName, reason) {
@@ -426,14 +480,9 @@
         window._btcBubbleDismissing = true;
         window._btcBubbleBackPending = false;
         window._btcBubbleHistory = false;
-        var q = window._btcBubbleQuiz;
-        var awarded = !!(q && window._btcBubbleQuizAwarded === String(q.question || ''));
         window._btcBubbleQuiz = null;
         window._nachoTriviaXClose = true;
         if (typeof window.hideBubble === 'function') window.hideBubble(true);
-        if (!awarded && q && typeof window._presentBubbleQuiz === 'function') {
-            window.btcQueueQuest(function () { window._presentBubbleQuiz(q); }, 'bubble-quiz', REOFFER_MS);
-        }
         restorePlace();
         window._btcBubbleDismissing = false;
     };
@@ -447,13 +496,8 @@
         window._btcTriviaDismissing = true;
         window._btcTriviaBackPending = false;
         window._btcTriviaHistory = false;
-        var pending = window._btcNachoTriviaPending;
-        var answered = window._btcNachoTriviaAnswered === true;
         window._nachoTriviaXClose = true;
         if (typeof window.hideBubble === 'function') window.hideBubble(true);
-        if (!answered && pending && typeof window._replayNachoTrivia === 'function') {
-            window.btcQueueQuest(function () { window._replayNachoTrivia(pending); }, 'nacho-trivia', REOFFER_MS);
-        }
         restorePlace();
         window._btcTriviaDismissing = false;
     };
@@ -461,9 +505,11 @@
     function tryWrapQuests() {
         if (typeof window.generateAndShowQuest === 'function' && !window.generateAndShowQuest._btcWrapped) {
             var origGen = window.generateAndShowQuest;
-            window.generateAndShowQuest = function (manual, targetChannelId, isRetake) {
+            window.generateAndShowQuest = function (manual) {
+                window._btcQuestDeliberate = !!manual;
                 var args = arguments;
                 if (!manual && !window._btcQuestBypassBusy && window.btcUserBusy()) {
+                    window._btcQuestDeliberate = false;
                     window.btcDeferQuestIfBusy(function () {
                         window._btcQuestBypassBusy = true;
                         try { origGen.apply(window, args); }
@@ -471,14 +517,19 @@
                     }, 'auto-quest');
                     return;
                 }
-                return origGen.apply(window, args);
+                try {
+                    return origGen.apply(window, args);
+                } finally {
+                    window._btcQuestDeliberate = false;
+                }
             };
             window.generateAndShowQuest._btcWrapped = true;
         }
         if (typeof window.showQuest === 'function' && !window.showQuest._btcWrapped) {
             var origShow = window.showQuest;
-            window.showQuest = function (quest, retry) {
+            window.showQuest = function (quest) {
                 rememberQuest(quest);
+                window._btcLastQuestDeliberate = !!window._btcQuestDeliberate;
                 if (!window._btcQuestReturn) capturePlace();
                 var result = origShow.apply(window, arguments);
                 decorateQuestModal();
@@ -505,9 +556,22 @@
         }
     }
 
+    function hooksInstalled() {
+        return !!(window.generateAndShowQuest && window.generateAndShowQuest._btcWrapped
+            && window.showQuest && window.showQuest._btcWrapped
+            && window.closeQuest && window.closeQuest._btcWrapped
+            && window.skipQuest && window.skipQuest._btcWrapped);
+    }
+
     tryWrapQuests();
-    if (typeof setInterval === 'function') {
-        var wrapTimer = setInterval(tryWrapQuests, 500);
+    if (!hooksInstalled() && typeof setInterval === 'function') {
+        wrapTimer = setInterval(function () {
+            tryWrapQuests();
+            if (hooksInstalled() && wrapTimer) {
+                clearInterval(wrapTimer);
+                wrapTimer = null;
+            }
+        }, 500);
         if (wrapTimer && typeof wrapTimer.unref === 'function') wrapTimer.unref();
     }
 
@@ -515,12 +579,46 @@
         window._btcGestureUntil = Date.now() + GESTURE_MS;
         idleSince = 0;
     }
-    on(document, 'pointerdown', function () { window._btcPointerDown = true; markGesture(); });
-    on(document, 'pointerup', function () { window._btcPointerDown = false; markGesture(); });
-    on(document, 'pointercancel', function () { window._btcPointerDown = false; });
-    on(document, 'touchstart', function () { window._btcPointerDown = true; markGesture(); });
-    on(document, 'touchend', function () { window._btcPointerDown = false; markGesture(); });
-    on(document, 'wheel', markGesture);
-    on(document, 'scroll', markGesture);
-    on(window, 'scroll', markGesture);
+    function down(event) {
+        if (eventOnPill(event)) {
+            window._btcPointerDown = false;
+            window._btcGestureUntil = 0;
+            return;
+        }
+        window._btcPointerDown = true;
+        markGesture();
+    }
+    function up(event) {
+        if (eventOnPill(event)) {
+            window._btcPointerDown = false;
+            window._btcGestureUntil = 0;
+            return;
+        }
+        window._btcPointerDown = false;
+        markGesture();
+    }
+    on(document, 'pointerdown', down);
+    on(document, 'pointerup', up);
+    on(document, 'pointercancel', function (event) {
+        if (eventOnPill(event)) {
+            window._btcPointerDown = false;
+            window._btcGestureUntil = 0;
+            return;
+        }
+        window._btcPointerDown = false;
+    });
+    on(document, 'touchstart', down);
+    on(document, 'touchend', up);
+    on(document, 'wheel', function (event) {
+        if (eventOnPill(event)) return;
+        markGesture();
+    });
+    on(document, 'scroll', function (event) {
+        if (eventOnPill(event)) return;
+        markGesture();
+    });
+    on(window, 'scroll', function (event) {
+        if (eventOnPill(event)) return;
+        markGesture();
+    });
 })();
