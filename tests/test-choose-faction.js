@@ -332,7 +332,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     const syncRule = rules.slice(rules.indexOf('match /satoshiFavor/factionSyncs'));
     assert.ok(syncRule.indexOf('allow write: if false;') > 0);
 
-    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 5);
+    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
     assert.ok(chooseSrc.indexOf('enforceAppCheck: true') > 0);
     assert.ok(index.indexOf('bindChooseFaction') > 0);
     assert.ok(index.indexOf('exports.chooseFaction') > 0);
@@ -384,8 +384,14 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(notes.indexOf("Latest: Publishing an article") === -1);
     assert.ok(notes.indexOf("Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.") > 0);
     assert.ok(notes.indexOf("Latest: Inventory explains") === -1);
+    assert.ok(notes.indexOf("Scholar and Protocol Expert exams keep the answer key on the server, and a passing certificate shows a real verification link.") > 0);
+    assert.ok(notes.indexOf("Latest: Scholar and Protocol Expert") === -1);
+    assert.ok(notes.indexOf("Missing XP has been awarded to affected users.") > 0);
+    assert.ok(notes.indexOf("Latest: Missing XP") === -1);
     assert.ok(notes.indexOf("Settings → Sats now lists the XP you can actually earn, including the daily cap.") > 0);
     assert.ok(notes.indexOf("Latest: Settings → Sats") === -1);
+    assert.ok(notes.indexOf("Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.") > 0);
+    assert.ok(notes.indexOf("Latest: Inventory explains") === -1);
     assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
     assert.ok(notes.indexOf("Latest: A miner's public name") === -1);
     assert.ok(notes.indexOf("Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.") > 0);

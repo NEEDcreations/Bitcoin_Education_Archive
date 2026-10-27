@@ -209,8 +209,14 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(!notes.includes('Latest: Publishing an article'));
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
+    assert.ok(notes.includes('Scholar and Protocol Expert exams keep the answer key on the server, and a passing certificate shows a real verification link.'));
+    assert.ok(!notes.includes('Latest: Scholar and Protocol Expert'));
+    assert.ok(notes.includes('Missing XP has been awarded to affected users.'));
+    assert.ok(!notes.includes('Latest: Missing XP'));
     assert.ok(notes.includes('Settings → Sats now lists the XP you can actually earn, including the daily cap.'));
     assert.ok(!notes.includes('Latest: Settings → Sats'));
+    assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(!notes.includes('Latest: Inventory explains'));
     assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
     assert.ok(!notes.includes("Latest: A miner's public name"));
     assert.ok(notes.includes("Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications."));

@@ -178,6 +178,8 @@ const DELETION_QUERIES = [
     ['pvp_matches', 'player1.uid', '==', []],
     ['pvp_matches', 'player2.uid', '==', []],
     ['certs', 'uid', '==', []],
+    ['cert_owners', 'uid', '==', []],
+    ['cert_by_user', 'uid', '==', []],
     ['gifts', 'ownerId', '==', []],
     ['gift_secrets', 'ownerId', '==', []],
     ['usernames', 'uid', '==', []],
@@ -1268,6 +1270,15 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         const q = DELETION_QUERIES[i];
         if (q[0] === 'gifts' || q[0] === 'gift_secrets' || q[0] === 'usernames') continue;
         const found = await deleteWhere(db, batcher, q[0], q[1], q[2], uid, q[3], documentIdField);
+        if (q[0] === 'cert_owners') {
+            for (let c = 0; c < found.length; c++) {
+                const row = found[c].data() || {};
+                const certId = String(row.certId || found[c].id || '');
+                if (certId && certId.indexOf('/') === -1) {
+                    await batcher.remove(db.collection('certs').doc(certId));
+                }
+            }
+        }
         deletedDocs += found.length;
     }
     await deleteOwnedGifts(db, batcher, uid, documentIdField);
