@@ -3598,6 +3598,9 @@ function bindReferralTierLadder() {
     var dialog = document.getElementById('referralTierLadder');
     if (!dialog) return;
     _tierLadderBound = true;
+    // main uses contain:content and #home animates opacity and transform.
+    // A fixed dialog inside either one stays clipped. Park it on the body.
+    if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
     dialog.addEventListener('click', function (ev) {
         if (ev.target === dialog) closeReferralTierLadder();
     });
