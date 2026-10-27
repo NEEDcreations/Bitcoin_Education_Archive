@@ -4414,8 +4414,9 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
 // ── Scholar Exam: Server-Side Grading ──
 // The question bank and the correct option ids stay in scholar_exam_keys.
 // The client receives question text and opaque option ids only.
-// The bank is read once at cold start from functions/private-bank. It is not
-// in the repo. A missing or invalid file fails these two calls closed.
+// The bank is read on the first start or grade from functions/private-bank,
+// then cached. It is not in the repo. A missing or invalid file fails these
+// two calls closed. Other functions in this file do not read it.
 const scholarBank = require('./src/scholarBank');
 
 function scholarBankOrThrow() {

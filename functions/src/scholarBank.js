@@ -14,8 +14,9 @@ function bankPath() {
     return process.env.SCHOLAR_BANK_PATH || DEFAULT_PATH;
 }
 
-// Loaded once when the functions process starts. A missing or invalid file
-// stays failed for the life of the process. There is no other bank.
+// Loaded on the first start or grade, then cached. Requiring this module
+// does not read the file, so other functions can boot without the bank.
+// A missing or invalid file stays failed for the life of the process.
 function loadBank() {
     if (loaded) return;
     loaded = true;
@@ -38,13 +39,13 @@ function loadBank() {
     readyFlag = true;
 }
 
-loadBank();
-
 function ready() {
+    loadBank();
     return readyFlag;
 }
 
 function getBank() {
+    loadBank();
     return bank;
 }
 

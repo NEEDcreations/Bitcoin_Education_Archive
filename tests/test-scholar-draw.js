@@ -137,7 +137,37 @@ test('draws and certificate ids use crypto and a fixed exam id shape', function 
     assert.strictEqual(cert.scoreLabel(22), '22 / 25');
 });
 
+test('an old Protocol Expert certificate still verifies as Protocol Expert', function () {
+    const old = cert.verifyView({
+        name: 'Ada',
+        type: 'technical',
+        title: 'Bitcoin Protocol Expert',
+        score: 22,
+        date: 'October 1, 2026',
+        uid: 'hidden',
+        username: 'hidden-name',
+    }, 'CERT-M5K2P-AB12CD34');
+    assert.strictEqual(old.quest, 'protocol-expert');
+    assert.strictEqual(old.score, '22 / 25');
+    assert.strictEqual(old.name, 'Ada');
+    assert.strictEqual(old.valid, true);
+    assert.strictEqual(old.uid, undefined);
+    assert.ok(!Object.prototype.hasOwnProperty.call(old, 'username'));
+    const titled = cert.verifyView({ title: 'Bitcoin Protocol Expert', score: 23 }, 'CERT-OLDPE-TITLEONLY');
+    assert.strictEqual(titled.quest, 'protocol-expert');
+    const explicit = cert.verifyView({ quest: 'protocol-expert', type: 'scholar' }, 'CERT-NEW-HASQUEST1');
+    assert.strictEqual(explicit.quest, 'protocol-expert');
+});
+
 test('a missing bank stays closed and the checker prints counts only', function () {
+    const quiet = spawnSync(process.execPath, ['-e', [
+        "process.env.SCHOLAR_BANK_PATH = '/tmp/scholar-bank-does-not-exist.json';",
+        "require('./functions/src/scholarBank');",
+        "process.exit(0);",
+    ].join('\n')], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(quiet.status, 0, quiet.stderr || quiet.stdout);
+    assert.ok(!String(quiet.stderr || '').includes('[SCHOLAR]'));
+
     const missing = spawnSync(process.execPath, ['-e', [
         "process.env.SCHOLAR_BANK_PATH = '/tmp/scholar-bank-does-not-exist.json';",
         "const bank = require('./functions/src/scholarBank');",

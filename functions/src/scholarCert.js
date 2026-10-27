@@ -61,6 +61,33 @@ function scoreLabel(score) {
     return String(n) + ' / 25';
 }
 
+function questFromToken(value) {
+    const type = String(value || '').trim().toLowerCase();
+    if (!type) return '';
+    if (type === 'technical' || type === 'tech' || type === 'protocol' || type === 'protocol-expert') return 'protocol-expert';
+    if (type === 'scholar' || type === 'properties' || type === 'bitcoin-scholar') return 'bitcoin-scholar';
+    if (type.indexOf('trail_') === 0) return type;
+    return '';
+}
+
+function questFromTitle(value) {
+    const title = String(value || '').toLowerCase();
+    if (title.indexOf('protocol expert') !== -1) return 'protocol-expert';
+    if (title.indexOf('scholar') !== -1) return 'bitcoin-scholar';
+    if (title.indexOf('summit') !== -1) return 'trail_summit';
+    if (title.indexOf('mountain') !== -1) return 'trail_mountain';
+    if (title.indexOf('meadow') !== -1) return 'trail_meadow';
+    return '';
+}
+
+// Older certificates stored type and title and did not store quest.
+function questFor(row) {
+    const src = row || {};
+    const explicit = String(src.quest || '').trim();
+    if (explicit) return explicit;
+    return questFromToken(src.type) || questFromToken(src.certType) || questFromToken(src.examType) || questFromTitle(src.title);
+}
+
 function verifyView(data, certId) {
     const row = data || {};
     const rawName = row.name || row.username || row.displayName || '';
@@ -68,7 +95,7 @@ function verifyView(data, certId) {
         valid: true,
         certId: String(certId || ''),
         name: String(rawName).trim().substring(0, 80),
-        quest: String(row.quest || ''),
+        quest: questFor(row),
         score: scoreLabel(row.score),
         date: String(row.date || ''),
     };
@@ -157,6 +184,7 @@ module.exports = {
     certIdOk: certIdOk,
     newCertId: newCertId,
     scoreLabel: scoreLabel,
+    questFor: questFor,
     verifyView: verifyView,
     longDate: longDate,
     verifyPath: verifyPath,
