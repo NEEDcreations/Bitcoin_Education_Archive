@@ -57,7 +57,7 @@ const TX_LABEL_RE = /\b(txid|tx id|transaction(?: id| hash)?|block ?hash|blockha
 const PARTY_RE = /\b(?:me|us|support|admin|administrator)\b|\bthis address\b|@[a-z0-9_]{2,}|\ba link\b|\bhere\b|\bthis (?:app|site|chat|form|page|bot)\b|https?:\/\/|www\./i;
 const WALLET_RESTORE_RE = /\b(?:wallet|device)\b/i;
 const RESTORE_VERB_RE = /\b(?:enter|type|import|paste)\b/i;
-const ALLOW_HOST_RE = /^(?:[a-z0-9-]+\.)*(?:bitcoineducation\.quest|bitcoin\.org|mempool\.space|github\.com|bitcoin\.it|learnmeabitcoin\.com|findahelpline\.com|stackexchange\.com)$/i;
+const ALLOW_HOST_RE = /^(?:[a-z0-9-]+\.)*(?:bitcoineducation\.quest|bitcoin\.org|mempool\.space|github\.com|bitcoin\.it|learnmeabitcoin\.com|findahelpline\.com|stackexchange\.com|upress\.umn\.edu)$/i;
 const SHA_K = new Uint32Array([
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
