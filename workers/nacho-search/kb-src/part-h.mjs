@@ -1379,7 +1379,7 @@ export const PART_H = [].concat(
     ],
     [
         "books-satoshi-book-vs-institute",
-        "Is The Book of Satoshi the same as the Nakamoto Institute?",
+        "Is The Book of Satoshi identical to the Nakamoto Institute?",
         "No. The institute is a free archive of Satoshi's words. The book adds Champagne's commentary and is sold as a book. Read the archive at satoshi.nakamotoinstitute.org.",
         [
             "books",
@@ -1951,7 +1951,7 @@ export const PART_H = [].concat(
     ],
     [
         "books-vs-other-who",
-        "Who wrote the 2023 book comparing Bitcoin with other coins?",
+        "Who wrote Champagne's 2023 comparison of Bitcoin and other coins?",
         "Phil Champagne, who also compiled The Book of Satoshi, wrote it. The book takes a side in a public argument about many chains. The retail page is amazon.com/dp/B0C43QF4G6.",
         [
             "books",

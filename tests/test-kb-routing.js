@@ -62,10 +62,27 @@ function visible(html) {
     vm.createContext(ctx);
     const root = path.join(__dirname, '..');
     vm.runInContext(fs.readFileSync(path.join(root, 'features.registry.js'), 'utf8'), ctx, { filename: 'features.registry.js' });
-    vm.runInContext(fs.readFileSync(path.join(root, 'nacho-qa.js'), 'utf8'), ctx, { filename: 'nacho-qa.js' });
+    let qaSrc = fs.readFileSync(path.join(root, 'nacho-qa.js'), 'utf8');
+    // The worker answers from the original question. The in-app scan and the
+    // synonym pass run first and recompile a pile of regexes, which is what
+    // made this file take about five minutes. Skip them unless asked.
     if (process.env.KB_ROUTING_REAL_FIND !== '1') {
-        ctx.findAnswer = function () { return null; };
+        const swaps = [
+            ['var kbMatch = findAnswer(question);', 'var kbMatch = null;'],
+            ["q = (typeof fixTypos === 'function') ? fixTypos(q) : q;", ''],
+            ["q = (typeof expandSynonyms === 'function') ? expandSynonyms(q) : q;", '']
+        ];
+        swaps.forEach(function (pair) {
+            assert.ok(qaSrc.includes(pair[0]), 'router snippet moved: ' + pair[0]);
+            qaSrc = qaSrc.replace(pair[0], pair[1]);
+        });
+        // Seed-phrase scanning edit-distances every word against the whole wordlist.
+        // Routing does not depend on it, and it dominates this loop.
+        const seedFn = 'function containsKeyMaterial(text) {\n    const raw = String(text || "");';
+        assert.ok(qaSrc.includes(seedFn), 'seed scan moved');
+        qaSrc = qaSrc.replace(seedFn, 'function containsKeyMaterial(text) {\n    return false;\n    const raw = String(text || "");');
     }
+    vm.runInContext(qaSrc, ctx, { filename: 'nacho-qa.js' });
 
     const today = new Date().toISOString().slice(0, 10);
     const perEntryMs = 8000;

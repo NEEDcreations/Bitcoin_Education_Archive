@@ -2752,11 +2752,11 @@
   {
     "id": "books-satoshi-book-vs-institute",
     "category": "books",
-    "question": "Is The Book of Satoshi the same as the Nakamoto Institute?",
+    "question": "Is The Book of Satoshi identical to the Nakamoto Institute?",
     "alts": [
-      "Explain whether is The Book of Satoshi the same as the Nakamoto Institute?",
-      "Clarify whether is The Book of Satoshi the same as the Nakamoto Institute?",
-      "Is this the case: is The Book of Satoshi the same as the Nakamoto Institute?"
+      "Explain whether is The Book of Satoshi identical to the Nakamoto Institute?",
+      "Clarify whether is The Book of Satoshi identical to the Nakamoto Institute?",
+      "Is this the case: is The Book of Satoshi identical to the Nakamoto Institute?"
     ],
     "answer": "No. The institute is a free archive of Satoshi's words. The book adds Champagne's commentary and is sold as a book. Read the archive at satoshi.nakamotoinstitute.org.",
     "topics": [
@@ -3896,11 +3896,11 @@
   {
     "id": "books-vs-other-who",
     "category": "books",
-    "question": "Who wrote the 2023 book comparing Bitcoin with other coins?",
+    "question": "Who wrote Champagne's 2023 comparison of Bitcoin and other coins?",
     "alts": [
-      "Explain who wrote the 2023 book comparing Bitcoin with other coins?",
-      "Which person wrote the 2023 book comparing Bitcoin with other coins?",
-      "Name who wrote the 2023 book comparing Bitcoin with other coins?"
+      "Explain who wrote Champagne's 2023 comparison of Bitcoin and other coins?",
+      "Which person wrote Champagne's 2023 comparison of Bitcoin and other coins?",
+      "Name who wrote Champagne's 2023 comparison of Bitcoin and other coins?"
     ],
     "answer": "Phil Champagne, who also compiled The Book of Satoshi, wrote it. The book takes a side in a public argument about many chains. The retail page is amazon.com/dp/B0C43QF4G6.",
     "topics": [
