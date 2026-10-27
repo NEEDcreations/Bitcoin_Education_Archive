@@ -1027,7 +1027,7 @@ window.toggleMobileFlashcards = function() {
 };
 
 function initMobileUX() {
-    console.log('[MobileUX] Initializing...');
+    if (window.btcDebugLog) window.btcDebugLog('[MobileUX] Initializing...');
     initBottomNav();
     initScrollNav();
     initComposerKeyboard();

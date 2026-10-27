@@ -5639,16 +5639,8 @@ if (locked) {
             setTimeout(checkPredictionResult, 4000);
         }
 
-        // Pre-warm Pleb Shop iframe only — it's the marketplace landing tab.
-        // Other embeds load on demand. Delayed 5s to avoid competing with initial page load.
-        setTimeout(function() {
-            if (document.getElementById('plebshopIframeWrap')) return; // already loaded
-            var psWrap = document.createElement('div');
-            psWrap.id = 'plebshopIframeWrap';
-            psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-            psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-            document.body.appendChild(psWrap);
-        }, 5000);
+        // Pleb Shop loads when the marketplace opens it. Do not preload that
+        // iframe on the homepage.
 
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page

@@ -404,7 +404,15 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(!tickets.includes('btc_invite_auto_session'));
     assert.ok(!tickets.includes('_invitePreviewOn'));
     assert.ok(!tickets.includes('_homePreviewUser'));
-    assert.ok(tickets.includes('_inviteHeldOpen && !_inviteAutoBlocked()'));
+    assert.ok(tickets.includes('_inviteHeldOpen && !_inviteModalOpen()'));
+    assert.ok(tickets.includes('box.bottom <= 1 || box.top >= window.innerHeight - 1'));
+    assert.ok(tickets.includes('parseFloat(style.opacity) === 0'));
+    assert.ok(tickets.includes("style.display === 'none' || style.visibility === 'hidden'"));
+    const expandBody = tickets.slice(tickets.indexOf('function expandInviteCard'), tickets.indexOf('function dismissInviteCard'));
+    assert.ok(expandBody.includes('_inviteModalOpen()'));
+    assert.ok(!expandBody.includes('_inviteAutoBlocked()'));
+    const refreshBody = tickets.slice(tickets.indexOf('function refreshInviteCard'), tickets.indexOf('function openInviteFriends'));
+    assert.ok(refreshBody.includes('_inviteAutoDue(uid) && !_inviteAutoBlocked()'));
     assert.ok(tickets.includes("_inviteWriteStored('min')"));
     assert.ok(!tickets.includes("_inviteWriteStored('off')"));
     assert.ok(!tickets.includes("_inviteWriteStored('open')"));
@@ -484,6 +492,310 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(notes.includes('Invite friends: share your link from the home page. When they reach Maxi, you both get 50 orange tickets.'));
     assert.ok(notes.includes('Double XP starts when you buy it'));
     assert.ok(notes.includes('I sent the tip'));
+});
+
+// Behavioral invite-card cases. tickets.js is loaded once in a tiny DOM so
+// these stay free of jsdom. A fixed overlay slid off-screen is not a popup.
+function loadInvitePage() {
+    const vm = require('vm');
+    const uid = 'user1234abcd';
+    const store = Object.create(null);
+    const session = Object.create(null);
+    function Storage(map) {
+        this.getItem = function(k) { return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; };
+        this.setItem = function(k, v) { map[String(k)] = String(v); };
+        this.removeItem = function(k) { delete map[k]; };
+    }
+    store['btc_invite_auto_' + uid] = String(Date.now());
+
+    function Element(tag) {
+        this.tagName = String(tag || 'div').toUpperCase();
+        this.nodeType = 1;
+        this.id = '';
+        this.className = '';
+        this.style = {};
+        this.children = [];
+        this.parentNode = null;
+        this.textContent = '';
+        this.attributes = Object.create(null);
+        const self = this;
+        this.classList = {
+            contains: function(c) { return self.className.split(/\s+/).indexOf(c) !== -1; },
+            add: function(c) {
+                if (!this.contains(c)) self.className = (self.className + ' ' + c).trim();
+                self.attributes.class = self.className;
+            },
+            remove: function(c) {
+                self.className = self.className.split(/\s+/).filter(function(x) { return x && x !== c; }).join(' ');
+                self.attributes.class = self.className;
+            },
+        };
+    }
+    Element.prototype.setAttribute = function(name, value) {
+        this.attributes[name] = String(value);
+        if (name === 'id') {
+            this.id = String(value);
+            if (this.ownerDocument) this.ownerDocument._ids[this.id] = this;
+        }
+        if (name === 'class') this.className = String(value);
+    };
+    Element.prototype.getAttribute = function(name) {
+        if (name === 'id') return this.id || null;
+        if (name === 'class') return this.className || null;
+        return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+    };
+    Element.prototype.hasAttribute = function(name) {
+        if (name === 'id') return !!this.id;
+        if (name === 'class') return !!this.className;
+        return Object.prototype.hasOwnProperty.call(this.attributes, name);
+    };
+    Element.prototype.removeAttribute = function(name) {
+        if (name === 'id') this.id = '';
+        if (name === 'class') this.className = '';
+        delete this.attributes[name];
+    };
+    Element.prototype.appendChild = function(child) {
+        if (child.parentNode) {
+            const i = child.parentNode.children.indexOf(child);
+            if (i >= 0) child.parentNode.children.splice(i, 1);
+        }
+        child.parentNode = this;
+        child.ownerDocument = this.ownerDocument;
+        this.children.push(child);
+        if (child.id && child.ownerDocument) child.ownerDocument._ids[child.id] = child;
+        return child;
+    };
+    Element.prototype.remove = function() {
+        if (!this.parentNode) return;
+        const i = this.parentNode.children.indexOf(this);
+        if (i >= 0) this.parentNode.children.splice(i, 1);
+        this.parentNode = null;
+    };
+    Element.prototype.focus = function() {};
+    Element.prototype.select = function() {};
+    Element.prototype.addEventListener = function() {};
+    Object.defineProperty(Element.prototype, 'hidden', {
+        get: function() { return this.hasAttribute('hidden'); },
+        set: function(v) { if (v) this.setAttribute('hidden', ''); else this.removeAttribute('hidden'); },
+    });
+    function matches(el, sel) {
+        sel = String(sel || '').trim();
+        if (!sel || !el || el.nodeType !== 1) return false;
+        if (sel.indexOf(',') !== -1) {
+            return sel.split(',').some(function(part) { return matches(el, part); });
+        }
+        if (sel.charAt(0) === '.') return el.classList.contains(sel.slice(1));
+        if (sel.charAt(0) === '#') return el.id === sel.slice(1);
+        const wrapped = sel.match(/^([a-zA-Z][\w-]*)?\[(.+)\]$/);
+        if (!wrapped) return false;
+        if (wrapped[1] && el.tagName.toLowerCase() !== wrapped[1].toLowerCase()) return false;
+        const attr = wrapped[2].match(/^([\w:-]+)(?:(\*|~|\^|\$)?=(?:"([^"]*)"|'([^']*)'))?$/);
+        if (!attr) return false;
+        const name = attr[1];
+        const actual = el.getAttribute(name);
+        if (attr[2] == null && attr[3] == null && attr[4] == null) return el.hasAttribute(name);
+        const expected = attr[3] != null ? attr[3] : attr[4];
+        const have = actual == null ? '' : String(actual);
+        if (attr[2] === '*') return have.indexOf(expected) !== -1;
+        if (attr[2] === '^') return have.indexOf(expected) === 0;
+        if (attr[2] === '$') return have.slice(-expected.length) === expected;
+        return have === expected;
+    }
+    Element.prototype.closest = function(sel) {
+        let n = this;
+        while (n && n.nodeType === 1) {
+            if (matches(n, sel)) return n;
+            n = n.parentNode;
+        }
+        return null;
+    };
+    function walk(node, out) {
+        const kids = node.children || [];
+        for (let i = 0; i < kids.length; i++) {
+            if (kids[i].nodeType === 1) out.push(kids[i]);
+            walk(kids[i], out);
+        }
+    }
+    function queryAll(root, sel) {
+        const all = [];
+        walk(root, all);
+        return all.filter(function(el) { return matches(el, sel); });
+    }
+
+    const document = { nodeType: 9, children: [], readyState: 'complete', _ids: Object.create(null) };
+    document.createElement = function(tag) {
+        const el = new Element(tag);
+        el.ownerDocument = document;
+        return el;
+    };
+    document.getElementById = function(id) { return this._ids[id] || null; };
+    document.querySelector = function(sel) {
+        const found = queryAll(this, sel);
+        return found[0] || null;
+    };
+    document.querySelectorAll = function(sel) { return queryAll(this, sel); };
+    document.addEventListener = function() {};
+    document.execCommand = function() { return false; };
+    Element.prototype.querySelector = function(sel) {
+        const found = queryAll(this, sel);
+        return found[0] || null;
+    };
+    Element.prototype.querySelectorAll = function(sel) { return queryAll(this, sel); };
+
+    const body = document.createElement('div');
+    body.tagName = 'BODY';
+    document.body = body;
+    document.children.push(body);
+    body.ownerDocument = document;
+
+    function mount(id, tag) {
+        const el = document.createElement(tag || 'div');
+        if (id) el.setAttribute('id', id);
+        body.appendChild(el);
+        return el;
+    }
+    const home = mount('home');
+    const card = mount('inviteCard');
+    card.setAttribute('data-state', 'min');
+    card.setAttribute('data-show', '0');
+    card.appendChild(mount('inviteLink', 'p'));
+    card.appendChild(mount('inviteCopy', 'button'));
+    const share = mount('inviteShare', 'button');
+    share.setAttribute('hidden', '');
+    card.appendChild(share);
+    card.appendChild(mount('inviteCounts', 'p'));
+    card.appendChild(mount('invitePill', 'button'));
+    const guest = mount('inviteGuestPill', 'button');
+    guest.setAttribute('hidden', '');
+    mount('main');
+
+    const sandbox = {
+        console: console,
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        setInterval: setInterval,
+        clearInterval: clearInterval,
+        Date: Date,
+        Math: Math,
+        URLSearchParams: URLSearchParams,
+        parseInt: parseInt,
+        parseFloat: parseFloat,
+        String: String,
+        Number: Number,
+        Object: Object,
+        Array: Array,
+        RegExp: RegExp,
+        Error: Error,
+        JSON: JSON,
+        document: document,
+        navigator: {},
+        history: { replaceState: function() {} },
+        location: { origin: 'https://example.test', pathname: '/', search: '', hash: '', hostname: 'example.test' },
+        localStorage: new Storage(store),
+        sessionStorage: new Storage(session),
+        innerWidth: 390,
+        innerHeight: 800,
+        addEventListener: function() {},
+        removeEventListener: function() {},
+        requestAnimationFrame: function(fn) { return setTimeout(fn, 0); },
+        cancelAnimationFrame: function(id) { clearTimeout(id); },
+        MutationObserver: function() {},
+        currentUser: { uid: uid, inviteCard: 'min', referralCode: 'user1234', referralCount: 0 },
+        auth: {
+            currentUser: { uid: uid, isAnonymous: false },
+            onAuthStateChanged: function(fn) { this._cb = fn; },
+        },
+    };
+    sandbox.MutationObserver.prototype = { observe: function() {}, disconnect: function() {} };
+    sandbox.window = sandbox;
+    sandbox.globalThis = sandbox;
+    sandbox.getComputedStyle = function(el) {
+        const st = (el && el.style) || {};
+        return {
+            display: st.display || 'block',
+            visibility: st.visibility || 'visible',
+            pointerEvents: st.pointerEvents || 'auto',
+            position: st.position || 'static',
+            opacity: (st.opacity != null && st.opacity !== '') ? String(st.opacity) : '1',
+        };
+    };
+    Element.prototype.getBoundingClientRect = function() {
+        const st = this.style || {};
+        const w = parseFloat(st.width) || 0;
+        const h = parseFloat(st.height) || 0;
+        let left = parseFloat(st.left);
+        if (!isFinite(left)) left = 0;
+        let top = parseFloat(st.top);
+        if (!isFinite(top)) {
+            if (st.bottom === '0' || st.bottom === '0px') top = sandbox.innerHeight - h;
+            else top = 0;
+        }
+        const tr = String(st.transform || '');
+        const y = tr.match(/translateY\(\s*(-?[\d.]+)\s*(%|px)?\s*\)/);
+        if (y) top += (y[2] === '%') ? h * parseFloat(y[1]) / 100 : parseFloat(y[1]);
+        return { x: left, y: top, left: left, top: top, width: w, height: h, right: left + w, bottom: top + h };
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8'), sandbox, { filename: 'tickets.js' });
+    sandbox._uid = uid;
+    return sandbox;
+}
+
+const invitePage = loadInvitePage();
+
+function chatOverlay(page, translateY) {
+    let el = page.document.getElementById('chatOverlay');
+    if (!el) {
+        el = page.document.createElement('div');
+        el.setAttribute('id', 'chatOverlay');
+        page.document.body.appendChild(el);
+    }
+    el.style.position = 'fixed';
+    el.style.display = 'flex';
+    el.style.height = '776px';
+    el.style.width = page.innerWidth + 'px';
+    el.style.bottom = '0';
+    el.style.left = '0';
+    el.style.right = '0';
+    el.style.transform = translateY;
+    return el;
+}
+
+function inviteState(page) {
+    return page.document.getElementById('inviteCard').getAttribute('data-state');
+}
+
+test('a closed chat overlay does not block expandInviteCard', () => {
+    chatOverlay(invitePage, 'translateY(100%)');
+    assert.strictEqual(invitePage._invitePopupElement(invitePage.document.getElementById('chatOverlay')), false);
+    invitePage.expandInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+});
+
+test('an on-screen chat overlay keeps the invite card minimized', () => {
+    chatOverlay(invitePage, 'translateY(0)');
+    assert.strictEqual(invitePage._invitePopupElement(invitePage.document.getElementById('chatOverlay')), true);
+    invitePage.expandInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
+});
+
+test('a tap opens the invite card even when the session popup budget is taken', () => {
+    chatOverlay(invitePage, 'translateY(100%)');
+    invitePage.sessionStorage.setItem('btc_session_popup', 'quest');
+    invitePage.expandInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+    invitePage.minimizeInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
+    invitePage.localStorage.removeItem('btc_invite_auto_' + invitePage._uid);
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
