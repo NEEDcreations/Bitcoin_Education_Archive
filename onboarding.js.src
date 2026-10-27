@@ -77,6 +77,7 @@
         if (typeof window.applyDesktopMenuModes === 'function') window.applyDesktopMenuModes();
         if (typeof window.bqRefreshModeChip === 'function') window.bqRefreshModeChip();
         if (typeof window.bqRefreshModeCard === 'function') window.bqRefreshModeCard();
+        if (typeof window.bqRefreshHomeModeBar === 'function') window.bqRefreshHomeModeBar();
     };
     window.syncExperienceModeFromFirestore = function () {
         try {
@@ -1119,7 +1120,9 @@
             grid.className = 'bq-mode-card-grid';
             existing.appendChild(head);
             existing.appendChild(grid);
-            inner.insertBefore(existing, inner.firstChild);
+            var modeBar = document.getElementById('bqHomeModeBar');
+            if (modeBar && modeBar.parentNode === inner) inner.insertBefore(existing, modeBar.nextSibling);
+            else inner.insertBefore(existing, inner.firstChild);
         }
         fillHomeCard(existing);
     };
@@ -1231,8 +1234,78 @@
         var meta = modeMeta(window.getExperienceMode());
         chip.textContent = meta.label + ' ▾';
     };
+    function onHomeModeKey(ev) {
+        var bar = document.getElementById('bqHomeModeBar');
+        if (!bar) return;
+        if (ev.key === 'Escape' && bar.classList.contains('is-open')) {
+            ev.preventDefault();
+            bar.classList.remove('is-open');
+            var toggle = document.getElementById('bqHomeModeToggle');
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', 'false');
+                var chev = toggle.querySelector('.bq-home-mode-chevron');
+                if (chev) chev.textContent = '▾';
+                if (toggle.focus) toggle.focus();
+            }
+            return;
+        }
+        if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft' && ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+        var segments = document.getElementById('bqHomeModeSegments');
+        if (!segments || !segments.contains(ev.target)) return;
+        var items = segments.querySelectorAll('button[data-mode]');
+        var list = Array.prototype.slice.call(items);
+        var index = list.indexOf(document.activeElement);
+        if (index < 0) return;
+        ev.preventDefault();
+        var step = (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') ? 1 : -1;
+        var next = list[(index + step + list.length) % list.length];
+        if (next && next.focus) next.focus();
+    }
+    function mountHomeModeBar() {
+        var inner = document.querySelector('#home .home-inner');
+        if (!inner) return;
+        var bar = document.getElementById('bqHomeModeBar');
+        if (!bar) {
+            bar = document.createElement('section');
+            bar.id = 'bqHomeModeBar';
+            inner.insertBefore(bar, inner.firstChild);
+            bar.addEventListener('keydown', onHomeModeKey);
+        } else if (bar.parentNode === inner && inner.firstChild !== bar) {
+            inner.insertBefore(bar, inner.firstChild);
+        }
+        if (!window._bqHomeModeDoc) {
+            window._bqHomeModeDoc = true;
+            document.addEventListener('click', function (ev) {
+                var openBar = document.getElementById('bqHomeModeBar');
+                if (!openBar || !openBar.classList.contains('is-open')) return;
+                if (openBar.contains(ev.target)) return;
+                openBar.classList.remove('is-open');
+                var openToggle = document.getElementById('bqHomeModeToggle');
+                if (openToggle) {
+                    openToggle.setAttribute('aria-expanded', 'false');
+                    var openChev = openToggle.querySelector('.bq-home-mode-chevron');
+                    if (openChev) openChev.textContent = '▾';
+                }
+            });
+        }
+        window.bqRefreshHomeModeBar();
+    }
+    window.bqRefreshHomeModeBar = function () {
+        var bar = document.getElementById('bqHomeModeBar');
+        if (!bar || typeof window.bqFillHomeModeBar !== 'function') return;
+        var inner = document.querySelector('#home .home-inner');
+        if (inner && bar.parentNode === inner && inner.firstChild !== bar) inner.insertBefore(bar, inner.firstChild);
+        window.bqFillHomeModeBar(bar, {
+            current: window.getExperienceMode(),
+            onPick: function (id) {
+                window.setExperienceMode(id);
+                toastMode(id);
+            }
+        });
+    };
     window.mountExperienceModeHome = function () {
         ensureModeStyles();
+        mountHomeModeBar();
         mountModeChip();
         window.bqRefreshModeCard();
     };
@@ -1241,6 +1314,7 @@
         hookNav();
         setTimeout(hookNav, 1500);
         if (!alreadyOnboarded()) window.btcClaimSessionPopup('onboarding');
+        if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
         var hashed = false;
         try { hashed = !!(location.hash && location.hash.length > 1); } catch (e) {}
         if (!alreadyOnboarded() && !hashed) window.showOnboardingIntro();

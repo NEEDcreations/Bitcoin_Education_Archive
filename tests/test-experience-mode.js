@@ -264,6 +264,152 @@ queue.push(test('lite celebrations, spin, and picker follow the registry', funct
     assert.ok(!read('nacho-live.js').includes('bqModeAllows(\'btcTicker\')'));
 }));
 
+function installModeDom() {
+    const ids = {};
+    function dropIds(node) {
+        if (!node) return;
+        if (node.id && ids[node.id] === node) delete ids[node.id];
+        (node.children || []).forEach(dropIds);
+    }
+    function createEl(tag) {
+        const classes = new Set();
+        const node = {
+            tagName: String(tag).toUpperCase(),
+            className: '',
+            children: [],
+            parentNode: null,
+            attrs: {},
+            listeners: {},
+            style: {},
+            _text: '',
+            _id: '',
+            classList: {
+                contains: function (c) { return classes.has(c); },
+                add: function (c) { classes.add(c); },
+                remove: function (c) { classes.delete(c); },
+                toggle: function (c) {
+                    if (classes.has(c)) { classes.delete(c); return false; }
+                    classes.add(c);
+                    return true;
+                },
+            },
+        };
+        Object.defineProperty(node, 'id', {
+            get: function () { return node._id; },
+            set: function (v) { node._id = String(v); ids[node._id] = node; },
+        });
+        Object.defineProperty(node, 'textContent', {
+            get: function () { return node._text; },
+            set: function (v) {
+                node._text = String(v);
+                node.children.forEach(dropIds);
+                node.children = [];
+            },
+        });
+        node.appendChild = function (child) {
+            node.children.push(child);
+            child.parentNode = node;
+            if (child.id) ids[child.id] = child;
+            return child;
+        };
+        node.setAttribute = function (k, v) {
+            node.attrs[k] = String(v);
+            if (k === 'id') node.id = String(v);
+        };
+        node.getAttribute = function (k) { return node.attrs[k]; };
+        node.addEventListener = function (type, fn) {
+            if (!node.listeners[type]) node.listeners[type] = [];
+            node.listeners[type].push(fn);
+        };
+        node.click = function () {
+            (node.listeners.click || []).forEach(function (fn) { fn({}); });
+        };
+        return node;
+    }
+    function collect(node, acc) {
+        acc.push(node);
+        (node.children || []).forEach(function (child) { collect(child, acc); });
+        return acc;
+    }
+    const head = createEl('head');
+    global.document = {
+        head: head,
+        createElement: createEl,
+        getElementById: function (id) { return ids[id] || null; },
+    };
+    return { createEl: createEl, collect: collect };
+}
+
+queue.push(test('home mode bar is available in every mode', function () {
+    reg.BQ_MODES.forEach(function (id) {
+        assert.strictEqual(reg.bqModeAllows('homeModeBar', id), true, id);
+    });
+    const row = reg.BQ_SURFACES.filter(function (s) { return s.id === 'homeModeBar'; })[0];
+    assert.ok(row);
+    assert.strictEqual(row.selector, '#bqHomeModeBar');
+    assert.deepStrictEqual(row.modes, ['lite', 'beginner', 'intermediate', 'advanced']);
+    const src = read('onboarding.js.src');
+    const mountAt = src.indexOf('function mountHomeModeBar');
+    assert.ok(mountAt > 0);
+    const mountBody = src.slice(mountAt, src.indexOf('window.bqRefreshHomeModeBar', mountAt));
+    assert.ok(mountBody.includes("bar.id = 'bqHomeModeBar'"));
+    assert.ok(mountBody.includes('insertBefore'));
+    assert.ok(!mountBody.includes('currentUser'));
+    assert.ok(!mountBody.includes('signedIn'));
+    assert.ok(src.includes('bqFillHomeModeBar'));
+    assert.ok(src.includes('bqRefreshHomeModeBar'));
+    assert.ok(!src.includes('bq-mode-lite #bqHomeModeBar'));
+    assert.ok(src.includes("localStorage.setItem('btc_experience_mode', mode)"));
+    assert.ok(read('features.registry.js').includes('#bqHomeModeBar'));
+    assert.ok(read('features.registry.js').includes('max-width:719px'));
+    assert.ok(read('features.registry.js').includes("What's included"));
+    reg.BQ_MODES.forEach(function (id) {
+        assert.ok(reg.bqModeBrief(id).notes.some(function (n) { return n.indexOf('top of home') !== -1; }), id);
+    });
+    const dom = installModeDom();
+    const bar = dom.createEl('section');
+    let picked = '';
+    reg.bqFillHomeModeBar(bar, {
+        current: 'advanced',
+        stored: '',
+        onPick: function (id) { picked = id; },
+    });
+    const nodes = dom.collect(bar, []);
+    const buttons = nodes.filter(function (n) { return n.attrs && n.attrs['data-mode']; });
+    assert.deepStrictEqual(buttons.map(function (b) { return b.attrs['data-mode']; }), ['lite', 'beginner', 'intermediate', 'advanced']);
+    buttons.forEach(function (btn) {
+        const id = btn.attrs['data-mode'];
+        const summary = dom.collect(btn, []).filter(function (n) { return n.className === 'bq-home-seg-summary'; })[0];
+        assert.strictEqual(summary.textContent, reg.bqExperienceModeMeta(id).desc, id);
+        assert.strictEqual(btn.attrs['aria-pressed'], id === 'advanced' ? 'true' : 'false', id);
+    });
+    const flags = nodes.filter(function (n) { return n.className === 'bq-home-seg-flag'; }).map(function (n) { return n.textContent; });
+    assert.ok(flags.indexOf(' (current)') === -1);
+    assert.ok(flags.indexOf(' · Recommended') !== -1);
+    const included = nodes.filter(function (n) { return n.tagName === 'SUMMARY'; }).map(function (n) { return n.textContent; });
+    assert.strictEqual(included.length, 4);
+    included.forEach(function (text) { assert.strictEqual(text, "What's included"); });
+    reg.BQ_MODES.forEach(function (id) {
+        const brief = reg.bqModeBrief(id);
+        brief.included.forEach(function (line) {
+            assert.ok(nodes.some(function (n) { return n.textContent === 'On: ' + line; }), id + ' ' + line);
+        });
+    });
+    buttons[2].click();
+    assert.strictEqual(picked, 'intermediate');
+    const toggle = nodes.filter(function (n) { return n.id === 'bqHomeModeToggle'; })[0];
+    assert.strictEqual(toggle.attrs['aria-expanded'], 'false');
+    toggle.click();
+    assert.ok(bar.classList.contains('is-open'));
+    assert.strictEqual(toggle.attrs['aria-expanded'], 'true');
+    reg.bqFillHomeModeBar(bar, { current: 'lite', stored: 'lite', onPick: function () {} });
+    const again = dom.collect(bar, []);
+    const liteBtn = again.filter(function (n) { return n.attrs && n.attrs['data-mode'] === 'lite'; })[0];
+    assert.strictEqual(liteBtn.attrs['aria-pressed'], 'true');
+    assert.ok(again.some(function (n) { return n.textContent === ' (current)'; }));
+    assert.ok(bar.classList.contains('is-open'));
+}));
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

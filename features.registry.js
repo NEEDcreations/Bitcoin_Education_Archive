@@ -1830,6 +1830,7 @@
         { id: 'earnGuide', modes: LEARN_ALL, reach: 'guide' },
         { id: 'patchNotes', modes: LEARN_ALL, reach: 'guide' },
         { id: 'settings', modes: LEARN_ALL, reach: 'home' },
+        { id: 'homeModeBar', selector: '#bqHomeModeBar', modes: LEARN_ALL, reach: 'home' },
         { id: 'meetup', modes: MODE_BE, reach: 'menu' },
         { id: 'referral', modes: MODE_GBE, reach: 'home' },
         { id: 'buddy', modes: MODE_BE, reach: 'menu' },
@@ -2020,7 +2021,7 @@
         }
         var notes = [
             'You still earn XP, badges, Favor and streaks in the background in every mode',
-            'You can switch anytime from the mode chip next to your XP meter or Settings'
+            'You can switch anytime from the control at the top of home, the mode chip next to your XP meter, or Settings'
         ];
         if (m === 'lite') {
             notes.push('XP and the XP-to-sats claim stay, and XP shows in notifications with how you earned it');
@@ -2042,6 +2043,27 @@
         try { stored = (typeof localStorage !== 'undefined' && localStorage.getItem('btc_experience_mode')) || ''; } catch (e) {}
         if (stored !== 'lite' && stored !== 'beginner' && stored !== 'intermediate' && stored !== 'advanced') return '';
         return stored;
+    }
+    function appendModeBrief(details, brief) {
+        var list = document.createElement('ul');
+        brief.included.forEach(function (line) {
+            var li = document.createElement('li');
+            li.textContent = 'On: ' + line;
+            list.appendChild(li);
+        });
+        brief.hidden.forEach(function (line) {
+            var li = document.createElement('li');
+            li.textContent = line === 'Nothing is hidden' ? line : ('Hidden: ' + line);
+            list.appendChild(li);
+        });
+        details.appendChild(list);
+        var notes = document.createElement('ul');
+        brief.notes.forEach(function (line) {
+            var li = document.createElement('li');
+            li.textContent = line;
+            notes.appendChild(li);
+        });
+        details.appendChild(notes);
     }
     function bqEnsurePickerStyles() {
         if (typeof document === 'undefined' || document.getElementById('bqModePickerStyles')) return;
@@ -2103,29 +2125,148 @@
             var sum = document.createElement('summary');
             sum.textContent = "What's included";
             details.appendChild(sum);
-            var list = document.createElement('ul');
-            brief.included.forEach(function (line) {
-                var li = document.createElement('li');
-                li.textContent = 'On: ' + line;
-                list.appendChild(li);
-            });
-            brief.hidden.forEach(function (line) {
-                var li = document.createElement('li');
-                li.textContent = line === 'Nothing is hidden' ? line : ('Hidden: ' + line);
-                list.appendChild(li);
-            });
-            details.appendChild(list);
-            var notes = document.createElement('ul');
-            brief.notes.forEach(function (line) {
-                var li = document.createElement('li');
-                li.textContent = line;
-                notes.appendChild(li);
-            });
-            details.appendChild(notes);
+            appendModeBrief(details, brief);
             block.appendChild(btn);
             block.appendChild(details);
             container.appendChild(block);
         });
+    }
+    function bqEnsureHomeModeStyles() {
+        if (typeof document === 'undefined' || document.getElementById('bqHomeModeStyles')) return;
+        var style = document.createElement('style');
+        style.id = 'bqHomeModeStyles';
+        style.textContent = '#bqHomeModeBar{position:relative;z-index:2;box-sizing:border-box;width:100%;margin:0 0 12px;text-align:left;}'
+            + '.bq-home-mode-heading{margin:0 0 6px;font-size:12px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;}'
+            + '#bqHomeModeToggle{display:none;box-sizing:border-box;width:100%;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-family:inherit;font-size:16px;font-weight:800;line-height:1.2;cursor:pointer;align-items:center;justify-content:space-between;gap:8px;text-align:left;}'
+            + '#bqHomeModeToggle[aria-expanded="true"]{border-color:var(--accent,#f7931a);}'
+            + '.bq-home-mode-kicker{font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;color:#94a3b8;}'
+            + '.bq-home-mode-toggle-label{flex:1 1 auto;min-width:0;text-align:right;}'
+            + '#bqHomeModeSegments{display:flex;gap:6px;align-items:stretch;}'
+            + '.bq-home-mode-opt{flex:1 1 0;min-width:0;display:flex;flex-direction:column;}'
+            + '.bq-home-mode-opt>button{display:block;width:100%;min-height:44px;padding:8px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-family:inherit;font-size:14px;font-weight:800;line-height:1.25;cursor:pointer;text-align:left;}'
+            + '.bq-home-mode-opt>button[aria-pressed="true"]{border:2px solid var(--accent,#f7931a);background:rgba(247,147,26,0.12);}'
+            + '.bq-home-seg-top{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}'
+            + '.bq-home-seg-emoji{font-size:16px;line-height:1;}'
+            + '.bq-home-seg-name{font-size:14px;font-weight:800;}'
+            + '.bq-home-seg-flag{font-size:12px;font-weight:700;color:var(--accent,#f7931a);}'
+            + '.bq-home-seg-summary{display:block;margin-top:4px;font-size:12px;font-weight:500;line-height:1.35;color:#94a3b8;}'
+            + '.bq-home-mode-details{margin-top:4px;}'
+            + '.bq-home-mode-details summary{min-height:44px;display:flex;align-items:center;padding:4px 2px;font-size:13px;font-weight:800;color:var(--accent,#f7931a);cursor:pointer;}'
+            + '.bq-home-mode-opt ul,.bq-home-mode-opt li{text-align:left;}'
+            + '.bq-home-mode-opt ul{margin:0 0 8px;padding:0 0 0 18px;}'
+            + '.bq-home-mode-opt li{font-size:12px;line-height:1.4;margin:0 0 4px;color:var(--text,#e2e8f0);}'
+            + '#bqHomeModeBar button:focus-visible,#bqHomeModeBar summary:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}'
+            + '@media (max-width:719px){'
+            + '.bq-home-mode-heading{display:none;}'
+            + '#bqHomeModeToggle{display:flex;}'
+            + '#bqHomeModePanel{display:none;}'
+            + '#bqHomeModeBar.is-open #bqHomeModePanel{display:block;margin-top:8px;}'
+            + '#bqHomeModeBar.is-open #bqHomeModeSegments{flex-direction:column;}'
+            + '}'
+            + '@media (min-width:720px){#bqHomeModeToggle{display:none;}}'
+            + '[data-theme="light"] .bq-home-seg-summary{color:#475569;}';
+        document.head.appendChild(style);
+    }
+    function bqFillHomeModeBar(container, opts) {
+        if (!container || typeof document === 'undefined') return;
+        bqEnsurePickerStyles();
+        bqEnsureHomeModeStyles();
+        var options = opts || {};
+        var effective = options.current || bqNormalizeExperienceMode();
+        var stored = (typeof options.stored === 'string') ? options.stored : bqStoredExperienceMode();
+        if (stored !== 'lite' && stored !== 'beginner' && stored !== 'intermediate' && stored !== 'advanced') stored = '';
+        var open = !!(container.classList && container.classList.contains('is-open'));
+        container.textContent = '';
+        container.setAttribute('aria-label', 'Experience Mode');
+        var currentMeta = bqExperienceModeMeta(effective);
+        var currentBrief = bqModeBrief(effective);
+        var heading = document.createElement('div');
+        heading.className = 'bq-home-mode-heading';
+        heading.textContent = 'Experience';
+        var toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.id = 'bqHomeModeToggle';
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-controls', 'bqHomeModePanel');
+        toggle.setAttribute('aria-label', 'Experience Mode. ' + currentMeta.label + '. ' + currentBrief.summary);
+        var kicker = document.createElement('span');
+        kicker.className = 'bq-home-mode-kicker';
+        kicker.textContent = 'Experience';
+        var toggleLabel = document.createElement('span');
+        toggleLabel.className = 'bq-home-mode-toggle-label';
+        toggleLabel.textContent = currentMeta.label;
+        var chev = document.createElement('span');
+        chev.className = 'bq-home-mode-chevron';
+        chev.setAttribute('aria-hidden', 'true');
+        chev.textContent = open ? '▴' : '▾';
+        toggle.appendChild(kicker);
+        toggle.appendChild(toggleLabel);
+        toggle.appendChild(chev);
+        toggle.addEventListener('click', function () {
+            var on = container.classList.toggle('is-open');
+            toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
+            chev.textContent = on ? '▴' : '▾';
+        });
+        var panel = document.createElement('div');
+        panel.id = 'bqHomeModePanel';
+        var segments = document.createElement('div');
+        segments.id = 'bqHomeModeSegments';
+        segments.setAttribute('role', 'radiogroup');
+        segments.setAttribute('aria-label', 'Experience Mode');
+        BQ_EXPERIENCE_MODES.forEach(function (meta) {
+            var brief = bqModeBrief(meta.id);
+            var block = document.createElement('div');
+            block.className = 'bq-home-mode-opt';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.setAttribute('data-mode', meta.id);
+            btn.setAttribute('aria-pressed', effective === meta.id ? 'true' : 'false');
+            btn.setAttribute('aria-label', meta.label + '. ' + brief.summary);
+            var top = document.createElement('span');
+            top.className = 'bq-home-seg-top';
+            var emoji = document.createElement('span');
+            emoji.className = 'bq-home-seg-emoji';
+            emoji.setAttribute('aria-hidden', 'true');
+            emoji.textContent = meta.emoji;
+            var name = document.createElement('span');
+            name.className = 'bq-home-seg-name';
+            name.textContent = meta.name;
+            top.appendChild(emoji);
+            top.appendChild(name);
+            if (stored === meta.id) {
+                var currentFlag = document.createElement('span');
+                currentFlag.className = 'bq-home-seg-flag';
+                currentFlag.textContent = ' (current)';
+                top.appendChild(currentFlag);
+            } else if (meta.id === 'beginner') {
+                var recFlag = document.createElement('span');
+                recFlag.className = 'bq-home-seg-flag';
+                recFlag.textContent = ' · Recommended';
+                top.appendChild(recFlag);
+            }
+            var summary = document.createElement('span');
+            summary.className = 'bq-home-seg-summary';
+            summary.textContent = brief.summary;
+            btn.appendChild(top);
+            btn.appendChild(summary);
+            btn.addEventListener('click', function () {
+                if (typeof options.onPick === 'function') options.onPick(meta.id);
+            });
+            var details = document.createElement('details');
+            details.className = 'bq-home-mode-details';
+            var sum = document.createElement('summary');
+            sum.textContent = "What's included";
+            details.appendChild(sum);
+            appendModeBrief(details, brief);
+            block.appendChild(btn);
+            block.appendChild(details);
+            segments.appendChild(block);
+        });
+        panel.appendChild(segments);
+        container.appendChild(heading);
+        container.appendChild(toggle);
+        container.appendChild(panel);
+        if (open && container.classList) container.classList.add('is-open');
     }
     win.BQ_LEARN_MENU = BQ_LEARN_MENU;
     win.BQ_EXPLORE_APPS = BQ_EXPLORE_APPS;
@@ -2139,6 +2280,7 @@
     win.bqExperienceModeMeta = bqExperienceModeMeta;
     win.bqModeBrief = bqModeBrief;
     win.bqFillModePicker = bqFillModePicker;
+    win.bqFillHomeModeBar = bqFillHomeModeBar;
     win.bqGuideCards = bqGuideCards;
     win.bqApplyExperienceSurfaces = bqApplyExperienceSurfaces;
     if (typeof win.renderDesktopHomeMenus === 'function') win.renderDesktopHomeMenus();
@@ -2158,6 +2300,7 @@
         bqExperienceModeMeta: bqExperienceModeMeta,
         bqModeBrief: bqModeBrief,
         bqFillModePicker: bqFillModePicker,
+        bqFillHomeModeBar: bqFillHomeModeBar,
         bqGuideCards: bqGuideCards,
         bqApplyExperienceSurfaces: bqApplyExperienceSurfaces,
         searchFeatures: searchFeatures,
