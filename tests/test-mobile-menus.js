@@ -87,6 +87,8 @@ test('phone and desktop menus both render the same registry lists', function () 
     assert.ok(ux.includes('function openWalletWhenReady'));
     assert.ok(ux.includes('function failWalletLoad'));
     assert.ok(ux.includes('window.exploreAppsForMode'));
+    assert.strictEqual((ux.match(/appendHiddenAppsHint\(grid, mobileExperienceMode\(\)\)/g) || []).length, 2);
+    assert.ok(!ux.includes('appendHiddenAppsHint(grid, mode)'));
     assert.ok(ux.includes('window._bqWalletRouteReady'));
     const guide = read('guide.js');
     assert.ok(guide.includes('climbs through Curious, Pleb'));

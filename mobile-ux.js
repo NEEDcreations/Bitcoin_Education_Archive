@@ -1358,7 +1358,7 @@ window.openMobileExploreApps = function() {
         empty.style.cssText = 'grid-column:1 / -1;margin:0;color:var(--text-muted);';
         grid.appendChild(empty);
     }
-    appendHiddenAppsHint(grid, mode);
+    appendHiddenAppsHint(grid, mobileExperienceMode());
     menu.appendChild(grid);
     document.body.appendChild(menu);
     if (closeBtn.focus) closeBtn.focus();
@@ -1482,7 +1482,7 @@ window.renderDesktopAppsMenu = function() {
         });
         grid.appendChild(btn);
     });
-    appendHiddenAppsHint(grid, mode);
+    appendHiddenAppsHint(grid, mobileExperienceMode());
 };
 
 window.renderDesktopHomeMenus = function() {
