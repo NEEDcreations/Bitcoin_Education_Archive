@@ -349,7 +349,7 @@ function renderAchievementPage(type, origin) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title} — Bitcoin Quest</title>
     <meta name="description" content="${desc}">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="noindex, follow">
     <link rel="canonical" href="${url}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="${url}">

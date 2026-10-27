@@ -69,6 +69,12 @@ const parts = emu.split(':');
         await expect('over 1500 chars', function () {
             return updateDoc(ref, { shareCardsShown: 'a'.repeat(1501) });
         }, false);
+        await expect('map denied', function () {
+            return updateDoc(ref, { shareCardsShown: { popup: '20261026' } });
+        }, false);
+        await expect('number denied', function () {
+            return updateDoc(ref, { shareCardsShown: 12 });
+        }, false);
         await expect('bio still writable', function () {
             return updateDoc(ref, { bio: 'stacking sats' });
         }, true);

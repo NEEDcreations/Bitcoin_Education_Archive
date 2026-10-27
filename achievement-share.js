@@ -319,9 +319,10 @@
 
         if (event.kind === 'toast' || event.type === 'daily') {
             if (!allowsInline) return { action: 'skip', state: s, reason: 'inline-off' };
-            if ((key && s.shown[key]) || (today && s.dailyToastDay === today)) return { action: 'skip', state: s, reason: 'daily-once' };
-            if (opts.busy || opts.exam || opts.quest) return { action: 'queue', state: enqueue(s, event), reason: 'busy' };
-            if (key) s.shown[key] = 1;
+            if ((key && key.indexOf('daily:') !== 0 && s.shown[key]) || (today && s.dailyToastDay === today)) {
+                return { action: 'skip', state: s, reason: 'daily-once' };
+            }
+            if (opts.busy || opts.exam || opts.quest || opts.sheet) return { action: 'queue', state: enqueue(s, event), reason: 'busy' };
             s.dailyToastDay = today;
             return { action: 'toast', state: s, reason: 'daily' };
         }
@@ -372,7 +373,8 @@
         var ids = [];
         Object.keys(s.shown || {}).forEach(function (id) {
             var clean = shownKey(id);
-            if (clean) ids.push(clean);
+            if (!clean || clean.indexOf('daily:') === 0) return;
+            ids.push(clean);
         });
         while (ids.length && heads.concat(ids).join(',').length > 1500) ids.shift();
         var text = heads.concat(ids).join(',');
@@ -385,7 +387,8 @@
         String(text || '').split(',').forEach(function (part) {
             if (!part) return;
             if (part.indexOf('popup:') === 0) s.popupDay = isoDay(part.slice(6));
-            else if (part.indexOf('toast:') === 0) s.dailyToastDay = isoDay(part.slice(6));
+            else if (part.indexOf('toast:') === 0) rememberToastDay(s, isoDay(part.slice(6)));
+            else if (part.indexOf('daily:') === 0) rememberToastDay(s, isoDay(part.slice(6)));
             else s.shown[part] = 1;
         });
         return s;
@@ -560,7 +563,13 @@
         return el.style || {};
     }
 
-    function isShown(el) {
+    function viewLength(view, key, hostKey) {
+        if (view && typeof view[key] === 'number') return view[key];
+        if (typeof host[hostKey] === 'number') return host[hostKey];
+        return NaN;
+    }
+
+    function isShown(el, view) {
         if (!el) return false;
         if (el.classList && el.classList.contains('hidden')) return false;
         var cs = computedStyle(el);
@@ -568,7 +577,11 @@
         if (el.getBoundingClientRect) {
             var rect = el.getBoundingClientRect();
             if (rect && rect.width === 0 && rect.height === 0) return false;
+            var height = viewLength(view, 'innerHeight', 'innerHeight');
+            var width = viewLength(view, 'innerWidth', 'innerWidth');
+            if (rect && isFinite(height) && isFinite(width) && (rect.bottom <= 1 || rect.top >= height - 1 || rect.right <= 1 || rect.left >= width - 1)) return false;
         }
+        if (cs.opacity === 0 || cs.opacity === '0') return false;
         return true;
     }
 
@@ -576,7 +589,7 @@
         return !!(el && (el.id === 'bqShareSheet' || el.id === 'bqDailyShareToast' || el.id === 'bqShareLater'));
     }
 
-    function isLargeFixedOverlay(el) {
+    function isLargeFixedOverlay(el, view) {
         if (!el || isOwnChrome(el)) return false;
         var cs = computedStyle(el);
         if (cs.position !== 'fixed') return false;
@@ -584,7 +597,18 @@
         if (!(z >= 1000)) return false;
         var rect = el.getBoundingClientRect ? el.getBoundingClientRect() : { width: 1000, height: 1000 };
         if (!rect || rect.width < 200 || rect.height < 200) return false;
-        return isShown(el);
+        return isShown(el, view);
+    }
+
+    function shareSheetOpen(view) {
+        var d = doc();
+        var el = d && d.getElementById && d.getElementById('bqShareSheet');
+        return isShown(el, view || host);
+    }
+
+    function rememberToastDay(s, day) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return;
+        if (!s.dailyToastDay || day > s.dailyToastDay) s.dailyToastDay = day;
     }
 
     function detectBusy(d, env) {
@@ -599,7 +623,7 @@
         }
         if (env._scholarExamActive || env._examActive) mark('exam');
         var quest = d.getElementById && d.getElementById('questModal');
-        if (quest && quest.classList && quest.classList.contains('open') && isShown(quest)) mark('quest');
+        if (quest && quest.classList && quest.classList.contains('open') && isShown(quest, env)) mark('quest');
         if (env._giftOpening || env._pvpActive || env._nachoMode || env._nachoBusy) mark('modal');
         var userModal = d.getElementById && d.getElementById('usernameModal');
         if (userModal && userModal.classList && userModal.classList.contains('open')) mark('modal');
@@ -607,18 +631,18 @@
         if ((tos && tos.classList && tos.classList.contains('open')) || (d.querySelector && d.querySelector('.lq-overlay'))) mark('modal');
         BUSY_IDS.forEach(function (id) {
             var el = d.getElementById && d.getElementById(id);
-            if (isShown(el)) mark('modal');
+            if (isShown(el, env)) mark('modal');
         });
         var nacho = d.getElementById && d.getElementById('nacho-container');
-        if (nacho && isShown(nacho) && nacho.querySelector && nacho.querySelector('#nachoInput, [data-interactive="true"]')) mark('modal');
+        if (nacho && isShown(nacho, env) && nacho.querySelector && nacho.querySelector('#nachoInput, [data-interactive="true"]')) mark('modal');
         if (d.querySelectorAll) {
             var dialogs = d.querySelectorAll('[role="dialog"], [aria-modal="true"]');
             for (var i = 0; i < dialogs.length; i++) {
-                if (!isOwnChrome(dialogs[i]) && isShown(dialogs[i])) mark('modal');
+                if (!isOwnChrome(dialogs[i]) && isShown(dialogs[i], env)) mark('modal');
             }
             var nodes = d.querySelectorAll('*');
             for (var n = 0; n < nodes.length; n++) {
-                if (isLargeFixedOverlay(nodes[n])) { mark('modal'); break; }
+                if (isLargeFixedOverlay(nodes[n], env)) { mark('modal'); break; }
             }
         }
         return out;
@@ -637,6 +661,7 @@
             busy: b.busy,
             exam: b.exam,
             quest: b.quest,
+            sheet: shareSheetOpen(),
             today: questDay(),
             allowsPopup: modeAllows('achievementShare', mode),
             allowsInline: modeAllows('achievementShareInline', mode)
@@ -722,13 +747,13 @@
     }
 
     function flush() {
+        if (!state.queue || !state.queue.length) return;
         var b = busyState();
         if (b.exam || b.quest || b.modal) {
             var toast = doc() && doc().getElementById('bqDailyShareToast');
             if (toast) toast.remove();
             return;
         }
-        if (!state.queue.length) return;
         var picked = pickQueued(state, decideContext());
         if (!picked.event || picked.action === 'wait' || picked.action === 'queue') return;
         applyDecision(picked, picked.event);
@@ -1070,6 +1095,7 @@
             try { sheetReturn.focus(); } catch (e) {}
         }
         sheetReturn = null;
+        flush();
     }
 
     function showToast(event) {
@@ -1361,6 +1387,11 @@
         getCurrentUser: getCurrentUser,
         detectBusy: detectBusy,
         pickQueued: pickQueued,
+        bindHost: function (win) { host = win || {}; },
+        resetState: function () { state = emptyState(); },
+        acceptEvents: function (events) { (events || []).forEach(consider); },
+        currentState: function () { return cloneState(state); },
+        closeSheet: closeSheet,
         serverStreak: serverStreak,
         drawCard: drawCard,
         install: install

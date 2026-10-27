@@ -261,6 +261,13 @@ test('compact shown keeps the newest keys and the day is America/New_York', () =
     assert.ok(text.includes('toast:20261026'));
     assert.ok(text.includes('k0399'));
     assert.strictEqual(text.includes('k0000'), false);
+    state.shown['daily:20261025'] = 1;
+    assert.strictEqual(share.compactShown(state).includes('daily:'), false);
+    const legacy = share.mergeShown('toast:20261025,daily:20261026', share.emptyState());
+    assert.strictEqual(legacy.dailyToastDay, '2026-10-26');
+    assert.strictEqual(legacy.shown['daily:20261026'], undefined);
+    const older = share.mergeShown('toast:20261026,daily:20261025', share.emptyState());
+    assert.strictEqual(older.dailyToastDay, '2026-10-26');
     assert.strictEqual(share.questDay(Date.UTC(2026, 9, 27, 3, 30)), '2026-10-26');
     assert.strictEqual(share.questDay(Date.UTC(2026, 9, 27, 5, 0)), '2026-10-27');
 });
@@ -309,6 +316,34 @@ test('celebrations, dialogs, and large overlays count as busy', () => {
         }
     }, {});
     assert.strictEqual(onlySheet.busy, false);
+    function chat(open) {
+        return {
+            id: 'chatOverlay',
+            style: { position: 'fixed', zIndex: '250000', display: 'flex', opacity: '1' },
+            classList: { contains: function () { return false; } },
+            getBoundingClientRect: function () {
+                if (open) return { top: 68, left: 0, right: 390, bottom: 844, width: 390, height: 776 };
+                return { top: 844, left: 0, right: 390, bottom: 1620, width: 390, height: 776 };
+            },
+            querySelector: function () { return null; },
+            querySelectorAll: function () { return []; }
+        };
+    }
+    function chatDoc(panel) {
+        return {
+            getElementById: function (id) { return panel.id === id ? panel : null; },
+            querySelector: function () { return null; },
+            querySelectorAll: function (sel) { return sel === '*' ? [panel] : []; }
+        };
+    }
+    const view = { innerHeight: 844, innerWidth: 390 };
+    const parked = share.detectBusy(chatDoc(chat(false)), view);
+    assert.strictEqual(parked.busy, false);
+    const openChat = share.detectBusy(chatDoc(chat(true)), view);
+    assert.strictEqual(openChat.busy, true);
+    const faded = chat(true);
+    faded.style.opacity = '0';
+    assert.strictEqual(share.detectBusy(chatDoc(faded), view).busy, false);
 });
 
 test('shown marker is an owner string and the worker OG is static', () => {
@@ -330,6 +365,7 @@ test('shown marker is an owner string and the worker OG is static', () => {
     const worker = read('workers/seo-router/worker.js');
     assert.ok(worker.includes("'/og/achievements/'"));
     assert.ok(worker.includes("origin + '/?a='"));
+    assert.ok(worker.slice(worker.indexOf('function renderAchievementPage')).includes('content="noindex, follow"'));
     assert.ok(worker.includes("'Vary': 'User-Agent'") || worker.includes('"Vary": "User-Agent"'));
     assert.ok(worker.includes("Satoshi's Favor block found"));
     assert.ok(worker.includes('Daily quests done'));
@@ -357,6 +393,112 @@ test('pages ship one script, one Latest line, and the v2412 cache', () => {
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2412'"));
+    const src = read('achievement-share.js');
+    const flushSrc = src.slice(src.indexOf('function flush()'), src.indexOf('function openManual'));
+    assert.ok(flushSrc.indexOf('state.queue') >= 0 && flushSrc.indexOf('state.queue') < flushSrc.indexOf('busyState()'));
+});
+
+test('a popup and a toast that arrive together show the toast only after the sheet closes', () => {
+    const today = share.questDay();
+    const events = share.diffServerProfile(
+        { points: 2000, trifectaDays: 1, streak: 4, badges: [] },
+        { points: 2140, trifectaDays: 2, streak: 5, badges: [] },
+        { today: today }
+    );
+    assert.strictEqual(events.length, 2);
+    assert.strictEqual(events[0].type, 'rank');
+    assert.strictEqual(events[1].kind, 'toast');
+    let scans = 0;
+    function el() {
+        const node = {
+            id: '',
+            style: {},
+            children: [],
+            parentNode: null,
+            attr: {},
+            setAttribute: function (k, v) { node.attr[k] = v; },
+            getAttribute: function (k) { return node.attr[k] || null; },
+            appendChild: function (child) {
+                if (child.parentNode && child.parentNode.children) {
+                    child.parentNode.children = child.parentNode.children.filter(function (c) { return c !== child; });
+                }
+                child.parentNode = node;
+                node.children.push(child);
+                return child;
+            },
+            remove: function () {
+                const p = node.parentNode;
+                if (!p || !p.children) return;
+                p.children = p.children.filter(function (c) { return c !== node; });
+                node.parentNode = null;
+            },
+            addEventListener: function () {},
+            focus: function () {},
+            querySelector: function () { return null; },
+            querySelectorAll: function () { return []; },
+            classList: { contains: function () { return false; } },
+            getBoundingClientRect: function () { return { top: 0, left: 0, right: 390, bottom: 844, width: 390, height: 844 }; }
+        };
+        return node;
+    }
+    function find(n, id) {
+        if (!n) return null;
+        if (n.id === id) return n;
+        const kids = n.children || [];
+        for (let i = 0; i < kids.length; i++) {
+            const hit = find(kids[i], id);
+            if (hit) return hit;
+        }
+        return null;
+    }
+    const body = el();
+    const doc = {
+        body: body,
+        activeElement: null,
+        head: el(),
+        createElement: function () { return el(); },
+        getElementById: function (id) { return find(body, id); },
+        querySelector: function () { return null; },
+        querySelectorAll: function () { scans++; return []; }
+    };
+    const store = {};
+    const win = {
+        document: doc,
+        innerWidth: 390,
+        innerHeight: 844,
+        localStorage: { getItem: function (k) { return store[k] || null; }, setItem: function (k, v) { store[k] = String(v); } },
+        sessionStorage: { getItem: function () { return null; }, setItem: function () {} },
+        getComputedStyle: function (node) { return node.style || {}; },
+        location: { hostname: 'bitcoineducation.quest', search: '' }
+    };
+    try {
+        share.bindHost(win);
+        share.resetState();
+        scans = 0;
+        share.closeSheet();
+        assert.strictEqual(scans, 0);
+        share.acceptEvents(events);
+        assert.ok(doc.getElementById('bqShareSheet'));
+        assert.strictEqual(doc.getElementById('bqDailyShareToast'), null);
+        assert.strictEqual(share.currentState().dailyToastDay, '');
+        assert.strictEqual(share.currentState().queue.length, 1);
+        assert.strictEqual(share.currentState().queue[0].type, 'daily');
+        share.closeSheet();
+        const toast = doc.getElementById('bqDailyShareToast');
+        assert.ok(toast);
+        assert.strictEqual(doc.getElementById('bqShareSheet'), null);
+        assert.strictEqual(share.currentState().dailyToastDay, today);
+        assert.strictEqual(share.currentState().queue.length, 0);
+        assert.strictEqual(share.compactShown(share.currentState()).includes('daily:'), false);
+        toast.marker = 'once';
+        share.acceptEvents([events[1]]);
+        assert.strictEqual(doc.getElementById('bqDailyShareToast').marker, 'once');
+        assert.strictEqual(share.currentState().dailyToastDay, today);
+        assert.strictEqual(share.currentState().queue.length, 0);
+    } finally {
+        share.resetState();
+        share.bindHost({});
+    }
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
