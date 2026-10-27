@@ -344,7 +344,7 @@ function _resumeAfterSecondFactor() {
 
 function initRanking() {
     try {
-        firebase.initializeApp(FIREBASE_CONFIG);
+        if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
 
         // App Check for claimSats. One activation per page, before any claim.
         // Storage stays unenforced. SMS 2FA on Safari still uses TOTP.
@@ -359,11 +359,12 @@ function initRanking() {
         }
 
         db = firebase.firestore();
-        // Enable offline persistence - data survives connection loss
-        // Offline persistence disabled — IndexedDB multi-tab lock was stalling all Firestore reads
-        auth = firebase.auth();
-        // Ensure auth persists across refreshes, tab closes, and app restarts
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function() {});
+        // Firestore offline persistence stays off — an IndexedDB lock was stalling reads.
+        // Auth LOCAL persistence (IndexedDB) is the SDK default. setPersistence() on every
+        // load queues the first auth event behind a second IndexedDB open and was stalling
+        // onAuthStateChanged, so the signed-in home waited on it.
+        auth = window.auth || firebase.auth();
+        window.auth = auth;
         installMfaCallablePatch();
 
         // Check if returning from email magic link
@@ -377,7 +378,16 @@ function initRanking() {
         // IMPORTANT: must resolve before we allow anonymous sign-in to avoid
         // clobbering the redirect auth state on mobile.
         // No timeout — auth iframe is same-origin via CF Worker proxy so Safari ITP no longer blocks it.
-        redirectResultPromise = auth.getRedirectResult().then(async function(result) {
+        // The listener must be attached before getRedirectResult(). That call waits on
+        // the auth iframe and, when invoked inline, never returned to register
+        // onAuthStateChanged. Arm it only after the first auth event yields.
+        var _redirectWatchStarted = false;
+        var _resolveRedirectGate;
+        redirectResultPromise = new Promise(function (resolve) { _resolveRedirectGate = resolve; });
+        function startRedirectWatch() {
+            if (_redirectWatchStarted) return;
+            _redirectWatchStarted = true;
+            auth.getRedirectResult().then(async function(result) {
             redirectResultResolved = true;
             console.log('[Auth] getRedirectResult:', result ? (result.user ? result.user.uid : 'no user') : 'null');
             if (!result || !result.user) return null;
@@ -469,7 +479,14 @@ function initRanking() {
                 console.log('Redirect result error:', e);
             }
             return null;
+        }).then(function (redirectUser) {
+            redirectResultResolved = true;
+            _resolveRedirectGate(redirectUser || null);
+        }, function () {
+            redirectResultResolved = true;
+            _resolveRedirectGate(null);
         });
+        }
 
         // Wait for auth to fully resolve before doing anything
         // This prevents the race condition where anonymous user loads before Google auth restores
@@ -482,12 +499,27 @@ function initRanking() {
         if (_pendingRedirect) console.log('[Auth] Detected pending redirect return');
 
         auth.onAuthStateChanged(user => {
+            // getRedirectResult() waits on the auth iframe. Calling it before this
+            // listener, or on every reload, stalled the signed-in home for seconds.
+            // A returning real user has nothing to consume. Only a redirect return
+            // (no user yet, anonymous, or the redirect flags) needs that call.
+            if (!_redirectWatchStarted) {
+                var _mayBeRedirect = _pendingRedirect || !user || user.isAnonymous;
+                if (_mayBeRedirect) setTimeout(startRedirectWatch, 0);
+                else {
+                    _redirectWatchStarted = true;
+                    redirectResultResolved = true;
+                    _resolveRedirectGate(null);
+                }
+            }
+            try { if (window.performance && performance.mark) performance.mark('btc-auth-ranking'); } catch (e) {}
             console.log('[Auth] onAuthStateChanged:', user ? (user.isAnonymous ? 'anon:' + user.uid : 'real:' + user.uid) : 'null', 'firstEvent:', firstAuthEvent, 'pendingRedirect:', _pendingRedirect);
             // Detect account switch: if a real user signs in and it's a different UID, clear old data
             if (user && !user.isAnonymous) {
                 var prevUid = localStorage.getItem('btc_last_auth_uid');
                 if (prevUid && prevUid !== user.uid) {
                     console.log('[Auth] Account switch detected:', prevUid, '->', user.uid, '- clearing localStorage');
+                    clearAuthDisplay();
                     clearUserLocalStorage({ keepGuest: !!localStorage.getItem('btc_guest_link') });
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
@@ -513,8 +545,10 @@ function initRanking() {
                     if (_cachedProfile && _cachedProfile.data && _cachedProfile.data.totpEnabled) {
                         loadUser(user.uid).catch(function(){});
                     } else if (_cachedProfile) {
-                        // Instant render from cache
+                        // Instant render from cache. Display snapshot stays display-only;
+                        // rankingReady here is the existing profile cache, after auth matched this uid.
                         currentUser = { uid: user.uid, ..._cachedProfile.data };
+                        publishAuthDisplay(user.uid, _cachedProfile.data);
                         window._myPeers = new Set(currentUser.peers || []);
                         rankingReady = true;
                         window._badgesReady = true;
@@ -530,6 +564,7 @@ function initRanking() {
                         loadUser(user.uid).catch(function(){});
                     }
                 } else if (user && user.isAnonymous) {
+                    if (!_pendingRedirect) clearAuthDisplay();
                     if (typeof stashGuestLink === 'function') stashGuestLink();
                     // If we're pending a redirect, DON'T load anon yet - wait longer for auth to resolve
                     if (_pendingRedirect) {
@@ -559,7 +594,9 @@ function initRanking() {
                     }
                 } else {
                     // null user - WAIT for getRedirectResult before signing in anonymously
-                    // Otherwise we clobber the redirect auth state on mobile
+                    // Otherwise we clobber the redirect auth state on mobile.
+                    // A settled signed-out state drops the display snapshot immediately.
+                    if (!_pendingRedirect) clearAuthDisplay();
                     if (redirectResultResolved && !_pendingRedirect) {
                         // Redirect already resolved (no redirect happened) - safe to go anonymous
                         auth.signInAnonymously().then(() => {});
@@ -591,6 +628,7 @@ function initRanking() {
                     return;
                 }
                 if (user.isAnonymous) {
+                    clearAuthDisplay();
                     if (typeof stashGuestLink === 'function') stashGuestLink();
                     loadUserLocal(user.uid);
                 } else {
@@ -598,6 +636,7 @@ function initRanking() {
                 }
             } else {
                 currentUser = null;
+                if (!_pendingRedirect) clearAuthDisplay();
                 // Only sign in anonymously if redirect has already resolved
                 if (redirectResultResolved) {
                     auth.signInAnonymously().then(() => {});
@@ -2686,6 +2725,15 @@ function loadUserLocal(uid) {
 
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
+    if (doc.exists) {
+        currentUser = { uid, ...doc.data() };
+        // Cache profile for instant next-load. The display snapshot is a separate,
+        // non-sensitive projection and is not allowed to grant anything.
+        try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
+        publishAuthDisplay(uid, doc.data());
+        updateAuthButton();
+    }
+    // Token refresh and callables must not block the signed-in chrome above.
     // Resolve admin status from custom claim (not email allowlist)
     try {
         if (auth.currentUser && !auth.currentUser.isAnonymous) {
@@ -2702,9 +2750,6 @@ async function loadUser(uid, prefetchedDoc) {
         renderChatMessages(window._chatAllMsgs);
     }
     if (doc.exists) {
-        currentUser = { uid, ...doc.data() };
-        // Cache profile for instant next-load
-        try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
         // TOS check — show acceptance modal if user hasn't accepted current version
         if (!auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
             _showTosModal();
@@ -3253,6 +3298,12 @@ function paintHomeStrip(snap, invited, maxi) {
 
 window.refreshHomeStrip = function() {
     var signed = homeSignedInNow();
+    // Display-only paint is on screen and Auth has not settled. Do not flip the
+    // home back to the guest layout, and do not fill sats from the snapshot.
+    var liveAuth = window.auth && window.auth.currentUser;
+    if (!signed && document.documentElement.getAttribute('data-auth-display') === '1' && typeof window._btcEarlyAuthUser === 'undefined' && !liveAuth) {
+        return;
+    }
     document.documentElement.classList.toggle('home-signed-in', signed);
     if (document.body) document.body.classList.toggle('home-signed-in', signed);
     if (!signed) {
@@ -3312,6 +3363,10 @@ function updateAuthButton() {
     var isNostrOrLn = firebaseUser && firebaseUser.uid && (firebaseUser.uid.startsWith('nostr:') || firebaseUser.uid.startsWith('ln:'));
 
     var shouldShowSignedIn = isRealAuth || isNostrOrLn || displayName;
+    // The display snapshot may already have painted. Auth has not settled yet,
+    // so this call must not swap that paint back to the guest button.
+    var authSettled = typeof window._btcEarlyAuthUser !== 'undefined' || !!firebaseUser;
+    var keepOptimistic = !authSettled && !_authBtnSignedIn && document.documentElement.getAttribute('data-auth-display') === '1';
 
     // Once signed in, NEVER go back to "Create Account" unless explicitly signed out (firebaseUser is null)
     if (shouldShowSignedIn) {
@@ -3319,13 +3374,14 @@ function updateAuthButton() {
     } else if (_authBtnSignedIn && firebaseUser) {
         // Auth still exists but Firestore temporarily lost - don't downgrade
         return;
-    } else if (!firebaseUser) {
+    } else if (!firebaseUser && !keepOptimistic) {
         // Actually signed out
         _authBtnSignedIn = false;
     }
 
     if (_authBtnSignedIn) {
         var name = displayName || 'My Account';
+        btn.setAttribute('data-auth-live', '1');
         btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> - Settings';
         btn.onclick = function() { showSettings(); };
         // Hide on mobile - mobile top bar already shows username + Topics
@@ -3335,7 +3391,7 @@ function updateAuthButton() {
         btn.style.color = '#3b82f6';
         btn.onmouseover = function() { this.style.background='#3b82f6'; this.style.color='#fff'; };
         btn.onmouseout = function() { this.style.background='none'; this.style.color='#3b82f6'; };
-    } else if (!firebaseUser || (firebaseUser && firebaseUser.isAnonymous)) {
+    } else if (!keepOptimistic && (!firebaseUser || (firebaseUser && firebaseUser.isAnonymous))) {
         // Only show "Create Account" for truly anonymous/no-auth users
         btn.textContent = 'Create Free Account / Sign In';
         btn.style.display = 'block';
@@ -3352,9 +3408,11 @@ function updateAuthButton() {
     if (guestBanner && _authBtnSignedIn) {
         guestBanner.style.display = 'none';
     }
-    document.documentElement.classList.toggle('home-signed-in', !!_authBtnSignedIn);
-    if (document.body) document.body.classList.toggle('home-signed-in', !!_authBtnSignedIn);
-    if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+    if (!(keepOptimistic && !_authBtnSignedIn)) {
+        document.documentElement.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+        if (document.body) document.body.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+    }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
 }
 
@@ -5266,6 +5324,7 @@ window.confirmDeleteAccount = async function() {
         }
         await firebase.functions().httpsCallable('deleteAccount', { timeout: 540000 })(deletePayload);
 
+        clearAuthDisplay();
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i);
@@ -8955,6 +9014,31 @@ window.minimizeSignUpBanner = function() {
     }
 };
 
+// Display snapshot only. Never copies email, tokens, or private profile fields.
+function publishAuthDisplay(uid, data) {
+    if (!window.btcAuthDisplay || !uid || !data || !data.username) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== uid) return;
+    try {
+        var snap = window.btcAuthDisplay.write({
+            uid: uid,
+            username: data.username,
+            avatar: data.profilePic || '',
+            xp: data.points || 0
+        });
+        if (snap && window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(snap);
+    } catch (e) {}
+}
+function clearAuthDisplay() {
+    try {
+        if (window.btcAuthDisplay) {
+            window.btcAuthDisplay.clear();
+            if (window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(null);
+        }
+    } catch (e) {}
+}
+window.publishAuthDisplay = publishAuthDisplay;
+window.clearAuthDisplay = clearAuthDisplay;
+
 function clearUserLocalStorage(opts) {
     var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
@@ -9241,6 +9325,7 @@ async function signOutUser(force) {
     if ('caches' in window) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
     }
+    clearAuthDisplay();
     clearUserLocalStorage();
     if (typeof window.bqClearTopicDrafts === 'function') window.bqClearTopicDrafts();
     await auth.signOut();
