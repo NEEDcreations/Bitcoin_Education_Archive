@@ -146,7 +146,44 @@ test('needs2fa replaces a name and is not painted', () => {
     const pending = display.plan(read, undefined);
     assert.strictEqual(pending.action, 'hide');
     assert.strictEqual(pending.snapshot, null);
+    const signedOut = display.plan(read, null);
+    assert.strictEqual(signedOut.action, 'clear');
+    assert.strictEqual(signedOut.reason, 'signed-out');
+    const anon = display.plan(read, { uid: 'anonUid123456', isAnonymous: true });
+    assert.strictEqual(anon.action, 'clear');
+    const sameUser = display.plan(read, { uid: 'userUid123456', isAnonymous: false });
+    assert.strictEqual(sameUser.action, 'hide');
     assert.strictEqual(display.sanitize({ uid: 'userUid123456', username: 'MeasurePleb', needs2fa: true, xp: 10 }), null);
+});
+
+test('needs2fa marker clears when the session is signed out or anonymous', () => {
+    const storage = mem();
+    const prevLocal = global.localStorage;
+    const prevSession = global.sessionStorage;
+    global.localStorage = storage;
+    global.sessionStorage = mem();
+    try {
+        display.markNeeds2fa('userUid123456', storage);
+        const signedOut = display.reconcile(null);
+        assert.strictEqual(signedOut.action, 'clear');
+        assert.strictEqual(display.read(storage), null);
+
+        display.markNeeds2fa('userUid123456', storage);
+        const anon = display.reconcile({ uid: 'anonUid123456', isAnonymous: true });
+        assert.strictEqual(anon.action, 'clear');
+        assert.strictEqual(display.read(storage), null);
+
+        display.markNeeds2fa('userUid123456', storage);
+        global.sessionStorage.setItem('btc_redirect_pending', '1');
+        const waiting = display.reconcile(null);
+        assert.strictEqual(waiting.action, 'hide');
+        assert.strictEqual(display.read(storage).needs2fa, true);
+    } finally {
+        if (prevLocal === undefined) delete global.localStorage;
+        else global.localStorage = prevLocal;
+        if (prevSession === undefined) delete global.sessionStorage;
+        else global.sessionStorage = prevSession;
+    }
 });
 
 test('home chip follows XP hide lists and lite still shows it', () => {
@@ -235,22 +272,134 @@ test('ranking holds the snapshot and the settings button until totp succeeds', (
     const afterGate = load.slice(gate, gate + 900);
     assert.ok(afterGate.indexOf('_showTotpSignInChallenge') !== -1);
     assert.ok(afterGate.indexOf('return;') !== -1);
-    assert.ok(afterGate.indexOf('_btcTotpVerified = true') !== -1);
-    const btn = src.slice(src.indexOf('function updateAuthButton'), src.indexOf('function updateAuthButton') + 700);
+    assert.ok(afterGate.indexOf('noteTotpVerified(auth.currentUser.uid)') !== -1);
+    assert.ok(afterGate.indexOf('clearTotpVerified()') !== -1);
+    const btn = src.slice(src.indexOf('function updateAuthButton'), src.indexOf('Check all possible ways a user can be'));
     assert.ok(btn.indexOf('_btcTotpHold') !== -1);
-    assert.ok(btn.indexOf('data-auth-live') !== -1);
+    assert.ok(btn.indexOf('applyGuestAuthButton(btn)') !== -1);
+    assert.strictEqual(btn.indexOf('showSettings'), -1);
     const failAt = src.indexOf('window._submitTotpSignIn = async function');
     const fail = src.slice(failAt, failAt + 2800);
     assert.ok(fail.indexOf('clearAuthDisplay()') !== -1);
-    const showAt = src.indexOf('window._showTotpSignInChallenge');
+    const showAt = src.indexOf('window._showTotpSignInChallenge = function');
     const show = src.slice(showAt, showAt + 500);
     assert.ok(show.indexOf('holdAuthDisplayForTotp') !== -1);
     assert.ok(show.indexOf('signOutUser(true)') === -1 || src.indexOf('signOutUser(true)') !== -1);
     const pubAt = src.indexOf('function publishAuthDisplay');
     const pub = src.slice(pubAt, pubAt + 900);
-    assert.ok(pub.indexOf('data.totpEnabled && !window._btcTotpVerified') !== -1);
+    assert.ok(pub.indexOf('data.totpEnabled && !totpVerifiedFor(uid)') !== -1);
     assert.ok(pub.indexOf('holdAuthDisplayForTotp') !== -1);
     assert.ok(pub.indexOf('.write(') > pub.indexOf('data.totpEnabled'));
+});
+
+const fs = require('fs');
+const path = require('path');
+const src = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
+
+function extract(name) {
+    const start = src.indexOf('function ' + name);
+    assert.ok(start !== -1, 'missing ' + name);
+    let i = src.indexOf('{', start);
+    let depth = 0;
+    for (; i < src.length; i++) {
+        if (src[i] === '{') depth++;
+        else if (src[i] === '}') {
+            depth--;
+            if (depth === 0) return src.slice(start, i + 1);
+        }
+    }
+    throw new Error('unclosed ' + name);
+}
+
+test('2FA hold resets the auth button to the guest control', () => {
+    const vm = require('vm');
+    const hold = src.slice(src.indexOf('if (window._btcTotpHold)'), src.indexOf('Check all possible ways a user can be'));
+    assert.ok(hold.indexOf('applyGuestAuthButton(btn)') !== -1);
+    assert.ok(hold.indexOf('return;') > hold.indexOf('applyGuestAuthButton(btn)'));
+    assert.strictEqual(hold.indexOf('showSettings'), -1);
+    const guest = extract('applyGuestAuthButton');
+    assert.ok(guest.indexOf('showUsernamePrompt') !== -1);
+    assert.strictEqual(guest.indexOf('showSettings'), -1);
+    assert.ok(guest.indexOf("background = 'var(--accent)'") !== -1);
+    assert.ok(guest.indexOf("border = 'none'") !== -1);
+    assert.ok(guest.indexOf("color = '#000'") !== -1);
+    assert.ok(guest.indexOf("display = 'block'") !== -1);
+    assert.ok(guest.indexOf("removeAttribute('data-auth-live')") !== -1);
+    const prompt = src.slice(src.indexOf('function showUsernamePrompt'), src.indexOf('function showAccountInfo'));
+    assert.ok(prompt.indexOf('window._btcTotpHold') !== -1);
+    assert.ok(prompt.indexOf('window._btcTotpHold') < prompt.indexOf('showAccountInfo()'));
+    const settings = src.slice(src.indexOf('function showSettingsPage'), src.indexOf('function showSettingsPage') + 280);
+    assert.ok(settings.indexOf('if (window._btcTotpHold) return;') !== -1);
+
+    const sandbox = { console: console };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(guest, sandbox);
+    let opened = '';
+    sandbox.showUsernamePrompt = function () { opened = 'guest'; };
+    sandbox.showSettings = function () { opened = 'settings'; };
+    const btn = {
+        attrs: { 'data-auth-live': '1', 'data-auth-display': '1' },
+        style: { background: 'none', border: '2px solid #3b82f6', color: '#3b82f6', display: 'none' },
+        textContent: 'Name - Settings',
+        onclick: function () { sandbox.showSettings(); },
+        removeAttribute: function (k) { delete this.attrs[k]; },
+        getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; }
+    };
+    sandbox.applyGuestAuthButton(btn);
+    assert.strictEqual(btn.textContent, 'Create Free Account / Sign In');
+    assert.strictEqual(btn.style.display, 'block');
+    assert.strictEqual(btn.style.background, 'var(--accent)');
+    assert.strictEqual(btn.style.border, 'none');
+    assert.strictEqual(btn.style.color, '#000');
+    assert.strictEqual(btn.getAttribute('data-auth-live'), null);
+    assert.strictEqual(btn.getAttribute('data-auth-display'), null);
+    btn.onclick();
+    assert.strictEqual(opened, 'guest');
+    btn.onmouseover();
+    assert.strictEqual(btn.style.transform, 'scale(1.02)');
+    assert.strictEqual(btn.style.background, 'var(--accent)');
+    btn.onmouseout();
+    assert.strictEqual(btn.style.transform, 'scale(1)');
+});
+
+test('2FA verified flag is stored and compared per uid', () => {
+    const vm = require('vm');
+    const sandbox = { console: console };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(
+        extract('totpVerifiedFor') + '\n' + extract('noteTotpVerified') + '\n' + extract('clearTotpVerified') + '\n' + extract('syncTotpVerified'),
+        sandbox
+    );
+    assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), false);
+    sandbox.noteTotpVerified('uidAaaaaaaa');
+    assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), true);
+    assert.strictEqual(sandbox.totpVerifiedFor('uidBbbbbbbb'), false);
+    sandbox.syncTotpVerified({ uid: 'uidAaaaaaaa', isAnonymous: false });
+    assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), true);
+    sandbox.syncTotpVerified({ uid: 'uidBbbbbbbb', isAnonymous: false });
+    assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), false);
+    assert.strictEqual(sandbox._btcTotpVerifiedUid, '');
+    sandbox.noteTotpVerified('uidAaaaaaaa');
+    sandbox.syncTotpVerified({ uid: 'anonUid12345', isAnonymous: true });
+    assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), false);
+    sandbox.noteTotpVerified('uidAaaaaaaa');
+    sandbox.syncTotpVerified(null);
+    assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), false);
+    sandbox.noteTotpVerified('uidAaaaaaaa');
+    sandbox.clearTotpVerified();
+    assert.strictEqual(sandbox.totpVerifiedFor('uidAaaaaaaa'), false);
+
+    const listenAt = src.indexOf('auth.onAuthStateChanged(user => {');
+    const listen = src.slice(listenAt, listenAt + 500);
+    assert.ok(listen.indexOf('syncTotpVerified(user)') !== -1);
+    const signOutAt = src.indexOf('async function signOutUser');
+    const signOut = src.slice(signOutAt, signOutAt + 2800);
+    assert.ok(signOut.indexOf('clearTotpVerified()') !== -1);
+    assert.ok(signOut.indexOf('clearTotpVerified()') < signOut.indexOf('auth.signOut()'));
+    assert.strictEqual(src.indexOf('_btcTotpVerified = true'), -1);
+    assert.strictEqual(src.indexOf('_btcTotpVerified = false'), -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

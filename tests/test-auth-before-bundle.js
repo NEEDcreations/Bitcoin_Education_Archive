@@ -129,6 +129,49 @@ test('update reload drops one-shot auth and referral params', () => {
     assert.ok(reload.indexOf('location.reload()') !== -1);
 });
 
+test('window load drains the bundle queue once', () => {
+    const listeners = {};
+    let runs = 0;
+    const sandbox = {
+        console: console,
+        document: { readyState: 'loading' },
+        addEventListener: function (name, fn) { listeners[name] = fn; }
+    };
+    sandbox.window = sandbox;
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(extract('whenBundleReady'), sandbox);
+    sandbox.whenBundleReady(function () { runs++; });
+    assert.strictEqual(runs, 0);
+    assert.strictEqual(sandbox._btcBundleQueue.length, 1);
+    assert.strictEqual(typeof listeners.load, 'function');
+    assert.strictEqual(listeners.load, listeners['btc-bundle-ready']);
+    listeners.load();
+    assert.strictEqual(runs, 1);
+    listeners.load();
+    listeners['btc-bundle-ready']();
+    assert.strictEqual(runs, 1);
+    assert.strictEqual(sandbox._btcBundleQueue.length, 0);
+
+    const done = {
+        console: console,
+        document: { readyState: 'complete' },
+        addEventListener: function () {}
+    };
+    done.window = done;
+    done.globalThis = done;
+    vm.createContext(done);
+    vm.runInContext(extract('whenBundleReady'), done);
+    let ran = 0;
+    done.whenBundleReady(function () { ran++; });
+    assert.strictEqual(ran, 1);
+    done.whenBundleReady(function () { ran++; });
+    assert.strictEqual(ran, 2);
+    const waiter = extract('whenBundleReady');
+    assert.ok(waiter.indexOf("addEventListener('load', target._btcBundleWaiter)") !== -1);
+    assert.ok(waiter.indexOf('_btcBundleDrained') !== -1);
+});
+
 test('a pending redirect that ends signed out clears the snapshot', () => {
     const listenAt = ranking.indexOf('auth.onAuthStateChanged(user => {');
     const listen = ranking.slice(listenAt, listenAt + 12000);

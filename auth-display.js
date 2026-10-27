@@ -149,7 +149,14 @@
     // null, anonymous, or a different uid: drop it. Never keep another account on screen.
     // A needs2fa record never becomes a visible name.
     function plan(stored, authUser) {
-        if (stored && stored.needs2fa) return { action: 'hide', reason: 'needs2fa', snapshot: null };
+        if (stored && stored.needs2fa) {
+            // Auth has settled on signed-out or anonymous: the marker is done.
+            // Undefined auth means the session is still unknown, so keep hiding.
+            if (typeof authUser !== 'undefined' && (!authUser || authUser.isAnonymous || !authUser.uid)) {
+                return { action: 'clear', reason: 'signed-out', snapshot: null };
+            }
+            return { action: 'hide', reason: 'needs2fa', snapshot: null };
+        }
         var snap = stored ? sanitize(stored) : null;
         if (typeof authUser === 'undefined') return { action: 'show', snapshot: snap };
         if (!authUser || authUser.isAnonymous || !authUser.uid) {
@@ -282,12 +289,23 @@
 
     function reconcile(user) {
         var stored = read();
-        if (stored && stored.needs2fa) {
+        // A redirect may still restore this uid. Keep the marker, show no name.
+        if (stored && stored.needs2fa && (!user || user.isAnonymous) && redirectPending()) {
             paint(null);
             return { action: 'hide', reason: 'needs2fa', snapshot: null };
         }
         if ((!user || user.isAnonymous) && redirectPending()) {
             return { action: 'wait', reason: 'redirect', snapshot: stored };
+        }
+        // Signed-out and anonymous sessions drop the needs2fa marker.
+        if (stored && stored.needs2fa && (!user || user.isAnonymous || !user.uid)) {
+            clear();
+            paint(null);
+            return { action: 'clear', reason: 'signed-out', snapshot: null };
+        }
+        if (stored && stored.needs2fa) {
+            paint(null);
+            return { action: 'hide', reason: 'needs2fa', snapshot: null };
         }
         var decision = plan(stored, user || null);
         if (decision.action === 'clear') {

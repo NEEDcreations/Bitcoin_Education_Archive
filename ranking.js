@@ -52,6 +52,8 @@ function whenBundleReady(fn) {
     target._btcBundleQueue.push(fn);
     if (!target._btcBundleWaiter) {
         target._btcBundleWaiter = function () {
+            if (target._btcBundleDrained) return;
+            target._btcBundleDrained = true;
             target._btcBundleReady = true;
             var q = target._btcBundleQueue || [];
             target._btcBundleQueue = [];
@@ -61,10 +63,49 @@ function whenBundleReady(fn) {
         };
         if (typeof target.addEventListener === 'function') {
             target.addEventListener('btc-bundle-ready', target._btcBundleWaiter);
+            // bundle-ready.js is a separate defer script. If it never signals,
+            // window load still drains the queue once. A second signal no-ops.
+            target.addEventListener('load', target._btcBundleWaiter);
+        }
+        if (target.document && target.document.readyState === 'complete') {
+            target._btcBundleWaiter();
         }
     }
 }
 window.whenBundleReady = whenBundleReady;
+
+// Authenticator success is per uid. A previous account's pass must not
+// unlock Settings for the next uid, and sign-out drops it.
+function totpVerifiedFor(uid) {
+    return !!(uid && window._btcTotpVerifiedUid && window._btcTotpVerifiedUid === uid);
+}
+function noteTotpVerified(uid) {
+    if (!uid) return;
+    window._btcTotpVerifiedUid = uid;
+}
+function clearTotpVerified() {
+    window._btcTotpVerifiedUid = '';
+}
+function syncTotpVerified(user) {
+    var uid = (user && !user.isAnonymous && user.uid) ? user.uid : '';
+    if (!totpVerifiedFor(uid)) clearTotpVerified();
+}
+
+// Guest auth button. The 2FA hold path must put this back in full, including
+// the click handler, so a live Settings button cannot survive the hold.
+function applyGuestAuthButton(btn) {
+    if (!btn) return;
+    btn.removeAttribute('data-auth-live');
+    btn.removeAttribute('data-auth-display');
+    btn.textContent = 'Create Free Account / Sign In';
+    btn.onclick = function () { showUsernamePrompt(); };
+    btn.style.display = 'block';
+    btn.style.background = 'var(--accent)';
+    btn.style.border = 'none';
+    btn.style.color = '#000';
+    btn.onmouseover = function () { this.style.transform = 'scale(1.02)'; };
+    btn.onmouseout = function () { this.style.transform = 'scale(1)'; };
+}
 window.mergeStoredStoryDays = mergeStoredStoryDays;
 
 // Config literal lives in firebase-config.js. No second copy here.
@@ -508,7 +549,7 @@ function initRanking() {
             loadUser(user.uid);
             var _redirCache = null;
             try { _redirCache = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null'); } catch (e) { _redirCache = null; }
-            if (_redirCache && _redirCache.uid === user.uid && _redirCache.data && _redirCache.data.totpEnabled && !window._btcTotpVerified) {
+            if (_redirCache && _redirCache.uid === user.uid && _redirCache.data && _redirCache.data.totpEnabled && !totpVerifiedFor(user.uid)) {
                 window._btcTotpHold = true;
                 holdAuthDisplayForTotp(user.uid);
             } else if (!window._btcTotpHold) {
@@ -563,6 +604,9 @@ function initRanking() {
         if (_pendingRedirect) console.log('[Auth] Detected pending redirect return');
 
         auth.onAuthStateChanged(user => {
+            // A verified pass belongs to one uid. Sign-out, anonymous, and a
+            // different account all drop it before any profile work.
+            syncTotpVerified(user);
             // getRedirectResult() waits on the auth iframe. Calling it before this
             // listener, or on every reload, stalled the signed-in home for seconds.
             // A returning real user has nothing to consume. Only a redirect return
@@ -606,7 +650,7 @@ function initRanking() {
                         var _cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
                         if (_cp && _cp.uid === user.uid && (Date.now() - _cp.ts) < 86400000) _cachedProfile = _cp;
                     } catch(e) {}
-                    if (_cachedProfile && _cachedProfile.data && _cachedProfile.data.totpEnabled && !window._btcTotpVerified) {
+                    if (_cachedProfile && _cachedProfile.data && _cachedProfile.data.totpEnabled && !totpVerifiedFor(user.uid)) {
                         window._btcTotpHold = true;
                         holdAuthDisplayForTotp(user.uid);
                         loadUser(user.uid).catch(function(){});
@@ -2809,7 +2853,7 @@ async function loadUser(uid, prefetchedDoc) {
         try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
         // Authenticator accounts do not get a display snapshot or a live
         // Settings button until _serverTotpAllows returns true below.
-        if (auth.currentUser && !auth.currentUser.isAnonymous && currentUser.totpEnabled && !window._btcTotpVerified) {
+        if (auth.currentUser && !auth.currentUser.isAnonymous && currentUser.totpEnabled && !totpVerifiedFor(uid)) {
             window._btcTotpHold = true;
             holdAuthDisplayForTotp(uid);
         } else {
@@ -2845,13 +2889,13 @@ async function loadUser(uid, prefetchedDoc) {
             var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
             if (!gateOpen) {
                 window._btcTotpHold = true;
-                window._btcTotpVerified = false;
+                clearTotpVerified();
                 holdAuthDisplayForTotp(auth.currentUser.uid);
                 _showTotpSignInChallenge();
                 return;
             }
             if (currentUser && currentUser.totpEnabled) {
-                window._btcTotpVerified = true;
+                noteTotpVerified(auth.currentUser.uid);
                 window._btcTotpHold = false;
             }
             publishAuthDisplay(uid, currentUser);
@@ -3448,11 +3492,9 @@ function updateAuthButton() {
     // The authenticator check has not passed. Do not turn this into Settings.
     if (window._btcTotpHold) {
         _authBtnSignedIn = false;
-        if (btn.getAttribute('data-auth-live') === '1' || btn.getAttribute('data-auth-display') === '1') {
-            btn.removeAttribute('data-auth-live');
-            btn.removeAttribute('data-auth-display');
-            btn.textContent = 'Create Free Account / Sign In';
-        }
+        applyGuestAuthButton(btn);
+        document.documentElement.classList.remove('home-signed-in');
+        if (document.body) document.body.classList.remove('home-signed-in');
         return;
     }
     // Check all possible ways a user can be "signed in":
@@ -6199,6 +6241,13 @@ window._signupGoGetLnAddress = function() {
 
 function showUsernamePrompt() {
     try {
+        // Hold keeps the guest button. A real session still exists, so the
+        // usual "open Settings" shortcut must wait until the code is verified.
+        if (window._btcTotpHold) {
+            var totpOverlay = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('totpSignInOverlay') : null;
+            if (!totpOverlay && typeof window._showTotpSignInChallenge === 'function') window._showTotpSignInChallenge();
+            return;
+        }
         // If user has an account (real or anonymous with username), show settings
         if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             showAccountInfo();
@@ -6550,6 +6599,7 @@ document.addEventListener('click', function(e) {
 
 function showSettingsPage(tab) {
     try {
+    if (window._btcTotpHold) return;
     settingsTab = tab || 'account';
     // Set page title to app name when on security tab — Authy/browser extensions
     // read document.title (not the otpauth issuer) when auto-detecting QR codes.
@@ -9141,7 +9191,7 @@ function holdAuthDisplayForTotp(uid) {
 function publishAuthDisplay(uid, data) {
     if (!window.btcAuthDisplay || !uid || !data) return;
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== uid) return;
-    if (data.totpEnabled && !window._btcTotpVerified) {
+    if (data.totpEnabled && !totpVerifiedFor(uid)) {
         holdAuthDisplayForTotp(uid);
         return;
     }
@@ -9467,7 +9517,7 @@ async function signOutUser(force) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
     }
     window._btcTotpHold = false;
-    window._btcTotpVerified = false;
+    clearTotpVerified();
     clearAuthDisplay();
     clearUserLocalStorage();
     if (typeof window.bqClearTopicDrafts === 'function') window.bqClearTopicDrafts();
@@ -10229,7 +10279,7 @@ window.verifyMFACode = async function() {
 // Uses existing totpCheck Cloud Function. Calls loadUser again on success.
 window._showTotpSignInChallenge = function() {
     window._btcTotpHold = true;
-    window._btcTotpVerified = false;
+    clearTotpVerified();
     if (auth && auth.currentUser) holdAuthDisplayForTotp(auth.currentUser.uid);
     if (tosBlocking()) {
         window.runAfterTos(function() { window._showTotpSignInChallenge(); });
@@ -10302,7 +10352,7 @@ window._submitTotpSignIn = async function() {
         var ov = document.getElementById('totpSignInOverlay');
         if (ov) ov.remove();
         if (checkedData.recoveryCodes) window._showRecoveryCodes(checkedData.recoveryCodes);
-        window._btcTotpVerified = true;
+        if (auth && auth.currentUser) noteTotpVerified(auth.currentUser.uid);
         window._btcTotpHold = false;
         _resumeAfterSecondFactor();
         if (typeof loadUser === 'function' && auth && auth.currentUser) {
@@ -10310,7 +10360,7 @@ window._submitTotpSignIn = async function() {
         }
     } catch(e) {
         window._btcTotpHold = true;
-        window._btcTotpVerified = false;
+        clearTotpVerified();
         clearAuthDisplay();
         if (auth && auth.currentUser && window.btcAuthDisplay && window.btcAuthDisplay.markNeeds2fa) {
             window.btcAuthDisplay.markNeeds2fa(auth.currentUser.uid);
