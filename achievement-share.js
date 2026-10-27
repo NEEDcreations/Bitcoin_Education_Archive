@@ -41,14 +41,14 @@
         xpFallback: 500,
         shareWorthy: ['Unclaimed', 'Legendary', 'Epic', 'Rare']
     };
-    var STREAK_PLACES = ['dailyXpMeter', 'mobileUserInfo', 'rank-streak', 'userDisplay', 'welcomeBanner', 'progressRings', 'streakBanner', 'Current Streak'];
+    var STREAK_PLACES = ['dailyXpMeter', 'mobileUserInfo', 'Current Streak'];
     var LS_SHOWN = 'btc_share_cards_shown';
     var LS_TOGGLE = 'btc_share_cards';
     var LS_QUEUE = 'btc_share_cards_queue';
     var SHOWN_RE = /^[a-z0-9_:,]{0,1500}$/;
     // Above #usernameModal (2100008), #questModal (400000), cert share (100020), exam guard (99998).
     var Z_SHEET = 2200000;
-    // Above the streak banner (300) and #userDisplay (200). Below quest overlays (~9500) and settings.
+    // Above the home streak chip (300). Below quest overlays (~9500) and settings.
     var Z_TOAST = 400;
 
     var host = (typeof window !== 'undefined') ? window : {};
@@ -57,6 +57,8 @@
     var seeded = false;
     var watchUid = '';
     var previewing = false;
+    var previewUser = null;
+    var unsubProfile = null;
     var toastTimer = 0;
     var sheetReturn = null;
 
@@ -96,8 +98,17 @@
     }
 
     function questDay(now) {
-        var t = (now == null ? Date.now() : now) - 5 * 3600000;
-        return new Date(t).toISOString().slice(0, 10);
+        var d = new Date(now == null ? Date.now() : now);
+        try {
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(d);
+        } catch (e) {
+            return d.toISOString().slice(0, 10);
+        }
     }
 
     function normalizeMode(mode) {
@@ -300,7 +311,7 @@
         var key = shownKey(event.id);
         if (manual) {
             if (event.type === 'badge' && mode === 'lite') return { action: 'skip', state: s, reason: 'lite-badge' };
-            if (opts.exam || opts.quest) return { action: 'queue', state: enqueue(s, event), reason: 'busy' };
+            if (opts.exam || opts.quest) return { action: 'later', state: s, reason: 'after-exam' };
             return { action: 'sheet', state: s, reason: 'manual' };
         }
 
@@ -355,16 +366,18 @@
     function shareGrantsReward() { return false; }
 
     function compactShown(s) {
-        var parts = [];
-        if (s.popupDay && /^\d{4}-\d{2}-\d{2}$/.test(s.popupDay)) parts.push('popup:' + dayKey(s.popupDay));
-        if (s.dailyToastDay && /^\d{4}-\d{2}-\d{2}$/.test(s.dailyToastDay)) parts.push('toast:' + dayKey(s.dailyToastDay));
+        var heads = [];
+        if (s.popupDay && /^\d{4}-\d{2}-\d{2}$/.test(s.popupDay)) heads.push('popup:' + dayKey(s.popupDay));
+        if (s.dailyToastDay && /^\d{4}-\d{2}-\d{2}$/.test(s.dailyToastDay)) heads.push('toast:' + dayKey(s.dailyToastDay));
+        var ids = [];
         Object.keys(s.shown || {}).forEach(function (id) {
             var clean = shownKey(id);
-            if (clean) parts.push(clean);
+            if (clean) ids.push(clean);
         });
-        var text = parts.join(',');
-        if (text.length > 1500) text = text.slice(0, 1500).replace(/,[^,]*$/, '');
-        if (!SHOWN_RE.test(text)) text = text.replace(/[^a-z0-9_:,]/g, '').slice(0, 1500);
+        while (ids.length && heads.concat(ids).join(',').length > 1500) ids.shift();
+        var text = heads.concat(ids).join(',');
+        if (text.length > 1500) text = text.slice(Math.max(0, text.length - 1500)).replace(/^[^,]*,/, '');
+        if (!SHOWN_RE.test(text)) text = text.replace(/[^a-z0-9_:,]/g, '').slice(-1500);
         return text;
     }
 
@@ -378,8 +391,41 @@
         return s;
     }
 
+    function getAuth() {
+        try {
+            if (typeof auth !== 'undefined' && auth) return auth;
+        } catch (e0) {}
+        if (host && host.auth) return host.auth;
+        try {
+            var fb = (typeof firebase !== 'undefined' && firebase) || (host && host.firebase);
+            if (fb && typeof fb.auth === 'function') return fb.auth();
+        } catch (e1) {}
+        return null;
+    }
+
+    function getDb() {
+        try {
+            if (typeof db !== 'undefined' && db) return db;
+        } catch (e0) {}
+        if (host && host.db) return host.db;
+        try {
+            var fb = (typeof firebase !== 'undefined' && firebase) || (host && host.firebase);
+            if (fb && typeof fb.firestore === 'function') return fb.firestore();
+        } catch (e1) {}
+        return null;
+    }
+
+    function getCurrentUser() {
+        try {
+            if (typeof currentUser !== 'undefined' && currentUser) return currentUser;
+        } catch (e0) {}
+        if (host && host.currentUser) return host.currentUser;
+        if (previewing && previewUser) return previewUser;
+        return null;
+    }
+
     function serverStreak(user) {
-        var u = user || host.currentUser || null;
+        var u = user || getCurrentUser() || null;
         var n = Number(u && u.streak);
         if (!isFinite(n) || n < 0) n = 0;
         return Math.floor(n);
@@ -388,15 +434,15 @@
     function signedIn() {
         if (previewing) return true;
         if (host._isLocal) return false;
-        var auth = host.auth;
-        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
-        var u = host.currentUser;
+        var liveAuth = getAuth();
+        if (!liveAuth || !liveAuth.currentUser || liveAuth.currentUser.isAnonymous) return false;
+        var u = getCurrentUser();
         if (!u || u._isLocal) return false;
         return true;
     }
 
     function currentCode() {
-        var u = host.currentUser || {};
+        var u = getCurrentUser() || {};
         if (u.referralCode && REF_RE.test(String(u.referralCode))) return String(u.referralCode);
         if (typeof host.getReferralCode === 'function') {
             try {
@@ -500,19 +546,86 @@
 
     function doc() { return host.document; }
 
-    function busyState() {
-        var d = doc();
+    var BUSY_IDS = [
+        'badgeCelebration', 'sfWinnerOverlay', 'levelUpModal', 'satsCelebration',
+        'certShareOverlay', 'btcIntroOverlay', 'totpSignInOverlay', 'mfaSignInOverlay',
+        'lnAuthModal', 'nachoStoryOverlay', 'satoshiFavorMinerOverlay'
+    ];
+
+    function computedStyle(el) {
+        if (!el) return {};
+        if (host.getComputedStyle) {
+            try { return host.getComputedStyle(el) || el.style || {}; } catch (e) {}
+        }
+        return el.style || {};
+    }
+
+    function isShown(el) {
+        if (!el) return false;
+        if (el.classList && el.classList.contains('hidden')) return false;
+        var cs = computedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        if (el.getBoundingClientRect) {
+            var rect = el.getBoundingClientRect();
+            if (rect && rect.width === 0 && rect.height === 0) return false;
+        }
+        return true;
+    }
+
+    function isOwnChrome(el) {
+        return !!(el && (el.id === 'bqShareSheet' || el.id === 'bqDailyShareToast' || el.id === 'bqShareLater'));
+    }
+
+    function isLargeFixedOverlay(el) {
+        if (!el || isOwnChrome(el)) return false;
+        var cs = computedStyle(el);
+        if (cs.position !== 'fixed') return false;
+        var z = parseInt(cs.zIndex, 10);
+        if (!(z >= 1000)) return false;
+        var rect = el.getBoundingClientRect ? el.getBoundingClientRect() : { width: 1000, height: 1000 };
+        if (!rect || rect.width < 200 || rect.height < 200) return false;
+        return isShown(el);
+    }
+
+    function detectBusy(d, env) {
         var out = { busy: false, exam: false, quest: false, modal: false };
         if (!d) return out;
-        if (host._scholarExamActive || host._examActive) { out.busy = true; out.exam = true; }
-        var quest = d.getElementById('questModal');
-        if (quest && quest.classList.contains('open')) { out.busy = true; out.quest = true; }
-        if (host._giftOpening || host._pvpActive) { out.busy = true; out.modal = true; }
-        var userModal = d.getElementById('usernameModal');
-        if (userModal && userModal.classList.contains('open')) { out.busy = true; out.modal = true; }
-        var tos = d.getElementById('tosModal');
-        if ((tos && tos.classList.contains('open')) || d.querySelector('.lq-overlay')) { out.busy = true; out.modal = true; }
+        env = env || {};
+        function mark(kind) {
+            out.busy = true;
+            if (kind === 'exam') out.exam = true;
+            else if (kind === 'quest') out.quest = true;
+            else out.modal = true;
+        }
+        if (env._scholarExamActive || env._examActive) mark('exam');
+        var quest = d.getElementById && d.getElementById('questModal');
+        if (quest && quest.classList && quest.classList.contains('open') && isShown(quest)) mark('quest');
+        if (env._giftOpening || env._pvpActive || env._nachoMode || env._nachoBusy) mark('modal');
+        var userModal = d.getElementById && d.getElementById('usernameModal');
+        if (userModal && userModal.classList && userModal.classList.contains('open')) mark('modal');
+        var tos = d.getElementById && d.getElementById('tosModal');
+        if ((tos && tos.classList && tos.classList.contains('open')) || (d.querySelector && d.querySelector('.lq-overlay'))) mark('modal');
+        BUSY_IDS.forEach(function (id) {
+            var el = d.getElementById && d.getElementById(id);
+            if (isShown(el)) mark('modal');
+        });
+        var nacho = d.getElementById && d.getElementById('nacho-container');
+        if (nacho && isShown(nacho) && nacho.querySelector && nacho.querySelector('#nachoInput, [data-interactive="true"]')) mark('modal');
+        if (d.querySelectorAll) {
+            var dialogs = d.querySelectorAll('[role="dialog"], [aria-modal="true"]');
+            for (var i = 0; i < dialogs.length; i++) {
+                if (!isOwnChrome(dialogs[i]) && isShown(dialogs[i])) mark('modal');
+            }
+            var nodes = d.querySelectorAll('*');
+            for (var n = 0; n < nodes.length; n++) {
+                if (isLargeFixedOverlay(nodes[n])) { mark('modal'); break; }
+            }
+        }
         return out;
+    }
+
+    function busyState() {
+        return detectBusy(doc(), host);
     }
 
     function decideContext(extra) {
@@ -537,12 +650,12 @@
             if (host.sessionStorage) host.sessionStorage.setItem(LS_QUEUE, JSON.stringify(s.queue || []));
         } catch (e2) {}
         if (!remote || previewing) return;
-        var auth = host.auth;
-        var db = host.db;
-        var uid = auth && auth.currentUser && auth.currentUser.uid;
-        if (!db || !uid || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        var liveAuth = getAuth();
+        var liveDb = getDb();
+        var uid = liveAuth && liveAuth.currentUser && liveAuth.currentUser.uid;
+        if (!liveDb || !uid || !liveAuth.currentUser || liveAuth.currentUser.isAnonymous) return;
         try {
-            db.collection('users').doc(uid).update({ shareCardsShown: compact }).catch(function () {});
+            liveDb.collection('users').doc(uid).update({ shareCardsShown: compact }).catch(function () {});
         } catch (e3) {}
     }
 
@@ -560,13 +673,47 @@
         return s;
     }
 
+    function showLater() {
+        var d = doc();
+        if (!d || !d.body) return;
+        var old = d.getElementById('bqShareLater');
+        if (old) old.remove();
+        var note = d.createElement('div');
+        note.id = 'bqShareLater';
+        note.setAttribute('role', 'status');
+        note.textContent = 'after your exam';
+        note.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(var(--above-fab, 88px));z-index:' + Z_TOAST + ';max-width:420px;margin:0 auto;background:#14120f;color:#fff;border:1px solid rgba(247,147,26,0.55);border-radius:14px;padding:12px 16px;text-align:center;font-weight:800;';
+        d.body.appendChild(note);
+        setTimeout(function () { if (note.parentNode) note.remove(); }, 2500);
+    }
+
     function applyDecision(decision, event) {
+        if (decision.action === 'later') {
+            showLater();
+            return;
+        }
         state = decision.state;
         if (decision.action === 'popup' || decision.action === 'sheet') openSheet(event);
         else if (decision.action === 'toast') showToast(event);
         if (decision.action === 'popup' || decision.action === 'toast' || decision.action === 'queue') {
             persist(state, decision.action === 'popup' || decision.action === 'toast');
         }
+    }
+
+    function pickQueued(rawState, opts) {
+        var s = cloneState(rawState);
+        opts = opts || {};
+        if (opts.exam || opts.quest || opts.modal) return { action: 'wait', state: s, event: null };
+        var queue = s.queue || [];
+        for (var i = 0; i < queue.length; i++) {
+            var event = queue[i];
+            var rest = cloneState(s);
+            rest.queue = queue.slice(0, i).concat(queue.slice(i + 1));
+            var decision = decideShare(event, rest, opts);
+            if (decision.action === 'queue') continue;
+            return { action: decision.action, event: event, state: decision.state, reason: decision.reason };
+        }
+        return { action: 'wait', state: s, event: null };
     }
 
     function consider(event) {
@@ -582,17 +729,14 @@
             return;
         }
         if (!state.queue.length) return;
-        var event = state.queue[0];
-        var rest = cloneState(state);
-        rest.queue = state.queue.slice(1);
-        var decision = decideShare(event, rest, decideContext());
-        if (decision.action === 'queue') return;
-        applyDecision(decision, event);
+        var picked = pickQueued(state, decideContext());
+        if (!picked.event || picked.action === 'wait' || picked.action === 'queue') return;
+        applyDecision(picked, picked.event);
     }
 
     function openManual(event) {
         event = Object.assign({ manual: true, kind: 'manual' }, event || {});
-        var user = host.currentUser || {};
+        var user = getCurrentUser() || {};
         if (event.type === 'streak') {
             event.days = serverStreak(user);
             event.title = '🔥 ' + event.days + '-day streak on Bitcoin Quest';
@@ -661,21 +805,6 @@
             var count = holder.querySelector('[data-streak-count]');
             if (count) count.textContent = '🔥' + days;
             ensureButton(holder);
-        }
-        d.querySelectorAll('.rank-streak').forEach(function (el) {
-            var parent = el.parentNode;
-            if (parent) ensureButton(parent);
-        });
-        ['userDisplay', 'welcomeBanner', 'streakBanner'].forEach(function (id) {
-            var el = d.getElementById(id);
-            if (!el) return;
-            if ((el.textContent || '').indexOf('🔥') >= 0 || (el.textContent || '').toLowerCase().indexOf('streak') >= 0) ensureButton(el);
-        });
-        var rings = d.getElementById('progressRings');
-        if (rings) {
-            rings.querySelectorAll('div').forEach(function (el) {
-                if (el.childNodes.length === 1 && el.textContent === 'Streak') ensureButton(el.parentNode || el);
-            });
         }
         injectSettings();
     }
@@ -753,14 +882,14 @@
         b.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            var u = host.currentUser || {};
+            var u = getCurrentUser() || {};
             openManual({ type: 'xp', id: 'xp:summary', title: (u.points || 0) + ' XP on Bitcoin Quest', manual: true });
         });
         return b;
     }
 
     function injectCertShares(modal) {
-        var u = host.currentUser || {};
+        var u = getCurrentUser() || {};
         var buttons = modal.querySelectorAll('button');
         for (var i = 0; i < buttons.length; i++) {
             var oc = buttons[i].getAttribute('onclick') || '';
@@ -843,7 +972,7 @@
         if (!d || !d.body) return;
         var existing = d.getElementById('bqShareSheet');
         if (existing) existing.remove();
-        var user = Object.assign({}, host.currentUser || {});
+        var user = Object.assign({}, getCurrentUser() || {});
         if (!user.referralCode) user.referralCode = event.code || currentCode();
         if (event.type === 'streak') event.days = event.days != null ? event.days : serverStreak(user);
         var model = cardModel(event, user);
@@ -948,7 +1077,7 @@
         if (!d || !d.body) return;
         var old = d.getElementById('bqDailyShareToast');
         if (old) old.remove();
-        var user = Object.assign({}, host.currentUser || {});
+        var user = Object.assign({}, getCurrentUser() || {});
         if (!user.referralCode) user.referralCode = currentCode();
         var model = cardModel(event, user);
         var toast = d.createElement('div');
@@ -966,7 +1095,11 @@
         copy.appendChild(title);
         copy.appendChild(sub);
         toast.appendChild(copy);
-        toast.appendChild(actionButton('Share', 'Share daily quests', function () { openSheet(event); }));
+        toast.appendChild(actionButton('Share', 'Share daily quests', function () {
+            if (toastTimer) clearTimeout(toastTimer);
+            toast.remove();
+            openSheet(event);
+        }));
         toast.appendChild(actionButton('✕', 'Close', function () { toast.remove(); }));
         d.body.appendChild(toast);
         if (toastTimer) clearTimeout(toastTimer);
@@ -1013,7 +1146,7 @@
         if (!d || d.getElementById('bqShareCss')) return;
         var style = d.createElement('style');
         style.id = 'bqShareCss';
-        style.textContent = '.bq-streak-share{min-width:44px;min-height:44px;width:44px;height:44px;padding:0;border-radius:10px;border:1px solid rgba(247,147,26,0.45);background:transparent;color:#f97316;font-size:16px;line-height:1;cursor:pointer;flex:0 0 44px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;}#bqShareSheet button{min-width:44px;min-height:44px;}@media (max-width:360px){#bqShareSheet .bq-share-actions{gap:6px;}}';
+        style.textContent = '.bq-streak-share{min-width:44px;min-height:44px;width:44px;height:44px;padding:0;border-radius:10px;border:1px solid #7c2d12;background:#1c0f07;color:#fff7ed;font-size:18px;font-weight:800;line-height:1;cursor:pointer;flex:0 0 44px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;}#bqShareSheet button{min-width:44px;min-height:44px;}@media (max-width:360px){#bqShareSheet .bq-share-actions{gap:6px;}}';
         (d.head || d.documentElement).appendChild(style);
     }
 
@@ -1031,22 +1164,9 @@
 
     function hookFns() {
         wrap('updateRankUI', placeStreakButtons);
-        wrap('updateUserDisplay', placeStreakButtons);
-        wrap('renderProgressRings', placeStreakButtons);
-        wrap('showStreakBanner', placeStreakButtons);
         wrap('_paintDailyXpMeter', placeStreakButtons);
         wrap('showSettingsPage', injectSettings);
         wrap('showBadgeToast', decorateBadges);
-        var prev = host.bqModeAllows;
-        if (!prev || !prev._bqShare) {
-            var wrapped = function (key, mode) {
-                if (key === 'achievementShare' || key === 'achievementShareInline' || key === 'streakShare') return modeAllows(key, mode);
-                if (typeof prev === 'function') return prev(key, mode);
-                return true;
-            };
-            wrapped._bqShare = true;
-            try { host.bqModeAllows = wrapped; } catch (e) {}
-        }
     }
 
     function onProfile(data) {
@@ -1070,23 +1190,40 @@
         placeStreakButtons();
     }
 
+    function stopProfileWatch() {
+        if (typeof unsubProfile === 'function') {
+            try { unsubProfile(); } catch (e) {}
+        }
+        unsubProfile = null;
+    }
+
     function startWatch() {
-        var auth = host.auth;
-        var db = host.db;
-        if (previewing || !auth || !db || typeof auth.onAuthStateChanged !== 'function') return;
-        if (startWatch.armed) return;
+        if (previewing) return false;
+        var liveAuth = getAuth();
+        var liveDb = getDb();
+        if (!liveAuth || !liveDb || typeof liveAuth.onAuthStateChanged !== 'function') return false;
+        if (startWatch.armed) return true;
         startWatch.armed = true;
-        auth.onAuthStateChanged(function (user) {
-            if (!user || user.isAnonymous) { watchUid = ''; return; }
-            if (watchUid === user.uid) return;
+        liveAuth.onAuthStateChanged(function (user) {
+            if (!user || user.isAnonymous) {
+                stopProfileWatch();
+                watchUid = '';
+                seeded = false;
+                prevProfile = null;
+                return;
+            }
+            if (watchUid === user.uid && unsubProfile) return;
+            stopProfileWatch();
             watchUid = user.uid;
             seeded = false;
+            prevProfile = null;
             try {
-                db.collection('users').doc(user.uid).onSnapshot(function (snap) {
+                unsubProfile = liveDb.collection('users').doc(user.uid).onSnapshot(function (snap) {
                     onProfile((snap && snap.data && snap.data()) || {});
                 }, function () {});
             } catch (e) {}
         });
+        return true;
     }
 
     function maybePreview() {
@@ -1099,7 +1236,7 @@
         var mode = params.get('bqSharePreview');
         if (!mode) return;
         previewing = true;
-        host.currentUser = host.currentUser || {
+        previewUser = previewUser || {
             username: 'Bitcoiner',
             streak: 30,
             points: 2500,
@@ -1107,7 +1244,7 @@
             certPassed_prop: true,
             certPassed_tech: true
         };
-        if (host.currentUser.streak == null) host.currentUser.streak = 30;
+        if (previewUser.streak == null) previewUser.streak = 30;
         placeStreakButtons();
         var days = serverStreak();
         if (mode === 'toast') {
@@ -1140,7 +1277,7 @@
             days: days,
             title: '🔥 ' + days + '-day streak on Bitcoin Quest',
             code: 'bqshare1'
-        }, host.currentUser);
+        }, getCurrentUser());
         var stage = d.createElement('div');
         stage.id = 'bqCardStage';
         stage.style.cssText = 'position:relative;z-index:30;background:#0b0b0d;color:#fff;padding:16px;display:flex;flex-direction:column;gap:16px;';
@@ -1167,15 +1304,28 @@
         hookFns();
         placeStreakButtons();
         maybePreview();
-        var ticks = 0;
+        var scanTimer = 0;
+        function scheduleScan() {
+            if (scanTimer) return;
+            scanTimer = setTimeout(function () {
+                scanTimer = 0;
+                try {
+                    placeStreakButtons();
+                    decorateBadges();
+                    flush();
+                } catch (e) {}
+            }, 50);
+        }
+        if (typeof host.MutationObserver === 'function' && doc() && doc().body) {
+            var observer = new host.MutationObserver(function () { scheduleScan(); });
+            observer.observe(doc().body, { childList: true, subtree: true });
+        }
         setInterval(function () {
-            ticks++;
             hookFns();
-            placeStreakButtons();
-            decorateBadges();
+            startWatch();
             flush();
-            if (ticks === 2) startWatch();
-        }, 1000);
+        }, 5000);
+        startWatch();
     }
 
     return {
@@ -1206,6 +1356,11 @@
         clientClaimEvents: clientClaimEvents,
         compactShown: compactShown,
         mergeShown: mergeShown,
+        getAuth: getAuth,
+        getDb: getDb,
+        getCurrentUser: getCurrentUser,
+        detectBusy: detectBusy,
+        pickQueued: pickQueued,
         serverStreak: serverStreak,
         drawCard: drawCard,
         install: install

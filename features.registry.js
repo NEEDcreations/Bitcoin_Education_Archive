@@ -1680,34 +1680,6 @@
         try { win.showSettingsPage = wrapped; } catch (e) {}
     }
 
-    // Achievement share surfaces.
-    // Names: lite = Lite, beginner = Guided, intermediate = Balanced, advanced = Everything.
-    // bqModeAllows('achievementShare', mode) is true for Guided (beginner), Balanced (intermediate),
-    // and Everything (advanced). Lite is false: Lite has no share-card popups and does not show badges.
-    // bqModeAllows('achievementShareInline', mode) is true in every mode, including Lite.
-    // That row is the compact daily-quest toast, not a popup.
-    // bqModeAllows('streakShare', mode) is true in every mode.
-    // The streak button is user-initiated and is not a popup.
-    var BQ_EXPERIENCE_MODES = { lite: 'Lite', beginner: 'Guided', intermediate: 'Balanced', advanced: 'Everything' };
-    var BQ_SHARE_SURFACES = {
-        achievementShare: { lite: false, beginner: true, intermediate: true, advanced: true },
-        achievementShareInline: { lite: true, beginner: true, intermediate: true, advanced: true },
-        streakShare: { lite: true, beginner: true, intermediate: true, advanced: true }
-    };
-    function normalizeShareMode(mode) {
-        var m = String(mode || '').toLowerCase();
-        if (m === 'guided') return 'beginner';
-        if (m === 'balanced' || m === 'quieter') return 'intermediate';
-        if (m === 'everything' || m === 'maximalist') return 'advanced';
-        if (BQ_EXPERIENCE_MODES[m]) return m;
-        return 'advanced';
-    }
-    function bqModeAllows(featureKey, mode) {
-        var row = BQ_SHARE_SURFACES[featureKey];
-        if (row) return !!row[normalizeShareMode(mode)];
-        return true;
-    }
-
     var api = {
         FEATURES: FEATURES,
         BY_ID: BY_ID,
@@ -1724,10 +1696,7 @@
         appKnowledge: appKnowledge,
         appKnowledgeFor: appKnowledgeFor,
         userContext: userContext,
-        wrapUnified: wrapUnified,
-        BQ_EXPERIENCE_MODES: BQ_EXPERIENCE_MODES,
-        BQ_SHARE_SURFACES: BQ_SHARE_SURFACES,
-        bqModeAllows: bqModeAllows
+        wrapUnified: wrapUnified
     };
 
     win.FEATURE_REGISTRY = FEATURES;
@@ -1743,9 +1712,6 @@
     win.bqAppKnowledgeFor = appKnowledgeFor;
     win.bqUserContext = userContext;
     win.bqWrapUnified = wrapUnified;
-    win.BQ_EXPERIENCE_MODES = BQ_EXPERIENCE_MODES;
-    win.BQ_SHARE_SURFACES = BQ_SHARE_SURFACES;
-    win.bqModeAllows = bqModeAllows;
     win.renderNachoAnswerCard = renderNachoAnswerCard;
     win.bqAskFollowUp = bqAskFollowUp;
     win.bqAskNacho = bqAskNacho;

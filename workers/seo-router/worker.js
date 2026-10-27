@@ -340,7 +340,7 @@ function renderAchievementPage(type, origin) {
     const info = ACHIEVEMENT_OG[type];
     const title = escapeHtml(info.title);
     const desc = escapeHtml(info.desc);
-    const url = origin + '/';
+    const url = origin + '/?a=' + encodeURIComponent(type);
     const ogImg = origin + '/og/achievements/' + type + '.png';
     return `<!DOCTYPE html>
 <html lang="en">
@@ -484,7 +484,7 @@ export default {
             if (ach && Object.prototype.hasOwnProperty.call(ACHIEVEMENT_OG, ach)) {
                 return new Response(renderAchievementPage(ach, origin), {
                     status: 200,
-                    headers: botPageHeaders(nonce),
+                    headers: botPageHeaders(nonce, { 'Vary': 'User-Agent' }),
                 });
             }
         }

@@ -95,6 +95,7 @@ const TESTS = [
     { name: 'Remembered device retry', file: 'test-mfa-device.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
+    { name: 'Share card rules', file: 'rules/share-cards.js' },
     { name: 'SF chat rules', file: 'rules/sf-chat-rules.js' },
     { name: 'Username repick rules', file: 'rules/username-repick-rules.js' },
     { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },

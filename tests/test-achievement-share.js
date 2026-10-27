@@ -3,8 +3,8 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const share = require('../achievement-share.js');
-const registry = require('../features.registry.js');
 
 const root = path.join(__dirname, '..');
 function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
@@ -31,7 +31,19 @@ test('sharing grants nothing and client claims are ignored', () => {
     assert.ok(src.includes('min-width:44px'));
     assert.ok(src.includes('min-height:44px'));
     assert.strictEqual(share.Z_SHEET, 2200000);
+    assert.deepStrictEqual(share.STREAK_PLACES, ['dailyXpMeter', 'mobileUserInfo', 'Current Streak']);
     share.STREAK_PLACES.forEach(function (place) { assert.ok(src.includes(place), place); });
+    ['rank-streak', 'welcomeBanner', 'progressRings', 'streakBanner', 'userDisplay'].forEach(function (place) {
+        assert.strictEqual(src.includes(place), false, place);
+    });
+    assert.ok(src.includes('background:#1c0f07'));
+    assert.ok(src.includes('color:#fff7ed'));
+    assert.ok(src.includes("typeof auth !== 'undefined'"));
+    assert.ok(src.includes("typeof db !== 'undefined'"));
+    assert.ok(src.includes("typeof currentUser !== 'undefined'"));
+    assert.ok(src.includes('MutationObserver'));
+    assert.ok(src.includes('America/New_York'));
+    assert.ok(src.includes('after your exam'));
     assert.ok(src.includes('Show share cards for achievements'));
     assert.ok(src.includes('Share your progress'));
     assert.strictEqual(share.CTA, 'Learn Bitcoin and earn sats at bitcoineducation.quest');
@@ -188,23 +200,115 @@ test('lite skips popups, keeps the toast and the streak button, and the toggle b
     assert.strictEqual(share.modeAllows('streakShare', 'advanced'), true);
 });
 
-test('mode registry documents the three share rows', () => {
+test('share modes live in the share module and the registry stays untouched', () => {
     const src = read('features.registry.js');
-    assert.ok(src.includes('achievementShareInline'));
-    assert.ok(src.includes('The streak button is user-initiated and is not a popup.'));
-    assert.strictEqual(registry.BQ_EXPERIENCE_MODES.lite, 'Lite');
-    assert.strictEqual(registry.BQ_EXPERIENCE_MODES.beginner, 'Guided');
-    assert.strictEqual(registry.BQ_EXPERIENCE_MODES.intermediate, 'Balanced');
-    assert.strictEqual(registry.BQ_EXPERIENCE_MODES.advanced, 'Everything');
-    assert.strictEqual(registry.bqModeAllows('achievementShare', 'lite'), false);
-    assert.strictEqual(registry.bqModeAllows('achievementShare', 'guided'), true);
-    assert.strictEqual(registry.bqModeAllows('achievementShare', 'beginner'), true);
-    assert.strictEqual(registry.bqModeAllows('achievementShare', 'intermediate'), true);
-    assert.strictEqual(registry.bqModeAllows('achievementShare', 'advanced'), true);
-    assert.strictEqual(registry.bqModeAllows('achievementShareInline', 'lite'), true);
-    assert.strictEqual(registry.bqModeAllows('streakShare', 'lite'), true);
-    assert.strictEqual(registry.bqModeAllows('streakShare', 'everything'), true);
-    assert.strictEqual(registry.bqModeAllows('search', 'lite'), true);
+    assert.strictEqual(src.includes('BQ_EXPERIENCE_MODES'), false);
+    assert.strictEqual(src.includes('bqModeAllows'), false);
+    assert.strictEqual(share.modeAllows('achievementShare', 'lite'), false);
+    assert.strictEqual(share.modeAllows('achievementShareInline', 'lite'), true);
+    assert.strictEqual(share.modeAllows('streakShare', 'lite'), true);
+});
+
+test('script-scope let bindings resolve before window', () => {
+    const src = read('achievement-share.js');
+    const script = [
+        "let auth = { marker: 'script-auth', currentUser: { uid: 'abc12345', isAnonymous: false }, onAuthStateChanged: function (fn) { fn(auth.currentUser); return function () {}; } };",
+        "let db = { marker: 'script-db', collection: function () { return { doc: function () { return { onSnapshot: function () { return function () {}; }, update: function () { return Promise.resolve(); } }; } }; } };",
+        "let currentUser = { marker: 'script-user', streak: 12, username: 'Ada', referralCode: 'abc12345' };",
+        src
+    ].join('\n');
+    const sandbox = { window: {}, console: console, setTimeout: setTimeout, clearTimeout: clearTimeout, Intl: Intl, Date: Date };
+    sandbox.window.window = sandbox.window;
+    vm.runInNewContext(script, sandbox, { filename: 'share-scope.js' });
+    const api = sandbox.window.AchievementShare;
+    assert.strictEqual(api.getAuth().marker, 'script-auth');
+    assert.strictEqual(api.getDb().marker, 'script-db');
+    assert.strictEqual(api.getCurrentUser().marker, 'script-user');
+    assert.strictEqual(api.getCurrentUser().streak, 12);
+    assert.strictEqual(sandbox.window.auth, undefined);
+    assert.strictEqual(sandbox.window.db, undefined);
+    assert.strictEqual(sandbox.window.currentUser, undefined);
+});
+
+test('a manual share during an exam is not queued, and a capped popup does not block the toast', () => {
+    const today = '2026-10-26';
+    const base = { mode: 'advanced', toggleOn: true, today: today, allowsPopup: true, allowsInline: true };
+    const manual = share.decideShare({ type: 'streak', id: 'streak:now', kind: 'manual', manual: true }, share.emptyState(), Object.assign({}, base, { exam: true }));
+    assert.strictEqual(manual.action, 'later');
+    assert.strictEqual(manual.state.queue.length, 0);
+    assert.strictEqual(manual.state.shown['streak:now'], undefined);
+    const queued = share.emptyState();
+    queued.popupDay = today;
+    queued.queue = [
+        { type: 'rank', id: 'rank:maxi', kind: 'popup' },
+        { type: 'daily', id: 'daily:2026-10-26', kind: 'toast' }
+    ];
+    const picked = share.pickQueued(queued, base);
+    assert.strictEqual(picked.action, 'toast');
+    assert.strictEqual(picked.state.queue.length, 1);
+    assert.strictEqual(picked.state.queue[0].id, 'rank:maxi');
+    assert.strictEqual(picked.state.dailyToastDay, today);
+});
+
+test('compact shown keeps the newest keys and the day is America/New_York', () => {
+    const state = share.emptyState();
+    state.popupDay = '2026-10-26';
+    state.dailyToastDay = '2026-10-26';
+    for (var i = 0; i < 400; i++) state.shown['k' + String(i).padStart(4, '0')] = 1;
+    const text = share.compactShown(state);
+    assert.ok(text.length <= 1500);
+    assert.ok(text.indexOf('popup:20261026') === 0);
+    assert.ok(text.includes('toast:20261026'));
+    assert.ok(text.includes('k0399'));
+    assert.strictEqual(text.includes('k0000'), false);
+    assert.strictEqual(share.questDay(Date.UTC(2026, 9, 27, 3, 30)), '2026-10-26');
+    assert.strictEqual(share.questDay(Date.UTC(2026, 9, 27, 5, 0)), '2026-10-27');
+});
+
+test('celebrations, dialogs, and large overlays count as busy', () => {
+    function el(id, extra) {
+        extra = extra || {};
+        return {
+            id: id,
+            style: extra.style || {},
+            classList: { contains: function (name) { return (extra.classes || []).indexOf(name) >= 0; } },
+            getAttribute: function (name) { return extra.attr ? extra.attr[name] : null; },
+            getBoundingClientRect: function () { return extra.rect || { width: 800, height: 600 }; },
+            querySelector: function () { return extra.child || null; },
+            querySelectorAll: function () { return []; }
+        };
+    }
+    const badge = el('badgeCelebration', { style: { position: 'fixed', zIndex: '400', display: 'flex' } });
+    const sheet = el('bqShareSheet', { style: { position: 'fixed', zIndex: '2200000', display: 'flex' }, attr: { role: 'dialog', 'aria-modal': 'true' } });
+    const toast = el('bqDailyShareToast', { style: { position: 'fixed', zIndex: '400', display: 'flex' } });
+    const overlay = el('customOverlay', { style: { position: 'fixed', zIndex: '1200', display: 'flex' } });
+    const dialog = el('welcome', { style: { position: 'fixed', zIndex: '10', display: 'flex' }, attr: { role: 'dialog' } });
+    const nodes = [badge, sheet, toast, overlay, dialog];
+    const doc = {
+        getElementById: function (id) {
+            for (var i = 0; i < nodes.length; i++) if (nodes[i].id === id) return nodes[i];
+            return null;
+        },
+        querySelector: function () { return null; },
+        querySelectorAll: function (sel) {
+            if (sel === '[role="dialog"], [aria-modal="true"]') return [sheet, dialog];
+            if (sel === '*') return nodes;
+            return [];
+        }
+    };
+    const busy = share.detectBusy(doc, {});
+    assert.strictEqual(busy.busy, true);
+    assert.strictEqual(busy.modal, true);
+    const onlySheet = share.detectBusy({
+        getElementById: function () { return null; },
+        querySelector: function () { return null; },
+        querySelectorAll: function (sel) {
+            if (sel === '*') return [sheet, toast];
+            if (sel.indexOf('dialog') >= 0) return [sheet];
+            return [];
+        }
+    }, {});
+    assert.strictEqual(onlySheet.busy, false);
 });
 
 test('shown marker is an owner string and the worker OG is static', () => {
@@ -225,6 +329,8 @@ test('shown marker is an owner string and the worker OG is static', () => {
     assert.strictEqual(merged.shown['streak:30'], 1);
     const worker = read('workers/seo-router/worker.js');
     assert.ok(worker.includes("'/og/achievements/'"));
+    assert.ok(worker.includes("origin + '/?a='"));
+    assert.ok(worker.includes("'Vary': 'User-Agent'") || worker.includes('"Vary": "User-Agent"'));
     assert.ok(worker.includes("Satoshi's Favor block found"));
     assert.ok(worker.includes('Daily quests done'));
     assert.ok(worker.includes('Streak on Bitcoin Quest'));
@@ -234,6 +340,8 @@ test('shown marker is an owner string and the worker OG is static', () => {
         const file = path.join(root, 'og', 'achievements', type + '.png');
         const buf = fs.readFileSync(file);
         assert.strictEqual(buf.slice(0, 8).toString('hex'), '89504e470d0a1a0a', type);
+        assert.strictEqual(buf.readUInt32BE(16), 1200, type);
+        assert.strictEqual(buf.readUInt32BE(20), 630, type);
         assert.ok(worker.includes(type + ':'), type);
     });
 });
@@ -242,7 +350,7 @@ test('pages ship one script, one Latest line, and the v2412 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('achievement-share.js?v=20261026_v2412'));
-    assert.ok(html.includes('features.registry.js?v=20261026_v2412'));
+    assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));
