@@ -4,6 +4,14 @@
 // Bitcoin Education Archive - Ranking System
 // =============================================
 
+// The main bundle replaces this once it parses. Auth now resolves before that
+// bundle, and the rank bar renders usernames with this until then.
+function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+}
+
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
     authDomain: "bitcoineducation.quest", // Must match app origin — auth iframe proxied via seo-router worker (/__/auth/*) so Safari ITP allows postMessage
@@ -554,9 +562,9 @@ function initRanking() {
                         window._badgesReady = true;
                         if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
                         window._hiddenBadgesReady = true;
-                        restoreVisitedUI();
-                        updateRankUI();
-                        updateAuthButton();
+                        try { restoreVisitedUI(); } catch (e) { console.warn('[Auth] early restore', e); }
+                        try { updateRankUI(); } catch (e) { console.warn('[Auth] early rank', e); }
+                        try { updateAuthButton(); } catch (e) { console.warn('[Auth] early button', e); }
                         if (typeof renderProgressRings === 'function') renderProgressRings();
                         // Refresh from Firestore in background (non-blocking)
                         setTimeout(function() { loadUser(user.uid).catch(function(){}); }, 500);
