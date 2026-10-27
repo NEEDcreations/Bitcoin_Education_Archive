@@ -149,12 +149,15 @@ test('certificate, invite, badge celebration, Nacho, channel, beats, and PVP pos
     assert.strictEqual(linkCount(beatText), 0);
     assert.strictEqual(linkCount(beatText + '\n' + beatUrl), 1);
     const beatsSrc = read('beats.js');
-    assert.ok(beatsSrc.includes("var text = '🎸 Listen to \"' + shown + '\" on Bitcoin Beats!';"));
+    assert.ok(beatsSrc.includes("window.miniAppShare('beats'"));
+    const trackShare = beatsSrc.slice(beatsSrc.indexOf('window.beatsShareTrack'), beatsSrc.indexOf('window.beatsShareTrack') + 800);
+    assert.strictEqual(trackShare.includes('navigator.share'), false);
     assert.strictEqual(beatsSrc.includes("on Bitcoin Beats!\\n' + url"), false);
 
     const pvp = read('pvp.js');
-    const pvpText = 'Challenge me to a Bitcoin trivia battle right now! ⚔️';
-    assert.ok(pvp.includes("text:'" + pvpText + "'"));
+    const pvpText = "I'm in a Bitcoin trivia battle on Bitcoin Quest! Check it out!";
+    assert.ok(pvp.includes('data-mini-share="pvp"'));
+    assert.strictEqual(pvp.includes('navigator.share'), false);
     assert.ok(pvp.includes("var base = 'https://bitcoineducation.quest/#pvp';"));
     assert.ok(pvp.includes('function pvpShareUrl()'));
     const pvpUrl = tickets.shareDeepUrl('https://bitcoineducation.quest/#pvp', 's2rP0nRE');
@@ -298,7 +301,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.');
+    const latestAt = notes.indexOf('Latest: Share the channel or mini app you are in. The post has one referral link, and that link opens the same spot.');
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

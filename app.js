@@ -1937,6 +1937,7 @@
                         '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;font-size:0.95rem;" title="ELI5 Mode">🧒</button>' +
                         '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Save chat">💾</button>' +
                         '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Clear chat">🗑️</button>' +
+                        '<button type="button" id="nachoShareBtn" data-mini-share="nacho" onclick="if(window.miniAppShare)miniAppShare(\'nacho\')" style="min-width:44px;min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid rgba(247,147,26,0.55);background:#1a120b;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.75rem;">Share</button>' +
                         '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" style="width:24px;height:24px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
                     '</div>' +
                 '</div>' +
@@ -5659,13 +5660,13 @@ if (locked) {
                     var _em = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
                     var _all = [
                         appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false),
-                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
+                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20261027_v2398';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
                         _em !== 'beginner' ? appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) : '',
                         _em !== 'beginner' ? appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) : '',
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
                         _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
                         appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
-                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : '',
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showProofOfWalk==='function')showProofOfWalk()", false) : '',
                         appBtn('🤖', 'AI Tools', "if(typeof toggleAITools==='function')toggleAITools()", false),
                         appBtn('📊', 'Metrics', "if(typeof toggleDashboard==='function')toggleDashboard()", false),
                         appBtn('🏆', 'Leaderboard', "if(typeof toggleLeaderboard==='function')toggleLeaderboard()", false)
@@ -5703,6 +5704,10 @@ if (locked) {
         if (fc) {
             fc.style.display = 'block';
             fc.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:40px 20px;text-align:center;"><div style="font-size:3rem;margin-bottom:16px;">🚶</div><div style="font-size:1.3rem;font-weight:800;color:var(--text);margin-bottom:10px;">Proof of Walk is currently disabled</div><div style="color:var(--text-muted);font-size:0.95rem;">Check back soon!</div></div>';
+        }
+        window.currentPage = 'proof-of-walk';
+        if (window.location.hash !== '#proof-of-walk') {
+            try { history.pushState({ channel: 'proof-of-walk' }, '', '#proof-of-walk'); } catch (e) {}
         }
         if (isMobile && isMobile()) { var sb = document.getElementById('sidebar'); if (sb) sb.classList.remove('open'); }
         if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true);
@@ -5766,6 +5771,7 @@ if (locked) {
             if (!hash && typeof _parseCleanUrl === 'function') {
                 hash = _parseCleanUrl() || '';
             }
+            if (typeof window.miniAppConsumeHash === 'function' && window.miniAppConsumeHash(hash)) return;
             // Back/forward leaves TV even on branches that do not call go() or goHome().
             var _popPage = hash || state.channel || 'home';
             if (_popPage !== 'timechain-tv' && _popPage !== 'tv' && typeof window.leaveTimechainTV === 'function') {
@@ -6123,6 +6129,7 @@ if (locked) {
                 if (typeof window.bqOpenMarketListing === 'function' && window.bqOpenMarketListing(_mlId)) return;
                 return;
             }
+            if (typeof window.miniAppConsumeHash === 'function' && window.miniAppConsumeHash(hash)) return;
 
             var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)&i=(\d+)&h=([a-z0-9]{8})$/)
                 || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/(\d+)\/([a-z0-9]{8})$/)
@@ -6189,7 +6196,7 @@ if (locked) {
                     if (!window._popScriptLoading) {
                         window._popScriptLoading = true;
                         var _popS = document.createElement('script');
-                        _popS.src = 'proof-of-play.js?v=20260609_pop';
+                        _popS.src = 'proof-of-play.js?v=20261027_v2398';
                         _popS.onload = function() { window._popScriptLoading = false; };
                         document.head.appendChild(_popS);
                     }
@@ -6497,7 +6504,8 @@ window.toggleAITools = function() {
         panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:250000;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s ease;box-shadow:0 -10px 40px rgba(0,0,0,0.6);';
         panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">' +
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
-            '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
+            '<button type="button" id="aiShareBtn" data-mini-share="ai" onclick="if(window.miniAppShare)miniAppShare(\'ai\')" style="min-width:44px;min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid rgba(247,147,26,0.55);background:#1a120b;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;">Share</button>' +
+            '<button onclick="toggleAITools()" style="min-width:44px;min-height:44px;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
             '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
         document.body.appendChild(panel);

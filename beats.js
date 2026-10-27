@@ -19,6 +19,7 @@ window.renderBitcoinBeats = function() {
             <div style="flex:1;">
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
+                <button type="button" id="beatsShareBtn" data-mini-share="beats" onclick="if(window.miniAppShare)miniAppShare('beats')" style="min-width:44px;min-height:44px;margin-top:8px;padding:8px 14px;border-radius:10px;border:1px solid rgba(247,147,26,0.55);background:#1a120b;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;">Share</button>
                 <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.72rem;color:var(--text-muted);cursor:pointer;user-select:none;">
                     <input type="checkbox" id="beatsUncensoredCheck" onchange="beatsSetShowUncensored(this.checked)" style="accent-color:var(--accent);">
                     Show uncensored titles
@@ -67,7 +68,12 @@ window.renderBitcoinBeats = function() {
             beatsOpenSharedPlaylist(dl.ownerUid, dl.playlistId);
             return;
         } else if (dl.type === 'track') {
-            db.collection('beats_tracks').doc(dl.trackId).get().then(function(doc) {
+            var tid = String(dl.trackId || '');
+            if (!/^[A-Za-z0-9_-]{1,128}$/.test(tid)) {
+                beatsLoadTracks('discover');
+                return;
+            }
+            db.collection('beats_tracks').doc(tid).get().then(function(doc) {
                 var t = _beatsTrackFromDoc(doc);
                 if (!t) {
                     window._beatsUnavailableNote = 'This track is unavailable';
@@ -3192,6 +3198,11 @@ window.beatsArtistPlayTrack = function(uid, idx) {
         if (plMatch) {
             window._beatsDeepLink = { type: 'playlist', ownerUid: plMatch[1], playlistId: plMatch[2] };
         } else if (path.indexOf('/') === -1) {
+            if (!/^[A-Za-z0-9_-]{1,128}$/.test(path)) {
+                window._beatsDeepLink = null;
+                if (typeof go === 'function') go('bitcoin-beats');
+                return;
+            }
             window._beatsDeepLink = { type: 'track', trackId: path };
         }
         if (window._beatsDeepLink && typeof go === 'function') go('bitcoin-beats');
@@ -3212,13 +3223,16 @@ function beatsShareTitle(raw) {
 // Share a track link. The caption has no link; the url field is the only one.
 window.beatsShareTrack = function(trackId, title) {
     var track = _beatsFindQueued(trackId);
-    var raw = (track && track.title) ? track.title : (title || 'Track');
-    var shown = beatsShareTitle(raw);
-    var url = beatsShareUrl('https://bitcoineducation.quest/#beats/' + trackId);
-    var text = '🎸 Listen to "' + shown + '" on Bitcoin Beats!';
-    if (navigator.share) {
-        navigator.share({ title: shown + ' — Bitcoin Beats', text: text, url: url }).catch(function() {});
-    } else {
+    var rawTitle = (track && track.title) ? track.title : (title || '');
+    var rawArtist = (track && (track.artist || track.authorName)) || '';
+    var id = String((track && track.id) || trackId || '');
+    if (window.miniAppShare) {
+        window.miniAppShare('beats', { title: rawTitle, artist: rawArtist, trackId: id });
+        return;
+    }
+    var shown = beatsShareTitle(rawTitle);
+    var url = beatsShareUrl('https://bitcoineducation.quest/#beats/' + id);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function() {
             if (typeof showToast === 'function') showToast('🔗 Track link copied!');
         }).catch(function() {});
