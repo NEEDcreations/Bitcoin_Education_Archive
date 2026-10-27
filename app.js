@@ -2651,7 +2651,7 @@
     // 📤 Share Answer
     // =============================================
     function nachoSharePayload(text, code) {
-        var clean = String(text || '').replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
+        var clean = String(text || '').slice(0, 1000).replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
         if (typeof stripShareLinks === 'function') clean = stripShareLinks(clean);
         var c = code == null ? (typeof liveRefCode === 'function' ? liveRefCode() : '') : String(code || '');
         var url = /^[A-Za-z0-9]{6,28}$/.test(c)

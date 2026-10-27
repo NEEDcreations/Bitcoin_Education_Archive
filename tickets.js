@@ -70,15 +70,73 @@ function shareDeepUrl(baseUrl, code) {
 }
 
 function stripShareLinks(text) {
-    var s = String(text || '');
-    s = s.replace(/https?:\/\/[^\s<>"')\]]+/gi, '');
-    s = s.replace(/\b(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24}))(?:\/[^\s<>"')\]]*)?/gi, '');
-    s = s.replace(/[ \t]{2,}/g, ' ');
-    s = s.replace(/[ \t]+([,.;:!?])/g, '$1');
-    s = s.replace(/\(\s*\)/g, '');
-    s = s.replace(/[ \t]+\n/g, '\n');
-    s = s.replace(/\n{3,}/g, '\n\n');
-    return s.replace(/^\s+|\s+$/g, '');
+    var s = String(text || '').slice(0, 1000);
+    var tlds = ' com org net io space quest info xyz app dev co me gg tv ly so to us uk news money finance bitcoin edu gov biz online site store tech live world cloud link page wiki blog shop ai cc is it de fr ca au nz in jp nl se no fi ch at be es pt br mx club fun pro network media one bio cash email social exchange market fund example ';
+    function isGap(ch) {
+        return ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' ||
+            ch === '<' || ch === '>' || ch === '"' || ch === "'" ||
+            ch === '(' || ch === ')' || ch === '[' || ch === ']' ||
+            ch === '{' || ch === '}';
+    }
+    function isUrl(token) {
+        var t = token.toLowerCase();
+        return t.indexOf('https://') === 0 || t.indexOf('http://') === 0 || t.indexOf('www.') === 0;
+    }
+    function isEmail(token) {
+        var at = token.indexOf('@');
+        if (at <= 0 || token.indexOf('@', at + 1) !== -1) return false;
+        var domain = token.slice(at + 1);
+        var dot = domain.indexOf('.');
+        return dot > 0 && dot < domain.length - 1 && domain.indexOf('@') === -1;
+    }
+    function domainName(token) {
+        var i, ch, p;
+        if (!token || token.indexOf('.') < 0 || token.indexOf('@') !== -1) return null;
+        for (i = 0; i < token.length; i++) {
+            ch = token.charAt(i);
+            if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch === '.' || ch === '-')) return null;
+        }
+        var parts = token.split('.');
+        if (parts.length < 2) return null;
+        var tld = parts[parts.length - 1];
+        if (!tld || tld !== tld.toLowerCase() || tlds.indexOf(' ' + tld + ' ') === -1) return null;
+        for (i = 0; i < parts.length; i++) {
+            p = parts[i];
+            if (!p || p.length > 63 || p.charAt(0) === '-' || p.charAt(p.length - 1) === '-') return null;
+        }
+        return parts[parts.length - 2];
+    }
+    var out = '';
+    var i = 0;
+    while (i < s.length) {
+        if (isGap(s.charAt(i))) { out += s.charAt(i); i++; continue; }
+        var j = i + 1;
+        while (j < s.length && !isGap(s.charAt(j))) j++;
+        var token = s.slice(i, j);
+        var trail = '';
+        var guard = 0;
+        while (token && guard < 8) {
+            var last = token.charAt(token.length - 1);
+            if ('.,;:!?'.indexOf(last) === -1) break;
+            var shorter = token.slice(0, -1);
+            if (!(isUrl(shorter) || isEmail(shorter) || domainName(shorter) != null)) break;
+            trail = last + trail;
+            token = shorter;
+            guard++;
+        }
+        if (isUrl(token) || isEmail(token)) out += trail;
+        else {
+            var name = domainName(token);
+            out += (name == null ? token : name) + trail;
+        }
+        i = j;
+    }
+    out = out.replace(/[ \t]{2,}/g, ' ');
+    out = out.replace(/[ \t]+([,.;:!?])/g, '$1');
+    out = out.replace(/\(\s*\)/g, '');
+    out = out.replace(/[ \t]+\n/g, '\n');
+    out = out.replace(/\n{3,}/g, '\n\n');
+    return out.replace(/^\s+|\s+$/g, '');
 }
 
 function inviteSharePayload(link) {

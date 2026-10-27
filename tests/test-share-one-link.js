@@ -168,10 +168,18 @@ test('Nacho quotes drop other links, channel shares read the ref at click, and P
         currentUser: null
     });
     const quoted = 'Fees are on mempool.space and https://bitcoin.org/bitcoin.pdf plus 21lessons.com and www.bitcoin.org';
-    assert.strictEqual(tickets.stripShareLinks(quoted).includes('mempool.space'), false);
-    assert.strictEqual(tickets.stripShareLinks(quoted).includes('bitcoin.org'), false);
-    assert.strictEqual(tickets.stripShareLinks(quoted).includes('21lessons.com'), false);
+    assert.strictEqual(tickets.stripShareLinks(quoted), 'Fees are on mempool and plus 21lessons and');
+    assert.strictEqual(tickets.stripShareLinks('Check mempool.space for fees'), 'Check mempool for fees');
+    assert.strictEqual(tickets.stripShareLinks('Read it at 21lessons.com!'), 'Read it at 21lessons!');
+    assert.strictEqual(tickets.stripShareLinks('Node.js and Mt.Gox stayed.Next too'), 'Node.js and Mt.Gox stayed.Next too');
+    assert.strictEqual(tickets.stripShareLinks('Email a@bitcoin.org now'), 'Email now');
+    assert.strictEqual(tickets.stripShareLinks('Ask a@mempool.space today'), 'Ask today');
+    assert.strictEqual(tickets.stripShareLinks('See www.bitcoin.org and https://bitcoin.org/bitcoin.pdf today'), 'See and today');
     assert.ok(tickets.stripShareLinks('Learn Bitcoin Quest').includes('Bitcoin Quest'));
+    assert.ok(read('tickets.js').includes(".slice(0, 1000)"));
+    const nachoFn = grab(read('app.js'), 'nachoSharePayload');
+    assert.ok(nachoFn.indexOf('.slice(0, 1000)') < nachoFn.indexOf('stripShareLinks'));
+    assert.ok(nachoFn.indexOf('stripShareLinks') < nachoFn.indexOf('substring(0, 280)'));
 
     const app = loadFns(read('app.js'), ['nachoSharePayload'], { stripShareLinks: tickets.stripShareLinks });
     const nacho = app.nachoSharePayload(quoted, 'abc12345');
@@ -249,6 +257,18 @@ test('Nacho quotes drop other links, channel shares read the ref at click, and P
     assert.strictEqual(box.textContent, displayed);
     assert.strictEqual(copied, displayed);
     assert.strictEqual(linkCount('Challenge me to a Bitcoin trivia battle right now! ⚔️\n' + displayed), 1);
+});
+
+test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
+    const tickets = loadFns(read('tickets.js'), ['stripShareLinks']);
+    const big = 'a.'.repeat(500000);
+    assert.ok(big.length >= 1000000);
+    const start = process.hrtime.bigint();
+    const cleaned = tickets.stripShareLinks(big);
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    assert.ok(ms < 50, 'took ' + ms + 'ms');
+    assert.ok(cleaned.length <= 1000);
+    assert.strictEqual(cleaned.includes('http'), false);
 });
 
 test('patch notes keep one Latest line and pages match', () => {
