@@ -17,7 +17,7 @@
   .container { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
   .patch { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 28px; overflow: hidden; }
   .patch-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-  .patch-badge { background: linear-gradient(135deg, #f7931a, #e8720c); color: #fff; font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; align-self: center; }
+  .patch-badge { background: linear-gradient(135deg, #f7931a, #e8720c); color: #fff; font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; align-self: center; flex-shrink: 0; }
   .patch-badge.prev { background: linear-gradient(135deg, #475569, #334155); }
   .patch-title { font-size: 1.2rem; font-weight: 800; color: var(--text); }
   .patch-date { color: var(--faint); font-size: 0.78rem; margin-top: 2px; }
@@ -36,6 +36,20 @@
   .commit { display: inline-block; font-family: monospace; font-size: 0.7rem; background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; color: var(--faint); margin-left: 6px; }
   footer { text-align: center; padding: 32px 20px; color: var(--faint); font-size: 0.75rem; }
   footer a { color: var(--accent); text-decoration: none; }
+  details.patch > summary { cursor: pointer; list-style: none; }
+  details.patch > summary::-webkit-details-marker { display: none; }
+  details.patch > summary::marker { content: ""; }
+  details.patch > summary::after { content: "▸"; color: var(--muted); align-self: center; flex-shrink: 0; line-height: 1; transition: transform .15s; }
+  details.patch[open] > summary::after { transform: rotate(90deg); }
+  details.patch:not([open]) > summary { border-bottom: none; }
+  details.patch > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 16px; }
+  details.patch > summary > div:first-child { flex: 1; min-width: 0; }
+  h2.patch-title { margin: 0; }
+  @media (max-width: 420px) {
+    .container { padding-left: 12px; padding-right: 12px; }
+    .patch-header { padding: 16px 14px 14px; gap: 10px; }
+  }
+  @media print { details.patch > summary::after { display: none; } }
 </style>
 </head>
 <body>
@@ -49,21 +63,24 @@
 <div class="container">
 
   <!-- CURRENT PATCH -->
-  <div class="patch" style="border-color:rgba(247,147,26,0.4);box-shadow:0 0 32px rgba(247,147,26,0.08);">
-    <div class="patch-header" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),transparent);">
+  <details class="patch" id="2026-10-26" open style="border-color:rgba(247,147,26,0.4);box-shadow:0 0 32px rgba(247,147,26,0.08);">
+    <summary class="patch-header" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),transparent);">
       <div style="flex:1;">
-        <div class="patch-title" style="font-size:1.35rem;">⚡ Latest updates</div>
-        <div class="patch-date">October 23, 2026 · v2253</div>
+        <h2 class="patch-title" style="font-size:1.35rem;">⚡ Latest updates</h2>
+        <div class="patch-date">October 26, 2026 · v2379</div>
       </div>
       <div class="patch-badge">Latest</div>
-    </div>
+    </summary>
     <div class="patch-body">
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Latest: When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.</div></div>
+      <div class="item"><span class="tag feat">NEW</span><div class="item-text">Publishing an article awards 30 XP, once per article, up to 2 a day.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Settings → Sats now lists the XP you can actually earn, including the daily cap.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.</div></div>
-      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">The Invite button now stays on the home screen as a small pill, so you can always invite a friend.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">Trivia and poll community totals now update the moment you answer and stay live while the results are open.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.</div></div>
@@ -73,8 +90,33 @@
       <div class="item"><span class="tag sec">SEC</span><div class="item-text">Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.</div></div>
-      <div class="item"><span class="tag feat">NEW</span><div class="item-text">Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.</div></div>
+    </div>
+  </details>
+
+  <!-- OCT 25 -->
+  <details class="patch" id="2026-10-25">
+    <summary class="patch-header">
+      <div style="flex:1;">
+        <h2 class="patch-title">Satoshi's Favor explainer</h2>
+        <div class="patch-date">October 25, 2026 · v2362</div>
+      </div>
+      <div class="patch-badge prev">Previous</div>
+    </summary>
+    <div class="patch-body">
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.</div></div>
+    </div>
+  </details>
+
+  <!-- OCT 24 -->
+  <details class="patch" id="2026-10-24">
+    <summary class="patch-header">
+      <div style="flex:1;">
+        <h2 class="patch-title">Shared cipher prizes, account controls &amp; Music cleanup</h2>
+        <div class="patch-date">October 24, 2026 · v2361</div>
+      </div>
+      <div class="patch-badge prev">Previous</div>
+    </summary>
+    <div class="patch-body">
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">You can delete your account from Settings → Account after confirming your username, and you can change the email on an email sign-in.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Topic conversation links open the paragraph they started from, highlight it, and leave the thread ready to reply.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">The share card says Let me teach you about Bitcoin, and the daily earn line and the sats stat both show 200.</div></div>
@@ -84,6 +126,20 @@
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Badges you already earned appear once, and one toast shows them.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Timechain TV Music drops off-topic tracks, moves interviews and events onto the stations they belong on, and adds freedom and Bitcoin songs.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">If your username was cleared, pick a new one from the prompt, and Satoshi's Favor shows your public name instead of Anonymous.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.</div></div>
+    </div>
+  </details>
+
+  <!-- OCT 23 -->
+  <details class="patch" id="2026-10-23">
+    <summary class="patch-header">
+      <div style="flex:1;">
+        <h2 class="patch-title">Smarter Nacho, new badges &amp; topic conversations</h2>
+        <div class="patch-date">October 23, 2026 · v2253</div>
+      </div>
+      <div class="patch-badge prev">Previous</div>
+    </summary>
+    <div class="patch-body">
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Nacho answers live Bitcoin questions with the number, the source, and the time, plus topic links and follow-up questions.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">On a phone, the chat, Nacho, stats, and trophy buttons sit above the bottom navigation with space from the screen edge, and Nacho's speech bubble sits fully above that row.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">New badges cover gifts, keys, ciphers, Nook, raffles, and setup.</div></div>
@@ -101,6 +157,22 @@
       <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Quizzes and trivia:</strong> Quiz and trivia rewards are now checked by the server, and Part 2 quizzes pay out correctly again.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Badges are checked on the server. Every badge you earn adds one Satoshi's Favor point.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Withdrawals now work with Wallet of Satoshi, Blink, ZBD, Speed and more, and you can set a fresh Lightning Address once if yours wasn’t working. The Today card still says Say hi! after you’ve said hi, Satoshi's Favor glows while it is active, and Flex counts as done after 5 in a day. Unclaimed faction points show again, and choosing a faction is permanent. Your own all-time Satoshi's Favor total shows on that panel, including points still unclaimed.</div></div>
+      <div class="item"><span class="tag feat">NEW</span><div class="item-text">Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.</div></div>
+      <div class="item"><span class="tag feat">NEW</span><div class="item-text">Badge XP now follows how long a badge takes to earn, from 10 up to 2,000. Cosmetic badges show 0.</div></div>
+      <div class="item"><span class="tag feat">NEW</span><div class="item-text">You can remember this device for 30 days after an authenticator code. Changing your Lightning Address, turning off 2FA, new recovery codes, and deleting the account still ask for a fresh code.</div></div>
+    </div>
+  </details>
+
+  <!-- OCT 22 -->
+  <details class="patch" id="2026-10-22">
+    <summary class="patch-header">
+      <div style="flex:1;">
+        <h2 class="patch-title">Today card, push notifications &amp; topic discussions</h2>
+        <div class="patch-date">October 22, 2026 · v2301</div>
+      </div>
+      <div class="patch-badge prev">Previous</div>
+    </summary>
+    <div class="patch-body">
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">The homepage opens on a Today card with Satoshi's Favor, the daily checklist, and More quests. The Quest Hub popup is retired. Every quest still opens from the card.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">New posts from the Discord education channels, including charts and memes.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Push notifications now work, with per-category controls in Settings. They stay off until you turn them on. Devices that were already registered stay on unless you had turned them off.</div></div>
@@ -124,10 +196,6 @@
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Updated Terms and Privacy Policy to cover new features.</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Ciphers links now always open the right tab.</strong></div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Nacho now gives a shout in Global Chat when someone starts a new PlebTalk thread or posts a Marketplace listing.</div></div>
-      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Flex XP syncs on tap again, and Say hi shows a green dot after you say hi.</div></div>
-      <div class="item"><span class="tag feat">NEW</span><div class="item-text">Nacho answers from a large vetted Bitcoin knowledge base, with follow-ups he can answer and a steer back to Bitcoin.</div></div>
-      <div class="item"><span class="tag feat">NEW</span><div class="item-text">Badge XP now follows how long a badge takes to earn, from 10 up to 2,000. Cosmetic badges show 0.</div></div>
-      <div class="item"><span class="tag feat">NEW</span><div class="item-text">You can remember this device for 30 days after an authenticator code. Changing your Lightning Address, turning off 2FA, new recovery codes, and deleting the account still ask for a fresh code.</div></div>
       <div class="item"><span class="tag sec">SEC</span><div class="item-text">Updated education topics with current facts and fixed broken links and images.</div></div>
       <div class="item"><span class="tag sec">SEC</span><div class="item-text">Cleaned up the education topics: removed off-topic and unsafe posts.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">New daily: Say hi to the community. Send your first Global Chat message of the day for +50 XP and an orange ticket.</div></div>
@@ -143,17 +211,17 @@
       <div class="item"><span class="tag feat">NEW</span><div class="item-text"><strong style="color:var(--text);">Better search:</strong> The home page search now finds every feature and takes you right to it.</div></div>
       <div class="item"><span class="tag feat">NEW</span><div class="item-text"><strong style="color:var(--text);">Faucet:</strong> We&#39;ve made changes to keep the faucet fair for everyone.</div></div>
     </div>
-  </div>
+  </details>
 
   <!-- PREVIOUS PATCH -->
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-10-13">
+    <summary class="patch-header">
       <div style="flex:1;">
-        <div class="patch-title">⚡ Peers, Partnerships &amp; Gifting</div>
+        <h2 class="patch-title">⚡ Peers, Partnerships &amp; Gifting</h2>
         <div class="patch-date">October 13, 2026 · v2082</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
 
       <!-- HERO CALLOUT -->
@@ -197,17 +265,17 @@
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Sign-in button copy updated from "Send Magic Link" → "Send Sign-In Link" for clarity. Supporting text updated throughout to make the passwordless flow obvious to new users.</div></div>
 
     </div>
-  </div>
+  </details>
 
   <!-- PREVIOUS (was CURRENT) PATCH -->
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-10-07">
+    <summary class="patch-header">
       <div>
-        <div class="patch-title">Performance &amp; Embed Reliability</div>
+        <h2 class="patch-title">Performance &amp; Embed Reliability</h2>
         <div class="patch-date">October 7, 2026 · v2081</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
 
       <div class="section-label">⚡ Speed &amp; Responsiveness</div>
@@ -226,16 +294,16 @@
       <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Orange tickets are now orange!</strong> Have fun! 🟠</div></div>
 
     </div>
-  </div>
+  </details>
 
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-10-04">
+    <summary class="patch-header">
       <div>
-        <div class="patch-title">Two-Factor Authentication &amp; Raid Intelligence</div>
+        <h2 class="patch-title">Two-Factor Authentication &amp; Raid Intelligence</h2>
         <div class="patch-date">October 4, 2026 · v2080</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
 
       <div class="section-label">🔐 Security</div>
@@ -255,16 +323,16 @@
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">Indicator count corrected to 32 — the count previously excluded indicators with no flash logic, making the displayed total inconsistent.</div></div>
 
     </div>
-  </div>
+  </details>
 
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-10-02">
+    <summary class="patch-header">
       <div>
-        <div class="patch-title">Bitcoin Dashboard Overhaul</div>
+        <h2 class="patch-title">Bitcoin Dashboard Overhaul</h2>
         <div class="patch-date">October 2, 2026 · v2079</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
 
       <div class="section-label">🆕 New</div>
@@ -286,17 +354,17 @@
       <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Poll vote results show correct community counts instantly after voting.</strong> Was using <code>get({ source: 'server' })</code> which raced against the just-committed transaction. Removed the server-source override — Firestore's local cache already had the committed data.</div></div>
 
     </div>
-  </div>
+  </details>
 
   <!-- PREVIOUS PATCH (October Calibration) -->
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-10-01">
+    <summary class="patch-header">
       <div>
-        <div class="patch-title">October Calibration</div>
+        <h2 class="patch-title">October Calibration</h2>
         <div class="patch-date">October 1, 2026 · v2078</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
 
       <div class="section-label">⚡ Performance</div>
@@ -329,17 +397,17 @@
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Patch notes link added to homepage footer — now permanently accessible from the main app.</div></div>
 
     </div>
-  </div>
+  </details>
 
   <!-- PREVIOUS PATCH -->
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-09-30">
+    <summary class="patch-header">
       <div>
-        <div class="patch-title">Operation Nacho Unleashed</div>
+        <h2 class="patch-title">Operation Nacho Unleashed</h2>
         <div class="patch-date">September 30, 2026 · v2076–2077</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
 
       <div class="section-label">⚡ Performance</div>
@@ -364,17 +432,17 @@
       <div class="item"><span class="tag sec">SEC</span><div class="item-text">Firestore rules updated — chat edits locked to message owner only, max 2 edits enforced server-side.</div></div>
 
     </div>
-  </div>
+  </details>
 
   <!-- PREVIOUS PATCHES (summarized) -->
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-aug-sep">
+    <summary class="patch-header">
       <div>
-        <div class="patch-title">The Signal Update</div>
+        <h2 class="patch-title">The Signal Update</h2>
         <div class="patch-date">August – September 2026 · v2070–2075</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Peers section consolidated into Account tab as collapsible panel</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">YouTube embeds restored, forum upvote counter, threaded replies to article comments</div></div>
@@ -383,16 +451,16 @@
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Faction badge now displays dynamically from your profile</div></div>
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Proof of Walk temporarily disabled with informational toast</div></div>
     </div>
-  </div>
+  </details>
 
-  <div class="patch">
-    <div class="patch-header">
+  <details class="patch" id="2026-aug">
+    <summary class="patch-header">
       <div>
-        <div class="patch-title">The Marketplace Rebuild</div>
+        <h2 class="patch-title">The Marketplace Rebuild</h2>
         <div class="patch-date">August 2026 · v2060–2069</div>
       </div>
       <div class="patch-badge prev">Previous</div>
-    </div>
+    </summary>
     <div class="patch-body">
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Lightning Mart tabs restructured and renamed for clarity</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">Tipping fallback — failed LNURL fetch now shows correct "Copy Lightning Address" UI</div></div>
@@ -401,12 +469,21 @@
       <div class="item"><span class="tag sec">SEC</span><div class="item-text">18 ring accounts had withdrawals disabled</div></div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">Visits counter Firestore rules fixed for fingerprint-based writes</div></div>
     </div>
-  </div>
+  </details>
 
 </div>
 
 <footer>
   Bitcoin Education Archive · <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> · Built by Bitcoiners, for Bitcoiners 🟠
 </footer>
+<script>
+(function(){
+  function openHash(){var id=decodeURIComponent(location.hash.slice(1));if(!id)return;var el=document.getElementById(id);var d=el&&el.closest('details');if(d){d.open=true;el.scrollIntoView();}}
+  openHash();window.addEventListener('hashchange',openHash);
+  var closed=[];
+  window.addEventListener('beforeprint',function(){closed=[].filter.call(document.querySelectorAll('details.patch:not([open])'),function(d){d.open=true;return true;});});
+  window.addEventListener('afterprint',function(){closed.forEach(function(d){d.open=false;});closed=[];});
+})();
+</script>
 </body>
 </html>

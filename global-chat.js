@@ -1586,6 +1586,7 @@ function renderAnnouncementsTab() {
         .orderBy('ts', 'asc')
         .limitToLast(50)
         .onSnapshot(function(snapshot) {
+            ggCloseBadgeTip();
             var el = document.getElementById('announcementsMessages');
             if (!el) return;
             if (snapshot.empty) {
@@ -1597,13 +1598,15 @@ function renderAnnouncementsTab() {
                 _firstLoad = false;
                 return;
             }
-            var html = '<div style="text-align:center;padding:8px 0 16px;">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);">Nacho\'s updates · badges, scores, events &amp; more</div>' +
-            '</div>';
+            el.textContent = '';
+            var intro = document.createElement('div');
+            intro.style.cssText = 'text-align:center;padding:8px 0 16px;font-size:0.7rem;color:var(--text-faint);';
+            intro.textContent = 'Nacho\'s updates · badges, scores, events & more';
+            el.appendChild(intro);
             snapshot.forEach(function(doc) {
-                html += _renderAnnouncementItem(doc, 'panel');
+                el.appendChild(_renderAnnouncementItem(doc, 'panel'));
             });
-            el.innerHTML = html;
+            ggBindBadgeList(el);
             // Scroll to bottom on first load; on subsequent updates only scroll if already near bottom
             if (_firstLoad) {
                 setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
@@ -1843,6 +1846,7 @@ function renderOverlayChat() {
                 .orderBy('ts', 'asc')
                 .limitToLast(40)
                 .onSnapshot(function(snapshot) {
+                    ggCloseBadgeTip();
                     var el = document.getElementById('overlayAnnouncementsBody');
                     if (!el) { if (_annUnsub) { _annUnsub(); _annUnsub = null; } return; }
                     if (snapshot.empty) {
@@ -1850,11 +1854,11 @@ function renderOverlayChat() {
                         _overlayFirstLoad = false;
                         return;
                     }
-                    var html = '';
+                    el.textContent = '';
                     snapshot.forEach(function(doc) {
-                        html += _renderAnnouncementItem(doc, 'overlay');
+                        el.appendChild(_renderAnnouncementItem(doc, 'overlay'));
                     });
-                    el.innerHTML = html;
+                    ggBindBadgeList(el);
                     if (_overlayFirstLoad) {
                         setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
                         _overlayFirstLoad = false;
@@ -3795,42 +3799,693 @@ window.lookupUserByName = function(username) {
 
 // ---- Announcement link navigation helper ----
 // Closes whichever chat surface is open, then routes to the hash.
-// Badge tooltip popup for GGs announcement badge tags
-window._showBadgeTooltip = function(el, name, desc) {
-    // Remove any existing tooltip
-    var existing = document.getElementById('_gcBadgeTip');
-    if (existing) {
-        existing.remove();
-        if (existing._el === el) return; // toggle off if same badge
+// Badge tags for GGs. Grouped posts ("earned 3 badges: A, B, C") and single
+// posts ("earned First Steps" / "just earned the Pathfinder badge") both
+// chip each badge name. The old matcher only understood "earned a badge: …!".
+// Names resolve from server badgeIds, or from the client registry for older
+// badge-gg posts. Message text is never parsed as HTML.
+/* GG_BADGE_TAGS_START */
+var GG_NAME_OVERRIDE = {
+    daily_triple_30: 'Trifecta Engine',
+    first_post: 'PlebTalk Voice',
+    market_seller: 'Shopkeeper',
+    market_listed_5: 'Merchant'
+};
+
+function ggTitleWord(word) {
+    var s = String(word || '');
+    if (!s) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function ggStripPrefixes(id) {
+    var s = String(id || '');
+    var prev = '';
+    while (s && s !== prev) {
+        prev = s;
+        s = s.replace(/^(?:flex_|badge_|bc_)/, '');
     }
-    var tip = document.createElement('div');
-    tip.id = '_gcBadgeTip';
-    tip._el = el;
-    var _isDark = document.body.getAttribute('data-theme') !== 'light';
-    tip.style.cssText = 'position:fixed;z-index:999999;background:' + (_isDark ? '#1a1a2e' : '#fff') + ';border:1px solid var(--accent);border-radius:12px;padding:12px 14px;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none;';
-    tip.innerHTML = '<div style="font-size:0.95rem;font-weight:700;color:var(--accent);margin-bottom:4px;">' + name + '</div>' +
-        '<div style="font-size:0.8rem;color:var(--text,#eee);line-height:1.4;">' + desc + '</div>';
-    document.body.appendChild(tip);
-    // Position above the element
+    return s;
+}
+
+function ggFlexName(id) {
+    if (String(id || '').indexOf('flex_') !== 0) return '';
+    var parts = id.slice(5).split('_').filter(Boolean);
+    if (!parts.length) return '';
+    var last = parts[parts.length - 1];
+    if (/^\d+$/.test(last) && parts.length >= 2) {
+        var action = parts.slice(0, -1).map(ggTitleWord).join(' ');
+        return action ? (action + ' \u00d7' + last) : '';
+    }
+    return parts.map(ggTitleWord).join(' ');
+}
+
+function ggPuzzleName(id) {
+    var match = /^p(0[1-9]|[1-7]\d|80)$/.exec(String(id || ''));
+    if (!match) return '';
+    return 'Checkmate Puzzle ' + Number(match[1]);
+}
+
+function ggCleanLabel(raw) {
+    var s = String(raw == null ? '' : raw);
+    s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+    s = s.replace(/https?:\/\/\S+/gi, ' ');
+    s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ');
+    s = s.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ' ');
+    s = s.replace(/[\r\n<>@`]/g, ' ');
+    s = s.replace(/\s+/g, ' ').trim().slice(0, 60);
+    return s;
+}
+
+function ggDisplayName(id, catalogName) {
+    var safe = String(id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+    if (!safe) return '';
+    if (GG_NAME_OVERRIDE[safe]) return GG_NAME_OVERRIDE[safe];
+    var catalog = catalogName ? String(catalogName) : '';
+    if (catalog && catalog !== safe) {
+        var cleaned = ggCleanLabel(catalog);
+        if (cleaned && cleaned !== safe) return cleaned;
+    }
+    var fallback = ggStripPrefixes(safe).split('_').filter(Boolean).map(ggTitleWord).join(' ');
+    var candidate = ggFlexName(safe) || ggPuzzleName(safe) || fallback;
+    var cleanedCandidate = ggCleanLabel(candidate);
+    if (!cleanedCandidate || cleanedCandidate === safe) return '';
+    return cleanedCandidate;
+}
+
+function ggTrustedBadgeIds(message) {
+    if (!message || message.postedByUid !== 'badge-gg' || message.uid !== 'nacho-bot') return null;
+    if (!Array.isArray(message.badgeIds)) return [];
+    var ids = [];
+    for (var i = 0; i < message.badgeIds.length && ids.length < 80; i++) {
+        var id = message.badgeIds[i];
+        if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,60}$/.test(id)) continue;
+        if (ids.indexOf(id) === -1) ids.push(id);
+    }
+    return ids;
+}
+
+function ggSuffixEnd(text, from) {
+    var end = text.length;
+    var tail = text.slice(from);
+    var suffix = tail.match(/\s*\(\+\d+ SF points?\)\s*$/);
+    if (suffix) end -= suffix[0].length;
+    var region = text.slice(from, end);
+    var more = region.match(/\s+and \d+ more\s*$/);
+    if (more) end = from + region.length - more[0].length;
+    return end;
+}
+
+function ggNameRegions(text) {
+    var regions = [];
+    var major = /just earned the ([\s\S]+?) badge!/.exec(text);
+    if (major) {
+        var leadStart = major.index + 'just earned the '.length;
+        regions.push([leadStart, leadStart + major[1].length]);
+        var alsoAt = text.indexOf(' Also: ');
+        if (alsoAt !== -1) {
+            var alsoStart = alsoAt + ' Also: '.length;
+            regions.push([alsoStart, ggSuffixEnd(text, alsoStart)]);
+        }
+        return regions;
+    }
+    var grouped = /earned \d+ badges: /.exec(text);
+    if (grouped) {
+        var groupedStart = grouped.index + grouped[0].length;
+        regions.push([groupedStart, ggSuffixEnd(text, groupedStart)]);
+        return regions;
+    }
+    if (/earned \d+ flex badges\b/.test(text)) return regions;
+    var single = / earned (?!a badge\b)(?!\d+ badges\b)(?!\d+ flex badges\b)/.exec(text);
+    if (single) {
+        var singleStart = single.index + single[0].length;
+        regions.push([singleStart, ggSuffixEnd(text, singleStart)]);
+    }
+    var legacy = /earned a badge: ([\s\S]+?)!/.exec(text);
+    if (legacy && !regions.length) {
+        var legacyStart = legacy.index + 'earned a badge: '.length;
+        regions.push([legacyStart, legacyStart + legacy[1].length]);
+    }
+    return regions;
+}
+
+function ggBoundary(ch) {
+    if (!ch) return true;
+    var code = ch.charCodeAt(0);
+    if (code < 128) {
+        return !((code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122));
+    }
+    return !/[\p{L}\p{N}]/u.test(ch);
+}
+
+function ggNameAt(slice, i, name) {
+    var n = name.length;
+    if (i + n > slice.length) return false;
+    for (var c = 0; c < n; c++) {
+        if (slice.charCodeAt(i + c) !== name.charCodeAt(c)) return false;
+    }
+    return true;
+}
+
+// The catalog stores some ids as their own name (titles such as irl_set_t).
+// The server then posts the title-cased id ("Irl Set T") while the client
+// shows the title ("IRL Champion"). That auto-title is the alias.
+function ggCatalogOwnsName(id) {
+    var cat = (typeof window !== 'undefined' && window && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    var row = cat && cat[id];
+    if (!row) return false;
+    var raw = GG_NAME_OVERRIDE[id] || row.name || '';
+    var cleaned = ggCleanLabel(raw);
+    return !!(cleaned && cleaned !== id);
+}
+
+function ggServerAutoTitle(id) {
+    var safe = String(id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+    if (!safe) return '';
+    var candidate = ggFlexName(safe) || ggPuzzleName(safe) || ggStripPrefixes(safe).split('_').filter(Boolean).map(ggTitleWord).join(' ');
+    var cleaned = ggCleanLabel(candidate);
+    if (!cleaned || cleaned === safe) return '';
+    return cleaned;
+}
+
+function ggServerMatchName(id, displayName) {
+    if (ggCatalogOwnsName(id)) return String(displayName || '');
+    return ggServerAutoTitle(id) || String(displayName || '');
+}
+
+function ggCompareMatchers(order) {
+    return function(a, b) {
+        return b.match.length - a.match.length || (a.alias - b.alias) || String(a.match).localeCompare(String(b.match)) || ((order[a.badge.id] || 0) - (order[b.badge.id] || 0));
+    };
+}
+
+function ggBucketMatchers(matchers) {
+    var byChar = {};
+    for (var i = 0; i < matchers.length; i++) {
+        var ch = String(matchers[i].match).charAt(0).toLowerCase();
+        var bucket = byChar[ch];
+        if (!bucket) byChar[ch] = bucket = [];
+        bucket.push(matchers[i]);
+    }
+    return byChar;
+}
+
+// Sorted once, then grouped by the lowercased first character, so a scan
+// tries only the names that can start at this character. A server auto-title
+// is indexed beside the display name, and it wins when both strings match.
+function ggBuildNameIndex(list) {
+    var byId = {};
+    var order = {};
+    var serverOf = {};
+    var matchers = [];
+    var i, badge, name, server;
+    for (i = 0; i < list.length; i++) {
+        badge = list[i];
+        if (!badge || !badge.id) continue;
+        byId[badge.id] = badge;
+        order[badge.id] = i;
+        name = badge.name ? String(badge.name) : '';
+        server = ggServerMatchName(badge.id, name);
+        serverOf[badge.id] = server;
+        if (server && server.length >= 2) matchers.push({ badge: badge, match: server, alias: 0 });
+    }
+    var serverNames = {};
+    for (i = 0; i < matchers.length; i++) serverNames[matchers[i].match] = true;
+    for (i = 0; i < list.length; i++) {
+        badge = list[i];
+        if (!badge || !badge.id) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = serverOf[badge.id] || '';
+        if (!name || name.length < 2 || name === server || serverNames[name]) continue;
+        matchers.push({ badge: badge, match: name, alias: 1 });
+    }
+    matchers.sort(ggCompareMatchers(order));
+    return { byId: byId, byChar: ggBucketMatchers(matchers), order: order, serverOf: serverOf };
+}
+
+function ggBucketsForIds(index, ids) {
+    var matchers = [];
+    var n, badge, name, server;
+    for (n = 0; n < ids.length; n++) {
+        badge = index.byId[ids[n]];
+        if (!badge) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = (index.serverOf && index.serverOf[badge.id]) || ggServerMatchName(badge.id, name);
+        if (server && server.length >= 2) matchers.push({ badge: badge, match: server, alias: 0 });
+    }
+    for (n = 0; n < ids.length; n++) {
+        badge = index.byId[ids[n]];
+        if (!badge) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = (index.serverOf && index.serverOf[badge.id]) || ggServerMatchName(badge.id, name);
+        if (!name || name.length < 2 || name === server) continue;
+        matchers.push({ badge: badge, match: name, alias: 1 });
+    }
+    if (matchers.length > 1) matchers.sort(ggCompareMatchers(index.order || {}));
+    return ggBucketMatchers(matchers);
+}
+
+function ggLegacyRegions(text) {
+    var legacy = /earned a badge: ([\s\S]+?)!/.exec(text);
+    if (!legacy) return [];
+    var legacyStart = legacy.index + 'earned a badge: '.length;
+    return [[legacyStart, legacyStart + legacy[1].length]];
+}
+
+function ggBadgeSegments(text, message, registry) {
+    var raw = String(text || '');
+    var ids = ggTrustedBadgeIds(message);
+    // Old Nacho announcements used "earned a badge: …!". Those are isNachoAuto
+    // and have no badge ids. Only that phrase is tagged, never a grouped line.
+    var legacyOnly = ids === null && !!(message && message.isNachoAuto === true);
+    if (ids === null && !legacyOnly) return [{ type: 'text', text: raw }];
+    var regions = legacyOnly ? ggLegacyRegions(raw) : ggNameRegions(raw);
+    if (!regions.length) return [{ type: 'text', text: raw }];
+    var index = (registry && registry.byChar && registry.byId) ? registry : ggBuildNameIndex(registry || []);
+    var buckets;
+    // A present badgeIds list, even empty, is the allow-list. Only a missing
+    // field falls back to the prebuilt name index, for badge-gg posts written before ids.
+    if (!legacyOnly && message && Array.isArray(message.badgeIds)) {
+        if (!ids.length) return [{ type: 'text', text: raw }];
+        buckets = ggBucketsForIds(index, ids);
+    } else {
+        buckets = index.byChar;
+    }
+    var hits = [];
+    regions.forEach(function(region) {
+        var start = region[0];
+        var end = region[1];
+        if (!(end > start)) return;
+        var slice = raw.slice(start, end);
+        var i = 0;
+        while (i < slice.length) {
+            var found = null;
+            var bucket = buckets[slice.charAt(i).toLowerCase()];
+            if (bucket) {
+                for (var k = 0; k < bucket.length; k++) {
+                    var matched = bucket[k].match;
+                    if (!ggNameAt(slice, i, matched)) continue;
+                    var before = i === 0 ? raw.charAt(start - 1) : slice.charAt(i - 1);
+                    var after = slice.charAt(i + matched.length);
+                    if (ggBoundary(before) && ggBoundary(after)) { found = bucket[k]; break; }
+                }
+            }
+            if (found) {
+                hits.push({ at: start + i, len: found.match.length, badge: found.badge });
+                i += found.match.length;
+            } else {
+                i += 1;
+            }
+        }
+    });
+    if (!hits.length) return [{ type: 'text', text: raw }];
+    hits.sort(function(a, b) { return a.at - b.at; });
+    var out = [];
+    var cursor = 0;
+    hits.forEach(function(hit) {
+        if (hit.at < cursor) return;
+        if (hit.at > cursor) out.push({ type: 'text', text: raw.slice(cursor, hit.at) });
+        out.push({
+            type: 'badge',
+            id: hit.badge.id,
+            name: hit.badge.name,
+            emoji: hit.badge.emoji || '\uD83C\uDFC5',
+            desc: hit.badge.desc || '',
+            how: hit.badge.how || hit.badge.desc || '',
+            pts: hit.badge.pts || 0
+        });
+        cursor = hit.at + hit.len;
+    });
+    if (cursor < raw.length) out.push({ type: 'text', text: raw.slice(cursor) });
+    return out;
+}
+/* GG_BADGE_TAGS_END */
+
+function ggCollectRegistry() {
+    var rows = {};
+    function put(id, row) {
+        var safe = String(id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+        if (!safe || !row) return;
+        if (!rows[safe]) rows[safe] = { emoji: '', desc: '', pts: 0, catalogName: '' };
+        var cur = rows[safe];
+        if (row.name && String(row.name) !== safe && !cur.catalogName) cur.catalogName = String(row.name);
+        if (row.emoji && !cur.emoji) cur.emoji = row.emoji;
+        if (row.desc && !cur.desc) cur.desc = String(row.desc);
+        if (!cur.pts && row.pts) cur.pts = Number(row.pts) || 0;
+    }
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    if (cat) {
+        Object.keys(cat).forEach(function(id) {
+            var entry = cat[id];
+            if (!entry || typeof entry !== 'object') return;
+            put(id, { name: entry.name, emoji: entry.emoji, desc: entry.desc, pts: entry.xp });
+        });
+    }
+    if (typeof BADGE_DEFS !== 'undefined') {
+        BADGE_DEFS.forEach(function(badge) {
+            if (!badge) return;
+            put(badge.id, { name: badge.name, emoji: badge.emoji, desc: badge.desc || badge.description, pts: badge.pts || badge.xp });
+        });
+    }
+    if (typeof HIDDEN_BADGES !== 'undefined') {
+        HIDDEN_BADGES.forEach(function(badge) {
+            if (!badge) return;
+            put(badge.id, { name: badge.name, emoji: badge.emoji, desc: badge.desc || badge.description, pts: badge.pts || badge.xp });
+        });
+    }
+    if (typeof TITLE_DEFS !== 'undefined') {
+        TITLE_DEFS.forEach(function(title) {
+            if (!title) return;
+            put(title.id, { name: title.title || title.name, emoji: title.emoji, desc: title.flavor || title.desc, pts: 0 });
+        });
+    }
+    if (typeof BADGE_SETS !== 'undefined') {
+        BADGE_SETS.forEach(function(set) {
+            if (!set || !set.bonusId) return;
+            put(set.bonusId, { name: set.bonusName || set.name, emoji: set.bonusEmoji, desc: set.bonusDesc || ('Completed ' + (set.name || '')), pts: set.bonusPts || 0 });
+        });
+    }
+    if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
+        FLEX_ACTIONS.forEach(function(action) {
+            FLEX_BADGE_MILESTONES.forEach(function(milestone) {
+                put('flex_' + action.id + '_' + milestone, {
+                    emoji: action.emoji,
+                    desc: 'Completed \u201c' + action.name + '\u201d ' + milestone + ' time' + (milestone === 1 ? '' : 's'),
+                    pts: Math.round(milestone * 2)
+                });
+            });
+        });
+    }
+    var list = [];
+    Object.keys(rows).forEach(function(id) {
+        var row = rows[id];
+        var name = ggDisplayName(id, row.catalogName);
+        if (!name) return;
+        list.push({
+            id: id,
+            name: name,
+            emoji: row.emoji || '\uD83C\uDFC5',
+            desc: row.desc || '',
+            how: row.desc || '',
+            pts: row.pts || 0
+        });
+    });
+    return list;
+}
+
+// The registry is about 940 ids plus flex combos. Build it once per catalog
+// shape, not once per GGs post. Catalog key recounts follow the object
+// reference, so a render does not walk every catalog key again.
+var _ggRegistryCache = null;
+var _ggRegistryById = null;
+var _ggNameIndex = null;
+var _ggRegistryKey = '';
+var _ggCatalogRef = null;
+var _ggCatalogCount = 0;
+var _ggCatalogReady = false;
+
+function ggCatalogCount() {
+    var cat = (typeof window !== 'undefined' && window && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    if (_ggCatalogReady && cat === _ggCatalogRef) return _ggCatalogCount;
+    _ggCatalogReady = true;
+    _ggCatalogRef = cat;
+    var count = 0;
+    if (cat) {
+        try { count = Object.keys(cat).length; } catch (err) { count = 0; }
+    }
+    _ggCatalogCount = count;
+    return count;
+}
+
+function ggRegistryKey() {
+    function n(list) { return (list && list.length) || 0; }
+    return [
+        n(typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : null),
+        n(typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : null),
+        n(typeof TITLE_DEFS !== 'undefined' ? TITLE_DEFS : null),
+        n(typeof BADGE_SETS !== 'undefined' ? BADGE_SETS : null),
+        n(typeof FLEX_ACTIONS !== 'undefined' ? FLEX_ACTIONS : null),
+        n(typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_BADGE_MILESTONES : null),
+        ggCatalogCount()
+    ].join(':');
+}
+
+function ggRegistry() {
+    var key = ggRegistryKey();
+    if (_ggRegistryCache && _ggRegistryKey === key) return _ggRegistryCache;
+    _ggRegistryKey = key;
+    _ggRegistryCache = ggCollectRegistry();
+    _ggNameIndex = ggBuildNameIndex(_ggRegistryCache);
+    _ggRegistryById = _ggNameIndex.byId;
+    return _ggRegistryCache;
+}
+
+function ggRegistryById() {
+    ggRegistry();
+    return _ggRegistryById || {};
+}
+
+function ggRegistryIndex() {
+    ggRegistry();
+    return _ggNameIndex || ggBuildNameIndex([]);
+}
+
+function ggAppendMentionText(parent, text, mentionUid) {
+    if (!text) return;
+    if (!mentionUid) {
+        parent.appendChild(document.createTextNode(text));
+        return;
+    }
+    var re = _mentionRe('gu');
+    var last = 0;
+    var match;
+    while ((match = re.exec(text))) {
+        if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+        var anchor = document.createElement('a');
+        anchor.href = '#';
+        anchor.textContent = '@' + String(match[1] || '').trim();
+        anchor.style.cssText = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;';
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof showUserProfile === 'function') showUserProfile(mentionUid);
+        });
+        parent.appendChild(anchor);
+        last = match.index + match[0].length;
+    }
+    if (re.lastIndex) re.lastIndex = 0;
+    if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+}
+
+var _ggTipLeaveTimer = 0;
+
+function ggCancelTipClose() {
+    if (_ggTipLeaveTimer) {
+        clearTimeout(_ggTipLeaveTimer);
+        _ggTipLeaveTimer = 0;
+    }
+}
+
+function ggScheduleTipClose(btn) {
+    ggCancelTipClose();
+    _ggTipLeaveTimer = setTimeout(function() {
+        _ggTipLeaveTimer = 0;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (tip && tip._el === btn && !tip._pinned) ggCloseBadgeTip();
+    }, 120);
+}
+
+function ggCloseBadgeTip() {
+    ggCancelTipClose();
+    var tip = document.getElementById('_gcBadgeTip');
+    if (!tip) return;
+    if (tip._el && tip._el.setAttribute) {
+        tip._el.setAttribute('aria-expanded', 'false');
+        if (tip._el.removeAttribute) tip._el.removeAttribute('aria-describedby');
+    }
+    tip.remove();
+}
+
+function ggBindBadgeTipDismiss() {
+    if (window._ggBadgeTipBound) return;
+    window._ggBadgeTipBound = true;
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' && e.key !== 'Esc') return;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (!tip) return;
+        e.preventDefault();
+        e.stopPropagation();
+        ggCloseBadgeTip();
+    }, true);
+    document.addEventListener('pointerdown', function(e) {
+        var tip = document.getElementById('_gcBadgeTip');
+        if (!tip) return;
+        var target = e.target;
+        if (!target) return;
+        if (target === tip || (tip.contains && tip.contains(target))) return;
+        if (target.closest && target.closest('.gg-badge-tag')) return;
+        ggCloseBadgeTip();
+    }, true);
+    document.addEventListener('scroll', function() {
+        ggCloseBadgeTip();
+    }, true);
+}
+
+function ggFinePointer() {
+    try { return !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches); }
+    catch (err) { return false; }
+}
+
+function ggOnBadgeListEvent(e) {
+    var parent = this;
+    var node = e.target;
+    if (node && node.nodeType !== 1 && node.parentElement) node = node.parentElement;
+    var btn = node && node.closest ? node.closest('.gg-badge-tag') : null;
+    if (!btn || (parent.contains && !parent.contains(btn))) return;
+    var badge = ggRegistryById()[btn.getAttribute('data-badge-id')];
+    if (!badge) return;
+    if (e.type === 'click') {
+        e.preventDefault();
+        e.stopPropagation();
+        window._showBadgeTooltip(btn, badge, { toggle: true });
+        return;
+    }
+    if (e.type === 'focusin') {
+        window._showBadgeTooltip(btn, badge, {});
+        return;
+    }
+    if (e.type === 'focusout') {
+        var open = document.getElementById('_gcBadgeTip');
+        if (open && open._el === btn && !open._pinned) ggCloseBadgeTip();
+        return;
+    }
+    if (!ggFinePointer()) return;
+    if (e.type === 'mouseover') {
+        var from = e.relatedTarget;
+        if (from && btn.contains(from)) return;
+        ggCancelTipClose();
+        window._showBadgeTooltip(btn, badge, {});
+        return;
+    }
+    if (e.type === 'mouseout') {
+        var next = e.relatedTarget;
+        if (next && btn.contains(next)) return;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (next && tip && (next === tip || (tip.contains && tip.contains(next)))) return;
+        if (tip && tip._el === btn && !tip._pinned) ggScheduleTipClose(btn);
+    }
+}
+
+function ggBindBadgeList(parent) {
+    if (!parent || parent._ggBadgeBound) return;
+    parent._ggBadgeBound = true;
+    ['click', 'focusin', 'focusout', 'mouseover', 'mouseout'].forEach(function(type) {
+        parent.addEventListener(type, ggOnBadgeListEvent);
+    });
+}
+
+function ggAppendBadgeBody(parent, message) {
+    var index = ggRegistryIndex();
+    var byId = index.byId;
+    var mentionUid = message && typeof message.mentionUid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(message.mentionUid) ? message.mentionUid : '';
+    var segments = ggBadgeSegments(String(message && message.text || ''), message, index);
+    segments.forEach(function(seg) {
+        if (seg.type !== 'badge') {
+            ggAppendMentionText(parent, seg.text, mentionUid);
+            return;
+        }
+        var badge = byId[seg.id];
+        if (!badge) {
+            parent.appendChild(document.createTextNode(seg.name || ''));
+            return;
+        }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gg-badge-tag';
+        btn.setAttribute('data-badge-id', badge.id);
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-label', badge.name + '. Show badge details');
+        btn.textContent = badge.name;
+        btn.style.cssText = 'background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:1px 8px;margin:0 1px;cursor:pointer;font-weight:700;color:var(--accent,#f7931a);white-space:nowrap;display:inline;font-family:inherit;font-size:inherit;line-height:inherit;vertical-align:baseline;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+        parent.appendChild(btn);
+    });
+    ggBindBadgeTipDismiss();
+}
+
+function ggPlaceBadgeTip(tip, el) {
     var rect = el.getBoundingClientRect();
-    var tw = Math.min(260, window.innerWidth - 16);
-    tip.style.width = tw + 'px';
-    var left = Math.max(8, Math.min(rect.left, window.innerWidth - tw - 8));
-    var top = rect.top - tip.offsetHeight - 8;
-    if (top < 8) top = rect.bottom + 8;
+    var width = Math.min(280, Math.max(160, window.innerWidth - 16));
+    tip.style.width = width + 'px';
+    tip.style.left = '8px';
+    tip.style.top = '8px';
+    var height = tip.offsetHeight || 80;
+    var gap = 8;
+    var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    var top = rect.top - height - gap;
+    if (top < 8) top = rect.bottom + gap;
+    if (top + height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - height - 8);
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
-    // Dismiss on next tap/click anywhere
-    setTimeout(function() {
-        function dismiss(e) {
-            var t = document.getElementById('_gcBadgeTip');
-            if (t) t.remove();
-            document.removeEventListener('click', dismiss, true);
-            document.removeEventListener('touchstart', dismiss, true);
+}
+
+window._showBadgeTooltip = function(el, badge, opts) {
+    opts = opts || {};
+    if (!el || !badge || !badge.name) return;
+    var existing = document.getElementById('_gcBadgeTip');
+    if (existing && existing._el === el) {
+        if (opts.toggle) {
+            if (existing._pinned) { ggCloseBadgeTip(); return; }
+            existing._pinned = true;
+            return;
         }
-        document.addEventListener('click', dismiss, true);
-        document.addEventListener('touchstart', dismiss, true);
-    }, 50);
+        if (opts.pinned) existing._pinned = true;
+        return;
+    }
+    if (existing) ggCloseBadgeTip();
+    var tip = document.createElement('div');
+    tip.id = '_gcBadgeTip';
+    tip.setAttribute('role', 'tooltip');
+    tip._el = el;
+    tip._pinned = !!(opts.pinned || opts.toggle);
+    var dark = !document.body || document.body.getAttribute('data-theme') !== 'light';
+    tip.style.cssText = 'position:fixed;z-index:2147483646;background:' + (dark ? '#1a1a2e' : '#fff') + ';color:' + (dark ? '#e8eef7' : '#1a1a2e') + ';border:1px solid #f7931a;border-radius:12px;padding:12px 14px;max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.45);pointer-events:auto;text-align:left;line-height:1.4;font-family:inherit;';
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:8px;font-weight:800;color:#f7931a;font-size:0.95rem;margin-bottom:6px;';
+    var icon = document.createElement('span');
+    icon.textContent = badge.emoji || '\uD83C\uDFC5';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.fontSize = '1.25rem';
+    var name = document.createElement('span');
+    name.textContent = badge.name;
+    head.appendChild(icon);
+    head.appendChild(name);
+    var desc = document.createElement('div');
+    desc.style.cssText = 'font-size:0.8rem;margin-bottom:6px;';
+    desc.textContent = badge.desc || badge.name;
+    var how = document.createElement('div');
+    how.style.cssText = 'font-size:0.78rem;font-weight:700;color:#f7931a;border-top:1px solid rgba(247,147,26,0.25);padding-top:6px;';
+    how.textContent = 'How to earn: ' + (badge.how || badge.desc || badge.name);
+    tip.appendChild(head);
+    tip.appendChild(desc);
+    tip.appendChild(how);
+    if (badge.pts) {
+        var xp = document.createElement('div');
+        xp.style.cssText = 'font-size:0.72rem;margin-top:4px;color:' + (dark ? '#cbd5e1' : '#475569') + ';';
+        xp.textContent = '+' + badge.pts + ' XP';
+        tip.appendChild(xp);
+    }
+    tip.addEventListener('mouseenter', function() { ggCancelTipClose(); });
+    tip.addEventListener('mouseleave', function(e) {
+        if (tip._pinned) return;
+        var next = e.relatedTarget;
+        if (next && tip._el && (next === tip._el || (tip._el.contains && tip._el.contains(next)))) return;
+        ggScheduleTipClose(tip._el);
+    });
+    document.body.appendChild(tip);
+    el.setAttribute('aria-expanded', 'true');
+    el.setAttribute('aria-describedby', '_gcBadgeTip');
+    ggPlaceBadgeTip(tip, el);
+    ggBindBadgeTipDismiss();
 };
 
 // Safe hash navigation — never put untrusted strings into onclick handlers.
@@ -3973,80 +4628,67 @@ function _renderAnnouncementItem(doc, context) {
     }
 
 
-    // Badge tooltip — "earned a badge: EMOJI NAME!" → clickable with tooltip showing description
-    text = text.replace(/earned a badge: ([^!]+?)!/g, function(match, badgeRef) {
-        var _allBadgeDefs = [].concat(
-            (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : []),
-            (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : [])
-        );
-        // TITLE_DEFS — user titles awarded as badges; use title+flavor
-        if (typeof TITLE_DEFS !== 'undefined') {
-            TITLE_DEFS.forEach(function(t) {
-                _allBadgeDefs.push({ id: t.id, name: t.title || t.name || t.id, emoji: t.emoji || '🏅', desc: t.flavor || '', pts: 0 });
-            });
-        }
-        // BADGE_SETS bonus completion badges
-        if (typeof BADGE_SETS !== 'undefined') {
-            BADGE_SETS.forEach(function(s) {
-                if (!s || !s.bonusId) return;
-                _allBadgeDefs.push({ id: s.bonusId, name: s.bonusName || s.name, emoji: s.bonusEmoji || '🏅', desc: s.bonusDesc || ('Completed ' + s.name), pts: s.bonusPts || 0 });
-            });
-        }
-        // Also include dynamically generated Flex per-action badges
-        if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
-            FLEX_ACTIONS.forEach(function(a) {
-                FLEX_BADGE_MILESTONES.forEach(function(m) {
-                    _allBadgeDefs.push({
-                        id: 'flex_' + a.id + '_' + m,
-                        name: a.name + ' \u00d7' + m,
-                        emoji: a.emoji,
-                        desc: 'Completed \u201c' + a.name + '\u201d ' + m + ' time' + (m === 1 ? '' : 's'),
-                        pts: Math.round(m * 2)
-                    });
-                });
-            });
-        }
-        // Find badge by matching emoji+name (decoded — text was already HTML-escaped so compare decoded)
-        var decoded = badgeRef.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-        var foundBadge = null;
-        for (var _bi = 0; _bi < _allBadgeDefs.length; _bi++) {
-            var _bd = _allBadgeDefs[_bi];
-            var _bdLabel = (_bd.emoji || '') + ' ' + (_bd.name || '');
-            if (decoded.trim() === _bdLabel.trim() || decoded.trim().replace(/^[sS]*? /,'') === (_bd.name || '').trim()) {
-                foundBadge = _bd; break;
-            }
-        }
-        if (!foundBadge) return match; // no match — leave as-is
-        var safeDesc = esc(foundBadge.desc || foundBadge.description || foundBadge.name || '');
-        var safeName = esc(foundBadge.emoji + ' ' + foundBadge.name);
-        var safePts = foundBadge.pts ? '+' + foundBadge.pts + ' XP' : '';
-        var tooltipHtml = safeDesc + (safePts ? ' · ' + safePts : '');
-        return 'earned a badge: <span data-badge-name="' + safeName.replace(/"/g,'&quot;') + '" data-badge-desc="' + tooltipHtml.replace(/"/g,'&quot;') + '" onclick="event.stopPropagation();window._showBadgeTooltip(this,this.getAttribute(\'data-badge-name\'),this.getAttribute(\'data-badge-desc\'))" style="background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:2px 8px;cursor:pointer;font-weight:700;color:var(--accent);white-space:nowrap;display:inline-block;">' + badgeRef + '</span>!';
-    });
-
     var isOverlay = context === 'overlay';
     var pad = isOverlay ? '10px 12px' : '12px 14px';
     var fontSize = isOverlay ? '0.78rem' : '0.82rem';
-    var avatarSize = isOverlay ? '1.2rem' : '1.6rem';
+    var avatarPx = isOverlay ? 28 : 32;
     var borderR = isOverlay ? '12px' : '14px';
-
-    // Emoji reactions — show existing counts + a ➕ button to open the full picker
-    var reactions = m.reactions || {};
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var reactHtml = _buildAnnReactBar(docId, m.reactions || {}, myUid, esc);
+    var badgePost = ggTrustedBadgeIds(m) !== null || (m && m.isNachoAuto === true && /earned a badge: /.test(String(m.text || '')));
 
-    return '<div data-ann-id="'+esc(docId)+'" style="display:flex;gap:10px;align-items:flex-start;padding:'+pad+';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:'+borderR+';">' +
-        '<div style="font-size:'+avatarSize+';flex-shrink:0;line-height:1;padding-top:2px;">🦌</div>' +
-        '<div style="flex:1;min-width:0;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-                '<span style="font-size:0.75rem;font-weight:700;color:#22c55e;">🦌 Nacho</span>' +
-                (timeStr ? '<span style="font-size:0.65rem;color:var(--text-faint);">'+esc(timeStr)+'</span>' : '') +
-            '</div>' +
-            '<div style="font-size:'+fontSize+';color:var(--text);line-height:1.5;word-break:break-word;">'+text+'</div>' +
-            reactHtml +
-        '</div>' +
-    '</div>';
+    var root = document.createElement('div');
+    root.setAttribute('data-ann-id', docId);
+    root.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:' + pad + ';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:' + borderR + ';';
+
+    var avatar = document.createElement('img');
+    avatar.src = '/nacho-deer.svg';
+    avatar.alt = '';
+    avatar.width = avatarPx;
+    avatar.height = avatarPx;
+    avatar.draggable = false;
+    avatar.style.cssText = 'width:' + avatarPx + 'px;height:' + avatarPx + 'px;flex-shrink:0;object-fit:contain;';
+    avatar.addEventListener('error', function() {
+        if (avatar.dataset.fb) return;
+        avatar.dataset.fb = '1';
+        var fallback = document.createElement('span');
+        fallback.textContent = '\uD83E\uDD8C';
+        fallback.style.fontSize = avatarPx + 'px';
+        fallback.style.lineHeight = '1';
+        if (avatar.parentNode) avatar.parentNode.replaceChild(fallback, avatar);
+    });
+
+    var body = document.createElement('div');
+    body.style.cssText = 'flex:1;min-width:0;';
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;';
+    var nameEl = document.createElement('span');
+    nameEl.style.cssText = 'font-size:0.75rem;font-weight:700;color:#22c55e;';
+    nameEl.textContent = 'Nacho';
+    head.appendChild(nameEl);
+    if (timeStr) {
+        var timeEl = document.createElement('span');
+        timeEl.style.cssText = 'font-size:0.65rem;color:var(--text-faint);';
+        timeEl.textContent = timeStr;
+        head.appendChild(timeEl);
+    }
+    var textEl = document.createElement('div');
+    textEl.style.cssText = 'font-size:' + fontSize + ';color:var(--text);line-height:1.5;word-break:break-word;';
+    if (badgePost) {
+        ggAppendBadgeBody(textEl, m);
+    } else {
+        textEl.innerHTML = text;
+    }
+    body.appendChild(head);
+    body.appendChild(textEl);
+    var reactHost = document.createElement('div');
+    reactHost.innerHTML = reactHtml;
+    if (reactHost.firstChild) body.appendChild(reactHost.firstChild);
+    root.appendChild(avatar);
+    root.appendChild(body);
+    return root;
 }
+window._renderAnnouncementItem = _renderAnnouncementItem;
 
 // Toggle emoji reaction on an announcement doc
 window._toggleAnnouncementReaction = function(docId, emoji) {

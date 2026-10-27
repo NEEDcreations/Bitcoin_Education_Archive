@@ -3858,9 +3858,9 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Your Exploration Map on the homepage shows every channel you've visited. Try to light them all up! 🗺️" },
     { pose: 'point', text: "💡 Tip: Channels you've already read get a ✓ checkmark in the sidebar. Track your progress!" },
     // Points & Ranking
-    { pose: 'brain', text: "💡 Tip: You earn XP by visiting daily (+5), opening new topics (+10), and reading (+15 per 30 sec)!" },
+    { pose: 'brain', text: "💡 Tip: You earn XP by visiting daily (+5) and opening a new topic (+10). The full list is in Settings → Sats." },
     { pose: 'point', text: "💡 Tip: Check the leaderboard to see how you rank against other Bitcoiners! Click your rank bar at the bottom." },
-    { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
+    { pose: 'fire', text: "💡 Tip: Keep a daily streak going. Streak badges pay the XP. The list is in Settings → Sats." },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
     // Tickets & Rewards
     { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in and exploring! 🎫" },
@@ -8723,8 +8723,7 @@ window.articleSubmit = async function() {
         localStorage.removeItem('btc_article_draft');
         if (window._articleAutoSave) clearInterval(window._articleAutoSave);
         
-        // Awards
-        if (typeof awardPoints === 'function') awardPoints(30, '📝 Article published');
+        // XP is paid by the article trigger from the saved document. Tickets stay here.
         if (typeof awardTickets === 'function') awardTickets(20, '📝 Article published');
         var _ac = parseInt(localStorage.getItem('btc_articles_published') || '0'); localStorage.setItem('btc_articles_published', String(_ac + 1));
         
@@ -22610,6 +22609,25 @@ window.nachoQuizAnswer = function(btn, correct) {
         for (const page of APP_PAGES) {
             if (page.title.toLowerCase().includes(q) || page.keywords.includes(q) || page.desc.toLowerCase().includes(q)) {
                 appResults.push({ key: page.id, title: page.title, cat: '⚡ App', match: page.desc, action: page.action });
+            }
+        }
+        if (window.EARN_XP_SECTIONS && q.length >= 3) {
+            var earnHits = 0;
+            for (var ei = 0; ei < window.EARN_XP_SECTIONS.length && earnHits < 3; ei++) {
+                var earnSection = window.EARN_XP_SECTIONS[ei];
+                var earnTitle = String(earnSection.title || '').toLowerCase();
+                var earnBody = (earnSection.items || []).join('\n').replace(/<[^>]+>/g, '').toLowerCase();
+                var titleHit = earnTitle.indexOf(q) !== -1;
+                var bodyHit = q.length >= 4 && earnBody.indexOf(q) !== -1;
+                if (!titleHit && !bodyHit) continue;
+                earnHits++;
+                appResults.push({
+                    key: '_' + earnSection.id,
+                    title: earnSection.title + ' (' + earnSection.items.length + ')',
+                    cat: '⚡ How to Earn XP',
+                    match: 'Settings → Sats',
+                    action: "if(window.openEarnXpSection)window.openEarnXpSection('" + earnSection.id + "')"
+                });
             }
         }
 
