@@ -67,7 +67,7 @@ firebase.messaging().onBackgroundMessage(function (payload) {
 } catch (e) { /* FCM scripts are optional; cache and click handling still run */ }
 
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v2393';
+const CACHE_NAME = 'btc-archive-v2394';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
@@ -89,8 +89,7 @@ self.addEventListener('message', event => {
 
 self.addEventListener('install', event => {
   // skipWaiting immediately so the new SW is ready to serve when the page reloads.
-  // The update banner triggers a hard navigation (location.href = '/') rather than
-  // relying on the controllerchange/reload dance, which caused partial page loads.
+  // The Update button posts SKIP_WAITING to a waiting worker, then reloads once.
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(PRE_CACHE))

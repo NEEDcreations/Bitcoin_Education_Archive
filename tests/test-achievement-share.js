@@ -16,7 +16,8 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
+const LATEST = "Latest: A returning signed-in player sees their home as soon as the page paints.";
+const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
 const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
 
 test('sharing grants nothing and client claims are ignored', () => {
@@ -383,7 +384,7 @@ test('shown marker is an owner string and the worker OG is static', () => {
     });
 });
 
-test('pages ship one script, one Latest line, and the v2393 cache', () => {
+test('pages ship one script, one Latest line, and the v2394 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('achievement-share.js?v=20261026_v2391'));
@@ -392,11 +393,14 @@ test('pages ship one script, one Latest line, and the v2393 cache', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));
+    assert.ok(notes.includes(RAID));
+    assert.ok(!notes.includes('Latest: ' + RAID));
     assert.ok(notes.includes(SHARE_NOTE));
     assert.ok(!notes.includes('Latest: ' + SHARE_NOTE));
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2393'"));
+
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2394'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2391'));
     assert.ok(!read('sw.js').includes('btc-archive-v2386'));
     assert.ok(!read('sw.js').includes('btc-archive-v2410'));
