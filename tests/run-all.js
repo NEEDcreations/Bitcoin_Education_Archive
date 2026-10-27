@@ -71,6 +71,7 @@ const TESTS = [
     { name: 'Choose faction', file: 'test-choose-faction.js' },
     { name: 'User SF points', file: 'test-user-sf-points.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
+    { name: 'Daily spin grant', file: 'test-daily-spin-grant.js' },
     { name: 'Shared daily XP cap', file: 'test-daily-xp-cap.js' },
     { name: 'Proof of Walk daily cap', file: 'test-proof-of-walk.js' },
     { name: 'XP bank payout dry run', file: 'test-xp-bank-payout.js' },
