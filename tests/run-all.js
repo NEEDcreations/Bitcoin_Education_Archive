@@ -48,6 +48,7 @@ const TESTS = [
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
     { name: 'Trivia tally transaction', file: 'test-answer-trivia.js' },
     { name: 'Community result totals', file: 'test-community-results.js' },
+    { name: 'Optimistic poll and trivia', file: 'test-optimistic-results.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Leave', file: 'test-tctv-leave.js' },
