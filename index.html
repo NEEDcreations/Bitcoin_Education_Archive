@@ -2117,8 +2117,8 @@
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2371" defer></script>
-    <script src="achievement-share.js?v=20261026_v2384" defer></script>
-    <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
+    <script src="achievement-share.js?v=20261026_v2391" defer></script>
+    <script src="pvp-lobby-alert.js?v=20261026_v2391" defer></script>
     <script src="patches.js?v=20261026_v2385" defer></script>
     <script src="onboarding.js?v=20261026_v2373" defer></script>
     <script src="learning-quests.js?v=20261026_v2377" defer></script>
@@ -2137,11 +2137,11 @@
         var _lazyScripts = [
             'quests.js?v=20261026_v2381',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
-            'scholar.js?v=20261026_v2386','beats.js?v=20261023_v2349',
+            'pvp.js?v=20261026_v2391','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
+            'scholar.js?v=20261026_v2386','beats.js?v=20261026_v2391',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
-            'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2386',
+            'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2391',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
@@ -2198,14 +2198,14 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2379'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261023_v2349', 'global-chat.js?v=20261026_v2379'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261026_v2379'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261026_v2379'],
             'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2379'],
             'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2379'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
-            'pvp':           ['pvp.js?v=20261022_v2322'],
-            'proof-of-play': ['pvp.js?v=20261022_v2322', 'proof-of-play.js?v=20260609_pop'],
+            'pvp':           ['pvp.js?v=20261026_v2391'],
+            'proof-of-play': ['pvp.js?v=20261026_v2391', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261026_v2377'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
@@ -2214,7 +2214,7 @@
             'app':           ['quests.js?v=20261026_v2381'],
             'timechain-tv':  ['timechain-tv.js?v=20261026_v2383'],
             'tv':            ['timechain-tv.js?v=20261026_v2383'],
-            'cert':          ['shareable-certs.js?v=20261026_v2386']
+            'cert':          ['shareable-certs.js?v=20261026_v2391']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {

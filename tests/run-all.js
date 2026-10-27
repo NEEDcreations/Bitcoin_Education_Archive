@@ -57,6 +57,7 @@ const TESTS = [
     { name: 'Push Opt-in Migration', file: 'test-push-optin-migration.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Achievement share cards', file: 'test-achievement-share.js' },
+    { name: 'Share one link', file: 'test-share-one-link.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Flex day goal', file: 'test-flex-day.js' },
     { name: 'LNURL resolve', file: 'test-lnurl-resolve.js' },

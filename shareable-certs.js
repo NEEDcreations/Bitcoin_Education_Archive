@@ -5,6 +5,44 @@
 (function() {
 'use strict';
 
+var CERT_SHARE_LINE = 'Learn Bitcoin and earn sats on Bitcoin Quest 👇';
+var CERT_REF_RE = /^[A-Za-z0-9]{6,28}$/;
+
+function certReferralCode() {
+    try {
+        if (typeof liveRefCode === 'function') {
+            var live = String(liveRefCode() || '');
+            if (CERT_REF_RE.test(live)) return live;
+        }
+    } catch (e) {}
+    try {
+        if (typeof getReferralCode === 'function') {
+            var c = String(getReferralCode() || '');
+            if (CERT_REF_RE.test(c)) return c;
+        }
+    } catch (e2) {}
+    try {
+        if (typeof currentUser !== 'undefined' && currentUser && CERT_REF_RE.test(String(currentUser.referralCode || ''))) {
+            return String(currentUser.referralCode);
+        }
+    } catch (e3) {}
+    return '';
+}
+
+function certShareUrl(certId, code) {
+    var id = String(certId || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var c = arguments.length > 1 ? String(code || '') : certReferralCode();
+    if (!CERT_REF_RE.test(c)) c = '';
+    if (c && id) return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c) + '#cert/' + id;
+    if (id) return 'https://bitcoineducation.quest/#cert/' + id;
+    return 'https://bitcoineducation.quest';
+}
+
+function certShareText(title, certId, code) {
+    var url = arguments.length > 2 ? certShareUrl(certId, code) : certShareUrl(certId);
+    return 'I just earned my ' + title + ' certification from @BTCeduArchive! 🎓₿\n' + CERT_SHARE_LINE + '\n' + url;
+}
+
 // Generate a short unique cert ID
 function generateCertId() {
     return 'CERT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -29,7 +67,8 @@ async function saveCertToServer(type, name) {
 
 function showShareUI(certId, title, name) {
     if (!/^(?:CERT-)?[A-Za-z0-9-]{8,80}$/.test(String(certId || ''))) return;
-    var url = 'https://bitcoineducation.quest/#cert/' + certId;
+    var url = certShareUrl(certId);
+    var tweet = certShareText(title, certId);
 
     var overlay = document.createElement('div');
     overlay.id = 'certShareOverlay';
@@ -46,7 +85,7 @@ function showShareUI(certId, title, name) {
             '</div>' +
             '<button onclick="navigator.clipboard.writeText(\'' + url + '\');this.textContent=\'✅ Copied!\';setTimeout(function(){document.getElementById(\'certShareOverlay\').remove()},1000)" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">📋 Copy Share Link</button>' +
             '<div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">' +
-                '<a href="https://twitter.com/intent/tweet?text=' + encodeURIComponent('I just earned my ' + title + ' certification from @BTCeduArchive! 🎓₿ Verify: ' + url) + '" target="_blank" style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;font-weight:700;text-decoration:none;cursor:pointer;">𝕏 Share</a>' +
+                '<a href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(tweet) + '" target="_blank" style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;font-weight:700;text-decoration:none;cursor:pointer;">𝕏 Share</a>' +
                 '<a href="https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(url) + '" target="_blank" style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;font-weight:700;text-decoration:none;cursor:pointer;">💼 LinkedIn</a>' +
             '</div>' +
             '<button onclick="document.getElementById(\'certShareOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>' +
@@ -174,12 +213,13 @@ window.generateShareableCert = async function(type, title, name) {
     return null;
 };
 
+window.certShareUrl = certShareUrl;
+window.certShareText = certShareText;
 window.showCertShare = showShareUI;
 if (window._pendingCertShare && window._pendingCertShare.certId) {
     var _pendingShare = window._pendingCertShare;
     window._pendingCertShare = null;
     showShareUI(_pendingShare.certId, _pendingShare.title, _pendingShare.name);
 }
-
 console.log('[CERTS] Shareable certificates loaded');
 })();

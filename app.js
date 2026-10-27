@@ -1111,8 +1111,14 @@
         }
     };
 
+    function shareNote(text, url) {
+        var note = String(text || '');
+        if (url && note.indexOf(url) === -1) note = note + '\n\n' + url;
+        return note;
+    }
+
     function shareNostr(text, url) {
-        const note = text + '\n\n' + url;
+        var note = shareNote(text, url);
         // Copy to clipboard first
         navigator.clipboard.writeText(note).then(() => {
             showToast('📋 Note copied! Paste it in Primal to post.');
@@ -1752,6 +1758,31 @@
             setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '🔗 Copy Link'; }, 2000);
         });
     }
+
+    function channelShareParts(id) {
+        var hero = document.getElementById('hero');
+        var h1 = hero ? hero.querySelector('h1') : null;
+        var title = (h1 && h1.textContent) ? h1.textContent : String(id || '');
+        var text = title + ' — Bitcoin Education Archive';
+        var base = 'https://bitcoineducation.quest/#' + id;
+        var url = (typeof shareDeepUrl === 'function') ? shareDeepUrl(base) : base;
+        return { text: text, url: url };
+    }
+
+    function shareChannel(kind, id, btn) {
+        if (!/^[a-z0-9_-]+$/.test(String(id || ''))) return;
+        var parts = channelShareParts(id);
+        if (kind === 'x') {
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(parts.text) + '&url=' + encodeURIComponent(parts.url), '_blank', 'noopener,noreferrer');
+            return;
+        }
+        if (kind === 'nostr') {
+            shareNostr(parts.text, parts.url);
+            return;
+        }
+        if (kind === 'copy' && btn) copyLink(parts.url, btn);
+    }
+    window.shareChannel = shareChannel;
 
     // goRandom defined above with floating button support
 
@@ -2619,11 +2650,22 @@
     // =============================================
     // 📤 Share Answer
     // =============================================
+    function nachoSharePayload(text, code) {
+        var clean = String(text || '').slice(0, 1000).replace(/<[^>]+>/g, '').replace(/🦌/g, '');
+        if (typeof stripShareLinks === 'function') clean = stripShareLinks(clean);
+        var c = code == null ? (typeof liveRefCode === 'function' ? liveRefCode() : '') : String(code || '');
+        var url = /^[A-Za-z0-9]{6,28}$/.test(c)
+            ? 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c)
+            : 'https://bitcoineducation.quest';
+        var body = '🦌 I learned this from Nacho on Bitcoin Quest:\n\n' + clean.substring(0, 280) + '\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + url;
+        return { title: 'Bitcoin Fact from Nacho 🦌', text: body };
+    }
+
     window.nachoShareAnswer = function(text) {
-        var clean = text.replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
-        var shareText = '🦌 I learned this from Nacho at bitcoineducation.quest:\n\n' + clean.substring(0, 280);
+        var payload = nachoSharePayload(text);
+        var shareText = payload.text;
         if (navigator.share) {
-            navigator.share({ title: 'Bitcoin Fact from Nacho 🦌', text: shareText, url: 'https://bitcoineducation.quest' }).catch(function() {});
+            navigator.share(payload).catch(function() {});
         } else {
             // Fallback: copy to clipboard
             var ta = document.createElement('textarea');
@@ -4522,7 +4564,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof window.renderCertVerification === 'function') {
                 _showCertPage();
             } else {
-                var _certSrc = 'shareable-certs.js?v=20261026_v2386';
+                var _certSrc = 'shareable-certs.js?v=20261026_v2391';
                 var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
                 if (!_existingCertScript) {
                     var _certScript = document.createElement('script');
@@ -4741,8 +4783,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
         const isGallery = GALLERY_CHANNELS.includes(id);
 
-        const shareUrl = 'https://bitcoineducation.quest/#' + id;
-        const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
                 '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
@@ -4752,9 +4792,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
-                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'x\', \'' + id + '\')">𝕏 Share</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'nostr\', \'' + id + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'copy\', \'' + id + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
@@ -6295,6 +6335,7 @@ if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
 if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;
 if (typeof copyLink !== 'undefined') window.copyLink = copyLink;
+if (typeof shareChannel !== 'undefined') window.shareChannel = shareChannel;
 if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
 if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;

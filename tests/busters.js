@@ -1,19 +1,19 @@
 // Cache-buster pin. This ship is btc-archive-v2391.
-// gh-pages shipped #131 at v2386. timechain-tv.js stays 20261026_v2383.
-// bundle.min.js is 20261026_v2391. patches.js stays 20261026_v2385.
-// scholar.js and shareable-certs.js stay 20261026_v2386.
+// gh-pages shipped #136 at v2390 and #131 at v2386.
+// timechain-tv.js stays 20261026_v2383. scholar.js stays 20261026_v2386.
+// patches.js stays 20261026_v2385. bundle.min.js is 20261026_v2391.
 // earn-xp-guide.js, ranking.js, and guide.js stay 20261026_v2382.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // global-chat.js stays 20261026_v2379. gifting.js stays 20261026_v2378. quests.js stays 20261026_v2381.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js stays 20261026_v2373. today-card.js stays 20261026_v2371.
-// features.registry.js stays 20261024_v2368. achievement-share.js is 20261026_v2384.
+// features.registry.js stays 20261024_v2368. achievement-share.js is 20261026_v2391.
 // patches.js stays 20261026_v2385. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261026_v2378.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
-// beats.js stays 20261023_v2349. guide.js stays 20261026_v2382.
+// beats.js, shareable-certs.js, pvp.js, and pvp-lobby-alert.js are 20261026_v2391. guide.js stays 20261026_v2382.
 // tctv-watch.js stays 20261023_v2340.
 // learning-quests.js and modules.js stay 20261026_v2377. scholar.js is 20261026_v2386.
 // lightning.js stays 20261023_v2323.
@@ -38,6 +38,7 @@ function test(name, fn) {
 test('service worker cache is v2391', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2391'"));
+    assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2410'));
     assert.ok(!sw.includes('btc-archive-v2385'));
     assert.ok(!sw.includes('btc-archive-v2425'));
@@ -61,6 +62,7 @@ test('service worker cache is v2391', () => {
     assert.ok(!sw.includes('btc-archive-v2392'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2390'));
+    assert.ok(!sw.includes('btc-archive-v2385'));
     assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
@@ -100,6 +102,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual(html, read('404.html'));
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2391/g) || []).length, 2);
     assert.ok(html.includes('bundle.min.js?v=20261026_v2391'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2390'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2386'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2385'));
     assert.ok(!html.includes('bundle.min.js?v=20261027_v2425'));
@@ -190,9 +193,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261023_v2324'));
     assert.ok(html.includes('scholar.js?v=20261026_v2386'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2410'));
-    assert.strictEqual((html.match(/shareable-certs\.js\?v=20261026_v2386/g) || []).length, 2);
+    assert.strictEqual((html.match(/shareable-certs\.js\?v=20261026_v2391/g) || []).length, 2);
+    assert.ok(!html.includes('shareable-certs.js?v=20261026_v2386'));
     assert.ok(!html.includes('shareable-certs.js?v=20261026_v2410'));
-    assert.ok(read('app.js').includes("shareable-certs.js?v=20261026_v2386"));
+    assert.ok(read('app.js').includes("shareable-certs.js?v=20261026_v2391"));
     assert.ok(!html.includes('scholar.js?v=20261026_v2377'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2379'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2378'));
@@ -265,12 +269,22 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2252'));
-    assert.ok(html.includes('beats.js?v=20261023_v2349'));
+    assert.ok(html.includes('beats.js?v=20261026_v2391'));
+    assert.ok(!html.includes('beats.js?v=20261026_v2390'));
+    assert.ok(!html.includes('beats.js?v=20261023_v2349'));
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
-    assert.ok(html.includes('achievement-share.js?v=20261026_v2384'));
+    assert.ok(html.includes('achievement-share.js?v=20261026_v2391'));
+    assert.ok(!html.includes('achievement-share.js?v=20261026_v2390'));
+    assert.ok(!html.includes('achievement-share.js?v=20261026_v2384'));
+    assert.ok(html.includes('shareable-certs.js?v=20261026_v2391'));
+    assert.ok(!html.includes('shareable-certs.js?v=20261026_v2390'));
+    assert.ok(html.includes('pvp.js?v=20261026_v2391'));
+    assert.ok(!html.includes('pvp.js?v=20261026_v2390'));
+    assert.ok(html.includes('pvp-lobby-alert.js?v=20261026_v2391'));
+    assert.ok(!html.includes('pvp-lobby-alert.js?v=20261026_v2390'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2359'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2358'));
@@ -282,7 +296,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
-    assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261023_v2349'));
+    assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261026_v2391'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
     assert.ok(html.includes('nacho-qa.js?v=20261024_v2350'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2349'));
@@ -417,7 +431,11 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('October 26, 2026 · v2386'));
+    assert.ok(notes.includes('October 26, 2026 · v2391'));
+    assert.ok(notes.includes('A share post now carries one link, your referral link, and the tagline no longer repeats the site name.'));
+    assert.ok(!notes.includes('Latest: A share post'));
+    assert.ok(notes.includes('A quest waits while you write a comment or question. Not now brings you back to that conversation with your words, and the quest is still there later.'));
+    assert.ok(!notes.includes('Latest: A quest waits'));
     assert.ok(!notes.includes('October 26, 2026 · v2379'));
     assert.ok(notes.includes('Latest: Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));
     assert.ok(notes.includes('Fixed: the Invite button and Invites tile on the homepage open your invite card again.'));
