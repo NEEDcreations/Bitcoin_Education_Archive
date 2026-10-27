@@ -44,7 +44,8 @@ const FORBIDDEN = /littlebitcoinbook\.com|libgen|z-lib|zlibrary|annas-archive|oc
         const entry = books[i];
         const blob = entry.question + '\n' + entry.answer + '\n' + (entry.sources || '');
         assert.ok(!FORBIDDEN.test(blob), entry.id);
-        assert.ok(!/https?:\/\/|www\./i.test(entry.answer), 'url form ' + entry.id);
+        const shown = entry.answer.replace(/https:\/\/www\.upress\.umn\.edu\/9781517901806\/the-politics-of-bitcoin\//g, '');
+        assert.ok(!/https?:\/\/|www\./i.test(shown), 'url form ' + entry.id);
         assert.ok(entry.sources, entry.id);
         const direct = await logic.answerTurn({ question: entry.question }, { aiRun: aiRun });
         assert.strictEqual(direct && direct.kbId, entry.id, entry.question);

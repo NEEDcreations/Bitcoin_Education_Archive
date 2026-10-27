@@ -201,7 +201,7 @@ var PREMIUM_CONFIG = {
 
 // ---- Education topic cache buster ----
 // Appended to channel JSON fetches so a data edit is not stuck in the SW cache.
-var DATA_CACHE_BUSTER = '20261027a';
+var DATA_CACHE_BUSTER = '20261027b';
 function withDataCacheBuster(url) {
     if (!url || typeof url !== 'string') return url;
     if (/[?&]v=/.test(url)) return url;

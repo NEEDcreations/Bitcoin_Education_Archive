@@ -500,7 +500,7 @@ export const PART_H = [].concat(
     [
         "books-blocksize",
         "What is The Blocksize War book about?",
-        "The Blocksize War by Jonathan Bier is a history of Bitcoin's fight over the block data limit from August 2015 to November 2017. The author's own synopsis says the surface issue was how much data a block may hold, and the deeper issue was who sets protocol rules. The chapters are free on the author's site at farside.co.uk/the-blocksize-war/.",
+        "The Blocksize War by Jonathan Bier is a history of Bitcoin's fight over the block data limit from August 2015 to November 2017. The author's own synopsis says the surface issue was how much data a block may hold, and the deeper issue was who sets protocol rules. The chapters were published weekly on the BitMEX Research blog from 22 March 2021, and Farside hosts them now at farside.co.uk/the-blocksize-war-chapter-1-first-strike/.",
         [
             "books",
             "history",
@@ -533,7 +533,7 @@ export const PART_H = [].concat(
     [
         "books-blocksize-proposals",
         "Which proposals does The Blocksize War cover?",
-        "The free Victory chapter names Bitcoin XT, Bitcoin Classic, and Bitcoin Unlimited as proposals that fell, and it treats SegWit2x as the plan withdrawn in November 2017. The book is a chronology of those fights, not a manual for splitting the chain. Start at farside.co.uk/the-blocksize-war/.",
+        "The free Victory chapter names Bitcoin XT, Bitcoin Classic, and Bitcoin Unlimited as proposals that fell, and it treats SegWit2x as the plan withdrawn in November 2017. The book is a chronology of those fights, not a manual for splitting the chain. The chapters start at farside.co.uk/the-blocksize-war-chapter-1-first-strike/.",
         [
             "books",
             "history",
@@ -544,18 +544,18 @@ export const PART_H = [].concat(
     [
         "books-blocksize-read",
         "Where can I read The Blocksize War for free?",
-        "Jonathan Bier published all 21 chapters on his firm's site, Farside Investors, starting March 22, 2021. The BitMEX Research blog copies are no longer the chapter text. Use the author's pages at farside.co.uk/the-blocksize-war/.",
+        "Jonathan Bier published all 21 chapters weekly on the BitMEX Research blog from 22 March 2021. Farside hosts them now, and the old BitMEX blog no longer shows the chapter text. The first chapter is at farside.co.uk/the-blocksize-war-chapter-1-first-strike/.",
         [
             "books",
             "history",
             "satoshi-nakamoto"
         ],
-        "farside.co.uk book announcement: 21 chapters weekly from 22 Mar 2021. BitMEX blog URL now serves a wind-down homepage (checked 2026-10-27)."
+        "Chapters published weekly on the BitMEX Research blog from 22 March 2021. Farside hosts them at https://farside.co.uk/the-blocksize-war-chapter-1-first-strike/. The BitMEX blog URL now serves a wind-down homepage (checked 2026-10-27)."
     ],
     [
         "books-blocksize-rules",
         "What deeper question does The Blocksize War ask?",
-        "Bier writes that a fight about block space exposed who is allowed to change Bitcoin's rules. His account includes conversations with people on both sides. The synopsis and chapters are at farside.co.uk/the-blocksize-war/.",
+        "Bier writes that a fight about block space exposed who is allowed to change Bitcoin's rules. His account includes conversations with people on both sides. The chapters start at farside.co.uk/the-blocksize-war-chapter-1-first-strike/.",
         [
             "books",
             "history",
@@ -852,13 +852,13 @@ export const PART_H = [].concat(
     [
         "books-blocksize-count",
         "How many chapters does The Blocksize War have?",
-        "The author published 21 chapters, one a week starting March 22, 2021, on his firm's site. A paid book exists too, and the free chapters are those pages. Start at farside.co.uk/the-blocksize-war/.",
+        "The book has 21 chapters. They were published weekly on the BitMEX Research blog from 22 March 2021, and Farside hosts them now. The first chapter is at farside.co.uk/the-blocksize-war-chapter-1-first-strike/.",
         [
             "books",
             "history",
             "satoshi-nakamoto"
         ],
-        "farside.co.uk announcement: 21 chapters weekly from 22 Mar 2021."
+        "BitMEX Research blog, weekly from 22 March 2021. Farside copy: https://farside.co.uk/the-blocksize-war-chapter-1-first-strike/."
     ],
     [
         "books-blocksize-surface",
@@ -984,18 +984,18 @@ export const PART_H = [].concat(
     [
         "books-politics-bitcoin",
         "What is The Politics of Bitcoin about?",
-        "The Politics of Bitcoin, by David Golumbia, was published in 2016 by the University of Minnesota Press in the Forerunners series. The publisher says the book argues that much Bitcoin politics draws on cyberlibertarian and right-wing ideas, including economists and central-bank conspiracies. This is a neutral summary of that argument, at upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
+        "The Politics of Bitcoin, by David Golumbia, was published in 2016 by the University of Minnesota Press in the Forerunners series. The publisher says the book argues that much Bitcoin politics draws on cyberlibertarian and right-wing ideas, including economists and central-bank conspiracies. This is a neutral summary of that argument, at https://www.upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
         [
             "books",
             "politics",
             "history"
         ],
-        "Publisher page upress.umn.edu/9781517901806/the-politics-of-bitcoin/ description and TOC, fetched 2026-10-27. No free full text confirmed on the publisher site. Not a pirate PDF."
+        "Publisher page https://www.upress.umn.edu/9781517901806/the-politics-of-bitcoin/ description and TOC, fetched 2026-10-27. No free full text confirmed on the publisher site. Not a pirate PDF."
     ],
     [
         "books-politics-who",
         "Who wrote The Politics of Bitcoin?",
-        "David Golumbia wrote it. The press page notes that he taught at Virginia Commonwealth University and lived from 1963 to 2023. The book is a critique, so it is one scholar's argument. The publisher page is upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
+        "David Golumbia wrote it. The press page notes that he taught at Virginia Commonwealth University and lived from 1963 to 2023. The book is a critique, so it is one scholar's argument. The publisher page is https://www.upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
         [
             "books",
             "politics",
@@ -1006,7 +1006,7 @@ export const PART_H = [].concat(
     [
         "books-politics-chapters",
         "What chapters are in The Politics of Bitcoin?",
-        "The press lists six chapters: Bitcoin and digital culture and right-wing politics, central banking and inflation, an overview of Bitcoin, central-banking conspiracy theories, software as a political program, and the future of Bitcoin and the blockchain. Those are the contents titles only. See upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
+        "The press lists six chapters: Bitcoin and digital culture and right-wing politics, central banking and inflation, an overview of Bitcoin, central-banking conspiracy theories, software as a political program, and the future of Bitcoin and the blockchain. Those are the contents titles only. See https://www.upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
         [
             "books",
             "politics",
@@ -1017,7 +1017,7 @@ export const PART_H = [].concat(
     [
         "books-politics-free",
         "Is The Politics of Bitcoin free to read?",
-        "A publisher-hosted free file was not confirmed. Project MUSE lists the ebook as not open access, so this entry does not link a PDF. Use the University of Minnesota Press page at upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
+        "A publisher-hosted free file was not confirmed. Project MUSE lists the ebook as not open access, so this entry does not link a PDF. Use the University of Minnesota Press page at https://www.upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
         [
             "books",
             "politics",
@@ -2062,18 +2062,18 @@ export const PART_H = [].concat(
     [
         "books-learn-posch",
         "What is (L)earn Bitcoin by Anita Posch?",
-        "Anita Posch's book, listed in 2021, covers why and how a person might start with Bitcoin, from technology to politics. A manuscript is on her GitHub, and excerpts may be shared with attribution. The repo is github.com/anitaposch/learn-bitcoin.",
+        "Anita Posch's book, listed in 2021, covers why and how a person might start with Bitcoin, from technology to politics. A manuscript is on her GitHub, and excerpts may be shared with attribution. The repo is github.com/anitaonl/learn-bitcoin.",
         [
             "books",
             "curriculum",
             "money"
         ],
-        "Catalog: github.com/anitaposch/learn-bitcoin, copyrighted, excerpts with attribution. learnbitcoin.link was a live site on 2026-10-27. btcbooks.org/l-earn-bitcoin."
+        "Catalog: github.com/anitaonl/learn-bitcoin, copyrighted, excerpts with attribution. learnbitcoin.link was a live site on 2026-10-27. btcbooks.org/l-earn-bitcoin."
     ],
     [
         "books-learn-posch-free",
         "Is Anita Posch's Bitcoin book free?",
-        "The full book is copyrighted. The GitHub manuscript and the permission to excerpt with attribution are what is free, not a complete giveaway. The repo is github.com/anitaposch/learn-bitcoin.",
+        "The full book is copyrighted. The GitHub manuscript and the permission to excerpt with attribution are what is free, not a complete giveaway. The repo is github.com/anitaonl/learn-bitcoin.",
         [
             "books",
             "curriculum",
@@ -2084,7 +2084,7 @@ export const PART_H = [].concat(
     [
         "books-learn-posch-who",
         "Who wrote (L)earn Bitcoin?",
-        "Anita Posch wrote it. The catalog dates the listing to July 22, 2021. Her manuscript repo is github.com/anitaposch/learn-bitcoin.",
+        "Anita Posch wrote it. The catalog dates the listing to July 22, 2021. Her manuscript repo is github.com/anitaonl/learn-bitcoin.",
         [
             "books",
             "curriculum",
@@ -2348,7 +2348,7 @@ export const PART_H = [].concat(
     [
         "books-critics-path",
         "Which books criticize Bitcoin?",
-        "The Politics of Bitcoin, by David Golumbia, argues that Bitcoin's politics lean cyberlibertarian, and Hijacking Bitcoin argues the project was captured. Both are included here as arguments, not as facts. Golumbia's publisher page is upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
+        "The Politics of Bitcoin, by David Golumbia, argues that Bitcoin's politics lean cyberlibertarian, and Hijacking Bitcoin argues the project was captured. Both are included here as arguments, not as facts. Golumbia's publisher page is https://www.upress.umn.edu/9781517901806/the-politics-of-bitcoin/.",
         [
             "books",
             "politics",

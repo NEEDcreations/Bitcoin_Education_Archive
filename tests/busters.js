@@ -308,7 +308,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
     assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261026_v2391'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
-    assert.ok(html.includes('nacho-qa.js?v=20261024_v2350'));
+    assert.ok(html.includes('nacho-qa.js?v=20261027_v2395'));
+    assert.ok(!html.includes('nacho-qa.js?v=20261024_v2350'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2349'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2348'));
     assert.ok(!html.includes('nacho-qa.js?v=20261023_v2346'));
