@@ -1146,7 +1146,7 @@
         if (!d || d.getElementById('bqShareCss')) return;
         var style = d.createElement('style');
         style.id = 'bqShareCss';
-        style.textContent = '.bq-streak-share{min-width:44px;min-height:44px;width:44px;height:44px;padding:0;border-radius:10px;border:1px solid #7c2d12;background:#1c0f07;color:#fff7ed;font-size:18px;font-weight:800;line-height:1;cursor:pointer;flex:0 0 44px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;}#bqShareSheet button{min-width:44px;min-height:44px;}@media (max-width:360px){#bqShareSheet .bq-share-actions{gap:6px;}}';
+        style.textContent = '.bq-streak-share,.mobile-bar .bq-streak-share{min-width:44px;min-height:44px;width:44px;height:44px;padding:0;border-radius:10px;border:1px solid #7c2d12;background:#1c0f07;color:#fff7ed;font-size:18px;font-weight:800;line-height:1;cursor:pointer;flex:0 0 44px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;box-sizing:border-box;}#bqShareSheet button{min-width:44px;min-height:44px;}@media (max-width:360px){#bqShareSheet .bq-share-actions{gap:6px;}}';
         (d.head || d.documentElement).appendChild(style);
     }
 
