@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2390" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2391" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -602,8 +602,8 @@
         .quest-submit { width: 100%; padding: 16px; background: var(--accent); color: #fff; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 20px; transition: 0.2s; }
         .quest-submit:disabled { opacity: 0.4; cursor: not-allowed; }
         .quest-submit:not(:disabled):hover { filter: brightness(1.1); }
-        .quest-skip { width: 100%; padding: 12px; background: none; border: none; color: var(--text-faint); font-size: 0.9rem; cursor: pointer; font-family: inherit; margin-top: 8px; }
-        .quest-skip:hover { color: var(--text-dim); }
+        .quest-not-now, .quest-skip { width: 100%; min-height: 48px; padding: 12px 16px; background: transparent; border: 2px solid #f7931a; border-radius: 12px; color: #f7931a; font-size: 1rem; font-weight: 800; cursor: pointer; font-family: inherit; margin-top: 8px; }
+        .quest-not-now:hover, .quest-skip:hover { background: rgba(247,147,26,0.12); color: #ffb347; }
         .quest-result { text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
         .quest-result-msg { font-size: 1.3rem; font-weight: 800; color: var(--heading); margin-bottom: 20px; }
         .quest-retry { width: 100%; padding: 14px; background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 12px; color: var(--accent); font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; margin-bottom: 10px; }
@@ -1921,7 +1921,7 @@
         </div>
     </div>
 
-    <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
+    <div id="questModal" role="dialog" aria-modal="true" aria-hidden="true" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else if (typeof window.btcDismissQuest==='function') { window.btcDismissQuest('backdrop'); } else { closeQuest(); } }"><div id="questInner"></div></div>
     <!-- FAB row: More tools | Chat, with Nacho in the right slot. AI, Metrics, and Leaderboard stack above More tools. -->
     <button id="fabMinimizeBtn" type="button" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
     <button id="fabExpandBtn" type="button" onclick="toggleFabMinimize()" title="More tools" aria-label="More tools" aria-expanded="false" aria-controls="aiToolsBtn dashboardFloatBtn lbFloatBtn">⋯</button>
@@ -2113,12 +2113,12 @@
     <script src="ranking.js?v=20261026_v2382" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2390" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2391" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2371" defer></script>
-    <script src="achievement-share.js?v=20261026_v2390" defer></script>
-    <script src="pvp-lobby-alert.js?v=20261026_v2390" defer></script>
+    <script src="achievement-share.js?v=20261026_v2391" defer></script>
+    <script src="pvp-lobby-alert.js?v=20261026_v2391" defer></script>
     <script src="patches.js?v=20261026_v2385" defer></script>
     <script src="onboarding.js?v=20261026_v2373" defer></script>
     <script src="learning-quests.js?v=20261026_v2377" defer></script>
@@ -2137,11 +2137,11 @@
         var _lazyScripts = [
             'quests.js?v=20261026_v2381',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261026_v2390','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
-            'scholar.js?v=20261026_v2386','beats.js?v=20261026_v2390',
+            'pvp.js?v=20261026_v2391','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
+            'scholar.js?v=20261026_v2386','beats.js?v=20261026_v2391',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
-            'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2390',
+            'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2391',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
@@ -2198,14 +2198,14 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2390', 'global-chat.js?v=20261026_v2379'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2390', 'global-chat.js?v=20261026_v2379'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261026_v2379'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261026_v2379'],
             'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2379'],
             'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261026_v2379'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
-            'pvp':           ['pvp.js?v=20261026_v2390'],
-            'proof-of-play': ['pvp.js?v=20261026_v2390', 'proof-of-play.js?v=20260609_pop'],
+            'pvp':           ['pvp.js?v=20261026_v2391'],
+            'proof-of-play': ['pvp.js?v=20261026_v2391', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261026_v2377'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
@@ -2214,7 +2214,7 @@
             'app':           ['quests.js?v=20261026_v2381'],
             'timechain-tv':  ['timechain-tv.js?v=20261026_v2383'],
             'tv':            ['timechain-tv.js?v=20261026_v2383'],
-            'cert':          ['shareable-certs.js?v=20261026_v2390']
+            'cert':          ['shareable-certs.js?v=20261026_v2391']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {

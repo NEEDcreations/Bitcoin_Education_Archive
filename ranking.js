@@ -9242,6 +9242,7 @@ async function signOutUser(force) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
     }
     clearUserLocalStorage();
+    if (typeof window.bqClearTopicDrafts === 'function') window.bqClearTopicDrafts();
     await auth.signOut();
     location.reload();
 }

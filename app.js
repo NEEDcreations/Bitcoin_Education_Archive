@@ -3972,9 +3972,23 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close settings/username modal
             var um = document.getElementById('usernameModal');
             if (um && um.classList.contains('open')) { if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt(); return; }
-            // Close quest modal
+            // Close quest modal. A scholar exam keeps its own cancel path.
             var qm = document.getElementById('questModal');
-            if (qm && qm.classList.contains('open')) { qm.classList.remove('open'); return; }
+            if (qm && qm.classList.contains('open')) {
+                if (window._scholarExamActive) { qm.classList.remove('open'); return; }
+                if (typeof window.btcDismissQuest === 'function') { window.btcDismissQuest('esc'); return; }
+                qm.classList.remove('open');
+                return;
+            }
+            var triviaBubble = document.getElementById('nacho-bubble');
+            if (triviaBubble && triviaBubble.classList.contains('show') && triviaBubble.getAttribute('data-trivia') === '1') {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') { window.btcDismissBubbleQuiz('esc'); return; }
+                if (typeof window.btcDismissNachoTrivia === 'function') { window.btcDismissNachoTrivia('esc'); return; }
+            }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('esc');
+                return;
+            }
             // Close search overlay
             var so = document.getElementById('searchOverlay');
             if (so && so.style.display !== 'none') { so.style.display = 'none'; so.removeAttribute('data-open'); return; }
@@ -4550,7 +4564,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof window.renderCertVerification === 'function') {
                 _showCertPage();
             } else {
-                var _certSrc = 'shareable-certs.js?v=20261026_v2390';
+                var _certSrc = 'shareable-certs.js?v=20261026_v2391';
                 var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
                 if (!_existingCertScript) {
                     var _certScript = document.createElement('script');
@@ -5804,9 +5818,26 @@ if (locked) {
             if (_learnMenu) { _learnMenu.remove(); return; }
             var _appsMenu = document.getElementById('appsMenu');
             if (_appsMenu && _appsMenu.style.display === 'block') { _appsMenu.style.display = 'none'; return; }
-            // Close quest/scholar modal if open
+            // Close a quest before leaving the page. The button path sets the
+            // pending flag and lets this pop finish the dismiss.
             var _questModal = document.getElementById('questModal');
+            if (window._btcQuestBackPending || (_questModal && _questModal.classList.contains('open') && !window._scholarExamActive)) {
+                if (typeof window.btcDismissQuest === 'function') window.btcDismissQuest('back');
+                else if (_questModal) _questModal.classList.remove('open');
+                return;
+            }
             if (_questModal && _questModal.classList.contains('open')) { _questModal.classList.remove('open'); return; }
+            var _triviaBubble = document.getElementById('nacho-bubble');
+            if (window._btcBubbleBackPending || window._btcTriviaBackPending || (_triviaBubble && _triviaBubble.classList.contains('show') && _triviaBubble.getAttribute('data-trivia') === '1')) {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') window.btcDismissBubbleQuiz('back');
+                else if (typeof window.btcDismissNachoTrivia === 'function') window.btcDismissNachoTrivia('back');
+                return;
+            }
+            if (window._tdConvoBackPending) { window._tdConvoBackPending = false; return; }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('back');
+                return;
+            }
 
             // Return to guide after exploring a feature
             if (state.returnToGuide) {

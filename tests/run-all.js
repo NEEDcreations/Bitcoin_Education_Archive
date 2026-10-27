@@ -82,6 +82,7 @@ const TESTS = [
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
+    { name: 'Quest defer', file: 'test-quest-defer.js' },
     { name: 'Topic Forum Mirror', file: 'test-topic-forum-mirror.js' },
     { name: 'Topic Conversation XP', file: 'test-topic-conversation-xp.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
