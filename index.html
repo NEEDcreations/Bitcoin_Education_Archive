@@ -69,7 +69,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261026_v2410" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261026_v2386" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -2113,12 +2113,13 @@
     <script src="ranking.js?v=20261026_v2382" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261026_v2410" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261026_v2386" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2371" defer></script>
+    <script src="achievement-share.js?v=20261026_v2384" defer></script>
     <script src="pvp-lobby-alert.js?v=20261022_v2322" defer></script>
-    <script src="patches.js?v=20261024_v2360" defer></script>
+    <script src="patches.js?v=20261026_v2385" defer></script>
     <script src="onboarding.js?v=20261026_v2373" defer></script>
     <script src="learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
@@ -2137,14 +2138,14 @@
             'quests.js?v=20261026_v2381',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261022_v2322','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
-            'scholar.js?v=20261026_v2410','beats.js?v=20261023_v2349',
+            'scholar.js?v=20261026_v2386','beats.js?v=20261023_v2349',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
-            'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2410',
+            'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2386',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261024_v2353',
+            'timechain-tv.js?v=20261026_v2383',
             'learning-quests.js?v=20261026_v2377',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
@@ -2211,9 +2212,9 @@
             'quests':        ['quests.js?v=20261026_v2381'],
             'questhub':      ['quests.js?v=20261026_v2381'],
             'app':           ['quests.js?v=20261026_v2381'],
-            'timechain-tv':  ['timechain-tv.js?v=20261024_v2353'],
-            'tv':            ['timechain-tv.js?v=20261024_v2353'],
-            'cert':          ['shareable-certs.js?v=20261026_v2410']
+            'timechain-tv':  ['timechain-tv.js?v=20261026_v2383'],
+            'tv':            ['timechain-tv.js?v=20261026_v2383'],
+            'cert':          ['shareable-certs.js?v=20261026_v2386']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {

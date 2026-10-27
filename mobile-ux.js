@@ -755,7 +755,7 @@ window.dismissIOSA2HS = function() {
 };
 
 // ---- Learn menu (desktop panel and mobile sheet share one renderer) ----
-window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2410';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2386';
 
 function learnExperienceMode() {
     var mode = '';
@@ -1027,7 +1027,7 @@ window.toggleMobileFlashcards = function() {
 };
 
 function initMobileUX() {
-    console.log('[MobileUX] Initializing...');
+    if (window.btcDebugLog) window.btcDebugLog('[MobileUX] Initializing...');
     initBottomNav();
     initScrollNav();
     initComposerKeyboard();
