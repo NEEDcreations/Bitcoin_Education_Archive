@@ -259,6 +259,30 @@ test('Nacho quotes drop other links, channel shares read the ref at click, and P
     assert.strictEqual(linkCount('Challenge me to a Bitcoin trivia battle right now! ⚔️\n' + displayed), 1);
 });
 
+test('stripShareLinks names path domains and leaves ordinary words alone', () => {
+    const tickets = loadFns(read('tickets.js'), ['stripShareLinks']);
+    assert.strictEqual(tickets.stripShareLinks('bitcoin.org/bitcoin.pdf'), 'bitcoin');
+    assert.strictEqual(tickets.stripShareLinks('99bitcoins.com/bitcoin-obituaries'), '99bitcoins');
+    assert.strictEqual(tickets.stripShareLinks('Read it free at bitcoin.org/bitcoin.pdf please'), 'Read it free at bitcoin please');
+    assert.strictEqual(tickets.stripShareLinks('The site 99bitcoins.com/bitcoin-obituaries tracks it'), 'The site 99bitcoins tracks it');
+    assert.strictEqual(tickets.stripShareLinks('**mempool.space**'), '**mempool**');
+    assert.strictEqual(tickets.stripShareLinks('mempool.space\u2019s'), 'mempool\u2019s');
+    assert.strictEqual(tickets.stripShareLinks('See BITCOIN.ORG today'), 'See BITCOIN today');
+    assert.strictEqual(tickets.stripShareLinks('Press ? to'), 'Press ? to');
+    assert.strictEqual(tickets.stripShareLinks('this.is fine'), 'this.is fine');
+    assert.strictEqual(tickets.stripShareLinks('hello  there'), 'hello there');
+    const app = loadFns(read('app.js'), ['nachoSharePayload'], { stripShareLinks: tickets.stripShareLinks });
+    const deer = app.nachoSharePayload('Hello 🦌 world', 'abc12345');
+    assert.ok(deer.text.includes('Hello world'));
+    assert.strictEqual(deer.text.includes('Helloworld'), false);
+    const canned = app.nachoSharePayload('Read bitcoin.org/bitcoin.pdf and 99bitcoins.com/bitcoin-obituaries', 'abc12345');
+    assert.strictEqual(linkCount(canned.text), 1);
+    assert.strictEqual(canned.text.includes('bitcoin.org'), false);
+    assert.strictEqual(canned.text.includes('99bitcoins.com'), false);
+    assert.ok(canned.text.includes('bitcoin'));
+    assert.ok(canned.text.includes('99bitcoins'));
+});
+
 test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
     const tickets = loadFns(read('tickets.js'), ['stripShareLinks']);
     const big = 'a.'.repeat(500000);

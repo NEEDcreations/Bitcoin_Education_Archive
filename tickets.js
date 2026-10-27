@@ -71,7 +71,7 @@ function shareDeepUrl(baseUrl, code) {
 
 function stripShareLinks(text) {
     var s = String(text || '').slice(0, 1000);
-    var tlds = ' com org net io space quest info xyz app dev co me gg tv ly so to us uk news money finance bitcoin edu gov biz online site store tech live world cloud link page wiki blog shop ai cc is it de fr ca au nz in jp nl se no fi ch at be es pt br mx club fun pro network media one bio cash email social exchange market fund example ';
+    var tlds = ' com org net io space quest info xyz app dev co me gg tv ly so to us uk news money finance bitcoin edu gov biz online site store tech live world cloud link page wiki blog shop ai cc it de fr ca au nz in jp nl se no fi ch at be es pt br mx club fun pro network media one bio cash email social exchange market fund example ';
     function isGap(ch) {
         return ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' ||
             ch === '<' || ch === '>' || ch === '"' || ch === "'" ||
@@ -91,20 +91,59 @@ function stripShareLinks(text) {
     }
     function domainName(token) {
         var i, ch, p;
-        if (!token || token.indexOf('.') < 0 || token.indexOf('@') !== -1) return null;
-        for (i = 0; i < token.length; i++) {
-            ch = token.charAt(i);
+        if (!token || token.indexOf('@') !== -1) return null;
+        var slash = token.indexOf('/');
+        var host = slash === -1 ? token : token.slice(0, slash);
+        if (!host || host.indexOf('.') < 0) return null;
+        for (i = 0; i < host.length; i++) {
+            ch = host.charAt(i);
             if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch === '.' || ch === '-')) return null;
         }
-        var parts = token.split('.');
+        var parts = host.split('.');
         if (parts.length < 2) return null;
-        var tld = parts[parts.length - 1];
-        if (!tld || tld !== tld.toLowerCase() || tlds.indexOf(' ' + tld + ' ') === -1) return null;
+        var tld = parts[parts.length - 1].toLowerCase();
+        if (!tld || tlds.indexOf(' ' + tld + ' ') === -1) return null;
         for (i = 0; i < parts.length; i++) {
             p = parts[i];
             if (!p || p.length > 63 || p.charAt(0) === '-' || p.charAt(p.length - 1) === '-') return null;
         }
         return parts[parts.length - 2];
+    }
+    function rewrite(token) {
+        var lead = '';
+        var trail = '';
+        var core = token;
+        var wrap = '*_\'"\u2018\u2019\u201c\u201d';
+        while (core && wrap.indexOf(core.charAt(0)) !== -1) {
+            lead += core.charAt(0);
+            core = core.slice(1);
+        }
+        while (core && wrap.indexOf(core.charAt(core.length - 1)) !== -1) {
+            trail = core.charAt(core.length - 1) + trail;
+            core = core.slice(0, -1);
+        }
+        var guard = 0;
+        while (core && guard < 8 && '.,;:!?'.indexOf(core.charAt(core.length - 1)) !== -1) {
+            trail = core.charAt(core.length - 1) + trail;
+            core = core.slice(0, -1);
+            guard++;
+        }
+        if (core.length >= 2) {
+            var apost = core.charAt(core.length - 2);
+            var ess = core.charAt(core.length - 1);
+            if ((apost === "'" || apost === '\u2019') && (ess === 's' || ess === 'S')) {
+                var owned = core.slice(0, -2);
+                if (isUrl(owned) || isEmail(owned) || domainName(owned) != null) {
+                    trail = core.slice(-2) + trail;
+                    core = owned;
+                }
+            }
+        }
+        if (!core) return token;
+        if (isUrl(core) || isEmail(core)) return lead + trail;
+        var name = domainName(core);
+        if (name == null) return token;
+        return lead + name + trail;
     }
     var out = '';
     var i = 0;
@@ -112,27 +151,11 @@ function stripShareLinks(text) {
         if (isGap(s.charAt(i))) { out += s.charAt(i); i++; continue; }
         var j = i + 1;
         while (j < s.length && !isGap(s.charAt(j))) j++;
-        var token = s.slice(i, j);
-        var trail = '';
-        var guard = 0;
-        while (token && guard < 8) {
-            var last = token.charAt(token.length - 1);
-            if ('.,;:!?'.indexOf(last) === -1) break;
-            var shorter = token.slice(0, -1);
-            if (!(isUrl(shorter) || isEmail(shorter) || domainName(shorter) != null)) break;
-            trail = last + trail;
-            token = shorter;
-            guard++;
-        }
-        if (isUrl(token) || isEmail(token)) out += trail;
-        else {
-            var name = domainName(token);
-            out += (name == null ? token : name) + trail;
-        }
+        out += rewrite(s.slice(i, j));
         i = j;
     }
     out = out.replace(/[ \t]{2,}/g, ' ');
-    out = out.replace(/[ \t]+([,.;:!?])/g, '$1');
+    out = out.replace(/[ \t]+([,.;:!])/g, '$1');
     out = out.replace(/\(\s*\)/g, '');
     out = out.replace(/[ \t]+\n/g, '\n');
     out = out.replace(/\n{3,}/g, '\n\n');
