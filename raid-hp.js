@@ -30,15 +30,19 @@ function raidBossStats(boss) {
     var damage = _raidNum(b.current, _raidNum(b.currentHP, 0));
     var maxHp = _raidNum(b.target, _raidNum(b.targetHP, 0));
     var remaining = raidHpRemaining(maxHp, damage);
-    var damagePct = maxHp > 0 ? Math.min(100, Math.round((damage / maxHp) * 100)) : 0;
+    // A missing or zero max is not a full-health boss. Callers hide the
+    // label and bar instead of painting 0/0 HP on a full green bar.
+    var hasMax = maxHp > 0;
+    var damagePct = hasMax ? Math.min(100, Math.round((damage / maxHp) * 100)) : 0;
     if (!isFinite(damagePct) || damagePct < 0) damagePct = 0;
-    var hpPct = Math.max(0, 100 - damagePct);
+    var hpPct = hasMax ? Math.max(0, 100 - damagePct) : 0;
     return {
         damage: damage,
         maxHp: maxHp,
         remaining: remaining,
         damagePct: damagePct,
-        hpPct: hpPct
+        hpPct: hpPct,
+        hasMax: hasMax
     };
 }
 
@@ -48,7 +52,9 @@ function raidHpReadout(remaining, maxHp) {
 
 function raidHomePillText(name, boss) {
     var stats = raidBossStats(boss);
-    return '⚔️ Raid: ' + (name || 'Boss') + ' ❤️ ' + raidHpReadout(stats.remaining, stats.maxHp);
+    var label = '⚔️ Raid: ' + (name || 'Boss');
+    if (!stats.hasMax) return label;
+    return label + ' ❤️ ' + raidHpReadout(stats.remaining, stats.maxHp);
 }
 
 if (typeof window !== 'undefined') {

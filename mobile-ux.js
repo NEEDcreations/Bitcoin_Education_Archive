@@ -443,21 +443,30 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
         var stats = raidBossStats(activeBoss);
         var hpPct = stats.hpPct;
         var hpColor = hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e';
+        var bossName = typeof escapeHtml === 'function' ? escapeHtml(activeBoss.name || 'Raid Boss') : (activeBoss.name || 'Raid Boss');
         var bossImg = activeBoss.image || '';
         // Client-side image fallback
         if (!bossImg) { var _imgMap = {'Channel-Crawler':'channel-crawler','Quiz-Crusader':'quiz-crusader','TV-Titan':'tv-titan','Beats-Baron':'beats-baron','Flash-Flash':'flash-flash','XP-Hoarder':'xp-hoarder','Poll-Patroller':'poll-patroller','Chat-Charger':'chat-charger','Badge-Builder':'badge-builder','Streak-Sage':'streak-sage','Topic-Explorer':'topic-explorer','Lightning-Lancer':'lightning-lancer','Forum-Forge':'forum-forge','Trivia-Tactician':'trivia-tactician','Content-Conqueror':'content-conqueror'}; if (_imgMap[activeBoss.name]) bossImg = 'https://assets.bitcoineducation.quest/images/raid-bosses/' + _imgMap[activeBoss.name] + '.png'; }
+        var hpMeter = '';
+        if (stats.hasMax) {
+            hpMeter = '<div style="background:rgba(100,100,100,0.15);border-radius:6px;height:8px;margin-top:5px;overflow:hidden;"><div style="height:100%;background:' + hpColor + ';border-radius:6px;width:' + hpPct + '%;transition:width 0.5s;"></div></div>' +
+                '<div style="display:flex;justify-content:space-between;margin-top:3px;">' +
+                    '<span style="color:' + hpColor + ';font-size:0.68rem;font-weight:700;">\u2764\uFE0F ' + raidHpReadout(stats.remaining, stats.maxHp) + '</span>' +
+                    '<span id="raidHomeCountdown" style="color:var(--text-faint);font-size:0.68rem;font-weight:600;">\u23F1 ' + _fmtDiff(endMs) + '</span>' +
+                '</div>';
+        } else {
+            hpMeter = '<div style="margin-top:3px;text-align:right;">' +
+                '<span id="raidHomeCountdown" style="color:var(--text-faint);font-size:0.68rem;font-weight:600;">\u23F1 ' + _fmtDiff(endMs) + '</span>' +
+            '</div>';
+        }
 
         html += '<div onclick="' + openQH + '" style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(109,40,217,0.04));border:1px solid #8b5cf6;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
             '<div style="display:flex;align-items:center;gap:10px;">' +
                 (bossImg ? '<img src="' + bossImg + '" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid rgba(139,92,246,0.3);flex-shrink:0;">' : '<span style="font-size:1.3rem;">\u2694\uFE0F</span>') +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="color:#a78bfa;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">\u2694\uFE0F CURRENT RAID BOSS</div>' +
-                    '<div style="color:var(--text);font-size:0.85rem;font-weight:700;">' + (activeBoss.name || 'Raid Boss') + '</div>' +
-                    '<div style="background:rgba(100,100,100,0.15);border-radius:6px;height:8px;margin-top:5px;overflow:hidden;"><div style="height:100%;background:' + hpColor + ';border-radius:6px;width:' + hpPct + '%;transition:width 0.5s;"></div></div>' +
-                    '<div style="display:flex;justify-content:space-between;margin-top:3px;">' +
-                        '<span style="color:' + hpColor + ';font-size:0.68rem;font-weight:700;">\u2764\uFE0F ' + raidHpReadout(stats.remaining, stats.maxHp) + '</span>' +
-                        '<span id="raidHomeCountdown" style="color:var(--text-faint);font-size:0.68rem;font-weight:600;">\u23F1 ' + _fmtDiff(endMs) + '</span>' +
-                    '</div>' +
+                    '<div style="color:var(--text);font-size:0.85rem;font-weight:700;">' + bossName + '</div>' +
+                    hpMeter +
                 '</div>' +
                 '<span style="font-size:1rem;color:var(--text-muted);flex-shrink:0;">\u203A</span>' +
             '</div></div>';
