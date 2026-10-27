@@ -60,6 +60,7 @@ const TESTS = [
     { name: 'Share one link', file: 'test-share-one-link.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Flex day goal', file: 'test-flex-day.js' },
+    { name: 'Raid HP remaining', file: 'test-raid-hp.js' },
     { name: 'LNURL resolve', file: 'test-lnurl-resolve.js' },
     { name: 'Lightning address reset', file: 'test-reset-lightning.js' },
     { name: 'Choose faction', file: 'test-choose-faction.js' },
