@@ -440,9 +440,8 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
 
     if (activeBoss) {
         var endMs = activeBoss.endTime && activeBoss.endTime.toDate ? activeBoss.endTime.toDate().getTime() : 0;
-        var pct = activeBoss.target > 0 ? Math.min(100, Math.round((activeBoss.current || 0) / activeBoss.target * 100)) : 0;
-        var remainingHP = Math.max(0, (activeBoss.target || 0) - (activeBoss.current || 0));
-        var hpPct = Math.max(0, 100 - pct);
+        var stats = raidBossStats(activeBoss);
+        var hpPct = stats.hpPct;
         var hpColor = hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e';
         var bossImg = activeBoss.image || '';
         // Client-side image fallback
@@ -456,7 +455,7 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
                     '<div style="color:var(--text);font-size:0.85rem;font-weight:700;">' + (activeBoss.name || 'Raid Boss') + '</div>' +
                     '<div style="background:rgba(100,100,100,0.15);border-radius:6px;height:8px;margin-top:5px;overflow:hidden;"><div style="height:100%;background:' + hpColor + ';border-radius:6px;width:' + hpPct + '%;transition:width 0.5s;"></div></div>' +
                     '<div style="display:flex;justify-content:space-between;margin-top:3px;">' +
-                        '<span style="color:' + hpColor + ';font-size:0.68rem;font-weight:700;">\u2764\uFE0F ' + remainingHP + '/' + activeBoss.target + ' HP</span>' +
+                        '<span style="color:' + hpColor + ';font-size:0.68rem;font-weight:700;">\u2764\uFE0F ' + raidHpReadout(stats.remaining, stats.maxHp) + '</span>' +
                         '<span id="raidHomeCountdown" style="color:var(--text-faint);font-size:0.68rem;font-weight:600;">\u23F1 ' + _fmtDiff(endMs) + '</span>' +
                     '</div>' +
                 '</div>' +
@@ -501,7 +500,7 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
     var raidLine = document.getElementById('todayRaidLine');
     if (raidLine) {
         if (activeBoss) {
-            raidLine.textContent = '⚔️ Raid: ' + (activeBoss.name || 'Boss') + ' ' + (activeBoss.current || 0) + '/' + (activeBoss.target || 0);
+            raidLine.textContent = raidHomePillText(activeBoss.name, activeBoss);
         } else if (upcomingBoss) {
             raidLine.textContent = '⚔️ Raid: ' + (upcomingBoss.name || 'soon');
         }
