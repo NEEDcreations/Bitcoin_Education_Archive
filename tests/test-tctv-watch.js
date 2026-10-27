@@ -389,7 +389,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(watchTag.includes('color:var(--text-faint)'));
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
-    assert.ok(html.includes('timechain-tv.js?v=20261024_v2353'));
+    assert.ok(html.includes('timechain-tv.js?v=20261026_v2383'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
@@ -416,7 +418,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2412'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2384'"));
+    assert.ok(!sw.includes('btc-archive-v2412'));
+    assert.ok(!sw.includes('btc-archive-v2383'));
+    assert.ok(!sw.includes('btc-archive-v2420'));
     assert.ok(!sw.includes('btc-archive-v2382'));
     assert.ok(!sw.includes('btc-archive-v2381'));
     assert.ok(!sw.includes('btc-archive-v2380'));
@@ -869,11 +874,12 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    assert.ok(notes.includes('Publishing an article awards 30 XP, once per article, up to 2 a day.'));
-    assert.ok(!notes.includes('Latest: Publishing an article'));
-    const latest = "Latest: When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
+    const latest = 'Latest: Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.';
+    const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(articleXp));
+    assert.ok(!notes.includes('Latest: ' + articleXp));
     assert.ok(notes.includes(faction));
     assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
     assert.ok(!notes.includes('Latest: On a computer'));

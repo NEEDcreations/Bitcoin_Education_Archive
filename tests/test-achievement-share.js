@@ -16,7 +16,8 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
+const LATEST = "Latest: Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.";
+const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
 
 test('sharing grants nothing and client claims are ignored', () => {
     const src = read('achievement-share.js');
@@ -382,17 +383,20 @@ test('shown marker is an owner string and the worker OG is static', () => {
     });
 });
 
-test('pages ship one script, one Latest line, and the v2412 cache', () => {
+test('pages ship one script, one Latest line, and the v2384 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('achievement-share.js?v=20261026_v2412'));
+    assert.ok(html.includes('achievement-share.js?v=20261026_v2384'));
+    assert.ok(html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));
+    assert.ok(notes.includes(SHARE_NOTE));
+    assert.ok(!notes.includes('Latest: ' + SHARE_NOTE));
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2412'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2384'"));
     const src = read('achievement-share.js');
     const flushSrc = src.slice(src.indexOf('function flush()'), src.indexOf('function openManual'));
     assert.ok(flushSrc.indexOf('state.queue') >= 0 && flushSrc.indexOf('state.queue') < flushSrc.indexOf('busyState()'));
