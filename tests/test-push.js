@@ -119,7 +119,9 @@ test('client and workers share the safe push path', function() {
     assert.ok(sw.includes('stopImmediatePropagation'));
     assert.ok(sw.includes('clients.matchAll'));
     assert.ok(sw.includes('navigate'));
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2392'"));
+
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2394'"));
+    assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2410'));
     assert.ok(!sw.includes('btc-archive-v2385'));

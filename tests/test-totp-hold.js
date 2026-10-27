@@ -245,6 +245,16 @@ test('hold then loadUser with totpEnabled false opens Settings and a signed-in b
     assert.ok(env.ui.modal.classList.contains('open'));
 });
 
+test('starting a 2FA hold closes an open Settings modal', function () {
+    const env = boot({ init: false });
+    env.ui.modal.classList.add('open');
+    assert.ok(env.ui.modal.classList.contains('open'));
+    env.sandbox.noteTotpHold('userUid123456');
+    assert.strictEqual(env.sandbox._btcTotpHold, true);
+    assert.strictEqual(env.sandbox._btcTotpHoldUid, 'userUid123456');
+    assert.ok(!env.ui.modal.classList.contains('open'), 'settings closed when the hold starts');
+});
+
 test('signed-out auth state without signOutUser opens the sign-in prompt', async function () {
     const env = boot({ init: false });
     env.sandbox.noteTotpHold('userUid123456');

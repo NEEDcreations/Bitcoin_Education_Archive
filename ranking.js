@@ -89,6 +89,15 @@ function clearTotpVerified() {
 function noteTotpHold(uid) {
     window._btcTotpHold = true;
     if (uid) window._btcTotpHoldUid = uid;
+    // A cached fast path can leave Settings open before the server says 2FA
+    // is required. Close it so the code prompt is the only dialog.
+    try {
+        var modal = document.getElementById('usernameModal');
+        if (modal && modal.classList && modal.classList.contains('open')) {
+            modal.classList.remove('open');
+            if (modal.style) modal.style.zIndex = '';
+        }
+    } catch (e) {}
 }
 function clearTotpHold() {
     window._btcTotpHold = false;

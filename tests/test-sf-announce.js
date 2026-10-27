@@ -397,7 +397,11 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));
+    assert.ok(notes.includes('Latest: A returning signed-in player sees their home as soon as the page paints.'));
+    assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
+    assert.ok(!notes.includes('Latest: The raid boss'));
+    assert.ok(notes.includes('Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));
+    assert.ok(!notes.includes('Latest: Timechain TV: 29'));
     assert.ok(notes.includes('Fixed: the Invite button and Invites tile on the homepage open your invite card again.'));
     assert.ok(!notes.includes('Latest: Fixed: the Invite button'));
     assert.ok(notes.includes('Publishing an article awards 30 XP, once per article, up to 2 a day.'));

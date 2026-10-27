@@ -107,14 +107,15 @@ test('firebase config is one literal shared by both boot paths', () => {
     assert.strictEqual(ranking.indexOf('AIzaSy'), -1);
     assert.ok(boot.indexOf('window.FIREBASE_CONFIG') !== -1);
     assert.ok(ranking.indexOf('window.FIREBASE_CONFIG') !== -1);
-    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2392') !== -1);
-    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2392') < html.indexOf('auth-boot.js?v=20261027_v2392'));
+    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') !== -1);
+    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
 });
 
 test('bundle preload is restored and the ready signal follows the bundle', () => {
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2391/g) || []).length, 2);
-    assert.ok(html.indexOf('rel="preload" href="bundle.min.js?v=20261026_v2391" as="script" fetchpriority="high"') !== -1);
-    assert.ok(html.indexOf('bundle.min.js?v=20261026_v2391" defer') < html.indexOf('bundle-ready.js?v=20261027_v2392'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261027_v2393/g) || []).length, 2);
+    assert.ok(html.indexOf('rel="preload" href="bundle.min.js?v=20261027_v2393" as="script"') !== -1);
+    assert.ok(html.indexOf('bundle.min.js?v=20261027_v2393" defer fetchpriority="high"') !== -1);
+    assert.ok(html.indexOf('bundle.min.js?v=20261027_v2393" defer') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     const ready = fs.readFileSync(path.join(root, 'bundle-ready.js'), 'utf8');
     assert.ok(ready.indexOf('_btcBundleReady = true') !== -1);
     assert.ok(ready.indexOf('btc-bundle-ready') !== -1);
