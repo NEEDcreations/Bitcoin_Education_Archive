@@ -100,7 +100,7 @@ test('service worker cache is v2392', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2391/g) || []).length, 1);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2391/g) || []).length, 2);
     assert.ok(html.includes('bundle.min.js?v=20261026_v2391'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2390'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2386'));
@@ -162,7 +162,12 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('ranking.js?v=20261027_v2392'));
     assert.ok(html.includes('auth-display.js?v=20261027_v2392'));
+    assert.ok(html.includes('firebase-config.js?v=20261027_v2392'));
     assert.ok(html.includes('auth-boot.js?v=20261027_v2392'));
+    assert.ok(html.includes('bundle-ready.js?v=20261027_v2392'));
+    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2392') < html.indexOf('auth-boot.js?v=20261027_v2392'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261026_v2391') < html.indexOf('bundle-ready.js?v=20261027_v2392'));
+    assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2400'));

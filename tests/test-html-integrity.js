@@ -46,8 +46,13 @@ test('bundle.min.js referenced', () => assert(html.match(/src="bundle\.min\.js\?
 // All scripts should be deferred (except inline)
 test('all external scripts are deferred', () => {
     const scriptTags = html.match(/<script src="[^"]*"[^>]*>/g) || [];
-    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('async') && !s.includes('gstatic') && !s.includes('security-patches') && !s.includes('beats-censor.js'));
+    // auth-display.js is intentionally blocking. It only paints a display-only
+    // signed-in class during HTML parse, before first paint. It grants nothing.
+    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('async') && !s.includes('gstatic') && !s.includes('security-patches') && !s.includes('beats-censor.js') && !s.includes('auth-display.js'));
     assert(nonDeferred.length === 0, `Non-deferred scripts: ${nonDeferred.join(', ')}`);
+    const blockingDisplay = scriptTags.filter(s => s.includes('auth-display.js'));
+    assert(blockingDisplay.length === 1, 'auth-display.js should be the one blocking local painter');
+    assert(!blockingDisplay[0].includes('defer') && !blockingDisplay[0].includes('async'), 'auth-display.js stays parser-blocking so the class is set before first paint');
 });
 
 // Firebase SDK loaded

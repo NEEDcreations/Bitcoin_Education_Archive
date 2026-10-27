@@ -4,22 +4,71 @@
 // Bitcoin Education Archive - Ranking System
 // =============================================
 
-// The main bundle replaces this once it parses. Auth now resolves before that
-// bundle, and the rank bar renders usernames with this until then.
+// The main bundle replaces these once it parses. Auth now resolves before that
+// bundle, and the rank bar renders usernames with escapeHtml until then.
+// safeJSON is the same guard utils.js ships inside the bundle. A bare call
+// threw ReferenceError and aborted the rest of loadUser().
 function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
         return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
     });
 }
 
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
-    authDomain: "bitcoineducation.quest", // Must match app origin — auth iframe proxied via seo-router worker (/__/auth/*) so Safari ITP allows postMessage
-    projectId: "bitcoin-education-archive",
-    storageBucket: "bitcoin-education-archive.firebasestorage.app",
-    messagingSenderId: "1055248200518",
-    appId: "1:1055248200518:web:6c6d64a5ee78e19bfbeb47"
-};
+function safeJSON(key, fallback) {
+    try {
+        var raw = localStorage.getItem(key);
+        if (raw === null) return fallback;
+        return JSON.parse(raw);
+    } catch (e) {
+        console.warn('safeJSON: corrupted data for key "' + key + '", resetting.', e);
+        try { localStorage.removeItem(key); } catch (e2) {}
+        return fallback;
+    }
+}
+
+function mergeStoredStoryDays(serverDays) {
+    try {
+        var localDays = [];
+        if (typeof safeJSON === 'function') localDays = safeJSON('btc_nacho_story_days', []);
+        else {
+            try { localDays = JSON.parse(localStorage.getItem('btc_nacho_story_days') || '[]'); }
+            catch (e) { localDays = []; }
+        }
+        if (!Array.isArray(localDays)) localDays = [];
+        if (Array.isArray(serverDays) && serverDays.length > localDays.length) {
+            localStorage.setItem('btc_nacho_story_days', JSON.stringify(serverDays));
+        }
+    } catch (e) {}
+}
+
+function whenBundleReady(fn) {
+    if (typeof fn !== 'function') return;
+    var target = (typeof window !== 'undefined') ? window : globalThis;
+    if (target._btcBundleReady) {
+        try { fn(); } catch (e) { console.warn('[bundle]', e); }
+        return;
+    }
+    target._btcBundleQueue = target._btcBundleQueue || [];
+    target._btcBundleQueue.push(fn);
+    if (!target._btcBundleWaiter) {
+        target._btcBundleWaiter = function () {
+            target._btcBundleReady = true;
+            var q = target._btcBundleQueue || [];
+            target._btcBundleQueue = [];
+            for (var i = 0; i < q.length; i++) {
+                try { q[i](); } catch (e) { console.warn('[bundle]', e); }
+            }
+        };
+        if (typeof target.addEventListener === 'function') {
+            target.addEventListener('btc-bundle-ready', target._btcBundleWaiter);
+        }
+    }
+}
+window.whenBundleReady = whenBundleReady;
+window.mergeStoredStoryDays = mergeStoredStoryDays;
+
+// Config literal lives in firebase-config.js. No second copy here.
+var FIREBASE_CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || {};
 
 // Public reCAPTCHA v3 site key. The matching secret stays in the Firebase console.
 var APP_CHECK_RECAPTCHA_SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
@@ -457,7 +506,14 @@ function initRanking() {
             }
 
             loadUser(user.uid);
-            updateAuthButton();
+            var _redirCache = null;
+            try { _redirCache = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null'); } catch (e) { _redirCache = null; }
+            if (_redirCache && _redirCache.uid === user.uid && _redirCache.data && _redirCache.data.totpEnabled && !window._btcTotpVerified) {
+                window._btcTotpHold = true;
+                holdAuthDisplayForTotp(user.uid);
+            } else if (!window._btcTotpHold) {
+                updateAuthButton();
+            }
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
             showToast('You are signed in.');
             if (anonUid && anonUid !== user.uid) {
@@ -550,7 +606,9 @@ function initRanking() {
                         var _cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
                         if (_cp && _cp.uid === user.uid && (Date.now() - _cp.ts) < 86400000) _cachedProfile = _cp;
                     } catch(e) {}
-                    if (_cachedProfile && _cachedProfile.data && _cachedProfile.data.totpEnabled) {
+                    if (_cachedProfile && _cachedProfile.data && _cachedProfile.data.totpEnabled && !window._btcTotpVerified) {
+                        window._btcTotpHold = true;
+                        holdAuthDisplayForTotp(user.uid);
                         loadUser(user.uid).catch(function(){});
                     } else if (_cachedProfile) {
                         // Instant render from cache. Display snapshot stays display-only;
@@ -586,6 +644,8 @@ function initRanking() {
                                 loadUser(auth.currentUser.uid);
                             } else {
                                 console.log('[Auth] No real user after 8s - loading anon');
+                                _pendingRedirect = false;
+                                clearAuthDisplay();
                                 loadUserLocal(user.uid);
                             }
                             localStorage.removeItem('btc_anon_uid');
@@ -615,6 +675,11 @@ function initRanking() {
                             if (!auth.currentUser) {
                                 console.log('[Auth] 10s timeout with no user - going anonymous');
                                 localStorage.removeItem('btc_pwa_auth_pending');
+                                localStorage.removeItem('btc_anon_uid');
+                                localStorage.removeItem('btc_anon_data');
+                                sessionStorage.removeItem('btc_redirect_pending');
+                                _pendingRedirect = false;
+                                clearAuthDisplay();
                                 auth.signInAnonymously().then(() => {});
                             }
                         }, 10000);
@@ -622,6 +687,8 @@ function initRanking() {
                             clearTimeout(_nullUserTimeout);
                             // If redirect gave us a real user, onAuthStateChanged already fired for them
                             if (!redirectUser && !auth.currentUser) {
+                                _pendingRedirect = false;
+                                clearAuthDisplay();
                                 auth.signInAnonymously().then(() => {});
                             }
                         });
@@ -651,6 +718,8 @@ function initRanking() {
                 } else {
                     redirectResultPromise.then(function(redirectUser) {
                         if (!redirectUser && !auth.currentUser) {
+                            _pendingRedirect = false;
+                            clearAuthDisplay();
                             auth.signInAnonymously().then(() => {});
                         }
                     });
@@ -2738,8 +2807,15 @@ async function loadUser(uid, prefetchedDoc) {
         // Cache profile for instant next-load. The display snapshot is a separate,
         // non-sensitive projection and is not allowed to grant anything.
         try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
-        publishAuthDisplay(uid, doc.data());
-        updateAuthButton();
+        // Authenticator accounts do not get a display snapshot or a live
+        // Settings button until _serverTotpAllows returns true below.
+        if (auth.currentUser && !auth.currentUser.isAnonymous && currentUser.totpEnabled && !window._btcTotpVerified) {
+            window._btcTotpHold = true;
+            holdAuthDisplayForTotp(uid);
+        } else {
+            publishAuthDisplay(uid, doc.data());
+            updateAuthButton();
+        }
     }
     // Token refresh and callables must not block the signed-in chrome above.
     // Resolve admin status from custom claim (not email allowlist)
@@ -2768,9 +2844,18 @@ async function loadUser(uid, prefetchedDoc) {
         if (!auth.currentUser.isAnonymous) {
             var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
             if (!gateOpen) {
+                window._btcTotpHold = true;
+                window._btcTotpVerified = false;
+                holdAuthDisplayForTotp(auth.currentUser.uid);
                 _showTotpSignInChallenge();
                 return;
             }
+            if (currentUser && currentUser.totpEnabled) {
+                window._btcTotpVerified = true;
+                window._btcTotpHold = false;
+            }
+            publishAuthDisplay(uid, currentUser);
+            updateAuthButton();
             if (window._emailSyncUid !== uid) {
                 window._emailSyncUid = uid;
                 try {
@@ -3148,12 +3233,10 @@ async function loadUser(uid, prefetchedDoc) {
                 }
             }
             if (currentUser.nachoStoryDays && Array.isArray(currentUser.nachoStoryDays)) {
-                // Restore the days array (source of truth for chapter unlocks)
-                var localDays = safeJSON('btc_nacho_story_days', []);
-                // Merge: take the longer array (more days = more chapters unlocked)
-                if (currentUser.nachoStoryDays.length > localDays.length) {
-                    localStorage.setItem('btc_nacho_story_days', JSON.stringify(currentUser.nachoStoryDays));
-                }
+                // Bundle-only work stays off this stack. A throw here used to
+                // skip updateAuthButton() when auth resolved before the bundle.
+                var _storyDays = currentUser.nachoStoryDays;
+                whenBundleReady(function () { mergeStoredStoryDays(_storyDays); });
             }
             if (currentUser.nachoStoryProgress) {
                 var localStory = parseInt(localStorage.getItem('btc_nacho_story_highest') || '0');
@@ -3362,6 +3445,16 @@ window.openHomeWithdraw = openHomeWithdraw;
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
+    // The authenticator check has not passed. Do not turn this into Settings.
+    if (window._btcTotpHold) {
+        _authBtnSignedIn = false;
+        if (btn.getAttribute('data-auth-live') === '1' || btn.getAttribute('data-auth-display') === '1') {
+            btn.removeAttribute('data-auth-live');
+            btn.removeAttribute('data-auth-display');
+            btn.textContent = 'Create Free Account / Sign In';
+        }
+        return;
+    }
     // Check all possible ways a user can be "signed in":
     var firebaseUser = auth && auth.currentUser;
     var isRealAuth = firebaseUser && !firebaseUser.isAnonymous;
@@ -3433,11 +3526,18 @@ window.sanitizeInput = sanitizeInput;
 // Sync all celebration/milestone state to Firestore (prevents re-triggering on re-login)
 window.syncCelebratedState = function() {
     if (typeof db === 'undefined' || !auth || !auth.currentUser) return;
+    function readList(key) {
+        if (typeof safeJSON !== 'function') return [];
+        try {
+            var parsed = safeJSON(key, []);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) { return []; }
+    }
     var state = {
-        nachoMilestones: safeJSON('btc_nacho_milestones', []),
-        nachoCatComplete: safeJSON('btc_nacho_cat_complete', []),
-        nachoLevelCelebrated: safeJSON('btc_nacho_level_celebrated', []),
-        nachoItemsNotified: safeJSON('btc_nacho_items_notified', [])
+        nachoMilestones: readList('btc_nacho_milestones'),
+        nachoCatComplete: readList('btc_nacho_cat_complete'),
+        nachoLevelCelebrated: readList('btc_nacho_level_celebrated'),
+        nachoItemsNotified: readList('btc_nacho_items_notified')
     };
     db.collection('users').doc(auth.currentUser.uid).update({ celebratedState: state }).catch(function() {});
 };
@@ -4938,6 +5038,7 @@ function updateUserDisplay(lv) {
         var _mobOf = (typeof currentUser !== 'undefined' && currentUser) ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
         if (_mobOf > 0) s += ' <span onclick="event.stopPropagation();if(typeof showSettingsPage===\'function\')showSettingsPage(\'sats\')" style="display:inline-flex;align-items:center;gap:2px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:4px;padding:1px 5px;cursor:pointer;" title="Queued overflow XP"><span style="font-size:0.55rem;">⏳</span><span style="font-size:0.58rem;font-weight:800;font-family:monospace;color:#a5b4fc;">+' + _mobOf.toLocaleString() + '</span></span>';
         mobileInfo.innerHTML = s;
+        mobileInfo.setAttribute('data-auth-live', '1');
         mobileInfo.style.display = 'inline';
         mobileInfo.style.maxWidth = 'none';
     }
@@ -5206,6 +5307,9 @@ window._changeExperienceMode = function(mode) {
         return;
     }
     window.setExperienceMode(mode);
+    if (window.btcAuthDisplay && typeof window.btcAuthDisplay.syncMode === 'function') {
+        window.btcAuthDisplay.syncMode(mode);
+    }
     if (typeof showToast === 'function') {
         var labels = {beginner:'🌱 Guided Intro activated', intermediate:'📘 Quieter Experience activated', advanced:'🔥 Maximalist Mode activated'};
         showToast(labels[mode] || 'Mode updated', 3000);
@@ -9023,9 +9127,38 @@ window.minimizeSignUpBanner = function() {
 };
 
 // Display snapshot only. Never copies email, tokens, or private profile fields.
+// totpEnabled accounts keep a needs2fa marker instead of a name until this
+// session's authenticator check succeeds. The stored marker has no username,
+// so the next boot cannot paint one before the check.
+function holdAuthDisplayForTotp(uid) {
+    window._btcTotpHold = true;
+    if (!window.btcAuthDisplay || !uid) return;
+    try {
+        if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
+        if (window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(null);
+    } catch (e) {}
+}
 function publishAuthDisplay(uid, data) {
-    if (!window.btcAuthDisplay || !uid || !data || !data.username) return;
+    if (!window.btcAuthDisplay || !uid || !data) return;
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== uid) return;
+    if (data.totpEnabled && !window._btcTotpVerified) {
+        holdAuthDisplayForTotp(uid);
+        return;
+    }
+    if (data.totpEnabled) {
+        try {
+            if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
+            var mem = window.btcAuthDisplay.sanitize({
+                uid: uid,
+                username: data.username,
+                avatar: data.profilePic || '',
+                xp: data.points || 0
+            });
+            if (mem && window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(mem);
+        } catch (e) {}
+        return;
+    }
+    if (!data.username) return;
     try {
         var snap = window.btcAuthDisplay.write({
             uid: uid,
@@ -9333,6 +9466,8 @@ async function signOutUser(force) {
     if ('caches' in window) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
     }
+    window._btcTotpHold = false;
+    window._btcTotpVerified = false;
     clearAuthDisplay();
     clearUserLocalStorage();
     if (typeof window.bqClearTopicDrafts === 'function') window.bqClearTopicDrafts();
@@ -10093,6 +10228,9 @@ window.verifyMFACode = async function() {
 // TOTP sign-in challenge — shown when totpEnabled===true and session not yet verified.
 // Uses existing totpCheck Cloud Function. Calls loadUser again on success.
 window._showTotpSignInChallenge = function() {
+    window._btcTotpHold = true;
+    window._btcTotpVerified = false;
+    if (auth && auth.currentUser) holdAuthDisplayForTotp(auth.currentUser.uid);
     if (tosBlocking()) {
         window.runAfterTos(function() { window._showTotpSignInChallenge(); });
         return;
@@ -10164,11 +10302,20 @@ window._submitTotpSignIn = async function() {
         var ov = document.getElementById('totpSignInOverlay');
         if (ov) ov.remove();
         if (checkedData.recoveryCodes) window._showRecoveryCodes(checkedData.recoveryCodes);
+        window._btcTotpVerified = true;
+        window._btcTotpHold = false;
         _resumeAfterSecondFactor();
         if (typeof loadUser === 'function' && auth && auth.currentUser) {
             loadUser(auth.currentUser.uid).catch(function(e) { console.error('[TOTP] loadUser after verify failed:', e); });
         }
     } catch(e) {
+        window._btcTotpHold = true;
+        window._btcTotpVerified = false;
+        clearAuthDisplay();
+        if (auth && auth.currentUser && window.btcAuthDisplay && window.btcAuthDisplay.markNeeds2fa) {
+            window.btcAuthDisplay.markNeeds2fa(auth.currentUser.uid);
+        }
+        if (typeof updateAuthButton === 'function') updateAuthButton();
         if (btn) { btn.disabled = false; btn.textContent = 'Verify'; }
         var msg = _mfaFailure(e);
         if (statusEl) statusEl.textContent = msg;

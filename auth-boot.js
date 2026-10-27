@@ -1,15 +1,10 @@
 // Start Firebase Auth before Firestore, callables, App Check, and the main bundle.
 // LOCAL persistence (IndexedDB) is already the default. Do not call setPersistence
 // here: it queues the first auth event behind another IndexedDB open.
+// The config object lives in firebase-config.js, loaded just before this file.
 (function () {
-    var CONFIG = {
-        apiKey: 'AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk',
-        authDomain: 'bitcoineducation.quest',
-        projectId: 'bitcoin-education-archive',
-        storageBucket: 'bitcoin-education-archive.firebasestorage.app',
-        messagingSenderId: '1055248200518',
-        appId: '1:1055248200518:web:6c6d64a5ee78e19bfbeb47'
-    };
+    var CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
+    if (!CONFIG || !CONFIG.apiKey) return;
     if (typeof firebase === 'undefined' || !firebase.initializeApp || !firebase.auth) return;
     try {
         if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(CONFIG);
