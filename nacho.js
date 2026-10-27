@@ -657,7 +657,17 @@ function createNacho() {
         #nacho-container.nacho-bubble-below #nacho-bubble { margin: 8px 0 0 0; }
         #nacho-container.nacho-bubble-below #nacho-bubble::before,
         #nacho-container.nacho-bubble-below #nacho-bubble::after { display: none; }
-        #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+        /* The bubble's empty padding stays click-through so it cannot steal a tap
+           from the Invite pill. Header, text, and controls still receive events. */
+        #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+        #nacho-bubble.show .nacho-header,
+        #nacho-bubble.show #nacho-text,
+        #nacho-bubble.show button,
+        #nacho-bubble.show a,
+        #nacho-bubble.show input,
+        #nacho-bubble.show textarea,
+        #nacho-bubble.show select,
+        #nacho-bubble.show label { pointer-events: auto; }
 
         .nacho-header {
             display: flex;
@@ -2396,6 +2406,49 @@ if (document.readyState === 'loading') {
         };
     }
 
+    function invitePillBox() {
+        var card = document.getElementById('inviteCard');
+        if (!card || card.getAttribute('data-show') !== '1') return null;
+        var state = card.getAttribute('data-state');
+        if (state !== 'min' && state !== 'guest') return null;
+        var cs;
+        try { cs = window.getComputedStyle(card); } catch (e) { return null; }
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return null;
+        var box = card.getBoundingClientRect();
+        if (box.width < 8 || box.height < 8) return null;
+        if (box.bottom <= 0 || box.top >= window.innerHeight) return null;
+        return box;
+    }
+    function boxesOverlap(a, b, gap) {
+        return !(a.right <= b.left - gap || a.left >= b.right + gap || a.bottom <= b.top - gap || a.top >= b.bottom + gap);
+    }
+    // The mobile welcome bubble is a full-width sheet. Keep it off #invitePill
+    // so the pill stays visible and receives the tap.
+    function keepBubbleOffInvitePill(bubble) {
+        var pill = invitePillBox();
+        if (!pill) return;
+        var gap = 10;
+        var box = bubble.getBoundingClientRect();
+        if (box.width < 8 || box.height < 8) return;
+        if (!boxesOverlap(box, pill, gap)) return;
+        if (pill.bottom + gap < box.bottom - 40) {
+            var maxH = Math.floor(box.bottom - (pill.bottom + gap));
+            if (maxH >= 64) {
+                bubble.style.setProperty('max-height', maxH + 'px', 'important');
+                box = bubble.getBoundingClientRect();
+                if (!boxesOverlap(box, pill, gap)) return;
+            }
+        }
+        var rightInset = Math.ceil((window.innerWidth - pill.left) + gap);
+        if (window.innerWidth - 12 - rightInset >= 120) {
+            bubble.style.setProperty('right', rightInset + 'px', 'important');
+            box = bubble.getBoundingClientRect();
+            if (!boxesOverlap(box, pill, gap)) return;
+        }
+        var under = Math.floor(box.bottom - pill.bottom - gap);
+        if (under >= 48) bubble.style.setProperty('max-height', under + 'px', 'important');
+    }
+
     // Put the speech bubble on whichever side (or below) actually fits.
     window._nachoPlaceBubble = function() {
         var c = getContainer();
@@ -2408,6 +2461,9 @@ if (document.readyState === 'loading') {
             bubble.style.maxWidth = '';
             bubble.style.marginLeft = '';
             bubble.style.width = '';
+            bubble.style.removeProperty('right');
+            bubble.style.removeProperty('max-height');
+            if (bubble.classList.contains('show')) keepBubbleOffInvitePill(bubble);
             return;
         }
         var rect = avatar.getBoundingClientRect();

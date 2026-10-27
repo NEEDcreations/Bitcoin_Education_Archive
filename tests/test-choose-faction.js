@@ -378,6 +378,8 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
     assert.ok(notes.indexOf("Latest: Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.") > 0);
+    assert.ok(notes.indexOf("Fixed: the Invite button and Invites tile on the homepage open your invite card again.") > 0);
+    assert.ok(notes.indexOf("Latest: Fixed: the Invite button") === -1);
     assert.ok(notes.indexOf("Publishing an article awards 30 XP, once per article, up to 2 a day.") > 0);
     assert.ok(notes.indexOf("Latest: Publishing an article") === -1);
     assert.ok(notes.indexOf("Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.") > 0);

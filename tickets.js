@@ -319,6 +319,10 @@ function _invitePopupElement(el) {
     if (style.position !== 'fixed') return false;
     var box = el.getBoundingClientRect();
     if (box.width < 160 || box.height < 80) return false;
+    // A fixed overlay that is only slid off-screen (translateY(100%), opacity 0)
+    // still has a large layout box. It is not a popup the invite card should yield to.
+    if (box.bottom <= 1 || box.top >= window.innerHeight - 1 || box.right <= 1 || box.left >= window.innerWidth - 1) return false;
+    if (parseFloat(style.opacity) === 0) return false;
     var id = String(el.id || '');
     var cls = typeof el.className === 'string' ? el.className : '';
     var role = el.getAttribute('role') || '';
@@ -534,6 +538,7 @@ function placeInvitePill() {
             guest.style.bottom = '';
             _nudgeInvitePill(guest);
         }
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
         return;
     }
     var state = card.getAttribute('data-state');
@@ -546,6 +551,7 @@ function placeInvitePill() {
             guest.style.bottom = '';
             _nudgeInvitePill(guest);
         }
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
         return;
     }
     var anchorBottom = 0;
@@ -578,6 +584,7 @@ function placeInvitePill() {
         guest.style.bottom = '';
         _nudgeInvitePill(guest);
     }
+    if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
 }
 window.placeInvitePill = placeInvitePill;
 
@@ -603,7 +610,10 @@ function refreshInviteCard() {
             _inviteMarkAuto(uid);
             _inviteWriteStored('min');
         }
-        if (_inviteHeldOpen && !_inviteAutoBlocked()) {
+        // A tap sets _inviteHeldOpen. The session popup budget is only for
+        // automatic opens; a later refresh must not collapse the card the
+        // user just asked for. A real on-screen modal still wins.
+        if (_inviteHeldOpen && !_inviteModalOpen()) {
             _claimInvitePopup();
             _showSignedInOpen();
             return;
@@ -657,7 +667,8 @@ function expandInviteCard() {
     _inviteWriteStored('min');
     _inviteMarkAuto(_inviteUid());
     _inviteHeldOpen = true;
-    if (_inviteAutoBlocked()) {
+    // A tap is not an automatic popup, so the session budget does not apply.
+    if (_inviteModalOpen()) {
         _paintGuestPill(false);
         _applyInviteState('min');
         _placeInvitePills();

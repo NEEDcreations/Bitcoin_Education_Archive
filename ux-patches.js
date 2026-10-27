@@ -1075,7 +1075,7 @@
 // =============================================
 // DONE — All 24 tasks implemented!
 // =============================================
-console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
+if (window.btcDebugLog) window.btcDebugLog('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
 // =============================================
 // CHANNEL CONTENT TEXT REPLACEMENT (Discord → App)

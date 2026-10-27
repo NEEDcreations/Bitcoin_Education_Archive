@@ -418,7 +418,9 @@ test('the page heartbeats only while playing and visible, and does not write the
     const hi = row.indexOf('id="sayHiBtn"');
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2384'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2385'"));
+    assert.ok(!sw.includes('btc-archive-v2425'));
+    assert.ok(!sw.includes('btc-archive-v2384'));
     assert.ok(!sw.includes('btc-archive-v2412'));
     assert.ok(!sw.includes('btc-archive-v2383'));
     assert.ok(!sw.includes('btc-archive-v2420'));
@@ -876,8 +878,11 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     const latest = 'Latest: Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.';
     const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
+    const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(inviteFix));
+    assert.ok(!notes.includes('Latest: ' + inviteFix));
     assert.ok(notes.includes(articleXp));
     assert.ok(!notes.includes('Latest: ' + articleXp));
     assert.ok(notes.includes(faction));
