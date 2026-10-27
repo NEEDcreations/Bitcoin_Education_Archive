@@ -306,7 +306,8 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     assert.ok(html.indexOf('location.replace(_href)') === -1);
     assert.ok(html.indexOf('id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);') !== -1);
     assert.ok(html.indexOf('#searchOverlay {') !== -1 && html.indexOf('background: var(--bg) !important;') !== -1);
-    assert.ok(html.indexOf('patches.js?v=20261027_v2425') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261026_v2385') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261027_v2425') === -1);
     assert.ok(html.indexOf('patches.js?v=20261024_v2360') === -1);
     assert.ok(html.indexOf('patches.js?v=20261023_v2350') === -1);
     assert.ok(html.indexOf('patches.js?v=20261022_v2263') === -1);

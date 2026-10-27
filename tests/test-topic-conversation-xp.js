@@ -202,7 +202,11 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Fixed: the Invite button and Invites tile on the homepage open your invite card again.'));
+    assert.ok(notes.includes('Latest: Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));
+    assert.ok(notes.includes('Fixed: the Invite button and Invites tile on the homepage open your invite card again.'));
+    assert.ok(!notes.includes('Latest: Fixed: the Invite button'));
+    assert.ok(notes.includes('Publishing an article awards 30 XP, once per article, up to 2 a day.'));
+    assert.ok(!notes.includes('Latest: Publishing an article'));
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
     assert.ok(notes.includes('Settings → Sats now lists the XP you can actually earn, including the daily cap.'));
