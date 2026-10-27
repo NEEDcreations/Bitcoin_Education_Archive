@@ -150,6 +150,14 @@
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
             '@media (max-width:900px){.td-section{margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}.td-follow,.td-topic{scroll-margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}}',
+            '#topic-convo-modal{position:fixed;inset:0;z-index:300000;display:none;align-items:flex-end;justify-content:center;background:rgba(2,6,23,0.72);}',
+            '#topic-convo-modal.open{display:flex;}',
+            '#topic-convo-modal[hidden]{display:none !important;}',
+            '.td-convo-panel{width:min(560px,100%);max-height:min(88vh,720px);overflow:auto;background:var(--bg-side,#0f172a);border:1px solid rgba(249,115,22,0.45);border-radius:18px 18px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -16px 48px rgba(0,0,0,0.5);}',
+            '.td-convo-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}',
+            '.td-convo-title{font-weight:800;color:var(--heading,#fff);font-size:1rem;}',
+            '.td-convo-close{min-height:44px;padding:8px 14px;border-radius:999px;border:1px solid var(--border,#334155);background:rgba(255,255,255,0.06);color:var(--text,#e2e8f0);font-weight:800;font-family:inherit;cursor:pointer;}',
+            '@media (min-width:800px){#topic-convo-modal{align-items:center;}.td-convo-panel{border-radius:18px;margin:24px;}}',
             '@media (max-width:420px){.td-section{margin:20px 10px calc(180px + env(safe-area-inset-bottom, 0px));}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 14px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
         ].join('');
         document.head.appendChild(style);
@@ -420,6 +428,48 @@
         pendingTries: 0,
         sawPending: false,
         pendingAnchor: null
+    };
+
+    var drafts = {};
+
+    function draftStorageKey(channelId) {
+        return 'btc_td_draft_' + String(channelId || '');
+    }
+
+    function readDraft(channelId) {
+        var key = String(channelId || '');
+        if (!key) return '';
+        if (Object.prototype.hasOwnProperty.call(drafts, key) && drafts[key]) return String(drafts[key]);
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem) {
+                return String(sessionStorage.getItem(draftStorageKey(key)) || '');
+            }
+        } catch (e) {}
+        return '';
+    }
+
+    function writeDraft(channelId, text) {
+        var key = String(channelId || '');
+        if (!key) return '';
+        var value = String(text || '');
+        if (value) drafts[key] = value;
+        else delete drafts[key];
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.setItem) {
+                if (value) sessionStorage.setItem(draftStorageKey(key), value);
+                else if (sessionStorage.removeItem) sessionStorage.removeItem(draftStorageKey(key));
+                else sessionStorage.setItem(draftStorageKey(key), '');
+            }
+        } catch (e2) {}
+        return value;
+    }
+
+    window.bqReadTopicDraft = function(channelId) {
+        return readDraft(channelId || state.channelId || window.currentChannelId || '');
+    };
+
+    window.bqSaveTopicDraft = function(channelId, text) {
+        return writeDraft(channelId || state.channelId || window.currentChannelId || '', text);
     };
 
     var ANCHOR_INDEX_MAX = 8000;
@@ -756,7 +806,15 @@
         area.setAttribute('aria-label', 'Comment on this topic');
         var count = el('span', 'td-note');
         count.textContent = '0/500';
-        area.addEventListener('input', function() { count.textContent = String(area.value.length) + '/500'; });
+        var savedDraft = readDraft(state.channelId || window.currentChannelId || '');
+        if (savedDraft) {
+            area.value = savedDraft;
+            count.textContent = String(savedDraft.length) + '/500';
+        }
+        area.addEventListener('input', function() {
+            count.textContent = String(area.value.length) + '/500';
+            writeDraft(state.channelId || window.currentChannelId || '', area.value);
+        });
         host.appendChild(area);
         host.appendChild(forumCrossPostNotice());
         var controls = el('div', 'td-compose-row');
@@ -788,6 +846,7 @@
             if (data && data.toast) toast(data.toast);
             var crossNote = data && data.crossPostNote ? String(data.crossPostNote) : '';
             area.value = '';
+            if (!(opts && opts.inline)) writeDraft(state.channelId || window.currentChannelId || '', '');
             // The inline card and the bottom composer reply to different targets.
             // Sending from one must not clear the other.
             if (opts && opts.inline) {
@@ -1553,11 +1612,142 @@
         var signIn = composer ? firstButton(composer) : null;
         if (signIn && typeof signIn.focus === 'function') signIn.focus();
     }
+    function ensureConvoSheet() {
+        var sheet = document.getElementById('topic-convo-modal');
+        if (sheet) return sheet;
+        sheet = el('div', 'td-convo-modal');
+        sheet.id = 'topic-convo-modal';
+        sheet.setAttribute('role', 'dialog');
+        sheet.setAttribute('aria-modal', 'true');
+        sheet.setAttribute('aria-label', 'Topic conversation');
+        sheet.setAttribute('aria-hidden', 'true');
+        sheet.hidden = true;
+        var panel = el('div', 'td-convo-panel');
+        panel.id = 'topic-convo-panel';
+        var head = el('div', 'td-convo-head');
+        var title = el('div', 'td-convo-title');
+        title.id = 'topic-convo-title';
+        title.textContent = 'Start a conversation';
+        var close = btn('Close', 'td-convo-close', function() { closeConvoSheet(); });
+        close.id = 'topic-convo-close';
+        close.setAttribute('aria-label', 'Close conversation');
+        head.appendChild(title);
+        head.appendChild(close);
+        panel.appendChild(head);
+        var host = el('div');
+        host.id = 'topic-convo-host';
+        panel.appendChild(host);
+        sheet.appendChild(panel);
+        sheet.addEventListener('click', function(event) {
+            if (event && event.target === sheet) closeConvoSheet();
+        });
+        if (document.body) document.body.appendChild(sheet);
+        if (document.addEventListener && !window._tdConvoEsc) {
+            window._tdConvoEsc = true;
+            document.addEventListener('keydown', function(event) {
+                if (!event || event.key !== 'Escape') return;
+                var open = document.getElementById('topic-convo-modal');
+                if (!open || open.hidden || !(open.classList && open.classList.contains('open'))) return;
+                var quest = document.getElementById('questModal');
+                if (quest && quest.classList && quest.classList.contains('open')) return;
+                if (event.preventDefault) event.preventDefault();
+                closeConvoSheet('esc');
+            });
+        }
+        return sheet;
+    }
+
+    function convoSheetOpen() {
+        var sheet = document.getElementById('topic-convo-modal');
+        return !!(sheet && !sheet.hidden && sheet.classList && sheet.classList.contains('open'));
+    }
+
+    function openConvoSheet() {
+        injectStyle();
+        var sheet = ensureConvoSheet();
+        var host = document.getElementById('topic-convo-host');
+        var composer = document.getElementById('topic-discussion-composer');
+        if (composer && host && composer.parentNode !== host) host.appendChild(composer);
+        var title = document.getElementById('topic-convo-title');
+        if (title) title.textContent = 'Conversation about ' + topicTitle();
+        sheet.hidden = false;
+        sheet.classList.add('open');
+        sheet.setAttribute('aria-hidden', 'false');
+        if (!window._tdConvoHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+            try {
+                history.pushState({ overlay: 'topic-convo' }, '', window.location ? window.location.href : '');
+                window._tdConvoHistory = true;
+            } catch (e) {}
+        }
+    }
+
+    function closeConvoSheet(reason) {
+        var channelId = state.channelId || window.currentChannelId || '';
+        var area = document.getElementById('topic-discussion-input');
+        if (area) {
+            var text = area.value || '';
+            writeDraft(channelId, text);
+            if (window._btcQuestReturn) {
+                window._btcQuestReturn.draft = text;
+                window._btcQuestReturn.channelId = channelId || window._btcQuestReturn.channelId;
+                window._btcQuestReturn.convoOpen = true;
+            }
+            area.value = '';
+            if (document.activeElement === area) {
+                if (typeof area.blur === 'function') {
+                    try { area.blur(); } catch (e) {}
+                }
+                if (document.activeElement === area && document.body) document.activeElement = document.body;
+            }
+        }
+        var composer = document.getElementById('topic-discussion-composer');
+        var body = document.getElementById('topic-discussion-body');
+        if (composer && body && composer.parentNode !== body) body.appendChild(composer);
+        var sheet = document.getElementById('topic-convo-modal');
+        if (sheet) {
+            sheet.classList.remove('open');
+            sheet.hidden = true;
+            sheet.setAttribute('aria-hidden', 'true');
+        }
+        if (reason !== 'back' && window._tdConvoHistory && typeof history !== 'undefined' && history && typeof history.back === 'function') {
+            window._tdConvoHistory = false;
+            window._tdConvoBackPending = true;
+            try { history.back(); } catch (e) { window._tdConvoBackPending = false; }
+        } else {
+            window._tdConvoHistory = false;
+            window._tdConvoBackPending = false;
+        }
+        if (typeof window.btcNoteSurfaceClosed === 'function') window.btcNoteSurfaceClosed();
+    }
+
+    window.bqCloseTopicConversation = function(reason) { closeConvoSheet(reason || 'button'); };
+
+    window.bqTopicConversationOpen = convoSheetOpen;
+
+    window.bqRestoreTopicConversation = function(opts) {
+        opts = opts || {};
+        var channelId = opts.channelId || state.channelId || window.currentChannelId || '';
+        if (opts.draft != null) writeDraft(channelId, opts.draft);
+        if (channelId && !document.getElementById('topic-discussion-live') && typeof window.mountTopicDiscussion === 'function') {
+            window.mountTopicDiscussion(channelId);
+        }
+        setOpen(true);
+        if (!document.getElementById('topic-discussion-composer')) return null;
+        if (!document.getElementById('topic-discussion-input')) renderComposer();
+        openConvoSheet();
+        var area = document.getElementById('topic-discussion-input');
+        var draft = opts.draft != null ? String(opts.draft) : readDraft(channelId);
+        if (area) area.value = draft;
+        if (opts.focus !== false && area && typeof area.focus === 'function') area.focus();
+        return area;
+    };
+
     function openTopicConversation() {
         if (!document.getElementById('topic-discussion-live') && window.currentChannelId && typeof window.mountTopicDiscussion === 'function') {
             window.mountTopicDiscussion(window.currentChannelId);
         }
         setOpen(true);
+        openConvoSheet();
         scrollToDiscussion();
         focusComposer();
     }

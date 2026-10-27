@@ -1585,7 +1585,11 @@ function _showBubble(text, pose) {
     window._nachoEscHandler = function(e) {
         if (e.key !== 'Escape') return;
         var b = document.getElementById('nacho-bubble');
-        if (b && b.getAttribute('data-trivia') === '1') return;
+        if (b && b.getAttribute('data-trivia') === '1') {
+            if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') window.btcDismissBubbleQuiz('esc');
+            else if (typeof window.btcDismissNachoTrivia === 'function') window.btcDismissNachoTrivia('esc');
+            return;
+        }
         hideBubble(true);
     };
     setTimeout(function() {
@@ -1905,22 +1909,7 @@ window.nachoOnChannel = function(channelId) {
         });
         if (qs.length === 0) qs = QUEST_QUESTIONS;
         var q = qs[Math.floor(Math.random() * qs.length)];
-
-        var quizHtml = '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">🎮 Quick Quiz!</div>' +
-            '<div style="color:var(--text);font-size:0.8rem;margin-bottom:8px;">' + q.question + '</div>';
-        var opts = q.options || [];
-        for (var qi = 0; qi < opts.length; qi++) {
-            var isRight = qi === q.answer;
-            quizHtml += '<button onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
-        }
-        forceShowBubble(quizHtml, 'brain');
-        var _quizBubble = document.getElementById('nacho-bubble');
-        if (_quizBubble) {
-            _quizBubble.setAttribute('data-interactive', 'true');
-            _quizBubble.setAttribute('data-trivia', '1');
-        }
-        sessionStorage.setItem('btc_channel_read_seconds', '0');
-        return;
+        if (window._presentBubbleQuiz(q)) return;
     }
 
     // General channel reaction (25% chance)
@@ -1931,7 +1920,41 @@ window.nachoOnChannel = function(channelId) {
 };
 
 // ---- Bubble Quiz Answer Handler ----
+window._presentBubbleQuiz = function(q) {
+    if (!q) return false;
+    var key = String(q.question || '');
+    if (key && window._btcBubbleQuizAwarded === key) return false;
+    if (!window._btcQuestBypassBusy && typeof window.btcDeferQuestIfBusy === 'function') {
+        if (window.btcDeferQuestIfBusy(function() { window._presentBubbleQuiz(q); }, 'bubble-quiz')) return 'deferred';
+    }
+    var quizHtml = '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">🎮 Quick Quiz!</div>' +
+        '<div style="color:var(--text);font-size:0.8rem;margin-bottom:8px;">' + q.question + '</div>';
+    var opts = q.options || [];
+    for (var qi = 0; qi < opts.length; qi++) {
+        var isRight = qi === q.answer;
+        quizHtml += '<button onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+    }
+    quizHtml += '<button type="button" onclick="event.stopPropagation();if(window.btcDismissBubbleQuiz)window.btcDismissBubbleQuiz(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 10px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
+    window._btcBubbleQuiz = q;
+    forceShowBubble(quizHtml, 'brain');
+    var quizBubble = document.getElementById('nacho-bubble');
+    if (quizBubble && quizBubble.classList.contains('show')) {
+        quizBubble.setAttribute('data-interactive', 'true');
+        quizBubble.setAttribute('data-trivia', '1');
+        try { sessionStorage.setItem('btc_channel_read_seconds', '0'); } catch (e) {}
+        if (!window._btcBubbleHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+            try {
+                history.pushState({ overlay: 'bubble-quiz' }, '', window.location ? window.location.href : '');
+                window._btcBubbleHistory = true;
+            } catch (e2) {}
+        }
+        return 'shown';
+    }
+    return false;
+};
+
 window.nachoBubbleQuizAnswer = function(btn, correct) {
+    if (correct && window._btcBubbleQuiz) window._btcBubbleQuizAwarded = String(window._btcBubbleQuiz.question || '');
     // Track for daily challenge
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_quiz_done_' + _t, 'true'); } catch(e) {}
 

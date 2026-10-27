@@ -1675,6 +1675,37 @@ test('anchor shape is a bounded index plus a short hash, otherwise dropped', () 
         assert.strictEqual(plan._topicDeepLink.done, true);
     });
 
+    test('a conversation draft survives closing the sheet and restores on back', function() {
+        var plan = bootTopicClient({ signedIn: true, reduceMotion: true });
+        hostTopic(plan, [
+            'Alpha paragraph explains what miners change inside a block header.',
+            'Bravo paragraph explains why the hash has to fall under the target.'
+        ]);
+        plan.mountTopicDiscussion('mining');
+        plan.bqOpenTopicConversation();
+        var sheet = plan.document.getElementById('topic-convo-modal');
+        assert.ok(sheet);
+        assert.strictEqual(sheet.hidden, false);
+        assert.ok(sheet.classList.contains('open'));
+        var area = plan.document.getElementById('topic-discussion-input');
+        assert.ok(area);
+        area.value = 'What is a nonce?';
+        (area.listeners.input || []).forEach(function(fn) { fn(); });
+        assert.strictEqual(plan.bqReadTopicDraft('mining'), 'What is a nonce?');
+        plan.bqCloseTopicConversation('button');
+        assert.strictEqual(sheet.hidden, true);
+        assert.ok(!sheet.classList.contains('open'));
+        assert.strictEqual(area.value, '');
+        assert.strictEqual(plan.bqReadTopicDraft('mining'), 'What is a nonce?');
+        var restored = plan.bqRestoreTopicConversation({ channelId: 'mining', focus: true });
+        assert.ok(restored);
+        assert.strictEqual(restored.value, 'What is a nonce?');
+        assert.strictEqual(plan.document.activeElement, restored);
+        var again = plan.document.getElementById('topic-convo-modal');
+        assert.strictEqual(again.hidden, false);
+        assert.ok(again.classList.contains('open'));
+    });
+
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
 })().catch(function(err) {

@@ -5355,7 +5355,11 @@ function _showBubble(text, pose) {
     window._nachoEscHandler = function(e) {
         if (e.key !== 'Escape') return;
         var b = document.getElementById('nacho-bubble');
-        if (b && b.getAttribute('data-trivia') === '1') return;
+        if (b && b.getAttribute('data-trivia') === '1') {
+            if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') window.btcDismissBubbleQuiz('esc');
+            else if (typeof window.btcDismissNachoTrivia === 'function') window.btcDismissNachoTrivia('esc');
+            return;
+        }
         hideBubble(true);
     };
     setTimeout(function() {
@@ -5675,22 +5679,7 @@ window.nachoOnChannel = function(channelId) {
         });
         if (qs.length === 0) qs = QUEST_QUESTIONS;
         var q = qs[Math.floor(Math.random() * qs.length)];
-
-        var quizHtml = '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">🎮 Quick Quiz!</div>' +
-            '<div style="color:var(--text);font-size:0.8rem;margin-bottom:8px;">' + q.question + '</div>';
-        var opts = q.options || [];
-        for (var qi = 0; qi < opts.length; qi++) {
-            var isRight = qi === q.answer;
-            quizHtml += '<button onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
-        }
-        forceShowBubble(quizHtml, 'brain');
-        var _quizBubble = document.getElementById('nacho-bubble');
-        if (_quizBubble) {
-            _quizBubble.setAttribute('data-interactive', 'true');
-            _quizBubble.setAttribute('data-trivia', '1');
-        }
-        sessionStorage.setItem('btc_channel_read_seconds', '0');
-        return;
+        if (window._presentBubbleQuiz(q)) return;
     }
 
     // General channel reaction (25% chance)
@@ -5701,7 +5690,41 @@ window.nachoOnChannel = function(channelId) {
 };
 
 // ---- Bubble Quiz Answer Handler ----
+window._presentBubbleQuiz = function(q) {
+    if (!q) return false;
+    var key = String(q.question || '');
+    if (key && window._btcBubbleQuizAwarded === key) return false;
+    if (!window._btcQuestBypassBusy && typeof window.btcDeferQuestIfBusy === 'function') {
+        if (window.btcDeferQuestIfBusy(function() { window._presentBubbleQuiz(q); }, 'bubble-quiz')) return 'deferred';
+    }
+    var quizHtml = '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">🎮 Quick Quiz!</div>' +
+        '<div style="color:var(--text);font-size:0.8rem;margin-bottom:8px;">' + q.question + '</div>';
+    var opts = q.options || [];
+    for (var qi = 0; qi < opts.length; qi++) {
+        var isRight = qi === q.answer;
+        quizHtml += '<button onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+    }
+    quizHtml += '<button type="button" onclick="event.stopPropagation();if(window.btcDismissBubbleQuiz)window.btcDismissBubbleQuiz(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 10px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
+    window._btcBubbleQuiz = q;
+    forceShowBubble(quizHtml, 'brain');
+    var quizBubble = document.getElementById('nacho-bubble');
+    if (quizBubble && quizBubble.classList.contains('show')) {
+        quizBubble.setAttribute('data-interactive', 'true');
+        quizBubble.setAttribute('data-trivia', '1');
+        try { sessionStorage.setItem('btc_channel_read_seconds', '0'); } catch (e) {}
+        if (!window._btcBubbleHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+            try {
+                history.pushState({ overlay: 'bubble-quiz' }, '', window.location ? window.location.href : '');
+                window._btcBubbleHistory = true;
+            } catch (e2) {}
+        }
+        return 'shown';
+    }
+    return false;
+};
+
 window.nachoBubbleQuizAnswer = function(btn, correct) {
+    if (correct && window._btcBubbleQuiz) window._btcBubbleQuizAwarded = String(window._btcBubbleQuiz.question || '');
     // Track for daily challenge
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_quiz_done_' + _t, 'true'); } catch(e) {}
 
@@ -6856,24 +6879,17 @@ window.nachoTrivia = function() {
     return { trivia: t, index: trackKey };
 };
 
-window.showNachoTrivia = function() {
-    // ---- ANTI-INTERRUPTION SHIELD ----
-    if (window._nachoBusy) return false;
-
-    var result = nachoTrivia();
-    if (!result) return false;
-
-    var t = result.trivia;
+function renderNachoTrivia(t) {
     var bubble = document.getElementById('nacho-bubble');
     var textEl = document.getElementById('nacho-text');
-    if (!bubble || !textEl) return false;
+    if (!bubble || !textEl || !t) return false;
 
     if (typeof setPose === 'function') setPose('think');
 
-    // Mark as interactive trivia — only the X can dismiss it
     bubble.setAttribute('data-interactive', 'true');
     bubble.setAttribute('data-trivia', '1');
     window._nachoTriviaXClose = false;
+    window._btcNachoTriviaAnswered = false;
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
     var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--heading,#fff);font-size:0.9rem;">🧠 Quick Trivia! (+' + t.pts + ' pts)</div>' +
@@ -6882,14 +6898,44 @@ window.showNachoTrivia = function() {
     for (var i = 0; i < t.options.length; i++) {
         html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoTriviaAnswer(' + i + ',' + t.correct + ',' + t.pts + ',this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.15s;">' + String.fromCharCode(65 + i) + '. ' + t.options[i] + '</button>';
     }
+    html += '<button type="button" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(window.btcDismissNachoTrivia)window.btcDismissNachoTrivia(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 12px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
 
     textEl.innerHTML = html;
     bubble.classList.add('show');
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
+    if (!window._btcTriviaHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+        try {
+            history.pushState({ overlay: 'nacho-trivia' }, '', window.location ? window.location.href : '');
+            window._btcTriviaHistory = true;
+        } catch (e) {}
+    }
     return true;
+}
+
+window.showNachoTrivia = function() {
+    // ---- ANTI-INTERRUPTION SHIELD ----
+    if (window._nachoBusy) return false;
+    if (!window._btcQuestBypassBusy && typeof window.btcDeferQuestIfBusy === 'function') {
+        if (window.btcDeferQuestIfBusy(function() { window.showNachoTrivia(); }, 'nacho-trivia')) return false;
+    }
+
+    var result = nachoTrivia();
+    if (!result) return false;
+    window._btcNachoTriviaPending = result;
+    return renderNachoTrivia(result.trivia);
+};
+
+window._replayNachoTrivia = function(pending) {
+    if (!pending || !pending.trivia || window._btcNachoTriviaAnswered) return false;
+    if (!window._btcQuestBypassBusy && typeof window.btcDeferQuestIfBusy === 'function') {
+        if (window.btcDeferQuestIfBusy(function() { window._replayNachoTrivia(pending); }, 'nacho-trivia')) return false;
+    }
+    window._btcNachoTriviaPending = pending;
+    return renderNachoTrivia(pending.trivia);
 };
 
 window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
+    window._btcNachoTriviaAnswered = true;
     var buttons = btn.parentElement.querySelectorAll('button');
     for (var i = 0; i < buttons.length; i++) {
         buttons[i].disabled = true;
@@ -21552,9 +21598,23 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close settings/username modal
             var um = document.getElementById('usernameModal');
             if (um && um.classList.contains('open')) { if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt(); return; }
-            // Close quest modal
+            // Close quest modal. A scholar exam keeps its own cancel path.
             var qm = document.getElementById('questModal');
-            if (qm && qm.classList.contains('open')) { qm.classList.remove('open'); return; }
+            if (qm && qm.classList.contains('open')) {
+                if (window._scholarExamActive) { qm.classList.remove('open'); return; }
+                if (typeof window.btcDismissQuest === 'function') { window.btcDismissQuest('esc'); return; }
+                qm.classList.remove('open');
+                return;
+            }
+            var triviaBubble = document.getElementById('nacho-bubble');
+            if (triviaBubble && triviaBubble.classList.contains('show') && triviaBubble.getAttribute('data-trivia') === '1') {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') { window.btcDismissBubbleQuiz('esc'); return; }
+                if (typeof window.btcDismissNachoTrivia === 'function') { window.btcDismissNachoTrivia('esc'); return; }
+            }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('esc');
+                return;
+            }
             // Close search overlay
             var so = document.getElementById('searchOverlay');
             if (so && so.style.display !== 'none') { so.style.display = 'none'; so.removeAttribute('data-open'); return; }
@@ -23332,9 +23392,26 @@ if (locked) {
             if (_learnMenu) { _learnMenu.remove(); return; }
             var _appsMenu = document.getElementById('appsMenu');
             if (_appsMenu && _appsMenu.style.display === 'block') { _appsMenu.style.display = 'none'; return; }
-            // Close quest/scholar modal if open
+            // Close a quest before leaving the page. The button path sets the
+            // pending flag and lets this pop finish the dismiss.
             var _questModal = document.getElementById('questModal');
+            if (window._btcQuestBackPending || (_questModal && _questModal.classList.contains('open') && !window._scholarExamActive)) {
+                if (typeof window.btcDismissQuest === 'function') window.btcDismissQuest('back');
+                else if (_questModal) _questModal.classList.remove('open');
+                return;
+            }
             if (_questModal && _questModal.classList.contains('open')) { _questModal.classList.remove('open'); return; }
+            var _triviaBubble = document.getElementById('nacho-bubble');
+            if (window._btcBubbleBackPending || window._btcTriviaBackPending || (_triviaBubble && _triviaBubble.classList.contains('show') && _triviaBubble.getAttribute('data-trivia') === '1')) {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') window.btcDismissBubbleQuiz('back');
+                else if (typeof window.btcDismissNachoTrivia === 'function') window.btcDismissNachoTrivia('back');
+                return;
+            }
+            if (window._tdConvoBackPending) { window._tdConvoBackPending = false; return; }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('back');
+                return;
+            }
 
             // Return to guide after exploring a feature
             if (state.returnToGuide) {
@@ -24200,6 +24277,14 @@ window.toggleAITools = function() {
             '.topic-post-highlight{animation:topicPostFlash 2.6s ease forwards;border-color:#f97316 !important;}',
             '@keyframes topicPostFlash{0%,45%{box-shadow:0 0 0 3px rgba(249,115,22,0.9);background:rgba(249,115,22,0.22);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);background:transparent;}}',
             '@media (max-width:900px){.td-section{margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}.td-follow,.td-topic{scroll-margin-bottom:calc(180px + env(safe-area-inset-bottom, 0px));}}',
+            '#topic-convo-modal{position:fixed;inset:0;z-index:300000;display:none;align-items:flex-end;justify-content:center;background:rgba(2,6,23,0.72);}',
+            '#topic-convo-modal.open{display:flex;}',
+            '#topic-convo-modal[hidden]{display:none !important;}',
+            '.td-convo-panel{width:min(560px,100%);max-height:min(88vh,720px);overflow:auto;background:var(--bg-side,#0f172a);border:1px solid rgba(249,115,22,0.45);border-radius:18px 18px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -16px 48px rgba(0,0,0,0.5);}',
+            '.td-convo-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}',
+            '.td-convo-title{font-weight:800;color:var(--heading,#fff);font-size:1rem;}',
+            '.td-convo-close{min-height:44px;padding:8px 14px;border-radius:999px;border:1px solid var(--border,#334155);background:rgba(255,255,255,0.06);color:var(--text,#e2e8f0);font-weight:800;font-family:inherit;cursor:pointer;}',
+            '@media (min-width:800px){#topic-convo-modal{align-items:center;}.td-convo-panel{border-radius:18px;margin:24px;}}',
             '@media (max-width:420px){.td-section{margin:20px 10px calc(180px + env(safe-area-inset-bottom, 0px));}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 14px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
         ].join('');
         document.head.appendChild(style);
@@ -24470,6 +24555,48 @@ window.toggleAITools = function() {
         pendingTries: 0,
         sawPending: false,
         pendingAnchor: null
+    };
+
+    var drafts = {};
+
+    function draftStorageKey(channelId) {
+        return 'btc_td_draft_' + String(channelId || '');
+    }
+
+    function readDraft(channelId) {
+        var key = String(channelId || '');
+        if (!key) return '';
+        if (Object.prototype.hasOwnProperty.call(drafts, key) && drafts[key]) return String(drafts[key]);
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem) {
+                return String(sessionStorage.getItem(draftStorageKey(key)) || '');
+            }
+        } catch (e) {}
+        return '';
+    }
+
+    function writeDraft(channelId, text) {
+        var key = String(channelId || '');
+        if (!key) return '';
+        var value = String(text || '');
+        if (value) drafts[key] = value;
+        else delete drafts[key];
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.setItem) {
+                if (value) sessionStorage.setItem(draftStorageKey(key), value);
+                else if (sessionStorage.removeItem) sessionStorage.removeItem(draftStorageKey(key));
+                else sessionStorage.setItem(draftStorageKey(key), '');
+            }
+        } catch (e2) {}
+        return value;
+    }
+
+    window.bqReadTopicDraft = function(channelId) {
+        return readDraft(channelId || state.channelId || window.currentChannelId || '');
+    };
+
+    window.bqSaveTopicDraft = function(channelId, text) {
+        return writeDraft(channelId || state.channelId || window.currentChannelId || '', text);
     };
 
     var ANCHOR_INDEX_MAX = 8000;
@@ -24806,7 +24933,15 @@ window.toggleAITools = function() {
         area.setAttribute('aria-label', 'Comment on this topic');
         var count = el('span', 'td-note');
         count.textContent = '0/500';
-        area.addEventListener('input', function() { count.textContent = String(area.value.length) + '/500'; });
+        var savedDraft = readDraft(state.channelId || window.currentChannelId || '');
+        if (savedDraft) {
+            area.value = savedDraft;
+            count.textContent = String(savedDraft.length) + '/500';
+        }
+        area.addEventListener('input', function() {
+            count.textContent = String(area.value.length) + '/500';
+            writeDraft(state.channelId || window.currentChannelId || '', area.value);
+        });
         host.appendChild(area);
         host.appendChild(forumCrossPostNotice());
         var controls = el('div', 'td-compose-row');
@@ -24838,6 +24973,7 @@ window.toggleAITools = function() {
             if (data && data.toast) toast(data.toast);
             var crossNote = data && data.crossPostNote ? String(data.crossPostNote) : '';
             area.value = '';
+            if (!(opts && opts.inline)) writeDraft(state.channelId || window.currentChannelId || '', '');
             // The inline card and the bottom composer reply to different targets.
             // Sending from one must not clear the other.
             if (opts && opts.inline) {
@@ -25603,11 +25739,142 @@ window.toggleAITools = function() {
         var signIn = composer ? firstButton(composer) : null;
         if (signIn && typeof signIn.focus === 'function') signIn.focus();
     }
+    function ensureConvoSheet() {
+        var sheet = document.getElementById('topic-convo-modal');
+        if (sheet) return sheet;
+        sheet = el('div', 'td-convo-modal');
+        sheet.id = 'topic-convo-modal';
+        sheet.setAttribute('role', 'dialog');
+        sheet.setAttribute('aria-modal', 'true');
+        sheet.setAttribute('aria-label', 'Topic conversation');
+        sheet.setAttribute('aria-hidden', 'true');
+        sheet.hidden = true;
+        var panel = el('div', 'td-convo-panel');
+        panel.id = 'topic-convo-panel';
+        var head = el('div', 'td-convo-head');
+        var title = el('div', 'td-convo-title');
+        title.id = 'topic-convo-title';
+        title.textContent = 'Start a conversation';
+        var close = btn('Close', 'td-convo-close', function() { closeConvoSheet(); });
+        close.id = 'topic-convo-close';
+        close.setAttribute('aria-label', 'Close conversation');
+        head.appendChild(title);
+        head.appendChild(close);
+        panel.appendChild(head);
+        var host = el('div');
+        host.id = 'topic-convo-host';
+        panel.appendChild(host);
+        sheet.appendChild(panel);
+        sheet.addEventListener('click', function(event) {
+            if (event && event.target === sheet) closeConvoSheet();
+        });
+        if (document.body) document.body.appendChild(sheet);
+        if (document.addEventListener && !window._tdConvoEsc) {
+            window._tdConvoEsc = true;
+            document.addEventListener('keydown', function(event) {
+                if (!event || event.key !== 'Escape') return;
+                var open = document.getElementById('topic-convo-modal');
+                if (!open || open.hidden || !(open.classList && open.classList.contains('open'))) return;
+                var quest = document.getElementById('questModal');
+                if (quest && quest.classList && quest.classList.contains('open')) return;
+                if (event.preventDefault) event.preventDefault();
+                closeConvoSheet('esc');
+            });
+        }
+        return sheet;
+    }
+
+    function convoSheetOpen() {
+        var sheet = document.getElementById('topic-convo-modal');
+        return !!(sheet && !sheet.hidden && sheet.classList && sheet.classList.contains('open'));
+    }
+
+    function openConvoSheet() {
+        injectStyle();
+        var sheet = ensureConvoSheet();
+        var host = document.getElementById('topic-convo-host');
+        var composer = document.getElementById('topic-discussion-composer');
+        if (composer && host && composer.parentNode !== host) host.appendChild(composer);
+        var title = document.getElementById('topic-convo-title');
+        if (title) title.textContent = 'Conversation about ' + topicTitle();
+        sheet.hidden = false;
+        sheet.classList.add('open');
+        sheet.setAttribute('aria-hidden', 'false');
+        if (!window._tdConvoHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+            try {
+                history.pushState({ overlay: 'topic-convo' }, '', window.location ? window.location.href : '');
+                window._tdConvoHistory = true;
+            } catch (e) {}
+        }
+    }
+
+    function closeConvoSheet(reason) {
+        var channelId = state.channelId || window.currentChannelId || '';
+        var area = document.getElementById('topic-discussion-input');
+        if (area) {
+            var text = area.value || '';
+            writeDraft(channelId, text);
+            if (window._btcQuestReturn) {
+                window._btcQuestReturn.draft = text;
+                window._btcQuestReturn.channelId = channelId || window._btcQuestReturn.channelId;
+                window._btcQuestReturn.convoOpen = true;
+            }
+            area.value = '';
+            if (document.activeElement === area) {
+                if (typeof area.blur === 'function') {
+                    try { area.blur(); } catch (e) {}
+                }
+                if (document.activeElement === area && document.body) document.activeElement = document.body;
+            }
+        }
+        var composer = document.getElementById('topic-discussion-composer');
+        var body = document.getElementById('topic-discussion-body');
+        if (composer && body && composer.parentNode !== body) body.appendChild(composer);
+        var sheet = document.getElementById('topic-convo-modal');
+        if (sheet) {
+            sheet.classList.remove('open');
+            sheet.hidden = true;
+            sheet.setAttribute('aria-hidden', 'true');
+        }
+        if (reason !== 'back' && window._tdConvoHistory && typeof history !== 'undefined' && history && typeof history.back === 'function') {
+            window._tdConvoHistory = false;
+            window._tdConvoBackPending = true;
+            try { history.back(); } catch (e) { window._tdConvoBackPending = false; }
+        } else {
+            window._tdConvoHistory = false;
+            window._tdConvoBackPending = false;
+        }
+        if (typeof window.btcNoteSurfaceClosed === 'function') window.btcNoteSurfaceClosed();
+    }
+
+    window.bqCloseTopicConversation = function(reason) { closeConvoSheet(reason || 'button'); };
+
+    window.bqTopicConversationOpen = convoSheetOpen;
+
+    window.bqRestoreTopicConversation = function(opts) {
+        opts = opts || {};
+        var channelId = opts.channelId || state.channelId || window.currentChannelId || '';
+        if (opts.draft != null) writeDraft(channelId, opts.draft);
+        if (channelId && !document.getElementById('topic-discussion-live') && typeof window.mountTopicDiscussion === 'function') {
+            window.mountTopicDiscussion(channelId);
+        }
+        setOpen(true);
+        if (!document.getElementById('topic-discussion-composer')) return null;
+        if (!document.getElementById('topic-discussion-input')) renderComposer();
+        openConvoSheet();
+        var area = document.getElementById('topic-discussion-input');
+        var draft = opts.draft != null ? String(opts.draft) : readDraft(channelId);
+        if (area) area.value = draft;
+        if (opts.focus !== false && area && typeof area.focus === 'function') area.focus();
+        return area;
+    };
+
     function openTopicConversation() {
         if (!document.getElementById('topic-discussion-live') && window.currentChannelId && typeof window.mountTopicDiscussion === 'function') {
             window.mountTopicDiscussion(window.currentChannelId);
         }
         setOpen(true);
+        openConvoSheet();
         scrollToDiscussion();
         focusComposer();
     }
@@ -27707,4 +27974,530 @@ if (window.btcDebugLog) window.btcDebugLog('✅ UX Patches loaded — 24 tasks f
     }, 2000);
     
     window.applyDesktopMenuModes = applyDesktopMenuModes;
+})();
+// One gate for popup quests. If the reader is typing, in a sheet, or mid-gesture,
+// the quest waits and is offered again later. Rewards stay on the server.
+(function () {
+    var IDLE_MS = 2500;
+    var GESTURE_MS = 700;
+    var REOFFER_MS = 45000;
+    var queue = [];
+    var idleTimer = null;
+    var idleSince = 0;
+
+    function idleDelay() {
+        var n = window.BTC_QUEST_IDLE_MS;
+        return (typeof n === 'number' && n >= 0) ? n : IDLE_MS;
+    }
+
+    function on(target, type, fn) {
+        if (target && typeof target.addEventListener === 'function') target.addEventListener(type, fn, true);
+    }
+
+    function shown(el) {
+        if (!el || el.nodeType !== 1) return false;
+        if (el.hidden) return false;
+        if (el.hasAttribute && el.hasAttribute('hidden')) return false;
+        var style = el.style || {};
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+        if (el.classList && el.classList.contains('hidden')) return false;
+        return true;
+    }
+
+    function classOpen(el) {
+        return !!(el && el.classList && el.classList.contains('open'));
+    }
+
+    function byId(id) {
+        if (!document || typeof document.getElementById !== 'function') return null;
+        return document.getElementById(id);
+    }
+
+    function isEditable(el) {
+        if (!el || el.nodeType !== 1) return false;
+        var tag = String(el.tagName || '').toUpperCase();
+        if (tag === 'TEXTAREA') return true;
+        if (tag === 'SELECT') return true;
+        if (el.isContentEditable) return true;
+        if (el.getAttribute && el.getAttribute('contenteditable') === 'true') return true;
+        if (tag === 'INPUT') {
+            var type = String(el.type || 'text').toLowerCase();
+            if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'checkbox' || type === 'radio' || type === 'file' || type === 'range' || type === 'color' || type === 'image') return false;
+            return true;
+        }
+        return false;
+    }
+
+    function cssHidden(el) {
+        if (typeof window.getComputedStyle !== 'function' || !el) return false;
+        try {
+            var cs = window.getComputedStyle(el);
+            return !!(cs && (cs.display === 'none' || cs.visibility === 'hidden'));
+        } catch (e) { return false; }
+    }
+
+    function fieldVisible(el) {
+        var node = el;
+        while (node && node.nodeType === 1) {
+            if (!shown(node) || cssHidden(node)) return false;
+            if (node.id === 'chatOverlay' && !window._chatOverlayOpen) return false;
+            var transform = node.style && node.style.transform ? String(node.style.transform) : '';
+            if (transform.indexOf('translateY(100%)') !== -1) return false;
+            if (node === document.body) break;
+            node = node.parentNode;
+        }
+        return !!el;
+    }
+
+    function eachField(fn) {
+        if (document && typeof document.querySelectorAll === 'function') {
+            var list = document.querySelectorAll('textarea, input, select, [contenteditable="true"]');
+            var i;
+            for (i = 0; i < list.length; i++) fn(list[i]);
+            return;
+        }
+        ['topic-discussion-input', 'td-inline-input', 'nachoInput', 'nachoModeInput', 'searchInput', 'chatInput', 'dmInput'].forEach(function (id) {
+            var el = byId(id);
+            if (el) fn(el);
+        });
+    }
+
+    function draftText(el) {
+        if (!el) return '';
+        if (el.value != null && String(el.tagName || '').toUpperCase() !== 'DIV') return String(el.value);
+        return String(el.textContent || '');
+    }
+
+    function modalById(id, mode) {
+        var el = byId(id);
+        if (!fieldVisible(el)) return false;
+        if (mode === 'class') return classOpen(el);
+        if (mode === 'exists') return true;
+        if (mode === 'convo') return classOpen(el);
+        return classOpen(el) || (el.style && (el.style.display === 'flex' || el.style.display === 'block'));
+    }
+
+    function dialogOpen() {
+        if (!document || typeof document.querySelectorAll !== 'function') {
+            return modalById('topic-convo-modal', 'convo') || modalById('usernameModal', 'class') || modalById('questModal', 'class');
+        }
+        var nodes = document.querySelectorAll('[role="dialog"], [aria-modal="true"], .gifting-overlay');
+        var i;
+        for (i = 0; i < nodes.length; i++) {
+            var el = nodes[i];
+            if (!fieldVisible(el)) continue;
+            if (el.id === 'btc-quest-pill') continue;
+            if (el.id === 'questModal' && !classOpen(el)) continue;
+            if (el.id === 'topic-convo-modal' && !classOpen(el)) continue;
+            if (el.getAttribute && el.getAttribute('aria-hidden') === 'true') continue;
+            return true;
+        }
+        return false;
+    }
+
+    window.btcUserBusy = function () {
+        if (window._btcPointerDown) return true;
+        if (window._btcGestureUntil && Date.now() < window._btcGestureUntil) return true;
+        if (window._chatOverlayOpen || window._nachoMode || window._nachoBusy || window._examActive || window._scholarExamActive || window._pvpActive || window._giftOpening) return true;
+        var active = document && document.activeElement;
+        if (isEditable(active) && fieldVisible(active)) return true;
+        var draftBusy = false;
+        eachField(function (el) {
+            if (draftBusy || !isEditable(el) || !fieldVisible(el)) return;
+            if (el.id === 'btc-quest-pill') return;
+            var quest = byId('questModal');
+            if (quest && quest.contains && quest.contains(el) && classOpen(quest)) return;
+            if (String(draftText(el) || '').trim()) draftBusy = true;
+        });
+        if (draftBusy) return true;
+        if (modalById('topic-convo-modal', 'convo')) return true;
+        var search = byId('searchOverlay');
+        if (search && shown(search) && search.getAttribute && search.getAttribute('data-open') === '1') return true;
+        if (modalById('usernameModal', 'class') || modalById('tosModal', 'class') || modalById('questModal', 'class')) return true;
+        if (modalById('leaderboard', 'class') || modalById('donateModal', 'exists') || modalById('spinModal', 'exists')) return true;
+        if (modalById('lnAuthModal', 'exists') || modalById('nostrAuthOverlay', 'exists') || modalById('tipOverlay', 'exists')) return true;
+        if (modalById('questHubOverlay', 'exists') || modalById('guideOverlay', 'exists') || modalById('onboardingOverlay', 'exists')) return true;
+        if (modalById('pvpOverlay', 'exists') || modalById('pvpNameOverlay', 'exists') || modalById('nachoModeScreen', 'exists')) return true;
+        if (modalById('dmWindow', 'exists') || modalById('dmInbox', 'exists') || modalById('postSpinGiftOverlay', 'exists')) return true;
+        if (modalById('userProfileModal', 'exists') || modalById('reportModal', 'exists') || modalById('kbHelpModal', 'exists')) return true;
+        var invite = byId('inviteCard');
+        if (invite && fieldVisible(invite) && invite.getAttribute && invite.getAttribute('data-state') === 'open') return true;
+        if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) return true;
+        if (dialogOpen()) return true;
+        return false;
+    };
+
+    function capturePlace() {
+        if (window._btcQuestReturn) return window._btcQuestReturn;
+        var channelId = window.currentChannelId || '';
+        var area = byId('topic-discussion-input');
+        var inline = byId('td-inline-input');
+        var draft = area ? String(area.value || '') : '';
+        if (!draft && typeof window.bqReadTopicDraft === 'function') draft = String(window.bqReadTopicDraft(channelId) || '');
+        if (draft && typeof window.bqSaveTopicDraft === 'function') window.bqSaveTopicDraft(channelId, draft);
+        var active = document && document.activeElement;
+        var writingHere = !!(area && active === area && fieldVisible(area));
+        window._btcQuestReturn = {
+            channelId: channelId,
+            draft: draft,
+            inlineDraft: inline ? String(inline.value || '') : '',
+            convoOpen: !!(modalById('topic-convo-modal', 'convo') || writingHere),
+            focusId: (active && active.id) || (writingHere ? 'topic-discussion-input' : '')
+        };
+        return window._btcQuestReturn;
+    }
+
+    function restorePlace() {
+        var place = window._btcQuestReturn;
+        window._btcQuestReturn = null;
+        if (!place) return;
+        if (place.draft && typeof window.bqSaveTopicDraft === 'function') window.bqSaveTopicDraft(place.channelId, place.draft);
+        if (place.convoOpen && typeof window.bqRestoreTopicConversation === 'function') {
+            window.bqRestoreTopicConversation({ channelId: place.channelId, draft: place.draft, focus: true });
+            return;
+        }
+        if (place.focusId) {
+            var el = byId(place.focusId);
+            if (el && typeof el.focus === 'function') {
+                try { el.focus(); } catch (e) {}
+            }
+        }
+    }
+
+    function hidePill() {
+        var pill = byId('btc-quest-pill');
+        if (!pill) return;
+        pill.hidden = true;
+        if (pill.style) pill.style.display = 'none';
+    }
+
+    function showPill() {
+        if (!document || typeof document.createElement !== 'function' || !document.body) return;
+        var pill = byId('btc-quest-pill');
+        if (!pill) {
+            pill = document.createElement('button');
+            pill.id = 'btc-quest-pill';
+            pill.type = 'button';
+            pill.textContent = 'Quest ready';
+            pill.setAttribute('aria-label', 'Quest ready. Tap to play it when you are free.');
+            pill.style.cssText = 'position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:360000;padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid #f7931a;background:#1a1208;color:#fff;font-weight:800;font-family:inherit;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.4);';
+            pill.addEventListener('click', function (event) {
+                if (event && event.preventDefault) event.preventDefault();
+                window._btcQuestHoldUntil = 0;
+                idleSince = Date.now() - idleDelay();
+                runQueue();
+            });
+            document.body.appendChild(pill);
+        }
+        pill.hidden = false;
+        if (pill.style) pill.style.display = 'block';
+    }
+
+    function enqueue(open, id, holdMs) {
+        var key = id || 'quest';
+        queue = queue.filter(function (item) { return item.id !== key; });
+        queue.push({ id: key, open: open, holdMs: holdMs || 0 });
+        if (holdMs) window._btcQuestHoldUntil = Math.max(window._btcQuestHoldUntil || 0, Date.now() + holdMs);
+    }
+
+    function held() {
+        return Date.now() < (window._btcQuestHoldUntil || 0);
+    }
+
+    function runQueue() {
+        if (!queue.length) { hidePill(); return; }
+        if (window.btcUserBusy()) { hidePill(); arm(); return; }
+        if (held()) { showPill(); arm(); return; }
+        var item = queue.shift();
+        hidePill();
+        idleSince = 0;
+        window._btcQuestBypassBusy = true;
+        try { item.open(); }
+        finally { window._btcQuestBypassBusy = false; }
+        if (queue.length) arm();
+    }
+
+    function arm() {
+        if (idleTimer) clearTimeout(idleTimer);
+        function tick() {
+            idleTimer = null;
+            if (!queue.length) { hidePill(); return; }
+            if (window.btcUserBusy()) {
+                idleSince = 0;
+                hidePill();
+                idleTimer = setTimeout(tick, 300);
+                return;
+            }
+            if (!idleSince) idleSince = Date.now();
+            showPill();
+            if (!held() && Date.now() - idleSince >= idleDelay()) {
+                runQueue();
+                return;
+            }
+            idleTimer = setTimeout(tick, 200);
+        }
+        idleTimer = setTimeout(tick, 200);
+    }
+
+    // Returns true when the quest was queued instead of opened.
+    window.btcDeferQuestIfBusy = function (open, id) {
+        if (typeof open !== 'function') return false;
+        if (window._btcQuestBypassBusy) return false;
+        if (!window.btcUserBusy()) return false;
+        capturePlace();
+        enqueue(open, id, 0);
+        arm();
+        return true;
+    };
+
+    window.btcQueueQuest = function (open, id, holdMs) {
+        if (typeof open !== 'function') return;
+        capturePlace();
+        enqueue(open, id || 'quest', holdMs == null ? REOFFER_MS : holdMs);
+        arm();
+    };
+
+    window.btcNoteSurfaceClosed = function () {
+        idleSince = 0;
+        if (queue.length) arm();
+    };
+
+    function questOpen() {
+        var modal = byId('questModal');
+        return !!(modal && classOpen(modal));
+    }
+
+    window.btcReleaseQuestLayer = function () {
+        var modal = byId('questModal');
+        if (modal) {
+            if (modal.classList) modal.classList.remove('open');
+            if (modal.style) {
+                modal.style.display = 'none';
+                modal.style.pointerEvents = 'none';
+                modal.style.visibility = 'hidden';
+            }
+            if (modal.setAttribute) modal.setAttribute('aria-hidden', 'true');
+        }
+        if (document && typeof document.querySelectorAll === 'function') {
+            var extras = document.querySelectorAll('.btc-quest-backdrop, #btcQuestShield');
+            var i;
+            for (i = 0; i < extras.length; i++) {
+                if (extras[i] && extras[i].parentNode) extras[i].parentNode.removeChild(extras[i]);
+            }
+        }
+        var body = document && document.body;
+        if (body && body.style && !window.btcUserBusy()) {
+            body.style.overflow = '';
+        }
+    };
+
+    function decorateQuestModal() {
+        var modal = byId('questModal');
+        var inner = byId('questInner');
+        if (!modal) return;
+        if (modal.style) {
+            modal.style.display = '';
+            modal.style.pointerEvents = '';
+            modal.style.visibility = '';
+        }
+        if (modal.classList) modal.classList.add('open');
+        if (modal.setAttribute) {
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-hidden', 'false');
+            modal.setAttribute('aria-label', 'Quest');
+        }
+        if (!inner || window._scholarExamActive) return;
+        var existing = byId('questNotNowBtn');
+        if (!existing && typeof document.createElement === 'function') {
+            var btn = document.createElement('button');
+            btn.id = 'questNotNowBtn';
+            btn.type = 'button';
+            btn.className = 'quest-not-now';
+            btn.textContent = 'Not now / Back';
+            btn.setAttribute('aria-label', 'Not now. Go back to where you were.');
+            btn.addEventListener('click', function (event) {
+                if (event && event.preventDefault) event.preventDefault();
+                if (event && event.stopPropagation) event.stopPropagation();
+                window.btcDismissQuest('button');
+            });
+            if (inner.insertBefore && inner.firstChild) inner.insertBefore(btn, inner.firstChild);
+            else if (inner.appendChild) inner.appendChild(btn);
+        }
+        var skips = inner.querySelectorAll ? inner.querySelectorAll('.quest-skip') : [];
+        var s;
+        for (s = 0; s < skips.length; s++) {
+            skips[s].textContent = 'Not now / Back';
+            skips[s].setAttribute('aria-label', 'Not now. Go back to where you were.');
+            skips[s].onclick = function (event) {
+                if (event && event.preventDefault) event.preventDefault();
+                if (event && event.stopPropagation) event.stopPropagation();
+                window.btcDismissQuest('button');
+            };
+        }
+    }
+
+    function pushQuestHistory() {
+        if (window._btcQuestHistoryPushed) return;
+        if (typeof history === 'undefined' || !history || typeof history.pushState !== 'function') return;
+        try {
+            history.pushState({ overlay: 'quest' }, '', window.location ? window.location.href : '');
+            window._btcQuestHistoryPushed = true;
+        } catch (e) {}
+    }
+
+    function rememberQuest(quest) {
+        if (quest) window._btcLastPopupQuest = quest;
+    }
+
+    function reofferQuest(quest) {
+        if (!quest) return;
+        window.btcQueueQuest(function () {
+            window._btcQuestBypassBusy = true;
+            try {
+                if (typeof window.showQuest === 'function') window.showQuest(quest, false);
+            } finally {
+                window._btcQuestBypassBusy = false;
+            }
+        }, 'reoffer-quest', REOFFER_MS);
+    }
+
+    function popHistoryFirst(flagName, pendingName, reason) {
+        if (reason === 'back') {
+            window[flagName] = false;
+            window[pendingName] = false;
+            return false;
+        }
+        if (window[flagName] && typeof history !== 'undefined' && history && typeof history.back === 'function') {
+            window[flagName] = false;
+            window[pendingName] = true;
+            try { history.back(); return true; } catch (e) { window[pendingName] = false; }
+        }
+        return false;
+    }
+
+    window.btcDismissQuest = function (reason) {
+        if (window._scholarExamActive) return;
+        var open = questOpen();
+        if (!open && reason === 'back' && !window._btcQuestBackPending) return;
+        if (window._btcDismissing) return;
+        if (popHistoryFirst('_btcQuestHistoryPushed', '_btcQuestBackPending', reason)) return;
+        window._btcDismissing = true;
+        window._btcQuestBackPending = false;
+        window._btcQuestHistoryPushed = false;
+        var finished = window._questSubmitted === true;
+        var quest = window._btcLastPopupQuest;
+        if (typeof window.closeQuest === 'function') window.closeQuest();
+        else window.btcReleaseQuestLayer();
+        if (!finished && quest) reofferQuest(quest);
+        else window._btcLastPopupQuest = null;
+        window._btcDismissing = false;
+    };
+
+    window.btcDismissBubbleQuiz = function (reason) {
+        if (window._btcBubbleDismissing) return;
+        var bubble = byId('nacho-bubble');
+        var showing = !!(bubble && bubble.classList && bubble.classList.contains('show') && bubble.getAttribute && bubble.getAttribute('data-trivia') === '1' && window._btcBubbleQuiz);
+        if (!showing && reason === 'back' && !window._btcBubbleBackPending) return;
+        if (popHistoryFirst('_btcBubbleHistory', '_btcBubbleBackPending', reason)) return;
+        window._btcBubbleDismissing = true;
+        window._btcBubbleBackPending = false;
+        window._btcBubbleHistory = false;
+        var q = window._btcBubbleQuiz;
+        var awarded = !!(q && window._btcBubbleQuizAwarded === String(q.question || ''));
+        window._btcBubbleQuiz = null;
+        window._nachoTriviaXClose = true;
+        if (typeof window.hideBubble === 'function') window.hideBubble(true);
+        if (!awarded && q && typeof window._presentBubbleQuiz === 'function') {
+            window.btcQueueQuest(function () { window._presentBubbleQuiz(q); }, 'bubble-quiz', REOFFER_MS);
+        }
+        restorePlace();
+        window._btcBubbleDismissing = false;
+    };
+
+    window.btcDismissNachoTrivia = function (reason) {
+        if (window._btcTriviaDismissing) return;
+        var bubble = byId('nacho-bubble');
+        var showing = !!(bubble && bubble.classList && bubble.classList.contains('show') && bubble.getAttribute && bubble.getAttribute('data-trivia') === '1');
+        if (!showing && reason === 'back' && !window._btcTriviaBackPending) return;
+        if (popHistoryFirst('_btcTriviaHistory', '_btcTriviaBackPending', reason)) return;
+        window._btcTriviaDismissing = true;
+        window._btcTriviaBackPending = false;
+        window._btcTriviaHistory = false;
+        var pending = window._btcNachoTriviaPending;
+        var answered = window._btcNachoTriviaAnswered === true;
+        window._nachoTriviaXClose = true;
+        if (typeof window.hideBubble === 'function') window.hideBubble(true);
+        if (!answered && pending && typeof window._replayNachoTrivia === 'function') {
+            window.btcQueueQuest(function () { window._replayNachoTrivia(pending); }, 'nacho-trivia', REOFFER_MS);
+        }
+        restorePlace();
+        window._btcTriviaDismissing = false;
+    };
+
+    function tryWrapQuests() {
+        if (typeof window.generateAndShowQuest === 'function' && !window.generateAndShowQuest._btcWrapped) {
+            var origGen = window.generateAndShowQuest;
+            window.generateAndShowQuest = function (manual, targetChannelId, isRetake) {
+                var args = arguments;
+                if (!manual && !window._btcQuestBypassBusy && window.btcUserBusy()) {
+                    window.btcDeferQuestIfBusy(function () {
+                        window._btcQuestBypassBusy = true;
+                        try { origGen.apply(window, args); }
+                        finally { window._btcQuestBypassBusy = false; }
+                    }, 'auto-quest');
+                    return;
+                }
+                return origGen.apply(window, args);
+            };
+            window.generateAndShowQuest._btcWrapped = true;
+        }
+        if (typeof window.showQuest === 'function' && !window.showQuest._btcWrapped) {
+            var origShow = window.showQuest;
+            window.showQuest = function (quest, retry) {
+                rememberQuest(quest);
+                if (!window._btcQuestReturn) capturePlace();
+                var result = origShow.apply(window, arguments);
+                decorateQuestModal();
+                pushQuestHistory();
+                hidePill();
+                return result;
+            };
+            window.showQuest._btcWrapped = true;
+        }
+        if (typeof window.closeQuest === 'function' && !window.closeQuest._btcWrapped) {
+            var origClose = window.closeQuest;
+            window.closeQuest = function () {
+                window.btcReleaseQuestLayer();
+                var result = origClose.apply(window, arguments);
+                if (window._questSubmitted) window._btcLastPopupQuest = null;
+                restorePlace();
+                return result;
+            };
+            window.closeQuest._btcWrapped = true;
+        }
+        if (typeof window.skipQuest === 'function' && !window.skipQuest._btcWrapped) {
+            window.skipQuest = function () { window.btcDismissQuest('button'); };
+            window.skipQuest._btcWrapped = true;
+        }
+    }
+
+    tryWrapQuests();
+    if (typeof setInterval === 'function') {
+        var wrapTimer = setInterval(tryWrapQuests, 500);
+        if (wrapTimer && typeof wrapTimer.unref === 'function') wrapTimer.unref();
+    }
+
+    function markGesture() {
+        window._btcGestureUntil = Date.now() + GESTURE_MS;
+        idleSince = 0;
+    }
+    on(document, 'pointerdown', function () { window._btcPointerDown = true; markGesture(); });
+    on(document, 'pointerup', function () { window._btcPointerDown = false; markGesture(); });
+    on(document, 'pointercancel', function () { window._btcPointerDown = false; });
+    on(document, 'touchstart', function () { window._btcPointerDown = true; markGesture(); });
+    on(document, 'touchend', function () { window._btcPointerDown = false; markGesture(); });
+    on(document, 'wheel', markGesture);
+    on(document, 'scroll', markGesture);
+    on(window, 'scroll', markGesture);
 })();
