@@ -128,6 +128,7 @@ service cloud.firestore {
         'badgeBackfillToast',
         'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
+        'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
         'providersHash', 'providerHashes'
@@ -1716,10 +1717,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Certificates (public read, Cloud Function writes only via Admin SDK)
+    // Certificates are not readable by the client. verifyCertificate returns
+    // the public fields. Owner ids live in cert_owners.
     match /certs/{certId} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /cert_owners/{certId} {
+      allow read, write: if false;
+    }
+
+    match /cert_by_user/{docId} {
+      allow read, write: if false;
     }
 
     // Buddy matching pool

@@ -2591,6 +2591,18 @@ function shareDeepUrl(baseUrl, code) {
     return url + hash;
 }
 
+function stripShareLinks(text) {
+    var s = String(text || '');
+    s = s.replace(/https?:\/\/[^\s<>"')\]]+/gi, '');
+    s = s.replace(/\b(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24}))(?:\/[^\s<>"')\]]*)?/gi, '');
+    s = s.replace(/[ \t]{2,}/g, ' ');
+    s = s.replace(/[ \t]+([,.;:!?])/g, '$1');
+    s = s.replace(/\(\s*\)/g, '');
+    s = s.replace(/[ \t]+\n/g, '\n');
+    s = s.replace(/\n{3,}/g, '\n\n');
+    return s.replace(/^\s+|\s+$/g, '');
+}
+
 function inviteSharePayload(link) {
     var url = String(link || '').trim() || shareHomeUrl();
     return {
@@ -15065,7 +15077,7 @@ window.dismissIOSA2HS = function() {
 };
 
 // ---- Learn menu (desktop panel and mobile sheet share one renderer) ----
-window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2377';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2386';
 
 function learnExperienceMode() {
     var mode = '';
@@ -19441,6 +19453,31 @@ document.addEventListener('btcProfileSaved', function() {
         });
     }
 
+    function channelShareParts(id) {
+        var hero = document.getElementById('hero');
+        var h1 = hero ? hero.querySelector('h1') : null;
+        var title = (h1 && h1.textContent) ? h1.textContent : String(id || '');
+        var text = title + ' — Bitcoin Education Archive';
+        var base = 'https://bitcoineducation.quest/#' + id;
+        var url = (typeof shareDeepUrl === 'function') ? shareDeepUrl(base) : base;
+        return { text: text, url: url };
+    }
+
+    function shareChannel(kind, id, btn) {
+        if (!/^[a-z0-9_-]+$/.test(String(id || ''))) return;
+        var parts = channelShareParts(id);
+        if (kind === 'x') {
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(parts.text) + '&url=' + encodeURIComponent(parts.url), '_blank', 'noopener,noreferrer');
+            return;
+        }
+        if (kind === 'nostr') {
+            shareNostr(parts.text, parts.url);
+            return;
+        }
+        if (kind === 'copy' && btn) copyLink(parts.url, btn);
+    }
+    window.shareChannel = shareChannel;
+
     // goRandom defined above with floating button support
 
     let supportRevealed = false;
@@ -20309,6 +20346,7 @@ document.addEventListener('btcProfileSaved', function() {
     // =============================================
     function nachoSharePayload(text, code) {
         var clean = String(text || '').replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
+        if (typeof stripShareLinks === 'function') clean = stripShareLinks(clean);
         var c = code == null ? (typeof liveRefCode === 'function' ? liveRefCode() : '') : String(code || '');
         var url = /^[A-Za-z0-9]{6,28}$/.test(c)
             ? 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c)
@@ -22175,6 +22213,60 @@ window.nachoQuizAnswer = function(btn, correct) {
             window._nachoReturnPending = true;
         }
 
+        if (typeof id === 'string' && id.indexOf('cert/') === 0) {
+            var _certRaw = id.slice('cert/'.length).split(/[?#]/)[0];
+            var _certOk = /^(?:CERT-)?[A-Za-z0-9-]{8,80}$/.test(_certRaw);
+            if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+            var _homeEl = document.getElementById('home');
+            if (_homeEl) _homeEl.classList.add('hidden');
+            var _heroEl = document.getElementById('hero');
+            if (_heroEl) { _heroEl.innerHTML = ''; _heroEl.style.display = 'none'; }
+            var _msgsEl = document.getElementById('msgs');
+            if (_msgsEl) { _msgsEl.innerHTML = ''; _msgsEl.style.display = 'none'; }
+            var _fc = document.getElementById('forumContainer');
+            if (_fc) {
+                _fc.style.display = 'block';
+                _fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;">' +
+                    '<div style="font-size:2rem;margin-bottom:12px;">⏳</div>' +
+                    '<div style="color:var(--text-muted);">Verifying certificate...</div></div>';
+            }
+            try { history.pushState({ channel: id }, '', '#' + id); } catch (e) {}
+            if (!_certOk) {
+                if (_fc) {
+                    _fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;">' +
+                        '<h2 style="color:var(--heading);">Certificate Not Found</h2></div>';
+                }
+                return;
+            }
+            function _showCertPage() {
+                if (typeof window.renderCertVerification === 'function') window.renderCertVerification(_certRaw);
+            }
+            if (typeof window.renderCertVerification === 'function') {
+                _showCertPage();
+            } else {
+                var _certSrc = 'shareable-certs.js?v=20261026_v2390';
+                var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
+                if (!_existingCertScript) {
+                    var _certScript = document.createElement('script');
+                    _certScript.src = _certSrc;
+                    _certScript.onload = _showCertPage;
+                    document.head.appendChild(_certScript);
+                } else {
+                    var _certWait = 0;
+                    var _certTimer = setInterval(function () {
+                        _certWait += 50;
+                        if (typeof window.renderCertVerification === 'function' || _certWait > 4000) {
+                            clearInterval(_certTimer);
+                            _showCertPage();
+                        }
+                    }, 50);
+                }
+            }
+            var _mainEl = document.getElementById('main');
+            if (_mainEl) _mainEl.scrollTop = 0;
+            return;
+        }
+
         // Show skeleton loader
         var msgs = document.getElementById('msgs');
         var hero = document.getElementById('hero');
@@ -22371,10 +22463,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
         const isGallery = GALLERY_CHANNELS.includes(id);
 
-        const shareUrl = (typeof shareDeepUrl === 'function')
-            ? shareDeepUrl('https://bitcoineducation.quest/#' + id)
-            : 'https://bitcoineducation.quest/#' + id;
-        const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
                 '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
@@ -22384,9 +22472,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
-                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'x\', \'' + id + '\')">𝕏 Share</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'nostr\', \'' + id + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'copy\', \'' + id + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
@@ -23668,7 +23756,7 @@ if (locked) {
         console.log('[ROUTE] Routing to:', hash);
         // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
         // so the script is ready when _routeApp starts polling for it.
-        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app'];
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app','cert'];
         if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
             window._loadDeferred();
         }
@@ -23910,6 +23998,7 @@ if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
 if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;
 if (typeof copyLink !== 'undefined') window.copyLink = copyLink;
+if (typeof shareChannel !== 'undefined') window.shareChannel = shareChannel;
 if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
 if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;

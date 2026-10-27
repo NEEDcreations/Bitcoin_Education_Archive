@@ -167,6 +167,8 @@ queue.push(test('dry-run is the default and --apply is explicit', function () {
     assert.ok(privacy.includes('If a device already had a push token and you had not turned notifications off, that registration stays on.'));
     assert.ok(terms.includes('when it already had a push token and you had not turned notifications off'));
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2390'"));
+    assert.ok(!sw.includes('btc-archive-v2386'));
+    assert.ok(!sw.includes('btc-archive-v2410'));
     assert.ok(!sw.includes('btc-archive-v2385'));
     assert.ok(!sw.includes('btc-archive-v2425'));
     assert.ok(!sw.includes('btc-archive-v2384'));
@@ -178,6 +180,7 @@ queue.push(test('dry-run is the default and --apply is explicit', function () {
     assert.ok(!sw.includes('btc-archive-v2380'));
     assert.ok(!sw.includes('btc-archive-v2407'));
     assert.ok(!sw.includes('btc-archive-v2379'));
+    assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2399'));
     assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2377'));

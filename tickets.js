@@ -69,6 +69,18 @@ function shareDeepUrl(baseUrl, code) {
     return url + hash;
 }
 
+function stripShareLinks(text) {
+    var s = String(text || '');
+    s = s.replace(/https?:\/\/[^\s<>"')\]]+/gi, '');
+    s = s.replace(/\b(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24}))(?:\/[^\s<>"')\]]*)?/gi, '');
+    s = s.replace(/[ \t]{2,}/g, ' ');
+    s = s.replace(/[ \t]+([,.;:!?])/g, '$1');
+    s = s.replace(/\(\s*\)/g, '');
+    s = s.replace(/[ \t]+\n/g, '\n');
+    s = s.replace(/\n{3,}/g, '\n\n');
+    return s.replace(/^\s+|\s+$/g, '');
+}
+
 function inviteSharePayload(link) {
     var url = String(link || '').trim() || shareHomeUrl();
     return {

@@ -3203,11 +3203,17 @@ function beatsShareUrl(url) {
     return url;
 }
 
+function beatsShareTitle(raw) {
+    var shown = (typeof beatsCensor === 'function') ? beatsCensor(raw) : String(raw || '');
+    if (typeof stripShareLinks === 'function') shown = stripShareLinks(shown);
+    return shown || 'Track';
+}
+
 // Share a track link. The caption has no link; the url field is the only one.
 window.beatsShareTrack = function(trackId, title) {
     var track = _beatsFindQueued(trackId);
     var raw = (track && track.title) ? track.title : (title || 'Track');
-    var shown = (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
+    var shown = beatsShareTitle(raw);
     var url = beatsShareUrl('https://bitcoineducation.quest/#beats/' + trackId);
     var text = '🎸 Listen to "' + shown + '" on Bitcoin Beats!';
     if (navigator.share) {

@@ -2138,7 +2138,7 @@
             'quests.js?v=20261026_v2381',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20261026_v2390','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261024_v2350',
-            'scholar.js?v=20261026_v2377','beats.js?v=20261026_v2390',
+            'scholar.js?v=20261026_v2386','beats.js?v=20261026_v2390',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2390',
@@ -2213,7 +2213,8 @@
             'questhub':      ['quests.js?v=20261026_v2381'],
             'app':           ['quests.js?v=20261026_v2381'],
             'timechain-tv':  ['timechain-tv.js?v=20261026_v2383'],
-            'tv':            ['timechain-tv.js?v=20261026_v2383']
+            'tv':            ['timechain-tv.js?v=20261026_v2383'],
+            'cert':          ['shareable-certs.js?v=20261026_v2390']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {
@@ -2227,6 +2228,8 @@
                     // All scripts loaded — re-trigger routing so go() runs with scripts ready
                     if (hash === 'app') {
                         if (typeof window.bqRouteHash === 'function') window.bqRouteHash(fullHash);
+                    } else if (hash === 'cert' && typeof window.go === 'function') {
+                        window.go(fullHash);
                     } else if (hash !== 'questhub' && typeof window.go === 'function') window.go(hash);
                 }
             }

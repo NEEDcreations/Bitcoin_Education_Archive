@@ -155,10 +155,100 @@ test('certificate, invite, badge celebration, Nacho, channel, beats, and PVP pos
     const pvp = read('pvp.js');
     const pvpText = 'Challenge me to a Bitcoin trivia battle right now! ⚔️';
     assert.ok(pvp.includes("text:'" + pvpText + "'"));
-    assert.ok(pvp.includes("shareDeepUrl('https://bitcoineducation.quest/#pvp')"));
+    assert.ok(pvp.includes("var base = 'https://bitcoineducation.quest/#pvp';"));
+    assert.ok(pvp.includes('function pvpShareUrl()'));
     const pvpUrl = tickets.shareDeepUrl('https://bitcoineducation.quest/#pvp', 's2rP0nRE');
     assert.strictEqual(linkCount(pvpText + '\n' + pvpUrl), 1);
     assert.strictEqual(pvpUrl, 'https://bitcoineducation.quest/?ref=s2rP0nRE#pvp');
+});
+
+test('Nacho quotes drop other links, channel shares read the ref at click, and PVP shows the copied URL', () => {
+    const tickets = loadFns(read('tickets.js'), ['stripShareLinks', 'liveRefCode', 'shareHomeUrl', 'shareDeepUrl'], {
+        getReferralCode: function () { return ''; },
+        currentUser: null
+    });
+    const quoted = 'Fees are on mempool.space and https://bitcoin.org/bitcoin.pdf plus 21lessons.com and www.bitcoin.org';
+    assert.strictEqual(tickets.stripShareLinks(quoted).includes('mempool.space'), false);
+    assert.strictEqual(tickets.stripShareLinks(quoted).includes('bitcoin.org'), false);
+    assert.strictEqual(tickets.stripShareLinks(quoted).includes('21lessons.com'), false);
+    assert.ok(tickets.stripShareLinks('Learn Bitcoin Quest').includes('Bitcoin Quest'));
+
+    const app = loadFns(read('app.js'), ['nachoSharePayload'], { stripShareLinks: tickets.stripShareLinks });
+    const nacho = app.nachoSharePayload(quoted, 'abc12345');
+    assert.strictEqual(linkCount(nacho.text), 1);
+    assert.ok(nacho.text.includes(TAG));
+    assert.ok(nacho.text.includes('https://bitcoineducation.quest/?ref=abc12345'));
+    assert.strictEqual(nacho.text.includes('mempool.space'), false);
+    assert.strictEqual(nacho.text.includes('bitcoin.org'), false);
+    assert.strictEqual(nacho.text.includes('21lessons.com'), false);
+
+    const appSrc = read('app.js');
+    const heroAt = appSrc.indexOf("document.getElementById('hero').innerHTML =");
+    const heroEnd = appSrc.indexOf("document.getElementById('hero').classList.remove", heroAt);
+    const heroSrc = appSrc.slice(heroAt, heroEnd);
+    assert.ok(heroAt >= 0 && heroEnd > heroAt);
+    assert.strictEqual(heroSrc.includes('shareDeepUrl'), false);
+    assert.ok(heroSrc.includes("shareChannel(\\'x\\'"));
+    assert.ok(heroSrc.includes("shareChannel(\\'nostr\\'"));
+    assert.ok(heroSrc.includes("shareChannel(\\'copy\\'"));
+
+    const answers = [
+        'https://bitcoineducation.quest/#mining',
+        'https://bitcoineducation.quest/?ref=abc12345#mining'
+    ];
+    const channel = loadFns(appSrc, ['channelShareParts'], {
+        document: {
+            getElementById: function () {
+                return { querySelector: function () { return { textContent: 'Mining' }; } };
+            }
+        },
+        shareDeepUrl: function () { return answers.shift(); }
+    });
+    const before = channel.channelShareParts('mining');
+    const after = channel.channelShareParts('mining');
+    assert.strictEqual(before.url, 'https://bitcoineducation.quest/#mining');
+    assert.strictEqual(after.url, 'https://bitcoineducation.quest/?ref=abc12345#mining');
+    assert.strictEqual(before.text, 'Mining — Bitcoin Education Archive');
+    assert.strictEqual(linkCount(after.text + '\n' + after.url), 1);
+    assert.ok(appSrc.includes('window.shareChannel = shareChannel'));
+
+    const beatsSrc = read('beats.js');
+    assert.ok(beatsSrc.includes('function beatsShareTitle(raw)'));
+    assert.ok(beatsSrc.includes('stripShareLinks(shown)'));
+    const beats = loadFns(beatsSrc, ['beatsShareTitle', 'beatsShareUrl'], {
+        stripShareLinks: tickets.stripShareLinks,
+        shareDeepUrl: function (url) { return tickets.shareDeepUrl(url, 'abc12345'); }
+    });
+    const shown = beats.beatsShareTitle('Halving https://evil.example/x and mempool.space');
+    const beatText = '🎸 Listen to "' + shown + '" on Bitcoin Beats!';
+    const beatUrl = beats.beatsShareUrl('https://bitcoineducation.quest/#beats/track1');
+    assert.strictEqual(shown.includes('evil.example'), false);
+    assert.strictEqual(shown.includes('mempool.space'), false);
+    assert.ok(shown.includes('Halving'));
+    assert.strictEqual(linkCount(beatText + '\n' + beatUrl), 1);
+    assert.strictEqual(beatUrl, 'https://bitcoineducation.quest/?ref=abc12345#beats/track1');
+
+    const box = { textContent: '' };
+    let copied = '';
+    const pvpFns = loadFns(read('pvp.js'), ['pvpShareUrl', 'pvpCopyShareLink'], {
+        shareDeepUrl: function (base) { return tickets.shareDeepUrl(base, 's2rP0nRE'); },
+        document: { getElementById: function () { return box; } },
+        navigator: { clipboard: { writeText: function (url) { copied = url; return Promise.resolve(); } } },
+        showToast: function () {}
+    });
+    const pvp = read('pvp.js');
+    assert.ok(pvp.includes('id="pvpShareLink"'));
+    assert.ok(pvp.includes("'+pvpShareUrl()+'"));
+    assert.ok(pvp.includes('pvpCopyShareLink()'));
+    assert.ok(pvp.includes('pvpCopyShareLink(true)'));
+    assert.strictEqual(pvp.includes('>https://bitcoineducation.quest/#pvp<'), false);
+    const displayed = pvpFns.pvpShareUrl();
+    const copiedUrl = pvpFns.pvpCopyShareLink();
+    assert.strictEqual(displayed, 'https://bitcoineducation.quest/?ref=s2rP0nRE#pvp');
+    assert.strictEqual(copiedUrl, displayed);
+    assert.strictEqual(box.textContent, displayed);
+    assert.strictEqual(copied, displayed);
+    assert.strictEqual(linkCount('Challenge me to a Bitcoin trivia battle right now! ⚔️\n' + displayed), 1);
 });
 
 test('patch notes keep one Latest line and pages match', () => {
