@@ -88,7 +88,10 @@ function _injectGiftingCSS() {
         '[data-theme="light"] .gifting-modal{background:#ffffff;background-color:#ffffff;color:#1e293b;}',
         '.oled-theme .gifting-modal,[data-theme="oled"] .gifting-modal{background:#000000;background-color:#000000;color:#e2e8f0;}',
         '.gifting-modal button{min-height:44px;min-width:44px;box-sizing:border-box;}',
-        '.gift-open-btn,.cipher-open-btn,.key-send-btn{min-height:44px;min-width:44px;padding:10px 16px;border:none;border-radius:10px;color:#fff;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:8px;}',
+        '.gift-open-btn,.cipher-open-btn,.key-send-btn,.key-send-back-btn{min-height:44px;min-width:44px;padding:10px 16px;border:none;border-radius:10px;color:#fff;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:8px;}',
+        '.key-send-back-btn{background:transparent;color:#c4b5fd;border:1px solid rgba(167,139,250,0.55);}',
+        '.username-tag{color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;}',
+        '.peer-level-chip{flex:0 0 auto;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(247,147,26,0.16);color:#f7931a;}',
         '.gift-open-btn{background:linear-gradient(135deg,#f7931a,#ea580c);}',
         '.gift-open-btn:disabled{cursor:progress;opacity:0.92;}',
         '.gift-later-btn{background:transparent;color:var(--text-muted,#94a3b8);border:1px solid var(--border,#334155);}',
@@ -120,7 +123,7 @@ function _injectGiftingCSS() {
         '.kc-help-link{min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link,#60a5fa);border-radius:8px;color:var(--link,#60a5fa);font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;}',
         '.kc-send-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 1 auto;max-width:100%;}',
         '.kc-send-hint{margin:0;font-size:0.75rem;line-height:1.35;color:var(--text-muted,#94a3b8);text-align:right;max-width:12rem;overflow-wrap:anywhere;}',
-        '@media (max-width:520px){.kc-card{flex-wrap:wrap;}.kc-card .cipher-open-btn,.kc-card .key-send-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}.kc-send-wrap{width:100%;align-items:stretch;}.kc-send-hint{max-width:none;text-align:left;}}'
+        '@media (max-width:520px){.kc-card{flex-wrap:wrap;}.kc-card .cipher-open-btn,.kc-card .key-send-btn,.kc-card .key-send-back-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}.kc-send-wrap{width:100%;align-items:stretch;}.kc-send-hint{max-width:none;text-align:left;}}'
     ].join('');
     document.head.appendChild(s);
 }
@@ -1352,6 +1355,115 @@ async function _readPeerCount() {
     return null;
 }
 
+var PEERSHIP_LEVELS = [
+    { level: 1, name: 'Unconfirmed', gifts: 0 },
+    { level: 2, name: 'Opening Channel', gifts: 1 },
+    { level: 3, name: 'Routing Nodes', gifts: 21 },
+    { level: 4, name: 'Adjusted Fees', gifts: 44 },
+    { level: 5, name: 'Balanced Liquidity', gifts: 144 },
+    { level: 6, name: 'Wumbo Channel', gifts: 210 }
+];
+
+function _peershipLevelView(entry) {
+    if (typeof window.peershipLevelView === 'function' && window.peershipLevelView !== _peershipLevelView) {
+        return window.peershipLevelView(entry);
+    }
+    var row = entry && typeof entry === 'object' ? entry : null;
+    var level = row ? Number(row.level) : NaN;
+    if (!row || !isFinite(level) || level < 1) {
+        return { chip: 'New', title: 'No peership level yet', name: '', line: 'Peership not started', level: 0, gifts: null, next: null };
+    }
+    level = Math.min(6, Math.floor(level));
+    var known = null;
+    for (var i = 0; i < PEERSHIP_LEVELS.length; i++) {
+        if (PEERSHIP_LEVELS[i].level === level) known = PEERSHIP_LEVELS[i];
+    }
+    var name = row.levelName ? String(row.levelName).replace(/\s+/g, ' ').trim().slice(0, 40) : '';
+    if (!name && known) name = known.name;
+    var gifts = (typeof row.giftsExchanged === 'number' && isFinite(row.giftsExchanged)) ? Math.max(0, Math.floor(row.giftsExchanged)) : null;
+    var next = null;
+    if (gifts != null) {
+        for (var j = 0; j < PEERSHIP_LEVELS.length; j++) {
+            if (PEERSHIP_LEVELS[j].gifts > gifts) { next = PEERSHIP_LEVELS[j].gifts; break; }
+        }
+    }
+    var chip = 'Lv ' + level;
+    var line = 'Peership · ' + chip + (name ? ' · ' + name : '');
+    if (gifts != null) line += ' · ' + gifts + (next != null ? '/' + next : '');
+    return { chip: chip, title: name ? (chip + ' · ' + name) : chip, name: name, line: line, level: level, gifts: gifts, next: next };
+}
+
+function _validProfileUid(uid) {
+    return /^[A-Za-z0-9_-]{1,128}$/.test(String(uid || ''));
+}
+
+function _cleanDisplayName(value, fallback) {
+    var name = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    return name || fallback;
+}
+
+async function _senderProfiles(keys) {
+    var ids = [];
+    (keys || []).forEach(function(k) {
+        var id = String((k && k.sentBy) || '').trim();
+        if (_validProfileUid(id) && ids.indexOf(id) === -1) ids.push(id);
+    });
+    var out = { ok: false, found: {} };
+    if (!ids.length || typeof db === 'undefined' || !db) return out;
+    try {
+        var refs = ids.map(function(id) { return db.collection('public_profiles').doc(id); });
+        var snaps;
+        if (typeof db.getAll === 'function') snaps = await db.getAll.apply(db, refs);
+        else snaps = await Promise.all(refs.map(function(ref) { return ref.get(); }));
+        (snaps || []).forEach(function(snap, i) {
+            if (snap && snap.exists) out.found[ids[i]] = snap.data() || {};
+        });
+        out.ok = true;
+    } catch (e) { /* a failed read must not label every sender deleted */ }
+    return out;
+}
+
+function _peerSenderTitle(k, profiles) {
+    var uid = String((k && k.sentBy) || '').trim();
+    var valid = _validProfileUid(uid);
+    var gone = !!(profiles && profiles.ok && valid && !profiles.found[uid]);
+    var self = false;
+    try { self = valid && _isSignedIn() && uid === _getUid(); } catch (e) { self = false; }
+    var raw = k && k.sentByName;
+    var name = 'Deleted player';
+    var link = false;
+    if (valid && !gone) {
+        var pub = profiles && profiles.found ? profiles.found[uid] : null;
+        var pubName = pub ? (pub.username || pub.displayName || '') : '';
+        name = _cleanDisplayName(pubName || raw, 'Bitcoiner');
+        link = !self;
+    }
+    var title = document.createElement('div');
+    title.style.cssText = 'font-weight:800;font-size:0.88rem;color:var(--heading,#fff);';
+    title.appendChild(document.createTextNode('From '));
+    if (link) {
+        var tag = document.createElement('span');
+        tag.className = 'username-tag';
+        tag.textContent = name;
+        tag.setAttribute('data-profile-uid', uid);
+        tag.title = 'View profile — tap to tip!';
+        tag.style.cssText = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+        tag.onclick = function(ev) {
+            if (ev && ev.stopPropagation) ev.stopPropagation();
+            var id = (this.dataset && this.dataset.profileUid) || this.getAttribute('data-profile-uid');
+            try {
+                if (typeof showUserProfile === 'function') showUserProfile(id);
+            } catch (err) { _toast('Could not open that profile'); }
+        };
+        title.appendChild(tag);
+    } else {
+        var plain = document.createElement('span');
+        plain.textContent = name;
+        title.appendChild(plain);
+    }
+    return { node: title, name: name, uid: uid, canSendBack: link };
+}
+
 function _copy(parent, title, explain) {
     var mid = document.createElement('div');
     mid.style.cssText = 'flex:1;min-width:0;';
@@ -1401,6 +1513,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
     var cipherGroups = _group(data.ciphers);
     var ownGroups = _group(data.ownKeys);
     var peerGroups = _group(data.peerKeys);
+    var senderProfiles = data.peerKeys.length ? await _senderProfiles(data.peerKeys) : { ok: true, found: {} };
     var labels = Object.keys(cipherGroups).sort();
     if (labels.length) _lockedCipherNote(el);
 
@@ -1526,11 +1639,26 @@ window.renderKeysAndCiphersPanel = async function(container) {
         lab.textContent = '🔑 ' + (k.label || '');
         card.appendChild(lab);
         var hasCipher = (cipherGroups[k.label] || []).length > 0;
-        _copy(card,
-            'From ' + (k.sentByName || 'a peer'),
-            hasCipher
-                ? 'You have the ' + k.label + ' key! Open the ' + k.label + ' cipher above.'
-                : 'Hold this until you get a ' + k.label + ' cipher from a gift.');
+        var from = _peerSenderTitle(k, senderProfiles);
+        var mid = document.createElement('div');
+        mid.style.cssText = 'flex:1;min-width:0;';
+        var explain = document.createElement('div');
+        explain.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-top:2px;line-height:1.35;';
+        explain.textContent = hasCipher
+            ? 'You have the ' + (k.label || '') + ' key! Open the ' + (k.label || '') + ' cipher above.'
+            : 'Hold this until you get a ' + (k.label || '') + ' cipher from a gift.';
+        mid.appendChild(from.node);
+        mid.appendChild(explain);
+        card.appendChild(mid);
+        if (from.canSendBack) {
+            var back = _btn('Send key back', 'transparent');
+            back.className = 'key-send-back-btn';
+            back.style.background = 'transparent';
+            back.style.color = '#c4b5fd';
+            back.style.border = '1px solid rgba(167,139,250,0.55)';
+            back.onclick = function() { window.sendKeyBack(k.id, from.uid, from.name, back); };
+            card.appendChild(back);
+        }
         if (!satsOff && hasCipher) {
             var open = _btn('Open ' + k.label, 'linear-gradient(135deg,#34d399,#10b981)');
             open.className = 'cipher-open-btn';
@@ -1551,6 +1679,23 @@ window.renderKeysAndCiphersPanel = async function(container) {
     cap.style.cssText = 'font-size:0.72rem;color:var(--text-dim);text-align:center;margin-top:8px;';
     cap.textContent = 'You can open up to ' + CIPHER_OPENS_PER_DAY + ' ciphers per day.';
     el.appendChild(cap);
+};
+
+window.sendKeyBack = async function(keyId, recipientUid, name, button) {
+    if (!_isSignedIn()) { _toast('Sign in to send a key back'); return; }
+    var id = String(keyId || '').trim();
+    var peer = String(recipientUid || '').trim();
+    if (!id || !_validProfileUid(peer)) { _toast('That key cannot be sent back'); return; }
+    if (button) { button.disabled = true; button.textContent = 'Sending…'; }
+    try {
+        var sent = await _callCF('sendKeys', { keyIds: [id], recipientUid: peer });
+        _noteSpent(id);
+        _keySendToast(name || 'your peer', sent);
+        await _refreshHoldingsViews();
+    } catch (e) {
+        if (button) { button.disabled = false; button.textContent = 'Send key back'; }
+        _toast('❌ ' + (e.message || 'Could not send the key back'));
+    }
 };
 
 window.renderKeysTab = function(containerId) { return window.renderKeysAndCiphersPanel(containerId); };
@@ -1824,10 +1969,17 @@ window.showPeerPickerForKeys = async function(keyIds) {
     var peers = [];
     try {
         var doc = await db.collection('users').doc(uid).get();
-        var list = (doc.exists && doc.data().peers) || [];
+        var userData = doc.exists ? (doc.data() || {}) : {};
+        var list = userData.peers || [];
+        var peerData = (userData.peerData && typeof userData.peerData === 'object') ? userData.peerData : {};
         var profiles = await Promise.all(list.slice(0, 40).map(function(p) {
             return db.collection('public_profiles').doc(p).get().then(function(s) {
-                return { uid: p, name: s.exists ? (s.data().username || s.data().displayName || 'Bitcoiner') : 'Bitcoiner' };
+                var pub = s.exists ? (s.data() || {}) : {};
+                return {
+                    uid: p,
+                    name: s.exists ? _cleanDisplayName(pub.username || pub.displayName, 'Bitcoiner') : 'Bitcoiner',
+                    level: peerData[p] || null,
+                };
             });
         }));
         peers = profiles;
@@ -1868,13 +2020,27 @@ window.showPeerPickerForKeys = async function(keyIds) {
         sheet.appendChild(none);
         sheet.appendChild(noneActions);
     }
+    function _paintPeerChoice(btn, peer) {
+        btn.innerHTML = '';
+        var nameEl = document.createElement('span');
+        nameEl.textContent = peer.name;
+        nameEl.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;';
+        var view = _peershipLevelView(peer.level);
+        var chip = document.createElement('span');
+        chip.className = 'peer-level-chip';
+        chip.textContent = view.chip;
+        chip.title = view.title;
+        btn.appendChild(nameEl);
+        btn.appendChild(chip);
+    }
     peers.forEach(function(p) {
         var b = document.createElement('button');
         b.type = 'button';
-        b.textContent = p.name;
-        b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:#e2e8f0;font-weight:700;cursor:pointer;font-family:inherit;';
+        b.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;margin-bottom:8px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:#e2e8f0;font-weight:700;cursor:pointer;font-family:inherit;';
+        _paintPeerChoice(b, p);
         b.onclick = async function() {
             b.disabled = true;
+            b.innerHTML = '';
             b.textContent = 'Sending…';
             try {
                 var sent = await _callCF('sendKeys', { keyIds: ids, recipientUid: p.uid });
@@ -1884,7 +2050,8 @@ window.showPeerPickerForKeys = async function(keyIds) {
                 await _refreshHoldingsViews();
             } catch (e) {
                 b.disabled = false;
-                b.textContent = p.name;
+                b.textContent = '';
+                _paintPeerChoice(b, p);
                 _toast('❌ ' + (e.message || 'Could not send'));
             }
         };

@@ -429,6 +429,69 @@ window.onlineStatusDot = function(lastSeen) {
     return '<span title="' + s.label + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + s.color + ';margin-left:4px;vertical-align:middle;' + (s.status === 'online' ? 'box-shadow:0 0 6px ' + s.color + ';' : '') + '"></span>';
 };
 
+// Peership with the viewer only. The numbers come from the viewer's own
+// user doc (peerData), never from the other person's profile.
+var PEERSHIP_LEVELS = [
+    { level: 1, name: 'Unconfirmed', gifts: 0 },
+    { level: 2, name: 'Opening Channel', gifts: 1 },
+    { level: 3, name: 'Routing Nodes', gifts: 21 },
+    { level: 4, name: 'Adjusted Fees', gifts: 44 },
+    { level: 5, name: 'Balanced Liquidity', gifts: 144 },
+    { level: 6, name: 'Wumbo Channel', gifts: 210 }
+];
+
+window.peershipLevelView = function(entry) {
+    var row = entry && typeof entry === 'object' ? entry : null;
+    var level = row ? Number(row.level) : NaN;
+    if (!row || !isFinite(level) || level < 1) {
+        return { chip: 'New', title: 'No peership level yet', name: '', line: 'Peership not started', level: 0, gifts: null, next: null };
+    }
+    level = Math.min(6, Math.floor(level));
+    var known = null;
+    for (var i = 0; i < PEERSHIP_LEVELS.length; i++) {
+        if (PEERSHIP_LEVELS[i].level === level) known = PEERSHIP_LEVELS[i];
+    }
+    var name = row.levelName ? String(row.levelName).replace(/\s+/g, ' ').trim().slice(0, 40) : '';
+    if (!name && known) name = known.name;
+    var gifts = (typeof row.giftsExchanged === 'number' && isFinite(row.giftsExchanged)) ? Math.max(0, Math.floor(row.giftsExchanged)) : null;
+    var next = null;
+    if (gifts != null) {
+        for (var j = 0; j < PEERSHIP_LEVELS.length; j++) {
+            if (PEERSHIP_LEVELS[j].gifts > gifts) { next = PEERSHIP_LEVELS[j].gifts; break; }
+        }
+    }
+    var chip = 'Lv ' + level;
+    var line = 'Peership · ' + chip + (name ? ' · ' + name : '');
+    if (gifts != null) line += ' · ' + gifts + (next != null ? '/' + next : '');
+    return { chip: chip, title: name ? (chip + ' · ' + name) : chip, name: name, line: line, level: level, gifts: gifts, next: next };
+};
+
+function _fillProfilePeerLevel(uid) {
+    var node = document.getElementById('profilePeerLevel');
+    if (!node) return;
+    var self = auth && auth.currentUser ? auth.currentUser.uid : null;
+    if (!self || self === uid || !window._myPeers || !window._myPeers.has(uid)) {
+        node.remove();
+        return;
+    }
+    db.collection('users').doc(self).get().then(function(snap) {
+        var live = document.getElementById('profilePeerLevel');
+        if (!live) return;
+        var data = snap && snap.exists ? (snap.data() || {}) : {};
+        var peers = Array.isArray(data.peers) ? data.peers : [];
+        if (peers.indexOf(uid) === -1) { live.remove(); return; }
+        var entry = data.peerData && data.peerData[uid] ? data.peerData[uid] : null;
+        var view = window.peershipLevelView(entry);
+        live.hidden = false;
+        live.style.cssText = 'font-size:0.78rem;color:#f7931a;font-weight:700;margin-top:6px;';
+        live.textContent = view.line;
+        live.title = view.title;
+    }).catch(function() {
+        var live = document.getElementById('profilePeerLevel');
+        if (live) live.remove();
+    });
+}
+
 // ---- USER PROFILE MODAL ----
 window.showUserProfile = function(uid) {
     if (!uid || !db) return;
@@ -649,6 +712,7 @@ window.showUserProfile = function(uid) {
                 })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
                 (u.peerCount ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">🧡 ' + u.peerCount + ' peers</div>' : '') +
+                ((!_isOwnProfile && _isPeer) ? '<div id="profilePeerLevel" hidden></div>' : '') +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
                 // Faction + Country row
                 '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
@@ -739,6 +803,7 @@ window.showUserProfile = function(uid) {
         var div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstChild);
+        if (!_isOwnProfile && _isPeer) _fillProfilePeerLevel(uid);
         if (auth && auth.currentUser && auth.currentUser.uid === uid && typeof window._loadMyPredictionStats === 'function') {
             window._loadMyPredictionStats(function(stats) {
                 var node = document.getElementById('profilePredStats');

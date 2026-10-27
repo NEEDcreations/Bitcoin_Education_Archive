@@ -397,7 +397,7 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.'));
+    assert.ok(notes.includes("Latest: A key from a peer shows that player's name as a tag you can tap, Send key back uses the same send checks, and your peership level shows beside each peer and on their profile."));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     assert.ok(notes.includes('Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));
