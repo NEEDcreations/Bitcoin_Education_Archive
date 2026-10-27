@@ -42,9 +42,36 @@ function clientName(value) {
     return name || 'Bitcoiner';
 }
 
-function newCertId(now) {
-    const stamp = Number(now || Date.now()).toString(36).toUpperCase();
-    return 'CERT-' + stamp + '-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+const CERT_ID_RE = /^CERT-[A-Za-z0-9-]{8,64}$/;
+
+function certIdOk(id) {
+    return CERT_ID_RE.test(String(id || ''));
+}
+
+function newCertId() {
+    return 'CERT-' + crypto.randomBytes(16).toString('hex');
+}
+
+function scoreLabel(score) {
+    if (score == null || score === '') return '';
+    const text = String(score).trim();
+    if (/^\d+\s*\/\s*25$/.test(text)) return text.replace(/\s*\/\s*/, ' / ');
+    const n = Number(text);
+    if (!Number.isFinite(n)) return '';
+    return String(n) + ' / 25';
+}
+
+function verifyView(data, certId) {
+    const row = data || {};
+    const rawName = row.name || row.username || row.displayName || '';
+    return {
+        valid: true,
+        certId: String(certId || ''),
+        name: String(rawName).trim().substring(0, 80),
+        quest: String(row.quest || ''),
+        score: scoreLabel(row.score),
+        date: String(row.date || ''),
+    };
 }
 
 function longDate(now) {
@@ -126,7 +153,11 @@ module.exports = {
     metaForCertType: metaForCertType,
     snapshotName: snapshotName,
     clientName: clientName,
+    CERT_ID_RE: CERT_ID_RE,
+    certIdOk: certIdOk,
     newCertId: newCertId,
+    scoreLabel: scoreLabel,
+    verifyView: verifyView,
     longDate: longDate,
     verifyPath: verifyPath,
     verifyUrl: verifyUrl,

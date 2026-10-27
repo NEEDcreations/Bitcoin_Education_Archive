@@ -72,15 +72,15 @@ window.renderCertVerification = async function(certId) {
         '<div style="color:var(--text-muted);">Verifying certificate...</div></div>';
     fc.style.display = 'block';
 
-    var db = typeof firebase !== 'undefined' ? firebase.firestore() : null;
-    if (!db) {
+    if (typeof firebase === 'undefined' || !firebase.functions) {
         fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;"><div style="font-size:2rem;margin-bottom:12px;">⚠️</div><div style="color:var(--text-muted);">Could not connect. Try refreshing.</div></div>';
         return;
     }
 
     try {
-        var doc = await db.collection('certs').doc(certId).get();
-        if (!doc.exists) {
+        var result = await firebase.functions().httpsCallable('verifyCertificate')({ certId: certId });
+        var payload = result && result.data ? result.data : {};
+        if (!payload.valid) {
             fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;">' +
                 '<div style="font-size:3rem;margin-bottom:12px;">❌</div>' +
                 '<h2 style="color:var(--heading);margin:0 0 8px;">Certificate Not Found</h2>' +
@@ -89,16 +89,18 @@ window.renderCertVerification = async function(certId) {
             return;
         }
 
-        var raw = doc.data() || {};
+        var quest = String(payload.quest || '');
+        var title = quest === 'protocol-expert' ? 'Bitcoin Protocol Expert'
+            : (quest.indexOf('trail_') === 0 ? 'Nacho Trail Complete' : 'Bitcoin Scholar');
         var d = {
-            type: raw.type || '',
-            title: raw.title || '',
-            name: raw.name || '',
-            score: raw.score == null ? '' : String(raw.score),
-            date: raw.date || ''
+            type: quest === 'protocol-expert' ? 'technical' : (quest.indexOf('trail_') === 0 ? 'trail' : 'scholar'),
+            title: title,
+            name: payload.name || '',
+            score: payload.score || '',
+            date: payload.date || ''
         };
         var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };
-        var typeEmoji = d.type === 'technical' ? '🛠️' : d.type === 'scholar' ? '🎓' : '🏔️';
+        var typeEmoji = d.type === 'technical' ? '🛠️' : d.type === 'trail' ? '🏔️' : '🎓';
         var typeColor = d.type === 'technical' ? '#3b82f6' : '#f7931a';
 
         var html = '<div style="max-width:500px;margin:0 auto;padding:30px 16px 120px;">';

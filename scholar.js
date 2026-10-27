@@ -6,10 +6,8 @@
 // =============================================
 // Separated pools
 // The Scholar and Protocol Expert question banks, including the correct
-// answers, live only on the server (functions/src/scholar-questions.json).
-// This file asks startScholarExam for the 25 questions and grades by the
-// option id the server issued. One placeholder question was left out of the
-// server pool.
+// answers, stay on the server. This file asks startScholarExam for the 25
+// questions and grades by the option id the server issued.
 
 // Scholar state
 
@@ -378,7 +376,7 @@ async function submitScholarQuest() {
         ? ("You've earned the " + certTitle + ' certification.')
         : (blocked === 'already_certified'
             ? 'You already hold this certification. No extra XP was awarded.'
-            : 'You needed 20 correct picks to pass. This quest is now locked for the day. Come back tomorrow for a fresh set of 25 questions!');
+            : 'You needed 20 correct picks to pass. You get one try per day (resets at midnight UTC).');
     var viewCert = passed || blocked === 'already_certified';
     renderScholarGradeResult(inner, {
         passed: passed,
@@ -440,7 +438,7 @@ function renderScholarGradeResult(inner, view) {
 }
 
 function cancelScholar() {
-    var confirmed = confirm('Are you sure you want to exit? This will count as your attempt for the day and you will be locked out until tomorrow.');
+    var confirmed = confirm('Are you sure you want to exit? This counts as your try for the day. You get one try per day (resets at midnight UTC).');
     if (!confirmed) return;
     window._scholarExamActive = false;
     var guard = document.getElementById('examScreenGuard');

@@ -889,6 +889,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Separate from onForumPost so a mail failure cannot drop the chat post.
 const { announceActivity, retractActivity, retractIfRemoved } = require('./src/activityShoutout');
 const { countMarketplaceListing } = require('./src/marketListingCount');
+const { handleArticlePublishWrite } = require('./src/articlePublishXp');
 
 const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
 
@@ -1057,6 +1058,36 @@ exports.onArticleBadgeCount = onDocumentCreated({
     if (!event.data) return null;
     try { await activityCounters.recordArticle(db, admin, event.data.data()); }
     catch (e) { console.warn('[onArticleBadgeCount]', e && e.message); }
+    return null;
+});
+
+// Article XP. Separate from onArticleBadgeCount and from awardPoints.
+// retry is on so a missing user doc (the only path that throws) runs again.
+// Every other outcome writes article_xp first, so a second delivery pays nothing.
+exports.onArticlePublishXp = onDocumentWritten({
+    document: 'articles/{articleId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
+}, async (event) => {
+    const change = event.data;
+    if (!change) return null;
+    const beforeSnap = change.before;
+    const afterSnap = change.after;
+    const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
+    const after = afterSnap && afterSnap.exists ? afterSnap.data() : null;
+    try {
+        const result = await handleArticlePublishWrite({
+            db: db,
+            admin: admin,
+            articleId: event.params.articleId,
+            before: before,
+            after: after,
+        });
+        if (result && result.retry) throw new Error('article publish xp retry');
+    } catch (e) {
+        console.warn('[onArticlePublishXp]', e && e.message);
+        throw e;
+    }
     return null;
 });
 
@@ -4383,9 +4414,20 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
 // ── Scholar Exam: Server-Side Grading ──
 // The question bank and the correct option ids stay in scholar_exam_keys.
 // The client receives question text and opaque option ids only.
+// The bank is read once at cold start from functions/private-bank. It is not
+// in the repo. A missing or invalid file fails these two calls closed.
+const scholarBank = require('./src/scholarBank');
 
-exports.startScholarExam = functionsV1.https.onCall(async (data, context) => {
+function scholarBankOrThrow() {
+    if (!scholarBank.ready()) {
+        console.error('[SCHOLAR] exam bank unavailable');
+        throw new functionsV1.https.HttpsError('failed-precondition', 'Exam temporarily unavailable');
+    }
+}
+
+exports.startScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    scholarBankOrThrow();
     if (!context.auth.token || !context.auth.token.firebase || context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
     }
@@ -4430,7 +4472,7 @@ exports.startScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
         if (lastAttempt === today) {
-            throw new functionsV1.https.HttpsError('resource-exhausted', 'Only one exam attempt per 24 hours.');
+            throw new functionsV1.https.HttpsError('resource-exhausted', attemptLib.EXAM_DAILY_MESSAGE);
         }
 
         const drawn = attemptLib.drawExam(type);
@@ -4459,12 +4501,14 @@ exports.startScholarExam = functionsV1.https.onCall(async (data, context) => {
     });
 });
 
-exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
+exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    scholarBankOrThrow();
 
     const examId = data && data.examId;
     const answers = data && data.answers;
-    if (!examId || typeof examId !== 'string' || !answers || !Array.isArray(answers)) {
+    const attemptLib = require('./src/scholarAttempt');
+    if (!examId || typeof examId !== 'string' || !attemptLib.examIdOk(examId) || !answers || !Array.isArray(answers)) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing examId or answers');
     }
     if (answers.length !== 25) {
@@ -4472,7 +4516,6 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
     }
 
     const uid = context.auth.uid;
-    const attemptLib = require('./src/scholarAttempt');
     const certLib = require('./src/scholarCert');
     const now = Date.now();
     const examRef = db.collection('scholar_exam_keys').doc(examId);
@@ -4535,6 +4578,9 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified', already: true };
         }
 
+        if (attemptLib.missingStart(exam.startedAtMs)) {
+            throw new functionsV1.https.HttpsError('deadline-exceeded', attemptLib.EXAM_EXPIRED_OPEN_MESSAGE);
+        }
         if (attemptLib.tooFast(exam.startedAtMs, now)) {
             throw new functionsV1.https.HttpsError('failed-precondition', 'Submit the exam after one minute.');
         }
@@ -4544,7 +4590,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         const slotId = userData['examSlotId_' + keyPrefix];
         if (!slotId || slotId !== examId) {
-            throw new functionsV1.https.HttpsError('resource-exhausted', 'Only one exam attempt per 24 hours.');
+            throw new functionsV1.https.HttpsError('resource-exhausted', attemptLib.EXAM_DAILY_MESSAGE);
         }
 
         const graded = attemptLib.gradeByOptionId(exam.served, answers);
@@ -4710,7 +4756,7 @@ exports.triviaXpStatus = triviaXpStatus;
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
 // Only issues certificates if user has passed the exam server-side
 // =============================================
-exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
+exports.issueCertificate = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -4762,9 +4808,7 @@ exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
             return certLib.publicView(existing.data(), existingId);
         }
 
-        const officialName = (meta.certType === 'scholar' || meta.certType === 'technical')
-            ? certLib.snapshotName(userData)
-            : certLib.clientName(data && data.name);
+        const officialName = certLib.snapshotName(userData);
         const record = certLib.buildRecord({
             uid: uid,
             certType: meta.certType,
@@ -4806,6 +4850,20 @@ exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
         verifyUrl: issued.verifyUrl,
         qr: qr,
     };
+});
+
+// Public verify. Certificates are not readable by the client. Old ids still
+// match. The id's entropy is the limit; App Check is off so a shared link
+// and a crawler can open the page.
+exports.verifyCertificate = functionsV1.https.onCall(async (data) => {
+    const certLib = require('./src/scholarCert');
+    const certId = data && data.certId;
+    if (!certLib.certIdOk(certId)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid certificate id');
+    }
+    const snap = await db.collection('certs').doc(String(certId)).get();
+    if (!snap.exists) return { valid: false };
+    return certLib.verifyView(snap.data(), certId);
 });
 
 // =============================================

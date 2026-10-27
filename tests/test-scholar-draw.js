@@ -7,9 +7,13 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
+process.env.SCHOLAR_BANK_PATH = require('./scholar-fixture').write('draw');
 const attempt = require('../functions/src/scholarAttempt');
-const bank = require('../functions/src/scholar-questions.json');
+const cert = require('../functions/src/scholarCert');
+const shape = require('../functions/src/scholarBankShape');
+const fixture = require('./scholar-fixture').buildBank();
 const scholarJs = fs.readFileSync(path.join(root, 'scholar.js'), 'utf8');
+const attemptSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'scholarAttempt.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -46,24 +50,34 @@ test('the visible timer stays 10 minutes and the server grace is named', functio
     assert.strictEqual(attempt.expired(start, start + attempt.EXAM_LIMIT_MS + attempt.EXAM_GRACE_MS), false);
     assert.strictEqual(attempt.expired(start, start + attempt.EXAM_LIMIT_MS + attempt.EXAM_GRACE_MS + 1), true);
     assert.strictEqual(attempt.expired(null, start), true);
+    assert.strictEqual(attempt.missingStart(null), true);
+    assert.strictEqual(attempt.missingStart(undefined), true);
     assert.strictEqual(attempt.tooFast(start, start + attempt.EXAM_MIN_SUBMIT_MS - 1), true);
     assert.strictEqual(attempt.tooFast(start, start + attempt.EXAM_MIN_SUBMIT_MS), false);
+    assert.strictEqual(attempt.EXAM_EXPIRED_OPEN_MESSAGE, 'This attempt expired. Start a new one.');
+    assert.strictEqual(attempt.EXAM_DAILY_MESSAGE, 'You get one try per day (resets at midnight UTC).');
 });
 
-test('the placeholder is excluded and the pools are 213 and 165', function () {
-    assert.strictEqual(attempt.POOL_LENGTHS.properties, 213);
-    assert.strictEqual(attempt.POOL_LENGTHS.technical, 165);
-    assert.strictEqual(bank.properties.length, 213);
-    assert.strictEqual(bank.technical.length, 165);
-    assert.ok(!bank.properties.some(function (q) { return q.id === 'p119' || q.q === 'The question' || q.a === 'The correct answer'; }));
-    assert.ok(!bank.technical.some(function (q) { return q.q === 'The question' || q.a === 'The correct answer'; }));
-    assert.ok(!JSON.stringify(bank).includes('The correct answer'));
-    assert.ok(!JSON.stringify(bank).includes('Distractor 1'));
-    assert.deepStrictEqual(bank.excluded, [{ pool: 'properties', index: 119, q: 'The question' }]);
-    bank.properties.concat(bank.technical).forEach(function (q) {
-        assert.strictEqual(q.w.length, 4, q.id);
-        assert.ok(q.q && q.a);
-    });
+test('the fixture bank is 213 and 165 and a placeholder is rejected', function () {
+    assert.strictEqual(fixture.properties.length, 213);
+    assert.strictEqual(fixture.technical.length, 165);
+    const ok = shape.validateBank(fixture);
+    assert.strictEqual(ok.ok, true);
+    assert.deepStrictEqual(ok.counts, { properties: 213, technical: 165 });
+    const short = {
+        properties: fixture.properties.slice(0, 10),
+        technical: fixture.technical,
+    };
+    const badCount = shape.validateBank(short);
+    assert.strictEqual(badCount.ok, false);
+    assert.ok(badCount.errors.join(' ').indexOf('properties count is 10') !== -1);
+    const placeholder = JSON.parse(JSON.stringify(fixture));
+    placeholder.properties[0].q = 'The question';
+    placeholder.properties[0].a = 'The correct answer';
+    const badText = shape.validateBank(placeholder);
+    assert.strictEqual(badText.ok, false);
+    assert.ok(badText.errors.indexOf('properties contains a placeholder') !== -1);
+    assert.ok(badText.errors.join('\n').indexOf('Fixture') === -1);
 });
 
 test('a draw is 25 unique questions with opaque option ids', function () {
@@ -88,7 +102,7 @@ test('a draw is 25 unique questions with opaque option ids', function () {
 
 test('10k draws stay inside the uniform band', function () {
     ['properties', 'technical'].forEach(function (type, index) {
-        const pool = type === 'technical' ? bank.technical : bank.properties;
+        const pool = type === 'technical' ? fixture.technical : fixture.properties;
         const counts = {};
         pool.forEach(function (q) { counts[q.id] = 0; });
         const rng = mulberry32(20261026 + index);
@@ -108,6 +122,46 @@ test('10k draws stay inside the uniform band', function () {
             assert.ok(counts[id] > expected * 0.75 && counts[id] < expected * 1.25, id + ' ' + counts[id] + ' expected ' + expected);
         });
     });
+});
+
+test('draws and certificate ids use crypto and a fixed exam id shape', function () {
+    assert.ok(attemptSrc.includes('crypto.randomInt'));
+    assert.ok(attempt.examIdOk(attempt.newExamId()));
+    assert.strictEqual(attempt.examIdOk('scholar-user_properties_1'), false);
+    const first = cert.newCertId();
+    const second = cert.newCertId();
+    assert.ok(/^CERT-[0-9a-f]{32}$/.test(first));
+    assert.notStrictEqual(first, second);
+    assert.strictEqual(cert.certIdOk('CERT-M5K2P-AB12CD34'), true);
+    assert.strictEqual(cert.certIdOk('../etc'), false);
+    assert.strictEqual(cert.scoreLabel(22), '22 / 25');
+});
+
+test('a missing bank stays closed and the checker prints counts only', function () {
+    const missing = spawnSync(process.execPath, ['-e', [
+        "process.env.SCHOLAR_BANK_PATH = '/tmp/scholar-bank-does-not-exist.json';",
+        "const bank = require('./functions/src/scholarBank');",
+        "if (bank.ready()) process.exit(2);",
+        "if (bank.getBank()) process.exit(3);",
+        "process.exit(0);",
+    ].join('\n')], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(missing.status, 0, missing.stderr || missing.stdout);
+    assert.ok(String(missing.stderr || '').includes('[SCHOLAR] exam bank unavailable'));
+    assert.ok(!String(missing.stderr || '').includes('Fixture'));
+
+    const bankFile = process.env.SCHOLAR_BANK_PATH;
+    const ok = spawnSync(process.execPath, ['functions/scripts/check-bank.js', bankFile], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(ok.status, 0, ok.stderr);
+    assert.ok(ok.stdout.includes('properties 213'));
+    assert.ok(ok.stdout.includes('technical 165'));
+    assert.ok(ok.stdout.includes('\nok'));
+    assert.ok(!ok.stdout.includes('Fixture'));
+    assert.ok(!String(ok.stderr || '').includes('Fixture'));
+
+    const bad = spawnSync(process.execPath, ['functions/scripts/check-bank.js', '/tmp/scholar-bank-does-not-exist.json'], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(bad.status, 1);
+    assert.ok(String(bad.stderr || '').includes('invalid'));
+    assert.ok(!String(bad.stdout || '').includes('Fixture'));
 });
 
 test('the dry-run script refuses --apply and does not connect by default', function () {

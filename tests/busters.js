@@ -1,18 +1,20 @@
-// Cache-buster pin. This ship branch is btc-archive-v2410.
-// Live gh-pages was v2378. timechain-tv.js stays 20261024_v2353.
-// bundle.min.js and scholar.js are 20261026_v2410. modules.js and learning-quests.js stay 20261026_v2377.
+// Cache-buster pin. This branch keeps the btc-archive-v2410 placeholder.
+// gh-pages shipped #128 at v2382. Pins stay at v2382 or higher.
+// bundle.min.js, scholar.js, and shareable-certs.js are 20261026_v2410.
+// earn-xp-guide.js, ranking.js, and guide.js stay 20261026_v2382.
+// modules.js and learning-quests.js stay 20261026_v2377. timechain-tv.js stays 20261024_v2353.
 // scholar.js matches window.SCHOLAR_SCRIPT.
-// gifting.js, ranking.js, and global-chat.js are 20261026_v2378. quests.js stays 20261026_v2381.
+// global-chat.js stays 20261026_v2379. gifting.js stays 20261026_v2378. quests.js stays 20261026_v2381.
 // satoshi-favor.js stays 20261026_v2368.
-// onboarding.js stays 20261026_v2373. today-card.js stays 20261026_v2371.
-// features.registry.js stays 20261024_v2368.
+// today-card.js is 20261026_v2371.
+// features.registry.js is 20261024_v2368.
 // patches.js stays 20261024_v2360. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261026_v2378.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
-// beats.js and guide.js stay 20261023_v2349.
+// beats.js stays 20261023_v2349. guide.js is 20261026_v2382.
 // tctv-watch.js stays 20261023_v2340.
-// learning-quests.js is 20261026_v2377.
+// learning-quests.js and modules.js stay 20261026_v2377. scholar.js is 20261026_v2410.
 // lightning.js stays 20261023_v2323.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
@@ -35,13 +37,27 @@ function test(name, fn) {
 test('service worker cache is v2410', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2410'"));
+    assert.ok(!sw.includes('btc-archive-v2382'));
+    assert.ok(!sw.includes('btc-archive-v2381'));
+    assert.ok(!sw.includes('btc-archive-v2380'));
+    assert.ok(!sw.includes('btc-archive-v2407'));
+    assert.ok(!sw.includes('btc-archive-v2379'));
     assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2399'));
+    assert.ok(!sw.includes('btc-archive-v2398'));
+    assert.ok(!sw.includes('btc-archive-v2397'));
+    assert.ok(!sw.includes('btc-archive-v2396'));
+    assert.ok(!sw.includes('btc-archive-v2395'));
+    assert.ok(!sw.includes('btc-archive-v2394'));
+    assert.ok(!sw.includes('btc-archive-v2393'));
+    assert.ok(!sw.includes('btc-archive-v2392'));
+    assert.ok(!sw.includes('btc-archive-v2391'));
+    assert.ok(!sw.includes('btc-archive-v2390'));
+    assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
     assert.ok(!sw.includes('btc-archive-v2375'));
     assert.ok(!sw.includes('btc-archive-v2374'));
-    assert.ok(!sw.includes('btc-archive-v2371'));
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2370'));
     assert.ok(!sw.includes('btc-archive-v2368'));
@@ -66,7 +82,7 @@ test('service worker cache is v2410', () => {
     assert.ok(!sw.includes('btc-archive-v2351'));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2399', 'v2378', 'v2377', 'v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2382', 'v2407', 'v2406', 'v2405', 'v2404', 'v2403', 'v2402', 'v2401', 'v2400', 'v2399', 'v2398', 'v2397', 'v2396', 'v2395', 'v2394', 'v2393', 'v2392', 'v2391', 'v2390', 'v2381', 'v2380', 'v2379', 'v2378', 'v2377', 'v2376', 'v2375', 'v2374', 'v2373', 'v2372', 'v2371', 'v2370', 'v2369', 'v2368', 'v2367', 'v2366', 'v2365', 'v2364', 'v2363', 'v2362', 'v2361', 'v2360', 'v2359', 'v2358', 'v2357', 'v2356', 'v2355', 'v2354', 'v2353', 'v2352', 'v2351', 'v2350', 'v2349', 'v2348', 'v2347', 'v2346', 'v2345', 'v2344', 'v2343', 'v2342', 'v2341', 'v2340', 'v2339', 'v2338', 'v2337', 'v2336', 'v2335', 'v2334', 'v2333', 'v2332', 'v2331', 'v2330', 'v2329', 'v2328', 'v2327', 'v2326', 'v2325', 'v2324', 'v2323', 'v2322', 'v2321', 'v2320', 'v2318', 'v2315', 'v2313', 'v2312', 'v2311', 'v2302', 'v2301', 'v2300', 'v2299', 'v2298', 'v2297', 'v2296', 'v2295', 'v2293', 'v2286', 'v2279', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -76,7 +92,11 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual(html, read('404.html'));
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261026_v2410/g) || []).length, 2);
     assert.ok(html.includes('bundle.min.js?v=20261026_v2410'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2382'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2401'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2379'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2377'));
+    assert.ok(!html.includes('bundle.min.js?v=20261026_v2373'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2365'));
@@ -123,13 +143,16 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
-    assert.ok(html.includes('ranking.js?v=20261026_v2378'));
+    assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
+    assert.ok(html.includes('ranking.js?v=20261026_v2382'));
+    assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2400'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2377'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2378'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261026_v2382'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -195,8 +218,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261026_v2378'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2378/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261026_v2379'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261026_v2379/g) || []).length, 5);
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2378'));
+    assert.ok(!html.includes('global-chat.js?v=20261026_v2396'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2400'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2381'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2374'));
@@ -319,7 +344,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
     assert.ok(!html.includes('quests.js?v=20261023_v2323'));
     assert.ok(!html.includes('nacho-qa.js?v=20261022_v2263'));
-    assert.ok(html.includes('guide.js?v=20261023_v2349'));
+    assert.ok(html.includes('guide.js?v=20261026_v2382'));
+    assert.ok(!html.includes('guide.js?v=20261023_v2349'));
     assert.ok(!html.includes('guide.js?v=20261023_v2339'));
     assert.ok(html.includes('patches.js?v=20261024_v2360'));
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
@@ -370,16 +396,26 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Scholar and Protocol Expert exams keep the answer key on the server, and a passing certificate shows a real verification link.'));
-    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
-    assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
+    assert.ok(notes.includes('Publishing an article awards 30 XP, once per article, up to 2 a day.'));
+    assert.ok(!notes.includes('Latest: Publishing an article'));
+    assert.ok(notes.includes('Settings → Sats now lists the XP you can actually earn, including the daily cap.'));
+    assert.ok(!notes.includes('Latest: Settings → Sats'));
+    assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(!notes.includes('Latest: Inventory explains'));
     assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
     assert.ok(!notes.includes("Latest: A miner's public name"));
+    assert.ok(notes.includes('Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.'));
+    assert.ok(!notes.includes('Latest: Passing the Bitcoin Scholar'));
     assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
     assert.ok(!notes.includes('Latest: Sidebar topic names'));
+    assert.ok(notes.includes('Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.'));
+    assert.ok(!notes.includes('Latest: Badge tooltips'));
     assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
     assert.ok(!notes.includes('Latest: Opening gifts'));
+    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar'));
     assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));
-    assert.ok(!notes.includes('Latest: The Invite button'));
+    assert.ok(!notes.includes('Latest: The Invite'));
     assert.ok(notes.includes('Trivia and poll community totals now update the moment you answer and stay live while the results are open.'));
     assert.ok(!notes.includes('Latest: Trivia'));
     assert.ok(notes.includes('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
@@ -402,7 +438,6 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('Latest: Global chat messages'));
     assert.ok(notes.includes('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.'));
     assert.ok(!notes.includes('Latest: Usernames'));
-    assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
     assert.ok(notes.includes('Satoshi\'s Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.'));
     assert.ok(!notes.includes('Latest: Satoshi\'s Favor now explains'));
     assert.ok(!notes.includes('Latest: Satoshi'));
