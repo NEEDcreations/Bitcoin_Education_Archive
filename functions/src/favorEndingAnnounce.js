@@ -1,17 +1,19 @@
 'use strict';
 
 // One global-chat post when an active Satoshi's Favor window is inside its
-// last 10 minutes. The marker doc and the chat doc are created in the same
-// transaction, so a retry or an overlapping run posts once. A window that
-// has already closed, or that has no time left, is skipped and does not
-// write the marker. The text names no uid, email, or IP.
+// last 10 minutes. The chat doc id is random. The marker stores that id, and
+// a later run reads the marker before opening a transaction, so a retry
+// reuses it and does not lock the Favor state doc. The marker and the chat
+// doc are created in the same transaction. A window that has already closed,
+// or that has no time left, is skipped and does not write the marker.
+// The text names no uid, email, or IP, and it does not state a minute count.
 
 const { millisOf } = require('./favorPool');
 const { cycleKey } = require('./favorLiveAnnounce');
 
-const ENDING_PREFIX = 'sf_ending_';
 const HEADS_UP_MS = 10 * 60 * 1000;
 const MARKER_COLLECTION = 'sf_ending_announcements';
+const ENDING_TEXT = "⏳ Satoshi's Favor ends soon. Hash now!";
 
 function effectiveEndMs(state) {
     const endBase = millisOf(state && state.favorEndBase);
@@ -34,17 +36,23 @@ function endingDecision(state, nowMs) {
     const rem = remainingMs(state, nowMs);
     if (rem <= 0) return { post: false, reason: 'no_time' };
     if (rem > HEADS_UP_MS) return { post: false, reason: 'not_yet' };
-    return {
-        post: true,
-        reason: 'ok',
-        cycleId: key,
-        minutes: Math.ceil(rem / 60000),
-    };
+    return { post: true, reason: 'ok', cycleId: key };
 }
 
-function formatEndingAnnouncement(minutes) {
-    const n = Math.max(1, Math.floor(Number(minutes) || 1));
-    return "⚡ Satoshi's Favor is LIVE! " + n + " min left.";
+function formatEndingAnnouncement() {
+    return ENDING_TEXT;
+}
+
+function newChatId() {
+    return require('crypto').randomBytes(16).toString('hex');
+}
+
+function markerChatId(snap) {
+    if (!snap || !snap.exists) return '';
+    const data = snap.data() || {};
+    const id = String(data.chatId || '');
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) return '';
+    return id;
 }
 
 async function announceFavorEnding(db, adminSdk, nowMs) {
@@ -55,23 +63,28 @@ async function announceFavorEnding(db, adminSdk, nowMs) {
     const decision = endingDecision(peeked, now);
     if (!decision.post) return { posted: false, reason: decision.reason };
     const key = decision.cycleId;
-    const dedupRef = db.collection(MARKER_COLLECTION).doc(key);
-    const chatId = ENDING_PREFIX + key;
-    const chatRef = db.collection('global_chat').doc(chatId);
+    const markerRef = db.collection(MARKER_COLLECTION).doc(key);
+    // Plain read. After the post exists, later minutes must not open a
+    // transaction that locks satoshiFavor/current.
+    const markerSnap = await markerRef.get();
+    if (markerSnap && markerSnap.exists) {
+        return { posted: false, reason: 'exists', cycleId: key, chatId: markerChatId(markerSnap) };
+    }
     return db.runTransaction(async function (t) {
         const stateSnap = await t.get(stateRef);
-        const markerSnap = await t.get(dedupRef);
+        const freshMarker = await t.get(markerRef);
         const state = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : null;
         const fresh = endingDecision(state, now);
         if (!fresh.post || fresh.cycleId !== key) {
             return { posted: false, reason: fresh.post ? 'cycle' : fresh.reason, cycleId: key };
         }
-        if (markerSnap && markerSnap.exists) {
-            return { posted: false, reason: 'exists', cycleId: key };
+        if (freshMarker && freshMarker.exists) {
+            return { posted: false, reason: 'exists', cycleId: key, chatId: markerChatId(freshMarker) };
         }
-        const text = formatEndingAnnouncement(fresh.minutes);
+        const chatId = newChatId();
+        const chatRef = db.collection('global_chat').doc(chatId);
         const stamp = adminSdk.firestore.FieldValue.serverTimestamp();
-        t.set(dedupRef, {
+        t.set(markerRef, {
             cycleId: key,
             postedAt: stamp,
             chatId: chatId,
@@ -79,22 +92,23 @@ async function announceFavorEnding(db, adminSdk, nowMs) {
         t.set(chatRef, {
             uid: 'nacho-bot',
             name: '🦌 Nacho',
-            text: text,
+            text: ENDING_TEXT,
             isNachoAuto: false,
             ts: stamp,
             cycleId: key,
         });
-        return { posted: true, cycleId: key, text: text };
+        return { posted: true, cycleId: key, text: ENDING_TEXT, chatId: chatId };
     });
 }
 
 module.exports = {
-    ENDING_PREFIX: ENDING_PREFIX,
     HEADS_UP_MS: HEADS_UP_MS,
     MARKER_COLLECTION: MARKER_COLLECTION,
+    ENDING_TEXT: ENDING_TEXT,
     effectiveEndMs: effectiveEndMs,
     remainingMs: remainingMs,
     endingDecision: endingDecision,
     formatEndingAnnouncement: formatEndingAnnouncement,
+    newChatId: newChatId,
     announceFavorEnding: announceFavorEnding,
 };

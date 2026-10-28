@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const live = require('../functions/src/favorLiveAnnounce');
 const ending = require('../functions/src/favorEndingAnnounce');
+const mirror = require('../functions/src/chatTelegramMirror');
 const badgeGg = require('../functions/src/badgeGg');
 const { resetExpiredFavorWith } = require('../functions/src/satoshiFavor');
 
@@ -476,7 +477,11 @@ function openWindow(cycleId, now, remainingMs, extra) {
     }, extra || {});
 }
 
-queue.push(test('ten minutes left posts once, and a retry does not post again', async function () {
+function chatPaths(db) {
+    return Object.keys(db.docs).filter(function (key) { return key.indexOf('global_chat/') === 0; });
+}
+
+queue.push(test('ten minutes left posts once, and a retry reuses the stored chat id', async function () {
     const now = 1700000000000;
     const state = openWindow('cycle_2000', now, ending.HEADS_UP_MS);
     const db = memoryDb({ 'satoshiFavor/current': state });
@@ -485,23 +490,44 @@ queue.push(test('ten minutes left posts once, and a retry does not post again', 
     const results = await Promise.all(calls);
     const posted = results.filter(function (row) { return row && row.posted; });
     assert.strictEqual(posted.length, 1);
-    const text = "⚡ Satoshi's Favor is LIVE! 10 min left.";
+    const text = "⏳ Satoshi's Favor ends soon. Hash now!";
+    assert.strictEqual(ending.formatEndingAnnouncement(), text);
     assert.strictEqual(posted[0].text, text);
+    assert.strictEqual(text.indexOf('⚡'), -1);
+    assert.strictEqual(text.indexOf('#favor'), -1);
+    const liveText = live.formatLiveAnnouncement({ total: 21, players: 5, flex: 12, badges: 5, trifectas: 4 }, 21);
+    assert.strictEqual(liveText.indexOf('#favor'), -1);
+    assert.ok(!/\d/.test(text));
     assert.strictEqual(ending.HEADS_UP_MS, 10 * 60 * 1000);
-    const chat = db.docs['global_chat/sf_ending_cycle_2000'];
+    const chatId = posted[0].chatId;
+    assert.ok(/^[a-f0-9]{32}$/.test(chatId));
+    assert.strictEqual(chatId.indexOf('cycle_2000'), -1);
+    assert.strictEqual(chatId.indexOf('sf_ending'), -1);
+    const chat = db.docs['global_chat/' + chatId];
     assert.strictEqual(chat.text, text);
     assert.strictEqual(chat.uid, 'nacho-bot');
     assert.strictEqual(chat.name, '🦌 Nacho');
     assert.strictEqual(chat.isNachoAuto, false);
     assert.strictEqual(chat.cycleId, 'cycle_2000');
-    assert.strictEqual(db.docs['sf_ending_announcements/cycle_2000'].chatId, 'sf_ending_cycle_2000');
+    assert.strictEqual(db.docs['sf_ending_announcements/cycle_2000'].chatId, chatId);
     assert.strictEqual(text.indexOf('Alice'), -1);
     assert.strictEqual(text.indexOf('uid-alice'), -1);
     assert.strictEqual(text.indexOf('@'), -1);
+    const forwarded = mirror.decideMirror({ collection: 'global_chat', data: chat });
+    assert.strictEqual(forwarded.forward, true);
+    assert.ok(forwarded.line.indexOf('ends soon') !== -1);
+    let transactions = 0;
+    const origTx = db.runTransaction;
+    db.runTransaction = function (fn) {
+        transactions += 1;
+        return origTx(fn);
+    };
     const again = await ending.announceFavorEnding(db, admin, now);
     assert.strictEqual(again.posted, false);
     assert.strictEqual(again.reason, 'exists');
-    assert.strictEqual(Object.keys(db.docs).filter(function (key) { return key.indexOf('global_chat/') === 0; }).length, 1);
+    assert.strictEqual(again.chatId, chatId);
+    assert.strictEqual(transactions, 0);
+    assert.strictEqual(chatPaths(db).length, 1);
     assert.strictEqual(Object.keys(db.docs).filter(function (key) { return key.indexOf('sf_ending_announcements/') === 0; }).length, 1);
 }));
 
@@ -514,16 +540,28 @@ queue.push(test('a forged chat doc does not suppress the heads-up, and the marke
     });
     const first = await ending.announceFavorEnding(db, admin, now);
     assert.strictEqual(first.posted, true);
-    assert.strictEqual(first.text, "⚡ Satoshi's Favor is LIVE! 10 min left.");
-    assert.strictEqual(db.docs['global_chat/sf_ending_cycle_forge'].uid, 'nacho-bot');
+    assert.strictEqual(first.text, "⏳ Satoshi's Favor ends soon. Hash now!");
+    assert.strictEqual(db.docs['global_chat/sf_ending_cycle_forge'].uid, 'user1');
+    assert.strictEqual(db.docs['global_chat/sf_ending_cycle_forge'].text, 'not the heads-up');
+    assert.notStrictEqual(first.chatId, 'sf_ending_cycle_forge');
+    assert.strictEqual(db.docs['global_chat/' + first.chatId].uid, 'nacho-bot');
+    assert.strictEqual(chatPaths(db).length, 2);
     const held = memoryDb({
         'satoshiFavor/current': state,
-        'sf_ending_announcements/cycle_forge': { cycleId: 'cycle_forge', chatId: 'sf_ending_cycle_forge' },
+        'sf_ending_announcements/cycle_forge': { cycleId: 'cycle_forge', chatId: 'a1b2c3d4e5f67890' },
     });
+    let transactions = 0;
+    const origTx = held.runTransaction;
+    held.runTransaction = function (fn) {
+        transactions += 1;
+        return origTx(fn);
+    };
     const second = await ending.announceFavorEnding(held, admin, now);
     assert.strictEqual(second.posted, false);
     assert.strictEqual(second.reason, 'exists');
-    assert.strictEqual(Object.keys(held.docs).filter(function (key) { return key.indexOf('global_chat/') === 0; }).length, 0);
+    assert.strictEqual(second.chatId, 'a1b2c3d4e5f67890');
+    assert.strictEqual(transactions, 0);
+    assert.strictEqual(chatPaths(held).length, 0);
 }));
 
 queue.push(test('an early close or no time left does not post', async function () {
@@ -572,7 +610,7 @@ queue.push(test('an early close or no time left does not post', async function (
     assert.strictEqual(lost.posted, false);
     assert.strictEqual(lost.reason, 'inactive');
     assert.strictEqual(raced.docs['sf_ending_announcements/cycle_race'], undefined);
-    assert.strictEqual(raced.docs['global_chat/sf_ending_cycle_race'], undefined);
+    assert.strictEqual(chatPaths(raced).length, 0);
     const one = memoryDb({
         'satoshiFavor/current': openWindow('cycle_one', now, 1, {
             favorEndBase: { toMillis: function () { return now + 1; } },
@@ -580,8 +618,9 @@ queue.push(test('an early close or no time left does not post', async function (
     });
     const last = await ending.announceFavorEnding(one, admin, now);
     assert.strictEqual(last.posted, true);
-    assert.strictEqual(last.text, "⚡ Satoshi's Favor is LIVE! 1 min left.");
+    assert.strictEqual(last.text, "⏳ Satoshi's Favor ends soon. Hash now!");
     assert.strictEqual(last.text.indexOf('Alice'), -1);
+    assert.ok(!/\d/.test(last.text));
 }));
 
 queue.reduce(function (p, next) { return p.then(function () { return next; }); }, Promise.resolve()).then(function () {
