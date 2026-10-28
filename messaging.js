@@ -266,7 +266,7 @@ function applyDmPausedUi(paused) {
     if (composer) composer.style.display = paused ? 'none' : 'flex';
 }
 
-function showDmPaused() {
+function noteDmPaused() {
     window._dmDisabled = true;
     if (typeof currentUser !== 'undefined' && currentUser) currentUser.dmDisabled = true;
     applyDmPausedUi(true);
@@ -292,11 +292,11 @@ function onDmSendDenied(err, container) {
         return;
     }
     if (!auth || !auth.currentUser || !db) {
-        showDmPaused();
+        noteDmPaused();
         return;
     }
     db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
-        if (doc.exists && doc.data() && doc.data().dmDisabled === true) showDmPaused();
+        if (doc.exists && doc.data() && doc.data().dmDisabled === true) noteDmPaused();
         else if (typeof showToast === 'function') showToast('Failed to send: permission-denied');
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to send: permission-denied');
@@ -1176,7 +1176,7 @@ window.showDMImagePreview = function(file, convoId, recipientUid, recipientName)
 
 // ---- DM Image Send ----
 window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
-    if (dmIsPausedLocal()) { showDmPaused(); return; }
+    if (dmIsPausedLocal()) { noteDmPaused(); return; }
     if (!input || !input.files || !input.files[0]) return;
     var file = input.files[0];
     try { input.value = ''; } catch(e) {} // Reset so same file can be re-selected (may throw on synthetic objects)
@@ -1370,7 +1370,7 @@ window.sendDMGifUrl = function() {
 };
 
 window.sendDMGif = function(gifUrl) {
-    if (dmIsPausedLocal()) { showDmPaused(); return; }
+    if (dmIsPausedLocal()) { noteDmPaused(); return; }
     if (!gifUrl) return;
     var convo = window._dmGifConvo;
     if (!convo) { if (typeof showToast === 'function') showToast('Error: no conversation context'); return; }
@@ -1454,7 +1454,7 @@ window.sendDMGif = function(gifUrl) {
 };
 
 window.sendDM = function(convoId, recipientUid, recipientName) {
-    if (dmIsPausedLocal()) { showDmPaused(); return; }
+    if (dmIsPausedLocal()) { noteDmPaused(); return; }
     var inp = document.getElementById('dmInput');
     if (!inp) return;
     var text = sanitizeMessage(inp.value);
