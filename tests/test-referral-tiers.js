@@ -165,8 +165,10 @@ test('clients cannot write referralMaxiCount', () => {
     const service = read('functions/src/referralService.js');
     assert.ok(/referralMaxiCount:[ \t]*count/.test(service));
     const refreshStart = read('ranking.js').indexOf('window.refreshHomeStrip = function()');
-    const refresh = read('ranking.js').slice(refreshStart, refreshStart + 1800);
-    assert.strictEqual(refresh.includes('getReferralStats'), false);
+    const refresh = read('ranking.js').slice(refreshStart, refreshStart + 2200);
+    assert.ok(refresh.includes('getReferralStats'));
+    assert.ok(refresh.includes('stats.invited'));
+    assert.strictEqual(refresh.includes('stats.maxi'), false);
     assert.ok(refresh.includes('serverMaxiReferralCount') || read('ranking.js').includes('user.referralMaxiCount'));
     assert.ok(read('ranking.js').includes('user.referralMaxiCount'));
     const names = ['Meetup Organizer', 'Keynote Legend', 'Meetup Regular', 'Conference Speaker', 'Conference Host', 'Attendee'];
@@ -184,7 +186,10 @@ test('the reached-Maxi explainer uses the rank threshold', () => {
     );
     const html = read('index.html');
     assert.ok(html.includes('aria-describedby="homeInvitesInfoText"'));
-    assert.ok(html.includes('data-maxi-info="1"'));
+    const openAt = html.indexOf('id="homeInvitesOpen"');
+    const openEnd = html.indexOf('</button>', openAt);
+    const infoAt = html.indexOf('id="homeInvitesInfo"');
+    assert.ok(openAt > 0 && openEnd > openAt && infoAt > openEnd);
     assert.strictEqual(read('ranking.js').includes('2,140'), false);
 });
 

@@ -3442,7 +3442,20 @@ function serverMaxiReferralCount(user) {
 }
 window.serverMaxiReferralCount = serverMaxiReferralCount;
 
-function paintInviteTier(count) {
+function invitedReferralCount(user) {
+    var n = Math.floor(Number(user && user.referralInvited));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+
+function inviteNoteText(invited, maxi) {
+    var inv = Math.floor(Number(invited));
+    if (!isFinite(inv) || inv < 0) inv = 0;
+    var maxiText = maxi === 1 ? '1 reached Maxi' : maxi + ' reached Maxi';
+    return (inv === 1 ? '1 invited' : inv + ' invited') + ' · ' + maxiText;
+}
+
+function paintInviteTier(count, invited) {
     var api = referralTierApi();
     var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
     var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
@@ -3451,20 +3464,23 @@ function paintInviteTier(count) {
         progressText: '',
         level: 0
     };
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var inv = (typeof invited === 'number') ? invited : invitedReferralCount(user);
     var tierEl = document.getElementById('homeInvitesTier');
     var noteEl = document.getElementById('homeInvitesNote');
     var progEl = document.getElementById('homeInvitesProgress');
     var tile = document.getElementById('homeInvitesTile');
+    var openBtn = document.getElementById('homeInvitesOpen') || tile;
     if (tierEl) tierEl.textContent = progress.tierLabel;
-    if (noteEl) noteEl.textContent = progress.countText;
+    if (noteEl) noteEl.textContent = inviteNoteText(inv, n);
     var helpEl = document.getElementById('homeInvitesInfoText');
     if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp();
     if (progEl) progEl.textContent = progress.progressText;
-    if (tile) {
-        tile.setAttribute('data-referral-tier', String(progress.level));
-        var label = progress.tierLabel + ', ' + progress.countText;
+    if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
+    if (openBtn) {
+        var label = progress.tierLabel + ', ' + inviteNoteText(inv, n);
         if (progress.progressText) label += ', ' + progress.progressText;
-        tile.setAttribute('aria-label', label);
+        openBtn.setAttribute('aria-label', label);
     }
     var ladder = document.getElementById('referralTierLadder');
     if (ladder && !ladder.hidden) renderReferralTierLadder(progress);
@@ -3521,6 +3537,12 @@ window.refreshHomeStrip = function() {
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
     paintHomeStrip(snap);
+    if (typeof getReferralStats === 'function') {
+        getReferralStats().then(function (stats) {
+            if (!stats || stats.failed || typeof stats.invited !== 'number') return;
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited);
+        }).catch(function () {});
+    }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
     if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
 };
@@ -3632,8 +3654,7 @@ function bindReferralTierLadder() {
         setMaxiInfoOpen(false);
     });
     var info = document.getElementById('homeInvitesInfo');
-    if (info) info.addEventListener('keydown', function (ev) {
-        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    if (info) info.addEventListener('click', function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
         toggleMaxiInfo();
