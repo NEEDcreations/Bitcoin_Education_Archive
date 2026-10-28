@@ -4883,11 +4883,17 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         if (data.uid && String(data.text || '').trim()) {
             await grantServerTickets(data.uid, 'daily_chat_ticket');
         }
-        try {
-            await db.collection('stats').doc('global').set({
-                chatMessages: admin.firestore.FieldValue.increment(1)
-            }, { merge: true });
-        } catch (e) { console.error('[onChatMessageCreated] failed:', e); }
+        // Display only. Does not grant the Say hi reward or any XP.
+        // Runs with the stats write, not ahead of it.
+        const chatDay = require('./src/chatPostedDay').stampChatPostedDay(db, data).catch(function (e) {
+            console.warn('[onChatMessageCreated] chat day skipped', e && e.message);
+        });
+        const chatStats = db.collection('stats').doc('global').set({
+            chatMessages: admin.firestore.FieldValue.increment(1)
+        }, { merge: true }).catch(function (e) {
+            console.error('[onChatMessageCreated] failed:', e);
+        });
+        await Promise.all([chatDay, chatStats]);
         const mentioned = data.mentionUid;
         if (mentioned && mentioned !== data.uid && /^[A-Za-z0-9_-]{4,128}$/.test(String(mentioned))) {
             try {

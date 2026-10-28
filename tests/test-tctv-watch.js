@@ -376,7 +376,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('startTctvDailyWatch()'));
     assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
-    assert.ok(html.includes('tctv-watch.js?v=20261023_v2340'));
+    assert.ok(html.includes('tctv-watch.js?v=20261028_v2414'));
     assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
     assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('id="tctvWatchSub"'));
@@ -419,7 +419,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2411'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2414'"));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2407'));
@@ -777,7 +777,7 @@ test('reaching the server goal shows done and keeps the chip', () => {
     page.run(1000);
     assert.strictEqual(page.ids.tctvWatchSub.textContent, 'Done ✓');
     assert.strictEqual(page.calls.length, 0);
-    assert.strictEqual(page.ids.tctvWatchBtn.getAttribute('aria-label'), 'Watch Timechain TV, done for today');
+    assert.strictEqual(page.ids.tctvWatchBtn.getAttribute('aria-label'), 'Watch Timechain TV, completed');
 });
 
 test('a signed-out viewer does not get a ticking chip', () => {
@@ -882,7 +882,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    const latest = 'Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.';
+    const latest = 'Latest: Daily tiles now show a checkmark when you finish them.';
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
     const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
     const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';
@@ -890,6 +890,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const missingXp = 'Missing XP has been awarded to affected users.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
+    assert.ok(!notes.includes('Latest: Tap Nacho'));
     assert.ok(notes.includes('Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.'));
     assert.ok(!notes.includes('Latest: Nacho can summarize'));
     assert.ok(notes.includes(raidHp));
