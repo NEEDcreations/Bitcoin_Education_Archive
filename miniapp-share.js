@@ -23,6 +23,12 @@
         beats: 1, pop: 1, pvp: 1, arcade: 1, sat_arcade: 1, galaxy: 1, ryracer: 1,
         forum: 1, marketplace: 1, irl: 1, meetup: 1, walk: 1
     };
+    // Lite hides the beginner set plus the tools that stay visible for beginners.
+    var LITE_HIDE = {
+        ai: 1, metrics: 1, leaderboard: 1, chat: 1, favor: 1, pvp: 1,
+        beats: 1, pop: 1, arcade: 1, sat_arcade: 1, galaxy: 1, ryracer: 1,
+        forum: 1, marketplace: 1, irl: 1, meetup: 1, walk: 1
+    };
     // DMs stay private. A share from the DM tab still opens public Global Chat.
     // Display order: Pleb Underground stays channel 0, then the rest A–Z.
     // Numbers below are the on-screen channel numbers after that sort.
@@ -74,7 +80,6 @@
         { id: 'marketplace', name: 'Lightning Mart', hash: 'marketplace', ctx: {}, sentence: "I'm browsing Lightning Mart on Bitcoin Quest! Check it out!" },
         { id: 'irl', name: 'IRL Sync', hash: 'irl-sync', ctx: {}, sentence: "I'm looking for a Bitcoin meetup on IRL Sync! Check it out!" },
         { id: 'meetup', name: 'Meetup Builder', hash: 'meetup-builder', ctx: {}, sentence: "I'm planning a Bitcoin meetup on IRL Sync! Check it out!" },
-        { id: 'walk', name: 'Proof of Walk', hash: 'proof-of-walk', ctx: {}, sentence: "I'm stacking steps with Proof of Walk on Bitcoin Quest! Check it out!" },
         { id: 'ai', name: 'AI Tools', hash: 'ai-tools', ctx: {}, sentence: "I'm using the Bitcoin AI tools on Bitcoin Quest! Check it out!" },
         { id: 'metrics', name: 'Metrics', hash: 'metrics', ctx: {}, sentence: "I'm checking live Bitcoin metrics on Bitcoin Quest! Check it out!" },
         { id: 'leaderboard', name: 'Leaderboard', hash: 'leaderboard', ctx: {}, sentence: "I'm looking at the Bitcoin Quest leaderboard! Check it out!" },
@@ -111,10 +116,20 @@
             .trim();
     }
 
+    function localStrip(text) {
+        return String(text || '')
+            .replace(/https?:\/\/\S+/gi, ' ')
+            .replace(/\bwww\.\S+/gi, ' ')
+            .replace(/\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+(?:\/\S*)?/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
     function capField(raw) {
         var s = String(raw == null ? '' : raw);
+        if (root && typeof root.beatsCensor === 'function') s = root.beatsCensor(s, true);
         var strip = (root && typeof root.stripShareLinks === 'function') ? root.stripShareLinks : null;
-        if (strip) s = strip(s);
+        s = strip ? strip(s) : localStrip(s);
         s = plainLine(s);
         if (s.length > 80) s = s.slice(0, 79) + '\u2026';
         return s;
@@ -135,9 +150,15 @@
         return normalizeMode(raw);
     }
 
-    function buttonVisible(appId, mode) {
+    function appHidden(appId, mode) {
         var m = normalizeMode(mode == null ? readMode() : mode);
-        if (m === 'beginner' && BEGINNER_HIDE[appId]) return false;
+        if (m === 'beginner' && BEGINNER_HIDE[appId]) return true;
+        if (m === 'lite' && LITE_HIDE[appId]) return true;
+        return false;
+    }
+
+    function buttonVisible(appId, mode) {
+        if (appHidden(appId, mode)) return false;
         return !!specById(appId);
     }
 
@@ -266,8 +287,12 @@
     function liveCtx(appId) {
         var ctx = {};
         if (appId === 'tctv') {
-            var id = root._currentStation || '';
-            try { if (!id && root.localStorage) id = root.localStorage.getItem('tctv_lastStation') || ''; } catch (e) {}
+            var id = '';
+            if (typeof root.tctvCurrentStation === 'function') {
+                try { id = String(root.tctvCurrentStation() || ''); } catch (e) { id = ''; }
+            }
+            if (!id) id = root._currentStation || '';
+            try { if (!id && root.localStorage) id = root.localStorage.getItem('tctv_lastStation') || ''; } catch (e2) {}
             ctx.channel = id || '0';
         } else if (appId === 'beats') {
             var np = root._beatsNowPlaying || {};
@@ -294,16 +319,53 @@
         if (doc && doc.getElementById('tctv-player') && typeof root.switchStation === 'function') root.switchStation(station.id);
     }
 
+    function linkedApp(hash) {
+        var head = hash.split('/')[0];
+        if (head === 'timechain-tv' || head === 'tv') return 'tctv';
+        if (head === 'proof-of-play' || head === 'proof-of-play-pvp') {
+            return hash.indexOf('/') > 0 ? resolvePopTab(hash) : 'pop';
+        }
+        if (head === 'beats' || hash === 'bitcoin-beats') return 'beats';
+        if (hash === 'ai-tools') return 'ai';
+        if (hash === 'leaderboard') return 'leaderboard';
+        if (hash === 'proof-of-walk') return 'walk';
+        if (hash === 'pvp') return 'pvp';
+        if (hash === 'metrics' || hash === 'bitcoin-dashboard' || hash === 'dashboard' || hash === 'network') return 'metrics';
+        if (hash === 'chat' || hash === 'dms') return 'chat';
+        if (hash === 'favor' || hash === 'satoshi-favor' || hash === 'sf') return 'favor';
+        if (head === 'forum') return 'forum';
+        if (head === 'marketplace') return 'marketplace';
+        if (hash === 'irl-sync' || hash === 'meet') return 'irl';
+        if (hash === 'meetup-builder') return 'meetup';
+        if (hash === 'nacho') return 'nacho';
+        return '';
+    }
+
+    function leaveToHome() {
+        if (typeof root.goHome === 'function') {
+            root.goHome(true);
+            return;
+        }
+        try {
+            if (root.history) root.history.replaceState({ home: true }, '', (root.location && root.location.pathname) || '/');
+        } catch (e) {}
+    }
+
     function consumeHash(raw) {
         var hash = String(raw == null ? '' : raw).replace(/^#/, '');
         if (!hash) return false;
+        var hiddenId = linkedApp(hash);
+        if (hiddenId && appHidden(hiddenId)) {
+            leaveToHome();
+            return true;
+        }
         var head = hash.split('/')[0];
         if ((head === 'timechain-tv' || head === 'tv') && hash.indexOf('/') > 0) {
             var resolved = resolveTctv(hash, stations());
             if (!resolved.station) return false;
             applyTctv(resolved.station);
             if (typeof root.go !== 'function') return false;
-            root.go('timechain-tv');
+            root.go('timechain-tv', null, true);
             return true;
         }
         if (head === 'proof-of-play' && hash.indexOf('/') > 0) {
@@ -319,7 +381,7 @@
             if (resolveBeats(trackId).ok) return false;
             root._beatsDeepLink = null;
             if (typeof root.go !== 'function') return false;
-            root.go('bitcoin-beats');
+            root.go('bitcoin-beats', null, true);
             return true;
         }
         if (hash === 'ai-tools') {
@@ -333,11 +395,6 @@
             var lb = root.document && root.document.getElementById('leaderboard');
             if (!lb || !lb.classList.contains('open')) root.toggleLeaderboard();
             try { root.history.replaceState({ channel: 'leaderboard' }, '', '#leaderboard'); } catch (e2) {}
-            return true;
-        }
-        if (hash === 'proof-of-walk') {
-            if (typeof root.showProofOfWalk !== 'function') return false;
-            root.showProofOfWalk();
             return true;
         }
         return false;
@@ -396,7 +453,6 @@
         if (hash.indexOf('irl-sync') === 0 || page === 'irl-sync') return 'irl';
         if (hash.indexOf('forum') === 0 || page === 'forum') return 'forum';
         if (hash.indexOf('marketplace') === 0 || page === 'marketplace') return 'marketplace';
-        if (hash.indexOf('proof-of-walk') === 0 || page === 'proof-of-walk') return 'walk';
         if (hash.indexOf('trails') === 0 || page === 'trails') return 'trails';
         if (hash.indexOf('learning-quests') === 0 || page === 'learning-quests') return 'learning';
         if (hash.indexOf('lightning') === 0 || page === 'lightning') return 'lightning';
@@ -500,6 +556,7 @@
         capField: capField,
         normalizeMode: normalizeMode,
         buttonVisible: buttonVisible,
+        appHidden: appHidden,
         shareGrantsReward: shareGrantsReward,
         resolveTctv: resolveTctv,
         resolveBeats: resolveBeats,

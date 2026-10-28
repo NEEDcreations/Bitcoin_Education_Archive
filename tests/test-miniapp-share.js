@@ -161,6 +161,18 @@ test('Bitcoin Beats strips links, caps fields, and drops an unknown track', () =
     assert.ok(beats.includes("window.miniAppShare('beats'"));
     const trackFn = beats.slice(beats.indexOf('window.beatsShareTrack'), beats.indexOf('window.beatsShareTrack') + 800);
     assert.strictEqual(trackFn.includes('navigator.share'), false);
+    global.beatsCensor = require('../beats-censor.js').beatsCensor;
+    global.window = { _beatsShowUncensored: true };
+    const masked = api.capField('fuck https://evil.com/track');
+    assert.strictEqual(masked.includes('fuck'), false);
+    assert.ok(masked.includes('f**k'));
+    assert.strictEqual(masked.includes('evil.com'), false);
+    const savedStrip = global.stripShareLinks;
+    global.stripShareLinks = null;
+    const local = api.capField('hear bad.example.com today');
+    assert.strictEqual(local.includes('example.com'), false);
+    assert.strictEqual(local.includes('http'), false);
+    global.stripShareLinks = savedStrip;
 });
 
 test('arcade, galaxy, and RyRacer land on the in-app launcher', () => {
@@ -184,13 +196,28 @@ test('experience mode hides the same apps the Explore menu hides', () => {
         assert.strictEqual(api.buttonVisible(id, 'intermediate'), true, id);
         assert.strictEqual(api.buttonVisible(id, 'advanced'), true, id);
     });
-    ['beats', 'pop', 'pvp', 'arcade', 'sat_arcade', 'galaxy', 'ryracer', 'forum', 'marketplace', 'irl', 'meetup', 'walk'].forEach(function (id) {
+    ['beats', 'pop', 'pvp', 'arcade', 'sat_arcade', 'galaxy', 'ryracer', 'forum', 'marketplace', 'irl', 'meetup'].forEach(function (id) {
         assert.strictEqual(api.buttonVisible(id, 'beginner'), false, id);
         assert.strictEqual(api.buttonVisible(id, 'guided'), false, id);
         assert.strictEqual(api.buttonVisible(id, 'intermediate'), true, id);
         assert.strictEqual(api.buttonVisible(id, 'advanced'), true, id);
         assert.strictEqual(api.buttonVisible(id, ''), true, id);
+        assert.strictEqual(api.appHidden(id, 'lite'), true, id + ' lite');
+        assert.strictEqual(api.buttonVisible(id, 'lite'), false, id + ' lite button');
     });
+    ['ai', 'metrics', 'leaderboard', 'chat', 'favor'].forEach(function (id) {
+        assert.strictEqual(api.buttonVisible(id, 'beginner'), true, id);
+        assert.strictEqual(api.buttonVisible(id, 'lite'), false, id);
+        assert.strictEqual(api.appHidden(id, 'lite'), true, id);
+    });
+    ['tctv', 'nacho', 'quests', 'trails', 'learning', 'lightning', 'first'].forEach(function (id) {
+        assert.strictEqual(api.buttonVisible(id, 'lite'), true, id);
+    });
+    assert.strictEqual(api.buttonVisible('walk', 'advanced'), false);
+    assert.strictEqual(api.appHidden('walk', 'beginner'), true);
+    assert.strictEqual(api.appHidden('walk', 'lite'), true);
+    assert.strictEqual(api.appHidden('walk', 'advanced'), false);
+    assert.strictEqual(api.APPS.some(function (app) { return app.id === 'walk'; }), false);
 });
 
 test('the link sheet keeps the sentence and still grants nothing', () => {
@@ -247,6 +274,101 @@ test('pages ship the helper, one Latest line, and the v2398 cache', () => {
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
     assert.ok(read('app.js').includes('window.miniAppConsumeHash'));
     assert.ok(read('pvp.js').includes('data-mini-share="pvp"'));
+});
+
+test('a live TCTV share uses the station on screen', () => {
+    global.tctvCurrentStation = function () { return 'history'; };
+    global._currentStation = '';
+    const prevStore = global.localStorage;
+    global.localStorage = { getItem: function () { return 'pleb-underground'; } };
+    const model = api.open('tctv');
+    assert.strictEqual(model.hash, 'timechain-tv/history');
+    assert.strictEqual(model.sentence, "I'm watching channel 7, Documentaries & History on Timechain TV! Check it out!");
+    delete global.tctvCurrentStation;
+    global._currentStation = '';
+    global.localStorage = prevStore;
+    assert.ok(read('timechain-tv.js').includes('window.tctvCurrentStation=function(){return r||""}'));
+});
+
+test('hidden deep links fall back to home', () => {
+    const prevStore = global.localStorage;
+    const prevHome = global.goHome;
+    const prevGo = global.go;
+    const prevEnter = global.enterProofOfPlay;
+    function mode(name) {
+        global.localStorage = { getItem: function (key) { return key === 'btc_experience_mode' ? name : ''; } };
+    }
+    let homes = 0;
+    global.goHome = function () { homes++; };
+    mode('beginner');
+    ['proof-of-play/arcade', 'proof-of-play/galaxy', 'proof-of-play/ryracer', 'proof-of-play/sat_arcade', 'proof-of-walk', 'beats/track123', 'forum'].forEach(function (hash) {
+        assert.strictEqual(api.consumeHash(hash), true, hash);
+    });
+    assert.strictEqual(homes, 7);
+    let went = '';
+    global.go = function (id, btn, fromPop) { went = id + ':' + String(fromPop); };
+    assert.strictEqual(api.consumeHash('timechain-tv/9'), true);
+    assert.strictEqual(went, 'timechain-tv:true');
+    homes = 0;
+    mode('lite');
+    ['ai-tools', 'leaderboard', 'chat', 'favor', 'pvp', 'metrics', 'proof-of-play/arcade', 'proof-of-walk'].forEach(function (hash) {
+        assert.strictEqual(api.consumeHash(hash), true, hash);
+    });
+    assert.strictEqual(homes, 8);
+    mode('advanced');
+    let tab = '';
+    global.enterProofOfPlay = function (name) { tab = name; };
+    global._popActive = false;
+    assert.strictEqual(api.consumeHash('proof-of-play/arcade'), true);
+    assert.strictEqual(tab, 'arcade');
+    assert.strictEqual(api.consumeHash('proof-of-walk'), false);
+    global.localStorage = prevStore;
+    global.goHome = prevHome;
+    global.go = prevGo;
+    global.enterProofOfPlay = prevEnter;
+});
+
+test('Back from each deep link still leaves TV', () => {
+    const src = read('app.js');
+    const start = src.indexOf("window.addEventListener('popstate'");
+    const end = src.indexOf('var h = location.hash.slice(1)', start);
+    const pop = src.slice(start, end);
+    assert.strictEqual(pop.includes('miniAppConsumeHash'), false);
+    assert.ok(pop.indexOf('leaveTimechainTV') < pop.indexOf('state.guard'));
+    assert.ok(pop.includes('goHome(true)'));
+    const route = src.slice(src.indexOf('function tryRoute'), src.indexOf('function tryRoute') + 2200);
+    assert.ok(route.includes('miniAppConsumeHash'));
+    const deep = [
+        'timechain-tv/health-fitness', 'proof-of-play/arcade', 'proof-of-play/sat_arcade',
+        'proof-of-play/galaxy', 'proof-of-play/ryracer', 'beats/track123', 'ai-tools',
+        'leaderboard', 'proof-of-walk', 'pvp', 'forum', 'marketplace', 'nacho', 'chat',
+        'favor', 'metrics', 'trails', 'lightning', 'first-purchase', 'irl-sync', 'meetup-builder'
+    ];
+    deep.forEach(function (hash) {
+        const page = hash;
+        assert.notStrictEqual(page, 'timechain-tv');
+        assert.notStrictEqual(page, 'tv');
+    });
+    ['nacho', 'pvp', 'proof-of-play', 'marketplace', 'forum', 'beats/', 'proof-of-walk', 'lightning', 'trails', 'irl-sync', 'first-purchase', 'meetup-builder'].forEach(function (token) {
+        assert.ok(pop.includes(token), token);
+    });
+    assert.ok(src.includes("showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')"));
+    const pushes = [];
+    const prevHistory = global.history;
+    const prevGo = global.go;
+    const prevStore = global.localStorage;
+    global.localStorage = { getItem: function () { return ''; } };
+    global.history = {
+        pushState: function () { pushes.push('push'); },
+        replaceState: function () { pushes.push('replace'); }
+    };
+    global.go = function (id, btn, fromPop) { pushes.push('go:' + id + ':' + String(fromPop)); };
+    assert.strictEqual(api.consumeHash('timechain-tv/health-fitness'), true);
+    assert.strictEqual(pushes.indexOf('push'), -1);
+    assert.ok(pushes.indexOf('go:timechain-tv:true') !== -1);
+    global.history = prevHistory;
+    global.go = prevGo;
+    global.localStorage = prevStore;
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

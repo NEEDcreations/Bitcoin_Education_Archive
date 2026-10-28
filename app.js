@@ -5666,7 +5666,7 @@ if (locked) {
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
                         _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
                         appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
-                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showProofOfWalk==='function')showProofOfWalk()", false) : '',
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : '',
                         appBtn('🤖', 'AI Tools', "if(typeof toggleAITools==='function')toggleAITools()", false),
                         appBtn('📊', 'Metrics', "if(typeof toggleDashboard==='function')toggleDashboard()", false),
                         appBtn('🏆', 'Leaderboard', "if(typeof toggleLeaderboard==='function')toggleLeaderboard()", false)
@@ -5704,10 +5704,6 @@ if (locked) {
         if (fc) {
             fc.style.display = 'block';
             fc.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:40px 20px;text-align:center;"><div style="font-size:3rem;margin-bottom:16px;">🚶</div><div style="font-size:1.3rem;font-weight:800;color:var(--text);margin-bottom:10px;">Proof of Walk is currently disabled</div><div style="color:var(--text-muted);font-size:0.95rem;">Check back soon!</div></div>';
-        }
-        window.currentPage = 'proof-of-walk';
-        if (window.location.hash !== '#proof-of-walk') {
-            try { history.pushState({ channel: 'proof-of-walk' }, '', '#proof-of-walk'); } catch (e) {}
         }
         if (isMobile && isMobile()) { var sb = document.getElementById('sidebar'); if (sb) sb.classList.remove('open'); }
         if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true);
@@ -5771,7 +5767,6 @@ if (locked) {
             if (!hash && typeof _parseCleanUrl === 'function') {
                 hash = _parseCleanUrl() || '';
             }
-            if (typeof window.miniAppConsumeHash === 'function' && window.miniAppConsumeHash(hash)) return;
             // Back/forward leaves TV even on branches that do not call go() or goHome().
             var _popPage = hash || state.channel || 'home';
             if (_popPage !== 'timechain-tv' && _popPage !== 'tv' && typeof window.leaveTimechainTV === 'function') {
