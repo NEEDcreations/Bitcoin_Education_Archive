@@ -2776,7 +2776,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
                 await require('./src/raidBossEngine').noteTrusted(db, admin, {
                     metric: 'cipherPeerKey',
                     uid: uid,
-                    dedupeKey: 'peer-' + revReqId,
+                    dedupeKey: 'peer-' + uid + '-' + revReqId,
                     amount: 1,
                     now: new Date(),
                 });
@@ -4755,7 +4755,7 @@ exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.
             pointsAwarded: pointsAwarded,
             already: scholarPlan.reason === 'already',
             capExempt: scholarPlan.pay === true,
-            raidCredit: passed === true && !scholarBlocked,
+            raidCredit: passed === true && !scholarBlocked && scholarPlan.reason !== 'already',
             cert: certView,
         };
     });
@@ -4764,12 +4764,12 @@ exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.
         try { await grantFamily(db, admin, uid, ['scholar']); }
         catch (scholarBadgeErr) { console.warn('[SCHOLAR] badge', scholarBadgeErr && scholarBadgeErr.message); }
     }
-    if (result.raidCredit) {
+    if (result.raidCredit && result.already !== true) {
         try {
             await require('./src/raidBossEngine').noteTrusted(db, admin, {
                 metric: 'certPasses',
                 uid: uid,
-                dedupeKey: 'cert-' + String(result.type || 'exam'),
+                dedupeKey: 'cert-' + uid + '-' + String(result.type || 'exam'),
                 amount: 1,
                 now: new Date(),
             });
@@ -4952,17 +4952,21 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
             }, { merge: true });
         } catch (e) { console.error('[onChatMessageCreated] failed:', e); }
         const mentioned = data.mentionUid;
-        try {
-            await require('./src/raidBossEngine').noteTrusted(db, admin, {
-                metric: 'chatMessages',
-                uid: data.uid,
-                dedupeKey: 'chat-' + String(_context.params.msgId || ''),
-                amount: 1,
-                text: data.text || '',
-                isNachoAuto: data.isNachoAuto === true,
-                now: new Date(),
-            });
-        } catch (raidChatErr) { console.warn('[onChatMessageCreated] raid', raidChatErr && raidChatErr.message); }
+        const raidMedia = !!(data.imageUrl || data.gifUrl || data.imageBase64 || data.stickerUrl || data.attachmentUrl);
+        const raidText = (data.isGif === true || data.source === 'telegram' || (raidMedia && !String(data.text || '').trim())) ? null : (data.text || '');
+        if (raidText != null) {
+            try {
+                await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                    metric: 'chatMessages',
+                    uid: data.uid,
+                    dedupeKey: 'chat-' + String(_context.params.msgId || ''),
+                    amount: 1,
+                    text: raidText,
+                    isNachoAuto: data.isNachoAuto === true,
+                    now: new Date(),
+                });
+            } catch (raidChatErr) { console.warn('[onChatMessageCreated] raid', raidChatErr && raidChatErr.message); }
+        }
         if (mentioned && mentioned !== data.uid && /^[A-Za-z0-9_-]{4,128}$/.test(String(mentioned))) {
             try {
                 await sendUserPush(mentioned, 'mentions', {
@@ -8252,7 +8256,7 @@ exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
 
 // Sunday 7 PM America/New_York. One post per Eastern week, including after a win.
 exports.raidBossWeeklyAnnouncement = onSchedule(
-  { schedule: '0 19 * * 0', timeZone: 'America/New_York', region: 'us-central1' },
+  { schedule: '0 19 * * 0', timeZone: 'America/New_York', region: 'us-central1', invoker: 'private' },
   async () => {
     try {
       await require('./src/raidBossEngine').postWeekly(db, admin, new Date());

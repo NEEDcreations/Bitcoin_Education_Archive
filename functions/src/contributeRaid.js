@@ -306,15 +306,16 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
       return;
     }
 
-    if (finalTotal < freshBoss.target) {
-      // Not yet defeated — just update current count
-      tx.update(activeBossRef, { current: finalTotal });
+    const freshCurrent = Number(freshBoss.current) || 0;
+    const nextCurrent = Math.max(freshCurrent, finalTotal);
+    if (finalTotal < freshBoss.target && freshCurrent < freshBoss.target) {
+      if (nextCurrent > freshCurrent) tx.update(activeBossRef, { current: nextCurrent });
       return;
     }
 
     // Target reached and boss not yet defeated — this request wins the race
     defeated = true;
-    tx.update(activeBossRef, { current: finalTotal, defeated: true });
+    tx.update(activeBossRef, { current: nextCurrent, defeated: true });
   });
 
   // If we won the defeat race, pick winners and write payout docs
@@ -342,7 +343,6 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
       batch.set(winnerRef, {
         uid: winner.uid,
         username: winner.username,
-        satsAwarded: 1000,
         drawnAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }

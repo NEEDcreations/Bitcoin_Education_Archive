@@ -140,6 +140,7 @@ const SCHEDULE = [
         monthKey: '2026-12',
         name: 'Cipher-Cracker',
         emoji: '🔐',
+        image: '',
         metric: 'cipherPeerKey',
         typical: 40,
         goalFloor: 20,
@@ -175,8 +176,8 @@ const SCHEDULE = [
         goalCeiling: 80,
         dailyCap: 2,
         lore: 'Forum-Forge cools unless the forum and the article desk stay busy. A real post is a real swing.',
-        detail: 'A forum post or a published article deals damage only after 24 hours if it is still visible. It needs about 300 characters, 40 words, and 25 different words, from an account at least 3 days old. A copy of your own recent post does not count. Two a day each. One person tops out at 60, so the ceiling of 80 cannot be soloed, and the goal will not sit under 25.',
-        players: 'Publish a forum post or an article that clears the quality bar, then wait 24 hours. 2 a day, posts and articles together.',
+        detail: 'A forum post or a published article deals damage only after 24 hours if it is still visible. It has to be a substantial, original post. Two a day each.',
+        players: 'Publish a substantial, original forum post or article. The server counts it after 24 hours if it is still up. 2 a day, posts and articles together.',
     }),
     boss({
         monthKey: '2027-03',
@@ -606,16 +607,6 @@ function bossPayload(spec, key, start, end, admin, copiedNames, copiedFrom, reco
         target: HP,
         communityTarget: goal,
         damageScale: record.damageScale,
-        goal: goal,
-        goalCount: record.goalCount,
-        goalSource: record.goalSource,
-        goalFormula: record.goalFormula,
-        goalFloor: record.goalFloor,
-        goalCeiling: record.goalCeiling,
-        goalFactor: record.goalFactor,
-        goalWindowDays: record.goalWindowDays,
-        goalApproximate: record.goalApproximate,
-        goalFallback: record.goalFallback,
         dailyCap: spec.dailyCap,
         minVisibleChars: spec.minVisibleChars || 0,
         serverOnly: true,
@@ -705,6 +696,25 @@ async function runScheduledSpawn(db, admin, now) {
         tx.set(ref, payload);
         return true;
     });
+    if (created === true) {
+        try {
+            await db.collection('raid_boss_meta').doc(key).set({
+                goal: record.goal,
+                goalCount: record.goalCount,
+                goalSource: record.goalSource,
+                goalFormula: record.goalFormula,
+                goalFloor: record.goalFloor,
+                goalCeiling: record.goalCeiling,
+                goalFactor: record.goalFactor,
+                goalWindowDays: record.goalWindowDays,
+                goalApproximate: record.goalApproximate,
+                goalFallback: record.goalFallback,
+                at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (e) {
+            console.warn('[RAID SPAWN] goal meta skipped');
+        }
+    }
     const summary = spawnSummary(spec, key, record);
     return {
         ok: true,
@@ -729,14 +739,19 @@ async function defaultTelegramSend(chatId, text, token) {
 
 async function sendPhilDm(text, opts) {
     const o = opts || {};
-    const chatId = String(o.chatId || process.env.PHIL_TELEGRAM_CHAT_ID || '');
-    if (!chatId || PUBLIC_TELEGRAM[chatId]) {
+    const fromOpt = o.chatId != null && String(o.chatId) !== '';
+    const chatId = String(fromOpt ? o.chatId : (process.env.PHIL_TELEGRAM_CHAT_ID || ''));
+    if (!chatId) {
+        console.warn('[RAID SPAWN] PHIL_TELEGRAM_CHAT_ID is missing');
+        return false;
+    }
+    if (PUBLIC_TELEGRAM[chatId]) {
         console.warn('[RAID SPAWN] Phil DM skipped');
         return false;
     }
     const token = String(o.token || process.env.TG_BOT_TOKEN || '');
     if (!token) {
-        console.warn('[RAID SPAWN] Phil DM skipped');
+        console.warn('[RAID SPAWN] TG_BOT_TOKEN is missing');
         return false;
     }
     const send = o.send || defaultTelegramSend;
@@ -813,7 +828,30 @@ async function resolveBoss(db, now, allowDefeated) {
         if (!coversTime(found.data, now)) continue;
         return found;
     }
-    return null;
+    return resolveCoveringBoss(db, now, allowDefeated);
+}
+
+async function resolveCoveringBoss(db, now, allowDefeated) {
+    let snap;
+    try {
+        snap = await db.collection('raid_bosses').orderBy('startTime', 'desc').limit(5).get();
+    } catch (e) {
+        return null;
+    }
+    let best = null;
+    snap.forEach(function (doc) {
+        if (best) return;
+        const data = doc.data() || {};
+        if (data.placeholder) return;
+        if (!allowDefeated && data.defeated) return;
+        if (!coversTime(data, now)) return;
+        best = {
+            ref: doc.ref || db.collection('raid_bosses').doc(doc.id),
+            id: doc.id,
+            data: data,
+        };
+    });
+    return best;
 }
 
 async function postWeekly(db, admin, now) {
@@ -924,13 +962,15 @@ async function maybeDefeat(db, admin, bossRef, bossId, opts) {
         const data = fresh.data() || {};
         if (data.defeated) return;
         const target = Number(data.target) || HP;
-        if (total < target) {
-            tx.update(bossRef, { current: total });
+        const freshCurrent = Number(data.current) || 0;
+        const next = Math.max(freshCurrent, total);
+        if (total < target && freshCurrent < target) {
+            if (next > freshCurrent) tx.update(bossRef, { current: next });
             return;
         }
         defeated = true;
         tx.update(bossRef, {
-            current: total,
+            current: next,
             defeated: true,
             defeatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -941,8 +981,6 @@ async function maybeDefeat(db, admin, bossRef, bossId, opts) {
         await bossRef.collection('winners').doc(winners[i].uid).set({
             uid: winners[i].uid,
             username: winners[i].username || 'Anonymous',
-            satsAwarded: 1000,
-            paid: false,
             drawnAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     }
@@ -975,7 +1013,7 @@ async function creditTrusted(db, admin, opts) {
     if (o.text != null && Number(bossDoc.data.minVisibleChars) > 0 && visibleLength(o.text) < Number(bossDoc.data.minVisibleChars)) {
         return { status: 'short' };
     }
-    const eventRef = db.collection('raid_damage_events').doc(bossDoc.id + '_' + dedupe);
+    const eventRef = db.collection('raid_damage_events').doc(bossDoc.id + '_' + uid + '_' + dedupe);
     const day = offsetDateKey(when.getTime());
     const capMetric = bossDoc.data.metric || metric;
     const capRef = db.collection('raid_daily_caps').doc(uid + '_' + day + '_' + capMetric);
@@ -1000,7 +1038,7 @@ async function creditTrusted(db, admin, opts) {
         const dmg = hitDamage(take, scale);
         const userData = user.data() || {};
         const username = String(userData.username || userData.displayName || 'Anonymous').slice(0, 40);
-        tx.set(eventRef, { bossId: bossDoc.id, metric: metric, amount: take, at: stamp });
+        tx.set(eventRef, { bossId: bossDoc.id, uid: uid, metric: metric, amount: take, at: stamp });
         tx.set(capRef, { count: used + take, metric: capMetric, day: day }, { merge: true });
         tx.set(partRef, {
             uid: uid,
@@ -1008,6 +1046,7 @@ async function creditTrusted(db, admin, opts) {
             contributed: Math.round((prev + dmg) * 1000) / 1000,
             lastUpdate: stamp,
         }, { merge: true });
+        tx.update(bossDoc.ref, { current: admin.firestore.FieldValue.increment(dmg) });
         return { status: 'ok', damage: dmg };
     });
     if (!outcome || outcome.status !== 'ok') return outcome || { status: 'skip' };
@@ -1114,6 +1153,9 @@ async function queueForumDamage(db, admin, opts) {
         return { queued: false, reason: 'duplicate' };
     }
     if (quality.isNearDuplicate(verdict.normalized, prior)) return { queued: false, reason: 'duplicate' };
+    const metric = kind === 'article' ? 'articlesPublished' : 'forumPosts';
+    const bossDoc = await resolveBoss(db, now, false);
+    if (!bossDoc || !metricMatches(bossDoc.data, metric)) return { queued: false, reason: 'metric' };
     const ref = db.collection('raid_forum_pending').doc(pendingId(kind, sourceId));
     const existing = await ref.get();
     if (existing.exists) return { queued: false, reason: 'queued' };
@@ -1123,7 +1165,7 @@ async function queueForumDamage(db, admin, opts) {
         kind: kind,
         sourceId: sourceId,
         uid: uid,
-        metric: kind === 'article' ? 'articlesPublished' : 'forumPosts',
+        metric: metric,
         hash: verdict.hash,
         readyAt: admin.firestore.Timestamp.fromDate(ready),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1144,7 +1186,7 @@ async function sweepForumDamage(db, admin, now) {
     const ts = admin.firestore.Timestamp.fromDate(when);
     let snap;
     try {
-        snap = await db.collection('raid_forum_pending').where('readyAt', '<=', ts).limit(40).get();
+        snap = await db.collection('raid_forum_pending').where('readyAt', '<=', ts).orderBy('readyAt').limit(40).get();
     } catch (e) {
         console.warn('[RAID FORUM] sweep skipped');
         return { checked: 0, credited: 0, skipped: 0 };
@@ -1186,14 +1228,18 @@ async function sweepForumDamage(db, admin, now) {
         const result = await noteTrusted(db, admin, {
             metric: pending.metric,
             uid: uid,
-            dedupeKey: kind + '-' + sourceId,
+            dedupeKey: kind + '-' + uid + '-' + sourceId,
             amount: 1,
             now: when,
         });
-        if (result && (result.status === 'ok' || result.status === 'dup')) {
+        if (!result || result.status === 'error') continue;
+        if (result.status === 'ok' || result.status === 'dup') {
             if (result.status === 'ok') credited += 1;
             try { await settlePending(pendingRef, admin, 'credited'); } catch (e) { /* dedupe stops a second hit */ }
+            continue;
         }
+        skipped += 1;
+        try { await settlePending(pendingRef, admin, 'skipped'); } catch (e) { /* next sweep retries */ }
     }
     return { checked: docs.length, credited: credited, skipped: skipped };
 }

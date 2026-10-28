@@ -196,7 +196,7 @@ const answerTrivia = onCall(async (data, context) => {
         await require('./raidBossEngine').noteTrusted(db, admin, {
             metric: 'triviaCorrect',
             uid: uid,
-            dedupeKey: 'trivia-' + dayKey,
+            dedupeKey: 'trivia-' + uid + '-' + dayKey,
             amount: 1,
             now: new Date(now),
         });
@@ -376,7 +376,7 @@ const gradeQuest = onCall(async (data, context) => {
         await require('./raidBossEngine').noteTrusted(db, admin, {
             metric: 'quizCompletions',
             uid: uid,
-            dedupeKey: 'quest-' + dayKey + '-' + String(result.questsToday || 1),
+            dedupeKey: 'quest-' + uid + '-' + dayKey + '-' + String(result.questsToday || 1),
             amount: 1,
             now: new Date(now),
         });

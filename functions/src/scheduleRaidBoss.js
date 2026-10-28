@@ -15,6 +15,7 @@ exports.scheduleRaidBoss = onSchedule({
     schedule: '0 13 1 * *',
     timeZone: 'America/New_York',
     region: 'us-central1',
+    invoker: 'private',
 }, async () => {
     await engine.spawnOrAlert(db(), admin, new Date());
     return null;
@@ -25,6 +26,7 @@ exports.scheduleRaidBossCatchup = onSchedule({
     schedule: '0 * 1,2 * *',
     timeZone: 'America/New_York',
     region: 'us-central1',
+    invoker: 'private',
 }, async () => {
     await engine.spawnOrAlert(db(), admin, new Date());
     return null;
@@ -36,6 +38,7 @@ exports.scheduleRaidForumCredit = onSchedule({
     timeZone: 'UTC',
     region: 'us-central1',
     timeoutSeconds: 300,
+    invoker: 'private',
 }, async () => {
     await engine.sweepForumDamage(db(), admin, new Date());
     return null;

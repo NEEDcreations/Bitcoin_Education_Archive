@@ -377,7 +377,7 @@ function createSayHiHandlers(opts) {
                 await require('./raidBossEngine').noteTrusted(db, admin, {
                     metric: 'sayHi',
                     uid: uid,
-                    dedupeKey: 'sayhi-' + (result.day || ''),
+                    dedupeKey: 'sayhi-' + uid + '-' + (result.day || ''),
                     amount: 1,
                     now: new Date(nowMs),
                 });

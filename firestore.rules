@@ -2039,6 +2039,11 @@ service cloud.firestore {
       allow read, write: if false; // Admin SDK bypasses rules
     }
 
+    // Goal inputs and formula. Not a public boss field.
+    match /raid_boss_meta/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
     // Boss documents — read-only for all, server (admin SDK) writes
     match /raid_bosses/{bossId} {
       allow read: if true;

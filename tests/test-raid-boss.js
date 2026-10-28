@@ -43,19 +43,43 @@ function memoryDb() {
             set: async function (data, opts) {
                 order.push(keyOf(parts));
                 const prev = docs.get(keyOf(parts)) || {};
-                docs.set(keyOf(parts), (opts && opts.merge) ? Object.assign({}, prev, data) : Object.assign({}, data));
+                docs.set(keyOf(parts), applyFields(prev, data, !!(opts && opts.merge)));
             },
             update: async function (data) {
                 order.push(keyOf(parts));
                 const prev = docs.get(keyOf(parts));
                 if (!prev) throw new Error('missing ' + keyOf(parts));
-                docs.set(keyOf(parts), Object.assign({}, prev, data));
+                docs.set(keyOf(parts), applyFields(prev, data, true));
             },
             delete: async function () {
                 docs.delete(keyOf(parts));
             },
             collection: function (name) { return col(parts.concat(name)); },
         };
+    }
+    function applyFields(prev, data, merge) {
+        const base = merge ? Object.assign({}, prev) : {};
+        Object.keys(data || {}).forEach(function (key) {
+            const val = data[key];
+            if (val && typeof val === 'object' && Object.prototype.hasOwnProperty.call(val, '_inc')) {
+                base[key] = Math.round(((Number(merge ? prev[key] : 0) || 0) + Number(val._inc)) * 1000) / 1000;
+            } else {
+                base[key] = val;
+            }
+        });
+        return base;
+    }
+    function sortedRows(list, field, dir) {
+        const name = field || 'startTime';
+        const desc = !field || dir === 'desc';
+        list.sort(function (a, b) {
+            const av = a.data()[name];
+            const bv = b.data()[name];
+            const am = av && av.toDate ? av.toDate().getTime() : (Number(av) || 0);
+            const bm = bv && bv.toDate ? bv.toDate().getTime() : (Number(bv) || 0);
+            return desc ? bm - am : am - bm;
+        });
+        return list;
     }
     function rows(parts) {
         const prefix = keyOf(parts) + '/';
@@ -82,10 +106,24 @@ function memoryDb() {
                 const list = rows(parts);
                 return { empty: list.length === 0, docs: list, size: list.length, forEach: function (fn) { list.forEach(fn); } };
             },
+            orderBy: function (field, dir) {
+                const query = {
+                    _order: field,
+                    _dir: dir || 'asc',
+                    orderBy: function (next, nextDir) { query._order = next; query._dir = nextDir || 'asc'; return query; },
+                    limit: function (n) { query._limit = n; return query; },
+                    get: async function () {
+                        let list = sortedRows(rows(parts), query._order, query._dir);
+                        if (query._limit) list = list.slice(0, query._limit);
+                        return { empty: list.length === 0, docs: list, size: list.length, forEach: function (fn) { list.forEach(fn); } };
+                    },
+                };
+                return query;
+            },
             where: function (field, op, value) {
                 const filters = [{ field: field, op: op, value: value }];
                 const query = {
-                    orderBy: function () { return query; },
+                    orderBy: function (orderField, dir) { query._order = orderField; query._dir = dir || 'asc'; return query; },
                     limit: function (n) { query._limit = n; return query; },
                     get: async function () {
                         let list = rows(parts).filter(function (row) {
@@ -102,11 +140,7 @@ function memoryDb() {
                                 return false;
                             });
                         });
-                        list.sort(function (a, b) {
-                            const am = a.data().startTime && a.data().startTime.toDate ? a.data().startTime.toDate().getTime() : 0;
-                            const bm = b.data().startTime && b.data().startTime.toDate ? b.data().startTime.toDate().getTime() : 0;
-                            return bm - am;
-                        });
+                        sortedRows(list, query._order, query._dir);
                         if (query._limit) list = list.slice(0, query._limit);
                         return { empty: list.length === 0, docs: list, forEach: function (fn) { list.forEach(fn); } };
                     },
@@ -217,6 +251,17 @@ async function main() {
         assert.strictEqual(engine.clampGoal(248, engine.SCHEDULE[0]), 335);
         assert.strictEqual(engine.clampGoal(1000, engine.SCHEDULE[0]), 500);
         assert.ok(engine.SCHEDULE.map(function (entry) { return entry.name; }).indexOf('TV-Titan') === -1);
+        const forum = engine.bossForMonth('2027-02');
+        assert.ok(forum.description.indexOf('substantial, original') !== -1);
+        assert.strictEqual(forum.description.indexOf('300'), -1);
+        assert.strictEqual(forum.description.indexOf('40 words'), -1);
+        assert.strictEqual(engine.bossForMonth('2026-12').image, '');
+        const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
+        assert.strictEqual(quests.indexOf('cipher-cracker.png'), -1);
+        assert.strictEqual(quests.indexOf('300 characters'), -1);
+        const schedule = fs.readFileSync(path.join(root, 'functions/src/scheduleRaidBoss.js'), 'utf8');
+        assert.ok(schedule.indexOf("invoker: 'private'") !== -1);
+        assert.strictEqual(fs.readFileSync(path.join(root, 'functions/src/raidBossEngine.js'), 'utf8').indexOf('cipher-cracker.png'), -1);
     });
 
     await test('final and weekly text are plain and include the required lines', function () {
@@ -271,12 +316,15 @@ async function main() {
         const boss = (await db.collection('raid_bosses').doc('2026-11').get()).data();
         assert.strictEqual(boss.name, 'Chat-Charger');
         assert.strictEqual(boss.communityTarget, 335);
-        assert.strictEqual(boss.goal, 335);
-        assert.strictEqual(boss.goalSource, 'fallback');
-        assert.strictEqual(boss.goalCount, null);
-        assert.strictEqual(boss.goalFormula, 'raid-goal-v1');
-        assert.strictEqual(boss.goalFloor, 250);
-        assert.strictEqual(boss.goalCeiling, 500);
+        assert.strictEqual(boss.goalApproximate, undefined);
+        assert.strictEqual(boss.goalFormula, undefined);
+        const meta = (await db.collection('raid_boss_meta').doc('2026-11').get()).data();
+        assert.strictEqual(meta.goal, 335);
+        assert.strictEqual(meta.goalSource, 'fallback');
+        assert.strictEqual(meta.goalCount, null);
+        assert.strictEqual(meta.goalFormula, 'raid-goal-v1');
+        assert.strictEqual(meta.goalFloor, 250);
+        assert.strictEqual(meta.goalCeiling, 500);
         assert.strictEqual(boss.target, 1000);
         assert.strictEqual(boss.liveDamageMultiplier, 3);
         assert.strictEqual(boss.placeholder, false);
@@ -433,8 +481,8 @@ async function main() {
         const hit = await engine.creditTrusted(slim, admin, Object.assign({}, opts, { uid: 'ada', dedupeKey: 'chat-win', text: '12345678' }));
         assert.strictEqual(hit.defeated, true);
         const winner = await slim.collection('raid_bosses').doc('2026-11').collection('winners').doc('ada').get();
-        assert.strictEqual(winner.data().satsAwarded, 1000);
-        assert.strictEqual(winner.data().paid, false);
+        assert.strictEqual(winner.data().satsAwarded, undefined);
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(winner.data(), 'satsAwarded'), false);
         const after = await engine.creditTrusted(slim, admin, Object.assign({}, opts, { uid: 'ada', dedupeKey: 'chat-after', text: '12345678' }));
         assert.strictEqual(after.status, 'no-boss');
     });
@@ -517,11 +565,13 @@ async function main() {
         assert.strictEqual(result.goal, 335);
         assert.strictEqual(result.goalSource, 'count');
         const boss = (await db.collection('raid_bosses').doc('2026-11').get()).data();
-        assert.strictEqual(boss.goalCount, 248);
+        const meta = (await db.collection('raid_boss_meta').doc('2026-11').get()).data();
+        assert.strictEqual(boss.goalCount, undefined);
         assert.strictEqual(boss.communityTarget, 335);
         assert.strictEqual(boss.damageScale, engine.damageScaleForGoal(335));
-        assert.strictEqual(boss.goalFormula, 'raid-goal-v1');
-        assert.ok(boss.goalApproximate.indexOf('cap of 10') !== -1);
+        assert.strictEqual(meta.goalCount, 248);
+        assert.strictEqual(meta.goalFormula, 'raid-goal-v1');
+        assert.ok(meta.goalApproximate.indexOf('cap of 10') !== -1);
         assert.strictEqual(sent.length, 1);
         assert.strictEqual(sent[0].chatId, '4242');
         assert.ok(sent[0].text.indexOf('Goal 335') !== -1);
@@ -570,7 +620,8 @@ async function main() {
         await engine.runScheduledSpawn(db, admin, new Date('2027-02-01T18:00:00.000Z'));
         const boss = (await db.collection('raid_bosses').doc('2027-02').get()).data();
         assert.strictEqual(boss.name, 'Forum-Forge');
-        assert.strictEqual(boss.goal, 25);
+        assert.strictEqual(boss.communityTarget, 25);
+        assert.strictEqual(boss.goalApproximate, undefined);
         assert.strictEqual(boss.dailyCap, 2);
         const now = new Date('2027-02-10T18:00:00.000Z');
         const born = ts(new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000));
@@ -646,6 +697,147 @@ async function main() {
         assert.strictEqual(sweptHidden.credited, 0);
         const still = await db.collection('raid_bosses').doc('2027-02').collection('participants').doc('ada').get();
         assert.strictEqual(still.data().contributed, before);
+    });
+
+    await test('two players get credit for the same day key', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        const start = engine.zonedTimeToUtc(2027, 5, 1, 13, 0, 0);
+        const end = engine.zonedTimeToUtc(2027, 6, 1, 13, 0, 0);
+        await db.collection('raid_bosses').doc('2027-05').set({
+            name: 'Trivia-Tactician',
+            metric: 'triviaCorrect',
+            sources: ['triviaCorrect'],
+            target: 1000,
+            damageScale: engine.damageScaleForGoal(176),
+            dailyCap: 1,
+            current: 0,
+            defeated: false,
+            placeholder: false,
+            startTime: ts(start),
+            endTime: ts(end),
+        });
+        await db.collection('users').doc('ada').set({ username: 'ada' });
+        await db.collection('users').doc('bob').set({ username: 'bob' });
+        const now = new Date('2027-05-15T18:00:00.000Z');
+        const ada = await engine.creditTrusted(db, admin, {
+            metric: 'triviaCorrect', uid: 'ada', dedupeKey: 'trivia-2027-05-15', amount: 1,
+            grantTickets: null, badges: false, now: now,
+        });
+        const bob = await engine.creditTrusted(db, admin, {
+            metric: 'triviaCorrect', uid: 'bob', dedupeKey: 'trivia-2027-05-15', amount: 1,
+            grantTickets: null, badges: false, now: now,
+        });
+        assert.strictEqual(ada.status, 'ok');
+        assert.strictEqual(bob.status, 'ok');
+        assert.strictEqual((await db.collection('raid_damage_events').doc('2027-05_ada_trivia-2027-05-15').get()).exists, true);
+        assert.strictEqual((await db.collection('raid_damage_events').doc('2027-05_bob_trivia-2027-05-15').get()).exists, true);
+        const again = await engine.creditTrusted(db, admin, {
+            metric: 'triviaCorrect', uid: 'ada', dedupeKey: 'trivia-2027-05-15', amount: 1,
+            grantTickets: null, badges: false, now: now,
+        });
+        assert.strictEqual(again.status, 'dup');
+    });
+
+    await test('boss HP does not move backwards', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        await engine.runScheduledSpawn(db, admin, new Date('2026-11-01T18:00:00.000Z'));
+        await db.collection('raid_bosses').doc('2026-11').update({ current: 40 });
+        await db.collection('users').doc('ada').set({ username: 'ada' });
+        const hit = await engine.creditTrusted(db, admin, {
+            metric: 'chatMessages', uid: 'ada', dedupeKey: 'chat-one', amount: 1, text: '12345678',
+            grantTickets: null, badges: false, now: new Date('2026-11-15T18:00:00.000Z'),
+        });
+        assert.strictEqual(hit.status, 'ok');
+        const boss = (await db.collection('raid_bosses').doc('2026-11').get()).data();
+        assert.ok(boss.current >= 40);
+        assert.ok(boss.current > 40);
+    });
+
+    await test('October legacy boss still takes damage until November spawns', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        const start = engine.zonedTimeToUtc(2026, 10, 1, 13, 0, 0);
+        const end = engine.zonedTimeToUtc(2026, 11, 1, 13, 0, 0);
+        await db.collection('raid_bosses').doc('legacyOctober').set({
+            name: 'Poll-Patroller',
+            metric: 'pollVotes',
+            sources: ['pollVotes'],
+            target: 1000,
+            damageScale: 1,
+            dailyCap: 1,
+            current: 10,
+            defeated: false,
+            placeholder: false,
+            startTime: ts(start),
+            endTime: ts(end),
+        });
+        await db.collection('users').doc('ada').set({ username: 'ada' });
+        const hit = await engine.creditTrusted(db, admin, {
+            metric: 'pollVotes', uid: 'ada', dedupeKey: 'poll-ada-day', amount: 1,
+            grantTickets: null, badges: false, now: new Date('2026-10-20T16:00:00.000Z'),
+        });
+        assert.strictEqual(hit.status, 'ok');
+        const part = await db.collection('raid_bosses').doc('legacyOctober').collection('participants').doc('ada').get();
+        assert.strictEqual(part.exists, true);
+    });
+
+    await test('forum damage is not queued outside Forum-Forge and old pending docs settle', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        await engine.runScheduledSpawn(db, admin, new Date('2026-11-01T18:00:00.000Z'));
+        const now = new Date('2026-11-10T18:00:00.000Z');
+        await db.collection('users').doc('ada').set({
+            username: 'ada',
+            anonymous: false,
+            created: ts(new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000)),
+        });
+        const words = [];
+        for (let i = 0; i < 30; i++) words.push('novemberword' + i);
+        while (words.join(' ').length < 320 || words.length < 45) words.push('novemberword' + (words.length % 30));
+        const body = words.join(' ');
+        const queued = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'nov1', uid: 'ada', now: now,
+            data: { title: 'Later', body: body, authorId: 'ada' },
+        });
+        assert.strictEqual(queued.reason, 'metric');
+        assert.strictEqual((await db.collection('raid_forum_pending').doc('forum-nov1').get()).exists, false);
+        await db.collection('forum_posts').doc('old1').set({
+            title: 'Later', body: body, authorId: 'ada', createdAt: ts(now),
+        });
+        await db.collection('raid_forum_pending').doc('forum-old1').set({
+            status: 'pending',
+            kind: 'forum',
+            sourceId: 'old1',
+            uid: 'ada',
+            metric: 'forumPosts',
+            readyAt: ts(new Date(now.getTime() - 60 * 60 * 1000)),
+        });
+        const swept = await engine.sweepForumDamage(db, admin, now);
+        assert.strictEqual(swept.credited, 0);
+        assert.ok(swept.skipped >= 1);
+        const pending = (await db.collection('raid_forum_pending').doc('forum-old1').get()).data();
+        assert.strictEqual(pending.status, 'skipped');
+        const again = await engine.sweepForumDamage(db, admin, new Date('2027-02-10T18:00:00.000Z'));
+        assert.strictEqual(again.credited, 0);
+    });
+
+    await test('Phil DM logs a missing chat id and does not send', async function () {
+        const prevId = process.env.PHIL_TELEGRAM_CHAT_ID;
+        const prevToken = process.env.TG_BOT_TOKEN;
+        delete process.env.PHIL_TELEGRAM_CHAT_ID;
+        delete process.env.TG_BOT_TOKEN;
+        let sent = false;
+        const ok = await engine.sendPhilDm('Raid boss spawned', {
+            send: async function () { sent = true; return true; },
+        });
+        if (prevId == null) delete process.env.PHIL_TELEGRAM_CHAT_ID;
+        else process.env.PHIL_TELEGRAM_CHAT_ID = prevId;
+        if (prevToken == null) delete process.env.TG_BOT_TOKEN;
+        else process.env.TG_BOT_TOKEN = prevToken;
+        assert.strictEqual(ok, false);
+        assert.strictEqual(sent, false);
     });
 
     if (failed) {

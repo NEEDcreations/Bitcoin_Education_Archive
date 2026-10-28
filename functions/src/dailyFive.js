@@ -66,7 +66,7 @@ async function maybeCompleteTrifecta(opts) {
             await require('./raidBossEngine').noteTrusted(o.db, o.admin, {
                 metric: 'trifecta',
                 uid: o.uid,
-                dedupeKey: 'trifecta-' + o.day,
+                dedupeKey: 'trifecta-' + o.uid + '-' + o.day,
                 amount: 1,
                 now: new Date(),
             });

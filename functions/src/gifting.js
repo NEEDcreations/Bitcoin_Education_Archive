@@ -973,7 +973,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             await require('./raidBossEngine').noteTrusted(db, admin, {
                 metric: 'cipherPeerKey',
                 uid: uid,
-                dedupeKey: 'cipher-' + cipherId,
+                dedupeKey: 'cipher-' + uid + '-' + cipherId,
                 amount: 1,
                 now: new Date(),
             });
