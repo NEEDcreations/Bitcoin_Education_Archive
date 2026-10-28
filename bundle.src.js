@@ -4454,6 +4454,7 @@ function createNacho() {
     if (_nachoHiddenVal === 'true' || _nachoHiddenVal === 'user') {
         nachoVisible = false;
     }
+    syncNachoDock();
 
     const style = document.createElement('style');
     style.textContent = `
@@ -4897,17 +4898,38 @@ function createNacho() {
             #nachoHideBtn { opacity: 1; pointer-events: auto; }
             #nacho-avatar { animation: none !important; }
         }
+        #nacho-avatar:focus-visible {
+            outline: 2px solid #f7931a;
+            outline-offset: 3px;
+        }
         @media (max-width: 900px) {
+            /* Sit above the sprite, with a gap, so the 44px target is not the deer's tap. */
             #nachoHideBtn {
                 opacity: 1;
                 pointer-events: auto;
-                top: 0;
-                left: 0;
-                width: 22px;
-                height: 22px;
-                font-size: 16px;
+                top: auto;
+                right: auto;
+                bottom: calc(100% + 8px);
+                left: 50%;
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 22px;
+                transform: translateX(-50%);
             }
             #nacho-avatar { animation: none !important; }
+            /* Story, closet, name, and the drag pill stay off the phone tap target.
+               The round buttons set pointer-events:auto, which would beat the stack's none. */
+            #nacho-avatar .nacho-name,
+            #nacho-avatar .nacho-btn-stack,
+            #nacho-avatar .nacho-closet-btn,
+            #nacho-avatar .nacho-story-btn,
+            #nachoDragHandle {
+                opacity: 0 !important;
+                pointer-events: none !important;
+                display: none !important;
+            }
         }
 
         /* Tablet — sidebar is 280px */
@@ -4918,8 +4940,12 @@ function createNacho() {
         /* Mobile — sidebar hidden, Nacho goes bottom-left, above the nav.
            Same clearance as the FAB row: measured nav height plus the safe-area inset. */
         @media (max-width: 900px) {
-            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
-            #nacho-avatar { width: 56px; height: 56px; }
+            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 18px; }
+            #nacho-avatar { width: 48px; height: 48px; min-width: 48px; min-height: 48px; z-index: 200060; }
+            /* Keep the Today card out of the left column Nacho stands in. */
+            body.nacho-dock #todayCard {
+                margin-left: 68px;
+            }
             #nachoDragHandle { bottom: 2px !important; }
             #nacho-avatar .nacho-name { top: auto; bottom: calc(100% + 4px); }
             /* Speech bubble shares the FAB baseline: nav + safe area + gap,
@@ -4946,8 +4972,8 @@ function createNacho() {
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 32px; }
-            #nacho-avatar { width: 48px; height: 48px; }
+            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 18px; }
+            #nacho-avatar { width: 48px; height: 48px; min-width: 48px; min-height: 48px; }
             #nacho-bubble {
                 max-height: 45vh;
                 font-size: 0.82rem;
@@ -4970,6 +4996,79 @@ function createNacho() {
             user-select: none;
         }
         #nacho-toggle:hover { opacity: 1; transform: scale(1.1); box-shadow: 0 4px 20px rgba(247,147,26,0.4), 0 0 0 4px rgba(247,147,26,0.25); }
+        #nachoActionSheet {
+            position: fixed;
+            z-index: 200120;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: min(260px, calc(100vw - 84px));
+            padding: 10px;
+            border-radius: 16px;
+            background: var(--bg-side, #0f172a);
+            border: 1px solid var(--border, #334155);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+            box-sizing: border-box;
+        }
+        #nachoActionSheet[hidden] { display: none !important; }
+        #nachoActionSheet button {
+            min-height: 48px;
+            width: 100%;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            touch-action: manipulation;
+            padding: 10px 12px;
+        }
+        #nachoActionSheet button:focus-visible {
+            outline: 2px solid #f7931a;
+            outline-offset: 2px;
+        }
+        #nachoSheetAsk {
+            background: #f7931a;
+            color: #1a1208;
+            border: none;
+        }
+        #nachoSheetStory, #nachoSheetCloset, #nachoSheetClose {
+            background: transparent;
+            color: var(--text, #e2e8f0);
+            border: 1px solid var(--border, #334155);
+        }
+        #nachoSheetStory { position: relative; }
+        #nachoSheetStoryDot {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        #nachoSheetStoryDot[hidden] { display: none !important; }
+        #nachoAskHint {
+            position: fixed;
+            z-index: 261;
+            margin: 0;
+            max-width: min(220px, calc(100vw - 16px));
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--bg-side, #0f172a);
+            color: var(--text, #f8fafc);
+            border: 1px solid #f7931a;
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        #nachoAskHint[hidden] { display: none !important; }
+        #nachoAskHint:focus-visible { outline: 2px solid #f7931a; outline-offset: 2px; }
+
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
         @media (max-width: 900px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: var(--fab-size, 48px); height: var(--fab-size, 48px); font-size: 1.3rem; } }
         @media (max-width: 480px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: 44px; height: 44px; font-size: 1.2rem; } }
@@ -4995,6 +5094,22 @@ function createNacho() {
             '<div id="nacho-text"></div>' +
         '</div>';
     document.body.appendChild(container);
+    syncNachoDock();
+    mountNachoActionSheet();
+    var avatarEl = document.getElementById('nacho-avatar');
+    if (avatarEl) {
+        avatarEl.setAttribute('role', 'button');
+        avatarEl.tabIndex = 0;
+        avatarEl.setAttribute('aria-label', 'Ask Nacho or read his story');
+        avatarEl.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            if (typeof window.nachoClick === 'function') window.nachoClick();
+        });
+    }
+    syncNachoAria();
+    bindNachoHideTouch();
+    placeNachoHideBtn();
 
     // Closet button — use addEventListener to fully control event propagation
     // Inline handlers fail on mobile because touchend propagates to avatar → nachoClick()
@@ -5003,26 +5118,7 @@ function createNacho() {
         var closetTouched = false;
         closetBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); }, false);
         closetBtn.addEventListener('touchstart', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); closetTouched = true; }, { passive: false });
-        function openNachoCloset() {
-            window._expanded_closet = true;
-            window._pendingClosetScroll = true;
-            try {
-                if (typeof showSettings === 'function') showSettings();
-                // Wait for the settings modal to actually appear, then switch to data/closet tab
-                var attempts = 0;
-                function tryShowCloset() {
-                    attempts++;
-                    var modal = document.getElementById('usernameModal');
-                    if (modal && modal.classList.contains('open') && typeof showSettingsPage === 'function') {
-                        showSettingsPage('data');
-                    } else if (attempts < 10) {
-                        setTimeout(tryShowCloset, 150);
-                    }
-                }
-                setTimeout(tryShowCloset, 200);
-            } catch(err) {}
-            if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
-        }
+        function openNachoCloset() { nachoOpenCloset(); }
         closetBtn.addEventListener('touchend', function(e) {
             e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();
             if (closetTouched) {
@@ -5077,6 +5173,8 @@ function createNacho() {
             var neverOpened = chaptersUnlocked === 0;
             var storyDismissed = localStorage.getItem('btc_nacho_story_notif_dismissed') === today;
             storyDot.style.display = (!storyDismissed && (hasNewChapter || neverOpened)) ? 'block' : 'none';
+            var sheetDot = document.getElementById('nachoSheetStoryDot');
+            if (sheetDot) sheetDot.hidden = storyDot.style.display === 'none';
         }
         // Closet notification: show if there are unviewed closet items
         var closetDot = document.getElementById('nachoClosetNotif');
@@ -5151,7 +5249,7 @@ function createNacho() {
 
     // Welcome after delay — use time-of-day greeting or regular welcome
     setTimeout(function() {
-        if (!nachoVisible) return;
+        if (!nachoVisible || nachoHoldFirstVisit()) return;
         
         // PROGRESSIVE ONBOARDING FOR NEW USERS
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
@@ -5649,6 +5747,471 @@ window.hideBubble = function(force) {
     }, 500);
 };
 
+// ---- Mobile action sheet (ask or story) ----
+var NACHO_HINT_KEY = 'btc_nacho_ask_hint';
+window._nachoSheetOpen = false;
+
+function isNachoMobile() {
+    try {
+        return window.matchMedia('(max-width: 900px)').matches;
+    } catch (e) {
+        return (window.innerWidth || 1200) <= 900;
+    }
+}
+function syncNachoDock() {
+    if (!document.body) return;
+    document.body.classList.toggle('nacho-dock', isNachoMobile() && !!nachoVisible);
+}
+function syncNachoAria() {
+    var avatar = document.getElementById('nacho-avatar');
+    if (!avatar) return;
+    if (isNachoMobile()) {
+        avatar.setAttribute('aria-haspopup', 'dialog');
+        avatar.setAttribute('aria-controls', 'nachoActionSheet');
+    } else {
+        avatar.removeAttribute('aria-haspopup');
+        avatar.removeAttribute('aria-controls');
+    }
+    avatar.setAttribute('aria-expanded', window._nachoSheetOpen ? 'true' : 'false');
+}
+function nachoBoxesOverlap(a, b, gap) {
+    gap = gap || 0;
+    return !(a.right <= b.left - gap || a.left >= b.right + gap || a.bottom <= b.top - gap || a.top >= b.bottom + gap);
+}
+function nachoBlockerBoxes() {
+    var ids = ['todayFavorStrip', 'chatOverlayBtn', 'fabExpandBtn', 'bottomNav'];
+    var out = [];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (!el) continue;
+        var cs;
+        try { cs = getComputedStyle(el); } catch (e) { continue; }
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+        var b = el.getBoundingClientRect();
+        if (b.width > 8 && b.height > 8) out.push(b);
+    }
+    return out;
+}
+function placeNachoActionSheet() {
+    var sheet = document.getElementById('nachoActionSheet');
+    var avatar = document.getElementById('nacho-avatar');
+    if (!sheet || sheet.hidden || !avatar) return;
+    var r = avatar.getBoundingClientRect();
+    var w = sheet.offsetWidth || 240;
+    var h = sheet.offsetHeight || 180;
+    var blockers = nachoBlockerBoxes();
+    function fits(left, top) {
+        if (top < 8 || left < 8) return false;
+        if (left + w > window.innerWidth - 8 || top + h > window.innerHeight - 8) return false;
+        var box = { left: left, top: top, right: left + w, bottom: top + h };
+        for (var i = 0; i < blockers.length; i++) {
+            if (nachoBoxesOverlap(box, blockers[i], 8)) return false;
+        }
+        return true;
+    }
+    function nudge(left, top) {
+        var guard = 0;
+        while (guard++ < 8) {
+            if (left + w > window.innerWidth - 8) left = window.innerWidth - 8 - w;
+            if (left < 8) left = 8;
+            if (top + h > window.innerHeight - 8) top = window.innerHeight - 8 - h;
+            if (top < 8) top = 8;
+            var box = { left: left, top: top, right: left + w, bottom: top + h };
+            var hit = null;
+            for (var i = 0; i < blockers.length; i++) {
+                if (nachoBoxesOverlap(box, blockers[i], 8)) { hit = blockers[i]; break; }
+            }
+            if (!hit) return { left: left, top: top };
+            var above = hit.top - 8 - h;
+            if (above >= 8 && above < top) { top = above; continue; }
+            return null;
+        }
+        return null;
+    }
+    var mini = document.getElementById('nachoHideBtn');
+    var miniRight = mini ? mini.getBoundingClientRect().right : r.left;
+    var anchorLeft = Math.max(r.right + 10, miniRight + 10);
+    var tries = [
+        { left: anchorLeft, top: r.bottom - h },
+        { left: anchorLeft, top: r.top },
+        { left: anchorLeft, top: r.top - 8 - h }
+    ];
+    var placed = null;
+    for (var t = 0; t < tries.length; t++) {
+        placed = nudge(tries[t].left, tries[t].top);
+        if (placed && fits(placed.left, placed.top)) break;
+        placed = null;
+    }
+    if (!placed) placed = nudge(8, r.top - 8 - h) || { left: 8, top: Math.max(8, r.top - 8 - h) };
+    sheet.style.left = Math.round(placed.left) + 'px';
+    sheet.style.top = Math.round(placed.top) + 'px';
+}
+function closeNachoActionSheet(restoreFocus) {
+    var sheet = document.getElementById('nachoActionSheet');
+    window._nachoSheetOpen = false;
+    if (sheet) sheet.hidden = true;
+    syncNachoAria();
+    if (restoreFocus) {
+        var avatar = document.getElementById('nacho-avatar');
+        if (avatar && typeof avatar.focus === 'function') avatar.focus();
+    }
+}
+function nachoPresentActionSheet() {
+    if (!isNachoMobile()) return;
+    var sheet = document.getElementById('nachoActionSheet');
+    if (!sheet) return;
+    dismissNachoAskHint();
+    sheet.hidden = false;
+    window._nachoSheetOpen = true;
+    syncNachoAria();
+    placeNachoActionSheet();
+    var ask = document.getElementById('nachoSheetAsk');
+    if (ask && typeof ask.focus === 'function') ask.focus();
+}
+function nachoAskFromSheet() {
+    closeNachoActionSheet(false);
+    function focusAsk() {
+        if (typeof showNachoInput !== 'function') return false;
+        showNachoInput();
+        return true;
+    }
+    if (focusAsk()) return;
+    if (typeof window._loadDeferred === 'function') window._loadDeferred();
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (focusAsk() || tries > 20) clearInterval(timer);
+    }, 150);
+}
+function nachoStoryFromSheet() {
+    closeNachoActionSheet(false);
+    if (typeof showNachoStory === 'function') showNachoStory();
+    if (typeof nachoStoryNotifClear === 'function') nachoStoryNotifClear();
+}
+function nachoHoldFirstVisit() {
+    var hash = '';
+    try { hash = String((window.location && window.location.hash) || ''); } catch (e) { return false; }
+    return /^#cert(?:\/|$)/i.test(hash);
+}
+function dismissNachoAskHint() {
+    var hint = document.getElementById('nachoAskHint');
+    if (hint) hint.hidden = true;
+    if (window._nachoHintTimer) {
+        clearTimeout(window._nachoHintTimer);
+        window._nachoHintTimer = null;
+    }
+    try { localStorage.setItem(NACHO_HINT_KEY, '1'); } catch (e) {}
+}
+function nachoHintBlocked(el) {
+    var node = el;
+    while (node && node !== document.documentElement) {
+        if (node.hidden) return true;
+        var cs;
+        try { cs = getComputedStyle(node); } catch (e) { return true; }
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return true;
+        node = node.parentElement;
+    }
+    return false;
+}
+function nachoHintBlockers() {
+    var sel = 'button, a, input, textarea, select, [role="button"], [role="link"], [onclick], img, svg, video, .today-tile, .today-more-item, .home-subtitle, .home-title, .home-logos, .mobile-bar, #todayFavorStrip, #dailyXpMeter, #todayCard, #homeHero, #bottomNav, #featuredOnSection, #introVideoSection, #questGuideBanner';
+    var nodes = document.querySelectorAll(sel);
+    var out = [];
+    for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (!el || el.id === 'nachoAskHint') continue;
+        if (el.closest && el.closest('#nachoAskHint')) continue;
+        if (nachoHintBlocked(el)) continue;
+        var b = el.getBoundingClientRect();
+        if (b.width < 2 || b.height < 2) continue;
+        if (b.bottom <= 0 || b.right <= 0 || b.top >= window.innerHeight || b.left >= window.innerWidth) continue;
+        out.push(b);
+    }
+    return out;
+}
+function nachoHintFits(left, top, w, h, blockers) {
+    if (left < 4 || top < 4) return false;
+    if (left + w > window.innerWidth - 4 || top + h > window.innerHeight - 4) return false;
+    var box = { left: left, top: top, right: left + w, bottom: top + h };
+    for (var i = 0; i < blockers.length; i++) {
+        if (nachoBoxesOverlap(box, blockers[i], 3)) return false;
+    }
+    return true;
+}
+function nachoHintSeek(w, h, blockers, anchor) {
+    var best = null;
+    var bestD = Infinity;
+    var step = 12;
+    var maxX = window.innerWidth - w - 4;
+    var maxY = window.innerHeight - h - 4;
+    for (var y = 4; y <= maxY; y += step) {
+        for (var x = 4; x <= maxX; x += step) {
+            if (!nachoHintFits(x, y, w, h, blockers)) continue;
+            var dx = (x + w / 2) - anchor.x;
+            var dy = (y + h / 2) - anchor.y;
+            var d = dx * dx + dy * dy;
+            if (d < bestD) {
+                bestD = d;
+                best = { left: Math.round(x), top: Math.round(y) };
+            }
+        }
+    }
+    return best;
+}
+function placeNachoAskHint() {
+    var hint = document.getElementById('nachoAskHint');
+    var avatar = document.getElementById('nacho-avatar');
+    if (!hint || hint.hidden || !avatar) return;
+    var r = avatar.getBoundingClientRect();
+    hint.textContent = 'Tap me to ask a question';
+    hint.style.whiteSpace = 'nowrap';
+    hint.style.maxWidth = 'none';
+    hint.style.fontSize = '';
+    hint.style.padding = '';
+    hint.style.width = 'auto';
+    hint.style.lineHeight = '';
+    hint.style.boxShadow = '';
+    var blockers = nachoHintBlockers();
+    var anchor = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    var widths = [0, 220, 168, 132];
+    var spot = null;
+    for (var i = 0; i < widths.length && !spot; i++) {
+        if (!widths[i]) {
+            hint.style.whiteSpace = 'nowrap';
+            hint.style.maxWidth = 'none';
+        } else {
+            hint.style.whiteSpace = 'normal';
+            hint.style.maxWidth = widths[i] + 'px';
+        }
+        var w = hint.offsetWidth;
+        var h = hint.offsetHeight;
+        if (w < 8 || h < 8 || w > window.innerWidth - 8) continue;
+        spot = nachoHintSeek(w, h, blockers, anchor);
+    }
+    if (spot) {
+        hint.dataset.place = 'float';
+        hint.style.left = spot.left + 'px';
+        hint.style.top = spot.top + 'px';
+        return;
+    }
+    hint.textContent = 'Tap me';
+    hint.dataset.place = 'deer';
+    hint.style.whiteSpace = 'nowrap';
+    hint.style.lineHeight = '1';
+    hint.style.boxShadow = '0 1px 2px rgba(0,0,0,0.45)';
+    var size = 11;
+    var hw = 0;
+    var hh = 0;
+    while (size >= 8) {
+        hint.style.fontSize = size + 'px';
+        hint.style.padding = '0 2px';
+        hint.style.maxWidth = Math.max(32, Math.floor(r.width - 2)) + 'px';
+        hw = hint.offsetWidth;
+        hh = hint.offsetHeight;
+        if (hw <= r.width - 2 && hh <= r.height - 2) break;
+        size -= 1;
+    }
+    var left = Math.round(r.left + (r.width - hw) / 2);
+    var top = Math.round(r.bottom - hh - 3);
+    if (top < r.top + 1) top = Math.round(r.top + 1);
+    if (left < r.left + 1) left = Math.round(r.left + 1);
+    if (left + hw > r.right - 1) left = Math.round(r.right - hw - 1);
+    hint.style.left = left + 'px';
+    hint.style.top = top + 'px';
+}
+function placeNachoHideBtn() {
+    var btn = document.getElementById('nachoHideBtn');
+    var avatar = document.getElementById('nacho-avatar');
+    var container = document.getElementById('nacho-container');
+    if (!btn) return;
+    if (btn.parentElement !== document.body) document.body.appendChild(btn);
+    if (!isNachoMobile()) {
+        btn.style.display = '';
+        btn.style.position = '';
+        btn.style.left = '';
+        btn.style.top = '';
+        btn.style.width = '';
+        btn.style.height = '';
+        btn.style.transform = '';
+        btn.style.zIndex = '';
+        if (avatar && btn.parentElement !== avatar) avatar.insertBefore(btn, avatar.firstChild);
+        return;
+    }
+    var hidden = !nachoVisible || (container && (container.classList.contains('hidden') || container.classList.contains('nacho-suspended')));
+    if (hidden || !avatar) {
+        btn.style.display = 'none';
+        return;
+    }
+    var r = avatar.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return;
+    var size = 44;
+    btn.style.display = 'flex';
+    btn.style.position = 'fixed';
+    btn.style.width = size + 'px';
+    btn.style.height = size + 'px';
+    btn.style.minWidth = size + 'px';
+    btn.style.minHeight = size + 'px';
+    btn.style.left = Math.round(r.left + (r.width - size) / 2) + 'px';
+    btn.style.top = Math.round(r.top - 8 - size) + 'px';
+    btn.style.right = 'auto';
+    btn.style.bottom = 'auto';
+    btn.style.transform = 'none';
+    btn.style.margin = '0';
+    btn.style.zIndex = '200130';
+    btn.style.pointerEvents = 'auto';
+    btn.style.opacity = '1';
+}
+function bindNachoHideTouch() {
+    var btn = document.getElementById('nachoHideBtn');
+    if (!btn || btn._nachoHideTouch) return;
+    btn._nachoHideTouch = true;
+    var armed = false;
+    var startX = 0;
+    var startY = 0;
+    btn.addEventListener('pointerdown', function(e) {
+        if (!isNachoMobile() || e.pointerType !== 'touch') { armed = false; return; }
+        armed = true;
+        startX = e.clientX;
+        startY = e.clientY;
+    });
+    btn.addEventListener('pointercancel', function() { armed = false; });
+    btn.addEventListener('pointerup', function(e) {
+        if (!isNachoMobile() || e.pointerType !== 'touch') return;
+        var dx = e.clientX - startX;
+        var dy = e.clientY - startY;
+        var moved = Math.abs(dx) > 10 || Math.abs(dy) > 10;
+        var startedHere = armed;
+        armed = false;
+        if (!startedHere || moved) return;
+        e.preventDefault();
+        e.stopPropagation();
+        btn._skipHideClick = true;
+        if (typeof hideNacho === 'function') hideNacho();
+    });
+    btn.addEventListener('click', function(e) {
+        if (!btn._skipHideClick) return;
+        btn._skipHideClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+    }, true);
+}
+function nachoOpenCloset() {
+    window._expanded_closet = true;
+    window._pendingClosetScroll = true;
+    try {
+        if (typeof showSettings === 'function') showSettings();
+        var attempts = 0;
+        function tryShowCloset() {
+            attempts++;
+            var modal = document.getElementById('usernameModal');
+            if (modal && modal.classList.contains('open') && typeof showSettingsPage === 'function') {
+                showSettingsPage('data');
+            } else if (attempts < 10) {
+                setTimeout(tryShowCloset, 150);
+            }
+        }
+        setTimeout(tryShowCloset, 200);
+    } catch (err) {}
+    if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
+}
+window._nachoPlaceHideBtn = placeNachoHideBtn;
+function maybeShowNachoAskHint() {
+    if (nachoHoldFirstVisit()) return;
+    if (!nachoVisible) return;
+    var seen = '';
+    try { seen = localStorage.getItem(NACHO_HINT_KEY) || ''; } catch (e) { return; }
+    if (seen === '1') return;
+    var hint = document.getElementById('nachoAskHint');
+    if (!hint) return;
+    hint.hidden = false;
+    placeNachoAskHint();
+    if (window._nachoHintTimer) clearTimeout(window._nachoHintTimer);
+    window._nachoHintTimer = setTimeout(dismissNachoAskHint, 4500);
+}
+function mountNachoActionSheet() {
+    if (document.getElementById('nachoActionSheet')) return;
+    var sheet = document.createElement('div');
+    sheet.id = 'nachoActionSheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', 'Nacho');
+    sheet.hidden = true;
+    sheet.innerHTML =
+        '<button type="button" id="nachoSheetAsk">Ask Nacho a question</button>' +
+        '<button type="button" id="nachoSheetStory">Nacho\'s story<span id="nachoSheetStoryDot" hidden></span></button>' +
+        '<button type="button" id="nachoSheetCloset">Closet</button>' +
+        '<button type="button" id="nachoSheetClose">Close</button>';
+    document.body.appendChild(sheet);
+    document.getElementById('nachoSheetAsk').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        nachoAskFromSheet();
+    });
+    document.getElementById('nachoSheetStory').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        nachoStoryFromSheet();
+    });
+    document.getElementById('nachoSheetCloset').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeNachoActionSheet(false);
+        nachoOpenCloset();
+    });
+    document.getElementById('nachoSheetClose').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeNachoActionSheet(true);
+    });
+    var hint = document.createElement('button');
+    hint.type = 'button';
+    hint.id = 'nachoAskHint';
+    hint.hidden = true;
+    hint.textContent = 'Tap me to ask a question';
+    hint.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dismissNachoAskHint();
+    });
+    document.body.appendChild(hint);
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' || !window._nachoSheetOpen) return;
+        e.preventDefault();
+        e.stopPropagation();
+        closeNachoActionSheet(true);
+    }, true);
+    var swallow = false;
+    document.addEventListener('pointerdown', function(e) {
+        if (!window._nachoSheetOpen) return;
+        var openSheet = document.getElementById('nachoActionSheet');
+        if (!openSheet || openSheet.contains(e.target)) return;
+        if (e.target.closest && e.target.closest('#nacho-avatar')) return;
+        closeNachoActionSheet(false);
+        swallow = true;
+        setTimeout(function() { swallow = false; }, 400);
+    }, true);
+    document.addEventListener('click', function(e) {
+        if (!swallow) return;
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+    setTimeout(maybeShowNachoAskHint, 700);
+}
+function nachoMobileTap() {
+    if (window._nachoSheetOpen) {
+        closeNachoActionSheet(true);
+        return;
+    }
+    var bubble = document.getElementById('nacho-bubble');
+    if (bubble && bubble.classList.contains('show')) hideBubble(true);
+    dismissNachoAskHint();
+    localStorage.setItem('btc_nacho_clicked', 'true');
+    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+    if (typeof nachoPlaySound === 'function') nachoPlaySound('click');
+    nachoPresentActionSheet();
+}
+
 // ---- Click for random message ----
 let nachoClickCount = 0;
 let nachoTapTimes = [];
@@ -5658,6 +6221,10 @@ window.nachoClick = function() {
     if (window._nachoActionClicked) { window._nachoActionClicked = false; return; }
     var _avatar = document.getElementById('nacho-avatar');
     if (_avatar && _avatar._nachoSuppressClick) { _avatar._nachoSuppressClick = false; return; }
+    if (isNachoMobile()) {
+        nachoMobileTap();
+        return;
+    }
     const now = Date.now();
 
     // Multi-tap detection
@@ -5730,12 +6297,14 @@ window.nachoClick = function() {
 // ---- Show/Hide Nacho ----
 window.showNacho = function() {
     nachoVisible = true;
+    syncNachoDock();
     localStorage.removeItem('btc_nacho_hidden');
     var nc = document.getElementById('nacho-container');
     var nt = document.getElementById('nacho-toggle');
     if (nc) nc.classList.remove('hidden');
     if (nt) nt.style.display = 'none';
     if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
+    placeNachoHideBtn();
     lastBubbleTime = 0;
     
     // Smart Greeting selection
@@ -5805,12 +6374,15 @@ window.showNacho = function() {
 
 window.hideNacho = function() {
     nachoVisible = false;
+    closeNachoActionSheet(false);
+    syncNachoDock();
     // 'user' = manually minimized (won't auto-restore); 'true' kept for back-compat reads
     localStorage.setItem('btc_nacho_hidden', 'user');
     var nc = document.getElementById('nacho-container');
     var nt = document.getElementById('nacho-toggle');
     if (nc) nc.classList.add('hidden');
     if (nt) nt.style.display = 'flex';
+    placeNachoHideBtn();
     if (typeof hideBubble === 'function') hideBubble(true);
     if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
     try {
@@ -5828,6 +6400,7 @@ window.suspendNacho = function() {
     var nt = document.getElementById('nacho-toggle');
     if (nc) nc.classList.add('nacho-suspended');
     if (nt) nt.classList.add('nacho-suspended');
+    placeNachoHideBtn();
 };
 window.resumeNacho = function() {
     var nc = document.getElementById('nacho-container');
@@ -6378,12 +6951,22 @@ if (document.readyState === 'loading') {
         el.style.bottom = 'auto';
     }
     function topInset() {
-        if (window.innerWidth <= 900) return 64;
-        return 8;
+        if (window.innerWidth > 900) return 8;
+        // Room for the mobile bar plus the 44px minimize control above the sprite.
+        var barBottom = 72;
+        var bar = document.querySelector('.mobile-bar');
+        if (bar) {
+            var cs = window.getComputedStyle(bar);
+            if (cs.display !== 'none' && cs.visibility !== 'hidden') {
+                barBottom = bar.getBoundingClientRect().bottom || 72;
+            }
+        }
+        return Math.max(72, Math.round(barBottom + 8 + 44 + 8));
     }
     function sideMargin() {
         // Phones: keep the minimize control out of the back-swipe edge.
-        return window.innerWidth <= 900 ? 32 : 8;
+        // The 44px control sits above the 48px sprite, so 18px still clears the edge.
+        return window.innerWidth <= 900 ? 18 : 8;
     }
     // Distance from the viewport bottom that stays clear of the bottom nav.
     // The nav's box already includes its safe-area padding.
@@ -6421,6 +7004,69 @@ if (document.readyState === 'loading') {
         var maxL = Math.max(leftMin, window.innerWidth - w - rightMin);
         var maxT = Math.max(topInset(), window.innerHeight - h - floor);
         var minT = Math.min(topInset(), maxT);
+        var box = {
+            left: clamp(left, leftMin, maxL),
+            top: clamp(top, minT, maxT)
+        };
+        return avoidMobileOverlaps(box.left, box.top, w, h);
+    }
+    function mascotUnion(left, top, w, h) {
+        if (window.innerWidth > 900) {
+            return { left: left, top: top, right: left + w, bottom: top + h };
+        }
+        var mini = 44;
+        var miniLeft = left + (w - mini) / 2;
+        return {
+            left: Math.min(left, miniLeft),
+            top: top - 8 - mini,
+            right: Math.max(left + w, miniLeft + mini),
+            bottom: top + h
+        };
+    }
+    function mobileObstacleBoxes() {
+        if (window.innerWidth > 900) return [];
+        var ids = ['todayCard', 'chatOverlayBtn', 'fabExpandBtn', 'scrollToBottom', 'backToTop'];
+        var out = [];
+        for (var i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el) continue;
+            var cs;
+            try { cs = window.getComputedStyle(el); } catch (e) { continue; }
+            if (!cs || cs.display === 'none' || cs.visibility === 'hidden') continue;
+            var r = el.getBoundingClientRect();
+            if (r.width < 8 || r.height < 8) continue;
+            if (r.bottom <= 0 || r.top >= window.innerHeight || r.right <= 0 || r.left >= window.innerWidth) continue;
+            out.push(r);
+        }
+        return out;
+    }
+    function avoidMobileOverlaps(left, top, w, h) {
+        if (window.innerWidth > 900) return { left: left, top: top };
+        var obstacles = mobileObstacleBoxes();
+        var guard = 0;
+        while (guard++ < 8) {
+            var union = mascotUnion(left, top, w, h);
+            var hit = null;
+            for (var i = 0; i < obstacles.length; i++) {
+                if (nachoBoxesOverlap(union, obstacles[i], 8)) { hit = obstacles[i]; break; }
+            }
+            if (!hit) break;
+            var shiftLeft = hit.left - 8 - w;
+            if (shiftLeft >= sideMargin()) {
+                left = shiftLeft;
+                continue;
+            }
+            var above = hit.top - 8 - h;
+            if (above >= topInset()) {
+                top = above;
+                continue;
+            }
+            top = hit.bottom + 8 + 52;
+        }
+        var leftMin = sideMargin();
+        var maxL = Math.max(leftMin, window.innerWidth - w - 8);
+        var minT = topInset();
+        var maxT = Math.max(minT, window.innerHeight - h - bottomClearance());
         return {
             left: clamp(left, leftMin, maxL),
             top: clamp(top, minT, maxT)
@@ -6642,11 +7288,13 @@ if (document.readyState === 'loading') {
         }
         var pill = readPos(PILL_KEY);
         if (pill) placePill(pill);
+        if (typeof window._nachoPlaceHideBtn === 'function') window._nachoPlaceHideBtn();
+        if (typeof placeNachoAskHint === 'function') placeNachoAskHint();
     };
 
     function isChromeTarget(target) {
         if (!target || !target.closest) return false;
-        return !!target.closest('#nachoHideBtn, .nacho-btn-stack, .nacho-name, #nacho-bubble, button, a, input, textarea');
+        return !!target.closest('#nachoHideBtn, .nacho-btn-stack, .nacho-name, #nacho-bubble, #nachoActionSheet, #nachoAskHint, button, a, input, textarea');
     }
 
     function bindPointerDrag(hitEl, opts) {
@@ -6675,6 +7323,7 @@ if (document.readyState === 'loading') {
             }
             if (e.cancelable) e.preventDefault();
             if (opts.move) opts.move(mover, originLeft, originTop, dx, dy);
+            if (typeof window._nachoPlaceHideBtn === 'function') window._nachoPlaceHideBtn();
         }
         function detach() {
             document.removeEventListener('pointermove', onMove, true);
@@ -6704,7 +7353,19 @@ if (document.readyState === 'loading') {
                 }, 400);
             } else {
                 window._nachoDragging = false;
+                // touchstart preventDefault in the long-press handler cancels the click.
+                // A touch tap that did not drag still has to open the sheet.
+                var touchTap = e && e.pointerType === 'touch' && opts.fromAvatar;
+                var held = Date.now() - (hitEl._nachoDownAt || 0);
+                var onChrome = e && e.target && e.target.closest && e.target.closest('#nachoHideBtn, .nacho-btn-stack, #nacho-bubble, #nachoActionSheet, #nachoAskHint');
+                if (touchTap && held < 700 && !onChrome && typeof window.nachoClick === 'function') {
+                    window.nachoClick();
+                    // Swallow only the click the browser may synthesize from this touch.
+                    hitEl._nachoSwallowClick = true;
+                    setTimeout(function() { hitEl._nachoSwallowClick = false; }, 500);
+                }
             }
+            if (typeof window._nachoPlaceHideBtn === 'function') window._nachoPlaceHideBtn();
             try { if (pid != null) hitEl.releasePointerCapture(pid); } catch (err) {}
             pid = null;
         }
@@ -6718,6 +7379,7 @@ if (document.readyState === 'loading') {
             pid = e.pointerId;
             sx = e.clientX;
             sy = e.clientY;
+            hitEl._nachoDownAt = Date.now();
             // Freeze the bob so the origin box is the layout position, not a mid-animation frame.
             mover.classList.add('nacho-dragging');
             var r = mover.getBoundingClientRect();
@@ -6731,7 +7393,8 @@ if (document.readyState === 'loading') {
         }
         hitEl.addEventListener('pointerdown', onDown);
         hitEl.addEventListener('click', function(e) {
-            if (!hitEl._nachoSuppressClick) return;
+            if (!hitEl._nachoSuppressClick && !hitEl._nachoSwallowClick) return;
+            hitEl._nachoSwallowClick = false;
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -6816,7 +7479,14 @@ if (document.readyState === 'loading') {
         var resizeTimer = null;
         function onViewportChange() {
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(function() { window._nachoRestorePosition(); }, 80);
+            resizeTimer = setTimeout(function() {
+                syncNachoDock();
+                syncNachoAria();
+                window._nachoRestorePosition();
+                if (window._nachoSheetOpen) placeNachoActionSheet();
+                placeNachoHideBtn();
+                placeNachoAskHint();
+            }, 80);
         }
         window.addEventListener('resize', onViewportChange);
         window.addEventListener('orientationchange', onViewportChange);
