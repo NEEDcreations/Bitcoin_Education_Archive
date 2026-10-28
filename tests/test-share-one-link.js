@@ -300,7 +300,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.');
+    const latestAt = notes.indexOf('Latest: Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.');
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

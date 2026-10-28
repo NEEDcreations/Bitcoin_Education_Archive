@@ -16,7 +16,7 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.";
+const LATEST = "Latest: Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month's boss has a goal the community can actually reach.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
 const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
 
@@ -400,7 +400,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2411'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2415'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2391'));
     assert.ok(!read('sw.js').includes('btc-archive-v2386'));
     assert.ok(!read('sw.js').includes('btc-archive-v2407'));

@@ -419,7 +419,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2411'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2415'"));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2407'));
@@ -882,7 +882,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    const latest = 'Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.';
+    const latest = 'Latest: Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.';
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
     const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
     const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';

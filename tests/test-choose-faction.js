@@ -377,7 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.") > 0);
+    assert.ok(notes.indexOf("Latest: Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month's boss has a goal the community can actually reach.") > 0);
     assert.ok(notes.indexOf("The raid boss shows HP remaining, the same remaining over max HP as the raid screen.") > 0);
     assert.ok(notes.indexOf("Latest: The raid boss") === -1);
     assert.ok(notes.indexOf("Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.") > 0);

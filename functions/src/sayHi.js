@@ -373,6 +373,17 @@ function createSayHiHandlers(opts) {
             } catch (fiveErr) {
                 console.warn('[sayHi] daily five skipped', fiveErr && fiveErr.message);
             }
+            try {
+                await require('./raidBossEngine').noteTrusted(db, admin, {
+                    metric: 'sayHi',
+                    uid: uid,
+                    dedupeKey: 'sayhi-' + uid + '-' + (result.day || ''),
+                    amount: 1,
+                    now: new Date(nowMs),
+                });
+            } catch (raidErr) {
+                console.warn('[sayHi] raid', raidErr && raidErr.message);
+            }
         }
         if (result.code === 'signed-out') signedOut();
         return {
