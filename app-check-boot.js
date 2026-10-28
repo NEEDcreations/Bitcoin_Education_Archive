@@ -4,17 +4,21 @@
 // stays a console setting. ranking.js skips a second activate when this worked.
 (function () {
     var SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
-    if (typeof firebase === 'undefined' || !firebase.initializeApp || !firebase.appCheck) return;
     var CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
-    if (!CONFIG || !CONFIG.apiKey) return;
-    try {
-        if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(CONFIG);
-    } catch (e) {
-        return;
+    if (CONFIG && CONFIG.apiKey && typeof firebase !== 'undefined' && firebase.initializeApp && firebase.appCheck) {
+        try {
+            if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(CONFIG);
+            if (!window._btcAppCheckReady) {
+                firebase.appCheck().activate(SITE_KEY, true);
+                window._btcAppCheckReady = true;
+            }
+        } catch (e) {}
     }
-    if (window._btcAppCheckReady) return;
+    // firebase-config.js has run. The first applyBoot is before that file,
+    // so the IndexedDB uid read has to happen again now.
     try {
-        firebase.appCheck().activate(SITE_KEY, true);
-        window._btcAppCheckReady = true;
+        if (window.btcAuthDisplay && typeof window.btcAuthDisplay.applyBoot === 'function') {
+            window.btcAuthDisplay.applyBoot();
+        }
     } catch (e) {}
 })();

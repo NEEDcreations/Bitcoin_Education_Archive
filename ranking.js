@@ -681,7 +681,7 @@ function initRanking() {
                     } else if (_cachedProfile && _cachedProfile.twoFa === false && !(_cachedProfile.data && _cachedProfile.data.totpEnabled)) {
                         // Instant render from cache. Display snapshot stays display-only;
                         // rankingReady here is the existing profile cache, after auth matched this uid.
-                        currentUser = { uid: user.uid, ..._cachedProfile.data };
+                        currentUser = { uid: user.uid, ...profileCacheData(_cachedProfile.data) };
                         publishAuthDisplay(user.uid, _cachedProfile.data);
                         window._myPeers = new Set(currentUser.peers || []);
                         rankingReady = true;
@@ -2920,7 +2920,7 @@ async function loadUser(uid, prefetchedDoc) {
     }
     if (doc.exists) {
         // TOS check — show acceptance modal if user hasn't accepted current version
-        if (!auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
+        if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
             _showTosModal();
         }
 
@@ -2939,6 +2939,7 @@ async function loadUser(uid, prefetchedDoc) {
             // That includes a recovery code that just turned 2FA off, so the
             // hold clears even when totpEnabled is already false.
             clearTotpHold();
+            if (!currentUser && doc && doc.exists) currentUser = { uid: uid, ...doc.data() };
             if (currentUser && currentUser.totpEnabled) noteTotpVerified(auth.currentUser.uid);
             publishAuthDisplay(uid, currentUser);
             updateAuthButton();
@@ -9222,11 +9223,28 @@ window.minimizeSignUpBanner = function() {
 // totpEnabled accounts keep a needs2fa marker instead of a name until this
 // session's authenticator check succeeds. The stored marker has no username,
 // so the next boot cannot paint one before the check.
+// Display fields only. Email, lightning, tokens, and other profile fields stay out.
+var PROFILE_CACHE_FIELDS = [
+    'username', 'points', 'pointsClaimed', 'pointsDonated', 'pointsExchanged',
+    'satsWithdrawn', 'totpEnabled', 'profilePic', 'streak', 'bestStreak',
+    'orangeTickets', 'displayBadge'
+];
+function profileCacheData(data) {
+    var src = data || {};
+    var out = {};
+    var i;
+    for (i = 0; i < PROFILE_CACHE_FIELDS.length; i++) {
+        var key = PROFILE_CACHE_FIELDS[i];
+        if (src[key] != null) out[key] = src[key];
+    }
+    return out;
+}
 function saveProfileCache(uid, data) {
     try {
         var prev = null;
         try { prev = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null'); } catch (e) { prev = null; }
-        var rec = { uid: uid, ts: Date.now(), data: data || {} };
+        var view = profileCacheData(data);
+        var rec = { uid: uid, ts: Date.now(), data: view };
         if (data && data.totpEnabled === true) rec.twoFa = true;
         else if (data && data.totpEnabled === false) rec.twoFa = false;
         else if (prev && prev.uid === uid && (prev.twoFa === true || prev.twoFa === false)) rec.twoFa = prev.twoFa;
@@ -9238,17 +9256,51 @@ function stampProfileTwoFa(uid, on) {
         var raw = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
         if (!raw || raw.uid !== uid) return;
         raw.twoFa = on === true;
+        if (raw.data) raw.data = profileCacheData(raw.data);
         localStorage.setItem('btc_profile_cache', JSON.stringify(raw));
     } catch (e) {}
 }
 function holdAuthDisplayForTotp(uid) {
     noteTotpHold(uid);
     stampProfileTwoFa(uid, true);
-    if (!window.btcAuthDisplay || !uid) return;
+    currentUser = null;
+    rankingReady = false;
     try {
-        if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
-        if (window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(null);
+        var bar = document.getElementById('rankBar');
+        if (bar) {
+            bar.textContent = '';
+            bar.innerHTML = '';
+            bar.style.display = 'none';
+            bar.removeAttribute('data-auth-live');
+            bar.removeAttribute('data-profile-cache');
+        }
+        var sats = document.getElementById('homeSatsValue');
+        if (sats) {
+            sats.textContent = '\u2014';
+            sats.removeAttribute('data-auth-live');
+            sats.removeAttribute('data-profile-cache');
+        }
+        var shown = document.getElementById('userDisplay');
+        if (shown) {
+            shown.textContent = '';
+            shown.innerHTML = '';
+            shown.style.display = 'none';
+        }
+        var welcome = document.getElementById('welcomeBanner');
+        if (welcome) {
+            welcome.textContent = '';
+            welcome.innerHTML = '';
+            welcome.style.display = 'none';
+        }
     } catch (e) {}
+    if (window.btcAuthDisplay && uid) {
+        try {
+            if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
+            if (window.btcAuthDisplay.forceClearProfile) window.btcAuthDisplay.forceClearProfile();
+            else if (window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(null);
+        } catch (e) {}
+    }
+    try { if (typeof updateAuthButton === 'function') updateAuthButton(); } catch (e) {}
 }
 function publishAuthDisplay(uid, data) {
     if (!window.btcAuthDisplay || !uid || !data) return;
@@ -9257,7 +9309,8 @@ function publishAuthDisplay(uid, data) {
         holdAuthDisplayForTotp(uid);
         return;
     }
-    if (data.totpEnabled) { stampProfileTwoFa(uid, true);
+    if (data.totpEnabled) {
+        stampProfileTwoFa(uid, true);
         try {
             if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
             var mem = window.btcAuthDisplay.sanitize({ uid: uid, username: data.username, avatar: data.profilePic || '', xp: data.points || 0 });
@@ -9265,7 +9318,8 @@ function publishAuthDisplay(uid, data) {
         } catch (e) {}
         return;
     }
-    if (!data.username) return; stampProfileTwoFa(uid, false);
+    if (!data.username) return;
+    stampProfileTwoFa(uid, false);
     try {
         var snap = window.btcAuthDisplay.write({
             uid: uid,

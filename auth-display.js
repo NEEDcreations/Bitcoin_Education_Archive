@@ -329,6 +329,7 @@
         var bar = doc.getElementById('rankBar');
         if (bar && bar.getAttribute('data-profile-cache') === '1' && bar.getAttribute('data-auth-live') !== '1') {
             bar.textContent = '';
+            if ('innerHTML' in bar) bar.innerHTML = '';
             bar.style.display = 'none';
             bar.removeAttribute('data-profile-cache');
         }
@@ -336,6 +337,71 @@
         if (sats && sats.getAttribute('data-profile-cache') === '1' && sats.getAttribute('data-auth-live') !== '1') {
             sats.textContent = '—';
             sats.removeAttribute('data-profile-cache');
+        }
+    }
+
+    // 2FA hold. Live marks must not keep level, XP, or sats on screen.
+    function forceClearProfile(doc) {
+        if (!doc) doc = root.document;
+        if (!doc) return;
+        var rootEl = doc.documentElement;
+        if (rootEl) {
+            rootEl.classList.remove('home-signed-in');
+            rootEl.removeAttribute('data-auth-display');
+        }
+        if (doc.body) doc.body.classList.remove('home-signed-in');
+        var chip = doc.getElementById('homeSignedInChip');
+        if (chip) {
+            chip.textContent = '';
+            if ('innerHTML' in chip) chip.innerHTML = '';
+            chip.classList.remove('on');
+            chip.removeAttribute('data-auth-display');
+        }
+        var mobile = doc.getElementById('mobileUserInfo');
+        if (mobile) {
+            var label = doc.getElementById('mobileUserLabel');
+            if (label) {
+                label.textContent = '';
+                label.removeAttribute('data-auth-display');
+            }
+            mobile.textContent = '';
+            if ('innerHTML' in mobile) mobile.innerHTML = '';
+            mobile.style.display = 'none';
+            mobile.removeAttribute('data-auth-display');
+            mobile.removeAttribute('data-auth-live');
+        }
+        var bar = doc.getElementById('rankBar');
+        if (bar) {
+            bar.textContent = '';
+            if ('innerHTML' in bar) bar.innerHTML = '';
+            bar.style.display = 'none';
+            bar.removeAttribute('data-profile-cache');
+            bar.removeAttribute('data-auth-live');
+        }
+        var sats = doc.getElementById('homeSatsValue');
+        if (sats) {
+            sats.textContent = '—';
+            sats.removeAttribute('data-profile-cache');
+            sats.removeAttribute('data-auth-live');
+        }
+        var welcome = doc.getElementById('welcomeBanner');
+        if (welcome) {
+            welcome.textContent = '';
+            if ('innerHTML' in welcome) welcome.innerHTML = '';
+            welcome.style.display = 'none';
+        }
+        var userDisplay = doc.getElementById('userDisplay');
+        if (userDisplay) {
+            userDisplay.textContent = '';
+            if ('innerHTML' in userDisplay) userDisplay.innerHTML = '';
+            userDisplay.style.display = 'none';
+        }
+        var btn = doc.getElementById('authBtn');
+        if (btn) {
+            btn.textContent = 'Create Free Account / Sign In';
+            if ('innerHTML' in btn) btn.innerHTML = 'Create Free Account / Sign In';
+            btn.removeAttribute('data-auth-display');
+            btn.removeAttribute('data-auth-live');
         }
     }
 
@@ -593,6 +659,7 @@
         paint: paint,
         paintCachedProfile: paintCachedProfile,
         clearProfilePaint: clearProfilePaint,
+        forceClearProfile: forceClearProfile,
         syncMode: syncMode,
         reconcile: reconcile,
         applyBoot: applyBoot

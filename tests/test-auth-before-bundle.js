@@ -115,6 +115,7 @@ test('firebase config is one literal shared by both boot paths', () => {
     const appCheck = fs.readFileSync(path.join(root, 'app-check-boot.js'), 'utf8');
     assert.ok(appCheck.indexOf('6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j') !== -1);
     assert.ok(appCheck.indexOf('firebase.appCheck().activate(SITE_KEY, true)') !== -1);
+    assert.ok(appCheck.indexOf('btcAuthDisplay.applyBoot') !== -1);
     assert.strictEqual(appCheck.indexOf('AIzaSy'), -1);
     assert.ok(ranking.indexOf('if (!window._btcAppCheckReady)') !== -1);
 });
