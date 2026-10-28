@@ -1092,8 +1092,36 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow read: if request.auth != null
                   && isAdmin();
+      // submitReport writes exactly these fields. No email, IP, or extra keys.
       allow create: if request.auth != null
-                    && request.resource.data.reporterUid == request.auth.uid;
+                    && request.resource.data.keys().hasOnly(['reportedUid', 'reportedName', 'reporterUid', 'reporterName', 'reason', 'createdAt', 'status'])
+                    && request.resource.data.keys().hasAll(['reportedUid', 'reportedName', 'reporterUid', 'reporterName', 'reason', 'createdAt', 'status'])
+                    && request.resource.data.reporterUid == request.auth.uid
+                    && request.resource.data.reporterName is string
+                    && request.resource.data.reporterName.size() < 64
+                    && request.resource.data.reportedUid is string
+                    && request.resource.data.reportedUid.size() > 0
+                    && request.resource.data.reportedUid.size() < 128
+                    && request.resource.data.reportedUid != request.auth.uid
+                    && request.resource.data.reportedName is string
+                    && request.resource.data.reportedName.size() < 64
+                    && request.resource.data.reason in ['spam', 'scam', 'harassment', 'inappropriate', 'impersonation']
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Per-reporter mail cap for onUserReportCreated / onBeatsReportCreated /
+    // onTopicCommentReportCreated. Admin SDK only.
+    match /report_mail_limits/{docId} {
+      allow read, write: if false;
+    }
+    match /report_mail_state/{docId} {
+      allow read, write: if false;
+    }
+    // Shared hourly mail cap across every reporter. Admin SDK only.
+    match /report_mail_global/{docId} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -1374,8 +1402,18 @@ service cloud.firestore {
     // BITCOIN BEATS — REPORTS
     // =============================================
     match /beats_reports/{reportId} {
-      allow create: if request.auth != null;
-      allow read: if false;
+      // beatsReportTrack writes exactly these fields.
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasOnly(['trackId', 'reporterId', 'reason', 'createdAt'])
+                    && request.resource.data.keys().hasAll(['trackId', 'reporterId', 'reason', 'createdAt'])
+                    && request.resource.data.reason is string
+                    && request.resource.data.reason.size() <= 500
+                    && request.resource.data.trackId is string
+                    && request.resource.data.trackId.size() > 0
+                    && request.resource.data.trackId.size() <= 1500
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if false;
     }
 
     // =============================================

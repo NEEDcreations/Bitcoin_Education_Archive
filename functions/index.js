@@ -3,6 +3,10 @@ const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
+// Gmail SMTP for report alerts. Set with firebase functions:secrets:set.
+// Not functions.config(), and the values are not stored in the repo.
+const reportMailUser = defineSecret('REPORT_MAIL_USER');
+const reportMailPass = defineSecret('REPORT_MAIL_PASS');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -9298,4 +9302,64 @@ exports.onTopicPostMirrorSync = onDocumentUpdated({
         console.warn('[onTopicPostMirrorSync]', e && e.message ? e.message : '');
     }
     return null;
+});
+
+// Instant mail for user reports, Beats reports, and topic-comment reports.
+// SMTP comes from Secret Manager (REPORT_MAIL_USER, REPORT_MAIL_PASS).
+const { createReportHandlers } = require('./src/reportMail');
+
+function reportMailFrom(user) {
+    const addr = String(user || '').trim();
+    if (!/^[^\s<>"]+@[^\s<>"]+$/.test(addr)) {
+        throw new Error('REPORT_MAIL_USER is not a usable address');
+    }
+    return '"Bitcoin Quest" <' + addr + '>';
+}
+
+const reportHandlers = createReportHandlers({
+    db: db,
+    now: function() { return Date.now(); },
+    sendMail: async function(msg) {
+        const user = reportMailUser.value();
+        const pass = reportMailPass.value();
+        if (!user || !pass) throw new Error('REPORT_MAIL_USER and REPORT_MAIL_PASS must be set');
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: user, pass: pass },
+        });
+        await transporter.sendMail({
+            from: reportMailFrom(user),
+            to: msg.to,
+            subject: msg.subject,
+            html: msg.html,
+            text: msg.text,
+        });
+    },
+});
+
+// retry: true is the v2 failure policy. A failed send is delivered again.
+// The per-report state doc makes that retry send only mail that is still unsent.
+const REPORT_MAIL_OPTS = {
+    secrets: [reportMailUser, reportMailPass],
+    maxInstances: 10,
+    retry: true,
+};
+
+exports.onUserReportCreated = onDocumentCreated(Object.assign({
+    document: 'reports/{reportId}',
+}, REPORT_MAIL_OPTS), function(event) {
+    return reportHandlers.onUserReport(event);
+});
+
+exports.onBeatsReportCreated = onDocumentCreated(Object.assign({
+    document: 'beats_reports/{reportId}',
+}, REPORT_MAIL_OPTS), function(event) {
+    return reportHandlers.onBeatsReport(event);
+});
+
+exports.onTopicCommentReportCreated = onDocumentCreated(Object.assign({
+    document: 'topic_discussions/{channelId}/posts/{postId}/reports/{reportId}',
+}, REPORT_MAIL_OPTS), function(event) {
+    return reportHandlers.onTopicReport(event);
 });
