@@ -103,6 +103,7 @@ function beatsReport(over) {
             });
             await setDoc(doc(db, 'report_mail_limits', 'reporter1'), { sent: 10 });
             await setDoc(doc(db, 'report_mail_state', 'reports_seed1'), { status: 'sent' });
+            await setDoc(doc(db, 'report_mail_global', 'hour'), { sent: 30 });
         });
 
         const reasons = ['spam', 'scam', 'harassment', 'inappropriate', 'impersonation'];
@@ -235,6 +236,12 @@ function beatsReport(over) {
         }, false);
         await expect('ATTACK mail state write', function() {
             return setDoc(doc(admin, 'report_mail_state', 'reports_seed1'), { status: 'sent' });
+        }, false);
+        await expect('ATTACK global mail cap read', function() {
+            return getDoc(doc(admin, 'report_mail_global', 'hour'));
+        }, false);
+        await expect('ATTACK global mail cap write', function() {
+            return setDoc(doc(reporter, 'report_mail_global', 'hour'), { sent: 0 });
         }, false);
     } finally {
         await env.cleanup();

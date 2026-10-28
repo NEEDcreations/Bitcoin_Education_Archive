@@ -1119,6 +1119,10 @@ service cloud.firestore {
     match /report_mail_state/{docId} {
       allow read, write: if false;
     }
+    // Shared hourly mail cap across every reporter. Admin SDK only.
+    match /report_mail_global/{docId} {
+      allow read, write: if false;
+    }
 
     // =============================================
     // IRL EVENTS

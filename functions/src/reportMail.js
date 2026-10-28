@@ -10,11 +10,17 @@
 
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_PER_HOUR = 10;
+const GLOBAL_MAX_PER_HOUR = 30;
+const MAX_ATTEMPTS = 5;
+// Longer than the function timeout, so a live sender is not stolen and a
+// crashed claim can be taken by the next retry.
+const CLAIM_MS = 90 * 1000;
 const EXCERPT_MAX = 300;
 const HELD_MAX = 25;
 const SUBJECT_PART = 80;
 const MAIL_TO = 'info.603btc@gmail.com';
 const SITE = 'https://bitcoineducation.quest/';
+const GLOBAL_DOC = 'hour';
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const IPV4_RE = /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g;
@@ -132,37 +138,75 @@ function summarize(report) {
     };
 }
 
-// Pure rate-limit step. `limit` is the counter doc. Held rows are reports
-// that were stored but not mailed; the next send carries them.
-function applyLimit(limit, report, nowMs) {
-    const src = limit || {};
-    let windowStartMs = Number(src.windowStartMs) || 0;
-    let sent = Number(src.sent) || 0;
-    const held = Array.isArray(src.held) ? src.held.slice() : [];
-    let heldOverflow = Number(src.heldOverflow) || 0;
+function openWindow(src, nowMs) {
+    const base = src || {};
+    let windowStartMs = Number(base.windowStartMs) || 0;
+    let sent = Number(base.sent) || 0;
+    const held = Array.isArray(base.held) ? base.held.slice() : [];
+    let heldOverflow = Number(base.heldOverflow) || 0;
     if (!windowStartMs || nowMs - windowStartMs >= HOUR_MS) {
         windowStartMs = nowMs;
         sent = 0;
     }
+    return { windowStartMs: windowStartMs, sent: sent, held: held, heldOverflow: heldOverflow };
+}
+
+function pushHeld(bucket, summary) {
+    if (bucket.held.length >= HELD_MAX) bucket.heldOverflow += 1;
+    else bucket.held.push(summary);
+}
+
+// Per-reporter cap (10) and global cap (30) in one step. Over-cap reports
+// stay on the counter that blocked them. The next allowed send carries
+// every held row as one digest. A fresh hour keeps the held rows and
+// resets the sent count.
+function applyLimits(reporterLimit, globalLimit, report, nowMs) {
+    const reporter = openWindow(reporterLimit, nowMs);
+    const global = openWindow(globalLimit, nowMs);
     const summary = summarize(report);
-    if (sent >= MAX_PER_HOUR) {
-        if (held.length >= HELD_MAX) heldOverflow += 1;
-        else held.push(summary);
-        return {
-            send: false,
-            limit: { windowStartMs: windowStartMs, sent: sent, held: held, heldOverflow: heldOverflow },
-            prior: [],
-            overflow: 0,
-        };
+    const reporterBlocked = reporter.sent >= MAX_PER_HOUR;
+    const globalBlocked = global.sent >= GLOBAL_MAX_PER_HOUR;
+    if (reporterBlocked || globalBlocked) {
+        if (globalBlocked) pushHeld(global, summary);
+        else pushHeld(reporter, summary);
+        return { send: false, reporter: reporter, global: global, prior: [], overflow: 0 };
     }
-    const prior = held;
-    const overflow = heldOverflow;
-    return {
-        send: true,
-        limit: { windowStartMs: windowStartMs, sent: sent + 1, held: [], heldOverflow: 0 },
-        prior: prior,
-        overflow: overflow,
-    };
+    const prior = reporter.held.concat(global.held);
+    const overflow = reporter.heldOverflow + global.heldOverflow;
+    reporter.sent += 1;
+    reporter.held = [];
+    reporter.heldOverflow = 0;
+    global.sent += 1;
+    global.held = [];
+    global.heldOverflow = 0;
+    return { send: true, reporter: reporter, global: global, prior: prior, overflow: overflow };
+}
+
+// Per-reporter view used by the original cap tests. The global bucket
+// passed here is empty, so only the reporter cap applies.
+function applyLimit(limit, report, nowMs) {
+    const step = applyLimits(limit, { windowStartMs: nowMs, sent: 0, held: [], heldOverflow: 0 }, report, nowMs);
+    return { send: step.send, limit: step.reporter, prior: step.prior, overflow: step.overflow };
+}
+
+function newToken() {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// create = first claim. resend = unsent mail from a failed or stale claim.
+// busy = another invocation owns a fresh claim. done = already finished.
+function claimKind(state, nowMs) {
+    if (!state) return 'create';
+    if (state.status === 'sent' || state.status === 'failed' || state.status === 'held') return 'done';
+    if ((Number(state.failures) || 0) >= MAX_ATTEMPTS) return 'done';
+    if (state.status === 'reserved' && state.subject && state.html) {
+        if (state.phase === 'sending') {
+            const age = nowMs - (Number(state.updatedAtMs) || 0);
+            if (age < CLAIM_MS) return 'busy';
+        }
+        return 'resend';
+    }
+    return 'create';
 }
 
 function person(name, uid) {
@@ -210,7 +254,7 @@ function buildEmail(report, prior, overflow) {
     const textLines = lines.slice();
     if (held.length || extra) {
         textLines.push('');
-        textLines.push('Also stored since the last email:');
+        textLines.push('Digest of reports held since the last email:');
         held.forEach(function(item) { textLines.push('- ' + priorLine(item)); });
         if (extra === 1) textLines.push('1 more report was stored and is not listed.');
         else if (extra > 1) textLines.push(extra + ' more reports were stored and are not listed.');
@@ -233,7 +277,7 @@ function buildEmail(report, prior, overflow) {
         }
     });
     if (held.length || extra) {
-        html.push('<h3>Also stored since the last email</h3><ul>');
+        html.push('<h3>Digest of reports held since the last email</h3><ul>');
         held.forEach(function(item) {
             html.push('<li>' + escHtml(priorLine(item)) + '</li>');
         });
@@ -393,51 +437,88 @@ function createReportHandlers(deps) {
         };
     }
 
+    function counterWrite(bucket, nowMs) {
+        return {
+            windowStartMs: bucket.windowStartMs,
+            sent: bucket.sent,
+            held: bucket.held,
+            heldOverflow: bucket.heldOverflow,
+            updatedAtMs: nowMs,
+        };
+    }
+
     async function deliver(report) {
         if (!report || !report.path) return null;
         const stateRef = deps.db.collection('report_mail_state').doc(stateDocId(report.path));
         const limitRef = deps.db.collection('report_mail_limits').doc(reporterKey(report.reporterUid));
+        const globalRef = deps.db.collection('report_mail_global').doc(GLOBAL_DOC);
         const decision = await deps.db.runTransaction(async function(tx) {
             const stateSnap = await tx.get(stateRef);
-            const state = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : null;
-            if (state && (state.status === 'sent' || state.status === 'held')) return { action: 'done' };
-            if (state && state.status === 'reserved' && state.subject && state.html) {
-                return { action: 'send', subject: state.subject, html: state.html, text: state.text || '' };
-            }
             const limitSnap = await tx.get(limitRef);
-            const applied = applyLimit(limitSnap && limitSnap.exists ? (limitSnap.data() || {}) : null, report, nowFn());
+            const globalSnap = await tx.get(globalRef);
+            const state = stateSnap && stateSnap.exists ? (stateSnap.data() || {}) : null;
             const nowMs = nowFn();
-            if (!applied.send) {
-                tx.set(limitRef, {
-                    windowStartMs: applied.limit.windowStartMs,
-                    sent: applied.limit.sent,
-                    held: applied.limit.held,
-                    heldOverflow: applied.limit.heldOverflow,
+            const kind = claimKind(state, nowMs);
+            if (kind === 'done' || kind === 'busy') return { action: 'done' };
+            if (kind === 'resend') {
+                const claimToken = newToken();
+                tx.set(stateRef, {
+                    status: 'reserved',
+                    phase: 'sending',
+                    claimToken: claimToken,
+                    failures: Number(state.failures) || 0,
+                    subject: state.subject,
+                    html: state.html,
+                    text: state.text || '',
                     updatedAtMs: nowMs,
                 });
-                tx.set(stateRef, { status: 'held', updatedAtMs: nowMs });
+                return {
+                    action: 'send',
+                    claimToken: claimToken,
+                    subject: state.subject,
+                    html: state.html,
+                    text: state.text || '',
+                };
+            }
+            const applied = applyLimits(
+                limitSnap && limitSnap.exists ? (limitSnap.data() || {}) : null,
+                globalSnap && globalSnap.exists ? (globalSnap.data() || {}) : null,
+                report,
+                nowMs
+            );
+            tx.set(limitRef, counterWrite(applied.reporter, nowMs));
+            tx.set(globalRef, counterWrite(applied.global, nowMs));
+            // create() fails the transaction when a concurrent delivery already
+            // wrote this report, so the retry sees that claim and does not send.
+            const putState = state ? tx.set.bind(tx) : tx.create.bind(tx);
+            if (!applied.send) {
+                putState(stateRef, { status: 'held', phase: 'done', failures: 0, updatedAtMs: nowMs });
                 return { action: 'held' };
             }
             const mail = buildEmail(report, applied.prior, applied.overflow);
-            tx.set(limitRef, {
-                windowStartMs: applied.limit.windowStartMs,
-                sent: applied.limit.sent,
-                held: [],
-                heldOverflow: 0,
-                updatedAtMs: nowMs,
-            });
-            tx.set(stateRef, {
+            const claimToken = newToken();
+            putState(stateRef, {
                 status: 'reserved',
+                phase: 'sending',
+                claimToken: claimToken,
+                failures: 0,
                 subject: mail.subject,
                 html: mail.html,
                 text: mail.text,
                 updatedAtMs: nowMs,
             });
-            return { action: 'send', subject: mail.subject, html: mail.html, text: mail.text };
+            return {
+                action: 'send',
+                claimToken: claimToken,
+                subject: mail.subject,
+                html: mail.html,
+                text: mail.text,
+            };
         });
-        if (!decision || decision.action === 'done') return null;
-        if (decision.action === 'held') {
-            console.log('[reportMail] held', clip(report.source, 40), shortUid(report.reporterUid));
+        if (!decision || decision.action !== 'send') {
+            if (decision && decision.action === 'held') {
+                console.log('[reportMail] held', clip(report.source, 40), shortUid(report.reporterUid));
+            }
             return null;
         }
         try {
@@ -448,10 +529,47 @@ function createReportHandlers(deps) {
                 text: decision.text,
             });
         } catch (err) {
+            const giveUp = await deps.db.runTransaction(async function(tx) {
+                const snap = await tx.get(stateRef);
+                const data = snap && snap.exists ? (snap.data() || {}) : null;
+                if (!data || data.claimToken !== decision.claimToken) return true;
+                const failures = (Number(data.failures) || 0) + 1;
+                const failed = failures >= MAX_ATTEMPTS;
+                tx.set(stateRef, {
+                    status: failed ? 'failed' : 'reserved',
+                    phase: failed ? 'done' : 'retry',
+                    claimToken: data.claimToken,
+                    failures: failures,
+                    subject: data.subject || decision.subject,
+                    html: data.html || decision.html,
+                    text: data.text || decision.text || '',
+                    updatedAtMs: nowFn(),
+                });
+                return failed;
+            });
             console.error('[reportMail] send failed', err && err.message ? err.message : '');
+            if (giveUp) {
+                console.error('[reportMail] gave up', shortUid(report.reporterUid));
+                return null;
+            }
             throw err;
         }
-        await stateRef.set({ status: 'sent', updatedAtMs: nowFn() });
+        await deps.db.runTransaction(async function(tx) {
+            const snap = await tx.get(stateRef);
+            const data = snap && snap.exists ? (snap.data() || {}) : null;
+            if (!data || data.claimToken !== decision.claimToken) return;
+            if (data.status === 'sent' || data.status === 'failed') return;
+            tx.set(stateRef, {
+                status: 'sent',
+                phase: 'done',
+                claimToken: data.claimToken,
+                failures: Number(data.failures) || 0,
+                subject: data.subject || decision.subject,
+                html: data.html || decision.html,
+                text: data.text || decision.text || '',
+                updatedAtMs: nowFn(),
+            });
+        });
         console.log('[reportMail] sent', clip(report.source, 40), shortUid(report.reporterUid));
         return null;
     }
@@ -466,6 +584,9 @@ function createReportHandlers(deps) {
 module.exports = {
     HOUR_MS: HOUR_MS,
     MAX_PER_HOUR: MAX_PER_HOUR,
+    GLOBAL_MAX_PER_HOUR: GLOBAL_MAX_PER_HOUR,
+    MAX_ATTEMPTS: MAX_ATTEMPTS,
+    CLAIM_MS: CLAIM_MS,
     EXCERPT_MAX: EXCERPT_MAX,
     HELD_MAX: HELD_MAX,
     MAIL_TO: MAIL_TO,
@@ -475,5 +596,7 @@ module.exports = {
     formatEt: formatEt,
     buildEmail: buildEmail,
     applyLimit: applyLimit,
+    applyLimits: applyLimits,
+    claimKind: claimKind,
     createReportHandlers: createReportHandlers,
 };

@@ -30,7 +30,23 @@ async function testAsync(name, fn) {
 }
 
 function memoryDb() {
-    const docs = new Map();
+    const rows = new Map();
+    function versionOf(path) {
+        const row = rows.get(path);
+        return row ? row.version : 0;
+    }
+    function read(path) {
+        const row = rows.get(path);
+        if (!row) return { exists: false, data: undefined };
+        return { exists: true, data: JSON.parse(JSON.stringify(row.data)) };
+    }
+    function write(path, data) {
+        const prev = rows.get(path);
+        rows.set(path, {
+            version: (prev ? prev.version : 0) + 1,
+            data: JSON.parse(JSON.stringify(data)),
+        });
+    }
     function ref(docPath) {
         return {
             path: docPath,
@@ -38,29 +54,53 @@ function memoryDb() {
                 return { doc: function(id) { return ref(docPath + '/' + name + '/' + id); } };
             },
             get: function() {
-                if (!docs.has(docPath)) {
-                    return Promise.resolve({ exists: false, data: function() { return undefined; } });
-                }
-                const data = JSON.parse(JSON.stringify(docs.get(docPath)));
-                return Promise.resolve({ exists: true, data: function() { return data; } });
+                const snap = read(docPath);
+                return Promise.resolve({ exists: snap.exists, data: function() { return snap.data; } });
             },
             set: function(data) {
-                docs.set(docPath, JSON.parse(JSON.stringify(data)));
+                write(docPath, data);
                 return Promise.resolve();
             },
         };
     }
     return {
-        docs: docs,
+        docs: {
+            get: function(path) {
+                const row = rows.get(path);
+                return row ? row.data : undefined;
+            },
+            has: function(path) { return rows.has(path); },
+        },
         collection: function(name) {
             return { doc: function(id) { return ref(name + '/' + id); } };
         },
-        runTransaction: function(fn) {
-            const tx = {
-                get: function(r) { return r.get(); },
-                set: function(r, data) { docs.set(r.path, JSON.parse(JSON.stringify(data))); },
-            };
-            return Promise.resolve().then(function() { return fn(tx); });
+        // Versions make a concurrent create() fail and rerun, the way
+        // Firestore retries a transaction whose precondition lost.
+        runTransaction: async function(fn) {
+            for (let attempt = 0; attempt < 8; attempt++) {
+                const seen = new Map();
+                const staged = [];
+                const tx = {
+                    get: function(r) {
+                        seen.set(r.path, versionOf(r.path));
+                        return r.get();
+                    },
+                    set: function(r, data) { staged.push({ type: 'set', path: r.path, data: data }); },
+                    create: function(r, data) { staged.push({ type: 'create', path: r.path, data: data }); },
+                };
+                const result = await fn(tx);
+                let conflict = false;
+                seen.forEach(function(version, path) {
+                    if (versionOf(path) !== version) conflict = true;
+                });
+                staged.forEach(function(w) {
+                    if (w.type === 'create' && rows.has(w.path)) conflict = true;
+                });
+                if (conflict) continue;
+                staged.forEach(function(w) { write(w.path, w.data); });
+                return result;
+            }
+            throw new Error('transaction failed');
         },
     };
 }
@@ -149,10 +189,10 @@ test('ten sends then the next email summarises what was held', function() {
     assert.strictEqual(next.prior.length, 2);
     const built = mail.buildEmail(nextReport, next.prior, next.overflow);
     assert.ok(built.subject === '[BQ] Report: impersonation on alice');
-    assert.ok(built.text.includes('Also stored since the last email:'));
+    assert.ok(built.text.includes('Digest of reports held since the last email:'));
     assert.ok(built.text.includes('harassment'));
     assert.ok(built.text.includes('scam'));
-    assert.ok(built.html.includes('Also stored since the last email'));
+    assert.ok(built.html.includes('Digest of reports held since the last email'));
     assert.ok(!built.html.includes('reporter1'));
 });
 
@@ -292,9 +332,9 @@ function userEvent(id, over) {
         now += mail.HOUR_MS;
         await handlers.onUserReport(userEvent('after', { reason: 'impersonation' }));
         assert.strictEqual(sent.length, 11);
-        assert.ok(sent[10].text.includes('Also stored since the last email:'));
+        assert.ok(sent[10].text.includes('Digest of reports held since the last email:'));
         assert.ok(sent[10].text.includes('harassment'));
-        assert.ok(sent[10].html.includes('Also stored since the last email'));
+        assert.ok(sent[10].html.includes('Digest of reports held since the last email'));
         assert.strictEqual(sent[10].subject, '[BQ] Report: impersonation on alice');
     });
 
@@ -319,6 +359,157 @@ function userEvent(id, over) {
         assert.strictEqual(limit.sent, 1);
     });
 
+    await testAsync('a global cap of 30 holds one digest until the next hour', async function() {
+        let global = null;
+        const now = 1_700_000_000_000;
+        for (let i = 0; i < mail.GLOBAL_MAX_PER_HOUR; i++) {
+            const step = mail.applyLimits(null, global, sample('g' + i), now);
+            assert.strictEqual(step.send, true, 'global send ' + i);
+            global = step.global;
+        }
+        const held = mail.applyLimits(null, global, Object.assign(sample('over'), { reason: 'harassment' }), now);
+        assert.strictEqual(held.send, false);
+        assert.strictEqual(held.global.sent, 30);
+        assert.strictEqual(held.global.held.length, 1);
+        const next = mail.applyLimits(null, held.global, sample('later'), now + mail.HOUR_MS);
+        assert.strictEqual(next.send, true);
+        assert.strictEqual(next.global.sent, 1);
+        assert.strictEqual(next.global.held.length, 0);
+        assert.strictEqual(next.prior.length, 1);
+        const built = mail.buildEmail(sample('later'), next.prior, next.overflow);
+        assert.strictEqual((built.text.match(/harassment/g) || []).length, 1);
+        assert.ok(built.text.includes('Digest of reports held since the last email:'));
+
+        const db = memoryDb();
+        const sent = [];
+        let clock = now;
+        const handlers = mail.createReportHandlers({
+            db: db,
+            now: function() { return clock; },
+            sendMail: async function(msg) { sent.push(msg); },
+        });
+        for (let i = 0; i < mail.GLOBAL_MAX_PER_HOUR; i++) {
+            await handlers.onUserReport(userEvent('g' + i, { reporterUid: 'user' + i, reporterName: 'user' + i }));
+        }
+        assert.strictEqual(sent.length, 30);
+        await handlers.onUserReport(userEvent('gover', {
+            reporterUid: 'user-over',
+            reporterName: 'overflow',
+            reason: 'scam',
+        }));
+        assert.strictEqual(sent.length, 30);
+        assert.strictEqual(db.docs.get('report_mail_global/hour').sent, 30);
+        assert.strictEqual(db.docs.get('report_mail_global/hour').held.length, 1);
+        clock += mail.HOUR_MS;
+        await handlers.onUserReport(userEvent('glater', {
+            reporterUid: 'user-later',
+            reporterName: 'later',
+            reason: 'impersonation',
+        }));
+        assert.strictEqual(sent.length, 31);
+        assert.strictEqual(sent[30].subject, '[BQ] Report: impersonation on alice');
+        assert.strictEqual((sent[30].text.match(/scam/g) || []).length, 1);
+        assert.ok(sent[30].text.includes('Digest of reports held since the last email:'));
+        assert.strictEqual(db.docs.get('report_mail_global/hour').held.length, 0);
+        assert.strictEqual(db.docs.get('report_mail_global/hour').sent, 1);
+    });
+
+    await testAsync('concurrent deliveries claim once and send one email', async function() {
+        const db = memoryDb();
+        const sent = [];
+        const handlers = mail.createReportHandlers({
+            db: db,
+            now: function() { return 1_700_000_000_000; },
+            sendMail: async function(msg) { sent.push(msg); },
+        });
+        await Promise.all([
+            handlers.onUserReport(userEvent('race')),
+            handlers.onUserReport(userEvent('race')),
+        ]);
+        assert.strictEqual(sent.length, 1);
+        assert.strictEqual(db.docs.get('report_mail_limits/reporter1').sent, 1);
+        assert.strictEqual(db.docs.get('report_mail_global/hour').sent, 1);
+        const state = db.docs.get('report_mail_state/reports_race');
+        assert.strictEqual(state.status, 'sent');
+    });
+
+    await testAsync('a fresh claim is not sent twice and a stale claim is resent once', async function() {
+        const db = memoryDb();
+        const sent = [];
+        const now = 1_700_000_000_000;
+        const handlers = mail.createReportHandlers({
+            db: db,
+            now: function() { return now; },
+            sendMail: async function(msg) { sent.push(msg.subject); },
+        });
+        await db.collection('report_mail_state').doc('reports_rep1').set({
+            status: 'reserved',
+            phase: 'sending',
+            claimToken: 'live',
+            failures: 0,
+            subject: 'LIVE CLAIM',
+            html: '<p>live</p>',
+            text: 'live',
+            updatedAtMs: now,
+        });
+        await handlers.onUserReport(userEvent('rep1'));
+        assert.strictEqual(sent.length, 0);
+        await db.collection('report_mail_state').doc('reports_rep1').set({
+            status: 'reserved',
+            phase: 'sending',
+            claimToken: 'stale',
+            failures: 1,
+            subject: 'STALE CLAIM',
+            html: '<p>stale</p>',
+            text: 'stale',
+            updatedAtMs: now - mail.CLAIM_MS - 1000,
+        });
+        await db.collection('report_mail_limits').doc('reporter1').set({
+            windowStartMs: now, sent: 4, held: [], heldOverflow: 0,
+        });
+        await db.collection('report_mail_global').doc('hour').set({
+            windowStartMs: now, sent: 9, held: [], heldOverflow: 0,
+        });
+        await handlers.onUserReport(userEvent('rep1'));
+        assert.deepStrictEqual(sent, ['STALE CLAIM']);
+        assert.strictEqual(db.docs.get('report_mail_limits/reporter1').sent, 4);
+        assert.strictEqual(db.docs.get('report_mail_global/hour').sent, 9);
+        assert.strictEqual(db.docs.get('report_mail_state/reports_rep1').status, 'sent');
+    });
+
+    await testAsync('smtp failures retry unsent mail and stop after five', async function() {
+        const db = memoryDb();
+        let calls = 0;
+        let statusDuringSend = '';
+        const handlers = mail.createReportHandlers({
+            db: db,
+            now: function() { return 1_700_000_000_000; },
+            sendMail: async function() {
+                calls += 1;
+                statusDuringSend = db.docs.get('report_mail_state/reports_rep1').status;
+                throw new Error('smtp down');
+            },
+        });
+        for (let i = 0; i < mail.MAX_ATTEMPTS - 1; i++) {
+            await assert.rejects(function() { return handlers.onUserReport(userEvent('rep1')); });
+            const mid = db.docs.get('report_mail_state/reports_rep1');
+            assert.strictEqual(mid.status, 'reserved');
+            assert.strictEqual(mid.phase, 'retry');
+            assert.strictEqual(mid.failures, i + 1);
+            assert.notStrictEqual(mid.status, 'sent');
+        }
+        await handlers.onUserReport(userEvent('rep1'));
+        const failed = db.docs.get('report_mail_state/reports_rep1');
+        assert.strictEqual(failed.status, 'failed');
+        assert.strictEqual(failed.failures, mail.MAX_ATTEMPTS);
+        assert.strictEqual(calls, mail.MAX_ATTEMPTS);
+        assert.strictEqual(statusDuringSend, 'reserved');
+        await handlers.onUserReport(userEvent('rep1'));
+        assert.strictEqual(calls, mail.MAX_ATTEMPTS);
+        assert.strictEqual(db.docs.get('report_mail_limits/reporter1').sent, 1);
+        assert.strictEqual(db.docs.get('report_mail_global/hour').sent, 1);
+    });
+
     await testAsync('wiring reads the two secrets and not functions.config()', async function() {
         const src = fs.readFileSync(path.join(root, 'functions/src/reportMail.js'), 'utf8');
         const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
@@ -339,7 +530,11 @@ function userEvent(id, over) {
         assert.ok(!section.includes('functions.config'));
         assert.strictEqual(mail.MAIL_TO, 'info.603btc@gmail.com');
         assert.strictEqual(mail.MAX_PER_HOUR, 10);
+        assert.strictEqual(mail.GLOBAL_MAX_PER_HOUR, 30);
+        assert.strictEqual(mail.MAX_ATTEMPTS, 5);
         assert.strictEqual(mail.EXCERPT_MAX, 300);
+        assert.ok(section.includes('retry: true'));
+        assert.ok(src.includes('tx.create') || src.includes('.create('));
     });
 
     console.log(failed ? '\n' + failed + ' failed' : '\nreport mail ok');

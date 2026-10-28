@@ -9338,7 +9338,13 @@ const reportHandlers = createReportHandlers({
     },
 });
 
-const REPORT_MAIL_OPTS = { secrets: [reportMailUser, reportMailPass], maxInstances: 10 };
+// retry: true is the v2 failure policy. A failed send is delivered again.
+// The per-report state doc makes that retry send only mail that is still unsent.
+const REPORT_MAIL_OPTS = {
+    secrets: [reportMailUser, reportMailPass],
+    maxInstances: 10,
+    retry: true,
+};
 
 exports.onUserReportCreated = onDocumentCreated(Object.assign({
     document: 'reports/{reportId}',
