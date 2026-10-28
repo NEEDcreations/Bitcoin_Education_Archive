@@ -33,6 +33,9 @@ function test(name, fn) {
 test('a return never counts, and a first handoff still can', function() {
     const earned = progress.planKeySend({ status: 'inventory', label: '7F' }, 'earner', 'peer');
     assert.strictEqual(earned.inventory, true);
+    assert.strictEqual(earned.paysSendXp, true);
+    assert.strictEqual(earned.sendBack, false);
+    assert.strictEqual(earned.alreadyReturned, false);
     assert.strictEqual(earned.skipPeerLevel, false);
     assert.strictEqual(earned.originUid, 'earner');
     assert.deepStrictEqual(earned.priorSenders, ['earner']);
@@ -47,10 +50,34 @@ test('a return never counts, and a first handoff still can', function() {
     }, 'peer', 'earner');
     assert.strictEqual(back.held, true);
     assert.strictEqual(back.previousSender, 'earner');
+    assert.strictEqual(back.paysSendXp, false);
+    assert.strictEqual(back.sendBack, true);
+    assert.strictEqual(back.alreadyReturned, false);
     assert.strictEqual(back.skipPeerLevel, true);
     assert.strictEqual(back.originUid, 'earner');
     assert.ok(back.priorSenders.indexOf('earner') !== -1);
     assert.ok(back.priorSenders.indexOf('peer') !== -1);
+
+    const again = progress.planKeySend({
+        status: 'sent',
+        sentBy: 'peer',
+        originUid: 'earner',
+        priorSenders: ['earner', 'peer'],
+        skipPeerLevel: true,
+        sendBackUsed: true,
+    }, 'earner', 'peer');
+    assert.strictEqual(again.alreadyReturned, true);
+    assert.strictEqual(again.sendBack, false);
+    assert.strictEqual(again.paysSendXp, false);
+
+    const flagged = progress.planKeySend({
+        status: 'sent',
+        sentBy: 'earner',
+        originUid: 'earner',
+        skipPeerLevel: true,
+    }, 'peer', 'earner');
+    assert.strictEqual(flagged.alreadyReturned, true);
+    assert.strictEqual(flagged.paysSendXp, false);
 
     const sideways = progress.planKeySend({
         status: 'sent',
@@ -98,7 +125,13 @@ test('decryptCipher counts a peer open only after the return check and the pair 
     const send = src.slice(src.indexOf('const sendKeys'), src.indexOf('const decryptCipher'));
     const decrypt = src.slice(src.indexOf('const decryptCipher'), src.indexOf('const claimCipherWin'));
     assert.ok(send.includes('planKeySend'));
+    assert.ok(send.includes('plan.paysSendXp === true'));
+    assert.ok(send.includes('This key was already sent back.'));
+    assert.ok(send.includes('sendBackUsed: plan.sendBack === true'));
     assert.ok(send.includes('skipPeerLevel: plan.skipPeerLevel === true'));
+    const xpAt = send.indexOf('if (inventoryOnly)');
+    const boostAt = send.indexOf('boostPoints');
+    assert.ok(xpAt > 0 && boostAt > xpAt, 'send XP is inside the inventory-only branch');
     assert.ok(send.includes('originUid: plan.originUid'));
     assert.ok(send.includes('priorSenders: plan.priorSenders'));
     assert.strictEqual(send.indexOf('data.sender'), -1);
@@ -131,6 +164,24 @@ test('decryptCipher counts a peer open only after the return check and the pair 
     const hideBlock = hide.slice(hide.indexOf('var HIDE_IDS'), hide.indexOf('function _getMode'));
     assert.strictEqual(hideBlock.includes('profilePeerLevel'), false);
     assert.strictEqual(hideBlock.includes('key-send-back'), false);
+    const levels = read('peership-levels.js');
+    assert.ok(read('build.sh').includes('peership-levels.js'));
+    assert.strictEqual(read('gifting.js').includes("name: 'Wumbo Channel'"), false);
+    assert.strictEqual(read('messaging.js').includes("name: 'Wumbo Channel'"), false);
+    assert.ok(levels.includes("name: 'Wumbo Channel'"));
+    assert.ok(read('gifting.js').includes('k.sendBackUsed === true || k.skipPeerLevel === true'));
+    assert.ok(read('gifting.js').includes("_toast('🔑 Sent to ' + (name || 'your peer') + '!')"));
+    const serverTable = read('functions/src/peerLevel.js');
+    const tierRe = /level:\s*(\d+),\s*name:\s*'([^']+)'[\s\S]*?giftsRequired:\s*(\d+)/g;
+    const tiers = [];
+    let tier;
+    while ((tier = tierRe.exec(serverTable))) tiers.push(tier);
+    assert.strictEqual(tiers.length, 6);
+    tiers.forEach(function(row) {
+        assert.ok(levels.includes('level: ' + row[1]));
+        assert.ok(levels.includes("name: '" + row[2] + "'"));
+        assert.ok(levels.includes('gifts: ' + row[3]));
+    });
 });
 
 function makeDocument() {
@@ -241,6 +292,7 @@ test('sender names are escaped profile tags and send-back uses sendKeys once', a
     };
     const peerKeys = [
         { id: 'k-ok', label: '7F', status: 'sent', sentBy: 'KRSc21', sentByName: 'KRSc21' },
+        { id: 'k-returned', label: 'C4', status: 'sent', sentBy: 'KRSc21', sentByName: 'KRSc21', skipPeerLevel: true, sendBackUsed: true },
         { id: 'k-html', label: 'F6', status: 'sent', sentBy: 'hostile', sentByName: '<img src=x onerror=alert(1)>' },
         { id: 'k-gone', label: '3A', status: 'sent', sentBy: 'deletedUser', sentByName: 'Gone' },
         { id: 'k-bad', label: 'B2', status: 'sent', sentBy: '"><img', sentByName: '<script>' },
@@ -305,6 +357,7 @@ test('sender names are escaped profile tags and send-back uses sendKeys once', a
     };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
+    vm.runInContext(read('peership-levels.js'), sandbox);
     vm.runInContext(read('gifting.js'), sandbox);
     const host = dom.document.createElement('div');
     await sandbox.renderKeysAndCiphersPanel(host);
@@ -332,9 +385,10 @@ test('sender names are escaped profile tags and send-back uses sendKeys once', a
         }
     });
     assert.strictEqual(imgs, 0);
-    assert.strictEqual(tags, 2);
+    assert.strictEqual(tags, 3);
     assert.strictEqual(backs, 2);
-    assert.deepStrictEqual(calls.filter(function(c) { return c.profile; }).map(function(c) { return c.profile; }), ['KRSc21', 'hostile']);
+    assert.ok(joined.includes('C4'));
+    assert.deepStrictEqual(calls.filter(function(c) { return c.profile; }).map(function(c) { return c.profile; }), ['KRSc21', 'KRSc21', 'hostile']);
     let backBtn = null;
     walk(host, function(n) { if (!backBtn && n.className === 'key-send-back-btn') backBtn = n; });
     await backBtn.onclick();
@@ -343,7 +397,7 @@ test('sender names are escaped profile tags and send-back uses sendKeys once', a
     assert.strictEqual(sent[0].data.keyIds.length, 1);
     assert.strictEqual(sent[0].data.keyIds[0], 'k-ok');
     assert.strictEqual(sent[0].data.recipientUid, 'KRSc21');
-    assert.ok(read('gifting.js').includes("_keySendToast(name || 'your peer', sent)"));
+    assert.ok(read('gifting.js').includes("_toast('🔑 Sent to ' + (name || 'your peer') + '!')"));
     assert.ok(read('gifting.js').includes("'🔑 Sent to ' + name + '!'"));
 });
 
@@ -404,6 +458,7 @@ test('the send modal reads peership once and shows Lv or New', async function() 
     };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
+    vm.runInContext(read('peership-levels.js'), sandbox);
     vm.runInContext(read('gifting.js'), sandbox);
     await sandbox.showPeerPickerForKeys(['k1']);
     assert.strictEqual(userGets, 1);
@@ -534,6 +589,7 @@ test('a profile shows only the viewer pair level from the viewer user doc', asyn
     };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
+    vm.runInContext(read('peership-levels.js'), sandbox);
     vm.runInContext(read('messaging.js'), sandbox);
     const none = sandbox.peershipLevelView(null);
     assert.strictEqual(none.chip, 'New');

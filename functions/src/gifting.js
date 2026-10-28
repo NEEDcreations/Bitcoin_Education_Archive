@@ -576,6 +576,7 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             // origin, prior senders, or whether the handoff counts.
             const plan = planKeySend(key, uid, recipientUid);
             if (!plan.inventory && !plan.held) throw httpsError('failed-precondition', 'Key already sent or used');
+            if (plan.alreadyReturned) throw httpsError('failed-precondition', 'This key was already sent back.');
             if (plan.held && plan.previousSender !== recipientUid) {
                 throw httpsError('failed-precondition', 'A received key can only go back to the peer who sent it.');
             }
@@ -584,8 +585,15 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             sentLabels.push(key.label);
         });
 
-        const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
-        const xpGrant = await applyDailyXp(uid, keyXp, t, { day: todayOffset, userRef: senderRef });
+        // Send XP is once per batch, and only for unused inventory keys.
+        // A key received from a peer, including a send-back, pays nothing
+        // even during Double XP. The client cannot choose this.
+        const inventoryOnly = plans.every(function(plan) { return plan.paysSendXp === true; });
+        let xpGrant = { awarded: 0 };
+        if (inventoryOnly) {
+            const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
+            xpGrant = await applyDailyXp(uid, keyXp, t, { day: todayOffset, userRef: senderRef });
+        }
         xpAwarded = xpGrant.awarded;
 
         const now = admin.firestore.FieldValue.serverTimestamp();
@@ -604,9 +612,10 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 sender: uid,
                 originUid: plan.originUid,
                 priorSenders: plan.priorSenders,
-                // A send-back, or any hop back to someone who already sent
-                // this key, stays false for peer level for the life of the key.
+                // A send-back stays false for peer level for the life of the key.
+                // sendBackUsed lets that key move once, then never again.
                 skipPeerLevel: plan.skipPeerLevel === true,
+                sendBackUsed: plan.sendBack === true,
             });
         }
 

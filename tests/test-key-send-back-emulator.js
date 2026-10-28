@@ -168,17 +168,31 @@ async function main() {
     await putUser('dan', { peers: ['cara'] });
     await inventoryKey('key-back', 'cara');
     await fns.sendKeys.run({ keyIds: ['key-back'], recipientUid: 'dan' }, ctx('cara'));
+    await db.collection('users').doc('dan').update({ doubleXpUntil: Date.now() + (60 * 60 * 1000) });
+    const danBefore = (await db.collection('users').doc('dan').get()).data().points;
     const returned = await fns.sendKeys.run({ keyIds: ['key-back'], recipientUid: 'cara' }, ctx('dan'));
     assert.strictEqual(returned.success, true);
-    assert.ok(returned.xpAwarded > 0);
+    assert.strictEqual(returned.xpAwarded, 0);
+    const danAfter = (await db.collection('users').doc('dan').get()).data().points;
+    assert.strictEqual(danAfter, danBefore, 'a returned key pays no send XP, including during Double XP');
     const back = (await db.collection('keys').doc('key-back').get()).data();
     assert.strictEqual(back.ownerId, 'cara');
     assert.strictEqual(back.sentBy, 'dan');
     assert.strictEqual(back.sender, 'dan');
     assert.strictEqual(back.originUid, 'cara');
     assert.strictEqual(back.skipPeerLevel, true);
+    assert.strictEqual(back.sendBackUsed, true);
     assert.ok(back.priorSenders.indexOf('cara') !== -1);
     assert.ok(back.priorSenders.indexOf('dan') !== -1);
+
+    const pairSnap = await db.collection('key_send_pairs').get();
+    for (const doc of pairSnap.docs) {
+        if (doc.id.indexOf('cara_') === 0) await doc.ref.delete();
+    }
+    const bounce = await rejects(fns.sendKeys.run({ keyIds: ['key-back'], recipientUid: 'dan' }, ctx('cara')));
+    assert.strictEqual(codeOf(bounce), 'failed-precondition');
+    assert.ok(String(bounce.message || '').indexOf('already sent back') !== -1, bounce.message);
+
     await cipherFor('cipher-cara', 'cara');
     await fns.decryptCipher.run({ cipherId: 'cipher-cara', keyId: 'key-back' }, ctx('cara'));
     assert.strictEqual(await pairGifts('cara', 'dan'), 0, 'send-back must not add a peer gift');

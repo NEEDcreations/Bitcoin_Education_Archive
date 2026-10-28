@@ -329,9 +329,9 @@ function uidList(value) {
 }
 
 // Provenance written by sendKeys. The request body is not an input.
-// A key leaving inventory records the earner as origin. A key that comes
-// back to someone who already sent it, including the original sender,
-// never counts toward peer level again.
+// A key leaving inventory records the earner as origin and is the only
+// handoff that pays send XP. A received key may go back once, to the peer
+// who sent it, and that return never pays send XP or peer level.
 function planKeySend(key, senderUid, recipientUid) {
     const row = key || {};
     const sender = String(senderUid || '').trim();
@@ -342,7 +342,8 @@ function planKeySend(key, senderUid, recipientUid) {
     const origin = String(row.originUid || (inventory ? sender : (previous || sender)) || '').trim();
     const prior = uidList(row.priorSenders);
     if (sender && prior.indexOf(sender) === -1) prior.push(sender);
-    const backToPrevious = held && !!previous && recipient === previous;
+    const alreadyReturned = held && (row.sendBackUsed === true || row.skipPeerLevel === true);
+    const backToPrevious = held && !alreadyReturned && !!previous && recipient === previous;
     const backToOrigin = !!origin && recipient === origin && recipient !== sender;
     const backToPriorHolder = prior.indexOf(recipient) !== -1 && recipient !== sender;
     const skipPeerLevel = row.skipPeerLevel === true || backToPrevious || backToOrigin || backToPriorHolder;
@@ -353,6 +354,9 @@ function planKeySend(key, senderUid, recipientUid) {
         originUid: origin,
         priorSenders: prior.slice(0, 8),
         skipPeerLevel: skipPeerLevel,
+        alreadyReturned: alreadyReturned,
+        sendBack: backToPrevious,
+        paysSendXp: inventory === true,
     };
 }
 
