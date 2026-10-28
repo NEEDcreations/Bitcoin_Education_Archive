@@ -36,18 +36,35 @@ corpus.open.forEach(function (text) {
     });
 });
 
+(corpus.tails || []).forEach(function (row) {
+    check('tail: ' + row.text, function () {
+        const written = safety.planTailWrite(row.text, 1000);
+        const stored = written ? written.text : '';
+        if (row.present) assert.ok(stored.indexOf(row.present) !== -1, 'stored [' + stored + ']');
+        if (row.absent) assert.ok(!row.absent.test(stored), 'stored [' + stored + ']');
+        assert.ok(!safety.containsRawSecret(stored), stored);
+    });
+});
+
 corpus.pairs.forEach(function (row) {
     const label = (row.lock ? 'pair lock: ' : 'pair open: ') + row.previous + ' || ' + row.text;
     check(label, function () {
         const now = row.now || 2000;
         const previousAt = row.previousAt || 1000;
+        const unlockedAt = row.unlockedAt || 0;
+        const written = safety.planTailWrite(row.previous, previousAt);
+        const readable = written ? safety.planTailRead({
+            text: written.text,
+            at: written.at,
+            expireAt: { toMillis: function () { return written.expireAt; } },
+        }, now, unlockedAt) : '';
         const found = safety.detectBuddyRisk(row.text, {
-            previousText: row.previous,
-            previousAt: previousAt,
+            previousText: readable,
+            previousAt: readable ? previousAt : 0,
             now: now,
-            unlockedAt: row.unlockedAt || 0,
+            unlockedAt: unlockedAt,
         });
-        assert.strictEqual(found.lock, row.lock, found.severity + ' ' + found.reasons.join(','));
+        assert.strictEqual(found.lock, row.lock, 'stored [' + readable + '] ' + found.severity + ' ' + found.reasons.join(','));
         if (row.lock) counts.pairLock++;
         else counts.pairOpen++;
     });
