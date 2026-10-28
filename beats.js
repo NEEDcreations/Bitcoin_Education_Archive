@@ -246,10 +246,8 @@ window._beatsTextSeq = 0;
 function beatsUserTag(uid, name) {
     var label = name || 'Unknown';
     var idStr = typeof uid === 'string' ? uid : '';
-    if (idStr && typeof window.noteArtistProfile === 'function' && typeof window.userTagUidOk === 'function' && window.userTagUidOk(idStr)) {
-        window.noteArtistProfile(idStr, true, idStr);
-    }
-    if (idStr && typeof window.userTagRemember === 'function') window.userTagRemember(idStr, label);
+    // A track or comment author id is not proof of an artist page, and the
+    // label is not a verified username. Artist routing uses beats_artists.
     if (!idStr || typeof window.userTagUidOk !== 'function' || !window.userTagUidOk(idStr)) return beatsSlot(label);
     var textId = 's' + (++window._beatsTextSeq);
     window._beatsTextStore[textId] = label;
@@ -4179,7 +4177,6 @@ window.beatsRenderArtists=function(){
             artistById[doc.id]={id:doc.id, name:d.name||doc.id, avatarUrl:d.avatarUrl||'', slug:d.slug||doc.id, claimed:d.claimed||false, count:0};
             if ((d.isFirebaseUser === true || d.source === 'user_upload') && typeof window.noteArtistProfile === 'function' && typeof window.userTagUidOk === 'function' && window.userTagUidOk(doc.id)) {
                 window.noteArtistProfile(doc.id, true, doc.id);
-                if (d.name && typeof window.userTagRemember === 'function') window.userTagRemember(doc.id, d.name);
             }
         });
 

@@ -289,6 +289,13 @@ function userTagIsDeletedName(name) {
     return t === 'deleted' || t === 'deleted player' || t === '[deleted]' || t === 'deleted user';
 }
 
+// Display placeholders and stage names are not accounts. A uid-less row
+// must never inherit one of these from the name cache.
+function userTagIsPlaceholder(name) {
+    var key = String(name == null ? '' : name).trim().toLowerCase();
+    return !key || key === 'anonymous' || key === 'anon' || key === 'unknown' || key === 'bitcoiner' || userTagIsDeletedName(key);
+}
+
 function userTagSafeStyle(style) {
     style = String(style || '');
     if (!style || !USER_TAG_STYLE_RE.test(style)) return '';
@@ -296,16 +303,15 @@ function userTagSafeStyle(style) {
 }
 
 function userTagRemember(uid, name) {
-    if (!userTagUidOk(uid)) return;
-    var key = String(name == null ? '' : name).trim().toLowerCase();
-    if (!key) return;
+    if (!userTagUidOk(uid) || userTagIsPlaceholder(name)) return;
+    var key = String(name).trim().toLowerCase();
     window._userTagByName = window._userTagByName || {};
     window._userTagByName[key] = uid;
 }
 
 function userTagResolveUid(name) {
-    var key = String(name == null ? '' : name).trim().toLowerCase();
-    if (!key || !window._userTagByName) return '';
+    if (userTagIsPlaceholder(name) || !window._userTagByName) return '';
+    var key = String(name).trim().toLowerCase();
     var uid = window._userTagByName[key] || '';
     return userTagUidOk(uid) ? uid : '';
 }
@@ -344,7 +350,6 @@ function hasPublicArtistProfile(uid) {
         var data = snap && snap.exists ? (snap.data() || {}) : null;
         var yes = !!(data && (data.isFirebaseUser === true || data.source === 'user_upload'));
         noteArtistProfile(uid, yes, uid);
-        if (yes && data.name) userTagRemember(uid, data.name);
         return !!window._artistByUid[uid];
     }).catch(function() {
         noteArtistProfile(uid, false, uid);
@@ -371,13 +376,14 @@ function userTag(uid, name, opts) {
     if (deleted) return '<span class="user-tag user-tag-deleted">Deleted player</span>';
     var shown = raw.trim() || (opts.fallback ? String(opts.fallback) : 'Anon');
     var safe = userTagEscape(shown);
-    if (!userTagUidOk(uidStr)) uidStr = userTagResolveUid(shown);
+    // A missing or invalid uid is always plain text. Never borrow a uid from
+    // the name cache: that cache is only for verified profile usernames, and
+    // a display label can be typed, a stage name, or a placeholder.
     if (!userTagUidOk(uidStr)) return '<span class="user-tag user-tag-plain">' + safe + '</span>';
     if (window._deletedProfiles && window._deletedProfiles[uidStr]) {
         return '<span class="user-tag user-tag-deleted">Deleted player</span>';
     }
     if (opts.selfHeader) return '<span class="user-tag user-tag-self">' + safe + '</span>';
-    userTagRemember(uidStr, shown);
     var style = userTagSafeStyle(opts.style);
     if (!style) style = 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
     else {
@@ -615,6 +621,7 @@ window.userTagUidOk = userTagUidOk;
 window.userTagEscape = userTagEscape;
 window.userTagRemember = userTagRemember;
 window.userTagResolveUid = userTagResolveUid;
+window.userTagIsPlaceholder = userTagIsPlaceholder;
 window.userTagIsDeletedName = userTagIsDeletedName;
 window.noteDeletedProfile = noteDeletedProfile;
 window.noteArtistProfile = noteArtistProfile;
@@ -628,6 +635,7 @@ if (typeof module !== 'undefined' && module.exports) {
         userTagEscape: userTagEscape,
         userTagRemember: userTagRemember,
         userTagResolveUid: userTagResolveUid,
+        userTagIsPlaceholder: userTagIsPlaceholder,
         userTagIsDeletedName: userTagIsDeletedName,
         noteDeletedProfile: noteDeletedProfile,
         noteArtistProfile: noteArtistProfile,

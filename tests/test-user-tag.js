@@ -70,13 +70,23 @@ test('deleted and missing profiles are plain text', function() {
     assert.ok(cached.indexOf('data-profile-uid') === -1, cached);
 });
 
-test('a name resolves only from the cache, with no lookup of its own', function() {
-    assert.strictEqual(api.userTagResolveUid('ROBBIE P'), '');
-    const plain = api.userTag('', 'ROBBIE P');
+test('a missing uid is plain text even when a name is cached', function() {
+    api.userTagRemember('adaUid123', 'Ada');
+    assert.strictEqual(api.userTagResolveUid('Ada'), 'adaUid123');
+    const plain = api.userTag('', 'Ada');
     assert.ok(plain.indexOf('data-profile-uid') === -1, plain);
-    api.userTagRemember('zqxWexampleUID123456789012', 'ROBBIE P');
-    const tagged = api.userTag('', 'ROBBIE P');
-    assert.ok(tagged.indexOf('data-profile-uid="zqxWexampleUID123456789012"') !== -1, tagged);
+    assert.ok(plain.indexOf('Ada') !== -1, plain);
+    const invalid = api.userTag('bad uid', 'Ada');
+    assert.ok(invalid.indexOf('data-profile-uid') === -1, invalid);
+    api.window._userTagByName.anonymous = 'spoofUid123';
+    const anon = api.userTag('', 'Anonymous');
+    assert.ok(anon.indexOf('data-profile-uid') === -1, anon);
+    assert.ok(anon.indexOf('Anonymous') !== -1, anon);
+    assert.strictEqual(api.userTagResolveUid('Anonymous'), '');
+    api.userTagRemember('spoofUid123', 'Anonymous');
+    assert.strictEqual(api.userTagResolveUid('Anonymous'), '');
+    const stillPlain = api.userTag(undefined, 'Anonymous');
+    assert.ok(stillPlain.indexOf('data-profile-uid') === -1, stillPlain);
 });
 
 test('artist routing: present, absent, and an artist whose user was deleted', function() {
@@ -96,6 +106,21 @@ test('the visible name spots use the shared tag and do not read per name', funct
     const beats = fs.readFileSync(path.join(root, 'beats.js'), 'utf8');
     const utils = fs.readFileSync(path.join(root, 'utils.js'), 'utf8');
     assert.ok(beats.includes('function beatsUserTag('));
+    const beatsTag = beats.slice(beats.indexOf('function beatsUserTag'), beats.indexOf('function beatsSlot'));
+    assert.ok(!beatsTag.includes('noteArtistProfile'));
+    assert.ok(!beatsTag.includes('userTagRemember'));
+    const tagFn = utils.slice(utils.indexOf('function userTag(uid, name, opts)'), utils.indexOf('function _profilePush'));
+    assert.ok(!tagFn.includes('userTagResolveUid'));
+    assert.ok(!tagFn.includes('userTagRemember'));
+    const notes = fs.readFileSync(path.join(root, 'notifications.js'), 'utf8');
+    const swap = notes.slice(notes.indexOf('function notifNameHtml'), notes.indexOf('function notifCardHtml'));
+    assert.ok(swap.includes('function () { return tag; }'));
+    const tips = fs.readFileSync(path.join(root, 'lightning-tips.js.src'), 'utf8');
+    const invoiceAt = tips.indexOf('DM to request invoice');
+    const invoice = tips.slice(Math.max(0, invoiceAt - 900), invoiceAt + 40);
+    assert.ok(invoice.includes('data-tip-uid'));
+    assert.ok(invoice.includes('data-tip-name'));
+    assert.ok(!invoice.includes('onclick'));
     assert.ok(beats.includes("viewUser.textContent = 'View user profile'"));
     assert.ok(beats.includes('isFirebaseUser === true || ad.source === \'user_upload\''));
     assert.ok(utils.includes("db.collection('beats_artists').doc(uid).get()"));
@@ -132,16 +157,21 @@ test('new raw username HTML is limited to the known leftovers', function() {
     const allow = {
         'beats.js:2477': 1,
         'beats.js:3188': 1,
+        'beats.js:3187': 1,
         'beats.js:3189': 1,
         'beats.js:3538': 1,
+        'beats.js:3537': 1,
         'beats.js:3539': 1,
         'forum.js:572': 1,
         'forum.js:1161': 1,
         'forum.js:1794': 1,
         'forum.js:2319': 1,
         'global-chat.js:2960': 1,
+        'global-chat.js:2966': 1,
         'global-chat.js:2994': 1,
         'global-chat.js:2996': 1,
+        'global-chat.js:3000': 1,
+        'global-chat.js:3002': 1,
         'lightning-tips.js:1': 1,
         'marketplace.js:695': 1,
         'marketplace.js:707': 1,

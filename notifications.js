@@ -329,7 +329,8 @@ function notifNameHtml(n, message, fromUid) {
     if (!uid || !senderName || typeof userTag !== 'function') return html;
     var escapedName = notifEscape(senderName);
     if (!escapedName || html.indexOf(escapedName) === -1) return html;
-    return html.replace(escapedName, userTag(uid, senderName));
+    var tag = userTag(uid, senderName);
+    return html.replace(escapedName, function () { return tag; });
 }
 
 function notifCardHtml(docId, n, variant) {

@@ -959,7 +959,10 @@ function formatChatText(text, mentionUid) {
             safeName = known.name;
         }
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        var _knownMention = (typeof userTagResolveUid === 'function') ? userTagResolveUid(safeName) : '';
+        var _knownMention = '';
+        if (typeof userTagResolveUid === 'function' && !(typeof userTagIsPlaceholder === 'function' && userTagIsPlaceholder(safeName))) {
+            _knownMention = userTagResolveUid(safeName);
+        }
         _safeMentions.push(_knownMention && typeof userTag === 'function'
             ? userTag(_knownMention, safeName, { prefix: '@', title: 'View profile', style: 'color:#6366f1;font-weight:700;' })
             : '<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + esc(safeName) + '</span>');
@@ -970,7 +973,10 @@ function formatChatText(text, mentionUid) {
         var safeName = name.replace(/['"]/g, '').trim();
         if (!safeName) return match;
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        var _knownMention = (typeof userTagResolveUid === 'function') ? userTagResolveUid(safeName) : '';
+        var _knownMention = '';
+        if (typeof userTagResolveUid === 'function' && !(typeof userTagIsPlaceholder === 'function' && userTagIsPlaceholder(safeName))) {
+            _knownMention = userTagResolveUid(safeName);
+        }
         _safeMentions.push(_knownMention && typeof userTag === 'function'
             ? userTag(_knownMention, safeName, { prefix: '@', title: 'View profile', style: 'color:#6366f1;font-weight:700;' })
             : '<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + esc(safeName) + '</span>');
@@ -3730,7 +3736,9 @@ if (localStorage.getItem('hasUsedChat')) {
 // ---- Lookup User by Username (for clickable @mentions) ----
 window.lookupUserByName = function(username) {
     if (!username) return;
-    if (typeof userTagResolveUid === 'function') {
+    // Only a username loaded from a public profile. Placeholders and
+    // artist/comment labels are not in that cache.
+    if (typeof userTagResolveUid === 'function' && !(typeof userTagIsPlaceholder === 'function' && userTagIsPlaceholder(username))) {
         var cachedUid = userTagResolveUid(username);
         if (cachedUid && typeof showUserProfile === 'function') { showUserProfile(cachedUid); return; }
     }

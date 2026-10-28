@@ -1,6 +1,6 @@
 # Username profile tags
 
-Every other player's name should be a tag from `userTag(uid, name)` in `utils.js`. The name is escaped. The uid has to match `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`. A deleted or missing profile is plain text: `Deleted player`. A name with no uid stays plain unless that name is already in the in-memory cache. Rendering a name does not read Firestore. Opening a tag may use one cached `beats_artists/{uid}` read. No `users` doc is read for this, and no rules changed.
+Every other player's name should be a tag from `userTag(uid, name)` in `utils.js`. The name is escaped. The uid has to match `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`. A deleted or missing profile is plain text: `Deleted player`. A missing or invalid uid is always plain text. The name cache stores only usernames loaded from a public profile, and `userTag` does not consult it. Rendering a name does not read Firestore. Opening a tag may use one cached `beats_artists/{uid}` read. No `users` doc is read for this, and no rules changed.
 
 Robbie P's public artist doc id is his account id (`isFirebaseUser: true`, `source: user_upload`, stage name `ROBBIE P`). An unclaimed podcast artist also named ROBBIE P (`robbie-p`) is not linked to an account. A tag for his account opens the artist page first. **View user profile** switches to the user profile and stays on top of the screen he was on. **Back** returns there.
 

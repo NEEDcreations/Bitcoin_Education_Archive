@@ -293,11 +293,22 @@ window.executeTip = async function() {
         if (method === 'webln' && window.webln) {
             // We can't create an invoice FOR the recipient via WebLN
             // Show a "request invoice" message
+            var _tipDmUid = (opts.recipientUid && typeof userTagUidOk === 'function' && userTagUidOk(String(opts.recipientUid))) ? String(opts.recipientUid) : '';
             res.innerHTML = '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-align:left;margin-top:8px;">' +
                 '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">⚡ No Lightning Address found</div>' +
                 '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;"><strong>' + escapeHtml(opts.recipientName || 'This user') + '</strong> hasn\'t set up a Lightning Address yet. Ask them to add one in <strong>Settings → Profile → Lightning</strong>, or send them an invoice via DMs.</div>' +
-                (opts.recipientUid ? '<button onclick="this.closest(\'[id=tipOverlay]\').remove();if(typeof openDMConversation===\'function\')openDMConversation(\'' + opts.recipientUid + '\',\'' + escapeHtml(opts.recipientName || '') + '\',\'⚡ Tip: ' + amount + ' sats\');else go(\'dms\')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">💬 DM to request invoice</button>' : '') +
+                (_tipDmUid ? '<button type="button" id="_tipDmInvoiceBtn" data-tip-uid="' + _tipDmUid + '" data-tip-name="' + escapeHtml(opts.recipientName || '') + '" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">💬 DM to request invoice</button>' : '') +
             '</div>';
+            var _tipDmBtn = res.querySelector('#_tipDmInvoiceBtn');
+            if (_tipDmBtn) _tipDmBtn.addEventListener('click', function() {
+                var uid = _tipDmBtn.getAttribute('data-tip-uid') || '';
+                if (typeof userTagUidOk === 'function' && !userTagUidOk(uid)) return;
+                var name = _tipDmBtn.getAttribute('data-tip-name') || '';
+                var overlay = document.getElementById('tipOverlay');
+                if (overlay) overlay.remove();
+                if (typeof openDMConversation === 'function') openDMConversation(uid, name, '⚡ Tip: ' + amount + ' sats');
+                else if (typeof go === 'function') go('dms');
+            });
             btn.textContent = '⚡ ' + (opts.label || 'Send Tip');
             btn.disabled = false;
             return;
