@@ -16,7 +16,7 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: The homepage Invites card shows your meetup tier from friends who reached Maxi, and how close you are to the next tier.";
+const LATEST = "Latest: Referral badges line up with the meetup tiers, and only friends who reached Maxi count.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
 const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
 
@@ -400,10 +400,10 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2400'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2418'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2391'));
     assert.ok(!read('sw.js').includes('btc-archive-v2386'));
-    assert.ok(!read('sw.js').includes('btc-archive-v2410'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2407'));
     assert.ok(!read('sw.js').includes('btc-archive-v2385'));
     assert.ok(!read('sw.js').includes('btc-archive-v2425'));
     assert.ok(!read('sw.js').includes('btc-archive-v2384'));

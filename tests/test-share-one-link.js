@@ -89,6 +89,8 @@ test('certificate, invite, badge celebration, Nacho, channel, beats, and PVP pos
     vm.runInContext(read('shareable-certs.js'), certCtx);
     const certOn = certCtx.certShareText('Scholar', 'CERT-ABC12', 'abc12345');
     assert.strictEqual(linkCount(certOn), 1);
+    assert.ok(certOn.includes('@BTCedu_app'));
+    assert.strictEqual(certOn.includes('@BTCeduArchive'), false);
     assert.ok(certOn.includes('https://bitcoineducation.quest/?ref=abc12345#cert/CERT-ABC12'));
     assert.ok(certOn.includes(TAG));
     const certOff = certCtx.certShareText('Scholar', 'CERT-ABC12', '');
@@ -298,7 +300,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: The homepage Invites card shows your meetup tier from friends who reached Maxi, and how close you are to the next tier.');
+    const latestAt = notes.indexOf('Latest: Referral badges line up with the meetup tiers, and only friends who reached Maxi count.');
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

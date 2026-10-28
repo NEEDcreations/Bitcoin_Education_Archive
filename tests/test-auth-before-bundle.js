@@ -109,13 +109,22 @@ test('firebase config is one literal shared by both boot paths', () => {
     assert.ok(ranking.indexOf('window.FIREBASE_CONFIG') !== -1);
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') !== -1);
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('app-check-boot.js?v=20261028_v2403'));
+    assert.ok(html.indexOf('app-check-boot.js?v=20261028_v2403') < html.indexOf('auth-boot.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('firebase-app-check-compat.js') < html.indexOf('firebase-auth-compat.js'));
+    const appCheck = fs.readFileSync(path.join(root, 'app-check-boot.js'), 'utf8');
+    assert.ok(appCheck.indexOf('6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j') !== -1);
+    assert.ok(appCheck.indexOf('firebase.appCheck().activate(SITE_KEY, true)') !== -1);
+    assert.ok(appCheck.indexOf('btcAuthDisplay.applyBoot') !== -1);
+    assert.strictEqual(appCheck.indexOf('AIzaSy'), -1);
+    assert.ok(ranking.indexOf('if (!window._btcAppCheckReady)') !== -1);
 });
 
 test('bundle preload is restored and the ready signal follows the bundle', () => {
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261027_v2395/g) || []).length, 2);
-    assert.ok(html.indexOf('rel="preload" href="bundle.min.js?v=20261027_v2395" as="script"') !== -1);
-    assert.ok(html.indexOf('bundle.min.js?v=20261027_v2395" defer fetchpriority="high"') !== -1);
-    assert.ok(html.indexOf('bundle.min.js?v=20261027_v2395" defer') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261028_v2411/g) || []).length, 2);
+    assert.ok(html.indexOf('rel="preload" href="bundle.min.js?v=20261028_v2411" as="script"') !== -1);
+    assert.ok(html.indexOf('bundle.min.js?v=20261028_v2411" defer fetchpriority="high"') !== -1);
+    assert.ok(html.indexOf('bundle.min.js?v=20261028_v2411" defer') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     const ready = fs.readFileSync(path.join(root, 'bundle-ready.js'), 'utf8');
     assert.ok(ready.indexOf('_btcBundleReady = true') !== -1);
     assert.ok(ready.indexOf('btc-bundle-ready') !== -1);
