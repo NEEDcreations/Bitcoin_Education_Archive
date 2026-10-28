@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const banks = require('../reward-banks.json');
 const { planDailyXp } = require('./dailyXp');
+const doubleXp = require('./doubleXp');
 
 // Previous published bank. build-reward-banks.js writes this when the
 // client banks change, with validUntil 72 hours later. Grading uses it
@@ -335,15 +336,16 @@ function gradeTrivia(input) {
     if (src.banned === true) {
         return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected, optionIndex: optionIndex };
     }
-    const pts = correct ? TRIVIA_CORRECT_XP : 0;
-    const split = planDailyXp(src.dailyUsed || 0, pts);
+    const base = correct ? TRIVIA_CORRECT_XP : 0;
+    const boost = doubleXp.boostPoints(base, src.user, now);
+    const split = planDailyXp(src.dailyUsed || 0, boost.points);
     return {
         ok: true,
         correct: correct,
         awarded: split.awarded,
         overflowAdded: split.overflowAdded,
         capped: split.capped,
-        pts: pts,
+        pts: base,
         reason: correct ? '' : 'incorrect',
         questionIndex: expected,
         optionIndex: optionIndex,

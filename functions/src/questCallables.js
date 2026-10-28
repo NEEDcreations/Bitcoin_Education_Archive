@@ -77,11 +77,15 @@ const answerTrivia = onCall(async (data, context) => {
     const dailyPtsRef = userRef.collection('daily_points').doc(dayKey);
 
     return db.runTransaction(async (tx) => {
-        const rateDoc = await tx.get(rateRef);
-        const userDoc = await tx.get(userRef);
-        const ledgerDoc = await tx.get(ledgerRef);
-        const claimDoc = await tx.get(claimRef);
-        const dailyDoc = await tx.get(dailyPtsRef);
+        // One round of reads. Sequential gets added a hop each and held the
+        // grade response, which is what the player is waiting on.
+        const [rateDoc, userDoc, ledgerDoc, claimDoc, dailyDoc] = await Promise.all([
+            tx.get(rateRef),
+            tx.get(userRef),
+            tx.get(ledgerRef),
+            tx.get(claimRef),
+            tx.get(dailyPtsRef),
+        ]);
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
         const ledger = ledgerDoc.exists ? ledgerDoc.data() : null;
@@ -97,6 +101,7 @@ const answerTrivia = onCall(async (data, context) => {
             now: now,
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
+            user: user,
         });
         const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
         const pointsBefore = user.points || 0;

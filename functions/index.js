@@ -1091,6 +1091,9 @@ exports.onArticlePublishXp = onDocumentWritten({
     return null;
 });
 
+// minInstances is intentionally unset on dailyPollVote and answerTrivia.
+// One warm instance each would skip cold starts. That is a standing cost,
+// so it stays off until someone chooses to pay for it.
 exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
     admin: admin,
     db: db,

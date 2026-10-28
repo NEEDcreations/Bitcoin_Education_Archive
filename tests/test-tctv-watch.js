@@ -419,7 +419,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2395'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2399'"));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2410'));
@@ -435,7 +435,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!sw.includes('btc-archive-v2407'));
     assert.ok(!sw.includes('btc-archive-v2379'));
     assert.ok(!sw.includes('btc-archive-v2378'));
-    assert.ok(!sw.includes('btc-archive-v2399'));
+    assert.ok(!sw.includes('btc-archive-v2394'));
     assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2377'));
     assert.ok(!sw.includes('btc-archive-v2376'));
@@ -882,7 +882,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    const latest = 'Latest: Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.';
+    const latest = 'Latest: A poll shows your choice and the new totals the moment you vote, and trivia marks your pick as checking until the result comes back.';
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
     const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
     const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';

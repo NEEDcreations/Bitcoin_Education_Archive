@@ -5072,6 +5072,75 @@ function _captureTriviaBaseline(todayKey, bankIdx, done) {
     }
 }
 
+// Offer text before an answer. "pending" is not an award. A number is shown
+// only after answerTrivia returns awarded > 0.
+function _triviaXpPillText(mode, awarded) {
+    if (mode === 'pending') return 'XP pending';
+    if (mode === 'answered') {
+        var n = Number(awarded);
+        if (isFinite(n) && n > 0) return '+' + Math.floor(n) + ' XP';
+        return '';
+    }
+    return '+50 XP for a correct answer';
+}
+
+// Dimmed rows stay quiet, but the percentage and count use the theme text
+// color at full opacity so they stay WCAG AA on the card.
+function _triviaCommunityRowStyles(isCorrect, wasChosen) {
+    var dimmed = !isCorrect && !wasChosen;
+    return {
+        dimmed: dimmed,
+        rowOpacity: '1',
+        bg: isCorrect ? 'rgba(34,197,94,0.15)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.15)' : 'var(--card-bg,#1a1a2e)'),
+        border: isCorrect ? '#22c55e' : (wasChosen && !isCorrect ? '#ef4444' : 'var(--border)'),
+        bar: isCorrect ? 'rgba(34,197,94,0.1)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)'),
+        labelColor: dimmed ? 'var(--text-dim)' : 'var(--text)',
+        pctColor: 'var(--text)',
+        badgeColor: dimmed ? 'var(--text-dim)' : 'var(--text-faint)'
+    };
+}
+
+function _markTriviaChecking(chosenIdx, todayKey) {
+    window._triviaChecking = { idx: chosenIdx, todayKey: todayKey, at: Date.now() };
+    var pill = document.getElementById('triviaXpPill');
+    if (pill) {
+        pill.textContent = 'XP pending';
+        if (pill.setAttribute) pill.setAttribute('data-xp', 'pending');
+    }
+    var buttons = [];
+    if (document.querySelectorAll) {
+        try { buttons = document.querySelectorAll('#triviaOptions button'); } catch (e) { buttons = []; }
+    }
+    var found = false;
+    for (var i = 0; i < buttons.length; i++) {
+        found = true;
+        var b = buttons[i];
+        b.disabled = true;
+        if (b.style) b.style.cursor = 'default';
+        if (i === chosenIdx) {
+            if (b.setAttribute) b.setAttribute('data-trivia-checking', '1');
+            if (b.style) b.style.borderColor = '#f7931a';
+            var note = document.createElement('span');
+            note.id = 'triviaChecking';
+            note.textContent = 'checking\u2026';
+            if (note.style) note.style.cssText = 'margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;';
+            if (b.appendChild) b.appendChild(note);
+        } else if (b.style) {
+            b.style.opacity = '0.55';
+        }
+    }
+    if (!found) {
+        var host = document.getElementById('triviaOptions') || document.getElementById('questHubBody');
+        if (host && host.appendChild) {
+            var fallback = document.createElement('span');
+            fallback.id = 'triviaChecking';
+            fallback.textContent = 'checking\u2026';
+            if (fallback.setAttribute) fallback.setAttribute('data-trivia-checking', '1');
+            host.appendChild(fallback);
+        }
+    }
+}
+
 function _renderTriviaTab(body, optimisticVote) {
     _detachTriviaStatsListener();
     var today = _getTriviaToday();
@@ -5085,11 +5154,17 @@ function _renderTriviaTab(body, optimisticVote) {
     var answered = state.date === todayKey;
     var t = today.trivia;
 
+    var checking = !!(window._triviaChecking && window._triviaChecking.todayKey === todayKey && !answered);
+    var pillMode = checking ? 'pending' : (answered ? 'answered' : 'offer');
+    var pillText = _triviaXpPillText(pillMode, state.awarded);
+    var pillHtml = pillText
+        ? '<div id="triviaXpPill" data-xp="' + pillMode + '" style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">' + pillText + '</div>'
+        : '';
     var html = '<div style="text-align:center;padding:8px 0 16px;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">🧠</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Trivia Quest</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">1 new question every day</div>' +
-        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP for a correct answer</div>' +
+        pillHtml +
     '</div>';
 
     // Question card
@@ -5102,22 +5177,27 @@ function _renderTriviaTab(body, optimisticVote) {
     for (var i = 0; i < t.options.length; i++) {
         var optText = typeof escapeHtml === 'function' ? escapeHtml(t.options[i]) : t.options[i];
         if (answered) {
+            // Highlight uses the published bank index so the explanation lines up
+            // with a row. data/trivia-bank.js still ships that index to every
+            // client; the grade and the XP come from answerTrivia, not from it.
             var isCorrect = i === t.answer;
             var wasChosen = i === state.chosen;
-            var bg = isCorrect ? 'rgba(34,197,94,0.15)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.15)' : 'var(--card-bg,#1a1a2e)');
-            var border = isCorrect ? '#22c55e' : (wasChosen && !isCorrect ? '#ef4444' : 'var(--border)');
+            var rowStyle = _triviaCommunityRowStyles(isCorrect, wasChosen);
             var icon = isCorrect ? '✅' : (wasChosen && !isCorrect ? '❌' : '');
-            html += '<div style="padding:12px 16px;background:' + bg + ';border:2px solid ' + border + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:10px;opacity:' + (isCorrect || wasChosen ? '1' : '0.5') + ';position:relative;overflow:hidden;">' +
-                '<div id="triviaBar_' + i + '" style="position:absolute;left:0;top:0;bottom:0;width:0;background:' + (isCorrect ? 'rgba(34,197,94,0.1)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)')) + ';transition:width 0.6s ease-out;border-radius:10px;"></div>' +
-                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);position:relative;z-index:1;">' + String.fromCharCode(65 + i) + '</span>' +
-                '<span style="position:relative;z-index:1;flex:1;">' + optText + '</span>' +
-                '<span id="triviaPct_' + i + '" style="position:relative;z-index:1;margin-left:auto;font-size:0.75rem;color:var(--text-muted);font-weight:700;min-width:36px;text-align:right;"></span>' +
+            html += '<div id="triviaRow_' + i + '" data-dimmed="' + (rowStyle.dimmed ? '1' : '0') + '" style="padding:12px 16px;background:' + rowStyle.bg + ';border:2px solid ' + rowStyle.border + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:10px;opacity:' + rowStyle.rowOpacity + ';position:relative;overflow:hidden;">' +
+                '<div id="triviaBar_' + i + '" style="position:absolute;left:0;top:0;bottom:0;width:0;background:' + rowStyle.bar + ';transition:width 0.6s ease-out;border-radius:10px;"></div>' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid ' + rowStyle.border + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + rowStyle.badgeColor + ';position:relative;z-index:1;">' + String.fromCharCode(65 + i) + '</span>' +
+                '<span style="position:relative;z-index:1;flex:1;min-width:0;overflow-wrap:anywhere;color:' + rowStyle.labelColor + ';font-weight:' + (rowStyle.dimmed ? '500' : '600') + ';">' + optText + '</span>' +
+                '<span id="triviaPct_' + i + '" data-trivia-pct="1" style="position:relative;z-index:1;margin-left:auto;font-size:0.75rem;color:' + rowStyle.pctColor + ';font-weight:800;flex-shrink:0;white-space:nowrap;min-width:72px;text-align:right;"></span>' +
                 (icon ? '<span style="position:relative;z-index:1;">' + icon + '</span>' : '') +
             '</div>';
         } else {
-            html += '<button onclick="triviaAnswer(' + i + ')" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+            var isChecking = checking && window._triviaChecking && window._triviaChecking.idx === i;
+            var dimOther = checking && !isChecking;
+            html += '<button onclick="triviaAnswer(' + i + ')"' + (checking ? ' disabled' : '') + ' style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChecking ? '#f7931a' : 'var(--border)') + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:' + (checking ? 'default' : 'pointer') + ';font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;opacity:' + (dimOther ? '0.55' : '1') + ';">' +
                 '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
                 optText +
+                (isChecking ? '<span id="triviaChecking" style="margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;">checking\u2026</span>' : '') +
             '</button>';
         }
     }
@@ -5164,30 +5244,54 @@ window.triviaAnswer = function(chosenIdx) {
     var state = _getTriviaState();
     if (state.date === todayKey) return; // Already answered
     if (window._triviaSubmitting) return;
-    window._triviaSubmitting = true;
+    if (typeof chosenIdx !== 'number' || chosenIdx < 0 || !t.options || chosenIdx >= t.options.length) return;
 
     var chosenText = t.options[chosenIdx];
+    // Signed-out play used to grade with the bank index. That index is still
+    // in the client file; this path does not read it.
+    var canGrade = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
+        && typeof firebase !== 'undefined' && firebase.functions;
+    if (!canGrade) {
+        if (typeof showToast === 'function') showToast('Sign in to check this answer', 3000);
+        return;
+    }
+
+    window._triviaSubmitting = true;
+    // Checking paints before the callable. The grade request starts in this turn.
+    _markTriviaChecking(chosenIdx, todayKey);
+
+    function _abortTrivia(message) {
+        window._triviaSubmitting = false;
+        window._triviaChecking = null;
+        if (typeof showToast === 'function' && message) showToast(message, 3000);
+        var body = document.getElementById('questHubBody');
+        if (body) _renderTriviaTab(body, null);
+    }
 
     function _finishTrivia(isCorrect, awarded, banned, statsRecorded) {
-        state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: !!isCorrect };
+        window._triviaChecking = null;
+        var paid = (typeof awarded === 'number' && awarded > 0) ? awarded : 0;
+        state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: !!isCorrect, awarded: paid };
         _setTriviaState(state);
-        if (isCorrect && !banned && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
-        if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
-        if (isCorrect && !banned && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            try {
+        try {
+            if (isCorrect && !banned && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
+            if (paid > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(paid);
+            if (isCorrect && !banned && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
                 firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
-            } catch(e) {}
-        }
-        if (!banned) {
-            _markDailyActivity('trivia');
-            _checkDailyAllThree();
+            }
+            if (!banned) {
+                _markDailyActivity('trivia');
+                _checkDailyAllThree();
+            }
+        } catch (sideErr) {
+            console.error('[TRIVIA] Answer saved, follow-up skipped:', sideErr);
         }
         window._triviaAwaitingWrite = statsRecorded === true;
         var body = document.getElementById('questHubBody');
         if (body) _renderTriviaTab(body, statsRecorded === true ? { chosenIdx: chosenIdx } : null);
         if (typeof showToast === 'function') {
             var toast = isCorrect
-                ? (awarded > 0 ? '✅ Correct! +' + awarded + ' XP 🧠' : '✅ Correct!')
+                ? (paid > 0 ? '✅ Correct! +' + paid + ' XP 🧠' : '✅ Correct!')
                 : '❌ Not quite';
             showToast(toast, 3000);
         }
@@ -5198,7 +5302,9 @@ window.triviaAnswer = function(chosenIdx) {
         var signedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
             && typeof firebase !== 'undefined' && firebase.functions;
         if (!signedIn) {
-            _finishTrivia(chosenIdx === t.answer, 0, false, false);
+            window._triviaSubmitting = false;
+            window._triviaChecking = null;
+            if (typeof showToast === 'function') showToast('Sign in to check this answer', 3000);
             return;
         }
 
@@ -5210,23 +5316,26 @@ window.triviaAnswer = function(chosenIdx) {
         }).then(function(res) {
             var d = (res && res.data) || {};
             if (d.success === false && d.reason && d.reason !== 'incorrect') {
-                window._triviaSubmitting = false;
-                if (typeof showToast === 'function') {
-                    showToast(d.reason === 'wrong-question'
-                        ? 'Trivia updated, please refresh'
-                        : '❌ Could not grade trivia. Try again.');
-                }
+                _abortTrivia(d.reason === 'wrong-question'
+                    ? 'Trivia updated, please refresh'
+                    : '❌ Could not grade trivia. Try again.');
                 return;
             }
             var awarded = typeof d.awarded === 'number' ? d.awarded : 0;
             _finishTrivia(d.correct === true, awarded, d.banned === true, d.statsRecorded === true);
         }).catch(function() {
-            window._triviaSubmitting = false;
-            if (typeof showToast === 'function') showToast('❌ Could not grade trivia. Try again.');
+            _abortTrivia('❌ Could not grade trivia. Try again.');
         });
     }
 
-    _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), _submitTrivia);
+    // A cached live doc is a real before-snapshot. Without one, a get can
+    // land after the grade write and a local +1 would count that vote twice.
+    if (window._triviaLiveKey === todayKey && window._triviaLiveDoc) {
+        _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), function() {});
+    } else {
+        window._triviaBaseline = { key: todayKey, bankIdx: _triviaStatIndex(t, chosenIdx), known: false, total: 0, counts: null };
+    }
+    _submitTrivia();
 };
 
 // ============================================================
@@ -5250,6 +5359,56 @@ function _getPollState() {
 
 function _setPollState(state) {
     try { localStorage.setItem('btc_poll_state', JSON.stringify(state)); } catch(e) {}
+}
+
+function _pollXpPillText(mode, awarded) {
+    if (mode === 'pending') return 'XP pending';
+    if (mode === 'awarded') {
+        var n = Number(awarded);
+        if (isFinite(n) && n > 0) return '+' + Math.floor(n) + ' XP';
+        return '';
+    }
+    if (mode === 'none') return '';
+    return '+50 XP for voting';
+}
+
+// Display-only +1. Does not write the tally and does not award XP.
+function _optimisticPollCounts(votes, total, chosenIdx, optionCount) {
+    var next = [];
+    var sum = 0;
+    var count = optionCount || (votes ? votes.length : 0);
+    for (var i = 0; i < count; i++) {
+        var n = votes ? _numStat(votes[i]) : 0;
+        if (i === chosenIdx) n += 1;
+        next.push(n);
+        sum += n;
+    }
+    return { votes: next, total: Math.max(_numStat(total) + 1, sum) };
+}
+
+function _rememberPollTally(pollId, optionCount, chosenIdx) {
+    var knownVotes = null;
+    var knownTotal = 0;
+    var known = false;
+    if (window._pollLiveKey === pollId && window._pollLiveDoc) {
+        var parsed = _pollVectors(window._pollLiveDoc, optionCount);
+        knownVotes = parsed.votes;
+        knownTotal = parsed.total;
+        known = true;
+    } else if (window._pollBaseline && window._pollBaseline.key === pollId && window._pollBaseline.known && window._pollBaseline.votes) {
+        knownVotes = window._pollBaseline.votes.slice();
+        knownTotal = window._pollBaseline.total;
+        known = true;
+    }
+    window._pollBaseline = {
+        key: pollId,
+        known: known,
+        votes: knownVotes,
+        total: knownTotal,
+        chosenIdx: chosenIdx
+    };
+    window._pollAwaitingWrite = known;
+    return known;
 }
 
 function _renderPollTab(body) {
@@ -5276,14 +5435,41 @@ function _renderPollTab(body) {
     var state = _getPollState();
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     // chosen must be a non-negative number (index 0..3) to count as a real vote
-    var hasVoted = state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0;
     var p = today.poll;
+    var storedVote = state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0;
+    var optimistic = !!(window._pollOptimistic && window._pollOptimistic.todayKey === todayKey && typeof window._pollOptimistic.chosenIdx === 'number');
+    var hasVoted = storedVote || optimistic;
+    if (optimistic && !storedVote) {
+        state = {
+            date: todayKey,
+            index: today.index,
+            chosen: window._pollOptimistic.chosenIdx,
+            pollId: p.id,
+            pending: true,
+            awarded: 0
+        };
+    }
+    var xpMode = 'offer';
+    var xpAwarded = 0;
+    if (hasVoted && state.pending) xpMode = 'pending';
+    else if (storedVote) {
+        if (Number(state.awarded) > 0) {
+            xpMode = 'awarded';
+            xpAwarded = state.awarded;
+        } else {
+            xpMode = 'none';
+        }
+    }
+    var pillText = _pollXpPillText(xpMode, xpAwarded);
+    var pillHtml = pillText
+        ? '<div id="pollXpPill" data-xp="' + xpMode + '" style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">' + pillText + '</div>'
+        : '';
 
     var html = '<div style="text-align:center;padding:8px 0 16px;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">📊</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Poll Quest</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">Vote daily - see what the community thinks</div>' +
-        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP for voting</div>' +
+        pillHtml +
     '</div>';
 
     // Question
@@ -5291,9 +5477,18 @@ function _renderPollTab(body) {
         '<div style="color:var(--text);font-size:0.95rem;font-weight:700;line-height:1.6;text-align:center;">' + (typeof escapeHtml === 'function' ? escapeHtml(p.q) : p.q) + '</div>' +
     '</div>';
 
+    if (window._pollRetryNote && !hasVoted) {
+        html += '<div id="pollRetryNote" style="text-align:center;margin:0 0 12px;color:#f87171;font-size:0.8rem;font-weight:700;">' + window._pollRetryNote + '</div>';
+    }
+
     if (hasVoted) {
         // Show results with bars
         _renderPollResults(body, html, p, state, todayKey);
+    } else if (window._pollShowVotesNow) {
+        window._pollShowVotesNow = false;
+        _showPollVoteButtons(body, html, p);
+        window._pollVoteReady = true;
+        clearTimeout(window._pollVoteReadyTimer);
     } else {
         // Check server-side if user already voted (covers localStorage cleared / different device)
         var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
@@ -5453,6 +5648,46 @@ function _showPollLoading(body, htmlPrefix) {
     body.appendChild(el);
 }
 
+function _drawPollChoicePending(body, htmlPrefix, poll, chosen) {
+    body.innerHTML = htmlPrefix;
+    var wrap = document.createElement('div');
+    wrap.id = 'pollResults';
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+    var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
+    for (var i = 0; i < poll.options.length; i++) {
+        var isChosen = i === chosen;
+        var color = colors[i % colors.length];
+        var row = document.createElement('div');
+        row.style.cssText = 'position:relative;padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChosen ? color : 'var(--border)') + ';border-radius:12px;';
+        var line = document.createElement('div');
+        line.style.cssText = 'position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+        var left = document.createElement('div');
+        left.style.cssText = 'display:flex;align-items:center;gap:10px;';
+        var badge = document.createElement('span');
+        badge.style.cssText = 'min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? color : 'transparent') + ';border:2px solid ' + (isChosen ? color : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';';
+        badge.textContent = isChosen ? '\u2713' : String.fromCharCode(65 + i);
+        var label = document.createElement('span');
+        label.style.cssText = 'color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';';
+        label.textContent = String(poll.options[i] == null ? '' : poll.options[i]);
+        left.appendChild(badge);
+        left.appendChild(label);
+        var pctEl = document.createElement('span');
+        pctEl.id = 'pollPct_' + i;
+        pctEl.style.cssText = 'font-size:0.85rem;font-weight:800;color:var(--text);';
+        pctEl.textContent = '';
+        line.appendChild(left);
+        line.appendChild(pctEl);
+        row.appendChild(line);
+        wrap.appendChild(row);
+    }
+    body.appendChild(wrap);
+    var totalEl = document.createElement('div');
+    totalEl.id = 'pollTotalVotes';
+    totalEl.style.cssText = 'text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;';
+    totalEl.textContent = 'Loading community results...';
+    body.appendChild(totalEl);
+}
+
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
     var optionCount = poll && poll.options ? poll.options.length : 0;
     var pollId = _pollDocId(poll, todayKey);
@@ -5473,6 +5708,10 @@ function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
         );
         if (pending && merged && merged.reflected) window._pollAwaitingWrite = false;
         if (!merged || merged.total < 1) {
+            if (window._pollOptimistic && typeof chosen === 'number' && chosen >= 0) {
+                _drawPollChoicePending(body, htmlPrefix, poll, chosen);
+                return;
+            }
             _showPollLoading(body, htmlPrefix);
             return;
         }
@@ -5565,68 +5804,99 @@ window.pollVote = function(chosenIdx) {
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = _getPollState();
     if (state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0) return; // Already voted (local)
+    if (typeof chosenIdx !== 'number' || chosenIdx < 0 || chosenIdx >= p.options.length) return;
 
     window._pollSubmitting = true;
     window._pollVoteReady = false;
+    window._pollRetryNote = '';
 
-    // Disable buttons immediately to prevent double-tap
-    var pollBtns = document.querySelectorAll('#pollOptions button');
-    pollBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; b.style.cursor = 'default'; });
+    var pollBtns = document.querySelectorAll ? document.querySelectorAll('#pollOptions button') : [];
+    if (pollBtns && pollBtns.forEach) {
+        pollBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; b.style.cursor = 'default'; });
+    }
 
     var pollId = (p.id ? p.id + '_' + todayKey : 'poll_day_' + todayKey);
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    var signedIn = typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous;
 
-    function _showPollBody(countServerVote) {
-        if (window._pollBaseline && window._pollBaseline.key === pollId) window._pollBaseline.chosenIdx = chosenIdx;
-        window._pollAwaitingWrite = !!countServerVote;
-        window._pollSubmitting = false;
+    function _paintPoll() {
         var body = document.getElementById('questHubBody');
         if (body) _renderPollTab(body);
     }
 
-    _capturePollBaseline(pollId, p.options.length, function() {
-        // The server records the vote, the XP, and the trifecta proof.
-        if (typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous) {
-            firebase.functions().httpsCallable('dailyPollVote')({ chosenIdx: chosenIdx }).then(function(res) {
-                var data = (res && res.data) || {};
-                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-                _setPollState(state);
-                if (data.already) {
-                    if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
-                    _showPollBody(false);
-                } else {
-                    var awarded = Number(data.awarded) || 0;
-                    if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
-                    if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
-                    if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP') : '📊 Vote recorded!', 3000);
-                    _markDailyActivity('poll');
-                    _checkDailyAllThree();
-                    _showPollBody(true);
-                }
-            }).catch(function(e) {
-                var code = String((e && (e.code || e.message)) || '');
-                if (code.indexOf('already-exists') !== -1 || code.indexOf('already-voted') !== -1) {
-                    state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-                    _setPollState(state);
-                    if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
-                    _showPollBody(false);
-                    return;
-                }
-                window._pollSubmitting = false;
-                window._pollAwaitingWrite = false;
-                console.error('[POLL] Vote failed:', e);
-                if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
-                pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
-                window._pollVoteReady = true;
-            });
+    if (!signedIn) {
+        // No auth or offline - local-only vote (no XP, no server record)
+        state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id, awarded: 0 };
+        _setPollState(state);
+        window._pollOptimistic = null;
+        window._pollAwaitingWrite = false;
+        window._pollSubmitting = false;
+        if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
+        _paintPoll();
+        return;
+    }
+
+    // Paint from the tally already in memory. Do not re-read before the result,
+    // and do not persist the vote or any XP until dailyPollVote returns.
+    var hadTally = _rememberPollTally(pollId, p.options.length, chosenIdx);
+    window._pollOptimistic = { todayKey: todayKey, chosenIdx: chosenIdx, pollId: pollId, hadTally: hadTally };
+    _paintPoll();
+
+    function _confirmPoll(data) {
+        data = data || {};
+        var paid = (typeof data.awarded === 'number' && data.awarded > 0) ? data.awarded : 0;
+        state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id, awarded: paid };
+        _setPollState(state);
+        window._pollOptimistic = null;
+        window._pollSubmitting = false;
+        window._pollRetryNote = '';
+        if (data.already) {
+            window._pollAwaitingWrite = false;
+            if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
         } else {
-            // No auth or offline - local-only vote (no XP, no server record)
-            state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-            _setPollState(state);
-            if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
-            _showPollBody(false);
+            try {
+                if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
+                if (paid > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(paid);
+                _markDailyActivity('poll');
+                _checkDailyAllThree();
+            } catch (sideErr) {
+                console.error('[POLL] Vote saved, follow-up skipped:', sideErr);
+            }
+            if (typeof showToast === 'function') showToast(paid > 0 ? ('📊 Vote recorded! +' + paid + ' XP') : '📊 Vote recorded!', 3000);
+            if (window._pollBaseline && window._pollBaseline.key === pollId) window._pollBaseline.chosenIdx = chosenIdx;
+            window._pollAwaitingWrite = !!hadTally;
         }
-    });
+        _paintPoll();
+    }
+
+    function _rollbackPoll() {
+        window._pollOptimistic = null;
+        window._pollAwaitingWrite = false;
+        window._pollSubmitting = false;
+        if (window._pollBaseline && window._pollBaseline.key === pollId) window._pollBaseline.chosenIdx = -1;
+        window._pollRetryNote = 'Vote didn\u2019t save. Try again.';
+        window._pollShowVotesNow = true;
+        _paintPoll();
+    }
+
+    try {
+        firebase.functions().httpsCallable('dailyPollVote')({ chosenIdx: chosenIdx }).then(function(res) {
+            var data = (res && res.data) || {};
+            _confirmPoll(data);
+        }).catch(function(e) {
+            var code = String((e && (e.code || e.message)) || '');
+            if (code.indexOf('already-exists') !== -1 || code.indexOf('already-voted') !== -1) {
+                _confirmPoll({ already: true, awarded: 0 });
+                return;
+            }
+            console.error('[POLL] Vote failed:', e);
+            if (typeof showToast === 'function') showToast('Vote didn\u2019t save. Try again.', 3000);
+            _rollbackPoll();
+        });
+    } catch (e) {
+        console.error('[POLL] Vote failed:', e);
+        _rollbackPoll();
+    }
 };
 
 // ============================================================
@@ -6270,7 +6540,8 @@ window._contributeRaidNav = function() {
 // ============================================================
 
 (function _loadQuestBanks() {
-    // Load trivia bank
+    // Load trivia bank. This file still includes answer indexes and
+    // explanations. Grading ignores them; answerTrivia decides correctness.
     if (typeof TRIVIA_BANK === 'undefined') {
         var ts = document.createElement('script');
         ts.src = 'data/trivia-bank.js?v=20261022_v2270';
