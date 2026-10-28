@@ -1,5 +1,7 @@
 .env
 functions/.env
+functions/private-bank/*
+!functions/private-bank/README.md
 test.sh
 scripts/*
 !scripts/migrate-push-optin.js

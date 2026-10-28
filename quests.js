@@ -5854,15 +5854,28 @@ function _renderRaidBossCard(container, boss) {
         return;
     }
 
-    // Case 3: Active boss
-    var current = boss.current !== undefined ? boss.current : (boss.currentHP !== undefined ? boss.currentHP : 0);
-    var target = boss.target || boss.targetHP || 1;
-    var pct = Math.min(100, Math.round((current / target) * 100));
-    var remainingHP = Math.max(0, target - current);
-    var hpPct = Math.max(0, 100 - pct);
+    // Case 3: Active boss. Health numbers come from raid-hp.js so the
+    // pill, the home card, and this modal cannot drift apart.
+    var stats = window.raidBossStats(boss);
+    var pct = stats.damagePct;
+    var remainingHP = stats.remaining;
+    var hpPct = stats.hpPct;
+    var target = stats.maxHp;
     var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
     var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
     var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">' + _raidSafeEmoji(boss) + '</div>';
+    var hpMeter = '';
+    if (stats.hasMax) {
+        hpMeter = '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+                '<span style="font-size:0.72rem;font-weight:800;color:' + (hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e') + ';text-transform:uppercase;">\u2764\uFE0F Boss Health</span>' +
+                '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + window.raidHpReadout(remainingHP, target) + '</span>' +
+            '</div>' +
+            '<div style="height:20px;background:rgba(100,100,100,0.1);border-radius:10px;overflow:hidden;border:1px solid ' + (hpPct <= 25 ? 'rgba(239,68,68,0.3)' : hpPct <= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)') + ';">' +
+                '<div id="raidProgressBar" style="height:100%;width:' + hpPct + '%;background:' + (hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)') + ';border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
+                    '<div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:raidShimmer 2s infinite;"></div>' +
+                '</div>' +
+            '</div>';
+    }
 
     container.innerHTML = '<div style="padding:12px 0;">' +
         // Boss header
@@ -5871,17 +5884,9 @@ function _renderRaidBossCard(container, boss) {
             '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + bossName + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;">' + bossDesc + '</div>' +
         '</div>' +
-        // Boss Health bar (depletes as damage is dealt)
+        // Boss Health bar (depletes as damage is dealt). Hidden when max HP is unknown.
         '<div style="margin-bottom:16px;">' +
-            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-                '<span style="font-size:0.72rem;font-weight:800;color:' + (hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e') + ';text-transform:uppercase;">\u2764\uFE0F Boss Health</span>' +
-                '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + remainingHP.toLocaleString() + ' / ' + target.toLocaleString() + ' HP</span>' +
-            '</div>' +
-            '<div style="height:20px;background:rgba(100,100,100,0.1);border-radius:10px;overflow:hidden;border:1px solid ' + (hpPct <= 25 ? 'rgba(239,68,68,0.3)' : hpPct <= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)') + ';">' +
-                '<div id="raidProgressBar" style="height:100%;width:' + hpPct + '%;background:' + (hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)') + ';border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
-                    '<div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:raidShimmer 2s infinite;"></div>' +
-                '</div>' +
-            '</div>' +
+            hpMeter +
             '<div style="text-align:center;margin-top:4px;font-size:0.75rem;font-weight:800;color:#8b5cf6;">' + pct + '% damage dealt</div>' +
         '</div>' +
         // Timer
@@ -6397,31 +6402,36 @@ window._raidContribute = function(metric, amount, detail) {
                 // Patch HP bar in real-time from response — works from any tab
                 if (r.data.success && r.data.damage > 0) {
                     var _cur = r.data.current || 0;
-                    var _tgt = r.data.target || (window._currentRaidBoss && window._currentRaidBoss.target) || 1;
-                    var _pct = Math.min(100, Math.round((_cur / _tgt) * 100));
-                    var _hpPct = Math.max(0, 100 - _pct);
-                    var _remaining = Math.max(0, _tgt - _cur);
+                    var _tgt = r.data.target || (window._currentRaidBoss && (window._currentRaidBoss.target || window._currentRaidBoss.targetHP)) || 0;
+                    var _stats = window.raidBossStats({ current: _cur, target: _tgt });
                     var _bar = document.getElementById('raidProgressBar');
-                    var _hpLabel = _bar && _bar.closest && _bar.closest('div[style]') ? _bar.parentElement : null;
-                    if (_bar) {
-                        _bar.style.width = _hpPct + '%';
-                        _bar.style.background = _hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : _hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
+                    if (_bar && !_stats.hasMax && _bar.parentElement) {
+                        var _hideRow = _bar.parentElement.previousElementSibling;
+                        _bar.parentElement.style.display = 'none';
+                        if (_hideRow) _hideRow.style.display = 'none';
+                    } else if (_bar && _stats.hasMax) {
+                        _bar.style.width = _stats.hpPct + '%';
+                        _bar.style.background = _stats.hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : _stats.hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
                     }
                     // Update HP number label
                     var _hpNum = document.querySelector('#raidProgressBar');
-                    if (_hpNum) {
+                    if (_hpNum && _stats.hasMax) {
                         var _hpRow = _hpNum.closest && _hpNum.closest('[style]') ? _hpNum.parentElement && _hpNum.parentElement.previousElementSibling : null;
                         if (_hpRow) {
                             var _spans = _hpRow.querySelectorAll('span');
-                            if (_spans[1]) _spans[1].textContent = _remaining.toLocaleString() + ' / ' + _tgt.toLocaleString() + ' HP';
+                            if (_spans[1]) _spans[1].textContent = window.raidHpReadout(_stats.remaining, _stats.maxHp);
                         }
                         var _pctLabel = _hpNum.parentElement && _hpNum.parentElement.nextElementSibling;
-                        if (_pctLabel) _pctLabel.textContent = _pct + '% damage dealt';
+                        if (_pctLabel) _pctLabel.textContent = _stats.damagePct + '% damage dealt';
+                    } else if (_hpNum) {
+                        var _pctOnly = _hpNum.parentElement && _hpNum.parentElement.nextElementSibling;
+                        if (_pctOnly) _pctOnly.textContent = _stats.damagePct + '% damage dealt';
                     }
                     // Update _currentRaidBoss so next contribute call has fresh values
                     if (window._currentRaidBoss) window._currentRaidBoss.current = _cur;
                     // Toast feedback
-                    if (typeof showToast === 'function') showToast('⚔️ ' + Math.round(r.data.damage) + ' dmg dealt to ' + (window._currentRaidBoss && window._currentRaidBoss.name ? window._currentRaidBoss.name : 'Raid Boss') + '! (' + _remaining.toLocaleString() + ' HP remaining)');
+                    var _hpLeft = _stats.hasMax ? ' (' + window.raidHpCount(_stats.remaining) + ' HP remaining)' : '';
+                    if (typeof showToast === 'function') showToast('⚔️ ' + Math.round(r.data.damage) + ' dmg dealt to ' + (window._currentRaidBoss && window._currentRaidBoss.name ? window._currentRaidBoss.name : 'Raid Boss') + '!' + _hpLeft);
                 }
             }
         }).catch(function(e) { console.error('[RAID] Error:', e.message); });

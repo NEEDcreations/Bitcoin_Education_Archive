@@ -889,6 +889,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Separate from onForumPost so a mail failure cannot drop the chat post.
 const { announceActivity, retractActivity, retractIfRemoved } = require('./src/activityShoutout');
 const { countMarketplaceListing } = require('./src/marketListingCount');
+const { handleArticlePublishWrite } = require('./src/articlePublishXp');
 
 const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
 
@@ -1079,6 +1080,36 @@ exports.onArticleBadgeCount = onDocumentCreated({
         }
     }
     catch (e) { console.warn('[onArticleBadgeCount]', e && e.message); }
+    return null;
+});
+
+// Article XP. Separate from onArticleBadgeCount and from awardPoints.
+// retry is on so a missing user doc (the only path that throws) runs again.
+// Every other outcome writes article_xp first, so a second delivery pays nothing.
+exports.onArticlePublishXp = onDocumentWritten({
+    document: 'articles/{articleId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
+}, async (event) => {
+    const change = event.data;
+    if (!change) return null;
+    const beforeSnap = change.before;
+    const afterSnap = change.after;
+    const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
+    const after = afterSnap && afterSnap.exists ? afterSnap.data() : null;
+    try {
+        const result = await handleArticlePublishWrite({
+            db: db,
+            admin: admin,
+            articleId: event.params.articleId,
+            before: before,
+            after: after,
+        });
+        if (result && result.retry) throw new Error('article publish xp retry');
+    } catch (e) {
+        console.warn('[onArticlePublishXp]', e && e.message);
+        throw e;
+    }
     return null;
 });
 
@@ -4432,68 +4463,104 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
 });
 
 // ── Scholar Exam: Server-Side Grading ──
-// SCHOLAR_BANK is loaded once per cold start. Contains authoritative correct answers.
-// Format: { properties: [{a: "..."}, ...], technical: [{a: "..."}, ...] }
-const SCHOLAR_BANK = require('./scholar-bank.json');
+// The question bank and the correct option ids stay in scholar_exam_keys.
+// The client receives question text and opaque option ids only.
+// The bank is read on the first start or grade from functions/private-bank,
+// then cached. It is not in the repo. A missing or invalid file fails these
+// two calls closed. Other functions in this file do not read it.
+const scholarBank = require('./src/scholarBank');
 
-function _pickScholarQuestions(type) {
-    const pool = type === 'technical' ? SCHOLAR_BANK.technical : SCHOLAR_BANK.properties;
-    if (!Array.isArray(pool) || pool.length < 25) {
-        throw new functionsV1.https.HttpsError('internal', 'Exam bank misconfigured');
+function scholarBankOrThrow() {
+    if (!scholarBank.ready()) {
+        console.error('[SCHOLAR] exam bank unavailable');
+        throw new functionsV1.https.HttpsError('failed-precondition', 'Exam temporarily unavailable');
     }
-    // Pick 25 unique indices
-    const indices = [];
-    const used = new Set();
-    while (indices.length < 25) {
-        const i = Math.floor(Math.random() * pool.length);
-        if (!used.has(i)) { used.add(i); indices.push(i); }
-    }
-    return indices; // array of 25 ints into SCHOLAR_BANK[type]
 }
 
-exports.startScholarExam = functionsV1.https.onCall(async (data, context) => {
+exports.startScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    scholarBankOrThrow();
+    if (!context.auth.token || !context.auth.token.firebase || context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
     }
 
-    const { type } = data || {};
+    const type = data && data.type;
     if (type !== 'properties' && type !== 'technical') {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid exam type');
     }
 
     const uid = context.auth.uid;
-    const examId = uid + '_' + type + '_' + Date.now();
+    const attemptLib = require('./src/scholarAttempt');
+    const now = Date.now();
+    const today = attemptLib.utcDay(now);
+    const keyPrefix = type === 'technical' ? 'tech' : 'prop';
+    const slotField = 'examSlotId_' + keyPrefix;
+    const userRef = db.collection('users').doc(uid);
 
-    // SERVER picks the questions (by index into its own bank). The client
-    // never gets to supply answer keys - this closes C-NEW-7.
-    const indices = _pickScholarQuestions(type);
-    // Build the authoritative key array: the correct answer for each picked question
-    const keys = indices.map((idx, i) => ({
-        index: i,
-        poolIdx: idx,
-        correct: SCHOLAR_BANK[type][idx].a
-    }));
+    return db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        const userData = userDoc.exists ? (userDoc.data() || {}) : {};
+        const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+        const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, null);
+        if (alreadyPassed) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'You already passed this certification.');
+        }
 
-    await db.collection('scholar_exam_keys').doc(examId).set({
-        uid,
-        type,
-        indices, // indices into the pool - client fetches these
-        keys,    // correct answers - never sent to client
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        graded: false,
+        const slotId = typeof userData[slotField] === 'string' ? userData[slotField] : '';
+        let slotSnap = null;
+        if (slotId) slotSnap = await tx.get(db.collection('scholar_exam_keys').doc(slotId));
+        if (slotSnap && slotSnap.exists) {
+            const open = slotSnap.data() || {};
+            const stillOpen = open.uid === uid && open.type === type && open.graded !== true && !attemptLib.expired(open.startedAtMs, now);
+            if (stillOpen) {
+                return {
+                    examId: slotSnap.id,
+                    resumed: true,
+                    startedAtMs: open.startedAtMs,
+                    questions: Array.isArray(open.questions) ? open.questions : [],
+                };
+            }
+        }
+
+        const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
+        if (lastAttempt === today) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', attemptLib.EXAM_DAILY_MESSAGE);
+        }
+
+        const drawn = attemptLib.drawExam(type);
+        const examId = attemptLib.newExamId();
+        const examRef = db.collection('scholar_exam_keys').doc(examId);
+        tx.set(examRef, {
+            uid: uid,
+            type: type,
+            questions: drawn.questions,
+            served: drawn.served,
+            startedAtMs: now,
+            attemptDay: today,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            graded: false,
+        });
+        const userUpdate = {};
+        userUpdate[slotField] = examId;
+        userUpdate['lastExamAttempt_' + keyPrefix] = today;
+        tx.set(userRef, userUpdate, { merge: true });
+        return {
+            examId: examId,
+            resumed: false,
+            startedAtMs: now,
+            questions: drawn.questions,
+        };
     });
-
-    // Return ONLY the indices to the client. The client already has the
-    // client-side pool and can render questions by index.
-    return { examId, indices };
 });
 
-exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
+exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    scholarBankOrThrow();
 
-    const { examId, answers } = data || {};
-    if (!examId || !answers || !Array.isArray(answers)) {
+    const examId = data && data.examId;
+    const answers = data && data.answers;
+    const attemptLib = require('./src/scholarAttempt');
+    if (!examId || typeof examId !== 'string' || !attemptLib.examIdOk(examId) || !answers || !Array.isArray(answers)) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing examId or answers');
     }
     if (answers.length !== 25) {
@@ -4501,6 +4568,8 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
     }
 
     const uid = context.auth.uid;
+    const certLib = require('./src/scholarCert');
+    const now = Date.now();
     const examRef = db.collection('scholar_exam_keys').doc(examId);
 
     const result = await db.runTransaction(async (tx) => {
@@ -4514,6 +4583,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const type = exam.type;
         const keyPrefix = type === 'technical' ? 'tech' : 'prop';
         const today = new Date().toISOString().split('T')[0];
+        const certType = certLib.certTypeForExam(type);
 
         // Read user doc for the daily cooldown. The pass guard is a
         // scholar_exam_keys row. The client cannot write or delete those.
@@ -4524,12 +4594,17 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const bonusMarkerRef = certBonus.markerRef(userRef, type);
         const bonusLedgerRef = certBonus.ledgerRef(userRef, type);
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
+        const certIndexRef = db.collection('cert_by_user').doc(certLib.indexId(uid, certType));
         const userDoc = await tx.get(userRef);
         const ledgerDoc = await tx.get(ledgerRef);
         const bonusMarkerSnap = await tx.get(bonusMarkerRef);
         const bonusLedgerSnap = await tx.get(bonusLedgerRef);
         const userData = userDoc.exists ? userDoc.data() : {};
         const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+        const certIndexSnap = await tx.get(certIndexRef);
+        let existingCertSnap = null;
+        const existingCertId = certIndexSnap.exists ? ((certIndexSnap.data() || {}).certId || '') : '';
+        if (existingCertId) existingCertSnap = await tx.get(db.collection('certs').doc(existingCertId));
         const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, examId);
         const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
 
@@ -4554,19 +4629,30 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             }
             return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified', already: true };
         }
-        // Block rapid retakes same day (daily cooldown)
-        if (lastAttempt === today) {
-            tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'daily_limit', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-            throw new functionsV1.https.HttpsError('resource-exhausted', 'Only one exam attempt per 24 hours.');
+
+        if (attemptLib.missingStart(exam.startedAtMs)) {
+            throw new functionsV1.https.HttpsError('deadline-exceeded', attemptLib.EXAM_EXPIRED_OPEN_MESSAGE);
+        }
+        if (attemptLib.tooFast(exam.startedAtMs, now)) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Submit the exam after one minute.');
+        }
+        if (attemptLib.expired(exam.startedAtMs, now)) {
+            throw new functionsV1.https.HttpsError('deadline-exceeded', 'This attempt has expired.');
         }
 
-        // Grade server-side using server-held keys
-        let score = 0;
-        const keys = exam.keys;
-        for (let i = 0; i < 25; i++) {
-            if (answers[i] === keys[i].correct) score++;
+        const slotId = userData['examSlotId_' + keyPrefix];
+        if (!slotId || slotId !== examId) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', attemptLib.EXAM_DAILY_MESSAGE);
         }
 
+        const graded = attemptLib.gradeByOptionId(exam.served, answers);
+        if (!graded.ok) {
+            const reason = graded.reason === 'duplicate'
+                ? 'Each question can be answered once.'
+                : 'That question was not part of this attempt.';
+            throw new functionsV1.https.HttpsError('invalid-argument', reason);
+        }
+        const score = graded.score;
         const passed = score >= 20;
         const scholarLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
         const scholarBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || scholarLedger.banned === true;
@@ -4593,6 +4679,32 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             Object.assign(update, certBonus.bonusUserFields(admin, scholarPlan));
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
+        }
+
+        let certView = null;
+        if (passed && !scholarBlocked) {
+            if (existingCertId) {
+                update['certId_' + keyPrefix] = existingCertId;
+                if (existingCertSnap && existingCertSnap.exists) {
+                    certView = certLib.publicView(existingCertSnap.data(), existingCertId);
+                }
+            } else if (certType) {
+                const record = certLib.buildRecord({
+                    uid: uid,
+                    examType: type,
+                    userData: userData,
+                    score: score,
+                    now: now,
+                });
+                const publicDoc = Object.assign({}, record.publicDoc, {
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                tx.set(db.collection('certs').doc(record.id), publicDoc);
+                tx.set(db.collection('cert_owners').doc(record.id), record.ownerDoc);
+                tx.set(certIndexRef, record.indexDoc);
+                update['certId_' + keyPrefix] = record.id;
+                certView = certLib.publicView(publicDoc, record.id);
+            }
         }
 
         // pointsAwarded stays on the exam key so a later backfill can see it.
@@ -4644,6 +4756,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             already: scholarPlan.reason === 'already',
             capExempt: scholarPlan.pay === true,
             raidCredit: passed === true && !scholarBlocked,
+            cert: certView,
         };
     });
 
@@ -4662,6 +4775,25 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             });
         } catch (scholarRaidErr) { console.warn('[SCHOLAR] raid', scholarRaidErr && scholarRaidErr.message); }
     }
+
+    let certOut = null;
+    if (result.cert && result.cert.certId) {
+        certOut = {
+            certId: result.cert.certId,
+            title: result.cert.title,
+            name: result.cert.name,
+            date: result.cert.date,
+            score: result.cert.score,
+            quest: result.cert.quest,
+            verifyUrl: result.cert.verifyUrl,
+        };
+        try {
+            certOut.qr = require('./src/qrMatrix').matrixFor(certOut.verifyUrl);
+        } catch (qrErr) {
+            console.warn('[SCHOLAR] qr', qrErr && qrErr.message);
+        }
+    }
+
     return {
         success: true,
         score: result.score,
@@ -4670,7 +4802,8 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         pointsAwarded: result.pointsAwarded || 0,
         blocked: result.blocked || null,
         already: result.already === true,
-        capExempt: result.capExempt === true
+        capExempt: result.capExempt === true,
+        cert: certOut,
     };
 });
 
@@ -4687,63 +4820,114 @@ exports.triviaXpStatus = triviaXpStatus;
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
 // Only issues certificates if user has passed the exam server-side
 // =============================================
-exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
+exports.issueCertificate = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
-    const { type, name } = data || {};
-
-    if (!type || !['scholar', 'technical', 'trail_meadow', 'trail_mountain', 'trail_summit'].includes(type)) {
+    const certLib = require('./src/scholarCert');
+    const requested = data && data.type;
+    const meta = certLib.metaForCertType(requested);
+    if (!meta) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid certificate type');
     }
 
     const userRef = db.collection('users').doc(uid);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
-    const userData = userDoc.data();
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const indexRef = db.collection('cert_by_user').doc(certLib.indexId(uid, meta.certType));
 
-    // Scholar and protocol certificates require a passed scholar_exam_keys row.
-    // Profile flags are not proof. Trail certificates still use trails_passed.
-    let passed = false;
-    let title = 'Bitcoiner';
-    let score = null;
+    const issued = await db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
+        const userData = userDoc.data() || {};
+        const ledgerDoc = await tx.get(ledgerRef);
+        const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+        const blocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || ledger.banned === true;
+        if (blocked) {
+            throw new functionsV1.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
+        }
 
-    if (type === 'scholar' || type === 'technical') {
-        const examType = type === 'technical' ? 'technical' : 'properties';
-        const prior = await db.collection('scholar_exam_keys').where('uid', '==', uid).get();
-        const examRow = require('./src/scholarExam').passedExam(prior, examType, null);
-        passed = !!examRow;
-        title = type === 'technical' ? 'Bitcoin Protocol Expert' : 'Bitcoin Scholar';
-        score = examRow && examRow.score != null ? examRow.score : (passed ? 'Passed' : null);
-    } else if (type.startsWith('trail_')) {
-        // Find the specific trail in the list of passed trails
-        const passedTrails = userData.trails_passed || [];
-        passed = passedTrails.includes(type.replace('trail_', ''));
-        title = 'Nacho Trail Complete';
+        let passed = false;
+        let score = null;
+        if (meta.certType === 'scholar' || meta.certType === 'technical') {
+            const examType = meta.certType === 'technical' ? 'technical' : 'properties';
+            const prior = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+            const examRow = require('./src/scholarExam').passedExam(prior, examType, null);
+            passed = !!examRow;
+            score = examRow && examRow.score != null ? examRow.score : null;
+        } else if (String(meta.certType).indexOf('trail_') === 0) {
+            const passedTrails = userData.trails_passed || [];
+            passed = passedTrails.includes(String(meta.certType).replace('trail_', ''));
+        }
+
+        if (!passed) {
+            throw new functionsV1.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
+        }
+
+        const indexSnap = await tx.get(indexRef);
+        if (indexSnap.exists) {
+            const existingId = (indexSnap.data() || {}).certId;
+            if (!existingId) throw new functionsV1.https.HttpsError('not-found', 'Certificate record is missing.');
+            const existing = await tx.get(db.collection('certs').doc(existingId));
+            if (!existing.exists) throw new functionsV1.https.HttpsError('not-found', 'Certificate record is missing.');
+            return certLib.publicView(existing.data(), existingId);
+        }
+
+        const officialName = certLib.snapshotName(userData);
+        const record = certLib.buildRecord({
+            uid: uid,
+            certType: meta.certType,
+            meta: meta,
+            name: officialName,
+            score: score,
+            now: Date.now(),
+        });
+        const publicDoc = Object.assign({}, record.publicDoc, {
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        tx.set(db.collection('certs').doc(record.id), publicDoc);
+        tx.set(db.collection('cert_owners').doc(record.id), record.ownerDoc);
+        tx.set(indexRef, record.indexDoc);
+        const prefix = meta.certType === 'technical' ? 'tech' : (meta.certType === 'scholar' ? 'prop' : '');
+        if (prefix) {
+            const certField = {};
+            certField['certId_' + prefix] = record.id;
+            tx.set(userRef, certField, { merge: true });
+        }
+        return certLib.publicView(publicDoc, record.id);
+    });
+
+    let qr = null;
+    try {
+        qr = require('./src/qrMatrix').matrixFor(issued.verifyUrl);
+    } catch (qrErr) {
+        console.warn('[CERT] qr', qrErr && qrErr.message);
     }
 
-    if (!passed) {
-        throw new functionsV1.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
-    }
-
-    // Generate unique Cert ID
-    const certId = 'CERT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
-
-    const certData = {
-        id: certId,
-        uid: uid,
-        name: (name || userData.username || 'Bitcoiner').substring(0, 50),
-        username: userData.username || null,
-        type: type,
-        title: title,
-        score: score,
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    return {
+        success: true,
+        certId: issued.certId,
+        title: issued.title,
+        name: issued.name,
+        date: issued.date,
+        score: issued.score,
+        quest: issued.quest,
+        verifyUrl: issued.verifyUrl,
+        qr: qr,
     };
+});
 
-    await db.collection('certs').doc(certId).set(certData);
-
-    return { success: true, certId: certId, title: title, name: certData.name };
+// Public verify. Certificates are not readable by the client. Old ids still
+// match. The id's entropy is the limit; App Check is off so a shared link
+// and a crawler can open the page.
+exports.verifyCertificate = functionsV1.https.onCall(async (data) => {
+    const certLib = require('./src/scholarCert');
+    const certId = data && data.certId;
+    if (!certLib.certIdOk(certId)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid certificate id');
+    }
+    const snap = await db.collection('certs').doc(String(certId)).get();
+    if (!snap.exists) return { valid: false };
+    return certLib.verifyView(snap.data(), certId);
 });
 
 // =============================================

@@ -61,6 +61,10 @@ const parts = emu.split(':');
                 certPassedAt_tech: '2026-10-01',
                 lastExamAttempt_prop: '2026-10-22',
                 lastExamAttempt_tech: '2026-10-22',
+                examSlotId_prop: 'ex_seedprop',
+                examSlotId_tech: 'ex_seedtech',
+                certId_prop: 'CERT-SEEDPROP',
+                certId_tech: 'CERT-SEEDTECH',
                 scholar_exam_passed: true,
                 scholar_tech_passed: true,
                 scholar_tech_score: 25,
@@ -137,6 +141,7 @@ const parts = emu.split(':');
         const examFields = [
             'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
             'lastExamAttempt_prop', 'lastExamAttempt_tech',
+            'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
             'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         ];
         for (let i = 0; i < examFields.length; i++) {

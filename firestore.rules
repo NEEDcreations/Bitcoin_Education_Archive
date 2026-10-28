@@ -128,6 +128,7 @@ service cloud.firestore {
         'badgeBackfillToast',
         'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
+        'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
         'providersHash', 'providerHashes'
@@ -298,6 +299,16 @@ service cloud.firestore {
               && 'pendingLeaderboardReward' in request.resource.data);
       }
 
+      // Owner-only record of which share cards were already shown. Not a reward.
+      // A string, not a map: rules cannot loop map entries. The owner update below
+      // already requires request.auth.uid == userId, and this shape check is the allowlist.
+      function shareCardsShownOk() {
+        let v = request.resource.data.shareCardsShown;
+        return v is string
+          && v.size() <= 1500
+          && v.matches('^[a-z0-9_:,]*$');
+      }
+
       function profileShapeOk() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
         return (!changed.hasAny(['username'])
@@ -337,6 +348,7 @@ service cloud.firestore {
             || request.resource.data.beatsShowUncensored == true
             || request.resource.data.beatsShowUncensored == false)
           && (!changed.hasAny(['lightning', 'lightningAddress', 'lnAddress']) || (true && lightningLockOk()))
+          && (!changed.hasAny(['shareCardsShown']) || shareCardsShownOk())
           && (!changed.hasAny(['notificationPrefs']) || notificationPrefsOk())
           && (!changed.hasAny(['notifPrompt']) || notifPromptOk());
       }
@@ -1385,11 +1397,18 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 10
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.body is string
+                    && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
                     && (
-                      // Author can edit their own article
+                      // Author can edit their own article, but cannot hand authorship to someone else.
                       resource.data.authorId == request.auth.uid
+                      && request.resource.data.authorId == resource.data.authorId
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() <= 50000
+                      && request.resource.data.title is string
+                      && request.resource.data.title.size() >= 10
+                      && request.resource.data.title.size() <= 120
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
@@ -1545,6 +1564,8 @@ service cloud.firestore {
     // =============================================
     match /announcements/{msgId} {
       allow read: if true;
+      // badgeIds is server-only (badge GGs Admin SDK). Clients cannot create
+      // announcements, and an update may change reactions only.
       // [BUG-6 FIX] Client writes to announcements are permanently disabled.
       // Any authenticated user (including anonymous) could set isNachoAuto=true
       // and inject fake "official Nacho" announcements with arbitrary markdown links.
@@ -1696,10 +1717,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Certificates (public read, Cloud Function writes only via Admin SDK)
+    // Certificates are not readable by the client. verifyCertificate returns
+    // the public fields. Owner ids live in cert_owners.
     match /certs/{certId} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /cert_owners/{certId} {
+      allow read, write: if false;
+    }
+
+    match /cert_by_user/{docId} {
+      allow read, write: if false;
     }
 
     // Buddy matching pool
@@ -1751,6 +1781,11 @@ service cloud.firestore {
 
     // Server-side daily points tracking (Cloud Function only)
     match /users/{userId}/daily_points/{docId} {
+      allow read, write: if false;
+    }
+
+    // Paying article publishes per offset day. Cloud Function only.
+    match /users/{userId}/article_publish_days/{docId} {
       allow read, write: if false;
     }
 
@@ -2349,6 +2384,11 @@ service cloud.firestore {
     // client cannot forge a Nacho post or reset the cap.
     // One marker per listing so onMarketplaceListingCount cannot double-count.
     match /market_listing_counts/{listingId} {
+      allow read, write: if false;
+    }
+
+    // One article-publish XP marker per article id. Cloud Function only.
+    match /article_xp/{articleId} {
       allow read, write: if false;
     }
 

@@ -1111,8 +1111,14 @@
         }
     };
 
+    function shareNote(text, url) {
+        var note = String(text || '');
+        if (url && note.indexOf(url) === -1) note = note + '\n\n' + url;
+        return note;
+    }
+
     function shareNostr(text, url) {
-        const note = text + '\n\n' + url;
+        var note = shareNote(text, url);
         // Copy to clipboard first
         navigator.clipboard.writeText(note).then(() => {
             showToast('📋 Note copied! Paste it in Primal to post.');
@@ -1752,6 +1758,31 @@
             setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '🔗 Copy Link'; }, 2000);
         });
     }
+
+    function channelShareParts(id) {
+        var hero = document.getElementById('hero');
+        var h1 = hero ? hero.querySelector('h1') : null;
+        var title = (h1 && h1.textContent) ? h1.textContent : String(id || '');
+        var text = title + ' — Bitcoin Education Archive';
+        var base = 'https://bitcoineducation.quest/#' + id;
+        var url = (typeof shareDeepUrl === 'function') ? shareDeepUrl(base) : base;
+        return { text: text, url: url };
+    }
+
+    function shareChannel(kind, id, btn) {
+        if (!/^[a-z0-9_-]+$/.test(String(id || ''))) return;
+        var parts = channelShareParts(id);
+        if (kind === 'x') {
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(parts.text) + '&url=' + encodeURIComponent(parts.url), '_blank', 'noopener,noreferrer');
+            return;
+        }
+        if (kind === 'nostr') {
+            shareNostr(parts.text, parts.url);
+            return;
+        }
+        if (kind === 'copy' && btn) copyLink(parts.url, btn);
+    }
+    window.shareChannel = shareChannel;
 
     // goRandom defined above with floating button support
 
@@ -2619,11 +2650,22 @@
     // =============================================
     // 📤 Share Answer
     // =============================================
+    function nachoSharePayload(text, code) {
+        var clean = String(text || '').slice(0, 1000).replace(/<[^>]+>/g, '').replace(/🦌/g, '');
+        if (typeof stripShareLinks === 'function') clean = stripShareLinks(clean);
+        var c = code == null ? (typeof liveRefCode === 'function' ? liveRefCode() : '') : String(code || '');
+        var url = /^[A-Za-z0-9]{6,28}$/.test(c)
+            ? 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c)
+            : 'https://bitcoineducation.quest';
+        var body = '🦌 I learned this from Nacho on Bitcoin Quest:\n\n' + clean.substring(0, 280) + '\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + url;
+        return { title: 'Bitcoin Fact from Nacho 🦌', text: body };
+    }
+
     window.nachoShareAnswer = function(text) {
-        var clean = text.replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
-        var shareText = '🦌 I learned this from Nacho at bitcoineducation.quest:\n\n' + clean.substring(0, 280);
+        var payload = nachoSharePayload(text);
+        var shareText = payload.text;
         if (navigator.share) {
-            navigator.share({ title: 'Bitcoin Fact from Nacho 🦌', text: shareText, url: 'https://bitcoineducation.quest' }).catch(function() {});
+            navigator.share(payload).catch(function() {});
         } else {
             // Fallback: copy to clipboard
             var ta = document.createElement('textarea');
@@ -3930,9 +3972,23 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close settings/username modal
             var um = document.getElementById('usernameModal');
             if (um && um.classList.contains('open')) { if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt(); return; }
-            // Close quest modal
+            // Close quest modal. A scholar exam keeps its own cancel path.
             var qm = document.getElementById('questModal');
-            if (qm && qm.classList.contains('open')) { qm.classList.remove('open'); return; }
+            if (qm && qm.classList.contains('open')) {
+                if (window._scholarExamActive) { qm.classList.remove('open'); return; }
+                if (typeof window.btcDismissQuest === 'function') { window.btcDismissQuest('esc'); return; }
+                qm.classList.remove('open');
+                return;
+            }
+            var triviaBubble = document.getElementById('nacho-bubble');
+            if (triviaBubble && triviaBubble.classList.contains('show') && triviaBubble.getAttribute('data-trivia') === '1') {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') { window.btcDismissBubbleQuiz('esc'); return; }
+                if (typeof window.btcDismissNachoTrivia === 'function') { window.btcDismissNachoTrivia('esc'); return; }
+            }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('esc');
+                return;
+            }
             // Close search overlay
             var so = document.getElementById('searchOverlay');
             if (so && so.style.display !== 'none') { so.style.display = 'none'; so.removeAttribute('data-open'); return; }
@@ -4446,6 +4502,191 @@ window.nachoQuizAnswer = function(btn, correct) {
         go(prevId);
     };
 
+    var CERT_VERIFY_URL = 'https://us-central1-bitcoin-education-archive.cloudfunctions.net/verifyCertificate';
+    var CERT_ID_RE = /^(?:CERT-)?[A-Za-z0-9-]{8,80}$/;
+    var CERT_TIMEOUT_MS = 10000;
+
+    function _certEl(tag, css, text) {
+        var node = document.createElement(tag);
+        if (css) node.style.cssText = css;
+        if (text != null) node.textContent = text;
+        return node;
+    }
+    function _certClear(node) {
+        while (node && node.firstChild) node.removeChild(node.firstChild);
+    }
+    function _certOpenQuest() {
+        var home = document.getElementById('home');
+        if (home) {
+            home.classList.remove('hidden');
+            home.style.visibility = '';
+        }
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.style.display = 'none';
+        window._certPainted = '';
+        if (typeof window.goHome === 'function') {
+            try { window.goHome(); return; } catch (e) {}
+        }
+        try { history.pushState({ home: true }, '', window.location.pathname + window.location.search); } catch (e2) {}
+    }
+    function _certActions(parent, certId, withRetry) {
+        var row = _certEl('div', 'display:flex;flex-direction:column;gap:8px;align-items:center;margin-top:16px;');
+        if (withRetry) {
+            var retry = _certEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Retry');
+            retry.type = 'button';
+            retry.addEventListener('click', function () {
+                window._certPainted = '';
+                if (typeof window.renderCertVerification === 'function') window.renderCertVerification(certId, true);
+                else _paintBundleCert(certId, true);
+            });
+            row.appendChild(retry);
+        }
+        var open = _certEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:transparent;color:var(--text,#e2e8f0);border:1px solid var(--border,#333);border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+        open.type = 'button';
+        open.addEventListener('click', _certOpenQuest);
+        row.appendChild(open);
+        parent.appendChild(row);
+    }
+    function _certMount(fc) {
+        _certClear(fc);
+        var wrap = _certEl('div', 'max-width:500px;margin:0 auto;padding:30px 16px 120px;text-align:center;');
+        fc.appendChild(wrap);
+        return wrap;
+    }
+    function _certPlaceholder(fc) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:2rem;margin-bottom:12px;', '⏳'));
+        wrap.appendChild(_certEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.95rem;', 'Verifying certificate…'));
+    }
+    function _certNotFound(fc) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:3rem;margin-bottom:12px;', '❌'));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.3rem;', 'Certificate Not Found'));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.5;margin:0;', 'This certificate ID does not exist or has been revoked.'));
+        _certActions(wrap, '', false);
+    }
+    function _certFailed(fc, certId, message) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:2rem;margin-bottom:12px;', '⚠️'));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.2rem;', 'Could not verify this certificate'));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.9rem;line-height:1.5;margin:0;', message));
+        _certActions(wrap, certId, true);
+    }
+    function _certTitle(quest) {
+        quest = String(quest || '');
+        if (quest === 'protocol-expert') return 'Bitcoin Protocol Expert';
+        if (quest.indexOf('trail_') === 0) return 'Nacho Trail Complete';
+        return 'Bitcoin Scholar';
+    }
+    function _certValid(fc, certId, payload) {
+        var quest = String(payload.quest || '');
+        var title = _certTitle(quest);
+        var technical = quest === 'protocol-expert';
+        var emoji = technical ? '🛠️' : (quest.indexOf('trail_') === 0 ? '🏔️' : '🎓');
+        var color = technical ? '#3b82f6' : '#f7931a';
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;color:#22c55e;font-size:0.8rem;font-weight:700;margin-bottom:16px;', '✅ VERIFIED CERTIFICATE'));
+        wrap.appendChild(_certEl('div', 'font-size:4rem;margin:8px 0 12px;', emoji));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);font-size:1.4rem;font-weight:900;margin:0 0 4px;', title));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Education Archive Certification'));
+        var card = _certEl('div', 'background:var(--card-bg,#141425);border:2px solid ' + color + ';border-radius:20px;padding:24px;margin:0 auto 20px;text-align:center;max-width:440px;');
+        card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;', 'AWARDED TO'));
+        card.appendChild(_certEl('div', 'color:var(--heading,#e2e8f0);font-size:1.5rem;font-weight:900;margin-bottom:16px;word-break:break-word;', String(payload.name || '')));
+        var line = _certEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.6;margin-bottom:16px;');
+        line.appendChild(document.createTextNode('has successfully passed the'));
+        line.appendChild(_certEl('br'));
+        line.appendChild(_certEl('strong', 'color:' + color + ';', title));
+        line.appendChild(_certEl('br'));
+        line.appendChild(document.createTextNode('certification examination.'));
+        card.appendChild(line);
+        if (payload.score) card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;margin-bottom:12px;', 'Score: ' + String(payload.score)));
+        card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;', 'Date: ' + String(payload.date || '')));
+        var idRow = _certEl('div', 'margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#333);');
+        idRow.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.65rem;font-family:monospace;word-break:break-all;', 'Certificate ID: ' + String(certId)));
+        card.appendChild(idRow);
+        wrap.appendChild(card);
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.82rem;margin:0 0 16px;', 'Want to earn your own Bitcoin certification?'));
+        var learn = _certEl('button', 'width:100%;max-width:320px;padding:14px 28px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+        learn.type = 'button';
+        learn.addEventListener('click', _certOpenQuest);
+        wrap.appendChild(learn);
+        window._certPainted = certId;
+        try { fc.scrollTop = 0; } catch (e) {}
+    }
+    function _certTimedOut(err) {
+        if (!err) return false;
+        if (err.name === 'AbortError' || err.name === 'TimeoutError') return true;
+        var msg = String(err.message || '');
+        return msg.indexOf('abort') !== -1 || msg.indexOf('Abort') !== -1 || msg.indexOf('timed out') !== -1;
+    }
+    function _bundleBeginCertVerify(certId, force) {
+        if (!force && window._certVerify && window._certVerifyId === certId) return window._certVerify;
+        window._certVerifyId = certId;
+        window._certVerifyGen = (window._certVerifyGen || 0) + 1;
+        var gen = window._certVerifyGen;
+        var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, CERT_TIMEOUT_MS);
+        var promise = fetch(CERT_VERIFY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { certId: certId } }),
+            signal: ctrl ? ctrl.signal : undefined
+        }).then(function (res) {
+            return res.json().then(function (body) {
+                if (!res.ok || (body && body.error)) {
+                    var err = new Error((body && body.error && body.error.message) || 'Certificate check failed');
+                    throw err;
+                }
+                return (body && body.result) ? body.result : {};
+            });
+        });
+        var settled = promise.then(function (result) {
+            clearTimeout(timer);
+            return result;
+        }, function (err) {
+            clearTimeout(timer);
+            throw err;
+        });
+        settled._gen = gen;
+        window._certVerify = settled;
+        return settled;
+    }
+    function _paintBundleCert(certId, force) {
+        var fc = document.getElementById('forumContainer');
+        if (!fc) return;
+        if (!CERT_ID_RE.test(certId)) {
+            _certNotFound(fc);
+            return;
+        }
+        if (!force && window._certPainted === certId) return;
+        if (!force && window._bundleCertPainting === certId) return;
+        if (!force && window._certVerifyId === certId) {
+            var already = fc.textContent || '';
+            if (already.indexOf('Verifying certificate') !== -1 || already.indexOf('VERIFIED CERTIFICATE') !== -1 || already.indexOf('Could not verify') !== -1) return;
+        }
+        window._bundleCertPainting = certId;
+        window._certPainted = '';
+        fc.style.display = 'block';
+        _certPlaceholder(fc);
+        var promise = _bundleBeginCertVerify(certId, !!force);
+        var gen = promise._gen;
+        promise.then(function (payload) {
+            if (window._certVerifyGen !== gen) return;
+            window._bundleCertPainting = '';
+            if (!payload || payload.valid !== true) {
+                _certNotFound(fc);
+                return;
+            }
+            _certValid(fc, certId, payload);
+        }, function (err) {
+            if (window._certVerifyGen !== gen) return;
+            window._bundleCertPainting = '';
+            _certFailed(fc, certId, _certTimedOut(err)
+                ? 'Verification timed out. The certificate check took longer than 10 seconds.'
+                : 'Something went wrong verifying this certificate. Check your connection and try again.');
+        });
+    }
+
     window.go = async function go(id, btn, fromPopState) {
         if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         if (id === 'questhub' || id === 'raid' || id === 'raid-hub') {
@@ -4475,6 +4716,67 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (window._nachoMode && !fromPopState) {
             if (typeof nachoChatSave === 'function') nachoChatSave();
             window._nachoReturnPending = true;
+        }
+
+        if (typeof id === 'string' && id.indexOf('cert/') === 0) {
+            var _certRaw = id.slice('cert/'.length).split(/[?#]/)[0];
+            var _certOk = CERT_ID_RE.test(_certRaw);
+            if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+            var _homeEl = document.getElementById('home');
+            if (_homeEl) _homeEl.classList.add('hidden');
+            var _heroEl = document.getElementById('hero');
+            if (_heroEl) { _heroEl.textContent = ''; _heroEl.style.display = 'none'; }
+            var _msgsEl = document.getElementById('msgs');
+            if (_msgsEl) { _msgsEl.textContent = ''; _msgsEl.style.display = 'none'; }
+            var _fc = document.getElementById('forumContainer');
+            if (_fc) _fc.style.display = 'block';
+            // Fragment-only push keeps ?ref= until captureReferralCode stores it.
+            try { history.pushState({ channel: id }, '', '#' + id); } catch (e) {}
+            if (!_certOk) {
+                if (_fc) _certNotFound(_fc);
+                return;
+            }
+            // Start the callable over fetch even when an earlier script already did.
+            // Reuses window._certVerify for this id, so App Check cannot block it.
+            _bundleBeginCertVerify(_certRaw, false);
+            // Paint immediately. The old 4s poll called a helper that returned
+            // without drawing anything when renderCertVerification was still missing.
+            function _showCertPage() {
+                if (typeof window.renderCertVerification === 'function') {
+                    window.renderCertVerification(_certRaw);
+                    return;
+                }
+                _paintBundleCert(_certRaw, false);
+            }
+            _showCertPage();
+            if (typeof window.renderCertVerification !== 'function') {
+                var _certSrc = 'shareable-certs.js?v=20261028_v2410';
+                var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
+                if (!_existingCertScript) {
+                    var _certScript = document.createElement('script');
+                    _certScript.src = _certSrc;
+                    _certScript.onload = function () {
+                        if (window._certPainted === _certRaw) return;
+                        _showCertPage();
+                    };
+                    document.head.appendChild(_certScript);
+                } else {
+                    var _certWait = 0;
+                    var _certTimer = setInterval(function () {
+                        _certWait += 50;
+                        if (typeof window.renderCertVerification === 'function') {
+                            clearInterval(_certTimer);
+                            if (window._certPainted !== _certRaw) window.renderCertVerification(_certRaw);
+                        } else if (_certWait > 4000) {
+                            clearInterval(_certTimer);
+                            if (window._certPainted !== _certRaw) _paintBundleCert(_certRaw, false);
+                        }
+                    }, 50);
+                }
+            }
+            var _mainEl = document.getElementById('main');
+            if (_mainEl) _mainEl.scrollTop = 0;
+            return;
         }
 
         // Show skeleton loader
@@ -4673,8 +4975,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
         const isGallery = GALLERY_CHANNELS.includes(id);
 
-        const shareUrl = 'https://bitcoineducation.quest/#' + id;
-        const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
                 '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
@@ -4684,9 +4984,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
-                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'x\', \'' + id + '\')">𝕏 Share</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'nostr\', \'' + id + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'copy\', \'' + id + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
@@ -5076,6 +5376,25 @@ window.nachoQuizAnswer = function(btn, correct) {
         for (const page of APP_PAGES) {
             if (page.title.toLowerCase().includes(q) || page.keywords.includes(q) || page.desc.toLowerCase().includes(q)) {
                 appResults.push({ key: page.id, title: page.title, cat: '⚡ App', match: page.desc, action: page.action });
+            }
+        }
+        if (window.EARN_XP_SECTIONS && q.length >= 3) {
+            var earnHits = 0;
+            for (var ei = 0; ei < window.EARN_XP_SECTIONS.length && earnHits < 3; ei++) {
+                var earnSection = window.EARN_XP_SECTIONS[ei];
+                var earnTitle = String(earnSection.title || '').toLowerCase();
+                var earnBody = (earnSection.items || []).join('\n').replace(/<[^>]+>/g, '').toLowerCase();
+                var titleHit = earnTitle.indexOf(q) !== -1;
+                var bodyHit = q.length >= 4 && earnBody.indexOf(q) !== -1;
+                if (!titleHit && !bodyHit) continue;
+                earnHits++;
+                appResults.push({
+                    key: '_' + earnSection.id,
+                    title: earnSection.title + ' (' + earnSection.items.length + ')',
+                    cat: '⚡ How to Earn XP',
+                    match: 'Settings → Sats',
+                    action: "if(window.openEarnXpSection)window.openEarnXpSection('" + earnSection.id + "')"
+                });
             }
         }
 
@@ -5620,16 +5939,8 @@ if (locked) {
             setTimeout(checkPredictionResult, 4000);
         }
 
-        // Pre-warm Pleb Shop iframe only — it's the marketplace landing tab.
-        // Other embeds load on demand. Delayed 5s to avoid competing with initial page load.
-        setTimeout(function() {
-            if (document.getElementById('plebshopIframeWrap')) return; // already loaded
-            var psWrap = document.createElement('div');
-            psWrap.id = 'plebshopIframeWrap';
-            psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-            psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-            document.body.appendChild(psWrap);
-        }, 5000);
+        // Pleb Shop loads when the marketplace opens it. Do not preload that
+        // iframe on the homepage.
 
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
@@ -5699,9 +6010,26 @@ if (locked) {
             if (_learnMenu) { _learnMenu.remove(); return; }
             var _appsMenu = document.getElementById('appsMenu');
             if (_appsMenu && _appsMenu.style.display === 'block') { _appsMenu.style.display = 'none'; return; }
-            // Close quest/scholar modal if open
+            // Close a quest before leaving the page. The button path sets the
+            // pending flag and lets this pop finish the dismiss.
             var _questModal = document.getElementById('questModal');
+            if (window._btcQuestBackPending || (_questModal && _questModal.classList.contains('open') && !window._scholarExamActive)) {
+                if (typeof window.btcDismissQuest === 'function') window.btcDismissQuest('back');
+                else if (_questModal) _questModal.classList.remove('open');
+                return;
+            }
             if (_questModal && _questModal.classList.contains('open')) { _questModal.classList.remove('open'); return; }
+            var _triviaBubble = document.getElementById('nacho-bubble');
+            if (window._btcBubbleBackPending || window._btcTriviaBackPending || (_triviaBubble && _triviaBubble.classList.contains('show') && _triviaBubble.getAttribute('data-trivia') === '1')) {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') window.btcDismissBubbleQuiz('back');
+                else if (typeof window.btcDismissNachoTrivia === 'function') window.btcDismissNachoTrivia('back');
+                return;
+            }
+            if (window._tdConvoBackPending) { window._tdConvoBackPending = false; return; }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('back');
+                return;
+            }
 
             // Return to guide after exploring a feature
             if (state.returnToGuide) {
@@ -5957,7 +6285,7 @@ if (locked) {
         console.log('[ROUTE] Routing to:', hash);
         // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
         // so the script is ready when _routeApp starts polling for it.
-        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app'];
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app','cert'];
         if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
             window._loadDeferred();
         }
@@ -6199,6 +6527,7 @@ if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
 if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;
 if (typeof copyLink !== 'undefined') window.copyLink = copyLink;
+if (typeof shareChannel !== 'undefined') window.shareChannel = shareChannel;
 if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
 if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;
