@@ -195,6 +195,43 @@ async function main() {
         await assertFails(getDoc(doc(anon, 'buddy_pool', 'alice')));
         await assertFails(getDoc(doc(anon, 'buddy_matches', 'alice_bob')));
     });
+    await check('a normal direct message create still passes', function () {
+        return assertSucceeds(setDoc(doc(alice, 'dm_conversations', 'alice_bob'), {
+            participants: ['bob', 'alice'],
+            participantNames: { alice: 'Alice', bob: 'Bob' },
+            lastMessage: 'hi',
+            lastSenderUid: 'alice',
+            unread_bob: 1,
+        }));
+    });
+    await check('a signed-in user cannot pre-create another pair conversation', function () {
+        return assertFails(setDoc(doc(cara, 'dm_conversations', 'alice_bob'), {
+            participants: ['cara', 'altuser1'],
+            lastMessage: 'planted',
+        }));
+    });
+    await check('a signed-in user cannot plant their uid on another pair id', function () {
+        return assertFails(setDoc(doc(cara, 'dm_conversations', 'alice_bob'), {
+            participants: ['alice', 'cara'],
+            lastMessage: 'planted',
+        }));
+    });
+    await check('a conversation id must be the sorted pair', function () {
+        return assertFails(setDoc(doc(alice, 'dm_conversations', 'bob_alice'), {
+            participants: ['alice', 'bob'],
+            lastMessage: 'hi',
+        }));
+    });
+    await check('nostr and lightning conversation ids are accepted', function () {
+        const ln = 'ln:' + 'a'.repeat(16);
+        const nostr = 'nostr:' + 'b'.repeat(16);
+        const id = ln < nostr ? ln + '_' + nostr : nostr + '_' + ln;
+        const lnUser = authed(env, ln);
+        return assertSucceeds(setDoc(doc(lnUser, 'dm_conversations', id), {
+            participants: [nostr, ln],
+            lastMessage: 'hi',
+        }));
+    });
 
     await env.cleanup();
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

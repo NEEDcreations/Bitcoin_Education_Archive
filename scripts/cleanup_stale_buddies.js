@@ -48,6 +48,11 @@ function aprilWindow(ms) {
     return ms >= APRIL_START && ms < APRIL_END;
 }
 
+function shortUid(uid) {
+    const s = String(uid || '');
+    return s.length <= 6 ? s : s.slice(0, 6);
+}
+
 function participantIds(data) {
     const row = data || {};
     const fromSides = [row.user1 && row.user1.uid, row.user2 && row.user2.uid].filter(Boolean);
@@ -77,7 +82,7 @@ function planCleanup(matches, conversations) {
             kind: 'buddy_match',
             id: row.id,
             matchedAtMs: matchTime(row.data),
-            uids: participantIds(row.data),
+            uids: participantIds(row.data).map(shortUid),
         });
     });
     april.sort(function (a, b) { return a.matchedAtMs - b.matchedAtMs || (a.id < b.id ? -1 : 1); });
@@ -87,7 +92,7 @@ function planCleanup(matches, conversations) {
         empty.push({
             kind: 'buddy_conversation',
             id: row.id,
-            uids: Array.isArray(row.data.participants) ? row.data.participants.filter(Boolean) : [],
+            uids: (Array.isArray(row.data.participants) ? row.data.participants.filter(Boolean) : []).map(shortUid),
         });
     });
     empty.sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });
@@ -189,6 +194,7 @@ module.exports = {
     isEmptyBuddyConversation: isEmptyBuddyConversation,
     planCleanup: planCleanup,
     participantIds: participantIds,
+    shortUid: shortUid,
 };
 
 if (require.main === module) {

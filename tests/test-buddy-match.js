@@ -69,6 +69,10 @@ test('intro is capped and stripped to plain text', function () {
     assert.ok(clean.indexOf('onerror') === -1, clean);
     assert.ok(clean.length <= 200, String(clean.length));
     assert.ok(clean.indexOf('Hello') !== -1, clean);
+    const huge = '<b>' + 'y'.repeat(200000);
+    const capped = buddy.plainText(huge, 200);
+    assert.ok(capped.length <= 200);
+    assert.ok(capped.indexOf('<') === -1);
 });
 
 test('username comes from the profile, never a client string', function () {
@@ -202,42 +206,66 @@ test('rate limit and a missing username fail closed', function () {
 });
 
 test('xp is 20 only after both buddies write, and only once per 30 days', function () {
-    const convo = { isBuddyMatch: true, participants: ['aliceuid', 'bobuidxx'] };
-    const first = buddy.planBuddyXp({
-        convo: convo,
-        match: {},
+    const pair = ['aliceuid', 'bobuidxx'];
+    const convoId = buddy.matchIdFor(pair[0], pair[1]);
+    const convo = { isBuddyMatch: true, participants: ['attacker', 'alt'] };
+    const base = { convo: convo, convoId: convoId, users: {}, now: NOW };
+    const first = buddy.planBuddyXp(Object.assign({}, base, {
+        match: { participants: pair },
         message: { text: 'hello', senderUid: 'aliceuid' },
         senderUid: 'aliceuid',
         messageId: 'm1',
-        users: {},
-        now: NOW,
-    });
+    }));
     assert.strictEqual(first.awards.length, 0);
     assert.strictEqual(first.spoke.aliceuid, true);
-    const second = buddy.planBuddyXp({
-        convo: convo,
-        match: { spoke: { aliceuid: true } },
+    const second = buddy.planBuddyXp(Object.assign({}, base, {
+        match: { participants: pair, spoke: { aliceuid: true } },
         message: { text: 'hi', senderUid: 'bobuidxx' },
         senderUid: 'bobuidxx',
         messageId: 'm2',
         users: { aliceuid: {}, bobuidxx: {} },
-        now: NOW,
-    });
+    }));
     assert.deepStrictEqual(second.awards.map(function (row) { return row.uid; }).sort(), ['aliceuid', 'bobuidxx']);
+    assert.ok(second.awards.every(function (row) { return row.uid !== 'attacker' && row.uid !== 'alt'; }));
     assert.strictEqual(second.awards[0].amount, 20);
-    const cooled = buddy.planBuddyXp({
-        convo: convo,
-        match: { spoke: { aliceuid: true } },
+    const cooled = buddy.planBuddyXp(Object.assign({}, base, {
+        match: { participants: pair, spoke: { aliceuid: true } },
         message: { text: 'hi', senderUid: 'bobuidxx' },
         senderUid: 'bobuidxx',
         messageId: 'm3',
         users: { aliceuid: { buddyXpGrantedAt: NOW - DAY }, bobuidxx: {} },
-        now: NOW,
-    });
+    }));
     assert.deepStrictEqual(cooled.awards.map(function (row) { return row.uid; }), ['bobuidxx']);
+    const banned = buddy.planBuddyXp(Object.assign({}, base, {
+        match: { participants: pair, spoke: { aliceuid: true } },
+        message: { text: 'hi', senderUid: 'bobuidxx' },
+        senderUid: 'bobuidxx',
+        messageId: 'm4',
+        users: { aliceuid: {}, bobuidxx: { banned: true } },
+    }));
+    assert.strictEqual(banned.skip, 'banned');
+    const ledgerBan = buddy.planBuddyXp(Object.assign({}, base, {
+        match: { participants: pair, spoke: { aliceuid: true } },
+        message: { text: 'hi', senderUid: 'bobuidxx' },
+        senderUid: 'bobuidxx',
+        messageId: 'm4b',
+        users: { aliceuid: {}, bobuidxx: {} },
+        ledgers: { bobuidxx: { banned: true } },
+    }));
+    assert.strictEqual(ledgerBan.skip, 'banned');
+    const partnerLedger = buddy.planBuddyXp(Object.assign({}, base, {
+        match: { participants: pair, spoke: { aliceuid: true } },
+        message: { text: 'hi', senderUid: 'bobuidxx' },
+        senderUid: 'bobuidxx',
+        messageId: 'm4c',
+        users: { aliceuid: {}, bobuidxx: {} },
+        ledgers: { aliceuid: { banned: true } },
+    }));
+    assert.deepStrictEqual(partnerLedger.awards.map(function (row) { return row.uid; }), ['bobuidxx']);
     const bot = buddy.planBuddyXp({
         convo: convo,
-        match: {},
+        match: { participants: pair },
+        convoId: convoId,
         message: { text: 'welcome', senderUid: 'nacho-bot', isNachoAuto: true },
         senderUid: 'nacho-bot',
         messageId: 'welcome',
@@ -245,6 +273,14 @@ test('xp is 20 only after both buddies write, and only once per 30 days', functi
         now: NOW,
     });
     assert.strictEqual(bot.skip, 'bot');
+    const wrongId = buddy.planBuddyXp(Object.assign({}, base, {
+        convoId: 'attacker_alt',
+        match: { participants: pair },
+        message: { text: 'hello', senderUid: 'aliceuid' },
+        senderUid: 'aliceuid',
+        messageId: 'm5',
+    }));
+    assert.strictEqual(wrongId.skip, 'convo-id');
 });
 
 test('quiet matches expire after 30 days and pool entries after 7', function () {
@@ -314,19 +350,29 @@ test('a missing match clears the stale pointer and an existing chat is merged', 
         lastMessage: 'hello',
         lastSenderUid: 'aliceuid',
     };
-    assert.deepStrictEqual(buddy.convoPatch(true, full), {
-        isBuddyMatch: true,
-        buddyMatchId: 'aliceuid_bobuidxx',
+    assert.deepStrictEqual(buddy.convoPatch({ participants: ['bobuidxx', 'aliceuid'] }, full), {
+        overwrite: false,
+        data: { isBuddyMatch: true, buddyMatchId: 'aliceuid_bobuidxx' },
     });
-    assert.strictEqual(buddy.convoPatch(false, full).lastMessage, 'hello');
+    const planted = buddy.convoPatch({ participants: ['attacker', 'alt'] }, full);
+    assert.strictEqual(planted.overwrite, true);
+    assert.deepStrictEqual(planted.data.participants, full.participants);
+    assert.strictEqual(buddy.convoPatch(null, full).overwrite, true);
+    assert.strictEqual(buddy.outsiderSender('attacker', full.participants), true);
+    assert.strictEqual(buddy.outsiderSender('', full.participants), true);
+    assert.strictEqual(buddy.outsiderSender('aliceuid', full.participants), false);
+    assert.strictEqual(buddy.outsiderSender('nacho-bot', full.participants), false);
 });
 
 test('buddy xp remembers only a short list of message ids', function () {
     const ids = [];
     for (let i = 0; i < 30; i++) ids.push('m' + i);
+    const pair = ['aliceuid', 'bobuidxx'];
+    const convoId = buddy.matchIdFor(pair[0], pair[1]);
     const capped = buddy.planBuddyXp({
-        convo: { isBuddyMatch: true, participants: ['aliceuid', 'bobuidxx'] },
-        match: { recentMessageIds: ids, spoke: { bobuidxx: true }, xpPaid: { bobuidxx: true } },
+        convo: { isBuddyMatch: true, participants: ['attacker', 'alt'] },
+        convoId: convoId,
+        match: { participants: pair, recentMessageIds: ids, spoke: { bobuidxx: true }, xpPaid: { bobuidxx: true } },
         message: { text: 'again', senderUid: 'aliceuid' },
         senderUid: 'aliceuid',
         messageId: 'm-new',
@@ -337,8 +383,9 @@ test('buddy xp remembers only a short list of message ids', function () {
     assert.ok(capped.recentIds.indexOf('m-new') !== -1);
     assert.ok(capped.recentIds.indexOf('m0') === -1);
     const replay = buddy.planBuddyXp({
-        convo: { isBuddyMatch: true, participants: ['aliceuid', 'bobuidxx'] },
-        match: { recentMessageIds: capped.recentIds },
+        convo: { isBuddyMatch: true, participants: ['attacker', 'alt'] },
+        convoId: convoId,
+        match: { participants: pair, recentMessageIds: capped.recentIds },
         message: { text: 'again', senderUid: 'aliceuid' },
         senderUid: 'aliceuid',
         messageId: 'm-new',
@@ -376,7 +423,7 @@ test('cleanup lists the eight April 2026 matches and empty buddy conversations',
         data: { matchedAtMs: Date.parse('2026-05-02T00:00:00Z'), user1: { uid: 'lateraaa' }, user2: { uid: 'laterbbb' } },
     });
     const conversations = [
-        { id: 'empty_one', data: { isBuddyMatch: true, participants: ['u0aaaa', 'v0bbbb'] }, messages: [{ senderUid: 'nacho-bot', isNachoAuto: true }] },
+        { id: 'empty_one', data: { isBuddyMatch: true, participants: ['u0aaaaLONG', 'v0bbbbLONG'] }, messages: [{ senderUid: 'nacho-bot', isNachoAuto: true }] },
         { id: 'lived_one', data: { isBuddyMatch: true, participants: ['u1aaaa', 'v1bbbb'] }, messages: [{ senderUid: 'u1aaaa', text: 'hi' }] },
         { id: 'not_buddy', data: { isBuddyMatch: false, participants: ['u2aaaa'] }, messages: [] },
     ];
@@ -384,6 +431,8 @@ test('cleanup lists the eight April 2026 matches and empty buddy conversations',
     assert.strictEqual(plan.matches.length, 8);
     assert.ok(plan.matches.every(function (row) { return cleanup.isApril2026Match(matches.find(function (item) { return item.id === row.id; }).data); }));
     assert.deepStrictEqual(plan.conversations.map(function (row) { return row.id; }), ['empty_one']);
+    assert.deepStrictEqual(plan.conversations[0].uids, ['u0aaaa', 'v0bbbb']);
+    assert.ok(plan.conversations[0].uids.every(function (uid) { return uid.length <= 6; }));
 });
 
 test('client does not render buddy text as HTML or award its own XP', function () {

@@ -46,7 +46,10 @@ function buddyError(code, message) {
 function plainText(raw, max) {
     const cap = max || 200;
     if (typeof raw !== 'string') return '';
-    let s = raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ');
+    // Bound the work before tag and entity cleanup. A huge intro must not
+    // be scanned in full.
+    let s = raw.length > cap ? raw.slice(0, cap) : raw;
+    s = s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ');
     for (let pass = 0; pass < 3; pass++) {
         const next = s
             .replace(/<[^>]*>/g, ' ')
@@ -368,8 +371,15 @@ function planBuddyXp(input) {
     if (!sender || sender === NACHO_UID || msg.isNachoAuto === true || msg.senderUid === NACHO_UID) {
         return { skip: 'bot', awards: [] };
     }
-    const participants = Array.isArray(convo.participants) ? convo.participants.filter(Boolean) : [];
+    const participants = matchPair(input.match);
+    const convoId = String(input.convoId || '');
+    if (!participants || convoId !== matchIdFor(participants[0], participants[1])) {
+        return { skip: 'convo-id', awards: [] };
+    }
     if (participants.indexOf(sender) === -1) return { skip: 'not-participant', awards: [] };
+    if (rewardBlocked((input.users && input.users[sender]) || {}, (input.ledgers && input.ledgers[sender]) || null)) {
+        return { skip: 'banned', awards: [] };
+    }
     const text = typeof msg.text === 'string' ? msg.text.trim() : '';
     const image = typeof msg.imageUrl === 'string' && /^https:\/\//.test(msg.imageUrl);
     if (!text && !image) return { skip: 'empty', awards: [] };
@@ -389,6 +399,7 @@ function planBuddyXp(input) {
             if (!id || id === NACHO_UID) return;
             if (match.xpPaid && match.xpPaid[id]) return;
             const person = (input.users && input.users[id]) || {};
+            if (rewardBlocked(person, (input.ledgers && input.ledgers[id]) || null)) return;
             const at = Number(person.buddyXpGrantedAt) || 0;
             if (at && input.now - at < XP_WINDOW_MS) return;
             awards.push({ uid: id, amount: BUDDY_XP });
@@ -423,11 +434,47 @@ function pointerIsDangling(activeId, matchExists) {
     return typeof activeId === 'string' && activeId.length > 0 && matchExists === false;
 }
 
-function convoPatch(existing, full) {
-    if (existing) {
-        return { isBuddyMatch: true, buddyMatchId: full.buddyMatchId };
+function pairList(list) {
+    if (!Array.isArray(list) || list.length !== 2) return null;
+    const copy = [String(list[0] || ''), String(list[1] || '')];
+    if (!copy[0] || !copy[1] || copy[0] === copy[1]) return null;
+    copy.sort();
+    return copy;
+}
+
+function samePair(left, right) {
+    const a = pairList(left);
+    const b = pairList(right);
+    if (!a || !b) return false;
+    return a[0] === b[0] && a[1] === b[1];
+}
+
+function matchPair(match) {
+    const src = match || {};
+    if (src.user1 && src.user2 && src.user1.uid && src.user2.uid) {
+        return pairList([src.user1.uid, src.user2.uid]);
     }
-    return full;
+    return pairList(src.participants);
+}
+
+// Small merge only when the existing conversation is already this exact pair.
+// Anything else is replaced so a pre-created doc cannot keep a third person.
+function convoPatch(existingData, full) {
+    const pair = full && full.participants;
+    if (existingData && samePair(existingData.participants, pair)) {
+        return {
+            overwrite: false,
+            data: { isBuddyMatch: true, buddyMatchId: full.buddyMatchId },
+        };
+    }
+    return { overwrite: true, data: full };
+}
+
+function outsiderSender(sender, pair) {
+    if (sender === NACHO_UID) return false;
+    const list = pairList(pair);
+    if (!list || !sender) return true;
+    return list.indexOf(String(sender)) === -1;
 }
 
 function matchExpired(data, now) {
@@ -573,10 +620,31 @@ async function requestInTransaction(tx, db, admin, input) {
     });
     if (plan.error) throw plan.error;
 
-    let existingConvo = false;
+    let convoWrite = null;
+    const outsiderRefs = [];
     if (plan.status === 'matched' && plan.created) {
-        const convoSnap = await tx.get(db.collection('dm_conversations').doc(plan.matchId));
-        existingConvo = !!(convoSnap && convoSnap.exists);
+        const convoRef = db.collection('dm_conversations').doc(plan.matchId);
+        const convoSnap = await tx.get(convoRef);
+        const names = {};
+        names[plan.storedMatch.user1.uid] = plan.storedMatch.user1.username;
+        names[plan.storedMatch.user2.uid] = plan.storedMatch.user2.username;
+        convoWrite = convoPatch(convoSnap && convoSnap.exists ? (convoSnap.data() || {}) : null, {
+            participants: plan.storedMatch.participants,
+            participantNames: names,
+            isBuddyMatch: true,
+            buddyMatchId: plan.matchId,
+            createdAt: true,
+            lastMessage: plan.welcome.slice(0, 100),
+            lastMessageTime: true,
+            lastSenderUid: NACHO_UID,
+        });
+        if (convoWrite.overwrite && convoSnap && convoSnap.exists) {
+            const msgSnap = await tx.get(convoRef.collection('messages').limit(100));
+            docsOf(msgSnap).forEach(function (doc) {
+                const senderUid = (doc.data() || {}).senderUid;
+                if (outsiderSender(senderUid, plan.storedMatch.participants)) outsiderRefs.push(doc.ref);
+            });
+        }
     }
 
     const ts = admin.firestore.FieldValue.serverTimestamp();
@@ -593,19 +661,12 @@ async function requestInTransaction(tx, db, admin, input) {
         tx.delete(poolRef);
         if (plan.partnerPoolId) tx.delete(db.collection('buddy_pool').doc(plan.partnerPoolId));
         tx.set(matchRef, Object.assign({}, plan.storedMatch, { matchedAt: ts }));
-        const names = {};
-        names[plan.storedMatch.user1.uid] = plan.storedMatch.user1.username;
-        names[plan.storedMatch.user2.uid] = plan.storedMatch.user2.username;
-        tx.set(convoRef, convoPatch(existingConvo, {
-            participants: plan.storedMatch.participants,
-            participantNames: names,
-            isBuddyMatch: true,
-            buddyMatchId: plan.matchId,
-            createdAt: ts,
-            lastMessage: plan.welcome.slice(0, 100),
-            lastMessageTime: ts,
-            lastSenderUid: NACHO_UID,
-        }), { merge: true });
+        const written = Object.assign({}, convoWrite.data);
+        if (written.createdAt === true) written.createdAt = ts;
+        if (written.lastMessageTime === true) written.lastMessageTime = ts;
+        if (convoWrite.overwrite) tx.set(convoRef, written);
+        else tx.set(convoRef, written, { merge: true });
+        outsiderRefs.forEach(function (ref) { tx.delete(ref); });
         tx.set(convoRef.collection('messages').doc('welcome'), {
             senderUid: NACHO_UID,
             senderName: 'Nacho',
@@ -904,30 +965,34 @@ function createBuddyHandlers(deps) {
                 const convo = convoSnap.data() || {};
                 if (convo.isBuddyMatch !== true) return;
                 const match = matchSnap.data() || {};
-                const participants = Array.isArray(convo.participants) ? convo.participants : [];
+                const participants = matchPair(match);
+                if (!participants || convoId !== matchIdFor(participants[0], participants[1])) return;
+                if (participants.indexOf(sender) === -1) return;
                 const userSnaps = {};
                 const users = {};
+                const ledgers = {};
                 for (let i = 0; i < participants.length; i++) {
                     const person = participants[i];
-                    if (!person || person === NACHO_UID) continue;
                     const ref = db.collection('users').doc(person);
                     const personSnap = await tx.get(ref);
+                    const ledgerSnap = await tx.get(db.collection('faucet_ledger').doc(person));
                     userSnaps[person] = { ref: ref, snap: personSnap };
                     users[person] = personSnap.exists ? (personSnap.data() || {}) : {};
+                    ledgers[person] = ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
                 }
                 const now = Date.now();
                 const decision = planBuddyXp({
                     convo: convo,
+                    convoId: convoId,
                     match: match,
                     message: message,
                     senderUid: sender,
                     messageId: messageId,
                     users: users,
+                    ledgers: ledgers,
                     now: now,
                 });
-                if (decision.skip === 'not-buddy' || decision.skip === 'bot' || decision.skip === 'empty' || decision.skip === 'not-participant' || decision.skip === 'seen') {
-                    return;
-                }
+                if (decision.skip) return;
                 const xpPaid = Object.assign({}, match.xpPaid || {});
                 const day = offsetDateKey(now);
                 const ready = [];
@@ -1037,6 +1102,9 @@ module.exports = {
     poolExpired: poolExpired,
     pointerIsDangling: pointerIsDangling,
     convoPatch: convoPatch,
+    samePair: samePair,
+    matchPair: matchPair,
+    outsiderSender: outsiderSender,
     recentMessageIds: recentMessageIds,
     plainText: plainText,
     profileUsername: profileUsername,

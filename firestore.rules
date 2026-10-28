@@ -1057,12 +1057,29 @@ service cloud.firestore {
     // =============================================
     // DIRECT MESSAGES
     // =============================================
+    // Doc id is the two uids in code-unit order, joined by "_".
+    // Same builder as getConversationId and matchIdFor, so nostr: and ln:
+    // uids keep the colon and still sort as plain strings.
+    function dmSortedPairId(a, b) {
+      return a < b ? a + '_' + b : b + '_' + a;
+    }
+
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
       allow create: if request.auth != null
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.participants is list
+                    && request.resource.data.participants.size() == 2
+                    && request.resource.data.participants[0] is string
+                    && request.resource.data.participants[1] is string
+                    && request.resource.data.participants[0].size() > 0
+                    && request.resource.data.participants[0].size() <= 128
+                    && request.resource.data.participants[1].size() > 0
+                    && request.resource.data.participants[1].size() <= 128
+                    && request.resource.data.participants[0] != request.resource.data.participants[1]
+                    && convoId == dmSortedPairId(request.resource.data.participants[0], request.resource.data.participants[1])
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
                     && (!('participantNames' in request.resource.data)
                         || (request.resource.data.participantNames is map
