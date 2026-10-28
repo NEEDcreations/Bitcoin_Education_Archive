@@ -119,6 +119,72 @@ const password = { firebase: { sign_in_provider: 'password' } };
         await expect('admin claim cannot write an alert', function () {
             return setDoc(doc(admin, 'admin_dm_alerts', 'alert2'), { senderUid: 'admin1', alerted: true });
         }, false);
+        await expect('create cannot stamp another user as lastSenderUid', function () {
+            return setDoc(doc(cara, 'dm_conversations', 'cara_dave'), {
+                participants: ['cara', 'dave'],
+                lastSenderUid: 'dave',
+                lastMessage: 'spoofed preview'
+            });
+        }, false);
+        await expect('cannot stamp another user as lastSenderUid', function () {
+            return updateDoc(doc(bob, 'dm_conversations', 'alice_bob'), {
+                lastSenderUid: 'alice',
+                lastMessage: 'framed'
+            });
+        }, false);
+        await expect('sender can set their own lastSenderUid', function () {
+            return updateDoc(doc(bob, 'dm_conversations', 'alice_bob'), {
+                lastSenderUid: 'bob',
+                lastMessage: 'hello'
+            });
+        }, true);
+        await expect('lastMessage over 200 is denied', function () {
+            return updateDoc(doc(bob, 'dm_conversations', 'alice_bob'), {
+                lastSenderUid: 'bob',
+                lastMessage: new Array(202).join('x')
+            });
+        }, false);
+        await expect('paused user cannot create a conversation', function () {
+            return setDoc(doc(alice, 'dm_conversations', 'alice_cara'), {
+                participants: ['alice', 'cara'],
+                lastSenderUid: 'alice',
+                lastMessage: 'hello'
+            });
+        }, false);
+        await expect('paused user cannot update the preview', function () {
+            return updateDoc(doc(alice, 'dm_conversations', 'alice_bob'), {
+                lastMessage: 'still here',
+                lastSenderUid: 'alice'
+            });
+        }, false);
+        await expect('paused user can clear their own unread count', function () {
+            return updateDoc(doc(alice, 'dm_conversations', 'alice_bob'), { unread_alice: 0 });
+        }, true);
+        await expect('paused user cannot change the other unread count', function () {
+            return updateDoc(doc(alice, 'dm_conversations', 'alice_bob'), { unread_bob: 0 });
+        }, false);
+        await expect('paused user cannot create a marketplace message', function () {
+            return setDoc(doc(alice, 'marketplace_messages', 'mm1'), {
+                buyerUid: 'alice',
+                sellerUid: 'bob',
+                listingId: 'l1',
+                message: 'hi'
+            });
+        }, false);
+        await expect('enabled user can create a marketplace message', function () {
+            return setDoc(doc(bob, 'marketplace_messages', 'mm2'), {
+                buyerUid: 'bob',
+                sellerUid: 'alice',
+                listingId: 'l1',
+                message: 'hi'
+            });
+        }, true);
+        await expect('client cannot read the send log', function () {
+            return getDoc(doc(bob, 'dm_send_log', 'bob'));
+        }, false);
+        await expect('client cannot write the send log', function () {
+            return setDoc(doc(bob, 'dm_send_log', 'bob'), { sends: [{ at: 1 }] });
+        }, false);
     } finally {
         await env.cleanup();
     }

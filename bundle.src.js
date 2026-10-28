@@ -11785,6 +11785,13 @@ function _canAccountDM(targetUid) {
 
 // Server sets users/{uid}.dmDisabled. The client only shows the pause.
 var DM_PAUSED_NOTICE = 'Your messages are paused pending review';
+var DM_PREVIEW_MAX = 200;
+
+function dmPreviewText(text) {
+    text = String(text || '');
+    if (text.length > DM_PREVIEW_MAX) return text.substring(0, DM_PREVIEW_MAX);
+    return text;
+}
 
 function dmIsPausedLocal() {
     if (window._dmDisabled === true) return true;
@@ -13064,7 +13071,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     // Build conversation metadata (avoid computed property key issues)
     // For existing conversations, only update mutable fields (Firestore rules block participants/participantNames changes)
     var convoUpdateData = {
-        lastMessage: text,
+        lastMessage: dmPreviewText(text),
         lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
         lastSenderUid: myUid,
     };
@@ -13073,7 +13080,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     // Full data including participants — only used for new conversations
     var convoCreateData = {
         participants: [myUid, recipientUid],
-        lastMessage: text,
+        lastMessage: dmPreviewText(text),
         lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
         lastSenderUid: myUid,
     };

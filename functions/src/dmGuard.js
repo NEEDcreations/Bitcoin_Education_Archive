@@ -8,7 +8,11 @@
 // No DM-sending callable exists today. Client creates are blocked by rules
 // when users/{uid}.dmDisabled is true. Any future callable that writes a DM
 // must call assertDmSendAllowed before the write. The Admin SDK bypasses rules.
+//
+// Rate and duplicate signals come only from dm_send_log/{uid}, which this
+// trigger writes. Client-written conversation preview fields are never read.
 
+const crypto = require('crypto');
 const { isBip39Word } = require('./bip39-en');
 
 const SCORE_THRESHOLD = 60;
@@ -278,39 +282,77 @@ function scoreDmText(text, imageUrl) {
     };
 }
 
-function rateSignals(convoDocs, senderUid, nowMs, accountCreatedMs) {
+const SEND_LOG_CAP = 40;
+
+// Short hash of the normalized text. The send log never stores the message.
+function sendHash(text) {
+    const norm = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (norm.length < BLAST_MIN_CHARS) return '';
+    return crypto.createHash('sha256').update(norm).digest('hex').slice(0, 16);
+}
+
+// sends are rows this trigger wrote: { at, to, h, id }. Client conversation
+// fields are not a valid input and do not count.
+function rateSignals(sends, nowMs, accountCreatedMs) {
     const reasons = [];
     let score = 0;
-    let mass = 0;
-    const identicalCounts = Object.create(null);
-    const docs = convoDocs || [];
-    for (let i = 0; i < docs.length; i++) {
-        const data = docs[i] || {};
-        if (data.lastSenderUid !== senderUid) continue;
-        const at = timeMs(data.lastMessageTime);
-        if (!at) continue;
-        const parts = Array.isArray(data.participants) ? data.participants : [];
-        if (parts.indexOf(senderUid) === -1) continue;
-        const text = String(data.lastMessage || '').replace(/\s+/g, ' ').trim().toLowerCase();
-        if (nowMs - at <= MASS_WINDOW_MS) mass += 1;
-        if (text.length >= BLAST_MIN_CHARS && nowMs - at <= BLAST_WINDOW_MS) {
-            identicalCounts[text] = (identicalCounts[text] || 0) + 1;
+    const massTos = Object.create(null);
+    const blastTos = Object.create(null);
+    const rows = sends || [];
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i] || {};
+        const at = typeof row.at === 'number' ? row.at : 0;
+        const to = String(row.to || '');
+        if (!at || !to || nowMs - at < 0) continue;
+        if (nowMs - at <= MASS_WINDOW_MS) massTos[to] = true;
+        const hash = String(row.h || '');
+        if (hash && nowMs - at <= BLAST_WINDOW_MS) {
+            if (!blastTos[hash]) blastTos[hash] = Object.create(null);
+            blastTos[hash][to] = true;
         }
     }
     const isNew = accountCreatedMs > 0 && nowMs - accountCreatedMs >= 0 && nowMs - accountCreatedMs < NEW_ACCOUNT_MS;
-    if (isNew && mass >= MASS_DM_COUNT) {
+    if (isNew && Object.keys(massTos).length >= MASS_DM_COUNT) {
         reasons.push('mass_dm_new_account');
         score += 80;
     }
-    const keys = Object.keys(identicalCounts);
-    for (let k = 0; k < keys.length; k++) {
-        if (identicalCounts[keys[k]] >= BLAST_COUNT) {
+    const hashes = Object.keys(blastTos);
+    for (let h = 0; h < hashes.length; h++) {
+        if (Object.keys(blastTos[hashes[h]]).length >= BLAST_COUNT) {
             reasons.push('identical_blast');
             score += 80;
             break;
         }
     }
     return { score: score, reasons: reasons };
+}
+
+async function recordSend(db, senderUid, messageId, recipientUid, text, nowMs) {
+    const ref = db.collection('dm_send_log').doc(senderUid);
+    return db.runTransaction(async function (t) {
+        const cur = await t.get(ref);
+        const prev = cur && cur.exists && cur.data() && Array.isArray(cur.data().sends) ? cur.data().sends : [];
+        const cutoff = nowMs - BLAST_WINDOW_MS;
+        const sends = [];
+        let seen = false;
+        for (let i = 0; i < prev.length; i++) {
+            const row = prev[i];
+            if (!row || typeof row.at !== 'number' || row.at < cutoff) continue;
+            if (row.id === messageId) seen = true;
+            sends.push({ at: row.at, to: String(row.to || ''), h: String(row.h || ''), id: String(row.id || '') });
+        }
+        if (!seen) {
+            sends.push({
+                at: nowMs,
+                to: String(recipientUid || ''),
+                h: sendHash(text),
+                id: String(messageId || '')
+            });
+        }
+        while (sends.length > SEND_LOG_CAP) sends.shift();
+        t.set(ref, { sends: sends, updatedAt: nowMs });
+        return sends;
+    });
 }
 
 function timeMs(value) {
@@ -329,12 +371,12 @@ function assertDmSendAllowed(userData) {
     }
 }
 
+// Callable gate. The admin custom claim is required, unless the uid is on the
+// server admin uid list. An email claim is not accepted.
 function callerIsAdmin(caller) {
     if (!caller || !caller.uid) return false;
     if (caller.token && caller.token.admin === true) return true;
-    if (ADMIN_UIDS.indexOf(caller.uid) !== -1) return true;
-    const email = String((caller.token && (caller.token.email || caller.token.email_address)) || '').toLowerCase();
-    return !!email && ADMIN_EMAILS.indexOf(email) !== -1;
+    return ADMIN_UIDS.indexOf(caller.uid) !== -1;
 }
 
 function userRecordIsAdmin(uid, userData, authUser) {
@@ -416,49 +458,52 @@ async function handleDmMessageCreated(deps, event) {
 
     if (senderAdmin || recipientAdmin) {
         const side = senderAdmin && recipientAdmin ? 'both' : (senderAdmin ? 'sender' : 'recipient');
-        await writeOnce(db, 'admin_dm_alerts', docId, {
-            senderUid: senderUid,
-            recipientUid: recipientUid,
-            convoId: convoId,
-            messageId: messageId,
-            excerpt: excerpt,
-            adminSide: side,
-            alerted: false,
-            createdAt: createdAt
-        });
+        try {
+            await queueAdminAlert(db, convoId, {
+                senderUid: senderUid,
+                recipientUid: recipientUid,
+                messageId: messageId,
+                excerpt: excerpt,
+                adminSide: side,
+                createdAt: createdAt
+            });
+        } catch (e) {
+            console.warn('[onDmMessageGuard] alert', senderUid);
+        }
     }
 
-    if (msg.isNachoAuto === true) return { alertedAdmin: senderAdmin || recipientAdmin, flagged: false };
+    if (msg.isNachoAuto === true) return { alertedAdmin: senderAdmin || recipientAdmin, flagged: false, disabled: false };
 
     const textScore = scoreDmText(text, imageUrl);
-    let rate = { score: 0, reasons: [] };
+    const nowMs = Date.now();
+    let sends = [];
     try {
-        const recent = await db.collection('dm_conversations')
-            .where('participants', 'array-contains', senderUid)
-            .orderBy('lastMessageTime', 'desc')
-            .limit(12)
-            .get();
-        const docs = [];
-        recent.forEach(function (doc) { docs.push(doc.data() || {}); });
-        const created = senderAuth && senderAuth.metadata ? Date.parse(senderAuth.metadata.creationTime || '') : NaN;
-        rate = rateSignals(docs, senderUid, Date.now(), Number.isFinite(created) ? created : 0);
+        sends = await recordSend(db, senderUid, messageId, recipientUid, text, nowMs);
     } catch (e) {
-        rate = { score: 0, reasons: [] };
+        sends = [];
     }
-
+    const created = senderAuth && senderAuth.metadata ? Date.parse(senderAuth.metadata.creationTime || '') : NaN;
+    const rate = rateSignals(sends, nowMs, Number.isFinite(created) ? created : 0);
     const reasons = textScore.reasons.concat(rate.reasons.filter(function (r) {
         return textScore.reasons.indexOf(r) === -1;
     }));
     const score = textScore.score + rate.score;
-    if (score < SCORE_THRESHOLD) {
-        return { alertedAdmin: senderAdmin || recipientAdmin, flagged: false, score: score, reasons: reasons };
+    const textSignal = textScore.reasons.length > 0;
+    const rateHit = rate.reasons.length > 0;
+    // A rate signal alone is a flag. It pauses the account only together with
+    // a text signal, or when the text score is already over the threshold.
+    const disable = textScore.over || (textSignal && rateHit);
+    if (!disable && !rateHit) {
+        return { alertedAdmin: senderAdmin || recipientAdmin, flagged: false, disabled: false, score: score, reasons: reasons };
     }
 
-    await db.collection('users').doc(senderUid).set({
-        dmDisabled: true,
-        dmDisabledReason: reasons.join(',').slice(0, 180),
-        dmDisabledAt: createdAt
-    }, { merge: true });
+    if (disable) {
+        await db.collection('users').doc(senderUid).set({
+            dmDisabled: true,
+            dmDisabledReason: reasons.join(',').slice(0, 180),
+            dmDisabledAt: createdAt
+        }, { merge: true });
+    }
     await writeOnce(db, 'admin_dm_flags', docId, {
         senderUid: senderUid,
         recipientUid: recipientUid,
@@ -470,7 +515,33 @@ async function handleDmMessageCreated(deps, event) {
         alerted: false,
         createdAt: createdAt
     });
-    return { alertedAdmin: senderAdmin || recipientAdmin, flagged: true, score: score, reasons: reasons };
+    return { alertedAdmin: senderAdmin || recipientAdmin, flagged: true, disabled: disable, score: score, reasons: reasons };
+}
+
+// One open alert per conversation. A retry of the same message does not
+// increment. After the monitor sets alerted, the next new message starts
+// a fresh count.
+async function queueAdminAlert(db, convoId, payload) {
+    const ref = db.collection('admin_dm_alerts').doc(convoId);
+    await db.runTransaction(async function (t) {
+        const cur = await t.get(ref);
+        const prev = cur && cur.exists ? (cur.data() || {}) : null;
+        if (prev && prev.messageId === payload.messageId) return;
+        const open = !!(prev && prev.alerted !== true);
+        const next = {
+            senderUid: payload.senderUid,
+            recipientUid: payload.recipientUid,
+            convoId: convoId,
+            messageId: payload.messageId,
+            excerpt: payload.excerpt,
+            adminSide: payload.adminSide,
+            count: open ? (Number(prev.count) || 1) + 1 : 1,
+            lastAt: payload.createdAt,
+            alerted: false,
+            createdAt: open && prev.createdAt ? prev.createdAt : payload.createdAt
+        };
+        t.set(ref, next);
+    });
 }
 
 async function reenableDms(deps, caller, targetUid) {
@@ -520,6 +591,7 @@ module.exports = {
     ADMIN_EMAILS: ADMIN_EMAILS,
     ADMIN_UIDS: ADMIN_UIDS,
     scoreDmText: scoreDmText,
+    sendHash: sendHash,
     rateSignals: rateSignals,
     excerptOf: excerptOf,
     assertDmSendAllowed: assertDmSendAllowed,

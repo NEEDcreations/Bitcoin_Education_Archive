@@ -1046,11 +1046,19 @@ service cloud.firestore {
     // =============================================
     // MARKETPLACE MESSAGES
     // =============================================
+    // Server-only pause. A missing user doc is not paused. get() is skipped
+    // unless the doc exists, so a profile-less account is unchanged.
+    function dmSenderDisabled() {
+      let p = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(p) && get(p).data.get('dmDisabled', false) == true;
+    }
+
     match /marketplace_messages/{msgId} {
       allow read: if request.auth != null
                   && (resource.data.buyerUid == request.auth.uid
                       || resource.data.sellerUid == request.auth.uid);
       allow create: if request.auth != null
+                    && !dmSenderDisabled()
                     && request.resource.data.buyerUid == request.auth.uid
                     && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message']);
     }
@@ -1058,11 +1066,39 @@ service cloud.firestore {
     // =============================================
     // DIRECT MESSAGES
     // =============================================
-    // Server-only pause. A missing user doc is not paused. get() is skipped
-    // unless the doc exists, so a profile-less account is unchanged.
-    function dmSenderDisabled() {
-      let p = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(p) && get(p).data.get('dmDisabled', false) == true;
+    // Preview text is capped. lastSenderUid, when written, is the caller.
+    // A paused account cannot create a thread or change the preview. They
+    // may only clear their own unread_<uid> marker.
+    function dmLastMessageOk() {
+      return !('lastMessage' in request.resource.data)
+        || (request.resource.data.lastMessage is string
+            && request.resource.data.lastMessage.size() <= 200);
+    }
+
+    function dmLastSenderCreateOk() {
+      return !('lastSenderUid' in request.resource.data)
+        || request.resource.data.lastSenderUid == request.auth.uid;
+    }
+
+    function dmLastSenderUpdateOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastSenderUid'])
+        || request.resource.data.lastSenderUid == request.auth.uid;
+    }
+
+    function dmLastMessageUpdateOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessage'])
+        || (request.resource.data.lastMessage is string
+            && request.resource.data.lastMessage.size() <= 200);
+    }
+
+    function dmPausedUnreadOnly() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let key = 'unread_' + request.auth.uid;
+      return changed.hasOnly([key])
+        && key in request.resource.data
+        && request.resource.data[key] is int
+        && request.resource.data[key] >= 0
+        && request.resource.data[key] <= 100000;
     }
 
     match /dm_conversations/{convoId} {
@@ -1071,6 +1107,9 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && !dmSenderDisabled()
+                    && dmLastSenderCreateOk()
+                    && dmLastMessageOk()
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
                     && (!('participantNames' in request.resource.data)
                         || (request.resource.data.participantNames is map
@@ -1078,7 +1117,10 @@ service cloud.firestore {
                             && request.resource.data.participantNames.values().toSet().size() <= 2));
       allow update: if request.auth != null
                     && request.auth.uid in resource.data.participants
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt'])
+                    && dmLastSenderUpdateOk()
+                    && dmLastMessageUpdateOk()
+                    && (!dmSenderDisabled() || dmPausedUnreadOnly());
 
       match /messages/{messageId} {
         allow read: if request.auth != null
@@ -2467,6 +2509,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /admin_dm_alerts/{docId} {
+      allow read, write: if false;
+    }
+
+    // Per-sender DM rate log. The message trigger writes it. Clients cannot.
+    match /dm_send_log/{uid} {
       allow read, write: if false;
     }
 

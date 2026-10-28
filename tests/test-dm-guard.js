@@ -91,6 +91,12 @@ function memoryDb(initial) {
                 doc: function (id) { return docRef(name + '/' + id); },
                 where: function (field, op, value) { return query(name, [{ field: field, op: op, value: value }]); }
             };
+        },
+        runTransaction: async function (fn) {
+            return fn({
+                get: function (ref) { return ref.get(); },
+                set: function (ref, data, opts) { return ref.set(data, opts); }
+            });
         }
     };
 }
@@ -183,64 +189,53 @@ function eventFor(cid, mid, msg) {
         assert.ok(guard.excerptOf(long).indexOf('@') === -1);
     });
 
-    await test('rate signal pauses a new account messaging many people', function () {
-        const now = Date.now();
-        const docs = [];
-        for (let i = 0; i < 5; i++) {
-            docs.push({
-                participants: ['sender0001', 'user' + i + 'xxxx'],
-                lastSenderUid: 'sender0001',
-                lastMessage: 'hello from the meetup ' + i,
-                lastMessageTime: { toMillis: function () { return now - 1000; } }
-            });
+    function sendsTo(n, now, hash) {
+        const rows = [];
+        for (let i = 0; i < n; i++) {
+            rows.push({ at: now - 1000, to: 'user' + i + 'xxxx', h: hash || '', id: 'prior' + i });
         }
-        const hit = guard.rateSignals(docs, 'sender0001', now, now - 60 * 60 * 1000);
+        return rows;
+    }
+
+    await test('rate signal flags a new account messaging many people', function () {
+        const now = Date.now();
+        const hit = guard.rateSignals(sendsTo(5, now, ''), now, now - 60 * 60 * 1000);
         assert.ok(hit.reasons.indexOf('mass_dm_new_account') !== -1);
         assert.ok(hit.score >= guard.SCORE_THRESHOLD);
     });
 
     await test('an older account can message several people', function () {
         const now = Date.now();
-        const docs = [];
-        for (let i = 0; i < 5; i++) {
-            docs.push({
-                participants: ['sender0001', 'user' + i + 'xxxx'],
-                lastSenderUid: 'sender0001',
-                lastMessage: 'hello from the meetup ' + i,
-                lastMessageTime: { toMillis: function () { return now - 1000; } }
-            });
-        }
-        const hit = guard.rateSignals(docs, 'sender0001', now, now - 30 * 24 * 60 * 60 * 1000);
+        const hit = guard.rateSignals(sendsTo(5, now, ''), now, now - 30 * 24 * 60 * 60 * 1000);
         assert.deepStrictEqual(hit.reasons, []);
     });
 
-    await test('identical text to many recipients pauses any account', function () {
+    await test('identical text to many recipients is a rate signal', function () {
         const now = Date.now();
-        const docs = [];
-        for (let i = 0; i < 4; i++) {
-            docs.push({
-                participants: ['sender0001', 'user' + i + 'xxxx'],
-                lastSenderUid: 'sender0001',
-                lastMessage: 'are you going to the meetup on saturday',
-                lastMessageTime: { toMillis: function () { return now - 1000; } }
-            });
-        }
-        const hit = guard.rateSignals(docs, 'sender0001', now, now - 30 * 24 * 60 * 60 * 1000);
+        const hash = guard.sendHash('are you going to the meetup on saturday');
+        const hit = guard.rateSignals(sendsTo(4, now, hash), now, now - 30 * 24 * 60 * 60 * 1000);
         assert.ok(hit.reasons.indexOf('identical_blast') !== -1);
     });
 
     await test('three copies of the same note stay under the blast line', function () {
         const now = Date.now();
-        const docs = [];
-        for (let i = 0; i < 3; i++) {
-            docs.push({
-                participants: ['sender0001', 'user' + i + 'xxxx'],
-                lastSenderUid: 'sender0001',
+        const hash = guard.sendHash('are you going to the meetup on saturday');
+        const hit = guard.rateSignals(sendsTo(3, now, hash), now, 0);
+        assert.deepStrictEqual(hit.reasons, []);
+    });
+
+    await test('client conversation fields do not count as sends', function () {
+        const now = Date.now();
+        const spoofed = [];
+        for (let i = 0; i < 8; i++) {
+            spoofed.push({
+                lastSenderUid: 'victim0001',
                 lastMessage: 'are you going to the meetup on saturday',
-                lastMessageTime: { toMillis: function () { return now - 1000; } }
+                lastMessageTime: { toMillis: function () { return now; } },
+                participants: ['victim0001', 'user' + i + 'xxxx']
             });
         }
-        const hit = guard.rateSignals(docs, 'sender0001', now, 0);
+        const hit = guard.rateSignals(spoofed, now, now - 60 * 60 * 1000);
         assert.deepStrictEqual(hit.reasons, []);
     });
 
@@ -267,7 +262,7 @@ function eventFor(cid, mid, msg) {
         assert.strictEqual(flag.senderName, undefined);
         assert.strictEqual(flag.email, undefined);
         assert.ok(JSON.stringify(flag).indexOf('Alice') === -1);
-        assert.strictEqual(db.store.has('admin_dm_alerts/alice0001_bob0000001_m1'), false);
+        assert.strictEqual(db.store.has('admin_dm_alerts/alice0001_bob0000001'), false);
     });
 
     await test('a second delivery does not duplicate the flag', async function () {
@@ -295,7 +290,7 @@ function eventFor(cid, mid, msg) {
             auth: authOf({ bob0000001: { metadata: { creationTime: '2020-01-01T00:00:00.000Z' } } })
         }, eventFor('bob0000001_' + adminUid, 'm3', { senderUid: 'bob0000001', text: 'hello from the study group' }));
         assert.strictEqual(result.flagged, false);
-        const alert = db.store.get('admin_dm_alerts/bob0000001_' + adminUid + '_m3');
+        const alert = db.store.get('admin_dm_alerts/bob0000001_' + adminUid);
         assert.ok(alert);
         assert.strictEqual(alert.alerted, false);
         assert.strictEqual(alert.adminSide, 'recipient');
@@ -313,7 +308,7 @@ function eventFor(cid, mid, msg) {
             admin: admin,
             auth: authOf((function () { const map = {}; map[adminUid] = { email: 'someone-else@example.com', customClaims: {} }; return map; })())
         }, eventFor(adminUid + '_bob0000001', 'm4', { senderUid: adminUid, text: 'the meetup is at 7' }));
-        const alert = db.store.get('admin_dm_alerts/' + adminUid + '_bob0000001_m4');
+        const alert = db.store.get('admin_dm_alerts/' + adminUid + '_bob0000001');
         assert.ok(alert);
         assert.strictEqual(alert.adminSide, 'sender');
         assert.ok(JSON.stringify(alert).indexOf('@') === -1);
@@ -328,29 +323,113 @@ function eventFor(cid, mid, msg) {
             admin: admin,
             auth: authOf({ mod0000001: { customClaims: { admin: true } } })
         }, eventFor('mod0000001_bob0000001', 'm5', { senderUid: 'mod0000001', text: 'welcome' }));
-        assert.ok(db.store.get('admin_dm_alerts/mod0000001_bob0000001_m5'));
+        assert.ok(db.store.get('admin_dm_alerts/mod0000001_bob0000001'));
     });
 
-    await test('a new account blast is paused by the trigger', async function () {
+    await test('spoofed conversation metadata does not pause the victim', async function () {
         const now = Date.now();
-        const initial = { 'dm_conversations/newuser001_bob0000001': { participants: ['newuser001', 'bob0000001'], lastSenderUid: 'newuser001', lastMessage: 'hello from the meetup 0', lastMessageTime: { toMillis: function () { return now; } } } };
-        for (let i = 1; i < 5; i++) {
-            initial['dm_conversations/newuser001_user' + i + 'xxxx'] = {
-                participants: ['newuser001', 'user' + i + 'xxxx'],
-                lastSenderUid: 'newuser001',
-                lastMessage: 'hello from the meetup ' + i,
-                lastMessageTime: { toMillis: function () { return now - 1000; } }
+        const initial = {
+            'dm_conversations/victim0001_bob0000001': {
+                participants: ['victim0001', 'bob0000001'],
+                lastSenderUid: 'victim0001',
+                lastMessage: 'are you going to the meetup on saturday',
+                lastMessageTime: { toMillis: function () { return now; } }
+            }
+        };
+        for (let i = 0; i < 8; i++) {
+            initial['dm_conversations/victim0001_user' + i + 'xxxx'] = {
+                participants: ['victim0001', 'user' + i + 'xxxx'],
+                lastSenderUid: 'victim0001',
+                lastMessage: 'are you going to the meetup on saturday',
+                lastMessageTime: { toMillis: function () { return now - 500; } }
             };
         }
         const db = memoryDb(initial);
         const result = await guard.handleDmMessageCreated({
             db: db,
             admin: admin,
+            auth: authOf({ victim0001: { metadata: { creationTime: new Date(now - 60 * 60 * 1000).toISOString() } } })
+        }, eventFor('victim0001_bob0000001', 'mspoof', { senderUid: 'victim0001', text: 'hello from the study group' }));
+        assert.strictEqual(result.flagged, false);
+        assert.strictEqual(result.disabled, false);
+        assert.strictEqual(db.store.has('users/victim0001'), false);
+        const log = db.store.get('dm_send_log/victim0001');
+        assert.strictEqual(log.sends.length, 1);
+        assert.strictEqual(log.sends[0].to, 'bob0000001');
+        assert.ok(JSON.stringify(log).indexOf('meetup') === -1);
+    });
+
+    await test('a rate-only blast is flagged and does not pause the account', async function () {
+        const now = Date.now();
+        const sends = [];
+        for (let i = 1; i < 5; i++) sends.push({ at: now - 1000, to: 'user' + i + 'xxxx', h: '', id: 'old' + i });
+        const db = memoryDb({
+            'dm_conversations/newuser001_bob0000001': { participants: ['newuser001', 'bob0000001'] },
+            'dm_send_log/newuser001': { sends: sends }
+        });
+        const result = await guard.handleDmMessageCreated({
+            db: db,
+            admin: admin,
             auth: authOf({ newuser001: { metadata: { creationTime: new Date(now - 60 * 60 * 1000).toISOString() } } })
         }, eventFor('newuser001_bob0000001', 'm6', { senderUid: 'newuser001', text: 'hello from the meetup 0' }));
         assert.strictEqual(result.flagged, true);
+        assert.strictEqual(result.disabled, false);
+        assert.ok(result.reasons.indexOf('mass_dm_new_account') !== -1);
+        assert.strictEqual(db.store.has('users/newuser001'), false);
+        const flag = db.store.get('admin_dm_flags/newuser001_bob0000001_m6');
+        assert.ok(flag);
+        assert.strictEqual(flag.alerted, false);
+    });
+
+    await test('a text signal plus a rate signal pauses the account', async function () {
+        const now = Date.now();
+        const sends = [];
+        for (let i = 1; i < 5; i++) sends.push({ at: now - 1000, to: 'user' + i + 'xxxx', h: '', id: 'old' + i });
+        const db = memoryDb({
+            'dm_conversations/newuser001_bob0000001': { participants: ['newuser001', 'bob0000001'] },
+            'dm_send_log/newuser001': { sends: sends }
+        });
+        const result = await guard.handleDmMessageCreated({
+            db: db,
+            admin: admin,
+            auth: authOf({ newuser001: { metadata: { creationTime: new Date(now - 60 * 60 * 1000).toISOString() } } })
+        }, eventFor('newuser001_bob0000001', 'm6b', {
+            senderUid: 'newuser001',
+            text: 'Great essay on cold storage https://bit.ly/coldstore-notes'
+        }));
+        assert.strictEqual(result.disabled, true);
+        assert.ok(result.reasons.indexOf('short_link') !== -1);
         assert.ok(result.reasons.indexOf('mass_dm_new_account') !== -1);
         assert.strictEqual(db.store.get('users/newuser001').dmDisabled, true);
+    });
+
+    await test('admin alerts collapse to one open doc per conversation', async function () {
+        const adminUid = guard.ADMIN_UIDS[0];
+        const convo = 'bob0000001_' + adminUid;
+        const initial = {};
+        initial['dm_conversations/' + convo] = { participants: ['bob0000001', adminUid] };
+        const db = memoryDb(initial);
+        const deps = {
+            db: db,
+            admin: admin,
+            auth: authOf({ bob0000001: { metadata: { creationTime: '2020-01-01T00:00:00.000Z' } } })
+        };
+        await guard.handleDmMessageCreated(deps, eventFor(convo, 'a1', { senderUid: 'bob0000001', text: 'hello one' }));
+        await guard.handleDmMessageCreated(deps, eventFor(convo, 'a1', { senderUid: 'bob0000001', text: 'hello one' }));
+        await guard.handleDmMessageCreated(deps, eventFor(convo, 'a2', { senderUid: 'bob0000001', text: 'hello two' }));
+        const alert = db.store.get('admin_dm_alerts/' + convo);
+        assert.strictEqual(alert.count, 2);
+        assert.strictEqual(alert.alerted, false);
+        assert.strictEqual(alert.messageId, 'a2');
+        alert.alerted = true;
+        await guard.handleDmMessageCreated(deps, eventFor(convo, 'a3', { senderUid: 'bob0000001', text: 'hello three' }));
+        const reset = db.store.get('admin_dm_alerts/' + convo);
+        assert.strictEqual(reset.count, 1);
+        assert.strictEqual(reset.alerted, false);
+        assert.strictEqual(reset.messageId, 'a3');
+        const alerts = [];
+        db.store.forEach(function (value, key) { if (key.indexOf('admin_dm_alerts/') === 0) alerts.push(key); });
+        assert.strictEqual(alerts.length, 1);
     });
 
     await test('nacho lines do not pause the account', async function () {
@@ -386,11 +465,18 @@ function eventFor(cid, mid, msg) {
         assert.strictEqual(user.dmReenabledBy, 'mod0000001');
         assert.ok(user.dmReenabledAt && user.dmReenabledAt.__op === 'time');
         assert.strictEqual(user.email, 'alice@example.com');
-        await guard.reenableDms({ db: db, admin: admin }, { uid: 'mailadmin1', token: { email: guard.ADMIN_EMAILS[0] } }, 'alice0001');
-        assert.strictEqual(db.store.get('users/alice0001').dmReenabledBy, 'mailadmin1');
+        await assert.rejects(function () {
+            return guard.reenableDms({ db: db, admin: admin }, { uid: 'mailadmin1', token: { email: guard.ADMIN_EMAILS[0] } }, 'alice0001');
+        });
+        assert.strictEqual(db.store.get('users/alice0001').dmReenabledBy, 'mod0000001');
+        const byUid = await guard.reenableDms({ db: db, admin: admin }, { uid: guard.ADMIN_UIDS[0], token: {} }, 'alice0001');
+        assert.strictEqual(byUid.ok, true);
+        assert.strictEqual(db.store.get('users/alice0001').dmReenabledBy, guard.ADMIN_UIDS[0]);
         await assert.rejects(function () {
             return guard.reenableDms({ db: db, admin: admin }, { uid: guard.ADMIN_UIDS[0], token: {} }, 'no');
         });
+        assert.strictEqual(guard.callerIsAdmin({ uid: 'mailadmin1', token: { email: guard.ADMIN_EMAILS[0] } }), false);
+        assert.strictEqual(guard.callerIsAdmin({ uid: guard.ADMIN_UIDS[0], token: {} }), true);
     });
 
     await test('client copy, rules, and exports stay wired', function () {
@@ -404,12 +490,21 @@ function eventFor(cid, mid, msg) {
         assert.ok(rules.includes("'dmDisabled', 'dmDisabledReason', 'dmDisabledAt', 'dmReenabledAt', 'dmReenabledBy'"));
         assert.ok(rules.includes('function dmSenderDisabled()'));
         assert.ok(rules.includes('&& !dmSenderDisabled()'));
+        assert.ok(rules.includes('lastSenderUid == request.auth.uid'));
+        assert.ok(rules.includes('function dmPausedUnreadOnly()'));
+        assert.ok(rules.includes('lastMessage.size() <= 200'));
         assert.ok(rules.includes('match /admin_dm_flags/{docId}'));
         assert.ok(rules.includes('match /admin_dm_alerts/{docId}'));
+        assert.ok(rules.includes('match /dm_send_log/{uid}'));
         assert.ok(index.includes('exports.onDmMessageGuard'));
         assert.ok(index.includes('exports.adminReenableDms'));
+        assert.ok(messaging.includes('function dmPreviewText'));
         assert.ok(!src.includes('nodemailer'));
         assert.ok(!src.includes('sendMail'));
+        assert.ok(!src.includes('lastSenderUid'));
+        assert.ok(!src.includes('lastMessageTime'));
+        assert.ok(!src.includes('token.email'));
+        assert.ok(src.includes('dm_send_log'));
         assert.ok(src.includes('alerted: false'));
     });
 
