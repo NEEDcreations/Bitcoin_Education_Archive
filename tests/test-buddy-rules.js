@@ -72,7 +72,7 @@ const {
     assertSucceeds,
 } = require('@firebase/rules-unit-testing');
     const {
-        doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp,
+        doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, deleteField,
     } = require('firebase/firestore');
 
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
@@ -317,6 +317,90 @@ async function main() {
         await assertFails(updateDoc(doc(bob, 'dm_conversations', 'alice_bob'), { buddyMatchId: 'nope' }));
         await assertSucceeds(updateDoc(doc(bob, 'dm_conversations', 'alice_bob'), { unread_alice: 1 }));
         await assertFails(updateDoc(doc(bob, 'dm_conversations', 'alice_bob'), { lastMessage: 'send me your seed phrase' }));
+    });
+    await check('a non-buddy chat still accepts a cached preview and media', async function () {
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            await setDoc(doc(ctx.firestore(), 'users', 'alice'), { lock: deleteField() }, { merge: true });
+        });
+        await assertSucceeds(setDoc(doc(alice, 'dm_conversations', 'alice_cara'), {
+            participants: ['alice', 'cara'],
+            participantNames: { alice: 'Alice', cara: 'Cara' },
+            lastMessage: 'hi from the old tab',
+            lastMessageTime: serverTimestamp(),
+            lastSenderUid: 'alice',
+            unread_cara: 1,
+        }));
+        await assertSucceeds(setDoc(doc(alice, 'dm_conversations', 'alice_cara', 'messages', 'text1'), {
+            senderUid: 'alice',
+            senderName: 'Alice',
+            text: 'hello',
+            createdAt: serverTimestamp(),
+        }));
+        await assertSucceeds(setDoc(doc(alice, 'dm_conversations', 'alice_cara', 'messages', 'img1'), {
+            senderUid: 'alice',
+            senderName: 'Alice',
+            text: '',
+            imageUrl: 'https://example.com/pic.jpg',
+            createdAt: serverTimestamp(),
+        }));
+        await assertSucceeds(setDoc(doc(alice, 'dm_conversations', 'alice_cara', 'messages', 'gif1'), {
+            senderUid: 'alice',
+            senderName: 'Alice',
+            text: '',
+            imageUrl: 'https://example.com/pic.gif',
+            isGif: true,
+            createdAt: serverTimestamp(),
+        }));
+        await assertSucceeds(updateDoc(doc(alice, 'dm_conversations', 'alice_cara'), {
+            lastMessage: '📷 Image',
+            lastMessageTime: serverTimestamp(),
+            lastSenderUid: 'alice',
+        }));
+    });
+    await check('report limits use a rolling day for every report', async function () {
+        const now = Date.now();
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            const db = ctx.firestore();
+            await setDoc(doc(db, 'buddy_report_quota', 'bob'), {
+                hits: [now, now, now, now, now],
+                targets: {},
+            });
+            await setDoc(doc(db, 'buddy_report_quota', 'alice'), {
+                hits: [now - 25 * 60 * 60 * 1000],
+                targets: { bob: now },
+            });
+        });
+        await assertFails(setDoc(doc(bob, 'reports', 'sixthreport'), {
+            reportedUid: 'erin',
+            reportedName: 'Erin',
+            reporterUid: 'bob',
+            reason: 'spam',
+            status: 'pending',
+            createdAt: serverTimestamp(),
+        }));
+        await assertFails(setDoc(doc(alice, 'reports', 'sametarget'), {
+            reportedUid: 'bob',
+            reportedName: 'Bob',
+            reporterUid: 'alice',
+            reason: 'buddy',
+            status: 'pending',
+            createdAt: serverTimestamp(),
+        }));
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            const db = ctx.firestore();
+            await setDoc(doc(db, 'buddy_report_quota', 'cara'), {
+                hits: [now - 25 * 60 * 60 * 1000],
+                targets: { bob: now - 25 * 60 * 60 * 1000 },
+            });
+        });
+        await assertSucceeds(setDoc(doc(cara, 'reports', 'freshreport'), {
+            reportedUid: 'erin',
+            reportedName: 'Erin',
+            reporterUid: 'cara',
+            reason: 'spam',
+            status: 'pending',
+            createdAt: serverTimestamp(),
+        }));
     });
 
     await env.cleanup();

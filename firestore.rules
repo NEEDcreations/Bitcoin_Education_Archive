@@ -1082,6 +1082,32 @@ service cloud.firestore {
       return a < b ? a + '_' + b : b + '_' + a;
     }
 
+    // A cached tab may still write the inbox preview. Buddy chats are scanned
+    // from the message itself, so that preview is server-only once the match flag is set.
+    function dmClientMayWritePreview() {
+      return !request.resource.data.keys().hasAny(['lastMessage', 'lastMessageTime', 'lastSenderUid'])
+        || (
+          request.resource.data.get('isBuddyMatch', false) != true
+          && request.resource.data.lastSenderUid == request.auth.uid
+          && request.resource.data.lastMessage is string
+          && request.resource.data.lastMessage.size() <= 1000
+          && (
+            !request.resource.data.keys().hasAny(['lastMessageTime'])
+            || request.resource.data.lastMessageTime is timestamp
+          )
+        );
+    }
+
+    function dmClientMayRevisePreview() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessage', 'lastMessageTime', 'lastSenderUid'])
+        || (
+          resource.data.get('isBuddyMatch', false) != true
+          && request.resource.data.get('lastSenderUid', '') == request.auth.uid
+          && request.resource.data.get('lastMessage', '') is string
+          && request.resource.data.get('lastMessage', '').size() <= 1000
+        );
+    }
+
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
@@ -1099,7 +1125,8 @@ service cloud.firestore {
                     && request.resource.data.participants[1].size() <= 128
                     && request.resource.data.participants[0] != request.resource.data.participants[1]
                     && convoId == dmSortedPairId(request.resource.data.participants[0], request.resource.data.participants[1])
-                    && !request.resource.data.keys().hasAny(['lastMessage', 'lastMessageTime', 'lastSenderUid', 'isBuddyMatch', 'buddyMatchId', 'reviewPaused', 'safetyNotice'])
+                    && !request.resource.data.keys().hasAny(['isBuddyMatch', 'buddyMatchId', 'reviewPaused', 'safetyNotice'])
+                    && dmClientMayWritePreview()
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
                     && (!('participantNames' in request.resource.data)
                         || (request.resource.data.participantNames is map
@@ -1108,7 +1135,8 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && !accountUnderReview()
                     && request.auth.uid in resource.data.participants
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt', 'isBuddyMatch', 'buddyMatchId', 'reviewPaused', 'lastMessage', 'lastMessageTime', 'lastSenderUid']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt', 'isBuddyMatch', 'buddyMatchId', 'reviewPaused'])
+                    && dmClientMayRevisePreview();
 
       match /messages/{messageId} {
         allow read: if request.auth != null
@@ -1160,18 +1188,35 @@ service cloud.firestore {
         + (request.time.day() < 10 ? '0' : '') + string(request.time.day());
     }
 
+    function reportHitFresh(hits, i, now) {
+      return i < hits.size() && hits[i] is number && hits[i] > now - 86400000;
+    }
+
+    function reportFreshHits(hits, now) {
+      return (reportHitFresh(hits, 0, now) ? 1 : 0)
+        + (reportHitFresh(hits, 1, now) ? 1 : 0)
+        + (reportHitFresh(hits, 2, now) ? 1 : 0)
+        + (reportHitFresh(hits, 3, now) ? 1 : 0)
+        + (reportHitFresh(hits, 4, now) ? 1 : 0);
+    }
+
+    function reportQuotaRowOk(row) {
+      let now = request.time.toMillis();
+      let target = request.resource.data.reportedUid;
+      let targetOk = !row.keys().hasAny(['targets'])
+        || !(target in row.targets)
+        || row.targets[target] < now - 86400000;
+      let hitsOk = !row.keys().hasAny(['hits']) || reportFreshHits(row.hits, now) < 5;
+      let legacyOk = !row.keys().hasAny(['count'])
+        || !row.keys().hasAny(['day'])
+        || row.day != reportDay()
+        || row.count < 5;
+      return targetOk && hitsOk && legacyOk;
+    }
+
     function reportQuotaOk() {
       let quota = /databases/$(database)/documents/buddy_report_quota/$(request.auth.uid);
-      return !exists(quota)
-        || get(quota).data.day != reportDay()
-        || (
-          get(quota).data.count < 5
-          && (
-            !get(quota).data.keys().hasAny(['targets'])
-            || !(request.resource.data.reportedUid in get(quota).data.targets)
-            || get(quota).data.targets[request.resource.data.reportedUid] < request.time.toMillis() - 86400000
-          )
-        );
+      return !exists(quota) || reportQuotaRowOk(get(quota).data);
     }
 
     // Server-written buddy flags. Clients cannot plant a flag that locks someone.
@@ -1185,6 +1230,10 @@ service cloud.firestore {
     }
 
     match /buddy_report_quota/{uid} {
+      allow read, write: if false;
+    }
+
+    match /buddy_dm_tails/{convoId} {
       allow read, write: if false;
     }
 

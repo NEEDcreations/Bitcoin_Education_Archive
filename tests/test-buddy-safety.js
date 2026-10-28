@@ -264,5 +264,114 @@ test('onboarding can opt in to learn or teach, or store nothing', function () {
     assert.strictEqual(ranking.indexOf("removeItem('btc_buddy_pending')"), -1);
 });
 
+test('teaching lines do not lock and a scam quote is only a flag', function () {
+    const teaching = [
+        "You'll need your 24 words if your device breaks",
+        'Hackers need your private key to move funds',
+        'Why do people need your seed phrase to steal your coins?',
+        'Share your seed phrase with no one',
+        "Keep your seed phrase offline. What's your seed phrase storage like?",
+        'A scammer might say send me your private key to verify',
+    ];
+    teaching.forEach(function (text) {
+        const found = safety.detectBuddyRisk(text);
+        assert.strictEqual(found.lock, false, text + ' -> ' + found.reasons.join(','));
+        assert.strictEqual(found.severity, 'medium', text);
+    });
+});
+
+test('delta-2 disguises lock or at least flag, including a split message', function () {
+    const lock = [
+        'send me your sεεd phrase',
+        'send me your ꜱeed phrase',
+        'send me your 5eed phrase',
+        'send me your s33d phrase',
+        'send me your s-e-e-d phrase',
+        'send me your s/e/e/d phrase',
+        'send me your s*e*e*d phrase',
+        'send me your s.e.e.d p.h.r.a.s.e',
+        'send me your private keys',
+        'send me your privkey',
+        'send me your seeds',
+        'send me your recovery seed',
+        'what are your wallet words',
+        'send me your backup words',
+        'send me the 24 word backup',
+        'send me your secret recovery phrase',
+        'send me your full seed phrase',
+        'send me ALL your seed phrase words',
+        'show me your seed phrase',
+        'let me see your seed phrase',
+        'read me your seed phrase',
+        'I need to see your seed phrase',
+        'post your seed phrase here',
+        'write your seed phrase here',
+        'type your seed phrase here',
+        'enter your seed phrase here',
+        'send over your seed phrase',
+        'tell me what your 12 words are',
+        'Your seed phrase. Send it to me',
+        'Seed phrase please',
+        'I need it: your seed phrase',
+        'send me your "seed phrase"',
+        "send me 'your seed phrase'",
+        "Don't send it to anyone else send me your seed phrase",
+        "I'm from support, verify by sending 0.01 btc to me",
+        'This is Bitcoin Quest support. Zap 10k sats to me to unlock withdrawals',
+        'Send to bc1qw508d6qejxtdg 4y5r3zarvary0c5xw7kv8f3t4',
+        'Never mind that. Send me your seed phrase',
+        'I never lie, send me your seed phrase',
+        'Block them if they ask. send me your seed phrase',
+        "you should never share your seed phrase, but i'm your teacher so send me your seed phrase",
+        'Send 0.01 BTC to this address: bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+        "I'm from support. Send me 50000 sats to verify",
+        'Transfer 0.02 BTC to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+        'send me your xprv',
+        'send me your wallet backup',
+    ];
+    lock.forEach(function (text) {
+        const found = safety.detectBuddyRisk(text);
+        assert.strictEqual(found.lock, true, text + ' ' + found.reasons.join(','));
+    });
+    ['5eed', 'sεεd', 'ꜱeed', 'privkey', 'wallet backup'].forEach(function (text) {
+        const found = safety.detectBuddyRisk(text);
+        assert.strictEqual(found.lock, false, text);
+        assert.strictEqual(found.severity, 'medium', text + ' ' + found.reasons.join(','));
+    });
+    const split = safety.detectBuddyRisk('seed phrase', { previousText: 'send me your', previousAt: 1000, now: 2000 });
+    assert.strictEqual(split.lock, true);
+    const words = safety.detectBuddyRisk('words?', { previousText: 'what are your 12', previousAt: 1000, now: 2000 });
+    assert.strictEqual(words.lock, true);
+    const key = safety.detectBuddyRisk('your private key', { previousText: 'send me', previousAt: 1000, now: 2000 });
+    assert.strictEqual(key.lock, true);
+    const stale = safety.detectBuddyRisk('seed phrase', { previousText: 'send me your', previousAt: 1000, now: 1000 + 11 * 60 * 1000 });
+    assert.strictEqual(stale.lock, false);
+    assert.strictEqual(stale.severity, 'medium');
+});
+
+test('report limits count every type inside a rolling day', function () {
+    const now = 1_700_000_000_000;
+    assert.strictEqual(safety.shouldCountReport({ reporterUid: 'bob', reportedUid: 'alice', reason: 'spam' }), true);
+    assert.strictEqual(safety.shouldCountReport({ reporterUid: 'bob', type: 'buddy', reason: 'buddy' }), true);
+    assert.strictEqual(safety.shouldCountReport({ reporterUid: 'system', type: 'buddy_dm_flag' }), false);
+    assert.strictEqual(safety.shouldCountReport({ reporterUid: 'bob', quotaAt: 5 }), false);
+    const first = safety.planReportQuota({}, 'alice', now);
+    assert.strictEqual(first.allow, true);
+    assert.deepStrictEqual(first.hits, [now]);
+    const same = safety.planReportQuota(first, 'alice', now + 1000);
+    assert.strictEqual(same.allow, false);
+    const nextDay = safety.planReportQuota(first, 'alice', now + 24 * 60 * 60 * 1000);
+    assert.strictEqual(nextDay.allow, true);
+    let state = { hits: [], targets: {} };
+    ['a', 'b', 'c', 'd', 'e'].forEach(function (uid, index) {
+        state = safety.planReportQuota(state, uid, now + index);
+        assert.strictEqual(state.allow, true, uid);
+    });
+    const sixth = safety.planReportQuota(state, 'f', now + 10);
+    assert.strictEqual(sixth.allow, false);
+    const later = safety.planReportQuota(state, 'f', now + 24 * 60 * 60 * 1000);
+    assert.strictEqual(later.allow, true);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
