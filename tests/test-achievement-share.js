@@ -16,7 +16,7 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.";
+const LATEST = "Latest: The privacy policy and terms now explain referral tracking, verified-referral badge tiers, two-factor authentication, the profile saved on this device, account deletion, App Check, Lightning sats, what Nacho sends to the AI, Timechain TV and Bitcoin Beats, share cards and referral links, Satoshi's Favor, peers, keys and ciphers, the public leaderboard, and guest accounts. Rewards are discretionary and are not guaranteed.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
 const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
 
@@ -400,7 +400,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2395'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2405'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2391'));
     assert.ok(!read('sw.js').includes('btc-archive-v2386'));
     assert.ok(!read('sw.js').includes('btc-archive-v2410'));
