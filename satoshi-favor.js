@@ -742,9 +742,12 @@
                     var sessionShown = sessionBlank ? 'Anon' : rawSessionName;
                     var safeSessionUid = String(d.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
                     var sessionLookup = safeSessionUid ? ' data-profile-uid="' + safeSessionUid + '"' + (sessionBlank ? ' data-blank-name="1"' : '') : '';
+                    var sessionTag = (typeof userTag === 'function')
+                        ? userTag(safeSessionUid, sessionShown, { prefix: '@', blank: sessionBlank, style: 'flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';' })
+                        : ('<span ' + (safeSessionUid ? 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+safeSessionUid+'\')" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:none;" title="View @'+escapeHtml(sessionShown)+'\'s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + sessionLookup + '>@' + escapeHtml(sessionShown) + '</span>');
                     html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;margin-bottom:3px;' + bgStyle + '">' +
                         '<span style="font-size:0.78rem;min-width:22px;text-align:center;">' + medalEmoji + '</span>' +
-                        '<span ' + (safeSessionUid ? 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+safeSessionUid+'\')" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:none;" title="View @'+escapeHtml(sessionShown)+'\'s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + sessionLookup + '>@' + escapeHtml(sessionShown) + '</span>' +
+                        sessionTag +
                         '<span style="font-size:0.78rem;font-family:monospace;color:' + (isMe ? '#f7931a' : 'var(--text)') + ';font-weight:700;">' + (d.count || 0) + ' hashes</span>' +
                         '</div>';
                     rank++;
@@ -1267,14 +1270,18 @@
                 const name = escapeHtml(hashBlank ? 'Anon' : rawHashName);
                 const safeHashUid = String(h.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
                 const hashLookup = safeHashUid ? ` data-profile-uid="${safeHashUid}"${hashBlank ? ' data-blank-name="1"' : ''}` : '';
+                const shownHash = hashBlank ? 'Anon' : rawHashName;
+                const hashTag = (extra) => (typeof userTag === 'function')
+                    ? userTag(safeHashUid, shownHash, { prefix: '@', blank: hashBlank, style: extra })
+                    : `<span ${profileClick} style="${extra}">@${name}</span>`;
                 const profileClick = safeHashUid ? `onclick="if(typeof showUserProfile==='function')showUserProfile('${safeHashUid}')" title="View @${name}'s profile" style="cursor:pointer;text-decoration:none;"${hashLookup}` : '';
 
                 if (isWin) {
-                    html += `<div style="padding:12px 14px;margin-bottom:6px;background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.08));border:2px solid #22c55e;border-radius:10px;animation:favorPulse 2s ease-in-out infinite;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span ${profileClick} style="font-weight:900;font-size:0.95rem;color:#22c55e;">🏆 WINNER — @${name}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div><div style="font-family:monospace;font-size:1.1rem;font-weight:900;color:#22c55e;text-align:center;">${val}</div></div>`;
+                    html += `<div style="padding:12px 14px;margin-bottom:6px;background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.08));border:2px solid #22c55e;border-radius:10px;animation:favorPulse 2s ease-in-out infinite;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="font-weight:900;font-size:0.95rem;color:#22c55e;">🏆 WINNER — ${hashTag('font-weight:900;font-size:0.95rem;color:#22c55e;')}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div><div style="font-family:monospace;font-size:1.1rem;font-weight:900;color:#22c55e;text-align:center;">${val}</div></div>`;
                 } else if (isMe) {
-                    html += `<div style="padding:6px 12px;margin-bottom:3px;background:rgba(247,147,26,0.1);border:1px solid var(--accent);border-radius:8px;display:flex;justify-content:space-between;align-items:center;"><span ${profileClick} style="font-weight:700;color:var(--accent);font-size:0.82rem;">@${name}</span><span style="font-family:monospace;font-size:0.85rem;font-weight:700;color:var(--heading);">${val}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div>`;
+                    html += `<div style="padding:6px 12px;margin-bottom:3px;background:rgba(247,147,26,0.1);border:1px solid var(--accent);border-radius:8px;display:flex;justify-content:space-between;align-items:center;">${hashTag('font-weight:700;color:var(--accent);font-size:0.82rem;')}<span style="font-family:monospace;font-size:0.85rem;font-weight:700;color:var(--heading);">${val}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div>`;
                 } else {
-                    html += `<div style="padding:5px 12px;margin-bottom:2px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;"><span ${profileClick} style="color:var(--text-muted);font-size:0.8rem;">@${name}</span><span style="font-family:monospace;font-size:0.82rem;color:var(--text);">${val}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div>`;
+                    html += `<div style="padding:5px 12px;margin-bottom:2px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">${hashTag('color:var(--text-muted);font-size:0.8rem;')}<span style="font-family:monospace;font-size:0.82rem;color:var(--text);">${val}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div>`;
                 }
             });
 

@@ -35,7 +35,7 @@ test('peer count uses a loaded list and panels drop a raised z-index on close', 
     assert.ok(countFn.indexOf('return window._myPeers.size') < fetchAt);
     assert.ok(countFn.indexOf('return currentUser.peers.length') > 0);
     assert.ok(countFn.indexOf('return currentUser.peers.length') < fetchAt);
-    assert.ok(gifting.includes("modal.style.zIndex = '530000'"));
+    assert.ok(gifting.includes("modal.style.zIndex = '2300000'"));
     assert.ok(!gifting.includes("zIndex = '460000'"));
     assert.ok(gifting.includes('you can accept them there'));
 
