@@ -14,13 +14,20 @@
     var MAXI_RANK_POINTS = 2140;
 
     // level is the tier index. min is confirmed referees at Maxi rank.
+    // Levels 1–5 are also the referral badges. XP is the standard badge scale
+    // (bronze through diamond). Platinum and Diamond pay orange tickets.
     var TIERS = Object.freeze([
         Object.freeze({ level: 0, min: 0, name: 'Attendee', emoji: '🎟️' }),
-        Object.freeze({ level: 1, min: 1, name: 'Meetup Regular', emoji: '🍻' }),
-        Object.freeze({ level: 2, min: 10, name: 'Meetup Organizer', emoji: '📋' }),
-        Object.freeze({ level: 3, min: 25, name: 'Conference Speaker', emoji: '🎤' }),
-        Object.freeze({ level: 4, min: 50, name: 'Conference Host', emoji: '🏟️' }),
-        Object.freeze({ level: 5, min: 100, name: 'Keynote Legend', emoji: '🏆' })
+        Object.freeze({ level: 1, min: 1, name: 'Meetup Regular', emoji: '🍻', badgeId: 'referral_1', metal: 'bronze', xp: 10, tickets: 0 }),
+        Object.freeze({ level: 2, min: 10, name: 'Meetup Organizer', emoji: '📋', badgeId: 'referral_10', metal: 'silver', xp: 50, tickets: 0 }),
+        Object.freeze({ level: 3, min: 25, name: 'Conference Speaker', emoji: '🎤', badgeId: 'referral_25', metal: 'gold', xp: 150, tickets: 0 }),
+        Object.freeze({ level: 4, min: 50, name: 'Conference Host', emoji: '🏟️', badgeId: 'referral_50', metal: 'platinum', xp: 500, tickets: 5 }),
+        Object.freeze({ level: 5, min: 100, name: 'Keynote Legend', emoji: '🏆', badgeId: 'referral_100', metal: 'diamond', xp: 2000, tickets: 25 })
+    ]);
+
+    // Retired. Awarded on lifetime referralCount >= 5. Not a meetup tier.
+    var RETIRED_BADGES = Object.freeze([
+        Object.freeze({ id: 'referral_5', min: 5 })
     ]);
 
     function normalizeCount(value) {
@@ -82,7 +89,67 @@
         if (!isFinite(got) || got < 0) got = 0;
         var people = inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.";
         var rank = (got === 1 ? '1 reached' : got + ' reached') + ' Maxi rank (' + points + '+ XP).';
-        return people + ' ' + rank + ' Only verified referrals count.';
+        return people + ' ' + rank + ' Only referrals that reached Maxi count.';
+    }
+
+    function badgeTiers() {
+        var out = [];
+        var i;
+        for (i = 0; i < TIERS.length; i++) {
+            if (TIERS[i].badgeId) out.push(TIERS[i]);
+        }
+        return out;
+    }
+
+    function badgeIds() {
+        return badgeTiers().map(function (tier) { return tier.badgeId; });
+    }
+
+    function badgeById(id) {
+        var list = badgeTiers();
+        var i;
+        for (i = 0; i < list.length; i++) {
+            if (list[i].badgeId === id) return list[i];
+        }
+        return null;
+    }
+
+    // Read-only impact. rows are { maxiCount, lifetimeCount, held }.
+    // held is a map of badge id to true. Counts only; no ids.
+    function badgeImpact(rows) {
+        var badges = badgeTiers();
+        var gain = {};
+        var loseIfRevoked = {};
+        var already = {};
+        var i;
+        for (i = 0; i < badges.length; i++) {
+            gain[badges[i].badgeId] = 0;
+            loseIfRevoked[badges[i].badgeId] = 0;
+            already[badges[i].badgeId] = 0;
+        }
+        var retiredHeld = 0;
+        var list = rows || [];
+        for (i = 0; i < list.length; i++) {
+            var row = list[i] || {};
+            var maxi = normalizeCount(row.maxiCount);
+            var held = row.held || {};
+            var b;
+            for (b = 0; b < badges.length; b++) {
+                var badge = badges[b];
+                var has = held[badge.badgeId] === true;
+                var qualifies = maxi >= badge.min;
+                if (qualifies && !has) gain[badge.badgeId] += 1;
+                else if (has && !qualifies) loseIfRevoked[badge.badgeId] += 1;
+                else if (has && qualifies) already[badge.badgeId] += 1;
+            }
+            if (held.referral_5 === true) retiredHeld += 1;
+        }
+        return {
+            gain: gain,
+            loseIfRevoked: loseIfRevoked,
+            already: already,
+            retiredHeld: retiredHeld
+        };
     }
 
     // Why the referrer's live count has to be recomputed from a users/{uid}
@@ -241,6 +308,11 @@
         tierProgress: tierProgress,
         holdsMaxiRank: holdsMaxiRank,
         maxiCountHelp: maxiCountHelp,
+        badgeTiers: badgeTiers,
+        badgeIds: badgeIds,
+        badgeById: badgeById,
+        badgeImpact: badgeImpact,
+        RETIRED_BADGES: RETIRED_BADGES,
         recountReasons: recountReasons,
         referredUidOf: referredUidOf,
         creditedReferral: creditedReferral,

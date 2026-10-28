@@ -507,15 +507,16 @@ async function payIfQualified(referredUid) {
         }));
         outcome = { paid: true, reason: 'paid', ticketsEach: tickets, referrerUid: referrerUid };
     });
-    if (outcome && outcome.paid && outcome.referrerUid) {
-        try {
-            const { grantFamily, familyFor } = require('./grantBadge');
-            await grantFamily(db(), admin, outcome.referrerUid, familyFor('referralCount'));
-        } catch (e) {
-            console.warn('[referral] badges', e && e.message ? e.message : e);
-        }
-    }
     return outcome;
+}
+
+async function grantReferralBadges(uid) {
+    try {
+        const { grantFamily, familyFor } = require('./grantBadge');
+        await grantFamily(db(), admin, uid, familyFor('referralMaxiCount'));
+    } catch (e) {
+        console.warn('[referral] badges', e && e.message ? e.message : e);
+    }
 }
 
 async function readAll(refs) {
@@ -573,17 +574,23 @@ async function persistReferralMaxiCount(referrerUid) {
     if (!seen.exists) return;
     const seenReferralCount = Number(seen.data().referralCount) || 0;
     const count = await countReferralMaxiFor(uid);
+    let raced = false;
     await db().runTransaction(async function (t) {
         const snap = await t.get(userRef);
         if (!snap.exists) return;
         const data = snap.data() || {};
         // A payout landed while this recount was reading. That payout's trigger
         // recounts. Do not overwrite it with this snapshot.
-        if ((Number(data.referralCount) || 0) !== seenReferralCount) return;
+        if ((Number(data.referralCount) || 0) !== seenReferralCount) {
+            raced = true;
+            return;
+        }
         if (data.referralMaxiCount === count) return;
         if ((data.referralMaxiCount === undefined || data.referralMaxiCount === null) && count === 0) return;
         t.update(userRef, { referralMaxiCount: count });
     });
+    if (raced) return;
+    return count;
 }
 
 // Called from onUserWritten, which is exports.onUserReferral on users/{uid}.
@@ -593,13 +600,17 @@ async function syncReferralMaxiCount(uid, before, after) {
     const deleted = !after;
     const prev = before || {};
     if (!deleted && (Number(prev.referralCount) || 0) !== (Number(after.referralCount) || 0)) {
-        await persistReferralMaxiCount(uid);
+        const counted = await persistReferralMaxiCount(uid);
+        if (typeof counted === 'number') await grantReferralBadges(uid);
     }
     if (referralTiers.recountReasons(prev, deleted ? null : after).length) {
         const referral = await db().collection('referrals').doc(uid).get();
         if (!referral.exists) return;
         const referrerUid = String((referral.data() || {}).referrerUid || '');
-        if (referrerUid && referrerUid !== uid) await persistReferralMaxiCount(referrerUid);
+        if (referrerUid && referrerUid !== uid) {
+            const counted = await persistReferralMaxiCount(referrerUid);
+            if (typeof counted === 'number') await grantReferralBadges(referrerUid);
+        }
     }
 }
 

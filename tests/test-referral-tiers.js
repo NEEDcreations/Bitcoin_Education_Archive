@@ -182,9 +182,30 @@ test('the reached-Maxi explainer uses the rank threshold', () => {
     assert.strictEqual(tiers.MAXI_RANK_POINTS, 2140);
     assert.strictEqual(
         tiers.maxiCountHelp(12, 3),
-        "You've invited 12 people. 3 reached Maxi rank (2,140+ XP). Only verified referrals count."
+        "You've invited 12 people. 3 reached Maxi rank (2,140+ XP). Only referrals that reached Maxi count."
     );
     assert.strictEqual(tiers.maxiCountHelp(1, 1).indexOf("You've invited 1 person."), 0);
+    const rules = require(path.join(root, 'functions/src/badgeRules'));
+    const xpTable = require(path.join(root, 'functions/src/badge-xp.json'));
+    tiers.badgeTiers().forEach(function (row) {
+        const rule = rules.ruleFor(row.badgeId);
+        assert.strictEqual(rule.name, row.name, row.badgeId);
+        assert.strictEqual(rule.emoji, row.emoji, row.badgeId);
+        assert.strictEqual(rule.xp, row.xp, row.badgeId);
+        assert.strictEqual(rule.tickets, row.tickets, row.badgeId);
+        assert.strictEqual(rule.source.field, 'referralMaxiCount');
+        assert.strictEqual(rule.source.gte, row.min);
+        assert.strictEqual(xpTable.badges[row.badgeId].xp, row.xp);
+    });
+    assert.deepStrictEqual(tiers.badgeIds(), ['referral_1', 'referral_10', 'referral_25', 'referral_50', 'referral_100']);
+    assert.strictEqual(rules.ruleFor('referral_5').source, null);
+    const impact = tiers.badgeImpact([
+        { maxiCount: 12, lifetimeCount: 12, held: { referral_1: true, referral_5: true } },
+        { maxiCount: 0, lifetimeCount: 10, held: { referral_10: true } }
+    ]);
+    assert.strictEqual(impact.gain.referral_10, 1);
+    assert.strictEqual(impact.loseIfRevoked.referral_10, 1);
+    assert.strictEqual(impact.retiredHeld, 1);
     const html = read('index.html');
     assert.ok(html.includes('aria-describedby="homeInvitesInfoText"'));
     const openAt = html.indexOf('id="homeInvitesOpen"');
