@@ -260,7 +260,7 @@ async function main() {
         assert.strictEqual(quests.indexOf('cipher-cracker.png'), -1);
         assert.strictEqual(quests.indexOf('300 characters'), -1);
         const schedule = fs.readFileSync(path.join(root, 'functions/src/scheduleRaidBoss.js'), 'utf8');
-        assert.ok(schedule.indexOf("invoker: 'private'") !== -1);
+        assert.strictEqual(schedule.indexOf('invoker'), -1);
         assert.strictEqual(fs.readFileSync(path.join(root, 'functions/src/raidBossEngine.js'), 'utf8').indexOf('cipher-cracker.png'), -1);
     });
 
@@ -496,6 +496,8 @@ async function main() {
         assert.ok(src.indexOf("permission-denied") !== -1);
         const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
         assert.ok(index.indexOf("schedule: '0 19 * * 0'") !== -1);
+        const weekly = index.slice(index.indexOf('exports.raidBossWeeklyAnnouncement'), index.indexOf('exports.raidBossWeeklyAnnouncement') + 280);
+        assert.strictEqual(weekly.indexOf('invoker'), -1);
         assert.ok(index.indexOf("timeZone: 'America/New_York'") !== -1);
         assert.strictEqual(index.indexOf('0 23 * * 0'), -1);
         const schedule = fs.readFileSync(path.join(root, 'functions/src/scheduleRaidBoss.js'), 'utf8');
@@ -766,7 +768,6 @@ async function main() {
             sources: ['pollVotes'],
             target: 1000,
             damageScale: 1,
-            dailyCap: 1,
             current: 10,
             defeated: false,
             placeholder: false,
@@ -781,6 +782,44 @@ async function main() {
         assert.strictEqual(hit.status, 'ok');
         const part = await db.collection('raid_bosses').doc('legacyOctober').collection('participants').doc('ada').get();
         assert.strictEqual(part.exists, true);
+        const second = await engine.creditTrusted(db, admin, {
+            metric: 'pollVotes', uid: 'ada', dedupeKey: 'poll-ada-day-2', amount: 1,
+            grantTickets: null, badges: false, now: new Date('2026-10-20T16:00:00.000Z'),
+        });
+        assert.strictEqual(second.status, 'cap');
+        assert.strictEqual(engine.dailyCapFor({ name: 'Poll-Patroller', metric: 'pollVotes' }), 1);
+        assert.strictEqual(engine.dailyCapFor({ name: 'No-Such-Boss', metric: 'watchMinutes' }), 1);
+    });
+
+    await test('a live boss with no dailyCap falls back to 1 when it is not in the schedule', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        const start = engine.zonedTimeToUtc(2026, 10, 1, 13, 0, 0);
+        const end = engine.zonedTimeToUtc(2026, 11, 1, 13, 0, 0);
+        await db.collection('raid_bosses').doc('legacyUnknown').set({
+            name: 'Old-Boss',
+            metric: 'watchMinutes',
+            sources: ['watchMinutes'],
+            target: 1000,
+            damageScale: 1,
+            current: 0,
+            defeated: false,
+            placeholder: false,
+            startTime: ts(start),
+            endTime: ts(end),
+        });
+        await db.collection('users').doc('ada').set({ username: 'ada' });
+        const now = new Date('2026-10-20T16:00:00.000Z');
+        const hit = await engine.creditTrusted(db, admin, {
+            metric: 'watchMinutes', uid: 'ada', dedupeKey: 'watch-1', amount: 1,
+            grantTickets: null, badges: false, now: now,
+        });
+        const second = await engine.creditTrusted(db, admin, {
+            metric: 'watchMinutes', uid: 'ada', dedupeKey: 'watch-2', amount: 1,
+            grantTickets: null, badges: false, now: now,
+        });
+        assert.strictEqual(hit.status, 'ok');
+        assert.strictEqual(second.status, 'cap');
     });
 
     await test('forum damage is not queued outside Forum-Forge and old pending docs settle', async function () {

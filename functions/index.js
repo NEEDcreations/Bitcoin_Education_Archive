@@ -8256,7 +8256,7 @@ exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
 
 // Sunday 7 PM America/New_York. One post per Eastern week, including after a win.
 exports.raidBossWeeklyAnnouncement = onSchedule(
-  { schedule: '0 19 * * 0', timeZone: 'America/New_York', region: 'us-central1', invoker: 'private' },
+  { schedule: '0 19 * * 0', timeZone: 'America/New_York', region: 'us-central1' },
   async () => {
     try {
       await require('./src/raidBossEngine').postWeekly(db, admin, new Date());

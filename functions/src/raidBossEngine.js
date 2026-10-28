@@ -882,6 +882,26 @@ function uidOk(uid) {
     return typeof uid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(uid);
 }
 
+function dailyCapFor(data) {
+    const onDoc = Math.floor(Number(data && data.dailyCap));
+    if (onDoc > 0) return onDoc;
+    const name = data && data.name;
+    const metric = data && data.metric;
+    let match = null;
+    for (let i = 0; i < SCHEDULE.length; i++) {
+        const entry = SCHEDULE[i];
+        if (name && entry.name === name) {
+            match = entry;
+            break;
+        }
+        if (!match && metric && (entry.metric === metric || (entry.sources && entry.sources.indexOf(metric) !== -1))) {
+            match = entry;
+        }
+    }
+    const fromDef = match ? Math.floor(Number(match.dailyCap)) : 0;
+    return fromDef > 0 ? fromDef : 1;
+}
+
 async function maybeGrantTickets(uid, damage, grantTickets) {
     if (grantTickets === null || !(damage > 0)) return;
     if (typeof grantTickets === 'function') {
@@ -1020,7 +1040,7 @@ async function creditTrusted(db, admin, opts) {
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const partRef = bossDoc.ref.collection('participants').doc(uid);
-    const capMax = Math.floor(Number(bossDoc.data.dailyCap));
+    const capMax = dailyCapFor(bossDoc.data);
     const scale = typeof bossDoc.data.damageScale === 'number' ? bossDoc.data.damageScale : 1;
     const stamp = admin.firestore.FieldValue.serverTimestamp();
     const outcome = await db.runTransaction(async function (tx) {
@@ -1277,6 +1297,7 @@ module.exports = {
     alertSpawnFailure: alertSpawnFailure,
     spawnFailureMessage: spawnFailureMessage,
     postWeekly: postWeekly,
+    dailyCapFor: dailyCapFor,
     creditTrusted: creditTrusted,
     noteTrusted: noteTrusted,
     queueForumDamage: queueForumDamage,
