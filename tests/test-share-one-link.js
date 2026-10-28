@@ -298,7 +298,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: A returning signed-in home shows level, sats, rank, and buttons from this device as soon as the page paints. An authenticator account stays hidden until that check finishes.');
+    const latestAt = notes.indexOf('Latest: Find a Bitcoin Buddy is on the home page, shows how long you have been waiting, and notifies you when a buddy is found. You both earn 20 XP after you have each written once, and Buddy Up comes from a real match.');
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

@@ -9148,6 +9148,21 @@ const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
 
+// Find a Bitcoin Buddy. App Check is required. Matching, the welcome, the
+// notifications, and the 20 XP are server-only. Deploy:
+// requestBuddyMatch, leaveBuddyPool, endBuddy, sweepStaleBuddies, onBuddyDmXp
+// and firestore:rules.
+const { bindBuddy } = require('./src/buddyMatch');
+const buddyFns = bindBuddy(functionsV1, admin, db, {
+    onSchedule: onSchedule,
+    onDocumentCreated: onDocumentCreated,
+});
+exports.requestBuddyMatch = buddyFns.requestBuddyMatch;
+exports.leaveBuddyPool = buddyFns.leaveBuddyPool;
+exports.endBuddy = buddyFns.endBuddy;
+exports.sweepStaleBuddies = buddyFns.sweepStaleBuddies;
+exports.onBuddyDmXp = buddyFns.onBuddyDmXp;
+
 // Hidden reply bonus. App Check is required, same as claimSats. The handler
 // grants XP only inside a transaction after it reads the chat message.
 const { bindReplyBonus } = require('./src/replyBonus');
