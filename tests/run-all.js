@@ -38,6 +38,8 @@ const TESTS = [
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
     { name: 'Cipher share rewards', file: 'test-cipher-share.js' },
+    { name: 'Key send back', file: 'test-key-send-back.js' },
+    { name: 'Key send back emulator', file: 'test-key-send-back-emulator.js' },
     { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
     { name: 'Activity Shoutouts', file: 'test-activity-shoutout.js' },
     { name: 'Chat Mentions', file: 'test-chat-mentions.js' },

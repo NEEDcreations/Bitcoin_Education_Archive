@@ -16,6 +16,7 @@ const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
 const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
+const { planKeySend, keyOpenCountsForPeerLevel, pairEligible } = require('./badgeProgress');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { planDailyXp } = require('./dailyXp');
 const { applyDailyXp } = require('./applyDailyXp');
@@ -512,6 +513,7 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
     const recipRef = db.collection('users').doc(recipientUid);
     // Same ban doc openGift reads. There is no sats_ledger collection.
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const recipLedgerRef = db.collection('faucet_ledger').doc(recipientUid);
     const keyRefs = keyIds.map(function(id) { return db.collection('keys').doc(id); });
 
     let senderName = 'Someone';
@@ -524,21 +526,33 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             t.get(senderRef),
             t.get(recipRef),
             t.get(ledgerRef),
+            t.get(recipLedgerRef),
         ].concat(pairRefs.map(function(r) { return t.get(r); }), keyRefs.map(function(r) { return t.get(r); })));
 
         const senderDoc = docs[0];
         const recipDoc = docs[1];
         const ledgerDoc = docs[2];
-        const pairDocs = docs.slice(3, 3 + pairRefs.length);
-        const keyDocs = docs.slice(3 + pairRefs.length);
+        const recipLedgerDoc = docs[3];
+        const pairDocs = docs.slice(4, 4 + pairRefs.length);
+        const keyDocs = docs.slice(4 + pairRefs.length);
 
         if (!senderDoc.exists) throw httpsError('not-found', 'Sender not found');
         if (!recipDoc.exists) throw httpsError('not-found', 'Recipient not found');
 
         const sender = senderDoc.data();
+        const recip = recipDoc.data() || {};
         const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
+        const recipLedger = recipLedgerDoc.exists ? (recipLedgerDoc.data() || {}) : null;
         if (rewardBlocked(sender, ledger)) {
             throw httpsError('permission-denied', 'Key sends are disabled on this account.');
+        }
+        if (rewardBlocked(recip, recipLedger)) {
+            throw httpsError('permission-denied', 'You can\'t send keys to this peer.');
+        }
+        const senderBlocks = Array.isArray(sender.blockedUsers) ? sender.blockedUsers : [];
+        const recipBlocks = Array.isArray(recip.blockedUsers) ? recip.blockedUsers : [];
+        if (senderBlocks.indexOf(recipientUid) !== -1 || recipBlocks.indexOf(uid) !== -1) {
+            throw httpsError('failed-precondition', 'You can\'t send keys to this peer.');
         }
         senderName = safeName(sender.username || 'Someone');
         senderPointsBefore = sender.points || 0;
@@ -552,21 +566,39 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             }
         });
 
+        const plans = [];
         keyDocs.forEach(function(keyDoc) {
             if (!keyDoc.exists) throw httpsError('not-found', 'One or more keys not found');
             const key = keyDoc.data();
             if (key.ownerId !== uid) throw httpsError('permission-denied', 'Not your key');
-            if (key.status !== 'inventory') throw httpsError('failed-precondition', 'Key already sent or used');
+            // Inventory keys go to any peer. A received key (status sent) can
+            // only go back to the peer who sent it. The request cannot choose
+            // origin, prior senders, or whether the handoff counts.
+            const plan = planKeySend(key, uid, recipientUid);
+            if (!plan.inventory && !plan.held) throw httpsError('failed-precondition', 'Key already sent or used');
+            if (plan.alreadyReturned) throw httpsError('failed-precondition', 'This key was already sent back.');
+            if (plan.held && plan.previousSender !== recipientUid) {
+                throw httpsError('failed-precondition', 'A received key can only go back to the peer who sent it.');
+            }
             if (CIPHER_LABELS.indexOf(key.label) === -1) throw httpsError('invalid-argument', 'Invalid key label');
+            plans.push(plan);
             sentLabels.push(key.label);
         });
 
-        const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
-        const xpGrant = await applyDailyXp(uid, keyXp, t, { day: todayOffset, userRef: senderRef });
+        // Send XP is once per batch, and only for unused inventory keys.
+        // A key received from a peer, including a send-back, pays nothing
+        // even during Double XP. The client cannot choose this.
+        const inventoryOnly = plans.every(function(plan) { return plan.paysSendXp === true; });
+        let xpGrant = { awarded: 0 };
+        if (inventoryOnly) {
+            const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
+            xpGrant = await applyDailyXp(uid, keyXp, t, { day: todayOffset, userRef: senderRef });
+        }
         xpAwarded = xpGrant.awarded;
 
         const now = admin.firestore.FieldValue.serverTimestamp();
         for (let i = 0; i < keyDocs.length; i++) {
+            const plan = plans[i];
             t.update(keyRefs[i], {
                 status: 'sent',
                 sentTo: recipientUid,
@@ -578,6 +610,12 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 // Server-only provenance. Clients cannot write keys, and this
                 // call ignores any sender the client put on the request.
                 sender: uid,
+                originUid: plan.originUid,
+                priorSenders: plan.priorSenders,
+                // A send-back stays false for peer level for the life of the key.
+                // sendBackUsed lets that key move once, then never again.
+                skipPeerLevel: plan.skipPeerLevel === true,
+                sendBackUsed: plan.sendBack === true,
             });
         }
 
@@ -762,6 +800,8 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         let senderRef = null;
         let senderDailyRef = null;
         let shareSenderName = 'a Bitcoiner';
+        let senderSnap = null;
+        let senderLedgerSnap = null;
         const shareSender = senderFromKey(key);
         const shareRef = db.collection('cipher_shares').doc(cipherId);
         if (shareSender) {
@@ -769,9 +809,9 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             const senderLedgerRef = db.collection('faucet_ledger').doc(shareSender);
             senderDailyRef = senderRef.collection('daily_points').doc(cipherDay);
             const shareSnap = await t.get(shareRef);
-            const senderSnap = await t.get(senderRef);
+            senderSnap = await t.get(senderRef);
             shareSenderName = safeName(senderSnap.exists ? (senderSnap.data() || {}).username : '');
-            const senderLedgerSnap = await t.get(senderLedgerRef);
+            senderLedgerSnap = await t.get(senderLedgerRef);
             const senderDailySnap = await t.get(senderDailyRef);
             sharePlan = planCipherShare({
                 cipherId: cipherId,
@@ -800,6 +840,35 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             if (!sharePlan.pay) {
                 console.warn('[decryptCipher] cipher share skipped ' + sharePlan.reason + ' cipher=' + cipherId);
             }
+        }
+
+        // Peer level is decided before any write. A send-back, a hop back to
+        // the earner, or an open by someone who already sent this key does
+        // not count. Same person, banned, and accounts under 7 days do not
+        // increment giftsExchanged either. The request cannot turn this on.
+        let keyCounts = false;
+        let pairOk = false;
+        if (peerKey) keyCounts = keyOpenCountsForPeerLevel(key, uid);
+        if (keyCounts) {
+            const levelSender = String(key.sentBy || '').trim();
+            let levelUser = null;
+            let levelLedger = null;
+            if (levelSender && shareSender === levelSender && senderSnap) {
+                levelUser = senderSnap.exists ? (senderSnap.data() || null) : null;
+                levelLedger = senderLedgerSnap && senderLedgerSnap.exists ? (senderLedgerSnap.data() || null) : null;
+            } else if (levelSender) {
+                const levelUserSnap = await t.get(db.collection('users').doc(levelSender));
+                const levelLedgerSnap = await t.get(db.collection('faucet_ledger').doc(levelSender));
+                levelUser = levelUserSnap.exists ? (levelUserSnap.data() || null) : null;
+                levelLedger = levelLedgerSnap.exists ? (levelLedgerSnap.data() || null) : null;
+            }
+            pairOk = pairEligible(
+                Object.assign({ uid: uid }, user),
+                ledger,
+                levelUser ? Object.assign({ uid: levelSender }, levelUser) : null,
+                levelLedger,
+                Date.now()
+            );
         }
 
         if (reward.rewardType === 'sats') {
@@ -902,6 +971,8 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             reward: Object.assign({}, reward, { winId: winId, satsStatus: satsStatus }),
             keySentBy: peerKey ? (key.sentBy || null) : null,
             sendPairId: peerKey ? (key.sendPairId || '') : '',
+            keyCounts: keyCounts,
+            pairEligible: pairOk,
             opensToday: decToday + 1,
             fullRing: decToday + 1 >= CIPHER_OPENS_PER_DAY,
             username: safeName(user.username),
@@ -912,7 +983,10 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         };
     });
 
-    if (applied && applied.keySentBy && applied.keySentBy !== uid) {
+    // keyCounts is false for a returned key, so ping-pong never adds a gift
+    // or the peer-key XP. pairEligible is the same fake-account check the
+    // badge uses. A normal first handoff between two real peers still counts.
+    if (applied && applied.keyCounts && applied.keySentBy && applied.keySentBy !== uid) {
         try {
             await require('./badgeCredit').creditPeerKeyUse(db, admin, {
                 openerUid: uid,
@@ -922,10 +996,12 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 opensToday: applied.opensToday,
             });
         } catch (e) { console.warn('[decryptCipher] peer key credit', e.message); }
-        try {
-            const level = await updatePeerLevelAfterGift(applied.keySentBy, uid);
-            await require('./badgeCredit').creditPeerLevel(db, admin, applied.keySentBy, uid, level);
-        } catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
+        if (applied.pairEligible) {
+            try {
+                const level = await updatePeerLevelAfterGift(applied.keySentBy, uid);
+                await require('./badgeCredit').creditPeerLevel(db, admin, applied.keySentBy, uid, level);
+            } catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
+        }
     }
 
     if (applied && applied.reward) {

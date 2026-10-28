@@ -318,6 +318,63 @@ function sortedPairId(a, b) {
     return left < right ? left + '_' + right : right + '_' + left;
 }
 
+function uidList(value) {
+    if (!Array.isArray(value)) return [];
+    const out = [];
+    for (let i = 0; i < value.length; i++) {
+        const id = String(value[i] || '').trim();
+        if (id && id.length <= 128 && out.indexOf(id) === -1) out.push(id);
+    }
+    return out;
+}
+
+// Provenance written by sendKeys. The request body is not an input.
+// A key leaving inventory records the earner as origin and is the only
+// handoff that pays send XP. A received key may go back once, to the peer
+// who sent it, and that return never pays send XP or peer level.
+function planKeySend(key, senderUid, recipientUid) {
+    const row = key || {};
+    const sender = String(senderUid || '').trim();
+    const recipient = String(recipientUid || '').trim();
+    const inventory = row.status === 'inventory';
+    const held = row.status === 'sent';
+    const previous = String(row.sentBy || row.sender || '').trim();
+    const origin = String(row.originUid || (inventory ? sender : (previous || sender)) || '').trim();
+    const prior = uidList(row.priorSenders);
+    if (sender && prior.indexOf(sender) === -1) prior.push(sender);
+    const alreadyReturned = held && (row.sendBackUsed === true || row.skipPeerLevel === true);
+    const backToPrevious = held && !alreadyReturned && !!previous && recipient === previous;
+    const backToOrigin = !!origin && recipient === origin && recipient !== sender;
+    const backToPriorHolder = prior.indexOf(recipient) !== -1 && recipient !== sender;
+    const skipPeerLevel = row.skipPeerLevel === true || backToPrevious || backToOrigin || backToPriorHolder;
+    return {
+        inventory: inventory,
+        held: held,
+        previousSender: previous,
+        originUid: origin,
+        priorSenders: prior.slice(0, 8),
+        skipPeerLevel: skipPeerLevel,
+        alreadyReturned: alreadyReturned,
+        sendBack: backToPrevious,
+        paysSendXp: inventory === true,
+    };
+}
+
+// True only for a peer key whose open is the first real handoff.
+// A return to the earner, or to anyone who already sent this key, is false.
+function keyOpenCountsForPeerLevel(key, openerUid) {
+    const row = key || {};
+    const opener = String(openerUid || '').trim();
+    if (!opener || row.status !== 'sent') return false;
+    if (row.skipPeerLevel === true) return false;
+    const sentBy = String(row.sentBy || '').trim();
+    if (!sentBy || sentBy === opener) return false;
+    const origin = String(row.originUid || '').trim();
+    if (origin && origin === opener) return false;
+    if (uidList(row.priorSenders).indexOf(opener) !== -1) return false;
+    return true;
+}
+
 module.exports = {
     MIN_AGE_MS: MIN_AGE_MS,
     KEY_USE_XP: KEY_USE_XP,
@@ -349,4 +406,6 @@ module.exports = {
     planCipherPaid: planCipherPaid,
     planRaffleWinner: planRaffleWinner,
     sortedPairId: sortedPairId,
+    planKeySend: planKeySend,
+    keyOpenCountsForPeerLevel: keyOpenCountsForPeerLevel,
 };
