@@ -570,7 +570,7 @@ function initRanking() {
             loadUser(user.uid);
             var _redirCache = null;
             try { _redirCache = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null'); } catch (e) { _redirCache = null; }
-            if (_redirCache && _redirCache.uid === user.uid && _redirCache.data && _redirCache.data.totpEnabled && !totpVerifiedFor(user.uid)) {
+            if (_redirCache && _redirCache.uid === user.uid && _redirCache.data && (_redirCache.data.totpEnabled || _redirCache.twoFa === true) && !totpVerifiedFor(user.uid)) {
                 window._btcTotpHold = true;
                 holdAuthDisplayForTotp(user.uid);
             } else if (!window._btcTotpHold) {
@@ -669,13 +669,16 @@ function initRanking() {
                     var _cachedProfile = null;
                     try {
                         var _cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
-                        if (_cp && _cp.uid === user.uid && (Date.now() - _cp.ts) < 86400000) _cachedProfile = _cp;
+                        // Any age. The next Firestore read refreshes it. A 24h cutoff
+                        // used to block the signed-in home on a full user read.
+                        if (_cp && _cp.uid === user.uid && _cp.data) _cachedProfile = _cp;
                     } catch(e) {}
-                    if (_cachedProfile && _cachedProfile.data && _cachedProfile.data.totpEnabled && !totpVerifiedFor(user.uid)) {
+                    var _cacheNeeds2fa = _cachedProfile && (_cachedProfile.twoFa === true || (_cachedProfile.data && _cachedProfile.data.totpEnabled));
+                    if (_cacheNeeds2fa && !totpVerifiedFor(user.uid)) {
                         window._btcTotpHold = true;
                         holdAuthDisplayForTotp(user.uid);
                         loadUser(user.uid).catch(function(){});
-                    } else if (_cachedProfile) {
+                    } else if (_cachedProfile && _cachedProfile.twoFa === false && !(_cachedProfile.data && _cachedProfile.data.totpEnabled)) {
                         // Instant render from cache. Display snapshot stays display-only;
                         // rankingReady here is the existing profile cache, after auth matched this uid.
                         currentUser = { uid: user.uid, ..._cachedProfile.data };
@@ -688,8 +691,20 @@ function initRanking() {
                         try { restoreVisitedUI(); } catch (e) { console.warn('[Auth] early restore', e); }
                         try { updateRankUI(); } catch (e) { console.warn('[Auth] early rank', e); }
                         try { updateAuthButton(); } catch (e) { console.warn('[Auth] early button', e); }
+                        try {
+                            var _liveBar = document.getElementById('rankBar');
+                            if (_liveBar) {
+                                _liveBar.setAttribute('data-auth-live', '1');
+                                _liveBar.removeAttribute('data-profile-cache');
+                            }
+                            var _liveSats = document.getElementById('homeSatsValue');
+                            if (_liveSats) {
+                                _liveSats.setAttribute('data-auth-live', '1');
+                                _liveSats.removeAttribute('data-profile-cache');
+                            }
+                        } catch (e) {}
                         if (typeof renderProgressRings === 'function') renderProgressRings();
-                        // Refresh from Firestore in background (non-blocking)
+                        // Stale-while-revalidate: Firestore refreshes the cache and does not block the paint above.
                         setTimeout(function() { loadUser(user.uid).catch(function(){}); }, 500);
                     } else {
                         loadUser(user.uid).catch(function(){});
@@ -2871,7 +2886,8 @@ async function loadUser(uid, prefetchedDoc) {
         currentUser = { uid, ...doc.data() };
         // Cache profile for instant next-load. The display snapshot is a separate,
         // non-sensitive projection and is not allowed to grant anything.
-        try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
+        // twoFa is explicit: true, false, or left unknown when the doc has no flag.
+        saveProfileCache(uid, doc.data());
         // Authenticator accounts do not get a display snapshot or a live
         // Settings button until _serverTotpAllows returns true below.
         if (auth.currentUser && !auth.currentUser.isAnonymous && currentUser.totpEnabled && !totpVerifiedFor(uid)) {
@@ -9206,8 +9222,28 @@ window.minimizeSignUpBanner = function() {
 // totpEnabled accounts keep a needs2fa marker instead of a name until this
 // session's authenticator check succeeds. The stored marker has no username,
 // so the next boot cannot paint one before the check.
+function saveProfileCache(uid, data) {
+    try {
+        var prev = null;
+        try { prev = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null'); } catch (e) { prev = null; }
+        var rec = { uid: uid, ts: Date.now(), data: data || {} };
+        if (data && data.totpEnabled === true) rec.twoFa = true;
+        else if (data && data.totpEnabled === false) rec.twoFa = false;
+        else if (prev && prev.uid === uid && (prev.twoFa === true || prev.twoFa === false)) rec.twoFa = prev.twoFa;
+        localStorage.setItem('btc_profile_cache', JSON.stringify(rec));
+    } catch (e) {}
+}
+function stampProfileTwoFa(uid, on) {
+    try {
+        var raw = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (!raw || raw.uid !== uid) return;
+        raw.twoFa = on === true;
+        localStorage.setItem('btc_profile_cache', JSON.stringify(raw));
+    } catch (e) {}
+}
 function holdAuthDisplayForTotp(uid) {
     noteTotpHold(uid);
+    stampProfileTwoFa(uid, true);
     if (!window.btcAuthDisplay || !uid) return;
     try {
         if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
@@ -9221,20 +9257,15 @@ function publishAuthDisplay(uid, data) {
         holdAuthDisplayForTotp(uid);
         return;
     }
-    if (data.totpEnabled) {
+    if (data.totpEnabled) { stampProfileTwoFa(uid, true);
         try {
             if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
-            var mem = window.btcAuthDisplay.sanitize({
-                uid: uid,
-                username: data.username,
-                avatar: data.profilePic || '',
-                xp: data.points || 0
-            });
+            var mem = window.btcAuthDisplay.sanitize({ uid: uid, username: data.username, avatar: data.profilePic || '', xp: data.points || 0 });
             if (mem && window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(mem);
         } catch (e) {}
         return;
     }
-    if (!data.username) return;
+    if (!data.username) return; stampProfileTwoFa(uid, false);
     try {
         var snap = window.btcAuthDisplay.write({
             uid: uid,

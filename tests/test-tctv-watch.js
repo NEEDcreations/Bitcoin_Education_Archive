@@ -419,7 +419,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2405'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2407'"));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2410'));
@@ -432,7 +432,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!sw.includes('btc-archive-v2382'));
     assert.ok(!sw.includes('btc-archive-v2381'));
     assert.ok(!sw.includes('btc-archive-v2380'));
-    assert.ok(!sw.includes('btc-archive-v2407'));
+    assert.ok(!sw.includes('btc-archive-v2405'));
     assert.ok(!sw.includes('btc-archive-v2379'));
     assert.ok(!sw.includes('btc-archive-v2378'));
     assert.ok(!sw.includes('btc-archive-v2399'));
@@ -882,7 +882,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    const latest = 'Latest: The privacy policy and terms now explain referral tracking, verified-referral badge tiers, two-factor authentication, the profile saved on this device, account deletion, App Check, Lightning sats, what Nacho sends to the AI, Timechain TV and Bitcoin Beats, share cards and referral links, Satoshi\'s Favor, peers, keys and ciphers, the public leaderboard, and guest accounts. Rewards are discretionary and are not guaranteed.';
+    const latest = 'Latest: A returning signed-in home shows level, sats, rank, and buttons from this device as soon as the page paints. An authenticator account stays hidden until that check finishes.';
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
     const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
     const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';

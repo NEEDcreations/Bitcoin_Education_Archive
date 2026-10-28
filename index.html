@@ -56,7 +56,7 @@
     }
 })();
 </script>
-    <script src="auth-display.js?v=20261027_v2394"></script>
+    <script src="auth-display.js?v=20261028_v2403"></script>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -71,12 +71,15 @@
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
+    <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
     <link rel="preload" href="bundle.min.js?v=20261027_v2395" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
     <script src="firebase-config.js?v=20261027_v2394" defer></script>
+    <script src="app-check-boot.js?v=20261028_v2403" defer></script>
     <script src="auth-boot.js?v=20261027_v2394" defer></script>
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -2115,13 +2118,12 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js" defer integrity="sha384-oFrOL1TiREYNET0lsYF3LjQuyi2gL7vhjH1X8vFr+umcmzAdPELopeSgbcrv4uRm" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
-    <!-- App Check must execute before ranking.js calls initRanking() -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
-    <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs + App Check, before bundle -->
+    <!-- App Check loads in the head, before auth-boot. ranking.js activates it only if that boot did not. -->
+    <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
-    <script src="ranking.js?v=20261027_v2394" defer></script>
+    <script src="ranking.js?v=20261028_v2403" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261027_v2395" defer fetchpriority="high"></script>
@@ -2257,7 +2259,7 @@
         }
     })();
     </script>
-<!-- App Check is initialized in ranking.js with the reCAPTCHA v3 site key. -->
+<!-- App Check is activated in app-check-boot.js with the reCAPTCHA v3 site key, before auth. ranking.js repeats that only if the early boot did not run. -->
 <script>
 if ('serviceWorker' in navigator) {
     // Don't wait for window 'load'. That event waits on images and the big
