@@ -761,6 +761,17 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "buddy_dm_tails",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "fieldPath": "signupSource",
       "indexes": [

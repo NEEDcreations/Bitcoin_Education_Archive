@@ -84,6 +84,7 @@ const TESTS = [
     { name: 'Bitcoin Buddy', file: 'test-buddy-match.js' },
     { name: 'Buddy rules', file: 'test-buddy-rules.js' },
     { name: 'Buddy safety', file: 'test-buddy-safety.js' },
+    { name: 'Buddy risk corpus', file: 'test-buddy-corpus.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Nacho live answers', file: 'nacho-quality.js' },
     { name: 'Chat scam regression', file: 'test-chat-scam-regression.js' },

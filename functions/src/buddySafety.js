@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const BIP39_SET = require('./bip39Words');
 
 // Buddy conversation checks. High-confidence requests lock the sender.
 // A link on an unknown site, or a nudge toward Telegram, WhatsApp, or
@@ -258,11 +259,19 @@ function liveVerb(clause, words) {
     });
 }
 
-function isReportingClause(clause) {
-    return /\b(?:might|may|will|would|could)\s+say\b/.test(clause)
-        || /\b(?:scammers?|someone|they)\b[\s\S]{0,60}\b(?:will|may|might|would|could)\s+(?:ask|tell|say)\b/.test(clause)
-        || /\b(?:says|said|asks|asked|saying)\b/.test(clause)
-        || (/\bscammers?\b/.test(clause) && /\b(?:say|ask|tell)\b/.test(clause));
+function reportingCoversThisRequest(clause) {
+    const intro = clause.match(/\b(?:(?:might|may|will|would|could)\s+(?:say|ask|tell)|says|said|asks|asked|saying)\b([\s\S]*)$/i);
+    let after = '';
+    if (intro) after = intro[1] || '';
+    else if (/\bscammers?\b/i.test(clause)) {
+        const scam = clause.match(/\b(?:ask|tell|say)\b([\s\S]*)$/i);
+        after = scam ? (scam[1] || '') : '';
+        if (!scam) return false;
+    } else return false;
+    const requestAt = after.search(/\b(?:send|give|share|show|tell|type|paste|enter|drop|read)\b/i);
+    if (requestAt < 0) return false;
+    const gap = wordsBetween(after.slice(0, requestAt));
+    return gap.every(function (word) { return /^(?:you|to|that|please|me)$/.test(word); });
 }
 
 function shieldedFromSender(clause) {
@@ -293,25 +302,50 @@ function readerOwnsSecret(clause) {
     return false;
 }
 
+function senderPointed(clause) {
+    if (/\b(?:to me|with me|in here|this chat|in chat)\b/.test(clause)) return true;
+    if (/\b(?:send|give|show|tell|read|dm|paste|drop|type|enter|write|post|share)\s+me\b/.test(clause)) return true;
+    return /\bhere\b/.test(clause) && /\b(?:type|paste|enter|write|post|drop|send)\b/.test(clause);
+}
+
+function keepsOwnSecret(clause) {
+    if (/\bon\s+(?:paper|steel|metal)\b/.test(clause)) return true;
+    if (/\b(?:on|onto)\s+the\s+device\b/.test(clause)) return true;
+    if (/\b(?:into|in)\s+(?:a |the |your )?(?:safe|fireproof|coldcard|trezor|ledger|wallet|device)\b/.test(clause)) return true;
+    if (/\bwrite(?:n)?\s+down\b/.test(clause) || (/\bdown\b/.test(clause) && /\bwrite\b/.test(clause))) return true;
+    if (/\bwith yourself\b/.test(clause)) return true;
+    if (/\bonline\b/.test(clause) && /\bpost\b/.test(clause)) return true;
+    if (/\byour family\b/.test(clause)) return true;
+    if (/\bbacked up\b/.test(clause)) return true;
+    return new RegExp('\\b(?:your|ur)\\s+(?:' + SECRET_SOURCE + ')\\s+(?:backup|method|storage|setup|questions|plan)\\b', 'i').test(clause);
+}
+
 function verbReachesYourSecret(clause) {
+    const keep = { write: true, share: true, post: true, read: true, drop: true, tell: true, enter: true, type: true };
     const re = new RegExp('\\b(send|give|show|tell|read|dm|paste|drop|post|write|type|enter|reply|share|have)\\b([\\s\\S]{0,40}?)\\b(?:your|ur)\\b', 'ig');
     let match;
     while ((match = re.exec(clause))) {
+        const verb = match[1].toLowerCase();
         const between = wordsBetween(match[2]);
         if (between.length > 4) continue;
         if (between.some(function (word) {
             return /^(?:about|how|why|where|tips|guide|link|example|help|questions|sec|pic|notes|screen)$/.test(word);
         })) continue;
         if (!readerOwnsSecret(clause.slice(match.index))) continue;
-        if (!liveVerb(clause, [match[1].toLowerCase()])) continue;
+        if (!liveVerb(clause, [verb])) continue;
+        if (verb === 'have' && !/\b(?:can|could|may)\s+i\s+have\b/.test(clause)) continue;
+        if (keep[verb] && !senderPointed(clause) && !/\b(?:can|could)\s+you\b/.test(clause)) continue;
+        if (keep[verb] && keepsOwnSecret(clause) && !/\b(?:to me|with me|in here|this chat)\b/.test(clause) && !/\bhere\b/.test(clause)) continue;
         return true;
     }
     return false;
 }
 
 function directedSecret(clause) {
-    if (!clause || !hasSecret(clause) || isDeviceOrStorage(clause) || shieldedFromSender(clause) || isReportingClause(clause)) return false;
+    if (!clause || !hasSecret(clause) || isDeviceOrStorage(clause) || shieldedFromSender(clause) || reportingCoversThisRequest(clause)) return false;
+    if (keepsOwnSecret(clause) && !/\b(?:to me|with me|in here|this chat)\b/.test(clause) && !(/\bhere\b/.test(clause) && /\b(?:type|paste|enter|write|post|drop)\b/.test(clause))) return false;
     const owns = readerOwnsSecret(clause);
+    if (/\b(?:i|we)\s+want\s+(?:your|ur)\b/.test(clause) && owns) return true;
     if (owns && verbReachesYourSecret(clause)) return true;
     if (owns && /\b(?:send|give|show|read|dm|paste|drop)\s+me\b/.test(clause) && liveVerb(clause, ['send', 'give', 'show', 'read', 'dm', 'paste', 'drop'])) return true;
     if (liveVerb(clause, ['send', 'give', 'show', 'read', 'dm', 'paste', 'drop']) && /\b(?:send|give|show|read|dm|paste|drop)\s+me\s+the\b/i.test(clause)) {
@@ -330,15 +364,22 @@ function directedSecret(clause) {
     if (new RegExp('^\\s*(?:please\\s+' + SECRET_SOURCE + '|' + SECRET_SOURCE + '\\s+please)\\s*$', 'i').test(clause)) return true;
     if (new RegExp('\\b' + SECRET_SOURCE + '\\s+to\\s+me\\b', 'i').test(clause) && !/\b(?:explain|teach|describe|about)\b/.test(clause)) return true;
     if (new RegExp('\\b(?:the|your|ur)\\s+' + SECRET_SOURCE + '\\s+with\\s+me\\b', 'i').test(clause)) return true;
-    if (new RegExp('\\b' + SECRET_SOURCE + '\\s+send\\s+it\\b', 'i').test(clause) && liveVerb(clause, ['send'])) return true;
+    if (new RegExp('\\b' + SECRET_SOURCE + '\\s+send\\s+(?:it|them)\\b', 'i').test(clause) && liveVerb(clause, ['send'])) return true;
     if (/\b(?:type|paste|enter|write|post|drop)\b/.test(clause) && /\bhere\b/.test(clause) && owns && liveVerb(clause, ['type', 'paste', 'enter', 'write', 'post', 'drop'])) return true;
     return false;
 }
 
 function impersonates(clause) {
-    return /\b(?:i am|i'm|this is)\s+(?:an |a |the )?(?:admin|support)\b/.test(clause)
+    return /\b(?:i am|i'm|this is)\s+(?:an |a |the )?(?:admin|support|moderator|mod)\b/.test(clause)
+        || /\bi am a\b[\s\S]{0,40}\b(?:moderator|admin|support)\b/.test(clause)
         || /\bfrom support\b/.test(clause)
-        || /\bbitcoin quest support\b/.test(clause);
+        || /\bbitcoin quest (?:support|admin|moderator|team)\b/.test(clause)
+        || /\b(?:support|admin|moderator|mod|team|official)\s+here\b/.test(clause)
+        || /\bofficial support\b/.test(clause);
+}
+
+function accountFrozen(clause) {
+    return /\b(?:frozen|suspended|locked)\b/.test(clause) && /\b(?:account|wallet)\b/.test(clause);
 }
 
 function sendsValue(clause) {
@@ -363,26 +404,30 @@ function classifyText(raw) {
         if (list.indexOf(reason) === -1) list.push(reason);
     }
     clauses.forEach(function (clause, index) {
-        const previous = index > 0 ? clauses[index - 1] : '';
-        const reported = isReportingClause(clause) || (previous && isReportingClause(previous) && !/\b(?:but|so)\b/.test(clause));
+        const reported = reportingCoversThisRequest(clause);
         if (!reported && directedSecret(clause)) add(lockReasons, 'seed_request');
         if (!reported && liveVerb(clause, ['pay', 'send', 'zap', 'transfer', 'deposit', 'withdraw']) && addressPattern().test(clause)) add(lockReasons, 'address_send');
         if (!reported && index > 0 && /\bsend (?:it|them|this|that) to me\b/.test(clause) && !verbIsNegated(clause, 'send')) {
             const prior = clauses[index - 1].trim();
             const priorIsSecret = readerOwnsSecret(prior) || new RegExp('^(?:your\\s+|the\\s+)?' + SECRET_SOURCE + '$', 'i').test(prior);
-            if (priorIsSecret && !isReportingClause(prior)) add(lockReasons, 'seed_request');
+            if (priorIsSecret && !reportingCoversThisRequest(prior)) add(lockReasons, 'seed_request');
         }
     });
     const adminAt = [];
     const payAt = [];
+    const frozenAt = [];
     clauses.forEach(function (clause, index) {
-        if (isReportingClause(clause)) return;
+        if (reportingCoversThisRequest(clause)) return;
         if (impersonates(clause)) adminAt.push(index);
+        if (accountFrozen(clause)) frozenAt.push(index);
         if (sendsValue(clause) || paysAmount(clause) || (/\bverify\b/.test(clause) && (sendsValue(clause) || paysAmount(clause)))) payAt.push(index);
     });
-    if (adminAt.some(function (adminIndex) {
-        return payAt.some(function (payIndex) { return Math.abs(adminIndex - payIndex) <= 2; });
-    })) add(lockReasons, 'admin_funds');
+    function near(left, right) {
+        return left.some(function (a) {
+            return right.some(function (b) { return Math.abs(a - b) <= 2; });
+        });
+    }
+    if (near(adminAt, payAt) || near(frozenAt, payAt)) add(lockReasons, 'admin_funds');
     clauses.forEach(function (clause) {
         if (isDeviceOrStorage(clause)) return;
         if (/\b(?:send|transfer)\b/.test(clause) && /\b(?:sats|satoshis|btc|bitcoin)\b/.test(clause) && !addressPattern().test(clause)) {
@@ -443,11 +488,19 @@ function detectBuddyRisk(text, context) {
     return classifyText(previous + ' ' + String(text || ''));
 }
 
+function timeMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value === 'object' && typeof value.seconds === 'number') return value.seconds * 1000;
+    return Number(value) || 0;
+}
+
 function tailIsStale(row, now, unlockedAt) {
     const at = Number(row && row.at) || 0;
     if (!row || !at) return true;
     if (unlockedAt && at <= Number(unlockedAt)) return true;
-    if (row.expireAt && Number(row.expireAt) <= now) return true;
+    const expire = timeMillis(row.expireAt);
+    if (expire && expire <= now) return true;
     return now - at > PAIR_WINDOW_MS;
 }
 
@@ -456,14 +509,63 @@ function planTailRead(row, now, unlockedAt) {
     return row.text;
 }
 
+function containsRawSecret(text) {
+    const raw = String(text || '');
+    if (/\b[xtyz]prv[1-9A-HJ-NP-Za-km-z]{20,}/i.test(raw)) return true;
+    if (/\b[5KL][1-9A-HJ-NP-Za-km-z]{50,}\b/.test(raw)) return true;
+    if (/\b[1-9A-HJ-NP-Za-km-z]{40,}\b/.test(raw)) return true;
+    if (/\b[0-9a-fA-F]{32,}\b/.test(raw)) return true;
+    const words = raw.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    let run = 0;
+    for (let i = 0; i < words.length; i++) {
+        if (BIP39_SET.has(words[i])) {
+            run++;
+            if (run >= 4) return true;
+        } else run = 0;
+    }
+    return false;
+}
+
+function redactedSecretMarker(normalized) {
+    const match = normalized.match(new RegExp('((?:[a-z0-9]+\\s+){0,6})(' + SECRET_SOURCE + ')', 'i'));
+    if (!match) return 'seed phrase';
+    const keep = { i: true, we: true, me: true, my: true, your: true, ur: true, the: true, to: true, with: true, it: true, them: true, send: true, give: true, show: true, tell: true, need: true, want: true, have: true, share: true, read: true, dm: true, paste: true, type: true, here: true, please: true };
+    const prefix = match[1].trim().split(/\s+/).filter(function (word) { return keep[word]; });
+    return prefix.concat([match[2].toLowerCase()]).join(' ').slice(0, 80);
+}
+
+function safeTailWords(normalized) {
+    return normalized.split(/\s+/).filter(function (word) {
+        return word && word.length <= 20 && !containsRawSecret(word);
+    }).slice(-6).join(' ');
+}
+
 function planTailWrite(text, now) {
-    const normalized = normalizeRiskText(text);
-    if (!String(text || '').trim() || hasSecret(normalized) || addressPattern().test(normalized)) return null;
+    const raw = String(text || '');
+    if (!raw.trim() || containsRawSecret(raw)) return null;
+    const normalized = normalizeRiskText(raw);
+    if (!normalized || containsRawSecret(normalized)) return null;
+    const stored = hasSecret(normalized) ? redactedSecretMarker(normalized) : safeTailWords(normalized);
+    if (!stored) return null;
     return {
-        text: String(text).slice(-80),
+        text: stored,
         at: now,
         expireAt: now + PAIR_WINDOW_MS,
     };
+}
+
+function tailDocId(convoId, sender) {
+    return crypto.createHash('sha256').update(String(convoId) + '\n' + String(sender)).digest('hex').slice(0, 40);
+}
+
+async function cleanupExpiredTails(db, adminSdk, nowMs) {
+    const cutoff = adminSdk.firestore.Timestamp.fromMillis(nowMs || Date.now());
+    const snap = await db.collection('buddy_dm_tails').where('expireAt', '<', cutoff).limit(100).get();
+    if (!snap.size) return 0;
+    const batch = db.batch();
+    snap.docs.forEach(function (doc) { batch.delete(doc.ref); });
+    await batch.commit();
+    return snap.size;
 }
 
 function shouldCountReport(report) {
@@ -789,17 +891,13 @@ function createSafetyHandlers(deps) {
         } catch (err) {
             console.warn('[onBuddyDmSafety] lock', err && err.message ? err.message : err);
         }
-        const tailRef = db.collection('buddy_dm_tails').doc(convoId);
+        const tailRef = db.collection('buddy_dm_tails').doc(tailDocId(convoId, sender));
         try {
             const tailSnap = await tailRef.get();
-            const row = tailSnap.exists ? (tailSnap.data() || {})[sender] : null;
+            const row = tailSnap.exists ? (tailSnap.data() || {}) : null;
             previousText = planTailRead(row, now, unlockedAt);
             previousAt = previousText ? Number(row.at) || 0 : 0;
-            if (row && !previousText) {
-                const clear = {};
-                clear[sender] = admin.firestore.FieldValue.delete();
-                await tailRef.set(clear, { merge: true });
-            }
+            if (tailSnap.exists && !previousText) await tailRef.delete();
         } catch (err) {
             console.warn('[onBuddyDmSafety] tail', err && err.message ? err.message : err);
         }
@@ -811,9 +909,15 @@ function createSafetyHandlers(deps) {
         });
         try {
             const kept = planTailWrite(text, now);
-            const tailPatch = {};
-            tailPatch[sender] = kept || admin.firestore.FieldValue.delete();
-            await tailRef.set(tailPatch, { merge: true });
+            if (!kept) {
+                await tailRef.delete();
+            } else {
+                await tailRef.set({
+                    text: kept.text,
+                    at: kept.at,
+                    expireAt: admin.firestore.Timestamp.fromMillis(kept.expireAt),
+                });
+            }
         } catch (err) {
             console.warn('[onBuddyDmSafety] tail write', err && err.message ? err.message : err);
         }
@@ -950,18 +1054,28 @@ function createSafetyHandlers(deps) {
                 flagSnaps.push(await tx.get(db.collection('buddy_flags').doc(id)));
             }
             let convoFlags = [];
-            let tailSnap = null;
+            const tailSnaps = [];
             if (convId && convId.indexOf('/') === -1) {
                 const found = await tx.get(db.collection('buddy_flags').where('convoId', '==', convId).limit(40));
                 found.forEach(function (doc) { convoFlags.push(doc); });
-                if (plan.clearLock) tailSnap = await tx.get(db.collection('buddy_dm_tails').doc(convId));
+                if (plan.clearLock) {
+                    const convoSnap = await tx.get(db.collection('dm_conversations').doc(convId));
+                    const people = convoSnap.exists && Array.isArray((convoSnap.data() || {}).participants)
+                        ? convoSnap.data().participants
+                        : [uid];
+                    for (let p = 0; p < people.length && p < 4; p++) {
+                        tailSnaps.push(await tx.get(db.collection('buddy_dm_tails').doc(tailDocId(convId, people[p]))));
+                    }
+                }
             }
             const ts = admin.firestore.FieldValue.serverTimestamp();
             const now = Date.now();
             const flagStatus = plan.reportStatus === 'dismissed' ? 'dismissed' : 'resolved';
             if (plan.clearLock) {
                 tx.set(userRef, { lock: admin.firestore.FieldValue.delete() }, { merge: true });
-                if (tailSnap && tailSnap.exists) tx.delete(tailSnap.ref);
+                tailSnaps.forEach(function (snap) {
+                    if (snap && snap.exists) tx.delete(snap.ref);
+                });
             }
             if (plan.resumeChat && convId && convId.indexOf('/') === -1) {
                 tx.set(db.collection('dm_conversations').doc(convId), { reviewPaused: false }, { merge: true });
@@ -1046,6 +1160,9 @@ module.exports = {
     planTailRead: planTailRead,
     planTailWrite: planTailWrite,
     tailIsStale: tailIsStale,
+    tailDocId: tailDocId,
+    cleanupExpiredTails: cleanupExpiredTails,
+    containsRawSecret: containsRawSecret,
     normalizeRiskText: normalizeRiskText,
     knownHost: knownHost,
     createSafetyHandlers: createSafetyHandlers,

@@ -412,7 +412,10 @@ test('a message tail expires and never keeps a secret', function () {
     const kept = safety.planTailWrite('send me your', 1000);
     assert.strictEqual(kept.text, 'send me your');
     assert.strictEqual(kept.expireAt, 1000 + 10 * 60 * 1000);
-    assert.strictEqual(safety.planTailWrite('my seed phrase is abandon ability', 1000), null);
+    const marked = safety.planTailWrite('Your seed phrase.', 1000);
+    assert.strictEqual(marked.text, 'your seed phrase');
+    assert.ok(marked.text.indexOf('Your') === -1);
+    assert.strictEqual(safety.planTailWrite('abandon ability able about zoo', 1000), null);
     assert.strictEqual(safety.planTailRead(kept, 2000, 0), 'send me your');
     assert.strictEqual(safety.planTailRead(kept, 1000 + 11 * 60 * 1000, 0), '');
     assert.strictEqual(safety.planTailRead(kept, 2000, 1500), '');

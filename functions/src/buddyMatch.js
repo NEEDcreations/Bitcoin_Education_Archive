@@ -11,7 +11,7 @@ const { applyDailyXp } = require('./applyDailyXp');
 const { offsetDateKey } = require('./offsetDay');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily } = require('./grantBadge');
-const { accountLocked, createSafetyHandlers } = require('./buddySafety');
+const { accountLocked, createSafetyHandlers, cleanupExpiredTails } = require('./buddySafety');
 
 const LEVELS = ['beginner', 'intermediate', 'advanced'];
 const GOALS = ['learn', 'teach'];
@@ -995,6 +995,11 @@ function createBuddyHandlers(deps) {
     async function sweepStaleBuddies() {
         const now = Date.now();
         let poolRemoved = 0;
+        try {
+            await cleanupExpiredTails(db, admin, now);
+        } catch (err) {
+            console.warn('[sweepStaleBuddies] tails', err && err.message);
+        }
         let matchesRemoved = 0;
         let pointersCleared = 0;
         try {
