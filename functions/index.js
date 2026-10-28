@@ -4955,6 +4955,19 @@ exports.onDmMessageCreated = onDocumentCreated('dm_conversations/{cid}/messages/
     return null;
 });
 
+// Plaintext DM scan. Queues admin alerts and pauses a sender over the
+// heuristic threshold. Does not send email. adminReenableDms clears the pause.
+const dmGuard = require('./src/dmGuard');
+exports.onDmMessageGuard = onDocumentCreated('dm_conversations/{cid}/messages/{mid}', async (event) => {
+    try {
+        await dmGuard.handleDmMessageCreated({ db: db, admin: admin, auth: admin.auth() }, event);
+    } catch (e) {
+        console.warn('[onDmMessageGuard]', e && e.message ? e.message : '');
+    }
+    return null;
+});
+exports.adminReenableDms = dmGuard.bindAdminReenableDms(functionsV1, db, admin);
+
 // Marketplace message. The listing document is the source of the seller.
 // Client-written sellerUid and buyerName are ignored.
 exports.onMarketplaceMessageCreated = onDocumentCreated('marketplace_messages/{id}', async (event) => {

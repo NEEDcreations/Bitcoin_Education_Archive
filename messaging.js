@@ -247,6 +247,62 @@ function _canAccountDM(targetUid) {
     return { ok: true };
 }
 
+// Server sets users/{uid}.dmDisabled. The client only shows the pause.
+var DM_PAUSED_NOTICE = 'Your messages are paused pending review';
+
+function dmIsPausedLocal() {
+    if (window._dmDisabled === true) return true;
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.dmDisabled === true) return true;
+    return false;
+}
+
+function applyDmPausedUi(paused) {
+    var notice = document.getElementById('dmPauseNotice');
+    var composer = document.getElementById('dmComposer');
+    if (notice) {
+        notice.style.display = paused ? 'block' : 'none';
+        notice.textContent = DM_PAUSED_NOTICE;
+    }
+    if (composer) composer.style.display = paused ? 'none' : 'flex';
+}
+
+function showDmPaused() {
+    window._dmDisabled = true;
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.dmDisabled = true;
+    applyDmPausedUi(true);
+    if (typeof showToast === 'function') showToast(DM_PAUSED_NOTICE);
+}
+
+function refreshDmPaused() {
+    if (!auth || !auth.currentUser || !db) return;
+    var uid = auth.currentUser.uid;
+    db.collection('users').doc(uid).get().then(function(doc) {
+        var paused = !!(doc.exists && doc.data() && doc.data().dmDisabled === true);
+        window._dmDisabled = paused;
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid) currentUser.dmDisabled = paused;
+        applyDmPausedUi(paused);
+    }).catch(function() {});
+}
+
+function onDmSendDenied(err, container) {
+    var opt = container && container.querySelector('[data-optimistic]');
+    if (opt) opt.remove();
+    if (!err || err.code !== 'permission-denied') {
+        if (typeof showToast === 'function') showToast('Failed to send: ' + ((err && (err.code || err.message)) || 'Unknown error'));
+        return;
+    }
+    if (!auth || !auth.currentUser || !db) {
+        showDmPaused();
+        return;
+    }
+    db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+        if (doc.exists && doc.data() && doc.data().dmDisabled === true) showDmPaused();
+        else if (typeof showToast === 'function') showToast('Failed to send: permission-denied');
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Failed to send: permission-denied');
+    });
+}
+
 // ---- DUPLICATE MESSAGE DETECTION ----
 var _lastSentMsg = { text: '', time: 0 };
 
@@ -858,6 +914,9 @@ window.openDM = function(recipientUid, recipientName) {
         return;
     }
 
+    // A paused account can still open the thread and read. The composer
+    // is replaced with the review notice. Other gates stay for everyone else.
+    if (!dmIsPausedLocal()) {
     // Account eligibility check (age + points)
     var eligibility = _canAccountDM(recipientUid);
     if (!eligibility.ok) {
@@ -891,6 +950,7 @@ window.openDM = function(recipientUid, recipientName) {
         if (typeof showToast === 'function') showToast('⏳ You can only message ' + MSG_CONFIG.maxNewConvosPerDay + ' new people per day. This helps keep the community safe.');
         return;
     }
+    }
 
     var myUid = auth.currentUser.uid;
     var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
@@ -922,9 +982,10 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         // Messages area
         // Safety banner
         '<div style="padding:8px 16px;background:rgba(234,179,8,0.1);border-bottom:1px solid rgba(234,179,8,0.2);font-size:0.7rem;color:#eab308;text-align:center;flex-shrink:0;">⚠️ Never share your seed phrase, private keys, or send Bitcoin to strangers or <span onclick="event.stopPropagation();showFriendsInDistressWarning()" style="text-decoration:underline;cursor:pointer;font-weight:700;">&quot;friends in distress.&quot;</span></div>' +
+        '<div id="dmPauseNotice" style="display:none;padding:14px 16px;background:rgba(148,163,184,0.12);border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text);text-align:center;flex-shrink:0;line-height:1.45;"></div>' +
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
-        '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
+        '<div id="dmComposer" style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
             '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="if(this.files[0])showDMImagePreview(this.files[0],\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
             '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
             '<button onclick="showDMGifPicker(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'\"]/g, "") + '\')" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
@@ -936,6 +997,8 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     var div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
+    applyDmPausedUi(dmIsPausedLocal());
+    refreshDmPaused();
 
     // Focus input + wire up paste-to-send-image on the DM text input
     setTimeout(function() {
@@ -1113,6 +1176,7 @@ window.showDMImagePreview = function(file, convoId, recipientUid, recipientName)
 
 // ---- DM Image Send ----
 window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
+    if (dmIsPausedLocal()) { showDmPaused(); return; }
     if (!input || !input.files || !input.files[0]) return;
     var file = input.files[0];
     try { input.value = ''; } catch(e) {} // Reset so same file can be re-selected (may throw on synthetic objects)
@@ -1214,10 +1278,11 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
             });
         })
         .catch(function(e) {
-            console.error('[DM Image] Upload failed:', e);
-            if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || 'upload error'));
+            console.error('[DM Image] Upload failed:', e && e.code ? e.code : 'failed');
             var uploading = container && container.querySelector('[data-dm-img-uploading]');
             if (uploading) uploading.remove();
+            if (e && e.code === 'permission-denied') { onDmSendDenied(e, container); return; }
+            if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || 'upload error'));
         });
 };
 
@@ -1305,6 +1370,7 @@ window.sendDMGifUrl = function() {
 };
 
 window.sendDMGif = function(gifUrl) {
+    if (dmIsPausedLocal()) { showDmPaused(); return; }
     if (!gifUrl) return;
     var convo = window._dmGifConvo;
     if (!convo) { if (typeof showToast === 'function') showToast('Error: no conversation context'); return; }
@@ -1379,12 +1445,16 @@ window.sendDMGif = function(gifUrl) {
             loadDMMessages(convoId, uid, recipientUid, recipientName);
         }
     }).catch(function(e) {
-        console.error('[DM GIF] Send failed:', e);
+        console.error('[DM GIF] Send failed:', e && e.code ? e.code : 'failed');
+        if (e && e.code === 'permission-denied') { onDmSendDenied(e, container); return; }
+        var opt = container && container.querySelector('[data-optimistic]');
+        if (opt) opt.remove();
         if (typeof showToast === 'function') showToast('Failed to send GIF');
     });
 };
 
 window.sendDM = function(convoId, recipientUid, recipientName) {
+    if (dmIsPausedLocal()) { showDmPaused(); return; }
     var inp = document.getElementById('dmInput');
     if (!inp) return;
     var text = sanitizeMessage(inp.value);
@@ -1526,11 +1596,8 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         var _dmc = parseInt(localStorage.getItem('btc_dms_sent') || '0'); localStorage.setItem('btc_dms_sent', String(_dmc + 1));
         if (typeof checkBadges === 'function') setTimeout(checkBadges, 500);
     }).catch(function(err) {
-        console.error('DM send error:', err);
-        if (typeof showToast === 'function') showToast('Failed to send: ' + (err.code || err.message || 'Unknown error'));
-        // Remove optimistic message on failure
-        var opt = container && container.querySelector('[data-optimistic]');
-        if (opt) opt.remove();
+        console.error('DM send error:', err.code || 'failed');
+        onDmSendDenied(err, container);
     });
 };
 

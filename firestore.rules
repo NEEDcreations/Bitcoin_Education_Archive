@@ -131,7 +131,9 @@ service cloud.firestore {
         'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
-        'providersHash', 'providerHashes'
+        'providersHash', 'providerHashes',
+        // DM pause. The scan trigger sets these. Clients cannot clear them.
+        'dmDisabled', 'dmDisabledReason', 'dmDisabledAt', 'dmReenabledAt', 'dmReenabledBy'
       ];
     }
 
@@ -1056,6 +1058,13 @@ service cloud.firestore {
     // =============================================
     // DIRECT MESSAGES
     // =============================================
+    // Server-only pause. A missing user doc is not paused. get() is skipped
+    // unless the doc exists, so a profile-less account is unchanged.
+    function dmSenderDisabled() {
+      let p = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(p) && get(p).data.get('dmDisabled', false) == true;
+    }
+
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
@@ -1076,6 +1085,7 @@ service cloud.firestore {
                     && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
         allow create: if request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && !dmSenderDisabled()
                       && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
                       && request.resource.data.senderUid == request.auth.uid
                       && request.resource.data.text is string
@@ -2448,6 +2458,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /identity_history/{docId} {
+      allow read, write: if false;
+    }
+
+    // DM scan queue. Admin SDK writes the docs and the external monitor sets
+    // alerted. Clients cannot read or write either collection, including alerted.
+    match /admin_dm_flags/{docId} {
+      allow read, write: if false;
+    }
+    match /admin_dm_alerts/{docId} {
       allow read, write: if false;
     }
 
