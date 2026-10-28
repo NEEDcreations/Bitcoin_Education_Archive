@@ -197,6 +197,31 @@ queue.push(test('an address locked to someone else is rejected', async function 
     assert.strictEqual(mem.store['users/user1'].lightningAddress, undefined);
 }));
 
+queue.push(test('an address already saved on another account is not locked by a reset', async function () {
+    const mem = memDb({
+        'users/user1': { lightningAddress: 'old@dead.example', emailVerified: true, providers: ['google.com'] },
+        'users/alice': { lightning: 'alice@walletofsatoshi.com' },
+    });
+    const h = handlers(mem, async function (opts) {
+        if (opts.address === 'old@dead.example') {
+            const err = new Error('Could not resolve Lightning Address. Check the address and try again.');
+            err.code = 'resolve_failed';
+            throw err;
+        }
+        return { pr: 'lnbc', domain: opts.address.split('@')[1] };
+    });
+    const out = await h.api.resetLightningAddressOnce({
+        lightningAddress: 'Alice@WalletOfSatoshi.com',
+        turnstileToken: 'ok',
+    }, signedIn('user1'));
+    assert.strictEqual(out.ok, false);
+    assert.strictEqual(out.code, 'address_conflict');
+    assert.strictEqual(mem.store['lightning_addresses/alice@walletofsatoshi.com'], undefined);
+    assert.strictEqual(mem.store['ln_resets/user1'], undefined);
+    assert.strictEqual(mem.store['users/user1'].lightningAddress, 'old@dead.example');
+    assert.strictEqual(mem.store['users/alice'].lightning, 'alice@walletofsatoshi.com');
+}));
+
 queue.push(test('a broken address can be replaced once and the marker stores the domain only', async function () {
     const mem = memDb({
         'users/user1': { lightningAddress: 'old@dead.example', emailVerified: true, providers: ['google.com'] },
