@@ -300,7 +300,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: A shared certificate link shows up right away. If the check takes too long, you can retry or open Bitcoin Quest.');
+    const latestAt = notes.indexOf('Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and a one-line hint appears beside him the first time.');
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);
