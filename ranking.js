@@ -470,7 +470,8 @@ function initRanking() {
         // reCAPTCHA v3. Token TTL is 1 hour in the Firebase console.
         if (!window._btcAppCheckReady) {
             try {
-                firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+                if (typeof window._btcActivateAppCheck === 'function') window._btcActivateAppCheck();
+                else firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
                 window._btcAppCheckReady = true;
             } catch (appCheckErr) {
                 console.warn('App Check init failed', appCheckErr);
@@ -678,7 +679,7 @@ function initRanking() {
                         window._btcTotpHold = true;
                         holdAuthDisplayForTotp(user.uid);
                         loadUser(user.uid).catch(function(){});
-                    } else if (_cachedProfile && _cachedProfile.twoFa === false && !(_cachedProfile.data && _cachedProfile.data.totpEnabled)) {
+                    } else if (_cachedProfile && !_cacheNeeds2fa && (_cachedProfile.twoFa === false || (_cachedProfile.data && _cachedProfile.data.totpEnabled === false))) {
                         // Instant render from cache. Display snapshot stays display-only;
                         // rankingReady here is the existing profile cache, after auth matched this uid.
                         currentUser = { uid: user.uid, ...profileCacheData(_cachedProfile.data) };
@@ -6321,6 +6322,41 @@ window._signupGoGetLnAddress = function() {
     setTimeout(function() { if (typeof go === 'function') go('lightning'); }, 200);
 };
 
+// Turnstile's flexible widget used to boot with the page. Its iframe fights
+// Edge Tracking Prevention and is only needed when a person submits a check.
+window._ensureTurnstile = function (el) {
+    function render() {
+        if (!el || !window.turnstile) return;
+        if (el.getAttribute('data-rendered') === '1') return;
+        var sitekey = el.getAttribute('data-sitekey');
+        if (!sitekey) return;
+        try {
+            window.turnstile.render(el, {
+                sitekey: sitekey,
+                theme: el.getAttribute('data-theme') || 'dark',
+                size: el.getAttribute('data-size') || 'flexible'
+            });
+            el.setAttribute('data-rendered', '1');
+        } catch (e) {}
+    }
+    if (window.turnstile) { render(); return; }
+    window._turnstileWaiters = window._turnstileWaiters || [];
+    window._turnstileWaiters.push(render);
+    if (window._turnstileLoading) return;
+    window._turnstileLoading = true;
+    var s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true;
+    s.onload = function () {
+        window._turnstileLoading = false;
+        var waiters = window._turnstileWaiters || [];
+        window._turnstileWaiters = [];
+        waiters.forEach(function (fn) { try { fn(); } catch (e) {} });
+    };
+    s.onerror = function () { window._turnstileLoading = false; };
+    document.head.appendChild(s);
+};
+
 function showUsernamePrompt() {
     try {
         // Hold keeps the guest button. A real session still exists, so the
@@ -6356,12 +6392,14 @@ function showUsernamePrompt() {
                     showAccountInfo();
                 } else {
                     document.getElementById('usernameModal').classList.add('open');
+                    if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('turnstileWidget'));
                     history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
                 }
             });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('turnstileWidget'));
         // Push history state so back button closes modal instead of exiting app
         history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
     } catch(e) {
@@ -10049,11 +10087,11 @@ function openWithdrawalAddress(opts) {
             stepConfirm.style.display = name === 'confirm' ? 'block' : 'none';
             stepRead.style.display = name === 'readonly' ? 'block' : 'none';
             title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
-            if (name === 'confirm' && mode === 'reset' && !widgetRendered && window.turnstile) {
+            if (name === 'confirm' && mode === 'reset' && !widgetRendered) {
                 widgetRendered = true;
-                try {
-                    window.turnstile.render('#lnAddrTurnstile', { sitekey: LN_TURNSTILE_SITEKEY, theme: 'dark', size: 'flexible' });
-                } catch (e) {}
+                var lnWidget = document.getElementById('lnAddrTurnstile');
+                if (lnWidget && !lnWidget.getAttribute('data-sitekey')) lnWidget.setAttribute('data-sitekey', LN_TURNSTILE_SITEKEY);
+                if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(lnWidget);
             }
             if (name === 'confirm' && mode !== 'reset') ts.style.display = 'none';
         }
@@ -10138,7 +10176,11 @@ function _callResetLightning(addr, proofId) {
     if (!token) return Promise.resolve({ ok: false, error: 'Security check pending — please wait a moment and try again.', code: 'turnstile' });
     var appCheckReady;
     try {
-        appCheckReady = firebase.appCheck().getToken(false);
+        appCheckReady = (typeof window._btcAppCheckForClaim === 'function')
+            ? window._btcAppCheckForClaim(8000).then(function (token) {
+                if (!token) throw new Error('app-check');
+            })
+            : firebase.appCheck().getToken(false);
     } catch (e) {
         return Promise.resolve({ ok: false, error: 'Security check failed. Refresh the page and try again.' });
     }
@@ -11193,7 +11235,7 @@ window.initSatsClaim = function() {
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
 
-    html += '<div id="satsClaimTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
+    html += '<div id="satsClaimTurnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
 
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
@@ -11201,14 +11243,7 @@ window.initSatsClaim = function() {
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
-    // Re-render Turnstile widget now that the element is in the DOM
-    if (window.turnstile) {
-        window.turnstile.render('#satsClaimTurnstile', {
-            sitekey: '0x4AAAAAAD-ivgpRkbXpgz86',
-            theme: 'dark',
-            size: 'flexible',
-        });
-    }
+    if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('satsClaimTurnstile'));
 };
 
 // Device fingerprint for multi-account detection (Fix #3)
@@ -11287,9 +11322,16 @@ window.submitSatsClaim = async function() {
 
     try {
         try {
-            // Mint or reuse the cached token (1h TTL). httpsCallable attaches it
-            // as X-Firebase-AppCheck on the claimSats request.
-            await firebase.appCheck().getToken(false);
+            // Enforced on the server. Wait here, not during sign-in or Firestore.
+            // httpsCallable attaches the token as X-Firebase-AppCheck.
+            var _appTok = '';
+            if (typeof window._btcAppCheckForClaim === 'function') {
+                _appTok = await window._btcAppCheckForClaim(8000);
+            } else {
+                var _got = await firebase.appCheck().getToken(false);
+                _appTok = _got && _got.token;
+            }
+            if (!_appTok) throw new Error('app-check');
         } catch (appCheckErr) {
             if (errorEl) { errorEl.textContent = 'Security check failed. Refresh the page and try again.'; errorEl.style.display = 'block'; }
             btn.disabled = false;

@@ -125,7 +125,12 @@
         var fromFb = firebaseLocalUid(storage);
         var fromApp = appCachedUid(storage);
         if (fromFb && fromApp && fromFb !== fromApp) return '';
-        return fromFb || fromApp || '';
+        if (fromFb || fromApp) return fromFb || fromApp;
+        // The display snapshot is display-only, but its uid is enough to paint
+        // before IndexedDB opens. A later auth event still clears a mismatch.
+        var snap = read(storage);
+        if (snap && !snap.needs2fa && validUid(snap.uid)) return String(snap.uid);
+        return '';
     }
 
     function profileView(cache) {
@@ -152,7 +157,11 @@
         if (cache.twoFa === true || (cache.data && cache.data.totpEnabled === true)) {
             return { action: 'hold', reason: 'needs2fa', view: null };
         }
-        if (cache.twoFa !== false) return { action: 'hold', reason: 'unknown-2fa', view: null };
+        // A saved totpEnabled:false is a known non-2FA profile even when the
+        // older cache row never got the twoFa stamp. Unknown still holds.
+        if (cache.twoFa !== false && !(cache.data && cache.data.totpEnabled === false)) {
+            return { action: 'hold', reason: 'unknown-2fa', view: null };
+        }
         var view = profileView(cache);
         if (!view) return { action: 'skip', reason: 'incomplete', view: null };
         return { action: 'paint', reason: 'cache', view: view };
@@ -544,9 +553,13 @@
         var openReq;
         try { openReq = root.indexedDB.open('firebaseLocalStorageDb'); }
         catch (e) { return; }
-        openReq.onerror = function () {};
+        var gaveUp = false;
+        var timer = setTimeout(function () { gaveUp = true; }, 800);
+        openReq.onerror = function () { clearTimeout(timer); };
         openReq.onsuccess = function () {
+            clearTimeout(timer);
             var db = openReq.result;
+            if (gaveUp) { try { db.close(); } catch (e) {} return; }
             var uid = '';
             try {
                 if (!db.objectStoreNames.contains('firebaseLocalStorage')) { db.close(); return; }

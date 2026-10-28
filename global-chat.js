@@ -4905,7 +4905,16 @@ function _openSayHiChat() {
 
 function _sayHiAppCheck() {
     if (typeof firebase === 'undefined' || !firebase.appCheck) return Promise.reject(new Error('appcheck'));
-    return firebase.appCheck().getToken(false);
+    var wait = (typeof window._btcAppCheckForClaim === 'function')
+        ? window._btcAppCheckForClaim(8000)
+        : Promise.resolve('skip');
+    return wait.then(function (token) {
+        if (!token) return Promise.reject(new Error('appcheck'));
+        return firebase.appCheck().getToken(false).then(function (res) {
+            if (!res || !res.token) return Promise.reject(new Error('appcheck'));
+            return res;
+        });
+    });
 }
 
 function _sayHiCallable(name) {
@@ -5035,7 +5044,14 @@ function _maybeClaimReplyBonus(messageId) {
     if (!/^[A-Za-z0-9_-]{8,128}$/.test(messageId)) return;
     if (typeof firebase === 'undefined' || !firebase.functions || !firebase.appCheck) return;
     if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
-    firebase.appCheck().getToken(false).then(function() {
+    var wait = (typeof window._btcAppCheckForClaim === 'function')
+        ? window._btcAppCheckForClaim(8000)
+        : Promise.resolve('skip');
+    wait.then(function (token) {
+        if (!token) return null;
+        return firebase.appCheck().getToken(false);
+    }).then(function (ready) {
+        if (!ready || !ready.token) return null;
         return firebase.functions().httpsCallable('claimReplyBonus')({ messageId: messageId });
     }).then(function(res) {
         var data = (res && res.data) || {};
