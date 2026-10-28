@@ -397,7 +397,7 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: A returning signed-in home shows level, sats, rank, and buttons from this device as soon as the page paints. An authenticator account stays hidden until that check finishes.'));
+    assert.ok(notes.includes('Latest: Find a Bitcoin Buddy is on the home page, shows how long you have been waiting, and notifies you when a buddy is found. You both earn 20 XP after you have each written once, and Buddy Up comes from a real match.'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     assert.ok(notes.includes('Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));

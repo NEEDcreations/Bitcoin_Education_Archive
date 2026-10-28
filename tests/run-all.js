@@ -78,6 +78,8 @@ const TESTS = [
     { name: 'Account rules', file: 'test-account-rules.js' },
     { name: 'PvP Flow', file: 'test-pvp-flow.js' },
     { name: 'PvP Rules', file: 'test-pvp-rules.js' },
+    { name: 'Bitcoin Buddy', file: 'test-buddy-match.js' },
+    { name: 'Buddy rules', file: 'test-buddy-rules.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Nacho live answers', file: 'nacho-quality.js' },
     { name: 'Chat scam regression', file: 'test-chat-scam-regression.js' },

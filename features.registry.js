@@ -106,7 +106,6 @@
         };
         if (k === 'buddy') return function () {
             if (typeof win.showBuddyFinder === 'function') win.showBuddyFinder();
-            else if (typeof win.renderChatHub === 'function') win.renderChatHub('global');
         };
         if (k === 'donate') return function () { if (typeof win.showDonateModal === 'function') win.showDonateModal(); };
         if (k === 'faq') return function () {
@@ -538,10 +537,10 @@
             how: 'Open the inbox, or the DMs tab in the chat hub. New accounts need a little XP and time before sending, to slow down scammers.',
             follow: 'Want to find a Bitcoin buddy to message?',
             hash: 'dms', aliases: ['dms', 'messages', 'inbox'], kind: 'dms', openFns: ['showInbox', 'openDM', 'renderChatHub'] }),
-        R({ id: 'buddy', title: 'Bitcoin Buddy', group: 'Community', term: 'buddy', priority: 60,
-            kw: 'buddy bitcoin buddy finder mentor',
-            desc: 'Bitcoin Buddy pairs a learner with a teacher.',
-            how: 'Open Global Chat, tap Find a Buddy, pick Learn or Teach and an experience level, and a match opens a direct message with an icebreaker.',
+        R({ id: 'buddy', title: 'Find a Bitcoin Buddy', group: 'Community', term: 'buddy', priority: 60,
+            kw: 'buddy bitcoin buddy finder mentor find a bitcoin buddy',
+            desc: 'Find a Bitcoin Buddy pairs a learner with a teacher.',
+            how: 'Open Find a Bitcoin Buddy from the home page or search. Pick Learn or Teach and a level. You get a notification when a buddy is found.',
             follow: 'Want IRL meetups if you would rather meet in person?',
             hash: 'app/buddy', aliases: ['buddy'], kind: 'buddy', openFns: ['showBuddyFinder'] }),
         R({ id: 'forum', title: 'PlebTalk forum', group: 'Community', term: 'forum', priority: 55,
@@ -1108,7 +1107,17 @@
             else win.location.hash = hash;
         } catch (e) {}
         setTimeout(function () { win._bqSuppressRoute = false; }, 400);
-        try { f.open(); } catch (e2) {}
+        function go(left) {
+            if (!openerReady(f) && left > 0) {
+                if (typeof win._loadDeferred === 'function') {
+                    try { win._loadDeferred(); } catch (e1) {}
+                }
+                setTimeout(function () { go(left - 1); }, 250);
+                return;
+            }
+            try { f.open(); } catch (e2) {}
+        }
+        go(openerReady(f) ? 0 : 40);
     }
 
     function esc(s) {

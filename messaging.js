@@ -342,6 +342,9 @@ window.submitReport = function(uid, username, reason) {
         if (typeof showToast === 'function') showToast('🚩 Report submitted. Thank you for keeping the community safe.');
         // Auto-block the reported user
         blockUser(uid, username);
+        if (typeof window.onBuddyReported === 'function') {
+            try { window.onBuddyReported(uid); } catch (e) {}
+        }
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to submit report');
     });
@@ -968,20 +971,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Load messages + listen for real-time updates
     loadDMMessages(convoId, myUid, otherUid, otherName);
 
-    // Check if this is a buddy match — show Nacho helper banner
-    db.collection('dm_conversations').doc(convoId).get().then(function(doc) {
-        if (doc.exists && doc.data().isBuddyMatch) {
-            var dmWin = document.getElementById('dmWindow');
-            if (!dmWin) return;
-            var safetyBanner = dmWin.querySelector('div[style*="rgba(234,179,8,0.1)"]');
-            if (safetyBanner) {
-                safetyBanner.style.background = 'rgba(34,197,94,0.08)';
-                safetyBanner.style.borderColor = 'rgba(34,197,94,0.2)';
-                safetyBanner.style.color = '#22c55e';
-                safetyBanner.innerHTML = '🦌 <strong>Nacho is in this chat!</strong> Ask any Bitcoin question and Nacho will jump in. Teachers can add context to help learners.';
-            }
-        }
-    }).catch(function() {});
+    // Buddy conversations keep the same safety warning as every other conversation.
 
     // Update other user's online status
     db.collection('users').doc(otherUid).get().then(function(doc) {

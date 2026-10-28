@@ -1732,15 +1732,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Buddy matching pool
-    // [AUDIT FIX L-NEW-6] Enforce 1 entry per user via document ID
+    // Buddy pool. The server is the only writer. A signed-in user may read
+    // and delete only the doc whose id is their own uid. Listing the pool
+    // is closed so a client cannot scan other people.
     match /buddy_pool/{docId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-                    && docId == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null
-                    && (docId == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin());
+      allow get: if request.auth != null && docId == request.auth.uid;
+      allow list: if false;
+      allow create, update: if false;
+      allow delete: if request.auth != null && docId == request.auth.uid;
     }
 
     // Faucet invoice dedup (Cloud Function only)
@@ -1838,20 +1837,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Buddy matches
-    // [AUDIT FIX L-NEW-10] Prevent fake matches via deterministic ID and ownership
+    // Buddy matches are created only by requestBuddyMatch (Admin SDK).
+    // A participant may read and delete their own match. Clients cannot
+    // create or edit one, so a username or intro cannot be planted.
     match /buddy_matches/{docId} {
       allow read: if request.auth != null
                   && (resource.data.user1.uid == request.auth.uid
                       || resource.data.user2.uid == request.auth.uid);
-      
-      // Prevent arbitrary match creation — enforce deterministic UID-based document ID
-      allow create: if request.auth != null
-                    && (request.resource.data.user1.uid == request.auth.uid || request.resource.data.user2.uid == request.auth.uid)
-                    && (request.resource.data.user1.uid < request.resource.data.user2.uid ? 
-                        docId == request.resource.data.user1.uid + '_' + request.resource.data.user2.uid : 
-                        docId == request.resource.data.user2.uid + '_' + request.resource.data.user1.uid);
-      
+      allow create, update: if false;
       allow delete: if request.auth != null
                     && (resource.data.user1.uid == request.auth.uid
                         || resource.data.user2.uid == request.auth.uid);

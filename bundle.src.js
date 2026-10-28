@@ -856,7 +856,7 @@ const BADGE_DEFS = [
 
     // ---- DMs & Social ----
     { id: 'dm_10', name: 'Inbox Zero', emoji: '📥', desc: 'Sent 10 direct messages', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 10, pts: 25 },
-    { id: 'dm_buddy', name: 'Buddy Up', emoji: '🫂', desc: 'Matched with a Bitcoin learning buddy', check: () => localStorage.getItem('btc_buddy_matched') === 'true', pts: 30 },
+    { id: 'dm_buddy', name: 'Buddy Up', emoji: '🫂', desc: 'Matched with a Bitcoin learning buddy', check: () => typeof currentUser !== 'undefined' && currentUser && (Number(currentUser.buddyMatchCount) || 0) >= 1, pts: 30 },
     { id: 'react_5', name: 'Reactor', emoji: '⚡', desc: 'Reacted to 5 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 5, pts: 10 },
     { id: 'react_200', name: 'Emoji Sensei', emoji: '🧘', desc: 'Reacted to 200 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 200, pts: 150 },
     { id: 'tip_sats_10k', name: 'Sat Slinger', emoji: '💰', desc: 'Tipped 10,000+ sats total', check: () => parseInt(localStorage.getItem('btc_tips_total_sats') || '0') >= 10000, pts: 300 },
@@ -11878,6 +11878,9 @@ window.submitReport = function(uid, username, reason) {
         if (typeof showToast === 'function') showToast('🚩 Report submitted. Thank you for keeping the community safe.');
         // Auto-block the reported user
         blockUser(uid, username);
+        if (typeof window.onBuddyReported === 'function') {
+            try { window.onBuddyReported(uid); } catch (e) {}
+        }
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to submit report');
     });
@@ -12504,20 +12507,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Load messages + listen for real-time updates
     loadDMMessages(convoId, myUid, otherUid, otherName);
 
-    // Check if this is a buddy match — show Nacho helper banner
-    db.collection('dm_conversations').doc(convoId).get().then(function(doc) {
-        if (doc.exists && doc.data().isBuddyMatch) {
-            var dmWin = document.getElementById('dmWindow');
-            if (!dmWin) return;
-            var safetyBanner = dmWin.querySelector('div[style*="rgba(234,179,8,0.1)"]');
-            if (safetyBanner) {
-                safetyBanner.style.background = 'rgba(34,197,94,0.08)';
-                safetyBanner.style.borderColor = 'rgba(34,197,94,0.2)';
-                safetyBanner.style.color = '#22c55e';
-                safetyBanner.innerHTML = '🦌 <strong>Nacho is in this chat!</strong> Ask any Bitcoin question and Nacho will jump in. Teachers can add context to help learners.';
-            }
-        }
-    }).catch(function() {});
+    // Buddy conversations keep the same safety warning as every other conversation.
 
     // Update other user's online status
     db.collection('users').doc(otherUid).get().then(function(doc) {
