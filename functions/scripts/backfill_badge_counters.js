@@ -37,7 +37,14 @@
  * already exists, so it is not marked unread or shown again. Output is
  * counts only. No user ids or emails.
  *
+ * Dry-run is the default. --dry-run is the same mode and wins over --apply.
+ * It prints one line per user for the XP and Favor that --apply --pay-xp
+ * would write (uid truncated to 8 characters) and a grand total. It writes
+ * nothing. xp_ledger/{badgeId} and the contributor doc {uid}_badge_{badgeId}
+ * are the markers. A second --apply --pay-xp pays nothing for those badges.
+ *
  *   node functions/scripts/backfill_badge_counters.js
+ *   node functions/scripts/backfill_badge_counters.js --dry-run
  *   node functions/scripts/backfill_badge_counters.js --apply
  *   node functions/scripts/backfill_badge_counters.js --apply --pay-xp
  *
@@ -50,10 +57,11 @@ const badgeRules = require('../src/badgeRules');
 const progress = require('../src/badgeProgress');
 const { familyFor } = require('../src/grantBadge');
 const { offsetDateKey } = require('../src/offsetDay');
-const { profileBadgeIds } = require('../src/badgeProfile');
+const { profileBadgeIds, awardCountsForBonus, serverHoldsBadge, progressAwardIds } = require('../src/badgeProfile');
 const { applyDailyXp } = require('../src/applyDailyXp');
 const badgeXpTable = require('../src/badgeXpTable');
 const rewardNotify = require('../src/rewardNotify');
+const { userLine, grandLine, parseMode } = require('../src/backfillDryRun');
 
 const PAGE = 200;
 const GIFTS_FOR_LEVEL = [0, 1, 21, 44, 144, 210];
@@ -97,19 +105,22 @@ const BADGE_IDS = badgeIds();
 
 function helpText() {
     return [
-        'Usage: node functions/scripts/backfill_badge_counters.js [--apply] [--pay-xp]',
+        'Usage: node functions/scripts/backfill_badge_counters.js [--dry-run] [--apply] [--pay-xp]',
         '',
-        'Dry-run prints users, banned skips, counter raises, badges, and XP',
-        'for both the unpaid mode and the --pay-xp mode. --apply writes',
-        'counters and badge rows. --pay-xp also pays catalog XP and Favor.',
-        '--pay-xp does nothing unless --apply is set.',
+        'Dry-run prints per-user XP and Favor for --apply --pay-xp (truncated',
+        'uids), a grand total, and the unpaid-mode counts. It writes nothing.',
+        '--dry-run wins over --apply. --apply writes counters and badge rows.',
+        '--pay-xp also pays catalog XP and Favor, and writes marker docs.',
+        '--pay-xp does nothing unless --apply is set. A second pay run pays nothing.',
     ].join('\n');
 }
 
 function parseArgs(argv) {
+    const mode = parseMode(argv);
     return {
-        help: argv.indexOf('--help') !== -1 || argv.indexOf('-h') !== -1,
-        apply: argv.indexOf('--apply') !== -1,
+        help: mode.help,
+        apply: mode.apply,
+        dryRun: mode.dryRun,
         payXp: argv.indexOf('--pay-xp') !== -1,
     };
 }
@@ -176,18 +187,34 @@ function asSet(value) {
     return new Set(Object.keys(value));
 }
 
-function legacyDecision(user, awardIds, profileIds) {
+function legacyDecision(user, awardIds, profileIds, awardById) {
     const write = [];
     const skipped = [];
     const awards = asSet(awardIds);
     const profile = asSet(profileIds);
-    const held = new Set(awards);
-    profile.forEach(function (id) { held.add(id); });
+    const held = new Set();
+    awards.forEach(function (id) {
+        if (awardById && !awardCountsForBonus(user, id, awardById[id])) return;
+        held.add(id);
+    });
+    profile.forEach(function (id) {
+        if (!awardById) {
+            held.add(id);
+            return;
+        }
+        const award = awardById[id];
+        if (award && !awardCountsForBonus(user, id, award)) return;
+        if (!award && !serverHoldsBadge(user, id)) return;
+        held.add(id);
+    });
     BADGE_IDS.forEach(function (id) {
         if (awards.has(id)) return;
         if (!profile.has(id)) return;
         const rule = badgeRules.ruleFor(id);
-        if (!rule || rule.cosmetic || !badgeRules.meets(rule, user, { awardSet: held })) {
+        if (!rule || rule.cosmetic || !badgeRules.meets(rule, user, {
+            awardSet: held,
+            payingCount: badgeRules.countPaying(held),
+        })) {
             skipped.push(id);
             return;
         }
@@ -329,7 +356,11 @@ function payBadgeIds(planBadges, legacyWrite, settled) {
 
 function settledUnpaid(awardById, merged, markerIds) {
     const out = [];
-    const held = new Set(Object.keys(awardById || {}));
+    const held = new Set();
+    Object.keys(awardById || {}).forEach(function (id) {
+        if (!awardCountsForBonus(merged, id, awardById[id])) return;
+        held.add(id);
+    });
     Object.keys(awardById || {}).forEach(function (id) {
         const row = awardById[id] || {};
         if (row.source !== 'counter_backfill' && row.source !== 'counter_backfill_legacy') return;
@@ -337,7 +368,7 @@ function settledUnpaid(awardById, merged, markerIds) {
         if (markerIds && markerIds[id]) return;
         const rule = badgeRules.ruleFor(id);
         if (!rule || rule.cosmetic || !((badgeRules.xpOf(id) || 0) > 0)) return;
-        if (!badgeRules.meets(rule, merged, { awardSet: held })) return;
+        if (!badgeRules.meets(rule, merged, { awardSet: held, payingCount: badgeRules.countPaying(held) })) return;
         out.push(id);
     });
     return out;
@@ -349,7 +380,7 @@ function raiseNumber(user, patch, field, next) {
     if (n > cur) patch[field] = n;
 }
 
-function planUser(user, tally, heldIds) {
+function planUser(user, tally, heldIds, countIds) {
     const src = user || {};
     const t = tally || {};
     const patch = {};
@@ -403,14 +434,16 @@ function planUser(user, tally, heldIds) {
 
     const merged = Object.assign({}, src, patch);
     const held = new Set(heldIds || []);
+    const counted = new Set(countIds || heldIds || []);
     const badges = [];
     BADGE_IDS.forEach(function (id) {
         if (held.has(id)) return;
         const rule = badgeRules.ruleFor(id);
         if (!rule || rule.cosmetic) return;
-        if (!badgeRules.meets(rule, merged, { awardSet: held })) return;
+        if (!badgeRules.meets(rule, merged, { awardSet: counted, payingCount: badgeRules.countPaying(counted) })) return;
         badges.push(id);
         held.add(id);
+        counted.add(id);
     });
     const fresh = badges.slice();
     Object.keys(badgeRules.SETS).forEach(function (setId) {
@@ -420,9 +453,10 @@ function planUser(user, tally, heldIds) {
         if (!unlockedNow && !NEW_SETS[setId]) return;
         const rule = badgeRules.ruleFor(setId);
         if (!rule || rule.cosmetic) return;
-        if (!badgeRules.meets(rule, merged, { awardSet: held })) return;
+        if (!badgeRules.meets(rule, merged, { awardSet: counted, payingCount: badgeRules.countPaying(counted) })) return;
         badges.push(setId);
         held.add(setId);
+        counted.add(setId);
     });
     let xp = 0;
     badges.forEach(function (id) { xp += badgeRules.xpOf(id) || 0; });
@@ -551,6 +585,9 @@ async function main() {
         unpaid: { users: 0, badges: 0, xp: 0 },
         pay: { users: 0, badges: 0, xp: 0, favorPoints: 0 },
     };
+    const reportLines = [];
+    let reportXp = 0;
+    let reportFavor = 0;
 
     async function forEachDoc(baseQuery, onDoc) {
         let cursor = null;
@@ -743,13 +780,24 @@ async function main() {
                 if (doc.id.indexOf(prefix) === 0) levelContributorIds.push(doc.id.slice(prefix.length));
             });
             const held = [];
-            Object.keys(awardIds).forEach(function (id) { held.push(id); });
+            const counted = [];
+            const awardRows = [];
+            Object.keys(awardIds).forEach(function (id) {
+                held.push(id);
+                awardRows.push({ id: id, award: awardById[id] });
+            });
+            progressAwardIds(user, awardRows, { signedIn: true }).forEach(function (id) {
+                if (counted.indexOf(id) === -1) counted.push(id);
+            });
             const profileIds = profileBadgeIds(user);
             profileIds.forEach(function (id) {
                 if (held.indexOf(id) === -1) held.push(id);
+                if (counted.indexOf(id) === -1 && serverHoldsBadge(user, id) && awardCountsForBonus(user, id, awardById[id])) {
+                    counted.push(id);
+                }
             });
-            const plan = planUser(user, tallyView(row), held);
-            const legacy = legacyDecision(Object.assign({}, user, plan.patch), awardIds, profileIds);
+            const plan = planUser(user, tallyView(row), held, counted);
+            const legacy = legacyDecision(Object.assign({}, user, plan.patch), awardIds, profileIds, awardById);
             const merged = Object.assign({}, user, plan.patch);
             const settled = settledUnpaid(awardById, merged, markerIds);
             const payItems = payItemsFor(plan.badges, legacy.write, settled, awardById);
@@ -773,6 +821,11 @@ async function main() {
                 if (!favorIds[userDoc.id + '_badge_' + item.badgeId]) favorWouldWrite += 1;
             });
             pay.levelUps.forEach(function (rank) { favorWouldWrite += rank.points; });
+            if (args.dryRun && (pay.xp > 0 || favorWouldWrite > 0)) {
+                reportLines.push(userLine(userDoc.id, pay.xp, favorWouldWrite));
+                reportXp += pay.xp;
+                reportFavor += favorWouldWrite;
+            }
             if (pay.paying.length) {
                 counts.pay.users += 1;
                 counts.pay.badges += pay.paying.length;
@@ -987,6 +1040,10 @@ async function main() {
         if (snap.size < PAGE) break;
     }
 
+    if (args.dryRun) {
+        reportLines.forEach(function (line) { console.log(line); });
+        console.log(grandLine(reportXp, reportFavor));
+    }
     console.log('[backfill-counters] users ' + counts.users);
     console.log('[backfill-counters] banned skipped ' + counts.bannedSkipped);
     console.log('[backfill-counters] users with changes ' + counts.usersChanged);

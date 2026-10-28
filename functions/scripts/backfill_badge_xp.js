@@ -28,7 +28,15 @@
  * or higher 10), plus faction totals and userSfPoints. Ranks already
  * credited are skipped. The live pool is not changed.
  *
+ * Dry-run is the default. --dry-run is the same mode and wins over --apply.
+ * It prints one line per user who would receive XP or level-up Favor
+ * (uid truncated to 8 characters) and a grand total. --apply writes.
+ * users/{uid}/xp_ledger/{badgeId} tagged badge_xp_backfill is the marker,
+ * and a level-up contributor doc is the Favor marker. A second run pays
+ * nothing.
+ *
  *   node functions/scripts/backfill_badge_xp.js
+ *   node functions/scripts/backfill_badge_xp.js --dry-run
  *   node functions/scripts/backfill_badge_xp.js --apply
  */
 'use strict';
@@ -36,25 +44,24 @@
 const { rewardBlocked } = require('../src/cipherClaim');
 const { planUserBadges } = require('../src/badgeXpBackfill');
 const { applyDailyXp } = require('../src/applyDailyXp');
+const { userLine, grandLine, parseMode } = require('../src/backfillDryRun');
 
 const PAGE = 200;
 
 function helpText() {
     return [
-        'Usage: node functions/scripts/backfill_badge_xp.js [--apply]',
+        'Usage: node functions/scripts/backfill_badge_xp.js [--dry-run] [--apply]',
         '',
-        'Dry-run prints XP, level-ups, Favor by faction, and capped-at-zero',
-        'badges. --apply writes lifetime XP, an xp_ledger row, and level-up',
-        'Favor docs.',
+        'Dry-run prints per-user XP and Favor (truncated uids), a grand total,',
+        'level-ups, Favor by faction, and capped-at-zero badges. --dry-run',
+        'wins over --apply. --apply writes lifetime XP, an xp_ledger marker,',
+        'and level-up Favor docs. A second run pays nothing.',
         'It does not change the live Favor pool or the weekly/monthly boards.',
     ].join('\n');
 }
 
 function parseArgs(argv) {
-    return {
-        help: argv.indexOf('--help') !== -1 || argv.indexOf('-h') !== -1,
-        apply: argv.indexOf('--apply') !== -1,
-    };
+    return parseMode(argv);
 }
 
 function factionBucket(faction) {
@@ -92,6 +99,9 @@ async function main() {
         cappedZeroXp: 0,
         excluded: { 'hidden-only': 0, 'client-writable-field': 0, 'not-in-catalog': 0 },
     };
+    const reportLines = [];
+    let reportXp = 0;
+    let reportFavor = 0;
     let cursor = null;
     let batch = db.batch();
     let pending = 0;
@@ -176,6 +186,11 @@ async function main() {
             }
             counts.levelUps += plan.levelUps.length;
             counts.favorPoints += plan.favorPoints;
+            if (args.dryRun && (plan.xp > 0 || plan.favorPoints > 0)) {
+                reportLines.push(userLine(userDoc.id, plan.xp, plan.favorPoints));
+                reportXp += plan.xp;
+                reportFavor += plan.favorPoints;
+            }
             if (plan.favorPoints > 0) {
                 counts.favorByFaction[factionBucket(user.faction)] += plan.favorPoints;
             }
@@ -244,6 +259,10 @@ async function main() {
             }
         });
         if (any) await db.collection('satoshiFavor').doc('factionTotals').set(totals, { merge: true });
+    }
+    if (args.dryRun) {
+        reportLines.forEach(function (line) { console.log(line); });
+        console.log(grandLine(reportXp, reportFavor));
     }
     console.log(args.apply ? 'applied' : 'dry-run');
     console.log('xp: ' + counts.xp);

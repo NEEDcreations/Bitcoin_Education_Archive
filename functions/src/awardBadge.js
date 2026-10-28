@@ -4,17 +4,53 @@
 // Satoshi's Favor point. A second award of the same id does not add a second point.
 // Badge XP goes through applyDailyXp: full until 500, half until 900, quarter until 1,000, then 0.
 // The remainder is dropped. Nothing is saved for a later day.
-// A badge the profile already shows gets an award row with 0 XP and no pool point.
-// Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
+// A badge already stored in badges, visibleBadges, or donationBadges gets an
+// award row with 0 XP and no pool point. displayBadge, equippedBadge,
+// earnedHidden, and hiddenBadges are not proof. Favor for a real legacy row
+// is the backfill's job. Already-owned badges do not read the pool.
 
 const { applyDailyXp } = require('./applyDailyXp');
 const badgeRules = require('./badgeRules');
+const badgeXp = require('./badgeXpTable');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
-const { profileHoldsBadge } = require('./badgeProfile');
+const { serverHoldsBadge, hiddenOnlyBadge, progressAwardIds } = require('./badgeProfile');
 
 const ALIASES = { country_set: 'global_citizen' };
+
+// Hidden-only badges (hiddenBadges, no server list, no award row) were paid
+// from the old XP table. Phil confirmed the live values on 2026-10-26:
+// mode 'delta', Favor on. The mode chooses XP only. 'delta' pays catalog XP
+// minus that old amount, so explorer_* cannot be paid twice. explorer_25
+// pays 20 (catalog 50, old 30). explorer_5, explorer_10, explorer_50,
+// explorer_100, and explorer_all pay 0 because the old amount is already at
+// least the catalog amount. priorXp stores the amount already counted so a
+// later top-up does not pay it again. 'full' pays the catalog amount.
+// 'zero' pays no XP and records the catalog amount as already settled.
+// Favor is HIDDEN_ONLY_GRANT_FAVOR, including when the mode is 'zero'.
+const HIDDEN_ONLY_GRANT_MODE = 'delta';
+const HIDDEN_ONLY_GRANT_FAVOR = true;
+
+function hiddenOnlyGrantPlan(badgeId, catalogXp, mode, favor) {
+    const selected = mode || HIDDEN_ONLY_GRANT_MODE;
+    const catalog = Math.max(0, Number(catalogXp) || 0);
+    const old = badgeXp.oldXpOf(badgeId);
+    const recorded = old == null ? 0 : old;
+    const grantFavor = favor === undefined ? HIDDEN_ONLY_GRANT_FAVOR === true : favor === true;
+    if (selected === 'zero') {
+        return { xp: 0, favor: grantFavor, priorXp: catalog, mode: 'zero' };
+    }
+    if (selected === 'full') {
+        return { xp: catalog, favor: grantFavor, priorXp: 0, mode: 'full' };
+    }
+    return {
+        xp: Math.max(0, catalog - recorded),
+        favor: grantFavor,
+        priorXp: recorded,
+        mode: 'delta',
+    };
+}
 
 function needsFlexClaims(rule) {
     if (!rule || !rule.source) return false;
@@ -97,7 +133,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (awardSnap.exists) {
             return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
-        if (profileHoldsBadge(user, badgeId)) {
+        if (serverHoldsBadge(user, badgeId)) {
             t.set(awardRef, legacyAward(adminSdk, badgeId, day));
             return {
                 granted: false,
@@ -123,18 +159,26 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         }
         let awardsSnap = null;
         if (needsAwards) awardsSnap = await t.get(userRef.collection('badge_awards'));
-        const awardSet = new Set();
-        if (awardsSnap && typeof awardsSnap.forEach === 'function') {
-            awardsSnap.forEach(function (doc) { awardSet.add(doc.id); });
-        }
         let scholarExamPassed = false;
         if (!verified && rule.source && rule.source.type === 'scholarExam') {
             const examType = rule.source.examType || 'properties';
             const priorSnap = await t.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
             scholarExamPassed = !!require('./scholarExam').passedExam(priorSnap, examType, null);
         }
-        const payingCount = badgeRules.countPaying(awardSet);
         const signedIn = options.signedIn !== false;
+        const awardRows = [];
+        if (awardsSnap && typeof awardsSnap.forEach === 'function') {
+            awardsSnap.forEach(function (doc) {
+                const data = typeof doc.data === 'function' ? (doc.data() || {}) : {};
+                awardRows.push({ id: doc.id, award: data });
+            });
+        }
+        const awardSet = progressAwardIds(user, awardRows, {
+            signedIn: signedIn,
+            flexClaims: flexClaims,
+            scholarExamPassed: scholarExamPassed,
+        });
+        const payingCount = badgeRules.countPaying(awardSet);
         if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, flexClaims: flexClaims, scholarExamPassed: scholarExamPassed })) {
             return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
@@ -143,7 +187,10 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const contributorSnap = await t.get(contributorRef);
         const totalsSnap = await t.get(totalsRef);
 
-        const catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
+        let catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
+        const hiddenOnly = hiddenOnlyBadge(user, badgeId);
+        const hiddenPlan = hiddenOnly ? hiddenOnlyGrantPlan(badgeId, catalogXp) : null;
+        if (hiddenPlan) catalogXp = hiddenPlan.xp;
         const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef });
         const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
 
@@ -166,6 +213,10 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             source: options.source || 'awardBadge',
             favorPoint: false,
         };
+        if (hiddenPlan) {
+            awardDoc.hiddenOnlyGrant = hiddenPlan.mode;
+            awardDoc.priorXp = hiddenPlan.priorXp;
+        }
         if (options.xpSource) awardDoc.xpSource = String(options.xpSource);
         if (options.backfill === true) awardDoc.backfill = true;
         if (options.ggSkip === true) awardDoc.ggSkip = true;
@@ -179,7 +230,8 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 
         let favor = false;
         let favorPoint = false;
-        if (!contributorSnap.exists) {
+        const grantFavor = hiddenPlan ? HIDDEN_ONLY_GRANT_FAVOR === true : true;
+        if (grantFavor && !contributorSnap.exists) {
             const stateData = stateSnap.exists ? (stateSnap.data() || {}) : {
                 points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,
             };
@@ -264,4 +316,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 module.exports = {
     awardBadge: awardBadge,
     cleanId: cleanId,
+    HIDDEN_ONLY_GRANT_MODE: HIDDEN_ONLY_GRANT_MODE,
+    HIDDEN_ONLY_GRANT_FAVOR: HIDDEN_ONLY_GRANT_FAVOR,
+    hiddenOnlyGrantPlan: hiddenOnlyGrantPlan,
 };
