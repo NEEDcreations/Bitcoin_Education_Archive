@@ -33,12 +33,61 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: October 23, 2026</p>
+    <p class="subtitle">Last updated: October 28, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
         <p style="margin-top:8px;margin-bottom:0;">We collect the bare minimum needed to power your experience. No tracking, no ads, no third-party analytics.</p>
     </div>
+
+    <h2>Safety monitoring</h2>
+    <p>To protect users from scams, phishing, impersonation, spam, and abuse, we may automatically scan chat, direct messages, and account activity. That includes automated anti-abuse checks and bot detection. A moderator may review content those checks flag. While a review is open, we may temporarily restrict an account, or a feature such as direct messages.</p>
+    <p>Messages are also checked in your browser before they are stored, as described in Sections 9 and 10. We do not send that text to an outside moderation company. Bot checks include Cloudflare Turnstile on sats claims and a Lightning-address reset, and Firebase App Check on some server actions. A flagged direct message can still be delivered, with a warning. Reports you file are stored so a moderator can review them. We do not publish how the anti-abuse checks decide.</p>
+
+    <h2>Features and the data they use</h2>
+    <p>The tables later on this page are the detailed record. This section says, in plain language, what the current app actually stores for the features below.</p>
+
+    <h3>Referral tracking</h3>
+    <p>An invite link can attach a referral to a new account: the code, who shared it, and whether it is still pending. At signup the server reads the network address only long enough to make an HMAC of it. That HMAC is what we keep, in a server-only <code>referral_signals</code> record, with a 90-day expiry. Other users cannot read it. Deleting the account deletes that record. The raw address is not stored in that referral record. A referral is paid only after the checks in the Terms, including account age, active days, and a verified sign-in. Each verified referral adds one to <code>referralCount</code> for the person who shared the link.</p>
+
+    <h3>Referral tiers</h3>
+    <p>Badge tiers count verified referrals: friends whose referral was paid after they reached Maxi. The tiers are 1, 5, 10, 25, 50, and 100. The server grants those badges from <code>referralCount</code>. The invite card shows how many friends were invited and how many reached Maxi.</p>
+
+    <h3>Two-factor authentication</h3>
+    <p>You can turn on an authenticator app. We store an encrypted TOTP secret on the account. After a successful code you can remember this browser for 30 days, counted from the day you checked the box. That record stores a hash of a random device token, a short browser and operating-system label, and the times it was added, last used, and when the 30 days end. It does not store an IP address. The token itself stays in this browser. Turning off two-factor authentication, using a recovery code, the in-app password reset, or an admin reset revokes every remembered device.</p>
+
+    <h3>Profile saved on this device</h3>
+    <p>A signed-in visit can leave two copies in this browser. <code>btc_auth_display</code> is display-only: your username, level, XP, and a profile picture only when that picture is a Firebase Storage link. The home can paint it before sign-in is confirmed. It cannot grant rewards, sats, or any write. If two-factor authentication is on and this session has not passed it, the saved record is only your account id and a marker that a code is still required, and the name is not shown. <code>btc_profile_cache</code> is a copy of the account document, plus the account id and the time it was saved. The app uses it only when the signed-in account matches and the copy is less than 24 hours old, then refreshes from the server. It is not a way past two-factor authentication. Both copies are removed on sign-out, when a different account signs in, and when you delete the account. They are not a second copy we keep on our servers.</p>
+
+    <h3>Account deletion</h3>
+    <p>Settings → Account deletes the account on the server after you confirm your username, including the Firebase sign-in. Section 11 lists what is removed and what we keep. This browser then clears site data whose keys start with <code>btc_</code>, including the profile copies above.</p>
+
+    <h3>App Check</h3>
+    <p>Firebase App Check, using reCAPTCHA v3, is required on some server actions, including sats claims, Say hi, account deletion, quiz and trivia grading, and scholar exams. A call without a valid token is rejected. Not every action uses App Check. The Satoshi's Favor hash action does not require an App Check token.</p>
+
+    <h3>Lightning sats</h3>
+    <p>A claim pays out over Lightning to the address saved on the account. We store the amount, the time, a truncated invoice (the first 50 characters), and the daily and lifetime totals. The faucet log at claim time can include an IP address and a device fingerprint hash. That log is separate from the referral HMAC above. Payouts we send are resolved to an invoice and paid through our Lightning wallet. We do not receive your seed or private keys.</p>
+
+    <h3>Nacho</h3>
+    <p>A saved answer is tried in your browser first. If that is not enough, the question goes to Cloudflare Workers AI, which runs Meta Llama 3.3 70B Instruct. We send your question, up to the last 8 turns of the recent Nacho chat, your display name, rank, and point total, your language, whether simple-explanation mode is on, a knowledge snippet, and matching app-feature text. A Firebase sign-in token may be attached to the request. Email, Lightning address, and wallet are not put in the prompt. A question in a topic thread sends the question text and a short topic excerpt, without your username or user id. We do not use your questions to train our own models.</p>
+
+    <h3>Timechain TV and Bitcoin Beats</h3>
+    <p>Timechain TV plays videos with YouTube's embedded player, including youtube-nocookie embeds. YouTube may collect data under its own policy. We do not send your account id to YouTube. A YouTube link in a topic or in chat can be shown the same way. Bitcoin Beats does not embed YouTube. It plays audio you upload, plus embedded players from Wavlake, Twitch, and LNBeats. We do not send your account id to Wavlake. Uploaded tracks are public.</p>
+
+    <h3>Share cards and referral links</h3>
+    <p>A share card is built on this device. The text is a title, a short line, and one link that includes your referral code. You can pass that text to your phone's share sheet, or to X or Telegram. Sharing does not award XP, sats, or tickets. We store a short <code>shareCardsShown</code> note on the account so the same card is not offered again. The referral code is stored on the account, and that is what the invite link carries.</p>
+
+    <h3>Satoshi's Favor</h3>
+    <p>A hash attempt is recorded on the server with your account id, the public username from your profile, the hash value, whether it won, and the window it belongs to. A missing name is left empty, and the app can show Anon. The account id is not included in the public response. Cooldown timestamps stay on the server. The name that is saved comes from your public profile, not from a name typed into the hash request.</p>
+
+    <h3>Peers, keys, and ciphers</h3>
+    <p>A peer is a mutual follow. Requests and accepted peers are stored on the account. Gifts exchanged with a peer can raise a friendship level that the server records. A key you send stores the sender. When an accepted peer opens a matching cipher with a key you sent, the server can pay the same prize to both of you. The share record stores the sender's account, the opener's display name, and the prize. It does not store the opener's account id.</p>
+
+    <h3>Leaderboard</h3>
+    <p>The public leaderboard shows usernames, points, and rank on the all-time, weekly, and monthly boards. The username on that board is the public name on your profile. Online status can appear there unless you turn presence off in Settings.</p>
+
+    <h3>Guest accounts</h3>
+    <p>Continue as a guest is an anonymous Firebase sign-in. It has no email. A guest can look around. The daily spin, Say hi, posting in Global Chat, direct messages, and sats claims stay off until you sign in with a real account. If you later sign in with a login that is new, that same guest account is upgraded. If the login already belongs to another account, the server can copy the guest's progress once, using a code that expires after 30 minutes. A guest's welcome-tour flag stays in this browser only.</p>
 
     <h2>1. What We Collect</h2>
 
