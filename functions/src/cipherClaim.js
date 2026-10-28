@@ -13,13 +13,15 @@ const SATS_DISABLED_ERROR = 'Sats withdrawals are disabled on this account. Cont
 const SATS_BANNED_ERROR = 'Sats are disabled on this account. Contact support if you believe this is an error.';
 
 function isSatsBanned(user, ledger) {
+    if (user && user.lock && user.lock.state === 'locked') return true;
     return !!(user && user.satsDisabled === true) || !!(ledger && ledger.banned === true);
 }
 
-// Same flags the sats payouts use, plus a profile ban_reason or banned flag.
+// Same flags the sats payouts use, plus a profile ban_reason, banned flag, or review lock.
 function rewardBlocked(user, ledger) {
     const u = user || {};
     const l = ledger || {};
+    if (u.lock && u.lock.state === 'locked') return true;
     if (u.ban_reason) return true;
     if (u.banned === true) return true;
     return isSatsBanned(u, l);

@@ -4060,11 +4060,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     // Process pending buddy match from anonymous onboarding
     try {
         var _pendingBuddy = JSON.parse(localStorage.getItem('btc_buddy_pending') || 'null');
-        if (_pendingBuddy && _pendingBuddy.goal) {
-            localStorage.removeItem('btc_buddy_pending');
-            if (typeof _submitBuddyFromOnboarding === 'function') {
-                setTimeout(function() { _submitBuddyFromOnboarding(_pendingBuddy.level || 'beginner', _pendingBuddy.goal); }, 2000);
-            }
+        if (_pendingBuddy && _pendingBuddy.goal && typeof window._submitBuddyFromOnboarding === 'function') {
+            setTimeout(function() { window._submitBuddyFromOnboarding(_pendingBuddy.level || 'beginner', _pendingBuddy.goal); }, 2000);
         }
     } catch(e) {}
 }
@@ -6978,6 +6975,7 @@ function showSettingsPage(tab) {
         html += '</div>';
         html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
         html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
+        html += '<div id="buddyReportsAdmin" style="margin-top:12px;"></div>';
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button
@@ -8402,6 +8400,9 @@ function accountDeleteRowHtml(user) {
             }
             if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
                 window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
+            }
+            if (window._isAdminClaim === true && typeof window.renderBuddyReportsAdmin === 'function') {
+                window.renderBuddyReportsAdmin('buddyReportsAdmin');
             }
             // Populate badge on the Peers/Gifts button (waiting gifts + keys held + ciphers)
             var _giftBadge = document.getElementById('peersGiftsBadge');

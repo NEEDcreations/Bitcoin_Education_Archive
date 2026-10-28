@@ -130,9 +130,19 @@ service cloud.firestore {
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
         'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
+        'buddyMatchCount', 'buddyXpGrantedAt', 'activeBuddyId',
+        'lock', 'buddyRematchAt', 'endedBuddyUids',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
         'providersHash', 'providerHashes'
       ];
+    }
+
+    function accountUnderReview() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.keys().hasAny(['lock'])
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.lock is map
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.lock.get('state', '') == 'locked';
     }
 
     match /users/{userId} {
@@ -600,11 +610,13 @@ service cloud.firestore {
     match /suggestions/{suggestionId} {
       allow read: if false;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && suggestionId == request.auth.uid
                     && request.resource.data.keys().hasAny(['text', 'suggestion'])
                     && ((request.resource.data.get('suggestion', '') is string && request.resource.data.get('suggestion', '').size() <= 1000)
                        || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000));
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && suggestionId == request.auth.uid
                     && request.resource.data.keys().hasAny(['text', 'suggestion'])
                     && ((request.resource.data.get('suggestion', '') is string && request.resource.data.get('suggestion', '').size() <= 1000)
@@ -799,6 +811,7 @@ service cloud.firestore {
     match /forum_posts/{postId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
@@ -806,6 +819,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && (
                       isAdmin()
                       || (
@@ -841,6 +855,7 @@ service cloud.firestore {
     match /forum_replies/{replyId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
@@ -848,6 +863,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && (
                       isAdmin()
                       || (
@@ -1003,6 +1019,7 @@ service cloud.firestore {
       // Client payload from marketplace.js submitListing(). sellerName is the
       // profile username (or empty when that username is missing).
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && listingId.matches('^[A-Za-z0-9]{20}$')
                     && request.resource.data.keys().hasOnly(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','localPickup','sellerUid','sellerName','sellerRank','status','views','saves','createdAt'])
@@ -1032,6 +1049,7 @@ service cloud.firestore {
                     && request.resource.data.get('sellerRank', '') is string
                     && request.resource.data.get('sellerRank', '').size() <= 40;
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && (marketOwnerEdit()
                         || isAdmin()
                         || marketViewBump()
@@ -1049,6 +1067,7 @@ service cloud.firestore {
                   && (resource.data.buyerUid == request.auth.uid
                       || resource.data.sellerUid == request.auth.uid);
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && request.resource.data.buyerUid == request.auth.uid
                     && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message']);
     }
@@ -1056,31 +1075,55 @@ service cloud.firestore {
     // =============================================
     // DIRECT MESSAGES
     // =============================================
+    // Doc id is the two uids in code-unit order, joined by "_".
+    // Same builder as getConversationId and matchIdFor, so nostr: and ln:
+    // uids keep the colon and still sort as plain strings.
+    function dmSortedPairId(a, b) {
+      return a < b ? a + '_' + b : b + '_' + a;
+    }
+
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.participants is list
+                    && request.resource.data.participants.size() == 2
+                    && request.resource.data.participants[0] is string
+                    && request.resource.data.participants[1] is string
+                    && request.resource.data.participants[0].size() > 0
+                    && request.resource.data.participants[0].size() <= 128
+                    && request.resource.data.participants[1].size() > 0
+                    && request.resource.data.participants[1].size() <= 128
+                    && request.resource.data.participants[0] != request.resource.data.participants[1]
+                    && convoId == dmSortedPairId(request.resource.data.participants[0], request.resource.data.participants[1])
+                    && !request.resource.data.keys().hasAny(['lastMessage', 'lastMessageTime', 'lastSenderUid', 'isBuddyMatch', 'buddyMatchId', 'reviewPaused', 'safetyNotice'])
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
                     && (!('participantNames' in request.resource.data)
                         || (request.resource.data.participantNames is map
                             && request.resource.data.participantNames.keys().hasOnly(request.resource.data.participants)
                             && request.resource.data.participantNames.values().toSet().size() <= 2));
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && request.auth.uid in resource.data.participants
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt', 'isBuddyMatch', 'buddyMatchId', 'reviewPaused', 'lastMessage', 'lastMessageTime', 'lastSenderUid']);
 
       match /messages/{messageId} {
         allow read: if request.auth != null
                     && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
         allow create: if request.auth != null
+                      && !accountUnderReview()
+                      && get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.get('reviewPaused', false) != true
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
                       && request.resource.data.senderUid == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['senderUid', 'senderName', 'text', 'createdAt', 'imageUrl', 'isGif'])
                       && request.resource.data.text is string
                       && request.resource.data.text.size() <= 1000
                       && !('isNachoAuto' in request.resource.data)
+                      && !('safetyNotice' in request.resource.data)
                       && (request.resource.data.text.size() >= 1 || ('imageUrl' in request.resource.data && request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
                       && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')));
       }
@@ -1093,7 +1136,56 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && isAdmin();
       allow create: if request.auth != null
-                    && request.resource.data.reporterUid == request.auth.uid;
+                    && request.resource.data.keys().hasOnly(['reportedUid', 'reportedName', 'reporterUid', 'reporterName', 'reason', 'type', 'createdAt', 'status'])
+                    && request.resource.data.reporterUid == request.auth.uid
+                    && (!('type' in request.resource.data) || request.resource.data.type in ['user', 'buddy'])
+                    && request.resource.data.reportedUid is string
+                    && request.resource.data.reportedUid.size() > 0
+                    && request.resource.data.reportedUid.size() <= 128
+                    && request.resource.data.reportedName is string
+                    && request.resource.data.reportedName.size() <= 80
+                    && (!('reporterName' in request.resource.data)
+                        || (request.resource.data.reporterName is string && request.resource.data.reporterName.size() <= 80))
+                    && reportQuotaOk()
+                    && request.resource.data.reason is string
+                    && request.resource.data.reason.size() > 0
+                    && request.resource.data.reason.size() <= 40
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.createdAt == request.time;
+    }
+
+    function reportDay() {
+      return string(request.time.year()) + '-'
+        + (request.time.month() < 10 ? '0' : '') + string(request.time.month()) + '-'
+        + (request.time.day() < 10 ? '0' : '') + string(request.time.day());
+    }
+
+    function reportQuotaOk() {
+      let quota = /databases/$(database)/documents/buddy_report_quota/$(request.auth.uid);
+      return !exists(quota)
+        || get(quota).data.day != reportDay()
+        || (
+          get(quota).data.count < 5
+          && (
+            !get(quota).data.keys().hasAny(['targets'])
+            || !(request.resource.data.reportedUid in get(quota).data.targets)
+            || get(quota).data.targets[request.resource.data.reportedUid] < request.time.toMillis() - 86400000
+          )
+        );
+    }
+
+    // Server-written buddy flags. Clients cannot plant a flag that locks someone.
+    match /buddy_flags/{flagId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if false;
+    }
+
+    match /buddy_locks/{uid} {
+      allow read, write: if false;
+    }
+
+    match /buddy_report_quota/{uid} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -1102,6 +1194,7 @@ service cloud.firestore {
     match /irl_events/{eventId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && request.resource.data.hostId == request.auth.uid
                     && request.resource.data.keys().hasAll(['title', 'hostId', 'date'])
                     && (request.resource.data.keys().hasAny(['location', 'locationName']))
@@ -1113,6 +1206,7 @@ service cloud.firestore {
                         || (request.resource.data.link is string
                             && request.resource.data.link.matches('https://.*')));
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && (resource.data.hostId == request.auth.uid
                         || isAdmin()
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
@@ -1135,6 +1229,7 @@ service cloud.firestore {
     match /channel_ratings/{ratingId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && ratingId == request.resource.data.channelId + '_' + request.auth.uid
                     && request.resource.data.userId == request.auth.uid;
       allow update: if request.auth != null
@@ -1160,6 +1255,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Signed-in, non-anonymous, own uid, strict field list. No extra payload.
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && docId == request.auth.uid
                     && request.resource.data.keys().hasOnly(['uid', 'name', 'profilePic', 'status', 'createdAt', 'lastSeen'])
@@ -1272,6 +1368,7 @@ service cloud.firestore {
     match /beats_tracks/{trackId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.copyrightConfirmed == true
@@ -1342,6 +1439,7 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if request.auth != null
+                      && !accountUnderReview()
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.resource.data.authorId == request.auth.uid
                       && request.resource.data.text is string
@@ -1391,6 +1489,7 @@ service cloud.firestore {
     match /articles/{articleId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.title is string
@@ -1400,6 +1499,7 @@ service cloud.firestore {
                     && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && (
                       // Author can edit their own article, but cannot hand authorship to someone else.
                       resource.data.authorId == request.auth.uid
@@ -1449,12 +1549,14 @@ service cloud.firestore {
     match /article_replies/{replyId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 2000;
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                             && (!(request.auth.uid in resource.data.get('voters', [])))
@@ -1543,6 +1645,7 @@ service cloud.firestore {
         allow read: if true;
         // Can only add/update YOUR OWN queue entry, and it must carry your uid.
         allow create: if request.auth != null
+                      && !accountUnderReview()
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.auth.uid == queueId
                       && request.resource.data.uid == request.auth.uid
@@ -1550,6 +1653,7 @@ service cloud.firestore {
                       && request.resource.data.name.size() >= 1
                       && request.resource.data.name.size() <= 40;
         allow update: if request.auth != null
+                      && !accountUnderReview()
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.auth.uid == queueId
                       && request.resource.data.uid == request.auth.uid;
@@ -1590,6 +1694,7 @@ service cloud.firestore {
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && !accountUnderReview()
                     // Field allowlist: no arbitrary keys that could carry attacker payload
                     && request.resource.data.keys().hasOnly(['uid','name','text','ts','isNachoAuto','faction',
                         'replyTo','replyToName','replyToText',
@@ -1639,6 +1744,7 @@ service cloud.firestore {
       // Allow reactions update by any authenticated user (must be a map)
       // Allow own message edit: only text/editCount/edited fields, max 2 edits, own message only
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && (
                       // Reactions: emoji-keyed map { emoji: [uid,...] }
                       // We can only validate shape here; client enforces per-user logic.
@@ -1676,6 +1782,7 @@ service cloud.firestore {
       // targetType is a fixed list. targetId, giftId, fromUid, and the doc id
       // must match ^[A-Za-z0-9_-]{1,64}$. senderId must be the signed-in user.
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && notifIdOk(notifId)
                     && request.resource.data.keys().hasOnly(['recipientId', 'senderId', 'senderName', 'type', 'message', 'targetType', 'targetId', 'giftId', 'fromUid', 'read', 'createdAt'])
@@ -1732,15 +1839,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Buddy matching pool
-    // [AUDIT FIX L-NEW-6] Enforce 1 entry per user via document ID
+    // Buddy pool. The server is the only writer. A signed-in user may read
+    // and delete only the doc whose id is their own uid. Listing the pool
+    // is closed so a client cannot scan other people.
     match /buddy_pool/{docId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-                    && docId == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null
-                    && (docId == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin());
+      allow get: if request.auth != null && docId == request.auth.uid;
+      allow list: if false;
+      allow create, update: if false;
+      allow delete: if request.auth != null && docId == request.auth.uid;
     }
 
     // Faucet invoice dedup (Cloud Function only)
@@ -1838,23 +1944,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Buddy matches
-    // [AUDIT FIX L-NEW-10] Prevent fake matches via deterministic ID and ownership
+    // Buddy matches are created only by requestBuddyMatch (Admin SDK).
+    // A participant may read their own match. Clients cannot create, edit,
+    // or delete one. endBuddy is the only way to end a match. A client
+    // delete used to leave activeBuddyId pointing at a missing doc.
     match /buddy_matches/{docId} {
       allow read: if request.auth != null
                   && (resource.data.user1.uid == request.auth.uid
                       || resource.data.user2.uid == request.auth.uid);
-      
-      // Prevent arbitrary match creation — enforce deterministic UID-based document ID
-      allow create: if request.auth != null
-                    && (request.resource.data.user1.uid == request.auth.uid || request.resource.data.user2.uid == request.auth.uid)
-                    && (request.resource.data.user1.uid < request.resource.data.user2.uid ? 
-                        docId == request.resource.data.user1.uid + '_' + request.resource.data.user2.uid : 
-                        docId == request.resource.data.user2.uid + '_' + request.resource.data.user1.uid);
-      
-      allow delete: if request.auth != null
-                    && (resource.data.user1.uid == request.auth.uid
-                        || resource.data.user2.uid == request.auth.uid);
+      allow create, update, delete: if false;
     }
 
     // Timechain TV viewer counts — increment/decrement by 1 only
@@ -1977,11 +2075,13 @@ service cloud.firestore {
     match /poll_cumulative/{pollId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
                     && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
       // [SECURITY FIX] create: values must be 0 or 1; total must equal 1 (first vote).
       // Previously unconstrained — any value could be set on create.
       allow create: if request.auth != null
+                    && !accountUnderReview()
                     && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
                     && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
                     && request.resource.data.total == 1
@@ -1991,6 +2091,7 @@ service cloud.firestore {
                     && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
       // All numeric fields are monotonically increasing AND bounded to +1 per update.
       allow update: if request.auth != null
+                    && !accountUnderReview()
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
                     // total: monotone increasing, at most +1

@@ -63,6 +63,7 @@ function triviaIndexForDay(dayKey, length) {
 }
 
 function isRewardBanned(user, ledger) {
+    if (user && user.lock && user.lock.state === 'locked') return true;
     if (user && user.ban_reason) return true;
     if (user && user.banned === true) return true;
     return !!(user && user.satsDisabled === true) || !!(ledger && ledger.banned === true);

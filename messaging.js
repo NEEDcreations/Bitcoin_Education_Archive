@@ -336,12 +336,16 @@ window.submitReport = function(uid, username, reason) {
         reporterUid: auth.currentUser.uid,
         reporterName: reporterName,
         reason: reason,
+        type: reason === 'buddy' ? 'buddy' : 'user',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'pending',
     }).then(function() {
         if (typeof showToast === 'function') showToast('🚩 Report submitted. Thank you for keeping the community safe.');
         // Auto-block the reported user
         blockUser(uid, username);
+        if (typeof window.onBuddyReported === 'function') {
+            try { window.onBuddyReported(uid); } catch (e) {}
+        }
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to submit report');
     });
@@ -968,20 +972,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Load messages + listen for real-time updates
     loadDMMessages(convoId, myUid, otherUid, otherName);
 
-    // Check if this is a buddy match — show Nacho helper banner
-    db.collection('dm_conversations').doc(convoId).get().then(function(doc) {
-        if (doc.exists && doc.data().isBuddyMatch) {
-            var dmWin = document.getElementById('dmWindow');
-            if (!dmWin) return;
-            var safetyBanner = dmWin.querySelector('div[style*="rgba(234,179,8,0.1)"]');
-            if (safetyBanner) {
-                safetyBanner.style.background = 'rgba(34,197,94,0.08)';
-                safetyBanner.style.borderColor = 'rgba(34,197,94,0.2)';
-                safetyBanner.style.color = '#22c55e';
-                safetyBanner.innerHTML = '🦌 <strong>Nacho is in this chat!</strong> Ask any Bitcoin question and Nacho will jump in. Teachers can add context to help learners.';
-            }
-        }
-    }).catch(function() {});
+    // Buddy conversations keep the same safety warning as every other conversation.
 
     // Update other user's online status
     db.collection('users').doc(otherUid).get().then(function(doc) {
@@ -1177,11 +1168,7 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            var convoUpdateData = {
-                lastMessage: '📷 Image',
-                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                lastSenderUid: uid
-            };
+            var convoUpdateData = {};
             convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
             // Notify recipient
@@ -1193,9 +1180,6 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
                 if (err.code === 'not-found' || err.message.indexOf('NOT_FOUND') !== -1) {
                     var createData = {
                         participants: [uid, recipientUid],
-                        lastMessage: '📷 Image',
-                        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                        lastSenderUid: uid
                     };
                     createData.participantNames = {};
                     createData.participantNames[uid] = myName;
@@ -1346,11 +1330,7 @@ window.sendDMGif = function(gifUrl) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    var convoUpdateData = {
-        lastMessage: 'GIF',
-        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderUid: uid
-    };
+    var convoUpdateData = {};
     convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
     if (typeof sendNotification === 'function') {
@@ -1361,9 +1341,6 @@ window.sendDMGif = function(gifUrl) {
         if (err.code === 'not-found' || err.message.indexOf('NOT_FOUND') !== -1) {
             var createData = {
                 participants: [uid, recipientUid],
-                lastMessage: 'GIF',
-                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                lastSenderUid: uid
             };
             createData.participantNames = {};
             createData.participantNames[uid] = myName;
@@ -1457,19 +1434,12 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
 
     // Build conversation metadata (avoid computed property key issues)
     // For existing conversations, only update mutable fields (Firestore rules block participants/participantNames changes)
-    var convoUpdateData = {
-        lastMessage: text,
-        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderUid: myUid,
-    };
+    var convoUpdateData = {};
     convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
     // Full data including participants — only used for new conversations
     var convoCreateData = {
         participants: [myUid, recipientUid],
-        lastMessage: text,
-        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderUid: myUid,
     };
     convoCreateData.participantNames = {};
     convoCreateData.participantNames[myUid] = myName;

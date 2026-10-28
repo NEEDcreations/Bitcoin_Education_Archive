@@ -856,7 +856,7 @@ const BADGE_DEFS = [
 
     // ---- DMs & Social ----
     { id: 'dm_10', name: 'Inbox Zero', emoji: '📥', desc: 'Sent 10 direct messages', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 10, pts: 25 },
-    { id: 'dm_buddy', name: 'Buddy Up', emoji: '🫂', desc: 'Matched with a Bitcoin learning buddy', check: () => localStorage.getItem('btc_buddy_matched') === 'true', pts: 30 },
+    { id: 'dm_buddy', name: 'Buddy Up', emoji: '🫂', desc: 'Matched with a Bitcoin learning buddy', check: () => typeof currentUser !== 'undefined' && currentUser && (Number(currentUser.buddyMatchCount) || 0) >= 1, pts: 30 },
     { id: 'react_5', name: 'Reactor', emoji: '⚡', desc: 'Reacted to 5 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 5, pts: 10 },
     { id: 'react_200', name: 'Emoji Sensei', emoji: '🧘', desc: 'Reacted to 200 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 200, pts: 150 },
     { id: 'tip_sats_10k', name: 'Sat Slinger', emoji: '💰', desc: 'Tipped 10,000+ sats total', check: () => parseInt(localStorage.getItem('btc_tips_total_sats') || '0') >= 10000, pts: 300 },
@@ -12542,12 +12542,16 @@ window.submitReport = function(uid, username, reason) {
         reporterUid: auth.currentUser.uid,
         reporterName: reporterName,
         reason: reason,
+        type: reason === 'buddy' ? 'buddy' : 'user',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'pending',
     }).then(function() {
         if (typeof showToast === 'function') showToast('🚩 Report submitted. Thank you for keeping the community safe.');
         // Auto-block the reported user
         blockUser(uid, username);
+        if (typeof window.onBuddyReported === 'function') {
+            try { window.onBuddyReported(uid); } catch (e) {}
+        }
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to submit report');
     });
@@ -13174,20 +13178,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Load messages + listen for real-time updates
     loadDMMessages(convoId, myUid, otherUid, otherName);
 
-    // Check if this is a buddy match — show Nacho helper banner
-    db.collection('dm_conversations').doc(convoId).get().then(function(doc) {
-        if (doc.exists && doc.data().isBuddyMatch) {
-            var dmWin = document.getElementById('dmWindow');
-            if (!dmWin) return;
-            var safetyBanner = dmWin.querySelector('div[style*="rgba(234,179,8,0.1)"]');
-            if (safetyBanner) {
-                safetyBanner.style.background = 'rgba(34,197,94,0.08)';
-                safetyBanner.style.borderColor = 'rgba(34,197,94,0.2)';
-                safetyBanner.style.color = '#22c55e';
-                safetyBanner.innerHTML = '🦌 <strong>Nacho is in this chat!</strong> Ask any Bitcoin question and Nacho will jump in. Teachers can add context to help learners.';
-            }
-        }
-    }).catch(function() {});
+    // Buddy conversations keep the same safety warning as every other conversation.
 
     // Update other user's online status
     db.collection('users').doc(otherUid).get().then(function(doc) {
@@ -13383,11 +13374,7 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            var convoUpdateData = {
-                lastMessage: '📷 Image',
-                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                lastSenderUid: uid
-            };
+            var convoUpdateData = {};
             convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
             // Notify recipient
@@ -13399,9 +13386,6 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
                 if (err.code === 'not-found' || err.message.indexOf('NOT_FOUND') !== -1) {
                     var createData = {
                         participants: [uid, recipientUid],
-                        lastMessage: '📷 Image',
-                        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                        lastSenderUid: uid
                     };
                     createData.participantNames = {};
                     createData.participantNames[uid] = myName;
@@ -13552,11 +13536,7 @@ window.sendDMGif = function(gifUrl) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    var convoUpdateData = {
-        lastMessage: 'GIF',
-        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderUid: uid
-    };
+    var convoUpdateData = {};
     convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
     if (typeof sendNotification === 'function') {
@@ -13567,9 +13547,6 @@ window.sendDMGif = function(gifUrl) {
         if (err.code === 'not-found' || err.message.indexOf('NOT_FOUND') !== -1) {
             var createData = {
                 participants: [uid, recipientUid],
-                lastMessage: 'GIF',
-                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                lastSenderUid: uid
             };
             createData.participantNames = {};
             createData.participantNames[uid] = myName;
@@ -13663,19 +13640,12 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
 
     // Build conversation metadata (avoid computed property key issues)
     // For existing conversations, only update mutable fields (Firestore rules block participants/participantNames changes)
-    var convoUpdateData = {
-        lastMessage: text,
-        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderUid: myUid,
-    };
+    var convoUpdateData = {};
     convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
     // Full data including participants — only used for new conversations
     var convoCreateData = {
         participants: [myUid, recipientUid],
-        lastMessage: text,
-        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderUid: myUid,
     };
     convoCreateData.participantNames = {};
     convoCreateData.participantNames[myUid] = myName;
@@ -23817,7 +23787,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_trails', title: '🦌 Nacho\'s Trails', desc: 'Guided learning paths through Bitcoin education — Meadow, Mountain & Summit', keywords: 'trails nacho guided path learning course module meadow mountain summit exam test progress curriculum education beginner intermediate advanced', action: "go('trails')" },
         { id: '_dashboard', title: '📊 Top Indicators', desc: 'Live Bitcoin cycle top indicators — Pi Cycle, NUPL, Puell, Power Law & more', keywords: 'dashboard indicators top cycle signal pi cycle nupl puell mayer multiple rsi ahr999 mstr etf power law rainbow reserve risk bitcoin metrics data analytics chart', action: "if(typeof toggleDashboard==='function')toggleDashboard()" },
         { id: '_meetupbox', title: '📦 Meetup-in-a-Box', desc: 'Ready-made meetup templates with agendas and host tips', keywords: 'meetup box template agenda host tips lightning workshop self custody mining event organize plan download', action: "go('irl-sync')" },
-        { id: '_buddy', title: '🤝 Bitcoin Buddy', desc: 'Find a learning partner — teachers matched with learners', keywords: 'buddy partner match learn teach mentor mentee pair connect chat find friend study accountability group', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
+        { id: '_buddy', title: '🤝 Bitcoin Buddy', desc: 'Find a learning partner — teachers matched with learners', keywords: 'buddy partner match learn teach mentor mentee pair connect chat find friend study accountability group', action: "if(typeof showBuddyFinder==='function')showBuddyFinder();else if(window.bqOpenFeature)window.bqOpenFeature('buddy')" },
         { id: '_certs', title: '📜 Shareable Certificates', desc: 'Share your Scholar Certification with a verifiable public link', keywords: 'certificate share verify link public proof scholar achievement social media url', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_satsvbits', title: '⚡ Sats vs Bits', desc: 'Live community vote — sats or bits for the Bitcoin denomination?', keywords: 'sats bits vote poll denomination unit satoshi community debate live', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_newbie', title: '🟢 Brand New to Bitcoin?', desc: 'Quick introduction for absolute beginners', keywords: 'new beginner brand new start zero nothing know nothing introduction first time newbie noob', action: "go('one-stop-shop')" },
@@ -23829,7 +23799,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_streakfreeze', title: '🧊 Streak Freeze', desc: 'Protect your visit streak with freeze tickets', keywords: 'streak freeze ticket protect miss save guard insurance ice', action: "showSettings();setTimeout(function(){showSettingsPage('data')},100)" },
         { id: '_cotd', title: '📅 Channel of the Day', desc: 'Today\'s featured Bitcoin education channel', keywords: 'channel of the day daily featured recommendation today pick spotlight', action: 'goHome()' },
         { id: '_nostr', title: '🟣 Nostr Login', desc: 'Sign in with Nostr — extension, nsec, or npub', keywords: 'nostr login sign in nip npub nsec extension relay decentralized identity', action: 'showUsernamePrompt()' },
-        { id: '_buddyfind', title: '🤝 Find a Bitcoin Buddy', desc: 'Get matched with a learning partner — teachers meet learners', keywords: 'buddy partner match learn teach mentor mentee pair connect study group accountability partner friend', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
+        { id: '_buddyfind', title: '🤝 Find a Bitcoin Buddy', desc: 'Get matched with a learning partner — teachers meet learners', keywords: 'buddy partner match learn teach mentor mentee pair connect study group accountability partner friend', action: "if(typeof showBuddyFinder==='function')showBuddyFinder();else if(window.bqOpenFeature)window.bqOpenFeature('buddy')" },
         { id: '_favor', title: '✨⛏️ Satoshi\'s Favor', desc: 'Community mining game — earn points, activate mining, hash for 21,000 sats', keywords: 'satoshi favor mining hash mine community points activate 21 sats game block nonce difficulty target hashing brute force proof of work', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='favor';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_raid', title: '⚔️ Raid Boss', desc: 'Monthly community challenge — deal damage by earning badges and completing activities', keywords: 'raid boss challenge monthly community damage badge activity quest defeat winner prize leaderboard attack', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='raid';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_charity', title: '❤️ Donate XP for Charity', desc: 'Donate your XP points for charity — 1,000 XP = 1,000 sats pledged. 10× more impact than redeeming for yourself.', keywords: 'charity donate donation xp points sats bitcoin giving community philanthropy pledge faction badger hornet', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='charity';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },

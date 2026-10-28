@@ -70,6 +70,7 @@ async function refreshBadgeDistribution(db, adminSdk, opts) {
             const rec = byUid[doc.id];
             if (!rec || isAnonymousRecord(rec)) return;
             if (data.ban_reason || data.banned === true || data.isBot === true || data.isTest === true) return;
+            if (data.lock && data.lock.state === 'locked') return;
             if (doc.id === 'nacho-bot' || doc.id === 'system') return;
             totalUsers += 1;
             if (now - millisOf(data.lastActive) <= THIRTY_DAYS) activeUsers30d += 1;

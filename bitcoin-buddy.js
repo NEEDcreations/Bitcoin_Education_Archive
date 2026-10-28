@@ -1,692 +1,664 @@
 // © 2024-2026 603BTC LLC. All rights reserved.
-// bitcoin-buddy.js — Bitcoin Buddy Matching System
-// Connect users by experience level for 1-on-1 Bitcoin conversations
+// bitcoin-buddy.js — Find a Bitcoin Buddy
+// The server matches, writes the welcome, and grants XP. This file only renders.
 
-(function() {
+var BUDDY_PENDING_KEY = 'btc_buddy_pending';
+var BUDDY_LEVELS = ['beginner', 'intermediate', 'advanced'];
+
+function planOnboardingChoice(input) {
+    var src = input || {};
+    var choice = String(src.choice || src.goal || '').trim().toLowerCase();
+    if (choice === 'not now' || choice === 'later' || choice === 'skip' || choice === 'not-now') {
+        return { choice: 'later', store: null };
+    }
+    if (choice !== 'learn' && choice !== 'teach') return { choice: '', store: null };
+    var level = String(src.level || 'beginner').trim().toLowerCase();
+    if (BUDDY_LEVELS.indexOf(level) === -1) level = 'beginner';
+    return { choice: choice, store: { level: level, goal: choice } };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        planOnboardingChoice: planOnboardingChoice,
+        BUDDY_PENDING_KEY: BUDDY_PENDING_KEY,
+    };
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+(function () {
 'use strict';
 
-var COLLECTION = 'buddy_pool';
-var MATCH_COLLECTION = 'buddy_matches';
+var LEVELS = ['beginner', 'intermediate', 'advanced'];
+var GOALS = ['learn', 'teach'];
+var POOL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+var choice = { level: 'beginner', goal: 'learn' };
 
-window.showBuddyFinder = function() {
-    var auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-        else if (typeof showToast === 'function') showToast('🔒 Sign in to find a Bitcoin Buddy');
-        return;
-    }
+function toast(msg) {
+    if (typeof showToast === 'function') showToast(msg);
+}
 
-    var uid = auth.currentUser.uid;
-    var _db = firebase.firestore();
+function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+}
 
-    // Check for existing match first
-    _db.collection(MATCH_COLLECTION).where('user1.uid', '==', uid).limit(1).get().then(function(snap1) {
-        if (!snap1.empty) { _showExistingMatch(snap1.docs[0], uid); return; }
-        _db.collection(MATCH_COLLECTION).where('user2.uid', '==', uid).limit(1).get().then(function(snap2) {
-            if (!snap2.empty) { _showExistingMatch(snap2.docs[0], uid); return; }
-            // Also check if user is already in the pool waiting
-            _db.collection(COLLECTION).where('uid', '==', uid).limit(1).get().then(function(poolSnap) {
-                if (!poolSnap.empty) { _showWaitingInPool(poolSnap.docs[0]); return; }
-                _showFreshBuddyForm();
-            }).catch(function() { _showFreshBuddyForm(); });
-        }).catch(function() { _showFreshBuddyForm(); });
-    }).catch(function() { _showFreshBuddyForm(); });
-};
+function ensureStyle() {
+    if (document.getElementById('buddyFinderStyle')) return;
+    var style = document.createElement('style');
+    style.id = 'buddyFinderStyle';
+    style.textContent = [
+        '.buddy-overlay{position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,.92);display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow:auto;box-sizing:border-box;-webkit-overflow-scrolling:touch;}',
+        '.buddy-card{background:var(--bg-side,#1a1a2e);border:1px solid var(--accent,#f7931a);border-radius:16px;width:100%;max-width:440px;padding:16px;box-sizing:border-box;margin:0 auto 24px;color:var(--text,#e2e8f0);}',
+        '.buddy-card h2{font-size:18px;line-height:1.3;margin:0 0 6px;color:var(--heading,#fff);font-weight:800;}',
+        '.buddy-card p,.buddy-card label,.buddy-meta,.buddy-note{font-size:13px;line-height:1.45;margin:0;color:var(--text-muted,#cbd5e1);}',
+        '.buddy-kicker{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-faint,#94a3b8);margin:14px 0 8px;}',
+        '.buddy-choices{display:flex;flex-wrap:wrap;gap:8px;}',
+        '.buddy-choice{flex:1 1 30%;min-width:0;min-height:44px;padding:8px 6px;background:var(--card-bg,#111827);border:2px solid var(--border,#334155);border-radius:10px;color:var(--text,#e2e8f0);font-family:inherit;cursor:pointer;text-align:center;}',
+        '.buddy-choice.is-on{border-color:var(--accent,#f7931a);}',
+        '.buddy-choice b{display:block;font-size:14px;font-weight:700;}',
+        '.buddy-choice span{display:block;font-size:12px;color:var(--text-faint,#94a3b8);}',
+        '.buddy-intro{width:100%;min-height:64px;box-sizing:border-box;padding:10px;margin-top:4px;background:rgba(255,255,255,.05);border:1px solid var(--border,#334155);border-radius:10px;color:var(--text,#e2e8f0);font-family:inherit;font-size:16px;resize:vertical;}',
+        '.buddy-action,.buddy-ghost,.buddy-danger{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 12px;border-radius:12px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;box-sizing:border-box;}',
+        '.buddy-action{background:var(--accent,#f7931a);color:#fff;border:none;}',
+        '.buddy-ghost{background:none;border:1px solid var(--border,#334155);color:var(--text-muted,#cbd5e1);font-weight:700;}',
+        '.buddy-danger{background:none;border:1px solid rgba(239,68,68,.45);color:#f87171;}',
+        '.buddy-safety{margin:12px 0;padding:10px 12px;border-radius:10px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.35);color:#fde68a;font-size:13px;line-height:1.45;}',
+        '.buddy-panel{margin:12px 0;padding:12px;border-radius:12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);}',
+        '.buddy-name{font-size:16px;font-weight:800;color:var(--heading,#fff);}',
+        '.buddy-quote{margin-top:8px;font-size:13px;font-style:italic;color:var(--text,#e2e8f0);}',
+        '@media (max-width:360px){.buddy-overlay{padding:8px;}.buddy-choice{flex:1 1 100%;}}'
+    ].join('');
+    document.head.appendChild(style);
+}
 
-function _showExistingMatch(matchDoc, myUid) {
-    var m = matchDoc.data();
-    var isUser1 = m.user1.uid === myUid;
-    var me = isUser1 ? m.user1 : m.user2;
-    var buddy = isUser1 ? m.user2 : m.user1;
-    var matchedAt = m.matchedAt ? (m.matchedAt.toDate ? m.matchedAt.toDate() : new Date(m.matchedAt)) : null;
-    var matchedStr = matchedAt ? matchedAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'recently';
-
-    var overlay = document.createElement('div');
+function mountCard(screen) {
+    ensureStyle();
+    var old = document.getElementById('buddyFinderOverlay');
+    if (old) old.remove();
+    var overlay = el('div', 'buddy-overlay');
     overlay.id = 'buddyFinderOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-
-    var html = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:20px;max-width:440px;width:100%;padding:28px;animation:fadeSlideIn 0.3s;">';
-    html += '<div style="text-align:center;margin-bottom:20px;">' +
-        '<div style="font-size:3rem;margin-bottom:8px;">🤝🦌</div>' +
-        '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 4px;">You Have a Buddy!</h2>' +
-        '<p style="color:var(--text-muted);font-size:0.8rem;">Matched ' + matchedStr + '</p>' +
-    '</div>';
-
-    html += '<div style="padding:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:14px;margin-bottom:16px;">';
-    html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">';
-    html += '<div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid rgba(34,197,94,0.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + (buddy.username ? buddy.username.charAt(0).toUpperCase() : '?') + '</div>';
-    html += '<div><div style="font-weight:800;color:var(--heading);font-size:1rem;">@' + (buddy.username || 'User') + '</div>';
-    html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + (buddy.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + ' · ' + (buddy.level || 'beginner').charAt(0).toUpperCase() + (buddy.level || 'beginner').slice(1) + '</div></div>';
-    html += '</div>';
-    if (buddy.intro) html += '<div style="font-size:0.8rem;color:var(--text);font-style:italic;padding:8px 0;border-top:1px solid rgba(34,197,94,0.15);">"' + buddy.intro + '"</div>';
-    html += '</div>';
-
-    html += '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-bottom:16px;">Your role: ' + (me.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + '</div>';
-
-    // Action buttons
-    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove();if(typeof openDM===\'function\')openDM(\'' + buddy.uid + '\',\'' + (buddy.username || 'User').replace(/[\\'"]/g, '') + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
-    html += '<button onclick="_rerollBuddy(\'' + matchDoc.id + '\')" id="rerollBtn" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🔄 Find a New Buddy</button>';
-    html += '<div style="text-align:center;font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">This will unmatch you and put you back in the pool</div>';
-    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';
-    html += '</div>';
-
-    overlay.innerHTML = html;
-    document.body.appendChild(overlay);
-}
-
-window._rerollBuddy = async function(matchDocId) {
-    var btn = document.getElementById('rerollBtn');
-    if (btn) { btn.disabled = true; btn.textContent = '🔄 Unmatching...'; }
-
-    try {
-        var _db = firebase.firestore();
-        var auth = firebase.auth();
-        var uid = auth.currentUser.uid;
-        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
-
-        // Get match data before deleting (so we know our preferences)
-        var matchDoc = await _db.collection(MATCH_COLLECTION).doc(matchDocId).get();
-        var matchData = matchDoc.exists ? matchDoc.data() : null;
-        var me = matchData ? (matchData.user1.uid === uid ? matchData.user1 : matchData.user2) : null;
-        var level = me ? me.level : 'beginner';
-        var goal = me ? me.goal : 'learn';
-        var intro = me ? (me.intro || '') : '';
-
-        // Delete the match
-        await _db.collection(MATCH_COLLECTION).doc(matchDocId).delete();
-
-        // Close overlay and show fresh form with previous preferences
-        document.getElementById('buddyFinderOverlay').remove();
-
-        if (typeof showToast === 'function') showToast('🔄 Unmatched! Finding a new buddy...');
-
-        // Re-open the finder with pre-filled preferences
-        setTimeout(function() {
-            _showFreshBuddyForm();
-            // Pre-select previous choices after render
-            setTimeout(function() {
-                if (level) selectBuddyLevel(level);
-                if (goal) selectBuddyGoal(goal);
-                var introEl = document.getElementById('buddyIntro');
-                if (introEl && intro) introEl.value = intro;
-            }, 200);
-        }, 300);
-    } catch(e) {
-        console.error('[BUDDY] Reroll failed:', e);
-        if (btn) { btn.disabled = false; btn.textContent = '🔄 Find a New Buddy'; }
-        if (typeof showToast === 'function') showToast('⚠️ Something went wrong. Try again.');
-    }
-};
-
-function _showWaitingInPool(poolDoc) {
-    var d = poolDoc.data();
-    var overlay = document.createElement('div');
-    overlay.id = 'buddyFinderOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-
-    var joinedStr = d.joinedAt ? (d.joinedAt.toDate ? d.joinedAt.toDate() : new Date(d.joinedAt)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'recently';
-
-    var html = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:20px;max-width:440px;width:100%;padding:28px;animation:fadeSlideIn 0.3s;">';
-    html += '<div style="text-align:center;margin-bottom:20px;">' +
-        '<div style="font-size:3rem;margin-bottom:8px;">⏳🦌</div>' +
-        '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 4px;">Waiting for a Match</h2>' +
-        '<p style="color:var(--text-muted);font-size:0.8rem;">In the pool since ' + joinedStr + '</p>' +
-    '</div>';
-
-    html += '<div style="padding:14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:12px;margin-bottom:16px;text-align:center;">';
-    html += '<div style="font-size:0.75rem;color:var(--accent);font-weight:700;">Your Profile</div>';
-    html += '<div style="font-size:0.85rem;color:var(--text);margin-top:4px;">📊 ' + (d.level || 'beginner').charAt(0).toUpperCase() + (d.level || 'beginner').slice(1) + ' · ' + (d.goal === 'learn' ? '📖 Looking to learn' : '🎓 Looking to teach') + '</div>';
-    if (d.intro) html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"' + d.intro + '"</div>';
-    html += '</div>';
-
-    html += '<div style="font-size:0.8rem;color:var(--text-muted);text-align:center;margin-bottom:16px;line-height:1.5;">We\'ll pair you with a ' + (d.goal === 'learn' ? 'teacher' : 'learner') + ' when one joins.<br>You\'ll get a DM when matched! 🧡</div>';
-
-    html += '<button onclick="_leavePool(\'' + poolDoc.id + '\')" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🚪 Leave Pool</button>';
-    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';
-    html += '</div>';
-
-    overlay.innerHTML = html;
-    document.body.appendChild(overlay);
-}
-
-window._leavePool = async function(poolDocId) {
-    try {
-        await firebase.firestore().collection(COLLECTION).doc(poolDocId).delete();
-        document.getElementById('buddyFinderOverlay').remove();
-        if (typeof showToast === 'function') showToast('👋 Left the buddy pool');
-    } catch(e) {
-        if (typeof showToast === 'function') showToast('⚠️ Something went wrong');
-    }
-};
-
-function _showFreshBuddyForm() {
-    var overlay = document.createElement('div');
-    overlay.id = 'buddyFinderOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-
-    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
-
-    var html = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:20px;max-width:440px;width:100%;padding:28px;animation:fadeSlideIn 0.3s;">';
-
-    html += '<div style="text-align:center;margin-bottom:20px;">' +
-        '<div style="font-size:3rem;margin-bottom:8px;">🤝🦌</div>' +
-        '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 4px;">Find a Bitcoin Buddy</h2>' +
-        '<p style="color:var(--text-muted);font-size:0.8rem;">Get matched with another Bitcoiner for 1-on-1 conversation</p>' +
-    '</div>';
-
-    // Experience level
-    html += '<div style="margin-bottom:16px;">' +
-        '<label style="display:block;font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;text-transform:uppercase;">Your Experience Level</label>' +
-        '<div style="display:flex;gap:8px;">' +
-            _buddyBtn('beginner', '🌱', 'Beginner', 'New to Bitcoin') +
-            _buddyBtn('intermediate', '📚', 'Intermediate', 'Know the basics') +
-            _buddyBtn('advanced', '🧠', 'Advanced', 'Deep knowledge') +
-        '</div></div>';
-
-    // What they want
-    html += '<div style="margin-bottom:16px;">' +
-        '<label style="display:block;font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;text-transform:uppercase;">I Want To</label>' +
-        '<div style="display:flex;gap:8px;">' +
-            _buddyGoalBtn('learn', '📖', 'Learn', 'Find a mentor') +
-            _buddyGoalBtn('teach', '🎓', 'Teach', 'Help someone') +
-        '</div></div>';
-
-    // Optional intro
-    html += '<div style="margin-bottom:16px;">' +
-        '<label style="display:block;font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;text-transform:uppercase;">Quick Intro (optional)</label>' +
-        '<textarea id="buddyIntro" placeholder="What are you interested in learning/teaching about Bitcoin?" rows="2" maxlength="200" style="width:100%;padding:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;resize:none;font-family:inherit;font-size:0.85rem;box-sizing:border-box;"></textarea>' +
-    '</div>';
-
-    html += '<button onclick="submitBuddyRequest()" id="buddySubmitBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;">🤝 Find My Buddy</button>';
-    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;margin-top:8px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>';
-
-    html += '</div>';
-    overlay.innerHTML = html;
-    document.body.appendChild(overlay);
-
-    // Default selections
-    window._buddyLevel = 'beginner';
-    window._buddyGoal = 'learn';
-    setTimeout(function() {
-        var lvl = document.querySelector('[data-buddy-level="beginner"]');
-        var goal = document.querySelector('[data-buddy-goal="learn"]');
-        if (lvl) lvl.style.borderColor = 'var(--accent)';
-        if (goal) goal.style.borderColor = 'var(--accent)';
-    }, 100);
-};
-
-function _buddyBtn(id, emoji, label, sub) {
-    return '<button data-buddy-level="' + id + '" onclick="selectBuddyLevel(\'' + id + '\')" style="flex:1;padding:10px 8px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;cursor:pointer;font-family:inherit;text-align:center;transition:0.2s;touch-action:manipulation;">' +
-        '<div style="font-size:1.2rem;">' + emoji + '</div>' +
-        '<div style="color:var(--text);font-size:0.75rem;font-weight:700;">' + label + '</div>' +
-        '<div style="color:var(--text-faint);font-size:0.6rem;">' + sub + '</div></button>';
-}
-
-function _buddyGoalBtn(id, emoji, label, sub) {
-    return '<button data-buddy-goal="' + id + '" onclick="selectBuddyGoal(\'' + id + '\')" style="flex:1;padding:10px 8px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;cursor:pointer;font-family:inherit;text-align:center;transition:0.2s;touch-action:manipulation;">' +
-        '<div style="font-size:1.2rem;">' + emoji + '</div>' +
-        '<div style="color:var(--text);font-size:0.75rem;font-weight:700;">' + label + '</div>' +
-        '<div style="color:var(--text-faint);font-size:0.6rem;">' + sub + '</div></button>';
-}
-
-window.selectBuddyLevel = function(lvl) {
-    window._buddyLevel = lvl;
-    document.querySelectorAll('[data-buddy-level]').forEach(function(b) {
-        b.style.borderColor = b.getAttribute('data-buddy-level') === lvl ? 'var(--accent)' : 'var(--border)';
+    overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) overlay.remove();
     });
-};
+    var card = el('div', 'buddy-card');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    card.setAttribute('data-buddy-screen', screen);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    return card;
+}
 
-window.selectBuddyGoal = function(goal) {
-    window._buddyGoal = goal;
-    document.querySelectorAll('[data-buddy-goal]').forEach(function(b) {
-        b.style.borderColor = b.getAttribute('data-buddy-goal') === goal ? 'var(--accent)' : 'var(--border)';
+function closeBtn(card) {
+    var btn = el('button', 'buddy-ghost', 'Close');
+    btn.type = 'button';
+    btn.addEventListener('click', function () {
+        var overlay = document.getElementById('buddyFinderOverlay');
+        if (overlay) overlay.remove();
     });
-};
+    card.appendChild(btn);
+}
 
-window.submitBuddyRequest = async function() {
-    var btn = document.getElementById('buddySubmitBtn');
-    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) {
-        if (typeof showToast === 'function') showToast('⚠️ Still loading. Please try again in a moment.');
-        return;
-    }
-    var _auth = firebase.auth();
-    var _db = firebase.firestore();
-    if (!_auth.currentUser) {
-        if (typeof showToast === 'function') showToast('🔒 Please sign in first.');
-        return;
-    }
+function levelName(level) {
+    if (LEVELS.indexOf(level) === -1) return 'Beginner';
+    return level.charAt(0).toUpperCase() + level.slice(1);
+}
 
-    btn.disabled = true;
-    btn.textContent = '🔍 Searching for a match...';
+function goalName(goal) {
+    return goal === 'teach' ? 'Looking to teach' : 'Looking to learn';
+}
 
-    var uid = _auth.currentUser.uid;
-    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
-    var level = window._buddyLevel || 'beginner';
-    var goal = window._buddyGoal || 'learn';
-    var intro = (document.getElementById('buddyIntro') ? document.getElementById('buddyIntro').value.trim() : '').substring(0, 200);
-    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
+function roleName(goal) {
+    return goal === 'teach' ? 'Teacher' : 'Learner';
+}
 
+function msOf(value) {
+    if (!value) return 0;
+    if (typeof value === 'number') return value;
+    if (value.toDate) return value.toDate().getTime();
+    if (value.toMillis) return value.toMillis();
+    var parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function waitLabel(ms) {
+    var delta = Math.max(0, Date.now() - ms);
+    if (delta < 60000) return 'less than a minute';
+    var minutes = Math.floor(delta / 60000);
+    if (minutes < 60) return minutes + (minutes === 1 ? ' minute' : ' minutes');
+    var hours = Math.floor(minutes / 60);
+    if (hours < 48) return hours + (hours === 1 ? ' hour' : ' hours');
+    var days = Math.floor(hours / 24);
+    return days + (days === 1 ? ' day' : ' days');
+}
+
+function whenLabel(ms) {
     try {
-        // Remove any existing pool entry (simple get-all then filter client-side)
-        var allPool = await _db.collection(COLLECTION).limit(50).get();
-        allPool.forEach(function(doc) {
-            if (doc.data().uid === uid) doc.ref.delete();
-        });
-
-        // Try to find a complementary match (learner↔teacher only)
-        var match = null;
-        var complementaryGoal = goal === 'learn' ? 'teach' : 'learn';
-        var SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-        var now = Date.now();
-
-        var candidates = [];
-        allPool.forEach(function(doc) {
-            var d = doc.data();
-            if (d.uid === uid) return;
-            // Skip stale entries older than 7 days
-            if (d.joinedAt) {
-                var joinedMs = d.joinedAt.toDate ? d.joinedAt.toDate().getTime() : d.joinedAt;
-                if (now - joinedMs > SEVEN_DAYS) return;
-            }
-            if (d.goal === complementaryGoal) candidates.push({ id: doc.id, data: d });
-        });
-        if (candidates.length > 0) match = candidates[0];
-
-        if (match) {
-            // Match found! Remove both from pool and create match record
-            await _db.collection(COLLECTION).doc(match.id).delete();
-
-            // 🔒 SECURITY (L-NEW-10): Use deterministic ID for match document
-            var convoId = _getBuddyConvoId(uid, match.data.uid);
-            await _db.collection(MATCH_COLLECTION).doc(convoId).set({
-                user1: { uid: uid, username: username, level: level, goal: goal, intro: intro },
-                user2: { uid: match.data.uid, username: match.data.username, level: match.data.level, goal: match.data.goal, intro: match.data.intro || '' },
-                matchedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                tz1: tz,
-                tz2: match.data.tz || 'Unknown'
-            });
-
-            // Open DM with the matched user
-            document.getElementById('buddyFinderOverlay').remove();
-
-            if (typeof showToast === 'function') showToast('🤝 Bitcoin Buddy found! Opening conversation...');
-            if (typeof awardPoints === 'function') awardPoints(20, '🤝 Bitcoin Buddy match!');
-
-            // Build Nacho's welcome message for the DM
-            var learnerName = goal === 'learn' ? username : match.data.username;
-            var teacherName = goal === 'teach' ? username : match.data.username;
-            var learnerLevel = goal === 'learn' ? level : match.data.level;
-            var learnerIntro = goal === 'learn' ? intro : (match.data.intro || '');
-            var teacherIntro = goal === 'teach' ? intro : (match.data.intro || '');
-
-            var icebreakers = [
-                'What first got you interested in Bitcoin?',
-                'What\'s the most mind-blowing thing you\'ve learned about Bitcoin so far?',
-                'If you could explain Bitcoin to your parents in one sentence, what would you say?',
-                'What Bitcoin topic are you most curious about right now?',
-                'Have you ever orange-pilled someone? How did it go?'
-            ];
-            var icebreaker = icebreakers[Math.floor(Math.random() * icebreakers.length)];
-
-            var nachoWelcome = '🎉 It\'s a match! Welcome to your Bitcoin Buddy conversation!\n\n' +
-                '🎓 Teacher: @' + teacherName + '\n' +
-                '📖 Learner: @' + learnerName + ' (' + learnerLevel + ')' +
-                (learnerIntro ? '\n\n' + learnerName + ' wants to learn about: "' + learnerIntro + '"' : '') +
-                (teacherIntro ? '\n' + teacherName + ' says: "' + teacherIntro + '"' : '') +
-                '\n\nI\'m Nacho 🦌 — your Bitcoin education deer! Here\'s how this works:' +
-                '\n\n• Ask ANY Bitcoin question and I\'ll answer it right away' +
-                '\n• @' + teacherName + ' can jump in anytime to add real-world context, tips, and personal experience on top of my answers' +
-                '\n• Between Nacho + a real teacher, you\'ve got the best of both worlds! 🧡' +
-                '\n\n🧊 Icebreaker to get started: "' + icebreaker + '"';
-
-            // Open DM and send Nacho's welcome message
-            var convoId = _getBuddyConvoId(uid, match.data.uid);
-            setTimeout(function() {
-                _sendNachoBuddyMessage(convoId, uid, match.data.uid, username, match.data.username, nachoWelcome);
-                setTimeout(function() {
-                    if (typeof openDM === 'function') {
-                        openDM(match.data.uid, match.data.username);
-                    }
-                }, 500);
-            }, 300);
-
-        } else {
-            // No match available — add to pool
-            await _db.collection(COLLECTION).doc(uid).set({
-                uid: uid,
-                username: username,
-                level: level,
-                goal: goal,
-                intro: intro,
-                tz: tz,
-                joinedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            // Show confirmation in the overlay itself
-            var overlay = document.getElementById('buddyFinderOverlay');
-            if (overlay) {
-                var inner = overlay.querySelector('div > div') || overlay.firstElementChild;
-                if (inner) {
-                    inner.innerHTML =
-                        '<div style="text-align:center;padding:20px;">' +
-                            '<div style="font-size:3rem;margin-bottom:16px;">✅</div>' +
-                            '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 8px;">You\'re in the Buddy Pool!</h2>' +
-                            '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;margin:0 0 16px;">' +
-                                (goal === 'learn'
-                                    ? 'We\'ll pair you with a teacher when one joins. You\'ll get a DM notification when matched!'
-                                    : 'We\'ll pair you with a learner when one joins. You\'ll get a DM notification when matched!') +
-                            '</p>' +
-                            '<div style="padding:12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:12px;margin-bottom:16px;">' +
-                                '<div style="font-size:0.75rem;color:#22c55e;font-weight:700;">Your Profile</div>' +
-                                '<div style="font-size:0.8rem;color:var(--text);margin-top:4px;">📊 ' + level.charAt(0).toUpperCase() + level.slice(1) + ' · ' + (goal === 'learn' ? '📖 Looking to learn' : '🎓 Looking to teach') + '</div>' +
-                            '</div>' +
-                            '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;">👍 Got it!</button>' +
-                        '</div>';
-                }
-            }
-        }
-    } catch(e) {
-        console.error('[BUDDY]', e);
-        btn.disabled = false;
-        btn.textContent = '🤝 Find My Buddy';
-        if (typeof showToast === 'function') showToast('⚠️ Something went wrong. Please try again.');
+        return new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch (e) {
+        return new Date(ms).toLocaleString();
     }
-};
+}
 
-// Inject Buddy button into Global Chat header
-function injectBuddyButton() {
-    var chatHub = document.querySelector('#globalChatMessages');
-    if (!chatHub) return;
-    var parent = chatHub.parentElement;
-    if (!parent || document.getElementById('buddyBtn')) return;
+function callableError(err, fallback) {
+    var code = err && err.code ? String(err.code) : '';
+    var message = err && err.message ? String(err.message) : '';
+    if (code.indexOf('resource-exhausted') !== -1) return message || 'Please wait a few seconds before trying again.';
+    if (code.indexOf('invalid-argument') !== -1) return message || 'Pick a level and whether you want to learn or teach.';
+    if (code.indexOf('unauthenticated') !== -1) return 'Sign in to find a Bitcoin Buddy.';
+    if (code.indexOf('failed-precondition') !== -1) return message || 'Create an account before finding a Bitcoin Buddy.';
+    if (code.indexOf('permission-denied') !== -1) return message || 'That action is not allowed.';
+    if (code.indexOf('unavailable') !== -1) return message || "Couldn't reach buddy matching. Try again shortly.";
+    if (message && message.length < 180 && message.indexOf('internal') === -1 && message.indexOf('FirebaseError') === -1) return message;
+    return fallback;
+}
 
-    // Find the chat header area
-    var header = parent.querySelector('div[style*="border-bottom"]') || parent.firstElementChild;
-    if (!header) return;
+function callBuddy(name, data) {
+    if (typeof firebase === 'undefined' || !firebase.functions) {
+        return Promise.reject({ code: 'unavailable', message: 'Still loading. Try again in a moment.' });
+    }
+    return firebase.functions().httpsCallable(name)(data || {});
+}
 
+function signedInUid() {
+    if (typeof firebase === 'undefined' || !firebase.auth) return '';
+    var auth = firebase.auth();
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return '';
+    return auth.currentUser.uid;
+}
+
+function requireSignIn() {
+    if (signedInUid()) return true;
+    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+    else toast('Sign in to find a Bitcoin Buddy.');
+    return false;
+}
+
+function paintChoices(card, group, selected) {
+    card.querySelectorAll('[data-buddy-' + group + ']').forEach(function (btn) {
+        if (btn.getAttribute('data-buddy-' + group) === selected) btn.classList.add('is-on');
+        else btn.classList.remove('is-on');
+    });
+}
+
+function addChoice(card, group, id, emoji, label, sub) {
     var btn = document.createElement('button');
-    btn.id = 'buddyBtn';
-    btn.style.cssText = 'padding:5px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;color:#22c55e;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;transition:0.2s;';
-    btn.textContent = '🤝 Find a Buddy';
-    btn.onclick = function() { showBuddyFinder(); };
-
-    header.appendChild(btn);
-}
-
-// Also add to settings/profile
-var _origRenderChat2 = window.renderChatHub;
-if (_origRenderChat2) {
-    window.renderChatHub = function(tab) {
-        _origRenderChat2(tab);
-        setTimeout(injectBuddyButton, 1000);
-    };
-}
-
-// MutationObserver for dynamic injection
-if (typeof MutationObserver !== 'undefined') {
-    var buddyObs = new MutationObserver(function() {
-        if (document.getElementById('globalChatMessages') && !document.getElementById('buddyBtn')) {
-            injectBuddyButton();
-        }
+    btn.type = 'button';
+    btn.className = 'buddy-choice' + (choice[group] === id ? ' is-on' : '');
+    btn.setAttribute('data-buddy-' + group, id);
+    btn.appendChild(el('div', '', emoji));
+    btn.appendChild(el('b', '', label));
+    btn.appendChild(el('span', '', sub));
+    btn.addEventListener('click', function () {
+        choice[group] = id;
+        paintChoices(card, group, id);
     });
-    if (document.body) buddyObs.observe(document.body, { childList: true, subtree: true });
+    return btn;
 }
 
-// ---- Nacho buddy pool alerts ----
-// Check buddy pool periodically and have Nacho nudge users
-// Triggers: 2-3 min after session start, max once every 3 sessions
-var BUDDY_ALERT_KEY = 'btc_buddy_alert_session';
-var BUDDY_ALERT_COUNT_KEY = 'btc_buddy_alert_count';
-
-function checkBuddyPoolAlert() {
-    // Don't alert if user isn't signed in
-    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
-    var uid = firebase.auth().currentUser.uid;
-
-    // Rate limit: only show every 3 sessions
-    var count = parseInt(localStorage.getItem(BUDDY_ALERT_COUNT_KEY) || '0');
-    if (sessionStorage.getItem(BUDDY_ALERT_KEY)) return; // already shown this session
-    if (count % 3 !== 0) {
-        // Increment and skip
-        sessionStorage.setItem(BUDDY_ALERT_KEY, '1');
-        localStorage.setItem(BUDDY_ALERT_COUNT_KEY, (count + 1).toString());
-        return;
+function renderForm(prefill) {
+    if (prefill) {
+        if (LEVELS.indexOf(prefill.level) !== -1) choice.level = prefill.level;
+        if (GOALS.indexOf(prefill.goal) !== -1) choice.goal = prefill.goal;
     }
+    var card = mountCard('form');
+    card.appendChild(el('h2', '', 'Find a Bitcoin Buddy'));
+    card.appendChild(el('p', 'buddy-note', 'Get matched with another Bitcoiner. We notify you when a buddy is found.'));
 
-    // Check if user is already in the pool
-    var _db = firebase.firestore();
-    _db.collection(COLLECTION).limit(50).get().then(function(snap) {
-        var waiting = [];
-        var userInPool = false;
-        var SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-        var now = Date.now();
-        snap.forEach(function(doc) {
-            var d = doc.data();
-            if (d.uid === uid) { userInPool = true; return; }
-            // Skip stale entries older than 7 days
-            if (d.joinedAt) {
-                var joinedMs = d.joinedAt.toDate ? d.joinedAt.toDate().getTime() : d.joinedAt;
-                if (now - joinedMs > SEVEN_DAYS) return;
-            }
-            waiting.push(d);
-        });
+    var levelLabel = el('div', 'buddy-kicker', 'Your experience level');
+    card.appendChild(levelLabel);
+    var levels = el('div', 'buddy-choices');
+    levels.appendChild(addChoice(card, 'level', 'beginner', '🌱', 'Beginner', 'New to Bitcoin'));
+    levels.appendChild(addChoice(card, 'level', 'intermediate', '📚', 'Intermediate', 'Know the basics'));
+    levels.appendChild(addChoice(card, 'level', 'advanced', '🧠', 'Advanced', 'Deep knowledge'));
+    card.appendChild(levels);
 
-        // Don't alert if user is already in pool or nobody is waiting
-        if (userInPool || waiting.length === 0) {
-            sessionStorage.setItem(BUDDY_ALERT_KEY, '1');
-            localStorage.setItem(BUDDY_ALERT_COUNT_KEY, (count + 1).toString());
+    card.appendChild(el('div', 'buddy-kicker', 'I want to'));
+    var goals = el('div', 'buddy-choices');
+    goals.appendChild(addChoice(card, 'goal', 'learn', '📖', 'Learn', 'Find a mentor'));
+    goals.appendChild(addChoice(card, 'goal', 'teach', '🎓', 'Teach', 'Help someone'));
+    card.appendChild(goals);
+
+    card.appendChild(el('div', 'buddy-kicker', 'Quick intro, optional'));
+    var intro = document.createElement('textarea');
+    intro.id = 'buddyIntro';
+    intro.className = 'buddy-intro';
+    intro.maxLength = 200;
+    intro.rows = 3;
+    intro.placeholder = 'What do you want to learn or teach about Bitcoin?';
+    if (prefill && prefill.intro) intro.value = String(prefill.intro).slice(0, 200);
+    card.appendChild(intro);
+
+    var safety = el('div', 'buddy-safety', 'Never share keys or seed words, and never send money.');
+    card.appendChild(safety);
+
+    var replacing = prefill && prefill.replacing;
+    var submit = el('button', 'buddy-action', replacing ? 'Find a new buddy' : 'Find my buddy');
+    submit.type = 'button';
+    submit.id = 'buddySubmitBtn';
+    submit.addEventListener('click', function () {
+        if (replacing) submitFindNew(submit);
+        else submitRequest(submit);
+    });
+    card.appendChild(submit);
+    closeBtn(card);
+}
+
+function renderWaiting(pool, mode) {
+    var joined = Number(pool.joinedAtMs) || msOf(pool.joinedAt) || Date.now();
+    var expires = Number(pool.expiresAtMs) || (joined + POOL_TTL_MS);
+    var card = mountCard(mode === 'nomatch' ? 'nomatch' : 'waiting');
+    card.appendChild(el('h2', '', mode === 'nomatch' ? 'No buddy is available yet' : 'Waiting for a match'));
+    card.appendChild(el('p', 'buddy-note', mode === 'nomatch'
+        ? "You're in the pool. We'll notify you when a buddy is found."
+        : "You're still in the pool. We'll notify you when a buddy is found."));
+    var panel = el('div', 'buddy-panel');
+    panel.appendChild(el('div', 'buddy-name', levelName(pool.level) + ' · ' + goalName(pool.goal)));
+    if (pool.intro) panel.appendChild(el('div', 'buddy-quote', pool.intro));
+    card.appendChild(panel);
+    card.appendChild(el('p', 'buddy-meta', 'You have been waiting ' + waitLabel(joined) + '.'));
+    card.appendChild(el('p', 'buddy-meta', 'This request expires ' + whenLabel(expires) + '.'));
+    var leave = el('button', 'buddy-danger', 'Leave the pool');
+    leave.type = 'button';
+    leave.addEventListener('click', function () { leavePool(leave); });
+    card.appendChild(leave);
+    closeBtn(card);
+}
+
+function renderMatched(match) {
+    var buddy = match.buddy || {};
+    var me = match.me || {};
+    var card = mountCard('matched');
+    card.appendChild(el('h2', '', 'You have a buddy'));
+    var when = match.matchedAtMs ? whenLabel(match.matchedAtMs) : 'recently';
+    card.appendChild(el('p', 'buddy-note', 'Matched ' + when + '.'));
+    var panel = el('div', 'buddy-panel');
+    var initial = (buddy.username || '?').charAt(0).toUpperCase();
+    panel.appendChild(el('div', 'buddy-name', initial + '  @' + (buddy.username || 'Bitcoiner')));
+    panel.appendChild(el('p', 'buddy-meta', roleName(buddy.goal) + ' · ' + levelName(buddy.level)));
+    if (buddy.intro) panel.appendChild(el('div', 'buddy-quote', buddy.intro));
+    card.appendChild(panel);
+    card.appendChild(el('p', 'buddy-meta', 'Your role: ' + roleName(me.goal) + '.'));
+    var open = el('button', 'buddy-action', 'Open conversation');
+    open.type = 'button';
+    open.addEventListener('click', function () {
+        var overlay = document.getElementById('buddyFinderOverlay');
+        if (overlay) overlay.remove();
+        if (typeof openDM === 'function') openDM(buddy.uid, buddy.username || 'Bitcoiner');
+        else toast('The conversation opens from Messages.');
+    });
+    card.appendChild(open);
+    var again = el('button', 'buddy-ghost', 'Find a new buddy');
+    again.type = 'button';
+    again.addEventListener('click', function () { confirmFindNew(match, me); });
+    card.appendChild(again);
+    var end = el('button', 'buddy-danger', 'End buddy');
+    end.type = 'button';
+    end.addEventListener('click', function () { endMatch(match.id, end, me); });
+    card.appendChild(end);
+    card.appendChild(el('p', 'buddy-meta', 'This ends the match and notifies your buddy.'));
+    var block = el('button', 'buddy-ghost', 'Block');
+    block.type = 'button';
+    block.addEventListener('click', function () {
+        if (typeof blockUser === 'function') blockUser(buddy.uid, buddy.username || '');
+        endMatch(match.id, block, null);
+    });
+    card.appendChild(block);
+    var report = el('button', 'buddy-ghost', 'Report this buddy');
+    report.type = 'button';
+    report.addEventListener('click', function () {
+        window.onBuddyReported = function (reportedUid) {
+            if (reportedUid !== buddy.uid) return;
+            if (!window.confirm('End this buddy match? The conversation stays available.')) return;
+            endMatch(match.id, report, null);
+        };
+        if (typeof window.submitReport === 'function') window.submitReport(buddy.uid, buddy.username || '', 'buddy');
+        else toast('Reporting is unavailable right now.');
+    });
+    card.appendChild(report);
+    closeBtn(card);
+}
+
+function submitRequest(btn) {
+    if (!requireSignIn()) return;
+    btn.disabled = true;
+    btn.textContent = 'Searching for a match...';
+    var introEl = document.getElementById('buddyIntro');
+    var intro = introEl ? String(introEl.value || '').slice(0, 200) : '';
+    callBuddy('requestBuddyMatch', {
+        level: choice.level,
+        goal: choice.goal,
+        intro: intro
+    }).then(function (res) {
+        var data = res && res.data ? res.data : {};
+        if (data.status === 'matched' && data.match) {
+            toast(data.created ? 'You have a Bitcoin Buddy. A notification was sent to both of you.' : 'You already have a Bitcoin Buddy.');
+            renderMatched(data.match);
             return;
         }
-
-        // Build the alert message
-        var learners = waiting.filter(function(d) { return d.goal === 'learn'; }).length;
-        var teachers = waiting.filter(function(d) { return d.goal === 'teach'; }).length;
-        var msg = '';
-        if (teachers > 0 && learners > 0) {
-            msg = '🤝 ' + teachers + ' experienced ' + (teachers === 1 ? 'teacher' : 'teachers') + ' and ' + learners + ' ' + (learners === 1 ? 'learner' : 'learners') + ' waiting in the Buddy Pool!';
-        } else if (teachers > 0) {
-            msg = '🎓 ' + teachers + ' experienced ' + (teachers === 1 ? 'teacher is' : 'teachers are') + ' waiting to help in the Buddy Pool!';
-        } else {
-            msg = '🌱 ' + learners + ' new ' + (learners === 1 ? 'learner is' : 'learners are') + ' looking for a Bitcoin mentor in the Buddy Pool!';
-        }
-        msg += '<br><br><span onclick="if(typeof renderChatHub===\'function\'){renderChatHub(\'global\');}if(typeof showToast===\'function\')showToast(\'Look for the 🤝 Find a Buddy button above the chat!\')" style="color:#f7931a;font-weight:700;cursor:pointer;text-decoration:underline;">Open Global Chat to find a buddy →</span>';
-
-        // Show via Nacho bubble
-        var bubble = document.getElementById('nacho-bubble');
-        var textEl = document.getElementById('nacho-text');
-        if (bubble && textEl && typeof forceShowBubble !== 'undefined') {
-            // Use interactive bubble so it stays visible
-            textEl.innerHTML = msg;
-            bubble.setAttribute('data-interactive', 'true');
-            bubble.classList.add('show');
-            if (typeof clearNachoBubbleTimeout === 'function') clearNachoBubbleTimeout();
-            if (typeof setPose === 'function') setPose('happy');
-            // Auto-hide after 15s
-            setTimeout(function() {
-                if (bubble.getAttribute('data-interactive') === 'true') {
-                    bubble.removeAttribute('data-interactive');
-                    bubble.classList.remove('show');
-                }
-            }, 15000);
-        } else if (typeof showToast === 'function') {
-            // Fallback to toast
-            showToast(msg.replace(/<br>/g, ' ').replace(/<[^>]+>/g, ''), 8000);
-        }
-
-        sessionStorage.setItem(BUDDY_ALERT_KEY, '1');
-        localStorage.setItem(BUDDY_ALERT_COUNT_KEY, (count + 1).toString());
-    }).catch(function() {});
-}
-
-// Trigger 2.5 minutes into the session
-setTimeout(checkBuddyPoolAlert, 150000);
-
-// ---- Nacho in Buddy DMs ----
-
-// Generate deterministic conversation ID (must match messaging.js logic)
-function _getBuddyConvoId(uid1, uid2) {
-    return uid1 < uid2 ? uid1 + '_' + uid2 : uid2 + '_' + uid1;
-}
-
-// Send a Nacho system message into a DM conversation
-// Uses current user's UID as senderUid (Firestore rules require it) but marks as Nacho
-function _sendNachoBuddyMessage(convoId, uid1, uid2, name1, name2, text) {
-    if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    var auth = firebase.auth();
-    if (!auth || !auth.currentUser) return;
-    var _db = firebase.firestore();
-    var convoRef = _db.collection('dm_conversations').doc(convoId);
-    var myUid = auth.currentUser.uid;
-
-    var msgData = {
-        senderUid: myUid,
-        senderName: '🦌 Nacho',
-        text: text,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        isNachoAuto: true
-    };
-
-    // Ensure conversation doc exists with buddy flag
-    var convoData = {
-        participants: [uid1, uid2],
-        lastMessage: text.substring(0, 100),
-        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderUid: myUid,
-        isBuddyMatch: true
-    };
-    convoData.participantNames = {};
-    convoData.participantNames[uid1] = name1;
-    convoData.participantNames[uid2] = name2;
-
-    convoRef.set(convoData, { merge: true }).then(function() {
-        return convoRef.collection('messages').add(msgData);
-    }).then(function() {
-        console.log('[BUDDY] Nacho welcome message sent to convo:', convoId);
-    }).catch(function(e) {
-        console.error('[BUDDY] Failed to send Nacho message:', e);
+        renderWaiting(data.pool || {
+            level: choice.level,
+            goal: choice.goal,
+            intro: intro,
+            joinedAtMs: Date.now(),
+            expiresAtMs: Date.now() + POOL_TTL_MS
+        }, 'nomatch');
+    }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Find my buddy';
+        toast(callableError(err, "Couldn't reach buddy matching. Try again shortly."));
     });
 }
 
-// Listen for new messages in buddy DMs and have Nacho auto-answer questions
-// This hooks into the DM message listener in messaging.js
-var _buddyNachoDebounce = {};
-var _origSendDM = window.sendDM;
-if (_origSendDM) {
-    window.sendDM = function(convoId, recipientUid, recipientName) {
-        // Call original sendDM first
-        _origSendDM.apply(this, arguments);
-
-        // After sending, check if this is a buddy conversation and the message has a question
-        setTimeout(function() {
-            _checkBuddyNachoReply(convoId, recipientUid, recipientName);
-        }, 1000);
-    };
+function leavePool(btn) {
+    btn.disabled = true;
+    btn.textContent = 'Leaving...';
+    callBuddy('leaveBuddyPool', {}).then(function (res) {
+        var data = res && res.data ? res.data : {};
+        var overlay = document.getElementById('buddyFinderOverlay');
+        if (overlay) overlay.remove();
+        toast(data.removed ? 'You left the buddy pool.' : "You weren't in the buddy pool.");
+    }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Leave the pool';
+        toast(callableError(err, "Couldn't leave the buddy pool. Try again shortly."));
+    });
 }
 
-function _checkBuddyNachoReply(convoId, recipientUid, recipientName) {
-    if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    var _db = firebase.firestore();
-
-    // Check if this is a buddy conversation
-    _db.collection('dm_conversations').doc(convoId).get().then(function(doc) {
-        if (!doc.exists || !doc.data().isBuddyMatch) return;
-
-        // Get the latest message
-        return _db.collection('dm_conversations').doc(convoId).collection('messages')
-            .orderBy('createdAt', 'desc').limit(1).get().then(function(snap) {
-                if (snap.empty) return;
-                var lastMsg = snap.docs[0].data();
-
-                // Don't reply to Nacho's own messages
-                if (lastMsg.senderUid === 'nacho-bot' || lastMsg.isNachoAuto) return;
-
-                var text = (lastMsg.text || '').trim();
-                // Answer if: has a question mark, OR starts with "nacho"/"hey nacho"
-                var isQuestion = text.includes('?');
-                var isNachoCall = /^(hey\s+)?nacho[,:\s]/i.test(text) || /\bnacho\b/i.test(text);
-
-                if (!isQuestion && !isNachoCall) return;
-
-                // Debounce: don't reply to same convo within 5 seconds
-                if (_buddyNachoDebounce[convoId] && Date.now() - _buddyNachoDebounce[convoId] < 5000) return;
-                _buddyNachoDebounce[convoId] = Date.now();
-
-                // Strip "nacho" prefix for cleaner question parsing
-                var cleanQ = text.replace(/^(hey\s+)?nacho[,:\s]*/i, '').trim();
-                if (!cleanQ) cleanQ = text;
-
-                if (typeof nachoUnifiedAnswer !== 'function') return;
-
-                nachoUnifiedAnswer(cleanQ, function(result) {
-                    if (!result || !result.answer) return;
-                    if (result.type === 'fallback') return; // Don't send generic fallbacks
-
-                    var answer = '🦌 ' + String(result.plainAnswer || result.answer).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
-
-                    // Trim to reasonable length for DM
-                    if (answer.length > 800) answer = answer.substring(0, 797) + '...';
-
-                    // Get current user info for convo update
-                    var auth = firebase.auth();
-                    if (!auth.currentUser) return;
-                    var myUid = auth.currentUser.uid;
-                    var participants = doc.data().participants || [];
-                    var otherUid = participants.find(function(p) { return p !== myUid; }) || recipientUid;
-
-                    var nachoMsg = {
-                        senderUid: auth.currentUser.uid,
-                        senderName: '🦌 Nacho',
-                        text: answer,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        isNachoAuto: true
-                    };
-
-                    // Small delay so it feels natural
-                    setTimeout(function() {
-                        _db.collection('dm_conversations').doc(convoId).collection('messages').add(nachoMsg)
-                            .then(function() {
-                                // Update conversation metadata
-                                _db.collection('dm_conversations').doc(convoId).set({
-                                    lastMessage: answer.substring(0, 100),
-                                    lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                                    lastSenderUid: auth.currentUser ? auth.currentUser.uid : 'system'
-                                }, { merge: true });
-                                console.log('[BUDDY] Nacho answered in buddy DM:', convoId);
-                            }).catch(function(e) { console.error('[BUDDY] Nacho reply failed:', e); });
-                    }, 1500 + Math.random() * 1500); // 1.5-3s delay for natural feel
-                });
-            });
-    }).catch(function(e) { console.error('[BUDDY] Check failed:', e); });
+function confirmFindNew(match, me) {
+    if (!window.confirm('This ends the current match and looks for a new buddy. The conversation stays available. Your buddy is told the match ended.')) return;
+    var next = { replacing: (match && match.id) || '1', level: me && me.level, goal: me && me.goal };
+    renderForm(next);
 }
 
-// ---- Auto-cleanup stale buddy pool entries (>7 days) ----
-setTimeout(function() {
-    if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    var _db = firebase.firestore();
-    var SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-    _db.collection('buddy_pool').get().then(function(snap) {
-        var batch = _db.batch();
-        var count = 0;
-        snap.forEach(function(doc) {
-            var d = doc.data();
-            if (d.joinedAt) {
-                var joinedMs = d.joinedAt.toDate ? d.joinedAt.toDate().getTime() : d.joinedAt;
-                if (Date.now() - joinedMs > SEVEN_DAYS) {
-                    batch.delete(doc.ref);
-                    count++;
-                }
-            }
-        });
-        if (count > 0) {
-            batch.commit().then(function() {
-                console.log('[BUDDY] Cleaned up ' + count + ' stale pool entries');
-            }).catch(function() {});
+function submitFindNew(btn) {
+    if (!requireSignIn()) return;
+    btn.disabled = true;
+    btn.textContent = 'Looking for a new buddy...';
+    var introEl = document.getElementById('buddyIntro');
+    var intro = introEl ? String(introEl.value || '').slice(0, 200) : '';
+    callBuddy('findNewBuddy', {
+        level: choice.level,
+        goal: choice.goal,
+        intro: intro
+    }).then(function (res) {
+        var data = res && res.data ? res.data : {};
+        if (data.status === 'matched' && data.match) {
+            toast('You have a Bitcoin Buddy. A notification was sent to both of you.');
+            renderMatched(data.match);
+            return;
         }
-    }).catch(function() {});
-}, 15000); // Run 15s after page load
+        renderWaiting(data.pool || {
+            level: choice.level,
+            goal: choice.goal,
+            intro: intro,
+            joinedAtMs: Date.now(),
+            expiresAtMs: Date.now() + POOL_TTL_MS
+        }, 'nomatch');
+    }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Find a new buddy';
+        toast(callableError(err, "Couldn't look for a new buddy. Try again shortly."));
+    });
+}
 
-console.log('[BUDDY] Bitcoin Buddy matching system loaded (with Nacho DM support)');
+function endMatch(matchId, btn, me) {
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Ending...';
+    }
+    callBuddy('endBuddy', { matchId: matchId || '' }).then(function () {
+        toast('Buddy ended. Your buddy was notified.');
+        renderForm(me);
+    }).catch(function (err) {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'End buddy';
+        }
+        toast(callableError(err, "Couldn't end that buddy match. Try again shortly."));
+    });
+}
+
+function db() {
+    return firebase.firestore();
+}
+
+function loadExisting(uid) {
+    var userPromise = db().collection('users').doc(uid).get().catch(function () { return null; });
+    return userPromise.then(function (userSnap) {
+        var activeId = userSnap && userSnap.exists ? userSnap.get('activeBuddyId') : '';
+        if (activeId) {
+            return db().collection('buddy_matches').doc(activeId).get().then(function (matchSnap) {
+                if (matchSnap.exists) {
+                    var data = matchSnap.data() || {};
+                    renderMatched({
+                        id: matchSnap.id,
+                        matchedAtMs: msOf(data.matchedAtMs) || msOf(data.matchedAt),
+                        me: data.user1 && data.user1.uid === uid ? data.user1 : data.user2,
+                        buddy: data.user1 && data.user1.uid === uid ? data.user2 : data.user1
+                    });
+                    return true;
+                }
+                return false;
+            });
+        }
+        return false;
+    }).then(function (shown) {
+        if (shown) return;
+        return db().collection('buddy_pool').doc(uid).get().then(function (poolSnap) {
+            if (poolSnap.exists) renderWaiting(poolSnap.data() || {}, 'waiting');
+            else renderForm(null);
+        });
+    });
+}
+
+function storeBuddyPending(plan) {
+    try {
+        if (!plan || !plan.store) localStorage.removeItem(BUDDY_PENDING_KEY);
+        else localStorage.setItem(BUDDY_PENDING_KEY, JSON.stringify(plan.store));
+    } catch (e) {}
+}
+
+window._submitBuddyFromOnboarding = function (level, goal) {
+    var plan = planOnboardingChoice({ level: level, goal: goal, choice: goal });
+    if (!plan.store) {
+        storeBuddyPending(null);
+        return;
+    }
+    if (!signedInUid()) {
+        storeBuddyPending(plan);
+        return;
+    }
+    storeBuddyPending(null);
+    callBuddy('requestBuddyMatch', {
+        level: plan.store.level,
+        goal: plan.store.goal,
+        intro: ''
+    }).catch(function () {});
+};
+
+function flushBuddyPending() {
+    if (!signedInUid()) return;
+    var raw = null;
+    try { raw = JSON.parse(localStorage.getItem(BUDDY_PENDING_KEY) || 'null'); } catch (e) { raw = null; }
+    if (!raw || !raw.goal) return;
+    window._submitBuddyFromOnboarding(raw.level || 'beginner', raw.goal);
+}
+
+function paintAccountReview() {
+    if (document.getElementById('buddyReviewScreen')) return;
+    var overlay = el('div', 'buddy-overlay');
+    overlay.id = 'buddyReviewScreen';
+    var card = el('div', 'buddy-card');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-label', 'Your account is under review');
+    card.appendChild(el('h2', '', 'Your account is under review'));
+    card.appendChild(el('p', 'buddy-note', 'You can keep browsing and stay signed in. Sending messages, matching, and rewards are paused until the review is finished.'));
+    var browse = el('button', 'buddy-action', 'Keep browsing');
+    browse.type = 'button';
+    browse.addEventListener('click', function () { overlay.remove(); });
+    card.appendChild(browse);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+}
+
+function watchAccountReview() {
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) return;
+    firebase.auth().onAuthStateChanged(function (user) {
+        var old = window._buddyReviewUnsub;
+        if (typeof old === 'function') old();
+        window._buddyReviewUnsub = null;
+        if (!user || user.isAnonymous) return;
+        window._buddyReviewUnsub = firebase.firestore().collection('users').doc(user.uid).onSnapshot(function (snap) {
+            var lock = snap.exists ? snap.get('lock') : null;
+            if (lock && lock.state === 'locked') paintAccountReview();
+        }, function () {});
+    });
+}
+
+function attachBuddyReport(otherUid, otherName) {
+    if (!otherUid || !signedInUid()) return;
+    var myUid = signedInUid();
+    var convoId = myUid < otherUid ? myUid + '_' + otherUid : otherUid + '_' + myUid;
+    db().collection('dm_conversations').doc(convoId).get().then(function (snap) {
+        if (!snap.exists || snap.get('isBuddyMatch') !== true) return;
+        var header = document.querySelector('#dmWindow button[title="Report user"]');
+        if (!header || document.getElementById('buddyDmReport')) return;
+        var btn = el('button', '', 'Report this buddy');
+        btn.id = 'buddyDmReport';
+        btn.type = 'button';
+        btn.style.cssText = 'background:none;border:1px solid var(--border,#334155);color:var(--text,#e2e8f0);min-height:44px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;';
+        btn.addEventListener('click', function (event) {
+            event.stopPropagation();
+            window.onBuddyReported = function (reportedUid) {
+                if (reportedUid !== otherUid) return;
+                if (!window.confirm('End this buddy match? The conversation stays available.')) return;
+                endMatch('', null, null);
+            };
+            if (typeof window.submitReport === 'function') window.submitReport(otherUid, otherName || '', 'buddy');
+            else if (typeof reportUser === 'function') reportUser(otherUid, otherName || '', 'buddy');
+        });
+        if (header.parentNode) header.parentNode.insertBefore(btn, header);
+    }).catch(function () {});
+}
+
+function installBuddyReportHook() {
+    if (typeof window.openDM !== 'function' || window.openDM._buddyReport) return;
+    var prev = window.openDM;
+    var wrapped = function (recipientUid, recipientName) {
+        var result = prev.apply(this, arguments);
+        setTimeout(function () { attachBuddyReport(recipientUid, recipientName); }, 0);
+        return result;
+    };
+    wrapped._buddyReport = true;
+    window.openDM = wrapped;
+}
+
+window.renderBuddyReportsAdmin = function (containerId) {
+    var root = document.getElementById(containerId);
+    if (!root || window._isAdminClaim !== true || typeof firebase === 'undefined' || !firebase.firestore) return;
+    root.textContent = '';
+    var card = el('div', '');
+    card.style.cssText = 'background:var(--card-bg,#111827);border:1px solid var(--border,#334155);border-radius:12px;padding:14px;';
+    card.appendChild(el('div', '', 'Buddy reports'));
+    var status = el('div', '', 'Loading...');
+    status.style.cssText = 'font-size:13px;color:var(--text-muted,#cbd5e1);margin-top:6px;';
+    card.appendChild(status);
+    root.appendChild(card);
+    firebase.firestore().collection('buddy_flags').where('status', '==', 'open').orderBy('createdAt', 'desc').limit(20).get().then(function (snap) {
+        status.textContent = '';
+        var shown = 0;
+        snap.forEach(function (docSnap) {
+            var data = docSnap.data() || {};
+            shown++;
+            var block = el('div', '');
+            block.style.cssText = 'border-top:1px solid var(--border,#334155);padding-top:8px;margin-top:8px;';
+            var who = String(data.reportedUid || '').slice(0, 6);
+            block.appendChild(el('div', '', (data.severity || 'flag') + ' · ' + who));
+            var snippet = el('div', '', data.snippet || '');
+            snippet.style.cssText = 'font-size:12px;color:var(--text-muted,#cbd5e1);margin:4px 0;';
+            block.appendChild(snippet);
+            if (data.severity === 'high' && data.reportedUid) {
+                ['unlock', 'keep_locked', 'ban', 'unlock_and_dismiss'].forEach(function (action) {
+                    var btn = el('button', 'buddy-ghost', action.replace(/_/g, ' '));
+                    btn.type = 'button';
+                    btn.style.marginTop = '6px';
+                    btn.addEventListener('click', function () {
+                        callBuddy('adminResolveLock', { uid: data.reportedUid, action: action }).then(function () {
+                            toast('Saved.');
+                            window.renderBuddyReportsAdmin(containerId);
+                        }).catch(function (err) {
+                            toast(callableError(err, 'That action did not save.'));
+                        });
+                    });
+                    block.appendChild(btn);
+                });
+            }
+            card.appendChild(block);
+        });
+        if (!shown) status.textContent = 'No buddy reports waiting.';
+    }).catch(function () {
+        status.textContent = 'Could not load buddy reports.';
+    });
+};
+
+window.showBuddyFinder = function () {
+    if (!requireSignIn()) return;
+    var uid = signedInUid();
+    if (typeof firebase === 'undefined' || !firebase.firestore) {
+        toast('Still loading. Try again in a moment.');
+        return;
+    }
+    loadExisting(uid).catch(function (err) {
+        var code = err && err.code ? String(err.code) : '';
+        if (code.indexOf('permission') !== -1) toast("Couldn't load your buddy status. Try again.");
+        else toast("Couldn't load your buddy status. Try again shortly.");
+        renderForm(null);
+    });
+};
+
+window._renderBuddyPreview = function (screen, model) {
+    if (screen === 'waiting') renderWaiting(model || {}, 'waiting');
+    else if (screen === 'nomatch') renderWaiting(model || {}, 'nomatch');
+    else if (screen === 'matched') renderMatched(model || { buddy: {}, me: {} });
+    else renderForm(model || null);
+};
+
+function wrapNotifClick() {
+    if (typeof window.handleNotifClick !== 'function' || window.handleNotifClick._buddy) return;
+    var prev = window.handleNotifClick;
+    var wrapped = function (notifId, targetType, targetId) {
+        var result = prev.apply(this, arguments);
+        if (targetType === 'buddy') window.showBuddyFinder();
+        return result;
+    };
+    wrapped._buddy = true;
+    window.handleNotifClick = wrapped;
+}
+
+var notifTries = 0;
+var notifTimer = setInterval(function () {
+    notifTries++;
+    wrapNotifClick();
+    if ((window.handleNotifClick && window.handleNotifClick._buddy) || notifTries > 40) clearInterval(notifTimer);
+}, 500);
+
+if (window._pendingBuddy) {
+    window._pendingBuddy = false;
+    window.showBuddyFinder();
+}
+
+watchAccountReview();
+var hookTries = 0;
+var hookTimer = setInterval(function () {
+    hookTries++;
+    installBuddyReportHook();
+    flushBuddyPending();
+    if ((window.openDM && window.openDM._buddyReport) || hookTries > 40) clearInterval(hookTimer);
+}, 500);
+
+console.log('[BUDDY] Find a Bitcoin Buddy ready');
 })();
+}
