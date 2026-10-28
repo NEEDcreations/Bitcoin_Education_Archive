@@ -81,6 +81,8 @@ const TESTS = [
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Nacho live answers', file: 'nacho-quality.js' },
     { name: 'Chat scam regression', file: 'test-chat-scam-regression.js' },
+    { name: 'DM guard', file: 'test-dm-guard.js' },
+    { name: 'DM guard rules', file: 'rules/dm-guard-rules.js' },
     { name: 'KB question routing', file: 'test-kb-routing.js' },
     { name: 'Book KB', file: 'test-books-kb.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
