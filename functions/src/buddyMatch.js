@@ -22,9 +22,12 @@ const XP_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const BUDDY_XP = 20;
 const RATE_MS = 12000;
 const RATE_DAILY_MAX = 20;
-const POOL_SCAN = 40;
+const POOL_PAGE = 40;
+const POOL_PAGES = 6;
+const SEEN_CAP = 20;
 const NACHO_UID = 'nacho-bot';
-const UID_RE = /^[A-Za-z0-9]{6,128}$/;
+// Same shape as deleteAccount: nostr:<pubkey> and ln:<key> contain a colon.
+const UID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
 
 const ICEBREAKERS = [
     'What first got you interested in Bitcoin?',
@@ -157,7 +160,7 @@ function usableCandidate(row, me) {
     if (!row.username) return false;
     if (!row.user) return false;
     if (rewardBlocked(row.user, null)) return false;
-    if (row.user.activeBuddyId) return false;
+    if (row.user.activeBuddyId && row.matchStillThere !== false) return false;
     if (blockedEither(me.user, row.user, me.uid, row.uid)) return false;
     return true;
 }
@@ -278,9 +281,10 @@ function buildMatchPlan(input) {
         const participants = [active.data.user1.uid, active.data.user2.uid];
         if (participants.indexOf(uid) !== -1 && active.data.ended !== true) {
             return {
-                status: 'matched',
-                created: false,
-                matchId: active.id,
+        status: 'matched',
+        created: false,
+        clearStaleActive: false,
+        matchId: active.id,
                 match: publicMatch(active.id, active.data, uid, timestampMs(active.data.matchedAtMs)),
                 rate: rate,
             };
@@ -297,6 +301,7 @@ function buildMatchPlan(input) {
         return {
             status: 'waiting',
             created: false,
+            clearStaleActive: !!input.staleActiveId,
             rate: rate,
             rateWrite: rateWrite,
             pool: {
@@ -331,6 +336,7 @@ function buildMatchPlan(input) {
     return {
         status: 'matched',
         created: true,
+        clearStaleActive: !!input.staleActiveId,
         matchId: id,
         match: publicMatch(id, match, uid, now),
         storedMatch: match,
@@ -369,9 +375,11 @@ function planBuddyXp(input) {
     if (!text && !image) return { skip: 'empty', awards: [] };
     const match = input.match || {};
     const messageId = String(input.messageId || '');
-    const seen = Object.assign({}, match.seenMessages || {});
-    if (messageId && seen[messageId]) return { skip: 'seen', awards: [], spoke: match.spoke || {} };
-    if (messageId) seen[messageId] = true;
+    const recent = recentMessageIds(match);
+    if (messageId && recent.indexOf(messageId) !== -1) {
+        return { skip: 'seen', awards: [], spoke: match.spoke || {}, recentIds: recent.slice(-SEEN_CAP) };
+    }
+    if (messageId) recent.push(messageId);
     const spoke = Object.assign({}, match.spoke || {});
     spoke[sender] = true;
     const both = participants.length >= 2 && participants.every(function (id) { return spoke[id] === true; });
@@ -386,13 +394,40 @@ function planBuddyXp(input) {
             awards.push({ uid: id, amount: BUDDY_XP });
         });
     }
-    return { skip: '', spoke: spoke, seen: seen, awards: awards };
+    return { skip: '', spoke: spoke, recentIds: recent.slice(-SEEN_CAP), awards: awards };
+}
+
+function recentMessageIds(match) {
+    const src = match || {};
+    let list = [];
+    if (Array.isArray(src.recentMessageIds)) {
+        list = src.recentMessageIds.filter(function (id) { return typeof id === 'string' && id; });
+    } else if (src.seenMessages && typeof src.seenMessages === 'object') {
+        list = Object.keys(src.seenMessages);
+    }
+    if (list.length > SEEN_CAP) list = list.slice(-SEEN_CAP);
+    return list;
 }
 
 function poolExpired(data, now) {
-    const joined = Number(data && data.joinedAtMs) || timestampMs(data && data.joinedAt);
-    if (!joined) return false;
+    const row = data || {};
+    const hasMs = row.joinedAtMs != null && row.joinedAtMs !== '';
+    const hasTs = row.joinedAt != null && row.joinedAt !== '';
+    if (!hasMs && !hasTs) return true;
+    const joined = Number(row.joinedAtMs) || timestampMs(row.joinedAt);
+    if (!joined) return true;
     return now - joined >= POOL_TTL_MS;
+}
+
+function pointerIsDangling(activeId, matchExists) {
+    return typeof activeId === 'string' && activeId.length > 0 && matchExists === false;
+}
+
+function convoPatch(existing, full) {
+    if (existing) {
+        return { isBuddyMatch: true, buddyMatchId: full.buddyMatchId };
+    }
+    return full;
 }
 
 function matchExpired(data, now) {
@@ -424,23 +459,79 @@ function docsOf(snap) {
     return docs;
 }
 
-async function readCandidates(tx, db, meUid) {
-    const freshSnap = await tx.get(db.collection('buddy_pool').orderBy('joinedAtMs', 'asc').limit(POOL_SCAN));
-    const legacySnap = await tx.get(db.collection('buddy_pool').orderBy('joinedAt', 'asc').limit(POOL_SCAN));
-    const byId = {};
-    docsOf(freshSnap).concat(docsOf(legacySnap)).forEach(function (doc) { byId[doc.id] = doc; });
-    const docs = Object.keys(byId).map(function (id) { return byId[id]; });
-    const rows = [];
-    for (let i = 0; i < docs.length; i++) {
-        const doc = docs[i];
-        const data = doc.data() || {};
-        const uid = typeof data.uid === 'string' && data.uid ? data.uid : doc.id;
-        if (!uid || uid === meUid) continue;
-        const userSnap = await tx.get(db.collection('users').doc(uid));
-        const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : null;
-        rows.push(candidateFrom(doc.id, data, user, { uid: meUid }, 0));
+function cheapPoolRow(doc, meUid, now) {
+    const data = doc.data() || {};
+    const uid = typeof data.uid === 'string' && data.uid ? data.uid : doc.id;
+    if (!uid || uid === meUid || !UID_RE.test(uid)) return null;
+    if (!GOALS.includes(data.goal)) return null;
+    const row = candidateFrom(doc.id, data, null, { uid: meUid }, now);
+    if (!row.fresh || !LEVELS.includes(row.level)) return null;
+    return row;
+}
+
+async function attachUser(tx, db, row, now) {
+    const userSnap = await tx.get(db.collection('users').doc(row.uid));
+    const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : null;
+    const activeId = user && typeof user.activeBuddyId === 'string' ? user.activeBuddyId : '';
+    let matchStillThere = false;
+    if (activeId && activeId.indexOf('/') === -1 && activeId.length <= 700) {
+        const matchSnap = await tx.get(db.collection('buddy_matches').doc(activeId));
+        matchStillThere = !!(matchSnap && matchSnap.exists);
     }
-    return rows;
+    const joined = row.joinedAtMs;
+    return {
+        row: Object.assign({}, row, {
+            user: user,
+            matchStillThere: activeId ? matchStillThere : false,
+            waitedMs: joined ? Math.max(0, now - joined) : 0,
+            fresh: freshJoined(joined, now),
+        }),
+        clearUid: pointerIsDangling(activeId, matchStillThere) ? row.uid : '',
+    };
+}
+
+async function scanPoolQuery(tx, db, queryForPage, me, now, state) {
+    let last = null;
+    for (let page = 0; page < POOL_PAGES && !state.near; page++) {
+        let query = queryForPage();
+        if (last) query = query.startAfter(last);
+        const snap = await tx.get(query.limit(POOL_PAGE));
+        const docs = docsOf(snap);
+        if (!docs.length) break;
+        last = docs[docs.length - 1];
+        for (let i = 0; i < docs.length; i++) {
+            const cheap = cheapPoolRow(docs[i], me.uid, now);
+            if (!cheap || cheap.goal === me.goal) continue;
+            if (state.seen[cheap.id]) continue;
+            state.seen[cheap.id] = true;
+            const attached = await attachUser(tx, db, cheap, now);
+            if (attached.clearUid) state.clears.push(attached.clearUid);
+            const row = attached.row;
+            if (!usableCandidate(row, me)) continue;
+            if (adjacentLevel(me.level, row.level)) {
+                state.near = row;
+                return;
+            }
+            if (!state.aged && row.waitedMs >= LEVEL_FALLBACK_MS) state.aged = row;
+        }
+        if (docs.length < POOL_PAGE) break;
+    }
+}
+
+async function readCandidates(tx, db, me, now) {
+    const state = { near: null, aged: null, clears: [], seen: {} };
+    await scanPoolQuery(tx, db, function () {
+        return db.collection('buddy_pool').orderBy('joinedAtMs', 'asc');
+    }, me, now, state);
+    if (!state.near) {
+        await scanPoolQuery(tx, db, function () {
+            return db.collection('buddy_pool').orderBy('joinedAt', 'asc');
+        }, me, now, state);
+    }
+    const rows = [];
+    if (state.near) rows.push(state.near);
+    else if (state.aged) rows.push(state.aged);
+    return { rows: rows, clears: state.clears };
 }
 
 async function requestInTransaction(tx, db, admin, input) {
@@ -456,21 +547,16 @@ async function requestInTransaction(tx, db, admin, input) {
     const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : null;
     const activeId = user && typeof user.activeBuddyId === 'string' ? user.activeBuddyId : '';
     let activeMatch = null;
-    if (activeId && UID_RE.test(activeId.split('_')[0] || 'x') && activeId.indexOf('_') !== -1) {
+    let staleActiveId = '';
+    if (activeId && activeId.indexOf('/') === -1 && activeId.length <= 700) {
         const matchSnap = await tx.get(db.collection('buddy_matches').doc(activeId));
         if (matchSnap && matchSnap.exists) {
             activeMatch = { id: activeId, exists: true, data: matchSnap.data() || {} };
+        } else {
+            staleActiveId = activeId;
         }
     }
-    const rawCandidates = await readCandidates(tx, db, uid);
-    const candidates = rawCandidates.map(function (row) {
-        const joined = row.joinedAtMs;
-        return Object.assign({}, row, {
-            joinedAtMs: joined,
-            waitedMs: joined ? Math.max(0, now - joined) : 0,
-            fresh: freshJoined(joined, now),
-        });
-    });
+    const found = await readCandidates(tx, db, { uid: uid, level: input.level, goal: input.goal }, now);
     const plan = buildMatchPlan({
         uid: uid,
         level: input.level,
@@ -482,9 +568,16 @@ async function requestInTransaction(tx, db, admin, input) {
         rate: rateSnap && rateSnap.exists ? (rateSnap.data() || {}) : null,
         ownPool: poolSnap && poolSnap.exists ? (poolSnap.data() || {}) : null,
         activeMatch: activeMatch,
-        candidates: candidates,
+        staleActiveId: staleActiveId,
+        candidates: found.rows,
     });
     if (plan.error) throw plan.error;
+
+    let existingConvo = false;
+    if (plan.status === 'matched' && plan.created) {
+        const convoSnap = await tx.get(db.collection('dm_conversations').doc(plan.matchId));
+        existingConvo = !!(convoSnap && convoSnap.exists);
+    }
 
     const ts = admin.firestore.FieldValue.serverTimestamp();
     tx.set(rateRef, plan.rateWrite || {
@@ -503,7 +596,7 @@ async function requestInTransaction(tx, db, admin, input) {
         const names = {};
         names[plan.storedMatch.user1.uid] = plan.storedMatch.user1.username;
         names[plan.storedMatch.user2.uid] = plan.storedMatch.user2.username;
-        tx.set(convoRef, {
+        tx.set(convoRef, convoPatch(existingConvo, {
             participants: plan.storedMatch.participants,
             participantNames: names,
             isBuddyMatch: true,
@@ -512,7 +605,7 @@ async function requestInTransaction(tx, db, admin, input) {
             lastMessage: plan.welcome.slice(0, 100),
             lastMessageTime: ts,
             lastSenderUid: NACHO_UID,
-        });
+        }), { merge: true });
         tx.set(convoRef.collection('messages').doc('welcome'), {
             senderUid: NACHO_UID,
             senderName: 'Nacho',
@@ -533,6 +626,16 @@ async function requestInTransaction(tx, db, admin, input) {
     } else if (plan.status === 'waiting') {
         tx.set(poolRef, Object.assign({}, plan.pool, { joinedAt: ts }));
     }
+    if (plan.clearStaleActive && !(plan.status === 'matched' && plan.created)) {
+        tx.set(userRef, { activeBuddyId: admin.firestore.FieldValue.delete() }, { merge: true });
+    }
+    const keep = plan.storedMatch ? plan.storedMatch.participants : [uid];
+    (found.clears || []).forEach(function (personUid) {
+        if (!personUid || keep.indexOf(personUid) !== -1) return;
+        tx.set(db.collection('users').doc(personUid), {
+            activeBuddyId: admin.firestore.FieldValue.delete(),
+        }, { merge: true });
+    });
     return plan;
 }
 
@@ -679,15 +782,29 @@ function createBuddyHandlers(deps) {
         }
     }
 
+    async function pageDocs(collectionName) {
+        const out = [];
+        let last = null;
+        for (let page = 0; page < 8; page++) {
+            let query = db.collection(collectionName).orderBy(admin.firestore.FieldPath.documentId()).limit(200);
+            if (last) query = query.startAfter(last);
+            const snap = await query.get();
+            const docs = snap.docs || [];
+            if (!docs.length) break;
+            out.push.apply(out, docs);
+            last = docs[docs.length - 1];
+            if (docs.length < 200) break;
+        }
+        return out;
+    }
+
     async function sweepStaleBuddies() {
         const now = Date.now();
-        const poolCutoff = now - POOL_TTL_MS;
-        const matchCutoff = now - MATCH_QUIET_MS;
         let poolRemoved = 0;
         let matchesRemoved = 0;
+        let pointersCleared = 0;
         try {
-            const poolSnap = await db.collection('buddy_pool').where('joinedAtMs', '<', poolCutoff).limit(200).get();
-            const poolDocs = poolSnap.docs || [];
+            const poolDocs = await pageDocs('buddy_pool');
             for (let i = 0; i < poolDocs.length; i++) {
                 const doc = poolDocs[i];
                 const row = doc.data() || {};
@@ -706,8 +823,7 @@ function createBuddyHandlers(deps) {
             console.warn('[sweepStaleBuddies] pool', err && err.message);
         }
         try {
-            const matchSnap = await db.collection('buddy_matches').where('matchedAtMs', '<', matchCutoff).limit(200).get();
-            const docs = matchSnap.docs || [];
+            const docs = await pageDocs('buddy_matches');
             for (let i = 0; i < docs.length; i++) {
                 const doc = docs[i];
                 const row = doc.data() || {};
@@ -732,7 +848,30 @@ function createBuddyHandlers(deps) {
         } catch (err) {
             console.warn('[sweepStaleBuddies] matches', err && err.message);
         }
-        console.log('[sweepStaleBuddies] pool=' + poolRemoved + ' matches=' + matchesRemoved);
+        try {
+            let last = null;
+            for (let page = 0; page < 5; page++) {
+                let query = db.collection('users').where('activeBuddyId', '>', '').orderBy('activeBuddyId').limit(100);
+                if (last) query = query.startAfter(last);
+                const snap = await query.get();
+                const docs = snap.docs || [];
+                if (!docs.length) break;
+                last = docs[docs.length - 1];
+                for (let i = 0; i < docs.length; i++) {
+                    const activeId = docs[i].get('activeBuddyId');
+                    if (!pointerIsDangling(activeId, false)) continue;
+                    if (typeof activeId !== 'string' || activeId.indexOf('/') !== -1) continue;
+                    const matchSnap = await db.collection('buddy_matches').doc(activeId).get();
+                    if (matchSnap.exists) continue;
+                    await docs[i].ref.set({ activeBuddyId: admin.firestore.FieldValue.delete() }, { merge: true });
+                    pointersCleared++;
+                }
+                if (docs.length < 100) break;
+            }
+        } catch (err) {
+            console.warn('[sweepStaleBuddies] pointers', err && err.message);
+        }
+        console.log('[sweepStaleBuddies] pool=' + poolRemoved + ' matches=' + matchesRemoved + ' pointers=' + pointersCleared);
         return null;
     }
 
@@ -745,14 +884,25 @@ function createBuddyHandlers(deps) {
         const sender = String(message.senderUid || '');
         if (!convoId || !messageId) return null;
         if (!sender || sender === NACHO_UID || message.isNachoAuto === true) return null;
+        const convoRef = db.collection('dm_conversations').doc(convoId);
+        let convoPreview = null;
+        try {
+            const previewSnap = await convoRef.get();
+            if (!previewSnap.exists) return null;
+            convoPreview = previewSnap.data() || {};
+        } catch (err) {
+            console.warn('[onBuddyDmXp] read', err && err.message ? err.message : err);
+            return null;
+        }
+        if (convoPreview.isBuddyMatch !== true) return null;
         try {
             await db.runTransaction(async function (tx) {
-                const convoRef = db.collection('dm_conversations').doc(convoId);
                 const matchRef = db.collection('buddy_matches').doc(convoId);
                 const convoSnap = await tx.get(convoRef);
                 const matchSnap = await tx.get(matchRef);
                 if (!convoSnap.exists || !matchSnap.exists) return;
                 const convo = convoSnap.data() || {};
+                if (convo.isBuddyMatch !== true) return;
                 const match = matchSnap.data() || {};
                 const participants = Array.isArray(convo.participants) ? convo.participants : [];
                 const userSnaps = {};
@@ -828,7 +978,8 @@ function createBuddyHandlers(deps) {
                 });
                 tx.set(matchRef, {
                     spoke: decision.spoke || {},
-                    seenMessages: decision.seen || {},
+                    recentMessageIds: decision.recentIds || [],
+                    seenMessages: admin.firestore.FieldValue.delete(),
                     xpPaid: xpPaid,
                     humanMessages: Object.keys(decision.spoke || {}).length,
                 }, { merge: true });
@@ -880,7 +1031,13 @@ module.exports = {
     XP_WINDOW_MS: XP_WINDOW_MS,
     BUDDY_XP: BUDDY_XP,
     RATE_MS: RATE_MS,
+    UID_RE: UID_RE,
     NACHO_UID: NACHO_UID,
+    SEEN_CAP: SEEN_CAP,
+    poolExpired: poolExpired,
+    pointerIsDangling: pointerIsDangling,
+    convoPatch: convoPatch,
+    recentMessageIds: recentMessageIds,
     plainText: plainText,
     profileUsername: profileUsername,
     adjacentLevel: adjacentLevel,

@@ -253,6 +253,99 @@ test('quiet matches expire after 30 days and pool entries after 7', function () 
     assert.strictEqual(buddy.matchExpired({ matchedAtMs: NOW - 2 * DAY, spoke: {} }, NOW), false);
     assert.strictEqual(buddy.poolExpired({ joinedAtMs: NOW - 8 * DAY }, NOW), true);
     assert.strictEqual(buddy.poolExpired({ joinedAtMs: NOW - DAY }, NOW), false);
+    assert.strictEqual(buddy.poolExpired({}, NOW), true);
+    assert.strictEqual(buddy.poolExpired({ joinedAt: { seconds: Math.floor((NOW - 8 * DAY) / 1000) } }, NOW), true);
+    assert.strictEqual(buddy.poolExpired({ joinedAt: { seconds: Math.floor((NOW - DAY) / 1000) } }, NOW), false);
+});
+
+test('nostr and lightning uids can request a buddy', function () {
+    const nostr = 'nostr:' + 'a'.repeat(64);
+    const ln = 'ln:' + 'b'.repeat(66);
+    assert.ok(buddy.UID_RE.test(nostr));
+    assert.ok(buddy.UID_RE.test(ln));
+    const plan = buddy.buildMatchPlan({
+        uid: nostr,
+        level: 'beginner',
+        goal: 'learn',
+        intro: '',
+        now: NOW,
+        user: { username: 'NostrPlebs', blockedUsers: [] },
+        rate: null,
+        candidates: [],
+    });
+    assert.strictEqual(plan.status, 'waiting');
+    assert.strictEqual(plan.pool.uid, nostr);
+    const lnPlan = buddy.buildMatchPlan({
+        uid: ln,
+        level: 'advanced',
+        goal: 'teach',
+        intro: '',
+        now: NOW,
+        user: { username: 'Lightning', blockedUsers: [] },
+        rate: null,
+        candidates: [],
+    });
+    assert.strictEqual(lnPlan.status, 'waiting');
+});
+
+test('a missing match clears the stale pointer and an existing chat is merged', function () {
+    assert.strictEqual(buddy.pointerIsDangling('alice_bob', false), true);
+    assert.strictEqual(buddy.pointerIsDangling('alice_bob', true), false);
+    assert.strictEqual(buddy.pointerIsDangling('', false), false);
+    const plan = buddy.buildMatchPlan({
+        uid: 'aliceuid',
+        level: 'beginner',
+        goal: 'learn',
+        intro: '',
+        now: NOW,
+        user: { username: 'Alice', blockedUsers: [], activeBuddyId: 'aliceuid_goneuser' },
+        rate: null,
+        staleActiveId: 'aliceuid_goneuser',
+        activeMatch: null,
+        candidates: [],
+    });
+    assert.strictEqual(plan.status, 'waiting');
+    assert.strictEqual(plan.clearStaleActive, true);
+    const full = {
+        participants: ['aliceuid', 'bobuidxx'],
+        participantNames: { aliceuid: 'Alice' },
+        isBuddyMatch: true,
+        buddyMatchId: 'aliceuid_bobuidxx',
+        lastMessage: 'hello',
+        lastSenderUid: 'aliceuid',
+    };
+    assert.deepStrictEqual(buddy.convoPatch(true, full), {
+        isBuddyMatch: true,
+        buddyMatchId: 'aliceuid_bobuidxx',
+    });
+    assert.strictEqual(buddy.convoPatch(false, full).lastMessage, 'hello');
+});
+
+test('buddy xp remembers only a short list of message ids', function () {
+    const ids = [];
+    for (let i = 0; i < 30; i++) ids.push('m' + i);
+    const capped = buddy.planBuddyXp({
+        convo: { isBuddyMatch: true, participants: ['aliceuid', 'bobuidxx'] },
+        match: { recentMessageIds: ids, spoke: { bobuidxx: true }, xpPaid: { bobuidxx: true } },
+        message: { text: 'again', senderUid: 'aliceuid' },
+        senderUid: 'aliceuid',
+        messageId: 'm-new',
+        users: { aliceuid: {}, bobuidxx: { buddyXpGrantedAt: NOW } },
+        now: NOW,
+    });
+    assert.ok(capped.recentIds.length <= buddy.SEEN_CAP);
+    assert.ok(capped.recentIds.indexOf('m-new') !== -1);
+    assert.ok(capped.recentIds.indexOf('m0') === -1);
+    const replay = buddy.planBuddyXp({
+        convo: { isBuddyMatch: true, participants: ['aliceuid', 'bobuidxx'] },
+        match: { recentMessageIds: capped.recentIds },
+        message: { text: 'again', senderUid: 'aliceuid' },
+        senderUid: 'aliceuid',
+        messageId: 'm-new',
+        users: {},
+        now: NOW,
+    });
+    assert.strictEqual(replay.skip, 'seen');
 });
 
 test('Buddy Up depends on a real buddy match count', function () {
@@ -311,7 +404,17 @@ test('client does not render buddy text as HTML or award its own XP', function (
     assert.ok(pool.indexOf('allow create, update: if false') !== -1);
     assert.ok(pool.indexOf('allow list: if false') !== -1);
     const matches = rules.slice(rules.indexOf('match /buddy_matches/'), rules.indexOf('match /timechain_viewers/'));
-    assert.ok(matches.indexOf('allow create, update: if false') !== -1);
+    assert.ok(matches.indexOf('allow create, update, delete: if false') !== -1);
+    assert.ok(rules.indexOf("'buddyMatchCount'") !== -1);
+    assert.ok(rules.indexOf("'buddyXpGrantedAt'") !== -1);
+    assert.ok(rules.indexOf("'activeBuddyId'") !== -1);
+    const app = read('app.js');
+    const buddyRow = app.slice(app.indexOf("id: '_buddy'"), app.indexOf("id: '_certs'"));
+    const findRow = app.slice(app.indexOf("id: '_buddyfind'"), app.indexOf("id: '_favor'"));
+    assert.ok(buddyRow.indexOf('showBuddyFinder') !== -1);
+    assert.ok(findRow.indexOf('showBuddyFinder') !== -1);
+    assert.strictEqual(buddyRow.indexOf("renderChatHub('global')"), -1);
+    assert.strictEqual(findRow.indexOf("renderChatHub('global')"), -1);
     const messaging = read('messaging.js');
     assert.strictEqual(messaging.indexOf('Nacho will jump in'), -1);
     const badge = read('badges.js');

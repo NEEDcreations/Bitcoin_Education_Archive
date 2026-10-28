@@ -118,6 +118,7 @@ async function seed(env) {
             participants: ['alice', 'bob'],
             matchedAtMs: Date.now(),
         });
+        await setDoc(doc(db, 'users', 'alice'), { country: 'US', points: 1 });
     });
 }
 
@@ -181,8 +182,14 @@ async function main() {
     await check('a stranger cannot delete a match', function () {
         return assertFails(deleteDoc(doc(cara, 'buddy_matches', 'alice_bob')));
     });
-    await check('a participant can delete their match', function () {
-        return assertSucceeds(deleteDoc(doc(alice, 'buddy_matches', 'alice_bob')));
+    await check('a participant cannot delete their match', function () {
+        return assertFails(deleteDoc(doc(alice, 'buddy_matches', 'alice_bob')));
+    });
+    await check('a client cannot write buddy match fields on their profile', async function () {
+        await assertFails(updateDoc(doc(alice, 'users', 'alice'), { buddyMatchCount: 5 }));
+        await assertFails(updateDoc(doc(alice, 'users', 'alice'), { buddyXpGrantedAt: Date.now() }));
+        await assertFails(updateDoc(doc(alice, 'users', 'alice'), { activeBuddyId: 'alice_bob' }));
+        await assertSucceeds(updateDoc(doc(alice, 'users', 'alice'), { country: 'Canada' }));
     });
     await check('signed-out reads are denied', async function () {
         await assertFails(getDoc(doc(anon, 'buddy_pool', 'alice')));

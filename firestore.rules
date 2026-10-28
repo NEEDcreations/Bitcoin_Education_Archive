@@ -130,6 +130,7 @@ service cloud.firestore {
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
         'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
+        'buddyMatchCount', 'buddyXpGrantedAt', 'activeBuddyId',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
         'providersHash', 'providerHashes'
       ];
@@ -1838,16 +1839,14 @@ service cloud.firestore {
     }
 
     // Buddy matches are created only by requestBuddyMatch (Admin SDK).
-    // A participant may read and delete their own match. Clients cannot
-    // create or edit one, so a username or intro cannot be planted.
+    // A participant may read their own match. Clients cannot create, edit,
+    // or delete one. endBuddy is the only way to end a match. A client
+    // delete used to leave activeBuddyId pointing at a missing doc.
     match /buddy_matches/{docId} {
       allow read: if request.auth != null
                   && (resource.data.user1.uid == request.auth.uid
                       || resource.data.user2.uid == request.auth.uid);
-      allow create, update: if false;
-      allow delete: if request.auth != null
-                    && (resource.data.user1.uid == request.auth.uid
-                        || resource.data.user2.uid == request.auth.uid);
+      allow create, update, delete: if false;
     }
 
     // Timechain TV viewer counts — increment/decrement by 1 only
