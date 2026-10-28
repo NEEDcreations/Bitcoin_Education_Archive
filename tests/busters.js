@@ -461,7 +461,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2394'));
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
-    assert.ok(notes.includes('Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
+    assert.ok(notes.includes("Latest: Global Chat now gives a heads-up when Satoshi's Favor is about to end."));
     assert.ok(notes.includes('A shared certificate link shows up right away. If the check takes too long, you can retry or open Bitcoin Quest.'));
     assert.ok(!notes.includes('Latest: A shared certificate'));
     assert.ok(notes.includes('A returning signed-in home shows level, sats, rank, and buttons from this device as soon as the page paints. An authenticator account stays hidden until that check finishes.'));
