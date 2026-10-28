@@ -150,9 +150,10 @@ function normalizeRiskText(text) {
     s = s.replace(/\byou['’]ll\b/g, 'you will');
     s = s.replace(/\bit['’]s\b/g, 'it is');
     s = applyLeet(s);
+    s = s.replace(/->|=>/g, ' to ');
     s = s.replace(/["'“”‘’`«»()[\]{}<>]/g, ' ');
     s = collapseLetterRuns(s);
-    s = s.replace(/[\/\\|*^~=_+#,:;!?]+/g, ' ');
+    s = s.replace(/[\/\\|*^~=_+#]+/g, ' ');
     s = s.replace(/\bwhats\b/g, "what's");
     s = s.replace(/\bur\b/g, 'your');
     s = s.replace(/\bu\b/g, 'you');
@@ -170,10 +171,13 @@ function normalizeRiskText(text) {
     s = s.replace(/\btwenty[\s-]*four\b/g, '24');
     s = s.replace(/\bsendme\b/g, 'send me');
     s = s.replace(/\bgiveme\b/g, 'give me');
+    s = s.replace(/\bgimme\b/g, 'give me');
     s = s.replace(/\btellme\b/g, 'tell me');
     s = s.replace(/\bdmme\b/g, 'dm me');
     s = s.replace(/\bshowme\b/g, 'show me');
     s = s.replace(/\breadme\b/g, 'read me');
+    s = s.replace(/\bpls\b/g, 'please');
+    s = s.replace(/\bseedphrase\b/g, 'seed phrase');
     s = s.replace(/\u0001/g, '.');
     s = s.replace(/\s+/g, ' ').trim();
     s = restoreAddresses(s, held.found);
@@ -207,7 +211,7 @@ function isDeviceOrStorage(clause) {
 }
 
 function verbSpans(clause) {
-    const re = /\b(?:send|sending|give|show|share|tell|paste|pay|dm|read|post|write|type|enter|need|zap|transfer|deposit|withdraw)\b/gi;
+    const re = /\b(?:send|sending|give|show|share|tell|paste|pay|dm|read|post|write|type|enter|need|zap|transfer|deposit|withdraw|drop|reply|have)\b/gi;
     const spans = [];
     let match;
     while ((match = re.exec(clause))) {
@@ -256,8 +260,9 @@ function liveVerb(clause, words) {
 
 function isReportingClause(clause) {
     return /\b(?:might|may|will|would|could)\s+say\b/.test(clause)
+        || /\b(?:scammers?|someone|they)\b[\s\S]{0,60}\b(?:will|may|might|would|could)\s+(?:ask|tell|say)\b/.test(clause)
         || /\b(?:says|said|asks|asked|saying)\b/.test(clause)
-        || (/\bscammers?\b/.test(clause) && /\bsay\b/.test(clause));
+        || (/\bscammers?\b/.test(clause) && /\b(?:say|ask|tell)\b/.test(clause));
 }
 
 function shieldedFromSender(clause) {
@@ -266,19 +271,67 @@ function shieldedFromSender(clause) {
     return /\b(?:with no one|with nobody|to nobody|to no one|nobody|no one)\b/.test(clause);
 }
 
+function wordsBetween(text) {
+    const trimmed = String(text || '').trim();
+    return trimmed ? trimmed.split(/\s+/) : [];
+}
+
+function readerOwnsSecret(clause) {
+    const re = /\b(?:your|ur)\b/gi;
+    let match;
+    while ((match = re.exec(clause))) {
+        const rest = clause.slice(match.index + match[0].length);
+        const secret = rest.match(new RegExp('^([\\s\\S]{0,40}?)\\b(' + SECRET_SOURCE + ')\\b', 'i'));
+        if (!secret) continue;
+        const words = wordsBetween(secret[1]);
+        if (words.length > 2) continue;
+        if (words.some(function (word) { return !/^(?:full|whole|entire|all|complete|the)$/.test(word); })) continue;
+        const before = clause.slice(Math.max(0, match.index - 6), match.index);
+        if (/\bnot\s*$/.test(before)) continue;
+        return true;
+    }
+    return false;
+}
+
+function verbReachesYourSecret(clause) {
+    const re = new RegExp('\\b(send|give|show|tell|read|dm|paste|drop|post|write|type|enter|reply|share|have)\\b([\\s\\S]{0,40}?)\\b(?:your|ur)\\b', 'ig');
+    let match;
+    while ((match = re.exec(clause))) {
+        const between = wordsBetween(match[2]);
+        if (between.length > 4) continue;
+        if (between.some(function (word) {
+            return /^(?:about|how|why|where|tips|guide|link|example|help|questions|sec|pic|notes|screen)$/.test(word);
+        })) continue;
+        if (!readerOwnsSecret(clause.slice(match.index))) continue;
+        if (!liveVerb(clause, [match[1].toLowerCase()])) continue;
+        return true;
+    }
+    return false;
+}
+
 function directedSecret(clause) {
-    if (!clause || !hasSecret(clause) || isDeviceOrStorage(clause) || shieldedFromSender(clause)) return false;
-    if (/\b(?:i|we)\s+need\b/.test(clause) && liveVerb(clause, ['need'])) return true;
-    if (/\b(?:i|we)\s+want\b/.test(clause)) return true;
-    if (/\blet me see\b/.test(clause)) return true;
-    if (/\b(?:to me|with me|this chat)\b/.test(clause)) return true;
-    if (/\b(?:send|give|show|tell|read|dm|paste)\s+me\b/.test(clause) && liveVerb(clause, ['send', 'give', 'show', 'tell', 'read', 'dm', 'paste'])) return true;
-    if (/\b(?:type|paste|enter|write|post)\b[^.]*\bhere\b/.test(clause) && liveVerb(clause, ['type', 'paste', 'enter', 'write', 'post'])) return true;
-    if (/\btyping\s+your\b/.test(clause)) return true;
-    const imperative = new RegExp('\\b(?:send|show|paste|give|read)\\b(?:\\s+\\w+){0,3}\\s+' + SECRET_SOURCE + '\\b', 'i');
-    if (imperative.test(clause) && liveVerb(clause, ['send', 'show', 'paste', 'give', 'read'])) return true;
-    if (/\bwhat(?:'s| is| are)\s+your\b/.test(clause) && !/\b(?:storage|backup|method|offline|paper|steel)\b/.test(clause)) return true;
-    if (/\bplease\b/.test(clause) && !/\b(?:don't|dont|never|do not)\b/.test(clause)) return true;
+    if (!clause || !hasSecret(clause) || isDeviceOrStorage(clause) || shieldedFromSender(clause) || isReportingClause(clause)) return false;
+    const owns = readerOwnsSecret(clause);
+    if (owns && verbReachesYourSecret(clause)) return true;
+    if (owns && /\b(?:send|give|show|read|dm|paste|drop)\s+me\b/.test(clause) && liveVerb(clause, ['send', 'give', 'show', 'read', 'dm', 'paste', 'drop'])) return true;
+    if (liveVerb(clause, ['send', 'give', 'show', 'read', 'dm', 'paste', 'drop']) && /\b(?:send|give|show|read|dm|paste|drop)\s+me\s+the\b/i.test(clause)) {
+        const afterThe = clause.replace(/^[\s\S]*?\b(?:send|give|show|read|dm|paste|drop)\s+me\s+the\s+/i, '');
+        const secretHit = afterThe.match(new RegExp('^' + SECRET_SOURCE + '\\b', 'i'));
+        const rest = secretHit ? afterThe.slice(secretHit[0].length).trim() : afterThe;
+        if (secretHit && !/^(?:screen|example|guide|link|format|best)\b/i.test(rest)) return true;
+    }
+    if (/\bwhat(?:'s| is| are)\s+(?:your|ur)\b/.test(clause) && owns && !/\b(?:storage|method|offline|paper|steel|backup plan|storage like)\b/.test(clause)) return true;
+    if (/\b(?:i|we)\s+need(?:\s+to\s+see)?\s+(?:your|ur)\b/.test(clause) && owns && liveVerb(clause, ['need'])) return true;
+    if (/\bi need it\b/.test(clause) && owns && liveVerb(clause, ['need'])) return true;
+    if (/\b(?:can|could|may)\s+i\s+have\s+(?:your|ur)\b/.test(clause) && owns) return true;
+    if (/\blet me see\b/.test(clause) && owns) return true;
+    if (/\btyping\s+(?:your|ur)\b/.test(clause) && owns) return true;
+    if (owns && /\b(?:to me|with me|in here|this chat)\b/.test(clause) && !/\b(?:explain|teach|describe)\b/.test(clause)) return true;
+    if (new RegExp('^\\s*(?:please\\s+' + SECRET_SOURCE + '|' + SECRET_SOURCE + '\\s+please)\\s*$', 'i').test(clause)) return true;
+    if (new RegExp('\\b' + SECRET_SOURCE + '\\s+to\\s+me\\b', 'i').test(clause) && !/\b(?:explain|teach|describe|about)\b/.test(clause)) return true;
+    if (new RegExp('\\b(?:the|your|ur)\\s+' + SECRET_SOURCE + '\\s+with\\s+me\\b', 'i').test(clause)) return true;
+    if (new RegExp('\\b' + SECRET_SOURCE + '\\s+send\\s+it\\b', 'i').test(clause) && liveVerb(clause, ['send'])) return true;
+    if (/\b(?:type|paste|enter|write|post|drop)\b/.test(clause) && /\bhere\b/.test(clause) && owns && liveVerb(clause, ['type', 'paste', 'enter', 'write', 'post', 'drop'])) return true;
     return false;
 }
 
@@ -295,6 +348,12 @@ function sendsValue(clause) {
     return (toMe || addressPattern().test(clause)) && (amount || addressPattern().test(clause) || toMe);
 }
 
+function paysAmount(clause) {
+    return liveVerb(clause, ['send', 'sending', 'pay', 'zap', 'transfer', 'deposit'])
+        && /\b\d/.test(clause)
+        && /\b(?:sats|satoshis|btc|bitcoin)\b/.test(clause);
+}
+
 function classifyText(raw) {
     const normalized = normalizeRiskText(raw);
     const clauses = clausesOf(normalized);
@@ -308,25 +367,22 @@ function classifyText(raw) {
         const reported = isReportingClause(clause) || (previous && isReportingClause(previous) && !/\b(?:but|so)\b/.test(clause));
         if (!reported && directedSecret(clause)) add(lockReasons, 'seed_request');
         if (!reported && liveVerb(clause, ['pay', 'send', 'zap', 'transfer', 'deposit', 'withdraw']) && addressPattern().test(clause)) add(lockReasons, 'address_send');
-        const adminHere = impersonates(clause) || (previous && impersonates(previous)) || (clauses[index + 1] && impersonates(clauses[index + 1]));
-        const fundsHere = sendsValue(clause) || (previous && sendsValue(previous));
-        const verifySend = /\bverify\b/.test(clause) && sendsValue(clause);
-        if (!reported && ((adminHere && (sendsValue(clause) || (previous && impersonates(previous) && sendsValue(clause)))) || verifySend)) {
-            add(lockReasons, 'admin_funds');
+        if (!reported && index > 0 && /\bsend (?:it|them|this|that) to me\b/.test(clause) && !verbIsNegated(clause, 'send')) {
+            const prior = clauses[index - 1].trim();
+            const priorIsSecret = readerOwnsSecret(prior) || new RegExp('^(?:your\\s+|the\\s+)?' + SECRET_SOURCE + '$', 'i').test(prior);
+            if (priorIsSecret && !isReportingClause(prior)) add(lockReasons, 'seed_request');
         }
-        if (!reported && fundsHere && adminHere && (impersonates(clause) || sendsValue(clause))) add(lockReasons, 'admin_funds');
     });
-    if (hasSecret(normalized) && /\b(?:send (?:it|them|this|that) to me|i need it)\b/.test(normalized)) {
-        const handoffNegated = clauses.every(function (clause) {
-            return !/\b(?:send (?:it|them|this|that) to me|i need it)\b/.test(clause) || verbIsNegated(clause, 'send') || verbIsNegated(clause, 'need');
-        });
-        const reportedOnly = clauses.every(function (clause, index) {
-            if (!/\b(?:send (?:it|them|this|that) to me|i need it)\b/.test(clause) && !hasSecret(clause)) return true;
-            const previous = index > 0 ? clauses[index - 1] : '';
-            return isReportingClause(clause) || (previous && isReportingClause(previous));
-        });
-        if (!handoffNegated && !reportedOnly) add(lockReasons, 'seed_request');
-    }
+    const adminAt = [];
+    const payAt = [];
+    clauses.forEach(function (clause, index) {
+        if (isReportingClause(clause)) return;
+        if (impersonates(clause)) adminAt.push(index);
+        if (sendsValue(clause) || paysAmount(clause) || (/\bverify\b/.test(clause) && (sendsValue(clause) || paysAmount(clause)))) payAt.push(index);
+    });
+    if (adminAt.some(function (adminIndex) {
+        return payAt.some(function (payIndex) { return Math.abs(adminIndex - payIndex) <= 2; });
+    })) add(lockReasons, 'admin_funds');
     clauses.forEach(function (clause) {
         if (isDeviceOrStorage(clause)) return;
         if (/\b(?:send|transfer)\b/.test(clause) && /\b(?:sats|satoshis|btc|bitcoin)\b/.test(clause) && !addressPattern().test(clause)) {
@@ -378,10 +434,36 @@ function detectBuddyRisk(text, context) {
     const ctx = context || {};
     const now = Number(ctx.now) || 0;
     const previousAt = Number(ctx.previousAt) || 0;
+    const unlockedAt = Number(ctx.unlockedAt) || 0;
     const previous = typeof ctx.previousText === 'string' ? ctx.previousText : '';
-    const fresh = previous && previousAt && now && now >= previousAt && (now - previousAt) <= PAIR_WINDOW_MS;
-    const combined = fresh ? (previous + ' ' + String(text || '')) : text;
-    return classifyText(combined);
+    const fresh = previous && previousAt && now && now >= previousAt
+        && (now - previousAt) <= PAIR_WINDOW_MS
+        && (!unlockedAt || previousAt > unlockedAt);
+    if (!fresh) return classifyText(text);
+    return classifyText(previous + ' ' + String(text || ''));
+}
+
+function tailIsStale(row, now, unlockedAt) {
+    const at = Number(row && row.at) || 0;
+    if (!row || !at) return true;
+    if (unlockedAt && at <= Number(unlockedAt)) return true;
+    if (row.expireAt && Number(row.expireAt) <= now) return true;
+    return now - at > PAIR_WINDOW_MS;
+}
+
+function planTailRead(row, now, unlockedAt) {
+    if (!row || typeof row.text !== 'string' || tailIsStale(row, now, unlockedAt)) return '';
+    return row.text;
+}
+
+function planTailWrite(text, now) {
+    const normalized = normalizeRiskText(text);
+    if (!String(text || '').trim() || hasSecret(normalized) || addressPattern().test(normalized)) return null;
+    return {
+        text: String(text).slice(-80),
+        at: now,
+        expireAt: now + PAIR_WINDOW_MS,
+    };
 }
 
 function shouldCountReport(report) {
@@ -693,6 +775,7 @@ function createSafetyHandlers(deps) {
         let match = {};
         let previousText = '';
         let previousAt = 0;
+        let unlockedAt = 0;
         const now = Date.now();
         try {
             const matchSnap = await db.collection('buddy_matches').doc(convoId).get();
@@ -700,21 +783,36 @@ function createSafetyHandlers(deps) {
         } catch (err) {
             console.warn('[onBuddyDmSafety] match', err && err.message ? err.message : err);
         }
+        try {
+            const lockSnap = await db.collection('buddy_locks').doc(sender).get();
+            if (lockSnap.exists) unlockedAt = Number((lockSnap.data() || {}).unlockedAt) || 0;
+        } catch (err) {
+            console.warn('[onBuddyDmSafety] lock', err && err.message ? err.message : err);
+        }
         const tailRef = db.collection('buddy_dm_tails').doc(convoId);
         try {
             const tailSnap = await tailRef.get();
             const row = tailSnap.exists ? (tailSnap.data() || {})[sender] : null;
-            if (row && typeof row.text === 'string') {
-                previousText = row.text;
-                previousAt = Number(row.at) || 0;
+            previousText = planTailRead(row, now, unlockedAt);
+            previousAt = previousText ? Number(row.at) || 0 : 0;
+            if (row && !previousText) {
+                const clear = {};
+                clear[sender] = admin.firestore.FieldValue.delete();
+                await tailRef.set(clear, { merge: true });
             }
         } catch (err) {
             console.warn('[onBuddyDmSafety] tail', err && err.message ? err.message : err);
         }
-        const detection = detectBuddyRisk(text, { previousText: previousText, previousAt: previousAt, now: now });
+        const detection = detectBuddyRisk(text, {
+            previousText: previousText,
+            previousAt: previousAt,
+            now: now,
+            unlockedAt: unlockedAt,
+        });
         try {
+            const kept = planTailWrite(text, now);
             const tailPatch = {};
-            tailPatch[sender] = { text: text.slice(-80), at: now };
+            tailPatch[sender] = kept || admin.firestore.FieldValue.delete();
             await tailRef.set(tailPatch, { merge: true });
         } catch (err) {
             console.warn('[onBuddyDmSafety] tail write', err && err.message ? err.message : err);
@@ -852,15 +950,18 @@ function createSafetyHandlers(deps) {
                 flagSnaps.push(await tx.get(db.collection('buddy_flags').doc(id)));
             }
             let convoFlags = [];
+            let tailSnap = null;
             if (convId && convId.indexOf('/') === -1) {
                 const found = await tx.get(db.collection('buddy_flags').where('convoId', '==', convId).limit(40));
                 found.forEach(function (doc) { convoFlags.push(doc); });
+                if (plan.clearLock) tailSnap = await tx.get(db.collection('buddy_dm_tails').doc(convId));
             }
             const ts = admin.firestore.FieldValue.serverTimestamp();
             const now = Date.now();
             const flagStatus = plan.reportStatus === 'dismissed' ? 'dismissed' : 'resolved';
             if (plan.clearLock) {
                 tx.set(userRef, { lock: admin.firestore.FieldValue.delete() }, { merge: true });
+                if (tailSnap && tailSnap.exists) tx.delete(tailSnap.ref);
             }
             if (plan.resumeChat && convId && convId.indexOf('/') === -1) {
                 tx.set(db.collection('dm_conversations').doc(convId), { reviewPaused: false }, { merge: true });
@@ -942,6 +1043,9 @@ module.exports = {
     planUserReportLock: planUserReportLock,
     planReportQuota: planReportQuota,
     shouldCountReport: shouldCountReport,
+    planTailRead: planTailRead,
+    planTailWrite: planTailWrite,
+    tailIsStale: tailIsStale,
     normalizeRiskText: normalizeRiskText,
     knownHost: knownHost,
     createSafetyHandlers: createSafetyHandlers,

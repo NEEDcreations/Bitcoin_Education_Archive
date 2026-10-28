@@ -349,6 +349,76 @@ test('delta-2 disguises lock or at least flag, including a split message', funct
     assert.strictEqual(stale.severity, 'medium');
 });
 
+test('learner questions do not lock and a split request still does', function () {
+    const questions = [
+        'tell me about seed phrases',
+        'Tell me about seed phrase best practices',
+        'can you tell me what a seed phrase is',
+        'tell me more about private keys',
+        'tell me why I need a seed phrase',
+        'explain seed phrases to me',
+        'show me how to back up my seed phrase',
+        'show me where to write my seed phrase',
+        'Show me the seed phrase screen in Sparrow',
+        'show me an example seed phrase',
+        'send me a guide on seed phrases',
+        'Can you send me a link about seed phrases?',
+        'give me tips on storing my seed phrase',
+        'Send me your questions about seed phrases',
+        'I need your help with my seed phrase',
+        'Give me a sec, my seed phrase is on steel',
+        'Send me a pic of your setup, not your seed phrase',
+        'Show me how you back up, but never show me your seed phrase',
+        'A scammer will ask you to send your seed phrase',
+        'A scammer may ask you to send your seed phrase',
+        'Scammers will tell you to send your seed phrase',
+    ];
+    questions.forEach(function (text) {
+        const found = safety.detectBuddyRisk(text);
+        assert.strictEqual(found.lock, false, text + ' -> ' + found.reasons.join(','));
+        assert.strictEqual(found.severity, 'medium', text);
+    });
+    const notes = safety.detectBuddyRisk('Send me your notes', {
+        previousText: "What's a seed phrase?",
+        previousAt: 1000,
+        now: 2000,
+    });
+    assert.strictEqual(notes.lock, false);
+    const afterUnlock = safety.detectBuddyRisk('seed phrase', {
+        previousText: 'send me your',
+        previousAt: 50,
+        now: 150,
+        unlockedAt: 100,
+    });
+    assert.strictEqual(afterUnlock.lock, false);
+});
+
+test('direct handoffs that used to be warnings now lock', function () {
+    [
+        'Can I have your seed phrase?',
+        'gimme your seed',
+        'reply with your seed phrase',
+        'pls drop ur seed phrase in here',
+        'seed phrase -> me',
+        "I'm support, your account is frozen, send 100k sats to unlock",
+        's e e d p h r a s e send it',
+    ].forEach(function (text) {
+        const found = safety.detectBuddyRisk(text);
+        assert.strictEqual(found.lock, true, text + ' ' + found.reasons.join(','));
+    });
+});
+
+test('a message tail expires and never keeps a secret', function () {
+    const kept = safety.planTailWrite('send me your', 1000);
+    assert.strictEqual(kept.text, 'send me your');
+    assert.strictEqual(kept.expireAt, 1000 + 10 * 60 * 1000);
+    assert.strictEqual(safety.planTailWrite('my seed phrase is abandon ability', 1000), null);
+    assert.strictEqual(safety.planTailRead(kept, 2000, 0), 'send me your');
+    assert.strictEqual(safety.planTailRead(kept, 1000 + 11 * 60 * 1000, 0), '');
+    assert.strictEqual(safety.planTailRead(kept, 2000, 1500), '');
+    assert.strictEqual(safety.tailIsStale(kept, 2000, 0), false);
+});
+
 test('report limits count every type inside a rolling day', function () {
     const now = 1_700_000_000_000;
     assert.strictEqual(safety.shouldCountReport({ reporterUid: 'bob', reportedUid: 'alice', reason: 'spam' }), true);
