@@ -101,6 +101,7 @@ const answerTrivia = onCall(async (data, context) => {
             now: now,
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
+            user: user,
         });
         const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
         const pointsBefore = user.points || 0;

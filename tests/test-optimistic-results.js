@@ -401,7 +401,12 @@ test('trivia shows checking immediately and does not grade from the client bank'
     assert.ok(checking, 'checking state missing');
     assert.strictEqual(checking.textContent, 'checking\u2026');
     assert.strictEqual(during[0], 'answerTrivia');
-    assert.ok(during.indexOf('answerTrivia') < during.indexOf('get:trivia_stats'));
+    assert.strictEqual(during.indexOf('get:trivia_stats'), -1);
+    page._renderTriviaTab(body);
+    checking = page.document.getElementById('triviaChecking');
+    assert.ok(checking, 'checking marker dropped on re-render');
+    assert.strictEqual(checking.textContent, 'checking\u2026');
+    assert.ok(page._triviaChecking && page._triviaChecking.todayKey === '2026-10-24');
     assert.strictEqual(page.store.btc_trivia_state, undefined);
     assert.deepStrictEqual(page.xp, []);
     assert.strictEqual(page.pollHooks.length, 0);
@@ -459,6 +464,63 @@ test('trivia XP is shown only after the server awards it', function() {
     assert.strictEqual(page._triviaXpPillText('pending', 50), 'XP pending');
     assert.strictEqual(page._triviaXpPillText('answered', 0), '');
     assert.strictEqual(page._triviaXpPillText('answered', 50), '+50 XP');
+});
+
+test('trivia with no cached snapshot shows the server total, not a local +1', function() {
+    var page = boot();
+    var body = mount(page);
+    page._renderTriviaTab(body);
+    assert.ok(!page._triviaLiveDoc);
+    var mark = page.calls.length;
+    page.triviaAnswer(0);
+    var during = page.calls.slice(mark);
+    assert.strictEqual(during[0], 'answerTrivia');
+    assert.strictEqual(during.indexOf('get:trivia_stats'), -1);
+    assert.strictEqual(page._triviaBaseline.known, false);
+    page.pending.resolve({ data: { success: true, correct: false, awarded: 0, statsRecorded: true } });
+    var live = page.listeners.filter(function(rec) { return rec.name === 'trivia_stats' && !rec.unsubbed; });
+    assert.strictEqual(live.length, 1);
+    live[0].cb({
+        exists: true,
+        data: function() { return { total: 11, option_0: 5, option_1: 3, option_2: 2, option_3: 1 }; }
+    });
+    assert.strictEqual(page.document.getElementById('triviaTotalVotes').textContent, '11 answers today');
+    assert.strictEqual(page.document.getElementById('triviaPct_0').textContent, '45% (5)');
+});
+
+test('a cached trivia snapshot still adds one until the server doc includes it', function() {
+    var page = boot();
+    var body = mount(page);
+    page._triviaLiveKey = '2026-10-24';
+    page._triviaLiveDoc = { total: 10, option_0: 4, option_1: 3, option_2: 2, option_3: 1 };
+    page._renderTriviaTab(body);
+    var gets = page.calls.filter(function(name) { return name === 'get:trivia_stats'; }).length;
+    page.triviaAnswer(0);
+    assert.strictEqual(page._triviaBaseline.known, true);
+    assert.strictEqual(page._triviaBaseline.total, 10);
+    assert.strictEqual(page.calls.filter(function(name) { return name === 'get:trivia_stats'; }).length, gets);
+    page.pending.resolve({ data: { success: true, correct: false, awarded: 0, statsRecorded: true } });
+    assert.strictEqual(page.document.getElementById('triviaTotalVotes').textContent, '11 answers today');
+    assert.strictEqual(page.document.getElementById('triviaPct_0').textContent, '45% (5)');
+});
+
+test('a long trivia option keeps its count on the row', function() {
+    assert.ok(src.includes('min-width:0;overflow-wrap:anywhere'));
+    assert.ok(src.includes('flex-shrink:0;white-space:nowrap'));
+    var page = boot();
+    var body = mount(page);
+    page.TRIVIA_BANK[0].options[0] = 'CheckSequenceVerify';
+    page.localStorage.setItem('btc_trivia_state', JSON.stringify({
+        date: '2026-10-24', chosen: 0, correct: true, index: 0, awarded: 50
+    }));
+    page._triviaLiveKey = '2026-10-24';
+    page._triviaLiveDoc = { total: 11, option_0: 5, option_1: 3, option_2: 2, option_3: 1 };
+    page._renderTriviaTab(body);
+    var html = body.innerHTML;
+    assert.ok(html.indexOf('CheckSequenceVerify') !== -1);
+    assert.ok(html.indexOf('min-width:0;overflow-wrap:anywhere') !== -1);
+    assert.ok(html.indexOf('flex-shrink:0;white-space:nowrap') !== -1);
+    assert.strictEqual(page.document.getElementById('triviaPct_0').textContent, '45% (5)');
 });
 
 test('dimmed trivia counts stay WCAG AA against the row background', function() {

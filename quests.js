@@ -5187,14 +5187,17 @@ function _renderTriviaTab(body, optimisticVote) {
             html += '<div id="triviaRow_' + i + '" data-dimmed="' + (rowStyle.dimmed ? '1' : '0') + '" style="padding:12px 16px;background:' + rowStyle.bg + ';border:2px solid ' + rowStyle.border + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:10px;opacity:' + rowStyle.rowOpacity + ';position:relative;overflow:hidden;">' +
                 '<div id="triviaBar_' + i + '" style="position:absolute;left:0;top:0;bottom:0;width:0;background:' + rowStyle.bar + ';transition:width 0.6s ease-out;border-radius:10px;"></div>' +
                 '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid ' + rowStyle.border + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + rowStyle.badgeColor + ';position:relative;z-index:1;">' + String.fromCharCode(65 + i) + '</span>' +
-                '<span style="position:relative;z-index:1;flex:1;color:' + rowStyle.labelColor + ';font-weight:' + (rowStyle.dimmed ? '500' : '600') + ';">' + optText + '</span>' +
-                '<span id="triviaPct_' + i + '" data-trivia-pct="1" style="position:relative;z-index:1;margin-left:auto;font-size:0.75rem;color:' + rowStyle.pctColor + ';font-weight:800;min-width:72px;text-align:right;"></span>' +
+                '<span style="position:relative;z-index:1;flex:1;min-width:0;overflow-wrap:anywhere;color:' + rowStyle.labelColor + ';font-weight:' + (rowStyle.dimmed ? '500' : '600') + ';">' + optText + '</span>' +
+                '<span id="triviaPct_' + i + '" data-trivia-pct="1" style="position:relative;z-index:1;margin-left:auto;font-size:0.75rem;color:' + rowStyle.pctColor + ';font-weight:800;flex-shrink:0;white-space:nowrap;min-width:72px;text-align:right;"></span>' +
                 (icon ? '<span style="position:relative;z-index:1;">' + icon + '</span>' : '') +
             '</div>';
         } else {
-            html += '<button onclick="triviaAnswer(' + i + ')" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+            var isChecking = checking && window._triviaChecking && window._triviaChecking.idx === i;
+            var dimOther = checking && !isChecking;
+            html += '<button onclick="triviaAnswer(' + i + ')"' + (checking ? ' disabled' : '') + ' style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChecking ? '#f7931a' : 'var(--border)') + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:' + (checking ? 'default' : 'pointer') + ';font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;opacity:' + (dimOther ? '0.55' : '1') + ';">' +
                 '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
                 optText +
+                (isChecking ? '<span id="triviaChecking" style="margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;">checking\u2026</span>' : '') +
             '</button>';
         }
     }
@@ -5325,8 +5328,14 @@ window.triviaAnswer = function(chosenIdx) {
         });
     }
 
+    // A cached live doc is a real before-snapshot. Without one, a get can
+    // land after the grade write and a local +1 would count that vote twice.
+    if (window._triviaLiveKey === todayKey && window._triviaLiveDoc) {
+        _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), function() {});
+    } else {
+        window._triviaBaseline = { key: todayKey, bankIdx: _triviaStatIndex(t, chosenIdx), known: false, total: 0, counts: null };
+    }
     _submitTrivia();
-    _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), function() {});
 };
 
 // ============================================================
@@ -5831,11 +5840,6 @@ window.pollVote = function(chosenIdx) {
     // and do not persist the vote or any XP until dailyPollVote returns.
     var hadTally = _rememberPollTally(pollId, p.options.length, chosenIdx);
     window._pollOptimistic = { todayKey: todayKey, chosenIdx: chosenIdx, pollId: pollId, hadTally: hadTally };
-    if (hadTally && window._pollBaseline && window._pollBaseline.votes) {
-        window._pollOptimistic.preview = _optimisticPollCounts(
-            window._pollBaseline.votes, window._pollBaseline.total, chosenIdx, p.options.length
-        );
-    }
     _paintPoll();
 
     function _confirmPoll(data) {

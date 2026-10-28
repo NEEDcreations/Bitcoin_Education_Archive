@@ -2,6 +2,7 @@
 
 const POLL_BANK = require('./pollBank.json');
 const { planDailyXp } = require('./dailyXp');
+const doubleXp = require('./doubleXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily, offsetDateKey } = require('./grantBadge');
 
@@ -31,7 +32,8 @@ function createPollVote(opts) {
         if (!Number.isInteger(chosen) || chosen < 0 || chosen > 3) {
             throw new HttpsError('invalid-argument', 'Pick one of the four answers');
         }
-        const day = offsetDateKey(Date.now());
+        const now = Date.now();
+        const day = offsetDateKey(now);
         const today = pollForDay(day);
         if (!today || !today.poll) throw new HttpsError('failed-precondition', 'No poll today');
 
@@ -56,7 +58,8 @@ function createPollVote(opts) {
             while (prevVotes.length < 4) prevVotes.push(0);
             prevVotes[chosen] = Number(prevVotes[chosen] || 0) + 1;
             const dailyUsed = dailySnap.exists ? Number(dailySnap.data().total || 0) : 0;
-            const split = planDailyXp(dailyUsed, POLL_XP);
+            const boost = doubleXp.boostPoints(POLL_XP, user, now);
+            const split = planDailyXp(dailyUsed, boost.points);
             const update = { pollDays: admin.firestore.FieldValue.increment(1), lastPollDate: day };
             if (split.awarded > 0) {
                 update.points = admin.firestore.FieldValue.increment(split.awarded);
