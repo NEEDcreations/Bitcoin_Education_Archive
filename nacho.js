@@ -1068,15 +1068,6 @@ function createNacho() {
             cursor: pointer;
             touch-action: manipulation;
         }
-        @media (max-width: 430px) {
-            #nachoAskHint {
-                max-width: 148px;
-                white-space: normal;
-                font-size: 0.7rem;
-                line-height: 1.25;
-                border-radius: 12px;
-            }
-        }
         #nachoAskHint[hidden] { display: none !important; }
         #nachoAskHint:focus-visible { outline: 2px solid #f7931a; outline-offset: 2px; }
 
@@ -1913,53 +1904,120 @@ function dismissNachoAskHint() {
     }
     try { localStorage.setItem(NACHO_HINT_KEY, '1'); } catch (e) {}
 }
+function nachoHintBlocked(el) {
+    var node = el;
+    while (node && node !== document.documentElement) {
+        if (node.hidden) return true;
+        var cs;
+        try { cs = getComputedStyle(node); } catch (e) { return true; }
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return true;
+        node = node.parentElement;
+    }
+    return false;
+}
+function nachoHintBlockers() {
+    var sel = 'button, a, input, textarea, select, [role="button"], [role="link"], [onclick], img, svg, video, .today-tile, .today-more-item, .home-subtitle, .home-title, .home-logos, .mobile-bar, #todayFavorStrip, #dailyXpMeter, #todayCard, #homeHero, #bottomNav, #featuredOnSection, #introVideoSection, #questGuideBanner';
+    var nodes = document.querySelectorAll(sel);
+    var out = [];
+    for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (!el || el.id === 'nachoAskHint') continue;
+        if (el.closest && el.closest('#nachoAskHint')) continue;
+        if (nachoHintBlocked(el)) continue;
+        var b = el.getBoundingClientRect();
+        if (b.width < 2 || b.height < 2) continue;
+        if (b.bottom <= 0 || b.right <= 0 || b.top >= window.innerHeight || b.left >= window.innerWidth) continue;
+        out.push(b);
+    }
+    return out;
+}
+function nachoHintFits(left, top, w, h, blockers) {
+    if (left < 4 || top < 4) return false;
+    if (left + w > window.innerWidth - 4 || top + h > window.innerHeight - 4) return false;
+    var box = { left: left, top: top, right: left + w, bottom: top + h };
+    for (var i = 0; i < blockers.length; i++) {
+        if (nachoBoxesOverlap(box, blockers[i], 3)) return false;
+    }
+    return true;
+}
+function nachoHintSeek(w, h, blockers, anchor) {
+    var best = null;
+    var bestD = Infinity;
+    var step = 12;
+    var maxX = window.innerWidth - w - 4;
+    var maxY = window.innerHeight - h - 4;
+    for (var y = 4; y <= maxY; y += step) {
+        for (var x = 4; x <= maxX; x += step) {
+            if (!nachoHintFits(x, y, w, h, blockers)) continue;
+            var dx = (x + w / 2) - anchor.x;
+            var dy = (y + h / 2) - anchor.y;
+            var d = dx * dx + dy * dy;
+            if (d < bestD) {
+                bestD = d;
+                best = { left: Math.round(x), top: Math.round(y) };
+            }
+        }
+    }
+    return best;
+}
 function placeNachoAskHint() {
     var hint = document.getElementById('nachoAskHint');
     var avatar = document.getElementById('nacho-avatar');
     if (!hint || hint.hidden || !avatar) return;
     var r = avatar.getBoundingClientRect();
-    var narrow = (window.innerWidth || 0) <= 430;
-    if (narrow) {
-        hint.style.maxWidth = '148px';
-        hint.style.whiteSpace = 'normal';
-        hint.style.fontSize = '0.7rem';
-    } else {
-        hint.style.maxWidth = '';
-        hint.style.whiteSpace = '';
-        hint.style.fontSize = '';
+    hint.textContent = 'Tap me to ask a question';
+    hint.style.whiteSpace = 'nowrap';
+    hint.style.maxWidth = 'none';
+    hint.style.fontSize = '';
+    hint.style.padding = '';
+    hint.style.width = 'auto';
+    hint.style.lineHeight = '';
+    hint.style.boxShadow = '';
+    var blockers = nachoHintBlockers();
+    var anchor = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    var widths = [0, 220, 168, 132];
+    var spot = null;
+    for (var i = 0; i < widths.length && !spot; i++) {
+        if (!widths[i]) {
+            hint.style.whiteSpace = 'nowrap';
+            hint.style.maxWidth = 'none';
+        } else {
+            hint.style.whiteSpace = 'normal';
+            hint.style.maxWidth = widths[i] + 'px';
+        }
+        var w = hint.offsetWidth;
+        var h = hint.offsetHeight;
+        if (w < 8 || h < 8 || w > window.innerWidth - 8) continue;
+        spot = nachoHintSeek(w, h, blockers, anchor);
     }
-    var h = hint.offsetHeight || 32;
-    var w = hint.offsetWidth || 160;
-    var mini = document.getElementById('nachoHideBtn');
-    var miniBox = null;
-    if (mini && mini.style.display !== 'none') {
-        var mb = mini.getBoundingClientRect();
-        if (mb.width > 8 && mb.height > 8) miniBox = mb;
+    if (spot) {
+        hint.dataset.place = 'float';
+        hint.style.left = spot.left + 'px';
+        hint.style.top = spot.top + 'px';
+        return;
     }
-    var left = Math.round(r.left);
-    var top = miniBox ? Math.round(miniBox.top - 6 - h) : Math.round(r.top - 8 - h);
-    function visibleBox(id) {
-        var el = document.getElementById(id);
-        if (!el) return null;
-        var cs;
-        try { cs = getComputedStyle(el); } catch (e) { return null; }
-        if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return null;
-        var b = el.getBoundingClientRect();
-        if (b.width < 8 || b.height < 8) return null;
-        return b;
+    hint.textContent = 'Tap me';
+    hint.dataset.place = 'deer';
+    hint.style.whiteSpace = 'nowrap';
+    hint.style.lineHeight = '1';
+    hint.style.boxShadow = '0 1px 2px rgba(0,0,0,0.45)';
+    var size = 11;
+    var hw = 0;
+    var hh = 0;
+    while (size >= 8) {
+        hint.style.fontSize = size + 'px';
+        hint.style.padding = '0 2px';
+        hint.style.maxWidth = Math.max(32, Math.floor(r.width - 2)) + 'px';
+        hw = hint.offsetWidth;
+        hh = hint.offsetHeight;
+        if (hw <= r.width - 2 && hh <= r.height - 2) break;
+        size -= 1;
     }
-    var stop = window.innerWidth - 8;
-    ['fabExpandBtn', 'chatOverlayBtn'].forEach(function(id) {
-        var b = visibleBox(id);
-        if (b) stop = Math.min(stop, b.left - 8);
-    });
-    if (left + w > stop) {
-        hint.style.maxWidth = Math.max(112, Math.floor(stop - left)) + 'px';
-        h = hint.offsetHeight || h;
-        w = hint.offsetWidth || w;
-        if (miniBox) top = Math.round(miniBox.top - 6 - h);
-    }
-    if (top < 8) top = 8;
+    var left = Math.round(r.left + (r.width - hw) / 2);
+    var top = Math.round(r.bottom - hh - 3);
+    if (top < r.top + 1) top = Math.round(r.top + 1);
+    if (left < r.left + 1) left = Math.round(r.left + 1);
+    if (left + hw > r.right - 1) left = Math.round(r.right - hw - 1);
     hint.style.left = left + 'px';
     hint.style.top = top + 'px';
 }
@@ -2062,7 +2120,7 @@ function nachoOpenCloset() {
 window._nachoPlaceHideBtn = placeNachoHideBtn;
 function maybeShowNachoAskHint() {
     if (nachoHoldFirstVisit()) return;
-    if (!isNachoMobile() || !nachoVisible) return;
+    if (!nachoVisible) return;
     var seen = '';
     try { seen = localStorage.getItem(NACHO_HINT_KEY) || ''; } catch (e) { return; }
     if (seen === '1') return;

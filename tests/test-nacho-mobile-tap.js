@@ -12,7 +12,10 @@ function loadPlaywright() {
     var dest = '/tmp/nacho-pw';
     var bundled = path.join(dest, 'node_modules', 'playwright-core');
     if (fs.existsSync(bundled)) return require(bundled);
-    console.log('⚠️  SKIP: Playwright is not installed');
+    var line = 'SKIP: Playwright is not installed, so the phone tap test did not run.';
+    console.log(line);
+    console.error(line);
+    if (process.stdout.write) process.stdout.write(line + '\n');
     process.exit(0);
 }
 
@@ -93,33 +96,65 @@ async function boot(page) {
     const page = await context.newPage();
     page._homeUrl = 'http://127.0.0.1:' + port + '/';
     try {
-        for (const width of [320, 360, 390]) {
-            await page.setViewportSize({ width: width, height: 844 });
-            await boot(page);
-            const near = await page.evaluate(function () {
-                function box(sel) {
-                    var el = typeof sel === 'string' && sel.charAt(0) === '.' ? document.querySelector(sel) : document.getElementById(sel);
-                    if (!el) return null;
-                    var r = el.getBoundingClientRect();
-                    if (r.width < 2 || r.height < 2) return null;
-                    return r;
-                }
-                function overlap(a, b) {
-                    if (!a || !b) return false;
-                    return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
-                }
-                var hint = box('nachoAskHint');
-                var mini = box('nachoHideBtn');
-                return {
-                    aboveMini: mini ? Math.round(mini.top - hint.bottom) : 999,
-                    coversTag: overlap(hint, box('.home-subtitle')),
-                    coversChat: overlap(hint, box('chatOverlayBtn')) || overlap(hint, box('fabExpandBtn'))
-                };
+        const views = [
+            { w: 320, h: 568, touch: true },
+            { w: 360, h: 640, touch: true },
+            { w: 390, h: 844, touch: true },
+            { w: 1280, h: 800, touch: false }
+        ];
+        for (const view of views) {
+            const hintContext = await browser.newContext({
+                viewport: { width: view.w, height: view.h },
+                hasTouch: view.touch,
+                isMobile: view.touch
             });
-            assert.ok(near.aboveMini >= -2 && near.aboveMini <= 16, width + ' hint gap ' + near.aboveMini);
-            assert.strictEqual(near.coversTag, false, width + ' hint covers the hero tagline');
-            assert.strictEqual(near.coversChat, false, width + ' hint covers a chat button');
+            const hintPage = await hintContext.newPage();
+            hintPage._homeUrl = page._homeUrl;
+            await boot(hintPage);
+            const hits = await hintPage.evaluate(function () {
+                var hintEl = document.getElementById('nachoAskHint');
+                var hint = hintEl.getBoundingClientRect();
+                var place = hintEl.getAttribute('data-place') || '';
+                var sel = 'button, a, input, textarea, select, [role="button"], [role="link"], [onclick], img, svg, video, .today-tile, .today-more-item, .home-subtitle, .home-title, .home-logos, .mobile-bar, #todayFavorStrip, #dailyXpMeter, #todayCard, #homeHero, #bottomNav, #featuredOnSection, #introVideoSection, #questGuideBanner';
+                var nodes = document.querySelectorAll(sel);
+                var bad = [];
+                function hidden(el) {
+                    var node = el;
+                    while (node && node !== document.documentElement) {
+                        if (node.hidden) return true;
+                        var cs = getComputedStyle(node);
+                        if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return true;
+                        node = node.parentElement;
+                    }
+                    return false;
+                }
+                for (var i = 0; i < nodes.length; i++) {
+                    var el = nodes[i];
+                    if (el === hintEl || (el.closest && el.closest('#nachoAskHint'))) continue;
+                    if (place === 'deer' && (el.id === 'nacho-avatar' || (el.closest && el.closest('#nacho-avatar')))) continue;
+                    if (hidden(el)) continue;
+                    var b = el.getBoundingClientRect();
+                    if (b.width < 2 || b.height < 2) continue;
+                    if (b.bottom <= 0 || b.right <= 0 || b.top >= window.innerHeight || b.left >= window.innerWidth) continue;
+                    var overlaps = !(hint.right <= b.left || hint.left >= b.right || hint.bottom <= b.top || hint.top >= b.bottom);
+                    if (!overlaps) continue;
+                    var name = el.id || el.getAttribute('aria-label') || (el.className && String(el.className).split(' ')[0]) || el.tagName;
+                    bad.push(name + (place ? ' [' + place + ']' : ''));
+                }
+                var avatar = document.getElementById('nacho-avatar');
+                var ar = avatar ? avatar.getBoundingClientRect() : null;
+                var outsideDeer = place === 'deer' && ar && (hint.left < ar.left - 1 || hint.right > ar.right + 1 || hint.top < ar.top - 1 || hint.bottom > ar.bottom + 1);
+                return { place: place, text: hintEl.textContent, bad: bad, top: Math.round(hint.top), bottom: Math.round(hint.bottom), outsideDeer: !!outsideDeer };
+            });
+            assert.ok(hits.place === 'float' || hits.place === 'deer', view.w + 'x' + view.h + ' missing hint place');
+            if (hits.place === 'deer') {
+                assert.strictEqual(hits.text, 'Tap me');
+                assert.strictEqual(hits.outsideDeer, false, view.w + 'x' + view.h + ' Tap me spills off the deer');
+            }
+            assert.deepStrictEqual(hits.bad, [], view.w + 'x' + view.h + ' hint covers ' + hits.bad.join(', ') + ' at y ' + hits.top + '-' + hits.bottom);
+            await hintContext.close();
         }
+        await boot(page);
         await page.tap('#nachoAskHint');
         await page.waitForFunction(function () {
             var bubble = document.getElementById('nacho-bubble');
