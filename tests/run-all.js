@@ -61,6 +61,7 @@ const TESTS = [
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Achievement share cards', file: 'test-achievement-share.js' },
     { name: 'Share one link', file: 'test-share-one-link.js' },
+    { name: 'Certificate fast path', file: 'test-cert-fast-path.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Flex day goal', file: 'test-flex-day.js' },
     { name: 'Raid HP remaining', file: 'test-raid-hp.js' },

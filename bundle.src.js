@@ -22406,6 +22406,191 @@ window.nachoQuizAnswer = function(btn, correct) {
         go(prevId);
     };
 
+    var CERT_VERIFY_URL = 'https://us-central1-bitcoin-education-archive.cloudfunctions.net/verifyCertificate';
+    var CERT_ID_RE = /^(?:CERT-)?[A-Za-z0-9-]{8,80}$/;
+    var CERT_TIMEOUT_MS = 10000;
+
+    function _certEl(tag, css, text) {
+        var node = document.createElement(tag);
+        if (css) node.style.cssText = css;
+        if (text != null) node.textContent = text;
+        return node;
+    }
+    function _certClear(node) {
+        while (node && node.firstChild) node.removeChild(node.firstChild);
+    }
+    function _certOpenQuest() {
+        var home = document.getElementById('home');
+        if (home) {
+            home.classList.remove('hidden');
+            home.style.visibility = '';
+        }
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.style.display = 'none';
+        window._certPainted = '';
+        if (typeof window.goHome === 'function') {
+            try { window.goHome(); return; } catch (e) {}
+        }
+        try { history.pushState({ home: true }, '', window.location.pathname + window.location.search); } catch (e2) {}
+    }
+    function _certActions(parent, certId, withRetry) {
+        var row = _certEl('div', 'display:flex;flex-direction:column;gap:8px;align-items:center;margin-top:16px;');
+        if (withRetry) {
+            var retry = _certEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Retry');
+            retry.type = 'button';
+            retry.addEventListener('click', function () {
+                window._certPainted = '';
+                if (typeof window.renderCertVerification === 'function') window.renderCertVerification(certId, true);
+                else _paintBundleCert(certId, true);
+            });
+            row.appendChild(retry);
+        }
+        var open = _certEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:transparent;color:var(--text,#e2e8f0);border:1px solid var(--border,#333);border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+        open.type = 'button';
+        open.addEventListener('click', _certOpenQuest);
+        row.appendChild(open);
+        parent.appendChild(row);
+    }
+    function _certMount(fc) {
+        _certClear(fc);
+        var wrap = _certEl('div', 'max-width:500px;margin:0 auto;padding:30px 16px 120px;text-align:center;');
+        fc.appendChild(wrap);
+        return wrap;
+    }
+    function _certPlaceholder(fc) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:2rem;margin-bottom:12px;', '⏳'));
+        wrap.appendChild(_certEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.95rem;', 'Verifying certificate…'));
+    }
+    function _certNotFound(fc) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:3rem;margin-bottom:12px;', '❌'));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.3rem;', 'Certificate Not Found'));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.5;margin:0;', 'This certificate ID does not exist or has been revoked.'));
+        _certActions(wrap, '', false);
+    }
+    function _certFailed(fc, certId, message) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:2rem;margin-bottom:12px;', '⚠️'));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.2rem;', 'Could not verify this certificate'));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.9rem;line-height:1.5;margin:0;', message));
+        _certActions(wrap, certId, true);
+    }
+    function _certTitle(quest) {
+        quest = String(quest || '');
+        if (quest === 'protocol-expert') return 'Bitcoin Protocol Expert';
+        if (quest.indexOf('trail_') === 0) return 'Nacho Trail Complete';
+        return 'Bitcoin Scholar';
+    }
+    function _certValid(fc, certId, payload) {
+        var quest = String(payload.quest || '');
+        var title = _certTitle(quest);
+        var technical = quest === 'protocol-expert';
+        var emoji = technical ? '🛠️' : (quest.indexOf('trail_') === 0 ? '🏔️' : '🎓');
+        var color = technical ? '#3b82f6' : '#f7931a';
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;color:#22c55e;font-size:0.8rem;font-weight:700;margin-bottom:16px;', '✅ VERIFIED CERTIFICATE'));
+        wrap.appendChild(_certEl('div', 'font-size:4rem;margin:8px 0 12px;', emoji));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);font-size:1.4rem;font-weight:900;margin:0 0 4px;', title));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Education Archive Certification'));
+        var card = _certEl('div', 'background:var(--card-bg,#141425);border:2px solid ' + color + ';border-radius:20px;padding:24px;margin:0 auto 20px;text-align:center;max-width:440px;');
+        card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;', 'AWARDED TO'));
+        card.appendChild(_certEl('div', 'color:var(--heading,#e2e8f0);font-size:1.5rem;font-weight:900;margin-bottom:16px;word-break:break-word;', String(payload.name || '')));
+        var line = _certEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.6;margin-bottom:16px;');
+        line.appendChild(document.createTextNode('has successfully passed the'));
+        line.appendChild(_certEl('br'));
+        line.appendChild(_certEl('strong', 'color:' + color + ';', title));
+        line.appendChild(_certEl('br'));
+        line.appendChild(document.createTextNode('certification examination.'));
+        card.appendChild(line);
+        if (payload.score) card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;margin-bottom:12px;', 'Score: ' + String(payload.score)));
+        card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;', 'Date: ' + String(payload.date || '')));
+        var idRow = _certEl('div', 'margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#333);');
+        idRow.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.65rem;font-family:monospace;word-break:break-all;', 'Certificate ID: ' + String(certId)));
+        card.appendChild(idRow);
+        wrap.appendChild(card);
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.82rem;margin:0 0 16px;', 'Want to earn your own Bitcoin certification?'));
+        var learn = _certEl('button', 'width:100%;max-width:320px;padding:14px 28px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+        learn.type = 'button';
+        learn.addEventListener('click', _certOpenQuest);
+        wrap.appendChild(learn);
+        window._certPainted = certId;
+        try { fc.scrollTop = 0; } catch (e) {}
+    }
+    function _certTimedOut(err) {
+        if (!err) return false;
+        if (err.name === 'AbortError' || err.name === 'TimeoutError') return true;
+        var msg = String(err.message || '');
+        return msg.indexOf('abort') !== -1 || msg.indexOf('Abort') !== -1 || msg.indexOf('timed out') !== -1;
+    }
+    function _bundleBeginCertVerify(certId, force) {
+        if (!force && window._certVerify && window._certVerifyId === certId) return window._certVerify;
+        window._certVerifyId = certId;
+        window._certVerifyGen = (window._certVerifyGen || 0) + 1;
+        var gen = window._certVerifyGen;
+        var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, CERT_TIMEOUT_MS);
+        var promise = fetch(CERT_VERIFY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { certId: certId } }),
+            signal: ctrl ? ctrl.signal : undefined
+        }).then(function (res) {
+            return res.json().then(function (body) {
+                if (!res.ok || (body && body.error)) {
+                    var err = new Error((body && body.error && body.error.message) || 'Certificate check failed');
+                    throw err;
+                }
+                return (body && body.result) ? body.result : {};
+            });
+        });
+        var settled = promise.then(function (result) {
+            clearTimeout(timer);
+            return result;
+        }, function (err) {
+            clearTimeout(timer);
+            throw err;
+        });
+        settled._gen = gen;
+        window._certVerify = settled;
+        return settled;
+    }
+    function _paintBundleCert(certId, force) {
+        var fc = document.getElementById('forumContainer');
+        if (!fc) return;
+        if (!CERT_ID_RE.test(certId)) {
+            _certNotFound(fc);
+            return;
+        }
+        if (!force && window._certPainted === certId) return;
+        if (!force && window._bundleCertPainting === certId) return;
+        if (!force && window._certVerifyId === certId) {
+            var already = fc.textContent || '';
+            if (already.indexOf('Verifying certificate') !== -1 || already.indexOf('VERIFIED CERTIFICATE') !== -1 || already.indexOf('Could not verify') !== -1) return;
+        }
+        window._bundleCertPainting = certId;
+        window._certPainted = '';
+        fc.style.display = 'block';
+        _certPlaceholder(fc);
+        var promise = _bundleBeginCertVerify(certId, !!force);
+        var gen = promise._gen;
+        promise.then(function (payload) {
+            if (window._certVerifyGen !== gen) return;
+            window._bundleCertPainting = '';
+            if (!payload || payload.valid !== true) {
+                _certNotFound(fc);
+                return;
+            }
+            _certValid(fc, certId, payload);
+        }, function (err) {
+            if (window._certVerifyGen !== gen) return;
+            window._bundleCertPainting = '';
+            _certFailed(fc, certId, _certTimedOut(err)
+                ? 'Verification timed out. The certificate check took longer than 10 seconds.'
+                : 'Something went wrong verifying this certificate. Check your connection and try again.');
+        });
+    }
+
     window.go = async function go(id, btn, fromPopState) {
         if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         if (id === 'questhub' || id === 'raid' || id === 'raid-hub') {
@@ -22439,49 +22624,56 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         if (typeof id === 'string' && id.indexOf('cert/') === 0) {
             var _certRaw = id.slice('cert/'.length).split(/[?#]/)[0];
-            var _certOk = /^(?:CERT-)?[A-Za-z0-9-]{8,80}$/.test(_certRaw);
+            var _certOk = CERT_ID_RE.test(_certRaw);
             if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
             var _homeEl = document.getElementById('home');
             if (_homeEl) _homeEl.classList.add('hidden');
             var _heroEl = document.getElementById('hero');
-            if (_heroEl) { _heroEl.innerHTML = ''; _heroEl.style.display = 'none'; }
+            if (_heroEl) { _heroEl.textContent = ''; _heroEl.style.display = 'none'; }
             var _msgsEl = document.getElementById('msgs');
-            if (_msgsEl) { _msgsEl.innerHTML = ''; _msgsEl.style.display = 'none'; }
+            if (_msgsEl) { _msgsEl.textContent = ''; _msgsEl.style.display = 'none'; }
             var _fc = document.getElementById('forumContainer');
-            if (_fc) {
-                _fc.style.display = 'block';
-                _fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;">' +
-                    '<div style="font-size:2rem;margin-bottom:12px;">⏳</div>' +
-                    '<div style="color:var(--text-muted);">Verifying certificate...</div></div>';
-            }
+            if (_fc) _fc.style.display = 'block';
+            // Fragment-only push keeps ?ref= until captureReferralCode stores it.
             try { history.pushState({ channel: id }, '', '#' + id); } catch (e) {}
             if (!_certOk) {
-                if (_fc) {
-                    _fc.innerHTML = '<div style="max-width:500px;margin:0 auto;padding:40px 16px;text-align:center;">' +
-                        '<h2 style="color:var(--heading);">Certificate Not Found</h2></div>';
-                }
+                if (_fc) _certNotFound(_fc);
                 return;
             }
+            // Start the callable over fetch even when an earlier script already did.
+            // Reuses window._certVerify for this id, so App Check cannot block it.
+            _bundleBeginCertVerify(_certRaw, false);
+            // Paint immediately. The old 4s poll called a helper that returned
+            // without drawing anything when renderCertVerification was still missing.
             function _showCertPage() {
-                if (typeof window.renderCertVerification === 'function') window.renderCertVerification(_certRaw);
+                if (typeof window.renderCertVerification === 'function') {
+                    window.renderCertVerification(_certRaw);
+                    return;
+                }
+                _paintBundleCert(_certRaw, false);
             }
-            if (typeof window.renderCertVerification === 'function') {
-                _showCertPage();
-            } else {
-                var _certSrc = 'shareable-certs.js?v=20261026_v2391';
+            _showCertPage();
+            if (typeof window.renderCertVerification !== 'function') {
+                var _certSrc = 'shareable-certs.js?v=20261028_v2410';
                 var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
                 if (!_existingCertScript) {
                     var _certScript = document.createElement('script');
                     _certScript.src = _certSrc;
-                    _certScript.onload = _showCertPage;
+                    _certScript.onload = function () {
+                        if (window._certPainted === _certRaw) return;
+                        _showCertPage();
+                    };
                     document.head.appendChild(_certScript);
                 } else {
                     var _certWait = 0;
                     var _certTimer = setInterval(function () {
                         _certWait += 50;
-                        if (typeof window.renderCertVerification === 'function' || _certWait > 4000) {
+                        if (typeof window.renderCertVerification === 'function') {
                             clearInterval(_certTimer);
-                            _showCertPage();
+                            if (window._certPainted !== _certRaw) window.renderCertVerification(_certRaw);
+                        } else if (_certWait > 4000) {
+                            clearInterval(_certTimer);
+                            if (window._certPainted !== _certRaw) _paintBundleCert(_certRaw, false);
                         }
                     }, 50);
                 }

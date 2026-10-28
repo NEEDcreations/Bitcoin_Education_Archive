@@ -67,7 +67,7 @@ firebase.messaging().onBackgroundMessage(function (payload) {
 } catch (e) { /* FCM scripts are optional; cache and click handling still run */ }
 
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v2407';
+const CACHE_NAME = 'btc-archive-v2410';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
@@ -175,19 +175,61 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // HTML/JS/CSS: network-first with cache fallback.
-  // Use cache:'no-cache' so fetch() bypasses the browser HTTP cache and
-  // always validates with the server. This ensures ?v= cache-busters work
-  // even when the service worker intercepts the request. (Fix: 2026-04-27)
-  event.respondWith(
-    fetch(event.request, { cache: 'no-cache' }).then(response => {
-      if (response.ok) {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-      }
-      return response;
-    }).catch(() =>
-      caches.open(CACHE_NAME).then(cache => cache.match(event.request))
-    )
-  );
+  // Versioned assets (?v=) are immutable for that URL. Serve them from the
+  // cache when we have them so a cold deep link does not wait on the network.
+  if (url.searchParams.has('v') && /\.(?:js|css|mjs|html)$/i.test(url.pathname)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(cache =>
+        cache.match(event.request).then(cached => {
+          if (cached) return cached;
+          return fetch(event.request).then(response => {
+            if (response && response.ok) cache.put(event.request, response.clone());
+            return response;
+          }).catch(() => cached || new Response('', { status: 504 }));
+        })
+      )
+    );
+    return;
+  }
+
+  // HTML/JS/CSS: network-first with a short timeout, then the cache.
+  // A stalled network must not hang the page when a cached copy exists.
+  // cache:'no-cache' bypasses the browser HTTP cache so an unversioned
+  // file still revalidates with the server. (Fix: 2026-04-27)
+  var NETWORK_FIRST_TIMEOUT_MS = 3000;
+  event.respondWith(networkFirst(event.request, NETWORK_FIRST_TIMEOUT_MS));
 });
+
+function putOk(request, response) {
+  if (!response || !response.ok) return;
+  var copy = response.clone();
+  caches.open(CACHE_NAME).then(function (cache) { cache.put(request, copy); });
+}
+
+function matchCache(request) {
+  return caches.open(CACHE_NAME).then(function (cache) { return cache.match(request); });
+}
+
+function networkFirst(request, timeoutMs) {
+  var fetchPromise = fetch(request, { cache: 'no-cache' }).then(function (response) {
+    putOk(request, response);
+    return response;
+  });
+  var timeoutPromise = new Promise(function (resolve) {
+    setTimeout(function () {
+      matchCache(request).then(function (cached) { resolve(cached || null); });
+    }, timeoutMs);
+  });
+  return Promise.race([
+    fetchPromise.catch(function () { return null; }),
+    timeoutPromise
+  ]).then(function (winner) {
+    if (winner) return winner;
+    return fetchPromise.catch(function () { return null; }).then(function (response) {
+      if (response) return response;
+      return matchCache(request).then(function (cached) {
+        return cached || new Response('', { status: 504 });
+      });
+    });
+  });
+}

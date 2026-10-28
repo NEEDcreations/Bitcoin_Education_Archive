@@ -73,7 +73,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
-    <link rel="preload" href="bundle.min.js?v=20261027_v2395" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261028_v2410" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
@@ -2126,7 +2126,7 @@
     <script src="ranking.js?v=20261028_v2403" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261027_v2395" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261028_v2410" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
@@ -2155,7 +2155,7 @@
             'scholar.js?v=20261026_v2386','beats.js?v=20261026_v2391',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
-            'first-purchase.js?v=20260411','shareable-certs.js?v=20261026_v2391',
+            'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
@@ -2210,6 +2210,208 @@
     (function() {
         var fullHash = (window.location.hash || '').replace('#', '');
         var hash = fullHash.split('/')[0].toLowerCase();
+        var CERT_VERIFY_URL = 'https://us-central1-bitcoin-education-archive.cloudfunctions.net/verifyCertificate';
+        var CERT_ID_RE = /^(?:CERT-)?[A-Za-z0-9-]{8,80}$/;
+        var CERT_TIMEOUT_MS = 10000;
+        function _cEl(tag, css, text) {
+            var node = document.createElement(tag);
+            if (css) node.style.cssText = css;
+            if (text != null) node.textContent = text;
+            return node;
+        }
+        function _cClear(node) {
+            while (node && node.firstChild) node.removeChild(node.firstChild);
+        }
+        function _cShell() {
+            var home = document.getElementById('home');
+            if (home) home.classList.add('hidden');
+            var hero = document.getElementById('hero');
+            if (hero) hero.style.display = 'none';
+            var msgs = document.getElementById('msgs');
+            if (msgs) msgs.style.display = 'none';
+            var fc = document.getElementById('forumContainer');
+            if (fc) fc.style.display = 'block';
+            return fc;
+        }
+        function _cOpenQuest() {
+            var home = document.getElementById('home');
+            if (home) { home.classList.remove('hidden'); home.style.visibility = ''; }
+            var fc = document.getElementById('forumContainer');
+            if (fc) fc.style.display = 'none';
+            window._certPainted = '';
+            if (typeof window.goHome === 'function') {
+                try { window.goHome(); return; } catch (e) {}
+            }
+            try { history.pushState({ home: true }, '', window.location.pathname + window.location.search); } catch (e2) {}
+        }
+        function _cActions(parent, certId, withRetry) {
+            var row = _cEl('div', 'display:flex;flex-direction:column;gap:8px;align-items:center;margin-top:16px;');
+            if (withRetry) {
+                var retry = _cEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Retry');
+                retry.type = 'button';
+                retry.addEventListener('click', function () {
+                    window._certPainted = '';
+                    window.renderCertVerification(certId, true);
+                });
+                row.appendChild(retry);
+            }
+            var open = _cEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:transparent;color:var(--text,#e2e8f0);border:1px solid var(--border,#333);border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+            open.type = 'button';
+            open.addEventListener('click', _cOpenQuest);
+            row.appendChild(open);
+            parent.appendChild(row);
+        }
+        function _cMount(fc) {
+            _cClear(fc);
+            var wrap = _cEl('div', 'max-width:500px;margin:0 auto;padding:30px 16px 120px;text-align:center;');
+            fc.appendChild(wrap);
+            return wrap;
+        }
+        function _cPlaceholder(fc) {
+            var wrap = _cMount(fc);
+            wrap.appendChild(_cEl('div', 'font-size:2rem;margin-bottom:12px;', '⏳'));
+            wrap.appendChild(_cEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.95rem;', 'Verifying certificate…'));
+        }
+        function _cNotFound(fc) {
+            var wrap = _cMount(fc);
+            wrap.appendChild(_cEl('div', 'font-size:3rem;margin-bottom:12px;', '❌'));
+            wrap.appendChild(_cEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.3rem;', 'Certificate Not Found'));
+            wrap.appendChild(_cEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.5;margin:0;', 'This certificate ID does not exist or has been revoked.'));
+            _cActions(wrap, '', false);
+        }
+        function _cFailed(fc, certId, message) {
+            var wrap = _cMount(fc);
+            wrap.appendChild(_cEl('div', 'font-size:2rem;margin-bottom:12px;', '⚠️'));
+            wrap.appendChild(_cEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.2rem;', 'Could not verify this certificate'));
+            wrap.appendChild(_cEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.9rem;line-height:1.5;margin:0;', message));
+            _cActions(wrap, certId, true);
+        }
+        function _cTitle(quest) {
+            quest = String(quest || '');
+            if (quest === 'protocol-expert') return 'Bitcoin Protocol Expert';
+            if (quest.indexOf('trail_') === 0) return 'Nacho Trail Complete';
+            return 'Bitcoin Scholar';
+        }
+        function _cValid(fc, certId, payload) {
+            var quest = String(payload.quest || '');
+            var title = _cTitle(quest);
+            var technical = quest === 'protocol-expert';
+            var emoji = technical ? '🛠️' : (quest.indexOf('trail_') === 0 ? '🏔️' : '🎓');
+            var color = technical ? '#3b82f6' : '#f7931a';
+            var wrap = _cMount(fc);
+            wrap.appendChild(_cEl('div', 'display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;color:#22c55e;font-size:0.8rem;font-weight:700;margin-bottom:16px;', '✅ VERIFIED CERTIFICATE'));
+            wrap.appendChild(_cEl('div', 'font-size:4rem;margin:8px 0 12px;', emoji));
+            wrap.appendChild(_cEl('h2', 'color:var(--heading,#e2e8f0);font-size:1.4rem;font-weight:900;margin:0 0 4px;', title));
+            wrap.appendChild(_cEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Education Archive Certification'));
+            var card = _cEl('div', 'background:var(--card-bg,#141425);border:2px solid ' + color + ';border-radius:20px;padding:24px;margin:0 auto 20px;text-align:center;max-width:440px;');
+            card.appendChild(_cEl('div', 'color:var(--text-faint,#64748b);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;', 'AWARDED TO'));
+            card.appendChild(_cEl('div', 'color:var(--heading,#e2e8f0);font-size:1.5rem;font-weight:900;margin-bottom:16px;word-break:break-word;', String(payload.name || '')));
+            var line = _cEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.6;margin-bottom:16px;');
+            line.appendChild(document.createTextNode('has successfully passed the'));
+            line.appendChild(_cEl('br'));
+            line.appendChild(_cEl('strong', 'color:' + color + ';', title));
+            line.appendChild(_cEl('br'));
+            line.appendChild(document.createTextNode('certification examination.'));
+            card.appendChild(line);
+            if (payload.score) card.appendChild(_cEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;margin-bottom:12px;', 'Score: ' + String(payload.score)));
+            card.appendChild(_cEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;', 'Date: ' + String(payload.date || '')));
+            var idRow = _cEl('div', 'margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#333);');
+            idRow.appendChild(_cEl('div', 'color:var(--text-faint,#64748b);font-size:0.65rem;font-family:monospace;word-break:break-all;', 'Certificate ID: ' + String(certId)));
+            card.appendChild(idRow);
+            wrap.appendChild(card);
+            wrap.appendChild(_cEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.82rem;margin:0 0 16px;', 'Want to earn your own Bitcoin certification?'));
+            var learn = _cEl('button', 'width:100%;max-width:320px;padding:14px 28px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+            learn.type = 'button';
+            learn.addEventListener('click', _cOpenQuest);
+            wrap.appendChild(learn);
+            window._certPainted = certId;
+            try { fc.scrollTop = 0; } catch (e) {}
+        }
+        function _cTimedOut(err) {
+            if (!err) return false;
+            if (err.name === 'AbortError' || err.name === 'TimeoutError') return true;
+            var msg = String(err.message || '');
+            return msg.indexOf('abort') !== -1 || msg.indexOf('Abort') !== -1 || msg.indexOf('timed out') !== -1;
+        }
+        function _cBegin(certId, force) {
+            if (!force && window._certVerify && window._certVerifyId === certId) return window._certVerify;
+            window._certVerifyId = certId;
+            window._certVerifyGen = (window._certVerifyGen || 0) + 1;
+            var gen = window._certVerifyGen;
+            var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+            var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, CERT_TIMEOUT_MS);
+            var promise = fetch(CERT_VERIFY_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: { certId: certId } }),
+                signal: ctrl ? ctrl.signal : undefined
+            }).then(function (res) {
+                return res.json().then(function (body) {
+                    if (!res.ok || (body && body.error)) {
+                        var err = new Error((body && body.error && body.error.message) || 'Certificate check failed');
+                        throw err;
+                    }
+                    return (body && body.result) ? body.result : {};
+                });
+            });
+            var settled = promise.then(function (result) {
+                clearTimeout(timer);
+                return result;
+            }, function (err) {
+                clearTimeout(timer);
+                throw err;
+            });
+            settled._gen = gen;
+            window._certVerify = settled;
+            return settled;
+        }
+        // Defined before the bundle. shareable-certs.js replaces this once it loads.
+        window.renderCertVerification = function (certId, force) {
+            var fc = _cShell();
+            if (!fc) return;
+            var id = String(certId || '').split(/[?#]/)[0];
+            if (!CERT_ID_RE.test(id)) {
+                _cNotFound(fc);
+                return;
+            }
+            if (!force && window._certPainted === id) {
+                fc.style.display = 'block';
+                return;
+            }
+            if (!force && window._certVerifyId === id) {
+                var already = fc.textContent || '';
+                if (already.indexOf('Verifying certificate') !== -1 || already.indexOf('VERIFIED CERTIFICATE') !== -1 || already.indexOf('Could not verify') !== -1 || already.indexOf('Certificate Not Found') !== -1) {
+                    fc.style.display = 'block';
+                    return;
+                }
+            }
+            window._certPainted = '';
+            _cPlaceholder(fc);
+            var promise = _cBegin(id, !!force);
+            var gen = promise._gen;
+            promise.then(function (payload) {
+                if (window._certVerifyGen !== gen) return;
+                if (!payload || payload.valid !== true) {
+                    _cNotFound(fc);
+                    return;
+                }
+                _cValid(fc, id, payload);
+            }, function (err) {
+                if (window._certVerifyGen !== gen) return;
+                _cFailed(fc, id, _cTimedOut(err)
+                    ? 'Verification timed out. The certificate check took longer than 10 seconds.'
+                    : 'Something went wrong verifying this certificate. Check your connection and try again.');
+            });
+        };
+        if (hash === 'cert') {
+            var _earlyCertId = fullHash.split('/').slice(1).join('/').split(/[?#]/)[0];
+            if (CERT_ID_RE.test(_earlyCertId)) {
+                window._certVerify = _cBegin(_earlyCertId, false);
+                window.renderCertVerification(_earlyCertId, false);
+            } else if (_earlyCertId) {
+                window.renderCertVerification(_earlyCertId, false);
+            }
+        }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
             'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261027_v2393'],
@@ -2228,7 +2430,7 @@
             'app':           ['quests.js?v=20261027_v2393'],
             'timechain-tv':  ['timechain-tv.js?v=20261026_v2383'],
             'tv':            ['timechain-tv.js?v=20261026_v2383'],
-            'cert':          ['shareable-certs.js?v=20261026_v2391']
+            'cert':          ['shareable-certs.js?v=20261028_v2410']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {
@@ -2254,8 +2456,14 @@
                 s.onload = _onScriptLoad;
                 document.head.appendChild(s);
             });
-            // Also trigger the full deferred batch early so everything else loads too
-            if (typeof window._loadDeferred === 'function') window._loadDeferred();
+            // Wait until firebase-firestore-compat.js has run. Calling _loadDeferred
+            // during parse injects irl-sync.js before firebase.firestore exists.
+            if (typeof window._loadDeferred === 'function') {
+                var _firestoreReady = (typeof firebase !== 'undefined' && typeof firebase.firestore === 'function');
+                if (_firestoreReady) window._loadDeferred();
+                else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window._loadDeferred);
+                else window._loadDeferred();
+            }
         }
     })();
     </script>
