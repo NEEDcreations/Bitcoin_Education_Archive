@@ -3457,6 +3457,8 @@ function paintInviteTier(count) {
     var tile = document.getElementById('homeInvitesTile');
     if (tierEl) tierEl.textContent = progress.tierLabel;
     if (noteEl) noteEl.textContent = progress.countText;
+    var helpEl = document.getElementById('homeInvitesInfoText');
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp();
     if (progEl) progEl.textContent = progress.progressText;
     if (tile) {
         tile.setAttribute('data-referral-tier', String(progress.level));
@@ -3511,6 +3513,7 @@ window.refreshHomeStrip = function() {
     if (document.body) document.body.classList.toggle('home-signed-in', signed);
     if (!signed) {
         closeReferralTierLadder();
+        setMaxiInfoOpen(false);
         if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
         return;
@@ -3616,13 +3619,73 @@ function bindReferralTierLadder() {
         if (typeof openInviteFriends === 'function') openInviteFriends(true);
     });
     document.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape') closeReferralTierLadder();
+        if (ev.key === 'Escape') {
+            closeReferralTierLadder();
+            setMaxiInfoOpen(false);
+        }
     });
+    document.addEventListener('click', function (ev) {
+        var tip = document.getElementById('homeInvitesInfoText');
+        if (!tip || !tip.classList.contains('is-open')) return;
+        var t = ev.target;
+        if (t && t.closest && (t.closest('[data-maxi-info]') || t.closest('#homeInvitesInfoText'))) return;
+        setMaxiInfoOpen(false);
+    });
+    var info = document.getElementById('homeInvitesInfo');
+    if (info) info.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        toggleMaxiInfo();
+    });
+    var help = document.getElementById('homeInvitesInfoText');
+    var api = referralTierApi();
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp();
 }
 bindReferralTierLadder();
 
+function setMaxiInfoOpen(open) {
+    var tip = document.getElementById('homeInvitesInfoText');
+    var btn = document.getElementById('homeInvitesInfo');
+    if (!tip) return;
+    if (tip.parentElement !== document.body) document.body.appendChild(tip);
+    var api = referralTierApi();
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp();
+    tip.classList.toggle('is-open', !!open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) return;
+    var anchor = btn || document.getElementById('homeInvitesNote');
+    if (!anchor) return;
+    var rect = anchor.getBoundingClientRect();
+    var width = Math.min(240, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    tip.style.width = width + 'px';
+    tip.style.left = left + 'px';
+    var top = rect.bottom + 6;
+    tip.style.top = top + 'px';
+    if (top + tip.offsetHeight > window.innerHeight - 8) {
+        tip.style.top = Math.max(8, rect.top - tip.offsetHeight - 6) + 'px';
+    }
+}
+
+function toggleMaxiInfo() {
+    var tip = document.getElementById('homeInvitesInfoText');
+    if (!tip) return;
+    if (invitesSurfaceHidden()) {
+        setMaxiInfoOpen(false);
+        return;
+    }
+    setMaxiInfoOpen(!tip.classList.contains('is-open'));
+}
+
 function openHomeInvites(ev) {
     var target = ev && ev.target;
+    if (target && target.closest && target.closest('[data-maxi-info]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleMaxiInfo();
+        return;
+    }
     if (target && target.closest && target.closest('[data-tier-ladder]')) {
         if (ev.preventDefault) ev.preventDefault();
         if (ev.stopPropagation) ev.stopPropagation();

@@ -74,6 +74,11 @@
         return Math.floor(Number(user.points) || 0) >= MAXI_RANK_POINTS;
     }
 
+    function maxiCountHelp() {
+        var points = String(MAXI_RANK_POINTS).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return 'Friends you invited who reached Maxi rank (' + points + '+ XP). Only verified referrals count.';
+    }
+
     // Why the referrer's live count has to be recomputed from a users/{uid}
     // write. The referral doc is not written again when the referee later
     // reaches Maxi, is banned, is deleted, or is sats-disabled.
@@ -229,6 +234,7 @@
         tierForCount: tierForCount,
         tierProgress: tierProgress,
         holdsMaxiRank: holdsMaxiRank,
+        maxiCountHelp: maxiCountHelp,
         recountReasons: recountReasons,
         referredUidOf: referredUidOf,
         creditedReferral: creditedReferral,

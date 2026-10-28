@@ -176,6 +176,18 @@ test('clients cannot write referralMaxiCount', () => {
     });
 });
 
+test('the reached-Maxi explainer uses the rank threshold', () => {
+    assert.strictEqual(tiers.MAXI_RANK_POINTS, 2140);
+    assert.strictEqual(
+        tiers.maxiCountHelp(),
+        'Friends you invited who reached Maxi rank (2,140+ XP). Only verified referrals count.'
+    );
+    const html = read('index.html');
+    assert.ok(html.includes('aria-describedby="homeInvitesInfoText"'));
+    assert.ok(html.includes('data-maxi-info="1"'));
+    assert.strictEqual(read('ranking.js').includes('2,140'), false);
+});
+
 test('a user write names why the referrer count is recomputed', () => {
     assert.deepStrictEqual(tiers.recountReasons({ points: 2139 }, { points: 2140 }), ['reached-maxi']);
     assert.deepStrictEqual(tiers.recountReasons({ points: 100 }, { points: 500 }), []);
