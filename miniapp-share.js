@@ -24,6 +24,8 @@
         forum: 1, marketplace: 1, irl: 1, meetup: 1, walk: 1
     };
     // DMs stay private. A share from the DM tab still opens public Global Chat.
+    // Display order: Pleb Underground stays channel 0, then the rest A–Z.
+    // Numbers below are the on-screen channel numbers after that sort.
     var FALLBACK_STATIONS = [
         { n: 0, id: 'pleb-underground', name: 'Pleb Underground Unlimited' },
         { n: 1, id: 'ai-nostr', name: 'AI, Nostr & Decentralized Web' },
@@ -32,10 +34,10 @@
         { n: 4, id: 'conferences-events', name: 'Conferences & Events' },
         { n: 5, id: 'culture-travel', name: 'Culture, Travel & Adoption' },
         { n: 6, id: 'dev-privacy-nodes', name: 'Dev, Privacy, Nodes & FLOSS' },
-        { n: 7, id: 'economics-money', name: 'Economics & Money' },
-        { n: 8, id: 'freedom-sovereignty', name: 'Freedom, Sovereignty & Homesteading' },
-        { n: 9, id: 'health-fitness', name: 'Health, Fitness & Mindfulness' },
-        { n: 10, id: 'history', name: 'History & Documentaries' },
+        { n: 7, id: 'history', name: 'Documentaries & History' },
+        { n: 8, id: 'economics-money', name: 'Economics & Money' },
+        { n: 9, id: 'freedom-sovereignty', name: 'Freedom, Sovereignty & Homesteading' },
+        { n: 10, id: 'health-fitness', name: 'Health, Fitness & Mindfulness' },
         { n: 11, id: 'kids-family', name: 'Kids & Family' },
         { n: 12, id: 'lightning', name: 'Lightning, Ecash & Other L2s' },
         { n: 13, id: 'memes-comedy', name: 'Memes & Comedy' },
@@ -48,9 +50,18 @@
         { n: 20, id: 'future-predictions', name: 'Trading & Predictions' },
         { n: 21, id: 'tutorials', name: 'Tutorials, Builders & DIY' }
     ];
+    // Frozen numbers from before the alphabetical reorder. #timechain-tv/9
+    // still opens Health, Fitness & Mindfulness. New shares use the station id.
+    var LEGACY_NUMBERS = [
+        'pleb-underground', 'ai-nostr', 'art-philosophy', 'orange-pill', 'conferences-events',
+        'culture-travel', 'dev-privacy-nodes', 'economics-money', 'freedom-sovereignty',
+        'health-fitness', 'history', 'kids-family', 'lightning', 'memes-comedy', 'mining',
+        'music', 'news', 'podcasts-debates', 'politics-regulation', 'saylor',
+        'future-predictions', 'tutorials'
+    ];
 
     var APPS = [
-        { id: 'tctv', name: 'Timechain TV', hash: 'timechain-tv/9', ctx: { channel: '9' }, sentence: "I'm watching channel 9, Health, Fitness & Mindfulness on Timechain TV! Check it out!" },
+        { id: 'tctv', name: 'Timechain TV', hash: 'timechain-tv/health-fitness', ctx: { channel: 'health-fitness' }, sentence: "I'm watching channel 10, Health, Fitness & Mindfulness on Timechain TV! Check it out!" },
         { id: 'beats', name: 'Bitcoin Beats', hash: 'beats/track123', ctx: { title: 'Orange Pill', artist: 'Pleb Band', trackId: 'track123' }, sentence: "I'm listening to Orange Pill by Pleb Band on Bitcoin Beats! Check it out!" },
         { id: 'nacho', name: 'Nacho Mode', hash: 'nacho', ctx: {}, sentence: "I'm asking Nacho about Bitcoin on Bitcoin Quest! Check it out!" },
         { id: 'pop', name: 'Proof of Play', hash: 'proof-of-play', ctx: {}, sentence: "I'm in the Proof of Play hub on Bitcoin Quest! Check it out!" },
@@ -141,8 +152,10 @@
         if (!text || text === 'timechain-tv' || text === 'tv') return { ok: false, absent: true, station: null };
         var hit = null;
         if (/^\d{1,2}$/.test(text)) {
-            var n = Number(text);
-            for (var i = 0; i < list.length; i++) if (list[i].n === n) hit = list[i];
+            var legacyId = LEGACY_NUMBERS[Number(text)];
+            if (legacyId) {
+                for (var i = 0; i < list.length; i++) if (list[i].id === legacyId) hit = list[i];
+            }
         } else if (/^[a-z0-9-]{1,40}$/.test(text)) {
             for (var j = 0; j < list.length; j++) if (list[j].id === text) hit = list[j];
         }
@@ -204,11 +217,11 @@
         var hash = spec.hash;
         var name = spec.name;
         if (appId === 'tctv') {
-            var channel = ctx.channel != null ? ctx.channel : '9';
+            var channel = ctx.channel != null ? ctx.channel : 'health-fitness';
             var resolved = resolveTctv(channel, stations());
             var st = resolved.station || stations()[0];
             sentence = "I'm watching channel " + st.n + ', ' + plainLine(st.name) + ' on Timechain TV! Check it out!';
-            hash = 'timechain-tv/' + st.n;
+            hash = 'timechain-tv/' + st.id;
             name = 'Timechain TV';
         } else if (appId === 'beats') {
             var beat = resolveBeats(ctx.trackId, ctx.knownIds);

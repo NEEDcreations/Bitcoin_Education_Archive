@@ -73,17 +73,37 @@ test('every mini app posts one referral link and the example sentence', () => {
 });
 
 test('Timechain TV validates the channel and keeps the real name', () => {
-    const nine = api.shareModel('tctv', { channel: '9', code: CODE });
-    assert.strictEqual(nine.sentence, "I'm watching channel 9, Health, Fitness & Mindfulness on Timechain TV! Check it out!");
-    assert.strictEqual(nine.hash, 'timechain-tv/9');
-    assert.ok(nine.sentence.includes('&'));
+    const health = api.shareModel('tctv', { channel: 'health-fitness', code: CODE });
+    assert.strictEqual(health.sentence, "I'm watching channel 10, Health, Fitness & Mindfulness on Timechain TV! Check it out!");
+    assert.strictEqual(health.hash, 'timechain-tv/health-fitness');
+    assert.ok(health.sentence.includes('&'));
     const byId = api.resolveTctv('health-fitness');
-    assert.strictEqual(byId.station.n, 9);
+    assert.strictEqual(byId.station.n, 10);
     assert.strictEqual(byId.station.id, 'health-fitness');
     assert.strictEqual(byId.fallback, false);
+    // Old numbered links stay on the station that had that number.
+    const oldNine = api.resolveTctv('9');
+    assert.strictEqual(oldNine.station.id, 'health-fitness');
+    assert.strictEqual(oldNine.fallback, false);
+    assert.strictEqual(api.shareModel('tctv', { channel: '9', code: CODE }).hash, 'timechain-tv/health-fitness');
+    const docs = api.resolveTctv('history');
+    assert.strictEqual(docs.station.n, 7);
+    assert.strictEqual(docs.station.name, 'Documentaries & History');
+    assert.strictEqual(api.resolveTctv('10').station.id, 'history');
+    assert.strictEqual(api.resolveTctv('7').station.id, 'economics-money');
     const zero = api.shareModel('tctv', { channel: '0', code: CODE });
     assert.strictEqual(zero.sentence, "I'm watching channel 0, Pleb Underground Unlimited on Timechain TV! Check it out!");
-    assert.strictEqual(zero.hash, 'timechain-tv/0');
+    assert.strictEqual(zero.hash, 'timechain-tv/pleb-underground');
+    const names = api.FALLBACK_STATIONS.map(function (st) { return st.name; });
+    assert.strictEqual(names[0], 'Pleb Underground Unlimited');
+    const sorted = names.slice(1).slice().sort(function (a, b) { return a.localeCompare(b); });
+    assert.deepStrictEqual(names.slice(1), sorted);
+    const tv = read('timechain-tv.js');
+    const ids = [];
+    const idRe = /\{id:"([^"]+)",name:"([^"]+)"/g;
+    let found;
+    while ((found = idRe.exec(tv)) && ids.length < 22) ids.push(found[1] + '|' + found[2]);
+    assert.deepStrictEqual(ids, api.FALLBACK_STATIONS.map(function (st) { return st.id + '|' + st.name; }));
     ['999', '9abc', '<script>', '9 ', 'health-fitness<script>'].forEach(function (bad) {
         const resolved = api.resolveTctv(bad);
         assert.strictEqual(resolved.fallback, true, bad);
@@ -93,13 +113,12 @@ test('Timechain TV validates the channel and keeps the real name', () => {
         assert.strictEqual(dumped.includes(bad), false, bad);
         assert.strictEqual(dumped.includes('<'), false, bad);
         const model = api.shareModel('tctv', { channel: bad, code: CODE });
-        assert.strictEqual(model.hash, 'timechain-tv/0', bad);
+        assert.strictEqual(model.hash, 'timechain-tv/pleb-underground', bad);
         assert.strictEqual(model.sentence.includes(bad), false, bad);
         assert.strictEqual(linkCount(api.postText(model)), 1, bad);
     });
     assert.strictEqual(api.resolveTctv('timechain-tv').absent, true);
     assert.strictEqual(api.resolveTctv('').absent, true);
-    const tv = read('timechain-tv.js');
     const picker = tv.slice(tv.indexOf('var d=r||function()'), tv.indexOf('var d=r||function()') + 500);
     assert.ok(picker.indexOf('_tctvDeepChannel') < picker.indexOf('tctv_lastStation'));
     const apply = tv.slice(tv.indexOf('window.tctvApplyDeepChannel='), tv.indexOf('window.tctvApplyDeepChannel=') + 420);
@@ -175,8 +194,8 @@ test('experience mode hides the same apps the Explore menu hides', () => {
 });
 
 test('the link sheet keeps the sentence and still grants nothing', () => {
-    const sentence = "I'm watching channel 9, Health, Fitness & Mindfulness on Timechain TV! Check it out!";
-    const url = 'https://bitcoineducation.quest/?ref=' + CODE + '#timechain-tv/9';
+    const sentence = "I'm watching channel 10, Health, Fitness & Mindfulness on Timechain TV! Check it out!";
+    const url = 'https://bitcoineducation.quest/?ref=' + CODE + '#timechain-tv/health-fitness';
     const model = { linkShare: true, title: sentence, sentence: sentence, url: url };
     const text = share.shareText(model);
     assert.strictEqual(text, sentence + '\n' + url);
@@ -206,9 +225,9 @@ test('a TCTV landing still stores the referral code for signup', () => {
     const attach = ticketsSrc.slice(ticketsSrc.indexOf('async function attachReferral'), ticketsSrc.indexOf('async function attachReferral') + 900);
     assert.ok(attach.includes("localStorage.getItem('btc_referral_code')"));
     assert.ok(attach.includes('registerReferral'));
-    const landing = api.splitLanding('https://bitcoineducation.quest/?ref=abc12345#timechain-tv/9');
+    const landing = api.splitLanding('https://bitcoineducation.quest/?ref=abc12345#timechain-tv/health-fitness');
     assert.strictEqual(landing.ref, 'abc12345');
-    assert.strictEqual(landing.hash, 'timechain-tv/9');
+    assert.strictEqual(landing.hash, 'timechain-tv/health-fitness');
     const quests = api.shareModel('quests', { tab: 'favor', code: CODE });
     assert.strictEqual(quests.hash, 'favor');
     assert.strictEqual(quests.sentence, "I'm mining in Satoshi's Favor on Bitcoin Quest! Check it out!");
