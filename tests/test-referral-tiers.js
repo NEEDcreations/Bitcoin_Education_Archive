@@ -181,9 +181,10 @@ test('clients cannot write referralMaxiCount', () => {
 test('the reached-Maxi explainer uses the rank threshold', () => {
     assert.strictEqual(tiers.MAXI_RANK_POINTS, 2140);
     assert.strictEqual(
-        tiers.maxiCountHelp(),
-        'Friends you invited who reached Maxi rank (2,140+ XP). Only verified referrals count.'
+        tiers.maxiCountHelp(12, 3),
+        "You've invited 12 people. 3 reached Maxi rank (2,140+ XP). Only verified referrals count."
     );
+    assert.strictEqual(tiers.maxiCountHelp(1, 1).indexOf("You've invited 1 person."), 0);
     const html = read('index.html');
     assert.ok(html.includes('aria-describedby="homeInvitesInfoText"'));
     const openAt = html.indexOf('id="homeInvitesOpen"');

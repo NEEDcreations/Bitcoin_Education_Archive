@@ -3448,12 +3448,8 @@ function invitedReferralCount(user) {
     return n;
 }
 
-function inviteNoteText(invited, maxi) {
-    var inv = Math.floor(Number(invited));
-    if (!isFinite(inv) || inv < 0) inv = 0;
-    var maxiText = maxi === 1 ? '1 reached Maxi' : maxi + ' reached Maxi';
-    return (inv === 1 ? '1 invited' : inv + ' invited') + ' · ' + maxiText;
-}
+var _homeInvitedCount = 0;
+var _homeMaxiCount = 0;
 
 function paintInviteTier(count, invited) {
     var api = referralTierApi();
@@ -3465,20 +3461,23 @@ function paintInviteTier(count, invited) {
         level: 0
     };
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-    var inv = (typeof invited === 'number') ? invited : invitedReferralCount(user);
+    var inv = (typeof invited === 'number') ? Math.floor(invited) : invitedReferralCount(user);
+    if (!isFinite(inv) || inv < 0) inv = 0;
+    _homeInvitedCount = inv;
+    _homeMaxiCount = n;
     var tierEl = document.getElementById('homeInvitesTier');
     var noteEl = document.getElementById('homeInvitesNote');
     var progEl = document.getElementById('homeInvitesProgress');
     var tile = document.getElementById('homeInvitesTile');
     var openBtn = document.getElementById('homeInvitesOpen') || tile;
     if (tierEl) tierEl.textContent = progress.tierLabel;
-    if (noteEl) noteEl.textContent = inviteNoteText(inv, n);
+    if (noteEl) noteEl.textContent = progress.countText;
     var helpEl = document.getElementById('homeInvitesInfoText');
-    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp();
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, n);
     if (progEl) progEl.textContent = progress.progressText;
     if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
     if (openBtn) {
-        var label = progress.tierLabel + ', ' + inviteNoteText(inv, n);
+        var label = progress.tierLabel + ', ' + progress.countText;
         if (progress.progressText) label += ', ' + progress.progressText;
         openBtn.setAttribute('aria-label', label);
     }
@@ -3650,18 +3649,42 @@ function bindReferralTierLadder() {
         var tip = document.getElementById('homeInvitesInfoText');
         if (!tip || !tip.classList.contains('is-open')) return;
         var t = ev.target;
-        if (t && t.closest && (t.closest('[data-maxi-info]') || t.closest('#homeInvitesInfoText'))) return;
+        if (t && t.closest && (t.closest('#homeInvitesInfo') || t.closest('#homeInvitesInfoText'))) return;
         setMaxiInfoOpen(false);
     });
     var info = document.getElementById('homeInvitesInfo');
+    var fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    var hoverTimer = 0;
+    function hoverClose() {
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(function () {
+            var tip = document.getElementById('homeInvitesInfoText');
+            var btn = document.getElementById('homeInvitesInfo');
+            if (tip && tip.matches(':hover')) return;
+            if (btn && btn.matches(':hover')) return;
+            setMaxiInfoOpen(false);
+        }, 120);
+    }
     if (info) info.addEventListener('click', function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
+        if (fineHover && ev.detail !== 0) return;
         toggleMaxiInfo();
     });
+    if (info && fineHover) {
+        info.addEventListener('mouseenter', function () {
+            clearTimeout(hoverTimer);
+            setMaxiInfoOpen(true);
+        });
+        info.addEventListener('mouseleave', hoverClose);
+    }
     var help = document.getElementById('homeInvitesInfoText');
+    if (help && fineHover) {
+        help.addEventListener('mouseenter', function () { clearTimeout(hoverTimer); });
+        help.addEventListener('mouseleave', hoverClose);
+    }
     var api = referralTierApi();
-    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp();
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
 }
 bindReferralTierLadder();
 
@@ -3671,7 +3694,7 @@ function setMaxiInfoOpen(open) {
     if (!tip) return;
     if (tip.parentElement !== document.body) document.body.appendChild(tip);
     var api = referralTierApi();
-    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp();
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
     tip.classList.toggle('is-open', !!open);
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (!open) return;

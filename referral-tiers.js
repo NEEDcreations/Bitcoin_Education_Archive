@@ -74,9 +74,15 @@
         return Math.floor(Number(user.points) || 0) >= MAXI_RANK_POINTS;
     }
 
-    function maxiCountHelp() {
+    function maxiCountHelp(invited, reached) {
         var points = String(MAXI_RANK_POINTS).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        return 'Friends you invited who reached Maxi rank (' + points + '+ XP). Only verified referrals count.';
+        var inv = Math.floor(Number(invited));
+        if (!isFinite(inv) || inv < 0) inv = 0;
+        var got = Math.floor(Number(reached));
+        if (!isFinite(got) || got < 0) got = 0;
+        var people = inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.";
+        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' Maxi rank (' + points + '+ XP).';
+        return people + ' ' + rank + ' Only verified referrals count.';
     }
 
     // Why the referrer's live count has to be recomputed from a users/{uid}
