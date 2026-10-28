@@ -320,6 +320,18 @@ function notifEscape(value) {
         .replace(/'/g, '&#39;');
 }
 
+function notifNameHtml(n, message, fromUid) {
+    var html = notifEscape(message || '');
+    var uid = '';
+    if (n && n.senderId && typeof userTagUidOk === 'function' && userTagUidOk(String(n.senderId))) uid = String(n.senderId);
+    else if (fromUid && typeof userTagUidOk === 'function' && userTagUidOk(String(fromUid))) uid = String(fromUid);
+    var senderName = n && (n.senderName || n.fromName) ? String(n.senderName || n.fromName) : '';
+    if (!uid || !senderName || typeof userTag !== 'function') return html;
+    var escapedName = notifEscape(senderName);
+    if (!escapedName || html.indexOf(escapedName) === -1) return html;
+    return html.replace(escapedName, userTag(uid, senderName));
+}
+
 function notifCardHtml(docId, n, variant) {
     n = n || {};
     var safeDoc = notifSafeId(docId, 128) ? docId : '';
@@ -368,7 +380,7 @@ function notifCardHtml(docId, n, variant) {
         '<div style="display:flex;gap:' + (sheet ? '10px' : '8px') + ';align-items:flex-start;">' +
             iconHtml +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(message) + '</div>' +
+                '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifNameHtml(n, message, fromUid) + '</div>' +
                 notifAmountChips(n, message) +
                 '<div style="font-size:' + (sheet ? '0.65rem' : '0.7rem') + ';color:var(--text-faint);margin-top:' + (sheet ? '3px' : '2px') + ';">' + notifEscape(timeStr) + '</div>' +
             '</div>' +
@@ -1209,7 +1221,7 @@ window.showPartnershipLevelUpPopup = function(notifData) {
             '<div style="color:var(--heading,#fff);font-size:1.7rem;font-weight:900;margin-bottom:6px;">' + escapeHtml(levelName) + '</div>' +
 
             // Peer name
-            '<div style="color:var(--text-muted,#aaa);font-size:0.9rem;margin-bottom:4px;">with <strong style="color:var(--text,#eee);">' + escapeHtml(peerName) + '</strong></div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.9rem;margin-bottom:4px;">with <strong style="color:var(--text,#eee);">' + (typeof userTag === 'function' ? userTag(peerId, peerName) : escapeHtml(peerName)) + '</strong></div>' +
 
             // Subtitle / flavour
             '<div style="color:var(--text-faint,#666);font-size:0.82rem;font-style:italic;margin-bottom:18px;line-height:1.5;">' + escapeHtml(meta.subtitle) + '</div>' +

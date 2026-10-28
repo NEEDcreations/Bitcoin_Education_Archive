@@ -606,12 +606,10 @@ function renderChatMessages(msgs) {
         var _chatFlairPrefix = (!isNacho && m.hasChatFlair) ? '<span style="font-size:0.85rem;margin-right:2px;">' + esc(m.chatFlairEmoji || '🔥') + '</span>' : '';
         var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="/nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />' : '';
         var nameStyle = 'font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';';
-        var nameClick = '';
-        if (!isDeleted) {
-            nameStyle += 'cursor:pointer;';
-            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
-        }
-        html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
+        var nameHtml = (typeof userTag === 'function')
+            ? userTag(m.uid || '', m.name || 'Anon', { deleted: isDeleted, style: nameStyle })
+            : (isDeleted ? 'Deleted player' : esc(m.name || 'Anon'));
+        html += '<span style="' + nameStyle + '">' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + nameHtml + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
         if (myUid && !isDeleted) {
             html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
@@ -765,7 +763,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261027_v2393';
+        s.src = 'quests.js?v=20261027_v2401';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;
@@ -932,7 +930,9 @@ function formatChatText(text, mentionUid) {
             var safeName = name.trim();
             _taggedName = safeName;
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-            _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + safeName + '</span>');
+            _safeMentions.push(typeof userTag === 'function'
+                ? userTag(mentionUid, safeName, { prefix: '@', title: 'View profile — tap to tip!', style: 'color:#6366f1;font-weight:700;' })
+                : '<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + esc(safeName) + '</span>');
             return placeholder;
         });
         // Old shoutouts repeated @name. The second copy stays plain text
@@ -959,7 +959,10 @@ function formatChatText(text, mentionUid) {
             safeName = known.name;
         }
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
+        var _knownMention = (typeof userTagResolveUid === 'function') ? userTagResolveUid(safeName) : '';
+        _safeMentions.push(_knownMention && typeof userTag === 'function'
+            ? userTag(_knownMention, safeName, { prefix: '@', title: 'View profile', style: 'color:#6366f1;font-weight:700;' })
+            : '<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + esc(safeName) + '</span>');
         return placeholder + rest;
     });
     // Fallback: single-word @mentions (user-typed, no space in name)
@@ -967,7 +970,10 @@ function formatChatText(text, mentionUid) {
         var safeName = name.replace(/['"]/g, '').trim();
         if (!safeName) return match;
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
+        var _knownMention = (typeof userTagResolveUid === 'function') ? userTagResolveUid(safeName) : '';
+        _safeMentions.push(_knownMention && typeof userTag === 'function'
+            ? userTag(_knownMention, safeName, { prefix: '@', title: 'View profile', style: 'color:#6366f1;font-weight:700;' })
+            : '<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + esc(safeName) + '</span>');
         return placeholder;
     });
     // H1: Post-transform sanitization
@@ -3410,9 +3416,10 @@ function showDJBar(d) {
         djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
     }
 
-    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
+    if (d.artistUid && typeof window.noteArtistProfile === 'function' && typeof window.userTagUidOk === 'function' && window.userTagUidOk(d.artistUid)) window.noteArtistProfile(d.artistUid, true, d.artistUid);
+    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 ' + (typeof userTag === 'function' ? userTag(d.djUid || '', d.djName || 'DJ', { prefix: '@' }) : ('@' + esc(d.djName))) + ' is DJing!' + songInfo;
 
-    var artistHtml = d.artistUid ? '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
+    var artistHtml = (d.artistUid && typeof userTag === 'function') ? userTag(d.artistUid, d.trackArtist || 'Artist', { title: 'View artist profile' }) : esc(d.trackArtist);
 
     bar.innerHTML =
         // Row 1: DJ label
@@ -3723,6 +3730,10 @@ if (localStorage.getItem('hasUsedChat')) {
 // ---- Lookup User by Username (for clickable @mentions) ----
 window.lookupUserByName = function(username) {
     if (!username) return;
+    if (typeof userTagResolveUid === 'function') {
+        var cachedUid = userTagResolveUid(username);
+        if (cachedUid && typeof showUserProfile === 'function') { showUserProfile(cachedUid); return; }
+    }
     // Nacho shortcut
     if (username.toLowerCase() === 'nacho' || username === '🦌 Nacho') {
         if (typeof showUserProfile === 'function') showUserProfile('nacho-bot');

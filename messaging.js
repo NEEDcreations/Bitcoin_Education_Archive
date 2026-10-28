@@ -430,8 +430,18 @@ window.onlineStatusDot = function(lastSeen) {
 };
 
 // ---- USER PROFILE MODAL ----
-window.showUserProfile = function(uid) {
-    if (!uid || !db) return;
+window.showUserProfile = function(uid, opts) {
+    opts = opts || {};
+    if (!uid) return;
+    var uidStr = String(uid);
+    if (typeof window.userTagUidOk === 'function' && !window.userTagUidOk(uidStr)) return;
+    var _openTag = window.openTaggedProfile;
+    if (!opts.userOnly && typeof _openTag === 'function') {
+        _openTag(uidStr, opts);
+        return;
+    }
+    uid = uidStr;
+    if (!db) return;
 
     // ── Nacho static profile ─────────────────────────────────────────────────
     if (uid === 'nacho-bot' || uid === 'nacho') {
@@ -445,10 +455,10 @@ window.showUserProfile = function(uid) {
             '</div>';
         };
         var _nd = document.createElement('div');
-        _nd.innerHTML = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
+        _nd.innerHTML = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2200000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();if(window.profileCloseAll)window.profileCloseAll()}">' +
             '<div style="background:var(--bg-side);border:1px solid rgba(34,197,94,0.45);box-shadow:0 0 0 1px rgba(34,197,94,0.15),0 0 32px rgba(34,197,94,0.12);border-radius:20px;padding:28px;max-width:370px;width:100%;overflow-y:auto;max-height:90vh;" onclick="event.stopPropagation()">' +
             // Close
-            '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;line-height:1;">\u2715</button>' +
+            '<button onclick="event.stopPropagation();if(window.profileCloseAll)window.profileCloseAll()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;line-height:1;">\u2715</button>' +
             // Avatar + name
             '<div style="text-align:center;margin-bottom:18px;">' +
                 '<div style="font-size:3.5rem;margin-bottom:4px;">\uD83E\uDD8C</div>' +
@@ -500,6 +510,7 @@ window.showUserProfile = function(uid) {
             '</div>' +
             '</div></div>';
         document.body.appendChild(_nd.firstChild);
+        if (typeof window.mountProfileChrome === 'function') window.mountProfileChrome(document.getElementById('userProfileModal'), uid, 'user');
         // Track Nacho profile view for badge
         try {
             if (!localStorage.getItem('btc_viewed_nacho_profile')) {
@@ -514,7 +525,7 @@ window.showUserProfile = function(uid) {
     // Settings is still accessible via the ⚙️ tab
 
     // Show loading
-    var loadingHtml = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+    var loadingHtml = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2200000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this&&window.profileCloseAll)window.profileCloseAll()">' +
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;text-align:center;">' +
         '<div style="color:var(--text-muted);font-size:0.9rem;">Loading profile...</div></div></div>';
     var d = document.createElement('div');
@@ -526,12 +537,17 @@ window.showUserProfile = function(uid) {
         .catch(function() { return db.collection('public_profiles').doc(uid).get(); });
     _profileFetch.then(function(doc) {
         if (!doc.exists) {
-            var modal = document.getElementById('userProfileModal');
-            if (modal) modal.remove();
-            if (typeof showToast === 'function') showToast('User not found');
+            if (typeof window.noteDeletedProfile === 'function') window.noteDeletedProfile(uid);
+            if (typeof window._showDeletedProfile === 'function') window._showDeletedProfile(uid);
+            else {
+                var modal = document.getElementById('userProfileModal');
+                if (modal) modal.remove();
+                if (typeof showToast === 'function') showToast('User not found');
+            }
             return;
         }
         var u = doc.data();
+        if (u && u.username && typeof window.userTagRemember === 'function') window.userTagRemember(uid, u.username);
 
         // — Profile explorer badge tracking —
         var _selfUid = auth && auth.currentUser ? auth.currentUser.uid : null;
@@ -629,10 +645,10 @@ window.showUserProfile = function(uid) {
                 lvl.emoji +
                 '</div>';
 
-        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:flex-start;justify-content:center;padding:20px 0;overflow-y:auto;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
+        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2200000;display:flex;align-items:flex-start;justify-content:center;padding:20px 0;overflow-y:auto;" onclick="if(event.target===this){event.stopPropagation();if(window.profileCloseAll)window.profileCloseAll()}">' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;overflow-y:auto;max-height:90vh;' + _frameStyle + '" onclick="event.stopPropagation()">' +
             // Close button
-            '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+            '<button onclick="event.stopPropagation();if(window.profileCloseAll)window.profileCloseAll()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             // Avatar & name
             '<div style="text-align:center;margin-bottom:16px;">' +
                 avatarHtml +
@@ -711,24 +727,24 @@ window.showUserProfile = function(uid) {
             })() : '') +
             // Message button
             (canMessage && dmEligibility.ok ?
-                '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
+                '<button onclick="if(window.profileCloseAll)window.profileCloseAll();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
                 : (canMessage && !dmEligibility.ok ?
                     '<div style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;color:var(--text-muted);text-align:center;">' + escapeHtml(dmEligibility.reason) + '</div>'
                 : (!auth || !auth.currentUser || auth.currentUser.isAnonymous ?
-                    '<button onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);border-radius:12px;font-size:0.9rem;cursor:pointer;font-family:inherit;">🔒 Sign in to message</button>'
+                    '<button onclick="if(window.profileCloseAll)window.profileCloseAll();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);border-radius:12px;font-size:0.9rem;cursor:pointer;font-family:inherit;">🔒 Sign in to message</button>'
                     : ''))) +
             // Block & Report buttons
             (canMessage ?
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
                     _peerBtn +
                     (isUserBlocked(uid) ?
-                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
-                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
-                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
+                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');if(window.profileCloseAll)window.profileCloseAll()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
+                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');if(window.profileCloseAll)window.profileCloseAll()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
+                    '<button onclick="if(window.profileCloseAll)window.profileCloseAll();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
                 '</div>' : '') +
             // Own-profile country nudge (only visible to yourself, only if country not set)
             (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
-                '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings();">' +
+                '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="if(window.profileCloseAll)window.profileCloseAll();if(typeof showSettings===\'function\')showSettings();">' +
                     '<span style="font-size:1rem;">🌍</span>' +
                     '<span style="color:#22c55e;font-size:0.8rem;">Add your country → earn <strong>+100 XP</strong> + 🌍 Global Citizen badge</span>' +
                 '</div>' : '') +
@@ -739,6 +755,7 @@ window.showUserProfile = function(uid) {
         var div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstChild);
+        if (typeof window.mountProfileChrome === 'function') window.mountProfileChrome(document.getElementById('userProfileModal'), uid, 'user');
         if (auth && auth.currentUser && auth.currentUser.uid === uid && typeof window._loadMyPredictionStats === 'function') {
             window._loadMyPredictionStats(function(stats) {
                 var node = document.getElementById('profilePredStats');
@@ -910,8 +927,8 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:80vh;max-height:600px;display:flex;flex-direction:column;overflow:hidden;">' +
         // Header
         '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="event.stopPropagation();closeDM();showUserProfile(\'' + otherUid + '\')">' +
-                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">💬 ' + escapeHtml(otherName) + '</div>' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">💬 ' + (typeof userTag === 'function' ? userTag(otherUid, otherName) : escapeHtml(otherName)) + '</div>' +
                 '<div id="dmStatusDot"></div>' +
             '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;">' +

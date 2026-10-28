@@ -1224,7 +1224,7 @@ function _closeCoversForPeople() {
 function _liftProfileAbovePanels() {
     function lift() {
         var modal = document.getElementById('userProfileModal');
-        if (modal) modal.style.zIndex = '530000';
+        if (modal) modal.style.zIndex = '2300000';
     }
     lift();
     setTimeout(lift, 40);

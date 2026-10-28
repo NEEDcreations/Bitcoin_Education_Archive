@@ -5183,7 +5183,7 @@ function _lbBuildResultRow(u) {
     var peerTag = (window._myPeers && window._myPeers.has(u.uid || u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     return '<div class="lb-search-result">' +
         '<span>' + lv.emoji + '</span>' +
-        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + peerTag + escapeHtml(u.username || 'Anon') + '</a>' +
+        peerTag + (typeof userTag === 'function' ? userTag(u.uid || u.id, u.username || 'Anon', { style: (u.faction && typeof window._factionNameStyle === 'function') ? window._factionNameStyle(u.faction) : '' }) : ('<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>')) +
         '<span class="lb-sr-pts">' + pts + ' XP · <strong>' + (u.rank ? '#' + u.rank : '—') + '</strong></span>' +
     '</div>';
 }
@@ -5303,8 +5303,7 @@ window.lbSearchUser = function(val) {
             var peerTag = (window._myPeers && window._myPeers.has(u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             return '<div class="lb-search-result">' +
                 '<span>' + (lv.emoji || '') + '</span>' +
-                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + peerTag
-                    + escapeHtml(u.username || 'Anon') + '</a>' +
+                peerTag + (typeof userTag === 'function' ? userTag(u.id, u.username || 'Anon', { style: (u.faction && typeof window._factionNameStyle === 'function') ? window._factionNameStyle(u.faction) : '' }) : ('<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>')) +
                 '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + rank + '</strong></span>' +
                 '</div>';
         }).join('');
@@ -5836,7 +5835,7 @@ async function toggleLeaderboard() {
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
+                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + (typeof userTag === 'function' ? userTag(d.id, d.username || 'Anon', { style: _lbNameStyle }) : escapeHtml(d.username || 'Anon')) + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
@@ -6080,7 +6079,7 @@ function _renderPredictorBoard() {
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
-                '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
+                '<span class="lb-name">' + peerTag + (typeof userTag === 'function' ? userTag(uid, predShown, { blank: predBlank }) : ('<span' + predNameAttrs + '>' + name + '</span>')) + '</span>' +
                 '<span class="lb-score pred-score">' + (entry.pct || 0) + '%<span class="pred-score-frac">' + (entry.correct || 0) + '/' + (entry.total || 0) + '</span></span>' +
             '</div>';
         });
@@ -6156,7 +6155,7 @@ async function _loadPVPLeaderboard() {
             var total = wins + losses;
             if (total === 0) return;
             var winRate = total > 0 ? (wins / total) * 100 : 0;
-            playerMap[doc.id] = { id: doc.id, username: escapeHtml(d.username || 'Anon'), wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid, lightningAddress: d.lightningAddress || d.lightning || '' };
+            playerMap[doc.id] = { id: doc.id, username: d.username || 'Anon', wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid, lightningAddress: d.lightningAddress || d.lightning || '' };
         }
         winsSnap.forEach(addPlayer);
         lossSnap.forEach(addPlayer);
@@ -6178,9 +6177,9 @@ async function _loadPVPLeaderboard() {
             pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + p.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
-                '<span class="lb-name">' + peerTag + p.username + '</span>' +
+                '<span class="lb-name">' + peerTag + (typeof userTag === 'function' ? userTag(p.id, p.username) : escapeHtml(p.username)) + '</span>' +
                 '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W - ' + p.losses + 'L</span>' +
-                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
+                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(p.username) + '">⚡</span>' +
             '</div>';
         });
         if (players.length > 10) {
@@ -8351,7 +8350,7 @@ function accountDeleteRowHtml(user) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261024_v2357';
+            s.src = 'notifications.js?v=20261027_v2401';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -8568,7 +8567,7 @@ function accountDeleteRowHtml(user) {
                     reqSnap.forEach(function(doc) {
                         var d = doc.data();
                         reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
-                            '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
+                            '<span style="font-size:0.85rem;">🧡 ' + (typeof userTag === 'function' ? userTag(String(d.from || ''), d.fromUsername || 'Bitcoiner') : escapeHtml(d.fromUsername || 'Bitcoiner')) + '</span>' +
                             '<div style="display:flex;gap:6px;">' +
                             '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
                             '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
@@ -8652,7 +8651,7 @@ function accountDeleteRowHtml(user) {
                             ? 'Sent today. The limit is 3 keys per peer, once a day. You can send again tomorrow. If a peer opens a cipher with your key, you both win the same prize.'
                             : 'Up to 3 keys per peer per day. If a peer opens a cipher with your key, you both win the same prize.';
                         peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:var(--bg-side);">' +
-                            '<div style="font-size:1rem;font-weight:800;color:var(--heading);word-break:break-word;line-height:1.3;">🧡 ' + _safeName + '</div>' +
+                            '<div style="font-size:1rem;font-weight:800;color:var(--heading);word-break:break-word;line-height:1.3;">🧡 ' + (typeof userTag === 'function' ? userTag(puid, name) : _safeName) + '</div>' +
                             '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + summaryText + '</div>' +
                             (_peerMarks ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + _peerMarks + '</div>' : '') +
                             '<div class="peer-action-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">' +
@@ -10178,7 +10177,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261024_v2357';
+    s.src = 'notifications.js?v=20261027_v2401';
     s.onload = run;
     document.body.appendChild(s);
 };
@@ -11579,7 +11578,7 @@ window._viewPeerProfile = function(uid) {
     if (typeof showUserProfile === 'function') showUserProfile(uid);
     function lift() {
         var modal = document.getElementById('userProfileModal');
-        if (modal) modal.style.zIndex = '530000';
+        if (modal) modal.style.zIndex = '2300000';
     }
     setTimeout(lift, 40);
     setTimeout(lift, 400);
