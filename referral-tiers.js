@@ -1,7 +1,7 @@
 // Invite tiers. One name list so a rename is a single edit.
-// The browser uses this for display. The server uses the same count rules.
-// The count itself is users.referralMaxiCount, written only by Cloud Functions
-// and the backfill script. This file never writes Firestore.
+// This file is the copy Cloud Functions deploy. build.sh copies it to the
+// site root for the browser. The count is users.referralMaxiCount, written
+// only by Cloud Functions and the backfill script. This file never writes Firestore.
 (function (root, factory) {
     var api = factory();
     if (typeof module === 'object' && module && module.exports) module.exports = api;

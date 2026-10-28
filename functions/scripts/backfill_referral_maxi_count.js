@@ -23,7 +23,7 @@
 'use strict';
 
 const path = require('path');
-const tiers = require('../../referral-tiers');
+const tiers = require('../referral-tiers');
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'bitcoin-education-archive';
 const PAGE = 300;
