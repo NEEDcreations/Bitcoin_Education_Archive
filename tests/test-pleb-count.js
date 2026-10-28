@@ -126,6 +126,85 @@ test('assignPlebNumber increments once', async function () {
     assert.strictEqual(docs['stats/global'].userCount, 8);
 });
 
+function lookupDb(initial) {
+    const docs = Object.assign({}, initial || {});
+    return {
+        docs: docs,
+        collection: function (name) {
+            return { doc: function (id) { return { path: name + '/' + id }; } };
+        },
+        runTransaction: async function (fn) {
+            const pendingWrites = [];
+            const tx = {
+                get: async function (docRef) {
+                    const data = docs[docRef.path];
+                    return { exists: data != null, data: function () { return data; } };
+                },
+                set: function (docRef, data, opts) {
+                    pendingWrites.push({ path: docRef.path, data: data, merge: !!(opts && opts.merge) });
+                },
+            };
+            const result = await fn(tx);
+            pendingWrites.forEach(function (write) {
+                const cur = write.merge && docs[write.path] ? Object.assign({}, docs[write.path]) : {};
+                Object.keys(write.data).forEach(function (key) {
+                    const value = write.data[key];
+                    if (value && value._inc) cur[key] = (Number(cur[key]) || 0) + value._inc;
+                    else cur[key] = value;
+                });
+                docs[write.path] = cur;
+            });
+            return result;
+        },
+    };
+}
+
+function lookupAdmin(onGet) {
+    return {
+        firestore: { FieldValue: { increment: function (n) { return { _inc: n }; } } },
+        auth: function () { return { getUser: onGet }; },
+    };
+}
+
+test('a guest update with no points does not call getUser', async function () {
+    let calls = 0;
+    const db = lookupDb({ 'users/guest': { points: 0 }, 'stats/global': { userCount: 3 } });
+    const admin = lookupAdmin(async function () {
+        calls++;
+        return { providerData: [{ providerId: 'google.com' }] };
+    });
+    const result = await pleb.maybeCountMember(db, admin, 'guest', { points: 0 }, { points: 0, guestLinkNonce: 'n' });
+    assert.strictEqual(calls, 0);
+    assert.strictEqual(result.reason, 'shell');
+    assert.strictEqual(db.docs['users/guest'].plebNumber, undefined);
+});
+
+test('a new zero-point profile still looks up auth', async function () {
+    let calls = 0;
+    const db = lookupDb({ 'users/real': { points: 0 }, 'stats/global': { userCount: 3 } });
+    const admin = lookupAdmin(async function () {
+        calls++;
+        return { providerData: [{ providerId: 'google.com' }] };
+    });
+    const result = await pleb.maybeCountMember(db, admin, 'real', null, { points: 0 });
+    assert.strictEqual(calls, 1);
+    assert.strictEqual(result.reason, 'signed-in');
+    assert.strictEqual(db.docs['users/real'].plebNumber, 4);
+});
+
+test('first XP does not need an auth lookup', async function () {
+    let calls = 0;
+    const db = lookupDb({ 'users/guest': { points: 0 }, 'stats/global': { userCount: 1 } });
+    const admin = lookupAdmin(async function () {
+        calls++;
+        return { providerData: [] };
+    });
+    const result = await pleb.maybeCountMember(db, admin, 'guest', { points: 0 }, { points: 10 });
+    assert.strictEqual(calls, 0);
+    assert.strictEqual(result.reason, 'xp');
+    assert.strictEqual(db.docs['users/guest'].plebNumber, 2);
+});
+
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

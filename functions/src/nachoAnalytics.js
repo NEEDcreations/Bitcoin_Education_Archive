@@ -6,10 +6,25 @@
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_PER_WINDOW = 30;
 
-function sanitizeKey(value) {
+const TOPIC_KEYS = [
+    'lightning', 'mining', 'wallets', 'basics', 'security', 'privacy',
+    'economics', 'altcoins', 'technical', 'history', 'price', 'layer2',
+    'culture', 'regulation', 'onboarding', 'other',
+];
+const SOURCE_KEYS = [
+    'kb', 'ai', 'fallback', 'offtopic', 'unknown',
+    'safety', 'crisis', 'harm', 'financial', 'profanity',
+    'deepsearch', 'websearch',
+];
+
+function allowKey(value, allow) {
     const raw = String(value || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
-    if (!raw || raw === 'constructor' || raw === 'prototype' || raw === '__proto__') return '';
+    if (!raw || allow.indexOf(raw) === -1) return '';
     return raw;
+}
+
+function sanitizeKey(value, allow) {
+    return allowKey(value, allow || TOPIC_KEYS);
 }
 
 function kindOf(value) {
@@ -61,8 +76,8 @@ function createNachoBump(opts) {
         }
         const kind = kindOf(data && data.kind);
         if (!kind) throw new HttpsError('invalid-argument', 'Unknown analytics event');
-        const topic = kind === 'question' ? sanitizeKey(data && data.topic) : '';
-        const source = kind === 'question' ? sanitizeKey(data && data.source) : '';
+        const topic = kind === 'question' ? allowKey(data && data.topic, TOPIC_KEYS) : '';
+        const source = kind === 'question' ? allowKey(data && data.source, SOURCE_KEYS) : '';
         const uid = context.auth.uid;
         const nowMs = typeof opts.now === 'function' ? opts.now() : Date.now();
         const rateRef = db.collection('nacho_analytics_rate').doc(uid);
@@ -88,6 +103,9 @@ function createNachoBump(opts) {
 module.exports = {
     WINDOW_MS: WINDOW_MS,
     MAX_PER_WINDOW: MAX_PER_WINDOW,
+    TOPIC_KEYS: TOPIC_KEYS,
+    SOURCE_KEYS: SOURCE_KEYS,
+    allowKey: allowKey,
     sanitizeKey: sanitizeKey,
     kindOf: kindOf,
     rateDecision: rateDecision,

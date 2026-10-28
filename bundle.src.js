@@ -23332,12 +23332,38 @@ window.nachoQuizAnswer = function(btn, correct) {
             }).catch(function() { if (vc) vc.textContent = '—'; });
             // One counted visit per uid per UTC day. recordSiteVisit writes it.
             // A signed-out page view does not create a guest just to be counted.
-            if (authUser && firebase.functions) {
-                firebase.functions().httpsCallable('recordSiteVisit')({}).then(function() {
-                    return fdb.collection('stats').doc('visits').get();
-                }).then(function(d) {
+            // If App Check is not ready, the number already on screen stays.
+            // This does not retry.
+            if (authUser && firebase.functions && !window._visitAppCheckDown) {
+                var ready;
+                if (typeof window.btcAppCheckReady === 'function') ready = window.btcAppCheckReady();
+                else if (!firebase.appCheck) ready = Promise.resolve(false);
+                else {
+                    try {
+                        var appCheckApi = firebase.appCheck();
+                        ready = (appCheckApi && appCheckApi.getToken)
+                            ? appCheckApi.getToken(false).then(function () { return true; }, function () { return false; })
+                            : Promise.resolve(false);
+                    } catch (appCheckErr) {
+                        ready = Promise.resolve(false);
+                    }
+                }
+                ready.then(function (ok) {
+                    if (!ok) {
+                        window._visitAppCheckDown = true;
+                        return null;
+                    }
+                    return firebase.functions().httpsCallable('recordSiteVisit')({}).then(function () {
+                        return fdb.collection('stats').doc('visits').get();
+                    });
+                }).then(function (d) {
                     if (d && d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
-                }).catch(function() {});
+                }).catch(function (err) {
+                    var code = String((err && (err.code || err.message)) || '');
+                    if (code.indexOf('app-check') !== -1 || code.indexOf('appCheck') !== -1 || code.indexOf('failed-precondition') !== -1) {
+                        window._visitAppCheckDown = true;
+                    }
+                });
             }
         }
         // Wait for Firebase auth to settle before running

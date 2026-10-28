@@ -624,6 +624,7 @@ function initRanking() {
         if (_pendingRedirect) console.log('[Auth] Detected pending redirect return');
 
         auth.onAuthStateChanged(user => {
+            noteAuthFirstEvent();
             // A verified pass belongs to one uid. Sign-out, anonymous, and a
             // different account all drop it before any profile work.
             syncTotpVerified(user);
@@ -2833,7 +2834,28 @@ async function sendMagicLink(email) {
     }
 }
 
-// A page view does not create a guest. The first action that needs auth does.
+// A page view does not create a guest. The first action that needs auth does,
+// and only after the first auth event and the redirect result have settled.
+var _authFirstEventSeen = false;
+var _authFirstEventPromise = null;
+var _resolveAuthFirstEvent = null;
+function noteAuthFirstEvent() {
+    _authFirstEventSeen = true;
+    if (_resolveAuthFirstEvent) {
+        var resolve = _resolveAuthFirstEvent;
+        _resolveAuthFirstEvent = null;
+        resolve();
+    }
+}
+function authFirstEventPromise() {
+    if (_authFirstEventSeen) return Promise.resolve();
+    if (!_authFirstEventPromise) {
+        _authFirstEventPromise = new Promise(function (resolve) {
+            _resolveAuthFirstEvent = resolve;
+        });
+    }
+    return _authFirstEventPromise;
+}
 function guestAuthBlocked() {
     try {
         if (typeof navigator !== 'undefined' && navigator.webdriver) return true;
@@ -2843,24 +2865,39 @@ function guestAuthBlocked() {
     return false;
 }
 
+function btcAppCheckReady() {
+    if (typeof firebase === 'undefined' || !firebase.appCheck) return Promise.resolve(false);
+    var api;
+    try { api = firebase.appCheck(); } catch (e) { return Promise.resolve(false); }
+    if (!api || typeof api.getToken !== 'function') return Promise.resolve(false);
+    return api.getToken(false).then(function () { return true; }, function () { return false; });
+}
+window.btcAppCheckReady = btcAppCheckReady;
+
 var _guestAuthPromise = null;
+function adoptAuthUser(user) {
+    if (user && user.isAnonymous && (typeof currentUser === 'undefined' || !currentUser || currentUser.uid !== user.uid)) {
+        loadUserLocal(user.uid);
+    }
+    return user || null;
+}
 function ensureGuestAuth() {
     if (typeof auth === 'undefined' || !auth) return Promise.resolve(null);
-    if (auth.currentUser) {
-        if (auth.currentUser.isAnonymous && (typeof currentUser === 'undefined' || !currentUser || currentUser.uid !== auth.currentUser.uid)) {
-            loadUserLocal(auth.currentUser.uid);
-        }
-        return Promise.resolve(auth.currentUser);
-    }
+    if (auth.currentUser) return Promise.resolve(adoptAuthUser(auth.currentUser));
     if (guestAuthBlocked()) return Promise.resolve(null);
     if (_guestAuthPromise) return _guestAuthPromise;
-    _guestAuthPromise = auth.signInAnonymously().then(function (cred) {
-        var user = (cred && cred.user) || auth.currentUser;
-        if (user && user.isAnonymous && (typeof currentUser === 'undefined' || !currentUser || currentUser.uid !== user.uid)) {
-            loadUserLocal(user.uid);
-        }
+    _guestAuthPromise = authFirstEventPromise().then(function () {
+        return redirectResultPromise;
+    }).then(function () {
+        if (auth.currentUser) return adoptAuthUser(auth.currentUser);
+        if (guestAuthBlocked()) return null;
+        return auth.signInAnonymously().then(function (cred) {
+            return adoptAuthUser((cred && cred.user) || auth.currentUser);
+        });
+    }).then(function (user) {
+        if (!user) _guestAuthPromise = null;
         return user || null;
-    }).catch(function () {
+    }, function () {
         _guestAuthPromise = null;
         return null;
     });
@@ -2868,6 +2905,7 @@ function ensureGuestAuth() {
 }
 window.ensureGuestAuth = ensureGuestAuth;
 window.guestAuthBlocked = guestAuthBlocked;
+window.noteAuthFirstEvent = noteAuthFirstEvent;
 
 // Load anonymous user from localStorage only - no Firestore reads
 function loadUserLocal(uid) {

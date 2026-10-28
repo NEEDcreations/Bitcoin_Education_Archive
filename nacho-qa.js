@@ -5121,15 +5121,43 @@ window.getNachoAnalytics = function() {
 // 🔥 Firestore Analytics Sync (anonymous aggregates)
 // =============================================
 
+function _nachoAppCheckReady() {
+    if (typeof window.btcAppCheckReady === 'function') return window.btcAppCheckReady();
+    if (typeof firebase === 'undefined' || !firebase.appCheck) return Promise.resolve(false);
+    try {
+        var api = firebase.appCheck();
+        if (!api || typeof api.getToken !== 'function') return Promise.resolve(false);
+        return api.getToken(false).then(function () { return true; }, function () { return false; });
+    } catch (e) {
+        return Promise.resolve(false);
+    }
+}
+
+function _nachoAppCheckError(err) {
+    var code = String((err && (err.code || err.message)) || '');
+    return code.indexOf('app-check') !== -1 || code.indexOf('appCheck') !== -1 || code.indexOf('failed-precondition') !== -1;
+}
+
 // One +1 per call. bumpNachoAnalytics owns stats/nacho-analytics.
+// If App Check is not ready, stop for this page. Do not retry in a loop.
 function _bumpNachoAnalytics(kind, topic, source) {
+    if (window._nachoAppCheckDown) return Promise.resolve(false);
     if (typeof firebase === 'undefined' || !firebase.functions) return Promise.resolve(false);
     var payload = { kind: kind, topic: topic || '', source: source || '' };
     var send = function () {
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return Promise.resolve(false);
-        return firebase.functions().httpsCallable('bumpNachoAnalytics')(payload).then(function () {
-            return true;
-        }).catch(function () { return false; });
+        return _nachoAppCheckReady().then(function (ready) {
+            if (!ready) {
+                window._nachoAppCheckDown = true;
+                return false;
+            }
+            return firebase.functions().httpsCallable('bumpNachoAnalytics')(payload).then(function () {
+                return true;
+            }).catch(function (err) {
+                if (_nachoAppCheckError(err)) window._nachoAppCheckDown = true;
+                return false;
+            });
+        });
     };
     if (typeof auth !== 'undefined' && auth && auth.currentUser) return send();
     if (typeof ensureGuestAuth !== 'function') return Promise.resolve(false);
@@ -5139,6 +5167,7 @@ function _bumpNachoAnalytics(kind, topic, source) {
 // Sync local analytics through the callable. Each invocation sends at most
 // one question and one new rating. The cursor moves only after the server accepts.
 window.syncNachoAnalytics = function() {
+    if (window._nachoAppCheckDown) return;
     if (typeof firebase === 'undefined' || !firebase.functions) return;
     if (window._nachoBumpFlight) return;
     try {
@@ -5191,6 +5220,7 @@ window.nachoTrackTopic = function(question, source) {
     window._nachoLastSource = source || 'unknown';
     window._nachoLastTopic = typeof classifyTopic === 'function' ? classifyTopic(question || '') : '';
     if (_origTrackTopic) _origTrackTopic(question, source);
+    if (window._nachoAppCheckDown) return;
     // Debounced sync — 30s after last question
     if (_nachoSyncTimer) clearTimeout(_nachoSyncTimer);
     _nachoSyncTimer = setTimeout(function() { syncNachoAnalytics(); }, 30000);

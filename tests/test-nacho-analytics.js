@@ -117,6 +117,22 @@ test('the rate limit stops a loop', async function () {
     assert.strictEqual(db.docs['stats/nacho-analytics'].downvotes, 1);
 });
 
+test('topic and source keys must be on the allowlist', async function () {
+    const db = memory();
+    const bump = nacho.createNachoBump({ admin: admin, db: db, HttpsError: HttpsError, now: function () { return 1000; } });
+    const ctx = { auth: { uid: 'u1' } };
+    await bump({ kind: 'question', topic: 'Mining!', source: 'kb' }, ctx);
+    await bump({ kind: 'question', topic: '<script>', source: 'not-a-source' }, ctx);
+    const doc = db.docs['stats/nacho-analytics'];
+    assert.strictEqual(doc.totalQuestions, 2);
+    assert.strictEqual(doc.topics.mining, 1);
+    assert.strictEqual(doc.topics.script, undefined);
+    assert.strictEqual(doc.sources.kb, 1);
+    assert.strictEqual(doc.sources['not-a-source'], undefined);
+    assert.strictEqual(nacho.allowKey('pwned', nacho.TOPIC_KEYS), '');
+    assert.strictEqual(nacho.allowKey('other', nacho.TOPIC_KEYS), 'other');
+});
+
 test('unsigned and unknown events are rejected', async function () {
     const db = memory();
     const bump = nacho.createNachoBump({ admin: admin, db: db, HttpsError: HttpsError });

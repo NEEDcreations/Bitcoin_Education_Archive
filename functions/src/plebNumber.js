@@ -73,6 +73,17 @@ async function assignPlebNumber(db, admin, uid) {
     });
 }
 
+// An update of a guest who still has no points and no Pleb number is not an
+// upgrade. Skip the Auth lookup. A brand-new doc (before is null) can still
+// be a signed-in account, so that path may call getUser.
+function shouldLookupAuth(before, after) {
+    if (!after) return false;
+    if (after.plebNumber || (before && before.plebNumber)) return false;
+    if (pointsOf(after) > 0) return false;
+    if (!before) return true;
+    return false;
+}
+
 async function maybeCountMember(db, admin, uid, before, after) {
     if (!after) return { count: false, reason: 'deleted' };
     const xp = countDecision({ before: before, after: after, signedIn: false });
@@ -85,6 +96,7 @@ async function maybeCountMember(db, admin, uid, before, after) {
         const assigned = await assignPlebNumber(db, admin, uid);
         return { count: !!assigned.assigned, reason: 'signed-in', plebNumber: assigned.plebNumber };
     }
+    if (!shouldLookupAuth(before, after)) return { count: false, reason: 'shell' };
     let authUser = null;
     try {
         const api = admin && typeof admin.auth === 'function' ? admin.auth() : null;
@@ -108,5 +120,6 @@ module.exports = {
     isSignedInAccount: isSignedInAccount,
     countDecision: countDecision,
     assignPlebNumber: assignPlebNumber,
+    shouldLookupAuth: shouldLookupAuth,
     maybeCountMember: maybeCountMember,
 };

@@ -5049,13 +5049,13 @@ const plebNumber = require('./src/plebNumber');
 const { createNachoBump } = require('./src/nachoAnalytics');
 const { createSiteVisit } = require('./src/siteVisit');
 
-exports.bumpNachoAnalytics = functionsV1.https.onCall(createNachoBump({
+exports.bumpNachoAnalytics = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(createNachoBump({
     admin: admin,
     db: db,
     HttpsError: functionsV1.https.HttpsError,
 }));
 
-exports.recordSiteVisit = functionsV1.https.onCall(createSiteVisit({
+exports.recordSiteVisit = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(createSiteVisit({
     admin: admin,
     db: db,
     HttpsError: functionsV1.https.HttpsError,

@@ -239,7 +239,7 @@ queue.push(test('rules deny client address edits once one is saved, and the rese
     const resetRule = rules.slice(rules.indexOf('match /ln_resets/{uid}'));
     assert.ok(resetRule.indexOf('allow read, write: if false;') === resetRule.indexOf('allow'));
     assert.ok(rules.indexOf("'flexFullDays', 'flexFullDay'") > 0);
-    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
+    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 10);
     assert.ok(resetSrc.indexOf('enforceAppCheck: true') > 0);
     assert.ok(index.indexOf('bindResetLightningAddress') > 0);
     assert.ok(index.indexOf('exports.resetLightningAddressOnce') > 0);

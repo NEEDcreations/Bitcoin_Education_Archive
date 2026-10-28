@@ -332,7 +332,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
     const syncRule = rules.slice(rules.indexOf('match /satoshiFavor/factionSyncs'));
     assert.ok(syncRule.indexOf('allow write: if false;') > 0);
 
-    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
+    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 10);
     assert.ok(chooseSrc.indexOf('enforceAppCheck: true') > 0);
     assert.ok(index.indexOf('bindChooseFaction') > 0);
     assert.ok(index.indexOf('exports.chooseFaction') > 0);
