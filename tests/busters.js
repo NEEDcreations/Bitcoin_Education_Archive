@@ -1,8 +1,8 @@
-// Cache-buster pin. This ship is btc-archive-v2411.
+// Cache-buster pin. This ship is btc-archive-v2416.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js stays 20261026_v2383. scholar.js stays 20261026_v2386.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261028_v2411.
-// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261028_v2403.
+// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261028_v2416.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // global-chat.js is 20261027_v2393. gifting.js stays 20261026_v2378. quests.js is 20261027_v2393.
@@ -35,9 +35,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2411', () => {
+test('service worker cache is v2416', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2411'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2416'"));
+    assert.ok(!sw.includes('btc-archive-v2411'));
     assert.ok(!sw.includes('btc-archive-v2410'));
     assert.ok(!sw.includes('btc-archive-v2407'));
     assert.ok(!sw.includes('btc-archive-v2386'));
@@ -163,7 +164,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
-    assert.ok(html.includes('ranking.js?v=20261028_v2403'));
+    assert.ok(html.includes('ranking.js?v=20261028_v2416'));
+    assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
     assert.ok(html.includes('auth-display.js?v=20261028_v2403'));
     assert.ok(html.includes('app-check-boot.js?v=20261028_v2403'));
     assert.ok(html.indexOf('firebase-app-check-compat.js') < html.indexOf('auth-boot.js?v=20261027_v2394'));
@@ -182,8 +184,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261028_v2403'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261028_v2403'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261028_v2416'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -408,7 +410,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2411');
+    assert.ok(swVersion && swVersion[1] === 'v2416');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -451,7 +453,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('October 28, 2026 · v2411'));
+    assert.ok(notes.includes('October 28, 2026 · v2416'));
+    assert.ok(!notes.includes('October 28, 2026 · v2411'));
     assert.ok(!notes.includes('October 28, 2026 · v2407'));
     assert.ok(!notes.includes('October 28, 2026 · v2405'));
     assert.ok(!notes.includes('October 28, 2026 · v2403'));
@@ -461,7 +464,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2394'));
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
-    assert.ok(notes.includes('Latest: Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
+    assert.ok(notes.includes('Latest: Fixed leaderboards not loading.'));
+    assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
+    assert.ok(!notes.includes('Latest: Tap Nacho'));
     assert.ok(notes.includes('A shared certificate link shows up right away. If the check takes too long, you can retry or open Bitcoin Quest.'));
     assert.ok(!notes.includes('Latest: A shared certificate'));
     assert.ok(notes.includes('A returning signed-in home shows level, sats, rank, and buttons from this device as soon as the page paints. An authenticator account stays hidden until that check finishes.'));
@@ -603,6 +608,22 @@ test('learn menu has five roots and a quests subview', () => {
     assert.ok(html.includes('openHomeLearnMenu'));
     assert.ok(!html.includes('onclick="go(\'learning-quests\')"'));
     assert.ok(!html.includes('id="nqQuestBtn"'));
+});
+
+test('leaderboard reads public profiles only after auth', () => {
+    const ranking = read('ranking.js');
+    assert.ok(ranking.includes('function _lbAuthReady(timeoutMs)'));
+    assert.ok(ranking.includes('await _lbAuthReady(15000)'));
+    const prefetchAt = ranking.indexOf('function _prefetchLeaderboard');
+    const prefetch = ranking.slice(prefetchAt, ranking.indexOf('window._prefetchLeaderboard', prefetchAt));
+    assert.ok(prefetch.includes('_lbAuthReady(15000)'));
+    assert.ok(prefetch.includes("if (!user) throw new Error('leaderboard auth')"));
+    assert.ok(prefetch.includes('_prefetched = false'));
+    const toggleAt = ranking.indexOf('async function toggleLeaderboard');
+    const toggle = ranking.slice(toggleAt, ranking.indexOf('function _predLbInfoText', toggleAt));
+    assert.ok(toggle.indexOf('await _lbAuthReady(15000)') < toggle.indexOf("orderBy('points', 'desc')"));
+    assert.ok(toggle.indexOf('await _lbAuthReady(15000)') < toggle.indexOf("orderBy('weeklyXP', 'desc')"));
+    assert.ok(toggle.indexOf('await _lbAuthReady(15000)') < toggle.indexOf("orderBy('monthlyXP', 'desc')"));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -5685,6 +5685,44 @@ function _lbBadgeEmoji(emoji) {
         chars.map(function(c) { return '<span>' + c + '</span>'; }).join('') + '</span>';
 }
 
+// public_profiles allows any signed-in user, including anonymous, and rejects
+// a signed-out read. Anonymous sign-in can land after the first paint.
+function _lbAuthReady(timeoutMs) {
+    var limit = typeof timeoutMs === 'number' ? timeoutMs : 15000;
+    function currentAuth() {
+        if (typeof auth !== 'undefined' && auth) return auth;
+        if (typeof window !== 'undefined' && window.auth) return window.auth;
+        return null;
+    }
+    var ready = currentAuth();
+    if (ready && ready.currentUser) return Promise.resolve(ready.currentUser);
+    return new Promise(function (resolve) {
+        var settled = false;
+        var unsub = null;
+        function finish(user) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (typeof unsub === 'function') {
+                try { unsub(); } catch (e) {}
+            }
+            resolve(user || null);
+        }
+        var timer = setTimeout(function () {
+            var live = currentAuth();
+            finish(live && live.currentUser);
+        }, limit);
+        var live = ready || currentAuth();
+        if (!live || typeof live.onAuthStateChanged !== 'function') return;
+        unsub = live.onAuthStateChanged(function (user) {
+            if (user) finish(user);
+        });
+        if (settled && typeof unsub === 'function') {
+            try { unsub(); } catch (e) {}
+        }
+    });
+}
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
     if (!lb) return;
@@ -5754,6 +5792,7 @@ async function toggleLeaderboard() {
     }
 
     try {
+        await _lbAuthReady(15000);
         // Cache leaderboard data for 10 minutes to reduce Firestore reads
         var now = Date.now();
         var _lbPeriod = window._lbPeriod || 'alltime';
@@ -10162,7 +10201,12 @@ if (document.readyState === 'loading') {
         var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
         if (useCache) { _prefetched = true; return; }
         _prefetched = true;
-        db.collection('public_profiles').orderBy('points', 'desc').limit(150).get().then(function(snap) {
+        // Query only after a user exists. A signed-out read is permission-denied,
+        // and the catch below clears the flag so a later open can try again.
+        _lbAuthReady(15000).then(function (user) {
+            if (!user) throw new Error('leaderboard auth');
+            return db.collection('public_profiles').orderBy('points', 'desc').limit(150).get();
+        }).then(function(snap) {
             var users = [];
             snap.forEach(function(doc) {
                 var d = doc.data();
