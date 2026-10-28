@@ -191,12 +191,17 @@ test('a first claim counts once and a repeat claim does not', async function () 
     assert.strictEqual(first.correct, true);
     assert.strictEqual(first.statsRecorded, true);
     assert.strictEqual(first.alreadyClaimed, false);
+    assert.strictEqual(first.answerIndex, slot);
+    assert.strictEqual(first.explanation, pack.question.explanation);
+    assert.ok(first.explanation);
     assertCountedOnce(pack, slot);
 
     const second = await answerTrivia.run(Object.assign({}, pack.data, { chosen: correctText }), context('alice'));
     assert.strictEqual(second.success, true);
     assert.strictEqual(second.alreadyClaimed, true);
     assert.strictEqual(second.statsRecorded, false);
+    assert.strictEqual(second.answerIndex, slot);
+    assert.strictEqual(second.explanation, pack.question.explanation);
     assert.strictEqual(tallyWrites().length, 2);
 });
 
@@ -282,6 +287,8 @@ test('a wrong day or wrong question writes no claim or tally', async function ()
     assert.strictEqual(wrongDay.correct, false);
     assert.strictEqual(wrongDay.awarded, 0);
     assert.strictEqual(wrongDay.reason, 'wrong-day');
+    assert.strictEqual(wrongDay.explanation, undefined);
+    assert.strictEqual(wrongDay.answerIndex, undefined);
     assertNoAnswerWrites();
 
     reset({ 'users/wrongq': { points: 100000 } });
@@ -294,6 +301,8 @@ test('a wrong day or wrong question writes no claim or tally', async function ()
     assert.strictEqual(wrongQuestion.correct, false);
     assert.strictEqual(wrongQuestion.awarded, 0);
     assert.strictEqual(wrongQuestion.reason, 'wrong-question');
+    assert.strictEqual(wrongQuestion.explanation, undefined);
+    assert.strictEqual(wrongQuestion.answerIndex, undefined);
     assertNoAnswerWrites();
 });
 

@@ -721,10 +721,16 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.deepStrictEqual(lastGrant, ['combo_legend']);
     assert.deepStrictEqual(combo.planCombo(state, 'chat').grant, []);
     assert.deepStrictEqual(combo.planCombo(state, 'combo_legend').grant, []);
-    assert.strictEqual(
-        fs.readFileSync(path.join(root, 'data', 'trivia-bank.js'), 'utf8'),
-        fs.readFileSync(path.join(root, 'functions', 'src', 'trivia-bank.js'), 'utf8')
-    );
+    const publicTrivia = new Function(fs.readFileSync(path.join(root, 'data', 'trivia-bank.js'), 'utf8') + '\nreturn TRIVIA_BANK;')();
+    const privateTrivia = new Function(fs.readFileSync(path.join(root, 'functions', 'src', 'trivia-bank.js'), 'utf8') + '\nreturn TRIVIA_BANK;')();
+    assert.strictEqual(publicTrivia.length, privateTrivia.length);
+    publicTrivia.forEach(function (row, i) {
+        assert.deepStrictEqual(Object.keys(row).sort(), ['options', 'q']);
+        assert.strictEqual(row.q, privateTrivia[i].q);
+        assert.deepStrictEqual(row.options, privateTrivia[i].options);
+        assert.ok(Number.isInteger(privateTrivia[i].answer));
+        assert.ok(privateTrivia[i].explanation);
+    });
     const os = require('os');
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'trivia-fn-'));
     fs.mkdirSync(path.join(tmp, 'functions', 'src'), { recursive: true });

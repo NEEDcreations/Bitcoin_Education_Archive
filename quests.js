@@ -5072,6 +5072,42 @@ function _captureTriviaBaseline(todayKey, bankIdx, done) {
     }
 }
 
+function _triviaCanGrade() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
+        && typeof firebase !== 'undefined' && firebase.functions;
+}
+
+// Checking paints in the same turn as the tap. Correctness and the
+// explanation stay hidden until answerTrivia returns them.
+function _markTriviaChecking(chosenIdx, todayKey) {
+    window._triviaChecking = { idx: chosenIdx, todayKey: todayKey, at: Date.now() };
+    var pill = document.getElementById('triviaXpPill');
+    if (pill) {
+        pill.textContent = 'XP pending';
+        if (pill.setAttribute) pill.setAttribute('data-xp', 'pending');
+    }
+    var buttons = [];
+    if (document.querySelectorAll) {
+        try { buttons = document.querySelectorAll('#triviaOptions button'); } catch (e) { buttons = []; }
+    }
+    for (var i = 0; i < buttons.length; i++) {
+        var b = buttons[i];
+        b.disabled = true;
+        if (b.style) b.style.cursor = 'default';
+        if (i === chosenIdx) {
+            if (b.setAttribute) b.setAttribute('data-trivia-checking', '1');
+            if (b.style) b.style.borderColor = '#f7931a';
+            var note = document.createElement('span');
+            note.id = 'triviaChecking';
+            note.textContent = 'checking\u2026';
+            if (note.style) note.style.cssText = 'margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;';
+            if (b.appendChild) b.appendChild(note);
+        } else if (b.style) {
+            b.style.opacity = '0.55';
+        }
+    }
+}
+
 function _renderTriviaTab(body, optimisticVote) {
     _detachTriviaStatsListener();
     var today = _getTriviaToday();
@@ -5084,12 +5120,15 @@ function _renderTriviaTab(body, optimisticVote) {
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var answered = state.date === todayKey;
     var t = today.trivia;
+    var checking = !!(window._triviaChecking && window._triviaChecking.todayKey === todayKey && !answered);
+    var pillText = checking ? 'XP pending' : (answered ? '' : '+50 XP for a correct answer');
+    if (answered && typeof state.awarded === 'number' && state.awarded > 0) pillText = '+' + state.awarded + ' XP';
 
     var html = '<div style="text-align:center;padding:8px 0 16px;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">🧠</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Trivia Quest</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">1 new question every day</div>' +
-        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP for a correct answer</div>' +
+        (pillText ? '<div id="triviaXpPill" data-xp="' + (checking ? 'pending' : (answered ? 'answered' : 'offer')) + '" style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">' + pillText + '</div>' : '') +
     '</div>';
 
     // Question card
@@ -5102,7 +5141,8 @@ function _renderTriviaTab(body, optimisticVote) {
     for (var i = 0; i < t.options.length; i++) {
         var optText = typeof escapeHtml === 'function' ? escapeHtml(t.options[i]) : t.options[i];
         if (answered) {
-            var isCorrect = i === t.answer;
+            var answerIndex = (typeof state.answerIndex === 'number') ? state.answerIndex : -1;
+            var isCorrect = answerIndex >= 0 && i === answerIndex;
             var wasChosen = i === state.chosen;
             var bg = isCorrect ? 'rgba(34,197,94,0.15)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.15)' : 'var(--card-bg,#1a1a2e)');
             var border = isCorrect ? '#22c55e' : (wasChosen && !isCorrect ? '#ef4444' : 'var(--border)');
@@ -5115,9 +5155,12 @@ function _renderTriviaTab(body, optimisticVote) {
                 (icon ? '<span style="position:relative;z-index:1;">' + icon + '</span>' : '') +
             '</div>';
         } else {
-            html += '<button onclick="triviaAnswer(' + i + ')" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+            var isChecking = checking && window._triviaChecking && window._triviaChecking.idx === i;
+            var dimOther = checking && !isChecking;
+            html += '<button onclick="triviaAnswer(' + i + ')"' + (checking ? ' disabled' : '') + ' style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChecking ? '#f7931a' : 'var(--border)') + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:' + (checking ? 'default' : 'pointer') + ';font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;opacity:' + (dimOther ? '0.55' : '1') + ';">' +
                 '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
                 optText +
+                (isChecking ? '<span id="triviaChecking" style="margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;">checking\u2026</span>' : '') +
             '</button>';
         }
     }
@@ -5128,13 +5171,16 @@ function _renderTriviaTab(body, optimisticVote) {
         html += '<div style="margin-top:14px;margin-bottom:6px;font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;text-align:center;">👥 Community Answers</div>';
     }
 
-    // Show explanation if answered. Counts stay empty until the live tally is known.
+    // Explanation arrives with the grade. Counts stay empty until the live tally is known.
     if (answered) {
         html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">Loading community results...</div>';
-        html += '<div style="margin-top:4px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
-            '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
-            '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.explanation) : t.explanation) + '</div>' +
-        '</div>';
+        if (state.explanation) {
+            var explanationText = typeof escapeHtml === 'function' ? escapeHtml(state.explanation) : state.explanation;
+            html += '<div style="margin-top:4px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
+                '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
+                '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + explanationText + '</div>' +
+            '</div>';
+        }
         html += '<div style="text-align:center;margin-top:16px;color:var(--text-faint);font-size:0.75rem;">Come back tomorrow for a new trivia question! 🧠</div>';
     }
 
@@ -5164,16 +5210,44 @@ window.triviaAnswer = function(chosenIdx) {
     var state = _getTriviaState();
     if (state.date === todayKey) return; // Already answered
     if (window._triviaSubmitting) return;
-    window._triviaSubmitting = true;
+    if (typeof chosenIdx !== 'number' || chosenIdx < 0 || !t.options || chosenIdx >= t.options.length) return;
 
     var chosenText = t.options[chosenIdx];
+    // Guest and offline play cannot see the key and must not be graded locally.
+    if (!_triviaCanGrade()) {
+        if (typeof showToast === 'function') showToast('Sign in to answer trivia. Guest and offline answers are not graded and do not earn XP.', 3000);
+        return;
+    }
 
-    function _finishTrivia(isCorrect, awarded, banned, statsRecorded) {
-        state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: !!isCorrect };
+    window._triviaSubmitting = true;
+    _markTriviaChecking(chosenIdx, todayKey);
+
+    function _abortTrivia(message) {
+        window._triviaSubmitting = false;
+        window._triviaChecking = null;
+        if (typeof showToast === 'function' && message) showToast(message, 3000);
+        var body = document.getElementById('questHubBody');
+        if (body) _renderTriviaTab(body, null);
+    }
+
+    function _finishTrivia(isCorrect, awarded, banned, statsRecorded, reveal) {
+        window._triviaChecking = null;
+        reveal = reveal || {};
+        var paid = (typeof awarded === 'number' && awarded > 0) ? awarded : 0;
+        var answerIndex = (typeof reveal.answerIndex === 'number') ? reveal.answerIndex : -1;
+        state = {
+            date: todayKey,
+            index: today.index,
+            chosen: chosenIdx,
+            correct: !!isCorrect,
+            awarded: paid,
+            answerIndex: answerIndex,
+            explanation: typeof reveal.explanation === 'string' ? reveal.explanation : ''
+        };
         _setTriviaState(state);
         if (isCorrect && !banned && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
-        if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
-        if (isCorrect && !banned && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        if (paid > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(paid);
+        if (isCorrect && !banned && _triviaCanGrade()) {
             try {
                 firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
             } catch(e) {}
@@ -5187,7 +5261,7 @@ window.triviaAnswer = function(chosenIdx) {
         if (body) _renderTriviaTab(body, statsRecorded === true ? { chosenIdx: chosenIdx } : null);
         if (typeof showToast === 'function') {
             var toast = isCorrect
-                ? (awarded > 0 ? '✅ Correct! +' + awarded + ' XP 🧠' : '✅ Correct!')
+                ? (paid > 0 ? '✅ Correct! +' + paid + ' XP 🧠' : '✅ Correct!')
                 : '❌ Not quite';
             showToast(toast, 3000);
         }
@@ -5195,10 +5269,8 @@ window.triviaAnswer = function(chosenIdx) {
     }
 
     function _submitTrivia() {
-        var signedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
-            && typeof firebase !== 'undefined' && firebase.functions;
-        if (!signedIn) {
-            _finishTrivia(chosenIdx === t.answer, 0, false, false);
+        if (!_triviaCanGrade()) {
+            _abortTrivia('Sign in to answer trivia. Guest and offline answers are not graded and do not earn XP.');
             return;
         }
 
@@ -5210,23 +5282,30 @@ window.triviaAnswer = function(chosenIdx) {
         }).then(function(res) {
             var d = (res && res.data) || {};
             if (d.success === false && d.reason && d.reason !== 'incorrect') {
-                window._triviaSubmitting = false;
-                if (typeof showToast === 'function') {
-                    showToast(d.reason === 'wrong-question'
-                        ? 'Trivia updated, please refresh'
-                        : '❌ Could not grade trivia. Try again.');
-                }
+                _abortTrivia(d.reason === 'wrong-question'
+                    ? 'Trivia updated, please refresh'
+                    : '❌ Could not grade trivia. Try again.');
                 return;
             }
             var awarded = typeof d.awarded === 'number' ? d.awarded : 0;
-            _finishTrivia(d.correct === true, awarded, d.banned === true, d.statsRecorded === true);
+            _finishTrivia(d.correct === true, awarded, d.banned === true, d.statsRecorded === true, {
+                answerIndex: d.answerIndex,
+                explanation: d.explanation
+            });
         }).catch(function() {
-            window._triviaSubmitting = false;
-            if (typeof showToast === 'function') showToast('❌ Could not grade trivia. Try again.');
+            _abortTrivia('❌ Could not grade trivia. Try again.');
         });
     }
 
-    _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), _submitTrivia);
+    // A cached live doc is a real before-snapshot. Without one, a get can
+    // land after the grade write and a local +1 would count that vote twice.
+    // The grade request starts in this turn. Checking is already on screen.
+    if (window._triviaLiveKey === todayKey && window._triviaLiveDoc) {
+        _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), function() {});
+    } else {
+        window._triviaBaseline = { key: todayKey, bankIdx: _triviaStatIndex(t, chosenIdx), known: false, total: 0, counts: null };
+    }
+    _submitTrivia();
 };
 
 // ============================================================
@@ -6273,7 +6352,7 @@ window._contributeRaidNav = function() {
     // Load trivia bank
     if (typeof TRIVIA_BANK === 'undefined') {
         var ts = document.createElement('script');
-        ts.src = 'data/trivia-bank.js?v=20261022_v2270';
+        ts.src = 'data/trivia-bank.js?v=20261027_v2402';
         ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
         document.head.appendChild(ts);
     }

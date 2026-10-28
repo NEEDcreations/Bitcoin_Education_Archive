@@ -55,6 +55,18 @@ function meterFrom(used, awarded) {
     };
 }
 
+// The explanation and the correct slot are returned only after this call
+// grades the choice. Wrong-day and wrong-question responses omit both.
+function triviaReveal(graded) {
+    if (!graded || graded.ok !== true) return {};
+    const explanation = typeof graded.explanation === 'string' ? graded.explanation : '';
+    const answerIndex = Number.isInteger(graded.answerIndex) ? graded.answerIndex : -1;
+    return {
+        explanation: explanation,
+        answerIndex: answerIndex >= 0 && answerIndex < 4 ? answerIndex : -1,
+    };
+}
+
 function applyRate(tx, rateRef, rateDoc, now, max, kind) {
     const existing = rateDoc.exists ? rateDoc.data() : null;
     const rate = reward.nextCallRate(existing, now, RATE_WINDOW_MS, max);
@@ -109,14 +121,14 @@ const answerTrivia = onCall(async (data, context) => {
         }
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
         if (alreadyClaimed) {
-            return {
+            return Object.assign({
                 success: true,
                 correct: claimDoc.data().correct === true,
                 awarded: 0,
                 alreadyClaimed: true,
                 statsRecorded: false,
                 reason: 'already-claimed',
-            };
+            }, triviaReveal(graded));
         }
 
         let statsRecorded = false;
@@ -190,7 +202,7 @@ const answerTrivia = onCall(async (data, context) => {
             graded: true,
             statsRecorded: statsRecorded,
             reason: banned ? 'banned' : (graded.correct ? '' : 'incorrect'),
-        }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)));
+        }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)), triviaReveal(graded));
     });
 });
 

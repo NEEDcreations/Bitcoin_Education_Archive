@@ -3,7 +3,8 @@
 // Server-side grading for daily trivia and quiz quests.
 // The browser is hostile: answer keys, indexes, and "correct" flags it sends
 // are ignored. Points are decided from functions/reward-banks.json, which
-// build.sh copies from data/trivia-bank.js, quests.js, and learning-quests.js.
+// build.sh copies from functions/src/trivia-bank.js, quests.js, and
+// learning-quests.js. The public trivia file has no answer index.
 //
 // Trivia and quiz XP use the shared daily counter: full through 500, half
 // through 900, then a quarter until 1,000, on the offset-day daily_points
@@ -149,7 +150,12 @@ function previousQuestParts(prev) {
 
 function triviaQuestionFrom(item) {
     if (!item || !Array.isArray(item.options)) return null;
-    return { q: item.q, options: item.options.slice(), answer: item.answer };
+    return {
+        q: item.q,
+        options: item.options.slice(),
+        answer: item.answer,
+        explanation: typeof item.explanation === 'string' ? item.explanation : '',
+    };
 }
 
 function triviaQuestion(index) {
@@ -332,8 +338,12 @@ function gradeTrivia(input) {
     const expected = selected.questionIndex;
     const optionIndex = choice == null ? -1 : triviaOptionIndex(question, choice);
     const correct = optionIndex >= 0 && triviaChoiceCorrect(question, choice);
+    // Returned only after the choice is graded. A wrong day or wrong question
+    // leaves before this, so a probe does not learn the answer.
+    const explanation = typeof question.explanation === 'string' ? question.explanation : '';
+    const answerIndex = Number.isInteger(question.answer) ? question.answer : -1;
     if (src.banned === true) {
-        return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected, optionIndex: optionIndex };
+        return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected, optionIndex: optionIndex, explanation: explanation, answerIndex: answerIndex };
     }
     const pts = correct ? TRIVIA_CORRECT_XP : 0;
     const split = planDailyXp(src.dailyUsed || 0, pts);
@@ -347,6 +357,8 @@ function gradeTrivia(input) {
         reason: correct ? '' : 'incorrect',
         questionIndex: expected,
         optionIndex: optionIndex,
+        explanation: explanation,
+        answerIndex: answerIndex,
     };
 }
 

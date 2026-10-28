@@ -350,7 +350,7 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     assert.strictEqual(quests.includes('Trivia Quest correct'), false);
     assert.strictEqual(quests.includes("httpsCallable('startQuest')"), false);
     assert.ok(quests.includes('Trivia updated, please refresh'));
-    assert.ok(quests.includes('data/trivia-bank.js?v=20261022_v2270'));
+    assert.ok(quests.includes('data/trivia-bank.js?v=20261027_v2402'));
     assert.ok(read('patch-notes.html').includes('Quiz and trivia rewards are now checked by the server, and Part 2 quizzes pay out correctly again.'));
     assert.ok(read('firestore.rules').includes('quest_completions'));
 });
@@ -451,7 +451,7 @@ test('trivia stats record the bank index, not the shuffled display slot', functi
     assert.strictEqual(statIndex(null, 1), 1);
 
     const finishStart = src.indexOf('function _finishTrivia');
-    const finishEnd = src.indexOf('var signedIn', finishStart);
+    const finishEnd = src.indexOf('function _submitTrivia', finishStart);
     const finish = src.slice(finishStart, finishEnd);
     assert.strictEqual(finish.includes("db.collection('trivia_stats')"), false);
     assert.strictEqual(finish.includes("db.collection('trivia_cumulative')"), false);
