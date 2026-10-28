@@ -377,7 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: The privacy policy and terms now explain referral tracking, verified-referral badge tiers, two-factor authentication, the profile saved on this device, account deletion, App Check, Lightning sats, what Nacho sends to the AI, Timechain TV and Bitcoin Beats, share cards and referral links, Satoshi's Favor, peers, keys and ciphers, the public leaderboard, and guest accounts. Rewards are discretionary and are not guaranteed.") > 0);
+    assert.ok(notes.indexOf("Latest: A returning signed-in home shows level, sats, rank, and buttons from this device as soon as the page paints. An authenticator account stays hidden until that check finishes.") > 0);
     assert.ok(notes.indexOf("The raid boss shows HP remaining, the same remaining over max HP as the raid screen.") > 0);
     assert.ok(notes.indexOf("Latest: The raid boss") === -1);
     assert.ok(notes.indexOf("Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.") > 0);

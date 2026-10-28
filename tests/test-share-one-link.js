@@ -298,7 +298,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: The privacy policy and terms now explain referral tracking, verified-referral badge tiers, two-factor authentication, the profile saved on this device, account deletion, App Check, Lightning sats, what Nacho sends to the AI, Timechain TV and Bitcoin Beats, share cards and referral links, Satoshi\'s Favor, peers, keys and ciphers, the public leaderboard, and guest accounts. Rewards are discretionary and are not guaranteed.');
+    const latestAt = notes.indexOf('Latest: A returning signed-in home shows level, sats, rank, and buttons from this device as soon as the page paints. An authenticator account stays hidden until that check finishes.');
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);
