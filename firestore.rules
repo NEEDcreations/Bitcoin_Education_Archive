@@ -462,82 +462,20 @@ service cloud.firestore {
 
     // =============================================
     // STATS COLLECTION
-    // [AUDIT FIX S6] nacho-analytics now requires auth
+    // Clients can read. They cannot write.
+    // stats/global: triggers and callables (userCount, chat, quests, channels,
+    // spins, pvp, watch minutes). stats/visits: recordSiteVisit, once per uid
+    // per day. stats/nacho-analytics: bumpNachoAnalytics, +1 and rate limited.
+    // stats/predictions: resolvePredictions only.
     // =============================================
     match /stats/{statId} {
       allow read: if true;
-      allow update: if request.auth != null
-                    && statId == 'visits'
-                    && request.resource.data.total == resource.data.total + 1;
-      allow create: if request.auth != null
-                    && statId == 'visits';
-      // [AUDIT FIX S6 + LOW-4] nacho-analytics: non-anon auth + field allowlist to prevent junk data
-      // Only whitelisted increment fields accepted; no arbitrary keys.
-      allow create, update: if statId == 'nacho-analytics'
-                            && request.auth != null
-                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                            && request.resource.data.keys().hasOnly([
-                                'totalQuestions', 'upvotes', 'downvotes', 'lastUpdated',
-                                'topics', 'sources'
-                            ]);
-      // Community prediction totals (stats/predictions) are written only by
-      // resolvePredictions via the Admin SDK. The old client +1 rules are
-      // closed so a hostile client cannot inflate community accuracy.
-      // No allow matches statId == 'predictions', so client writes are denied.
-      // Read stays open via `allow read: if true` above.
-      // ─── Global community stats ───
-      // Authenticated (non-anonymous) users may increment whitelisted counters
-      // by exactly +1 per write (watchTimeMinutes allows +1..+5 for batched TCTV pings).
-      // Admin emails have unrestricted write (for resets and maintenance).
-      //
-      // Whitelisted fields: channelVisits, questsCompleted, chatMessages, spins,
-      //                     userCount, watchTimeMinutes
-      // pvpMatches is incremented only by onPvpMatchFinished.
-      //
-      // Risk: a determined attacker with a console can inflate counters, but these
-      // are cosmetic engagement metrics only — no points, sats, or access granted.
-      // Worst case: admin calls resetCommunityStats() to reset.
-      // Cosmetic engagement counters only — no points, sats, or access.
-      allow update, create: if statId == 'global'
-                             && request.auth != null
-                             && isAdmin();
-      // Per-field +1 increments for non-admin authenticated users.
-      // Writes must touch exactly ONE whitelisted field; the value must equal
-      // the previous value + 1 (or +1..+5 for watchTimeMinutes — allows small batched TCTV ticks).
-      allow update: if statId == 'global'
-                    && request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.diff(resource.data).affectedKeys().size() == 1
-                    && (
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['channelVisits'])
-                        && request.resource.data.channelVisits == resource.data.get('channelVisits', 0) + 1)
-                      ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['questsCompleted'])
-                        && request.resource.data.questsCompleted == resource.data.get('questsCompleted', 0) + 1)
-                      ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatMessages'])
-                        && request.resource.data.chatMessages == resource.data.get('chatMessages', 0) + 1)
-                      ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spins'])
-                        && request.resource.data.spins == resource.data.get('spins', 0) + 1)
-                      ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userCount'])
-                        && request.resource.data.userCount == resource.data.get('userCount', 0) + 1)
-                      ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['watchTimeMinutes'])
-                        && request.resource.data.watchTimeMinutes >= resource.data.get('watchTimeMinutes', 0) + 1
-                        && request.resource.data.watchTimeMinutes <= resource.data.get('watchTimeMinutes', 0) + 5)
-                    );
-      // Create when doc doesn't exist — same pattern, diff against empty fallback
-      allow create: if statId == 'global'
-                    && request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.keys()
-                       .hasOnly(['channelVisits','questsCompleted','chatMessages','spins','userCount','watchTimeMinutes'])
-                    && request.resource.data.keys().size() == 1
-                    && request.resource.data.values()[0] is int
-                    && request.resource.data.values()[0] >= 1
-                    && request.resource.data.values()[0] <= 5;
+      allow create, update, delete: if false;
+    }
+
+    // Per-user Nacho analytics rate ledger. bumpNachoAnalytics only.
+    match /nacho_analytics_rate/{uid} {
+      allow read, write: if false;
     }
 
     // Active predictions (for server-side resolution)
@@ -1974,37 +1912,11 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Created and incremented only by dailyPollVote, once per accepted vote.
+    // The unchecked client create is gone. #143 does not change these rules.
     match /poll_cumulative/{pollId} {
       allow read: if true;
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
-      // [SECURITY FIX] create: values must be 0 or 1; total must equal 1 (first vote).
-      // Previously unconstrained — any value could be set on create.
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
-                    && request.resource.data.total == 1
-                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
-                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
-                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
-                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
-      // All numeric fields are monotonically increasing AND bounded to +1 per update.
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
-                    // total: monotone increasing, at most +1
-                    && request.resource.data.total >= resource.data.get('total', 0)
-                    && request.resource.data.total <= resource.data.get('total', 0) + 1
-                    // each option: monotone increasing, at most +1
-                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // Trivia cumulative stats. The tally is written by answerTrivia. Clients can read it.

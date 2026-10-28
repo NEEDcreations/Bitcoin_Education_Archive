@@ -95,6 +95,14 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             });
         }
 
+        // One community minute per credited heartbeat. The credit gap is at
+        // least 55s and the daily watch stops at 10 minutes, so this cannot loop.
+        if (decision.creditSeconds >= 1) {
+            tx.set(db.collection('stats').doc('global'), {
+                watchTimeMinutes: admin.firestore.FieldValue.increment(1),
+            }, { merge: true });
+        }
+
         if (decision.write && decision.state) {
             const payload = {
                 day: decision.state.day,

@@ -1891,6 +1891,9 @@ async function _gradeQuestOnServer(quest, answerIndexes, retry) {
 async function submitQuest() {
     // Prevent double-submit
     if (window._questSubmitted) return;
+    if ((typeof auth === 'undefined' || !auth || !auth.currentUser) && typeof ensureGuestAuth === 'function') {
+        await ensureGuestAuth();
+    }
     window._questSubmitted = true;
     var btn = document.getElementById('questSubmitBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Grading...'; }
@@ -2002,10 +2005,7 @@ async function submitQuest() {
             await db.collection('users').doc(auth.currentUser.uid).update({
                 completedQuests: firebase.firestore.FieldValue.arrayUnion(currentQuest.id)
             });
-            // Increment global quest completion counter
-            db.collection('stats').doc('global').set({
-                questsCompleted: firebase.firestore.FieldValue.increment(1)
-            }, { merge: true }).catch(function() {});
+            // questsCompleted is incremented by onUserQuestCompleted.
         }
     } catch(e) { console.error('Quest completion sync failed:', e); }
 
@@ -5157,6 +5157,12 @@ function _renderTriviaTab(body, optimisticVote) {
 }
 
 window.triviaAnswer = function(chosenIdx) {
+    if (!window._triviaSkipGuest && (typeof auth === 'undefined' || !auth || !auth.currentUser) && typeof ensureGuestAuth === 'function') {
+        window._triviaSkipGuest = true;
+        ensureGuestAuth().then(function () { window.triviaAnswer(chosenIdx); });
+        return;
+    }
+    window._triviaSkipGuest = false;
     var today = _getTriviaToday();
     if (!today || !today.trivia) return;
     var t = today.trivia;
@@ -5559,6 +5565,12 @@ window._pollVoteReadyTimer = null;
 window.pollVote = function(chosenIdx) {
     // Reject calls that arrive before the delayed button render has settled
     if (!window._pollVoteReady || window._pollSubmitting) return;
+    if (!window._pollSkipGuest && (typeof auth === 'undefined' || !auth || !auth.currentUser) && typeof ensureGuestAuth === 'function') {
+        window._pollSkipGuest = true;
+        ensureGuestAuth().then(function () { window.pollVote(chosenIdx); });
+        return;
+    }
+    window._pollSkipGuest = false;
     var today = _getPollToday();
     if (!today || !today.poll) return;
     var p = today.poll;

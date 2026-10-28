@@ -533,7 +533,6 @@ function initRanking() {
                 } else if (typeof showUsernamePrompt === 'function') {
                     setTimeout(showUsernamePrompt, 400);
                 }
-                try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
             } else if (anonData) {
                 const existData = existingDoc.data();
@@ -731,21 +730,19 @@ function initRanking() {
                     // A settled signed-out state drops the display snapshot immediately.
                     if (!_pendingRedirect) clearAuthDisplay();
                     if (redirectResultResolved && !_pendingRedirect) {
-                        // Redirect already resolved (no redirect happened) - safe to go anonymous
-                        auth.signInAnonymously().then(() => {});
+                        // Signed out. A guest session starts on the first real action.
                     } else {
                         // Wait for redirect result to resolve first, with extra timeout for mobile
                         var _nullUserTimeout = setTimeout(function() {
-                            // After 10s if still no user, go anonymous
+                            // After 10s if still no user, stay signed out
                             if (!auth.currentUser) {
-                                console.log('[Auth] 10s timeout with no user - going anonymous');
+                                console.log('[Auth] 10s timeout with no user - staying signed out');
                                 localStorage.removeItem('btc_pwa_auth_pending');
                                 localStorage.removeItem('btc_anon_uid');
                                 localStorage.removeItem('btc_anon_data');
                                 sessionStorage.removeItem('btc_redirect_pending');
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                auth.signInAnonymously().then(() => {});
                             }
                         }, 10000);
                         redirectResultPromise.then(function(redirectUser) {
@@ -754,7 +751,6 @@ function initRanking() {
                             if (!redirectUser && !auth.currentUser) {
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                auth.signInAnonymously().then(() => {});
                             }
                         });
                     }
@@ -777,15 +773,12 @@ function initRanking() {
             } else {
                 currentUser = null;
                 if (!_pendingRedirect) clearAuthDisplay();
-                // Only sign in anonymously if redirect has already resolved
-                if (redirectResultResolved) {
-                    auth.signInAnonymously().then(() => {});
-                } else {
+                // A later action calls ensureGuestAuth. Do not mint a shell here.
+                if (!redirectResultResolved) {
                     redirectResultPromise.then(function(redirectUser) {
                         if (!redirectUser && !auth.currentUser) {
                             _pendingRedirect = false;
                             clearAuthDisplay();
-                            auth.signInAnonymously().then(() => {});
                         }
                     });
                 }
@@ -1676,7 +1669,6 @@ async function finishEmailSignIn(email, _signInUrl) {
             if (pendingFaction) {
                 try { await flushSignupFaction(pendingFaction); } catch (e) {}
             }
-            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             if (typeof attachReferral === 'function') attachReferral(emailUid);
             if (pendingUsername) {
                 try { await applyServerUsername(pendingUsername); }
@@ -1733,7 +1725,6 @@ async function finishEmailSignIn(email, _signInUrl) {
         }
         // Clean URL so the broken link doesn't keep retrying
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-        auth.signInAnonymously();
     }
 }
 
@@ -2239,7 +2230,13 @@ window.nostrSignInWithNpub = async function() {
     if (!/^[a-f0-9]{64}$/.test(pubkey)) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid public key</span>'; return; }
     if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Linking Nostr identity...</span>';
     try {
-        if (!auth.currentUser) await auth.signInAnonymously();
+        if (!auth.currentUser) {
+            var linkedGuest = await ensureGuestAuth();
+            if (!linkedGuest) {
+                if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Sign-in is unavailable in this browser</span>';
+                return;
+            }
+        }
         var uid = auth.currentUser.uid;
         await db.collection('users').doc(uid).set({ nostr: pubkey, lastLogin: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         if (currentUser) currentUser.nostr = pubkey;
@@ -2265,7 +2262,6 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             }
             if (!userDoc.exists) {
                 await db.collection('users').doc(uid).set(clientCreatePayload({ nostr: pubkey }), { merge: true });
-                try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             } else if (pubkey) {
                 try { await db.collection('users').doc(uid).set({ nostr: pubkey }, { merge: true }); } catch (e) {}
             }
@@ -2394,7 +2390,6 @@ window.signInWithLightning = async function() {
                     var userDoc = await db.collection('users').doc(uid).get();
                     if (!userDoc.exists) {
                         await db.collection('users').doc(uid).set(clientCreatePayload({}));
-                        try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                     }
                     if (!userDoc.exists || !userDoc.data() || !userDoc.data().username) {
                         var lnName = 'ln' + String(k1 || '').replace(/[^a-f0-9]/gi, '').substring(0, 8);
@@ -2837,6 +2832,42 @@ async function sendMagicLink(email) {
         return false;
     }
 }
+
+// A page view does not create a guest. The first action that needs auth does.
+function guestAuthBlocked() {
+    try {
+        if (typeof navigator !== 'undefined' && navigator.webdriver) return true;
+        var ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : '';
+        if (/HeadlessChrome|PhantomJS|Headless/i.test(ua)) return true;
+    } catch (e) {}
+    return false;
+}
+
+var _guestAuthPromise = null;
+function ensureGuestAuth() {
+    if (typeof auth === 'undefined' || !auth) return Promise.resolve(null);
+    if (auth.currentUser) {
+        if (auth.currentUser.isAnonymous && (typeof currentUser === 'undefined' || !currentUser || currentUser.uid !== auth.currentUser.uid)) {
+            loadUserLocal(auth.currentUser.uid);
+        }
+        return Promise.resolve(auth.currentUser);
+    }
+    if (guestAuthBlocked()) return Promise.resolve(null);
+    if (_guestAuthPromise) return _guestAuthPromise;
+    _guestAuthPromise = auth.signInAnonymously().then(function (cred) {
+        var user = (cred && cred.user) || auth.currentUser;
+        if (user && user.isAnonymous && (typeof currentUser === 'undefined' || !currentUser || currentUser.uid !== user.uid)) {
+            loadUserLocal(user.uid);
+        }
+        return user || null;
+    }).catch(function () {
+        _guestAuthPromise = null;
+        return null;
+    });
+    return _guestAuthPromise;
+}
+window.ensureGuestAuth = ensureGuestAuth;
+window.guestAuthBlocked = guestAuthBlocked;
 
 // Load anonymous user from localStorage only - no Firestore reads
 function loadUserLocal(uid) {
@@ -3933,8 +3964,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     }
     if (!auth.currentUser) {
         try {
-            const cred = await auth.signInAnonymously();
-            // Wait a moment for auth.currentUser to update
+            await ensureGuestAuth();
             if (!auth.currentUser) {
                 await new Promise(resolve => {
                     const unsub = auth.onAuthStateChanged(user => {
@@ -4020,8 +4050,6 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     userData.username = username;
-    // Increment global registered user count
-    try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
     currentUser = { uid, ...userData };
     rankingReady = true;
     window._badgesReady = true;
@@ -4180,6 +4208,9 @@ window._doubleXpUntilMs = function(u) {
 };
 
 async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
+    if ((!currentUser || !rankingReady) && typeof ensureGuestAuth === 'function') {
+        await ensureGuestAuth();
+    }
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number.
@@ -4491,6 +4522,9 @@ function refreshLeaderboardIfOpen() {
 // Called from go() when user opens a channel
 async function onChannelOpen(channelId) {
     if (typeof nachoOnChannel === 'function') nachoOnChannel(channelId);
+    if ((!currentUser || !rankingReady) && typeof ensureGuestAuth === 'function') {
+        await ensureGuestAuth();
+    }
     if (!currentUser || !rankingReady) return;
 
     // Only award points for channels NEVER visited before (persisted)
@@ -11122,6 +11156,13 @@ window._satsClaimTab = 'ln';
 
 window.submitSatsClaim = async function() {
     if (window._satsClaimInProgress) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        var claimGuest = typeof ensureGuestAuth === 'function' ? await ensureGuestAuth() : null;
+        if (!claimGuest) {
+            if (typeof showToast === 'function') showToast('Sign in to claim.');
+            return;
+        }
+    }
     var btn = document.getElementById('satsClaimBtn');
     var errorEl = document.getElementById('satsClaimError');
     if (!btn) return;

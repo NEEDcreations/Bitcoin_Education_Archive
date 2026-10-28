@@ -85,6 +85,21 @@ function createPollVote(opts) {
                 total: prevVotes[0] + prevVotes[1] + prevVotes[2] + prevVotes[3],
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
+            // All-time tally. One increment per accepted daily vote. The
+            // polls/{day}/votes/{uid} doc above is the one-vote-per-user gate.
+            // Merge with #143 (db7bdf9b): that change is the XP lines above
+            // (boostPoints, then planDailyXp). It does not touch this write.
+            // Land #143 first, then rebase, so both stay. If this lands first,
+            // keep this block when applying the XP hunk.
+            const cumulativeId = String(today.poll.id || 'poll').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || 'poll';
+            const cumulativeRef = db.collection('poll_cumulative').doc(cumulativeId);
+            const cumulativePatch = {
+                total: admin.firestore.FieldValue.increment(1),
+                pollId: today.poll.id || cumulativeId,
+                question: today.poll.q || '',
+            };
+            cumulativePatch['option_' + chosen] = admin.firestore.FieldValue.increment(1);
+            t.set(cumulativeRef, cumulativePatch, { merge: true });
             t.update(userRef, update);
             if (split.awarded > 0) {
                 t.set(dailyRef, { total: dailyUsed + split.awarded }, { merge: true });

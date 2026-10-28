@@ -4947,14 +4947,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof updateSidebarTiers === 'function') updateSidebarTiers();
         }
 
-        // Increment global channel visit counter
-        try {
-            if (typeof db !== 'undefined' && typeof firebase !== 'undefined') {
-                db.collection('stats').doc('global').set({
-                    channelVisits: firebase.firestore.FieldValue.increment(1)
-                }, { merge: true }).catch(function() {});
-            }
-        } catch(e) {}
+        // channelVisits is incremented by onUserChannelVisit when the
+        // profile's channel count grows. Clients do not write stats/global.
 
         // Raid Boss: track channel/topic visit (uses _raidOnChannelVisit which maps to valid metrics)
         // Note: 'channelVisit' is not a valid metric in contributeRaid; _raidOnChannelVisit handles this.
@@ -5417,7 +5411,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         function updateVisitDisplay() {
             if (typeof firebase === 'undefined' || !firebase.firestore) return;
             const fdb = firebase.firestore();
-            const today = new Date().toISOString().split('T')[0];
 
             // Rate limit: don't count more than once per session
             if (window._visitCounted) {
@@ -5429,54 +5422,18 @@ window.nachoQuizAnswer = function(btn, correct) {
             window._visitCounted = true;
 
             var authUser = firebase.auth && firebase.auth().currentUser;
-            var isRealUser = authUser && !authUser.isAnonymous;
 
-            if (isRealUser) {
-                // Signed-in real user: use their UID as the visitor doc ID.
-                // Firestore rule requires request.auth.uid == visitorId — this satisfies it.
-                var visitorId = authUser.uid;
-                var fingerprintId = visitorId; // store uid as fp for consistency
-                var visitRef = fdb.collection('visits').doc(visitorId);
-                var counterRef = fdb.collection('stats').doc('visits');
-                visitRef.get().then(function(doc) {
-                    if (!doc.exists || doc.data().lastVisit !== today) {
-                        fdb.runTransaction(function(t) {
-                            return t.get(counterRef).then(function(counterDoc) {
-                                var newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
-                                t.set(counterRef, { total: newCount });
-                                t.set(visitRef, { lastVisit: today, fp: fingerprintId });
-                                return newCount;
-                            });
-                        }).then(function(newCount) {
-                            if (vc) vc.textContent = newCount.toLocaleString();
-                        }).catch(function() {});
-                    } else {
-                        fdb.collection('stats').doc('visits').get().then(function(d) {
-                            if (d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
-                        });
-                    }
+            fdb.collection('stats').doc('visits').get().then(function(d) {
+                if (d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
+            }).catch(function() { if (vc) vc.textContent = '—'; });
+            // One counted visit per uid per UTC day. recordSiteVisit writes it.
+            // A signed-out page view does not create a guest just to be counted.
+            if (authUser && firebase.functions) {
+                firebase.functions().httpsCallable('recordSiteVisit')({}).then(function() {
+                    return fdb.collection('stats').doc('visits').get();
+                }).then(function(d) {
+                    if (d && d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
                 }).catch(function() {});
-            } else {
-                // Anonymous or not signed in: deduplicate locally, only increment the counter
-                // (no visits/{id} write — rule requires uid == visitorId which we don't have).
-                var _lsKey = 'btc_visit_counted_' + today;
-                fdb.collection('stats').doc('visits').get().then(function(d) {
-                    if (d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
-                    if (!localStorage.getItem(_lsKey)) {
-                        localStorage.setItem(_lsKey, '1');
-                        // Increment the global counter only (no per-user doc write)
-                        var counterRef2 = fdb.collection('stats').doc('visits');
-                        fdb.runTransaction(function(t) {
-                            return t.get(counterRef2).then(function(counterDoc) {
-                                var newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
-                                t.set(counterRef2, { total: newCount });
-                                return newCount;
-                            });
-                        }).then(function(newCount) {
-                            if (vc) vc.textContent = newCount.toLocaleString();
-                        }).catch(function() {});
-                    }
-                }).catch(function() { if (vc) vc.textContent = '—'; });
             }
         }
         // Wait for Firebase auth to settle before running
@@ -6397,15 +6354,7 @@ window._tctvStartTracker = function() {
         try { var _dt = new Date().toISOString().split('T')[0]; var _dm = parseInt(localStorage.getItem('btc_tctv_minutes_' + _dt) || '0') + 1; localStorage.setItem('btc_tctv_minutes_' + _dt, String(_dm)); } catch(e) {}
         console.log('[TCTV] Watch time:', total, 'min (Session:', window._tctvMinutesSession, 'min)');
 
-        // Bump global community stats counter (one +1 per minute, non-anonymous only)
-        try {
-            if (typeof db !== 'undefined' && typeof firebase !== 'undefined'
-                && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
-                db.collection('stats').doc('global').set({
-                    watchTimeMinutes: firebase.firestore.FieldValue.increment(1)
-                }, { merge: true }).catch(function(){});
-            }
-        } catch(e) {}
+        // watchTimeMinutes is +1 inside tctvWatchHeartbeat when a minute is credited.
 
         // Badges still use this browser's minute count. XP and the orange
         // ticket are granted only by tctvWatchHeartbeat.

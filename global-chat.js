@@ -765,7 +765,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261027_v2393';
+        s.src = 'quests.js?v=20261028_v2406';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;
@@ -1246,6 +1246,20 @@ function _gcActiveEl(id) {
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        if (window._chatGuestPending) return;
+        if (typeof ensureGuestAuth !== 'function') {
+            if (typeof showToast === 'function') showToast('Sign in to chat!');
+            return;
+        }
+        window._chatGuestPending = true;
+        ensureGuestAuth().then(function (user) {
+            window._chatGuestPending = false;
+            if (user) window.sendGlobalChat();
+            else if (typeof showToast === 'function') showToast('Sign in to chat!');
+        });
+        return;
+    }
     // Clear typing indicator immediately on send
     _gcClearTyping();
     // Dismiss pickers on send
@@ -1390,8 +1404,7 @@ window.sendGlobalChat = function() {
         if (_sb) { _sb.disabled = false; _sb.textContent = 'Send'; }
         // Track for daily challenge
         try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_chat_sent_' + _t, 'true'); } catch(e) {}
-        // Increment global chat counter
-        db.collection('stats').doc('global').set({ chatMessages: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {});
+        // chatMessages is incremented by onChatMessageCreated.
         // Raid Boss: chat message
         if (typeof window._raidOnChatMessage === 'function') window._raidOnChatMessage();
         if (docRef && docRef.id) {

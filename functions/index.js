@@ -5043,26 +5043,48 @@ exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (e
     return null;
 });
 
-// New user doc created → bump userCount + assign plebNumber
+// Pleb numbers and userCount are not assigned for an empty guest shell.
+// maybeCountMember counts the first XP, or a signed-in account, once.
+const plebNumber = require('./src/plebNumber');
+const { createNachoBump } = require('./src/nachoAnalytics');
+const { createSiteVisit } = require('./src/siteVisit');
+
+exports.bumpNachoAnalytics = functionsV1.https.onCall(createNachoBump({
+    admin: admin,
+    db: db,
+    HttpsError: functionsV1.https.HttpsError,
+}));
+
+exports.recordSiteVisit = functionsV1.https.onCall(createSiteVisit({
+    admin: admin,
+    db: db,
+    HttpsError: functionsV1.https.HttpsError,
+}));
+
 exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
-    const snap = event.data; const context = { params: event.params };
-        const uid = context.params.uid;
-        try {
-            const statsRef = db.collection('stats').doc('global');
-            // Use a transaction to atomically increment and read the new count
-            const plebNumber = await db.runTransaction(async (t) => {
-                const statsDoc = await t.get(statsRef);
-                const currentCount = (statsDoc.exists && statsDoc.data().userCount) ? statsDoc.data().userCount : 0;
-                const newCount = currentCount + 1;
-                t.set(statsRef, { userCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
-                return newCount;
-            });
-            // Write plebNumber back to the user doc if not already set
-            const userDocRef = db.collection('users').doc(uid);
-            await userDocRef.set({ plebNumber: plebNumber }, { merge: true });
-        } catch (e) { console.error('[onUserDocCreated] failed:', e); }
-        return null;
-    });
+    const snap = event.data;
+    if (!snap) return null;
+    const uid = event.params.uid;
+    try {
+        await plebNumber.maybeCountMember(db, admin, uid, null, snap.data() || {});
+    } catch (e) { console.error('[onUserDocCreated] failed:', e); }
+    return null;
+});
+
+// A later XP grant or a provider upgrade on the same uid. Profiles that
+// already have plebNumber return before any auth lookup.
+exports.onUserMemberCount = onDocumentUpdated('users/{uid}', async (event) => {
+    if (!event.data) return null;
+    const beforeSnap = event.data.before;
+    const afterSnap = event.data.after;
+    const before = beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : null;
+    const after = afterSnap && afterSnap.exists ? (afterSnap.data() || null) : null;
+    if (!after || after.plebNumber || (before && before.plebNumber)) return null;
+    try {
+        await plebNumber.maybeCountMember(db, admin, event.params.uid, before, after);
+    } catch (e) { console.error('[onUserMemberCount] failed:', e); }
+    return null;
+});
 
 // ============================================================
 // PUBLIC PROFILES — sanitized mirror of users collection
@@ -5212,9 +5234,8 @@ exports.onUserQuestCompleted = onDocumentUpdated('users/{uid}', async (event) =>
         return null;
     });
 
-// NOTE: watchTimeMinutes is already incremented client-side every minute
-// via direct Firestore set({merge:true}) in app.js TCTV watch tracker.
-// No server trigger needed - would double-count.
+// watchTimeMinutes is +1 inside tctvWatchHeartbeat when a minute is credited.
+// Clients cannot write stats/global.
 
 // ---- One-shot admin reset for community stats (remove after running) ----
 exports.resetCommunityStats = functionsV1.https.onCall(async (data, context) => {
