@@ -3513,14 +3513,73 @@ function satsHomeSnapshot(user) {
 }
 window.satsHomeSnapshot = satsHomeSnapshot;
 
-function paintHomeStrip(snap, invited, maxi) {
+function referralTierApi() {
+    if (typeof referralTiers !== 'undefined' && referralTiers) return referralTiers;
+    if (typeof window !== 'undefined' && window.referralTiers) return window.referralTiers;
+    return null;
+}
+
+// Display count is the server field only. A missing field paints as 0.
+function serverMaxiReferralCount(user) {
+    var api = referralTierApi();
+    var raw = user && user.referralMaxiCount;
+    if (api && typeof api.normalizeCount === 'function') return api.normalizeCount(raw);
+    var n = Math.floor(Number(raw));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+window.serverMaxiReferralCount = serverMaxiReferralCount;
+
+function invitedReferralCount(user) {
+    var n = Math.floor(Number(user && user.referralInvited));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+
+var _homeInvitedCount = 0;
+var _homeMaxiCount = 0;
+
+function paintInviteTier(count, invited) {
+    var api = referralTierApi();
+    var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
+    var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
+        tierLabel: '—',
+        countText: (n === 1 ? '1 reached Maxi' : n + ' reached Maxi'),
+        progressText: '',
+        level: 0
+    };
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var inv = (typeof invited === 'number') ? Math.floor(invited) : invitedReferralCount(user);
+    if (!isFinite(inv) || inv < 0) inv = 0;
+    _homeInvitedCount = inv;
+    _homeMaxiCount = n;
+    var tierEl = document.getElementById('homeInvitesTier');
+    var noteEl = document.getElementById('homeInvitesNote');
+    var progEl = document.getElementById('homeInvitesProgress');
+    var tile = document.getElementById('homeInvitesTile');
+    var openBtn = document.getElementById('homeInvitesOpen') || tile;
+    if (tierEl) tierEl.textContent = progress.tierLabel;
+    if (noteEl) noteEl.textContent = progress.countText;
+    var helpEl = document.getElementById('homeInvitesInfoText');
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, n);
+    if (progEl) progEl.textContent = progress.progressText;
+    if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
+    if (openBtn) {
+        var label = progress.tierLabel + ', ' + progress.countText;
+        if (progress.progressText) label += ', ' + progress.progressText;
+        openBtn.setAttribute('aria-label', label);
+    }
+    var ladder = document.getElementById('referralTierLadder');
+    if (ladder && !ladder.hidden) renderReferralTierLadder(progress);
+}
+window.paintInviteTier = paintInviteTier;
+
+function paintHomeStrip(snap) {
     var satsEl = document.getElementById('homeSatsValue');
     var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
-    var invEl = document.getElementById('homeInvitesValue');
-    if (invEl) invEl.textContent = String(invited || 0);
-    var invNote = document.getElementById('homeInvitesNote');
-    if (invNote) invNote.textContent = (Number(maxi) === 1) ? '1 reached Maxi' : (Number(maxi) || 0) + ' reached Maxi';
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    paintInviteTier(serverMaxiReferralCount(user));
     var kicker = document.getElementById('homeWithdrawKicker');
     var value = document.getElementById('homeWithdrawValue');
     var note = document.getElementById('homeWithdrawNote');
@@ -3556,23 +3615,20 @@ window.refreshHomeStrip = function() {
     document.documentElement.classList.toggle('home-signed-in', signed);
     if (document.body) document.body.classList.toggle('home-signed-in', signed);
     if (!signed) {
+        closeReferralTierLadder();
+        setMaxiInfoOpen(false);
         if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
         return;
     }
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
-    var invited = Number(user.referralInvited) || 0;
-    var maxi = Number(user.referralCount) || 0;
-    paintHomeStrip(snap, invited, maxi);
+    paintHomeStrip(snap);
     if (typeof getReferralStats === 'function') {
-        getReferralStats().then(function(stats) {
-            if (!stats) return;
-            var gotInvited = (typeof stats.invited === 'number') ? stats.invited : invited;
-            var gotMaxi = (typeof stats.maxi === 'number') ? stats.maxi : maxi;
-            if (stats.failed && !gotInvited && !gotMaxi) return;
-            paintHomeStrip(snap, gotInvited, gotMaxi);
-        }).catch(function() {});
+        getReferralStats().then(function (stats) {
+            if (!stats || stats.failed || typeof stats.invited !== 'number') return;
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited);
+        }).catch(function () {});
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
     if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
@@ -3584,7 +3640,191 @@ function openHomeSats() {
 }
 window.openHomeSats = openHomeSats;
 
-function openHomeInvites() {
+function invitesSurfaceHidden() {
+    var tile = document.getElementById('homeInvitesTile');
+    if (!tile) return true;
+    var node = tile;
+    while (node && node.nodeType === 1) {
+        if (node.getAttribute && node.hasAttribute('data-em-hidden')) return true;
+        if (typeof window.getComputedStyle === 'function') {
+            var cs = window.getComputedStyle(node);
+            if (cs && cs.display === 'none') return true;
+        }
+        node = node.parentElement;
+    }
+    if (tile.offsetWidth === 0 && tile.offsetHeight === 0) return true;
+    return false;
+}
+
+function renderReferralTierLadder(progress) {
+    var list = document.getElementById('referralTierLadderList');
+    var api = referralTierApi();
+    if (!list || !api || !api.TIERS) return;
+    var current = progress;
+    if (!current || typeof current.level !== 'number') {
+        var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+        current = api.tierProgress(serverMaxiReferralCount(user));
+    }
+    list.textContent = '';
+    var i;
+    for (i = 0; i < api.TIERS.length; i++) {
+        var tier = api.TIERS[i];
+        var row = document.createElement('div');
+        row.className = 'referral-tier-row' + (tier.level === current.level ? ' is-current' : '');
+        var label = document.createElement('span');
+        label.textContent = tier.emoji + ' ' + tier.name;
+        var need = document.createElement('span');
+        need.textContent = tier.min === 0 ? '0' : (tier.min + '+');
+        row.appendChild(label);
+        row.appendChild(need);
+        list.appendChild(row);
+    }
+}
+
+function closeReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog || dialog.hidden) return;
+    dialog.hidden = true;
+}
+
+function toggleReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    if (invitesSurfaceHidden()) {
+        closeReferralTierLadder();
+        return;
+    }
+    if (!dialog.hidden) {
+        closeReferralTierLadder();
+        return;
+    }
+    renderReferralTierLadder();
+    dialog.hidden = false;
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn && closeBtn.focus) closeBtn.focus();
+}
+
+var _tierLadderBound = false;
+function bindReferralTierLadder() {
+    if (_tierLadderBound) return;
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    _tierLadderBound = true;
+    // main uses contain:content and #home animates opacity and transform.
+    // A fixed dialog inside either one stays clipped. Park it on the body.
+    if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
+    dialog.addEventListener('click', function (ev) {
+        if (ev.target === dialog) closeReferralTierLadder();
+    });
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn) closeBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+    });
+    var inviteBtn = document.getElementById('referralTierLadderInvite');
+    if (inviteBtn) inviteBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+        if (typeof openInviteFriends === 'function') openInviteFriends(true);
+    });
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') {
+            closeReferralTierLadder();
+            setMaxiInfoOpen(false);
+        }
+    });
+    document.addEventListener('click', function (ev) {
+        var tip = document.getElementById('homeInvitesInfoText');
+        if (!tip || !tip.classList.contains('is-open')) return;
+        var t = ev.target;
+        if (t && t.closest && (t.closest('#homeInvitesInfo') || t.closest('#homeInvitesInfoText'))) return;
+        setMaxiInfoOpen(false);
+    });
+    var info = document.getElementById('homeInvitesInfo');
+    var fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    var hoverTimer = 0;
+    function hoverClose() {
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(function () {
+            var tip = document.getElementById('homeInvitesInfoText');
+            var btn = document.getElementById('homeInvitesInfo');
+            if (tip && tip.matches(':hover')) return;
+            if (btn && btn.matches(':hover')) return;
+            setMaxiInfoOpen(false);
+        }, 120);
+    }
+    if (info) info.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (fineHover && ev.detail !== 0) return;
+        toggleMaxiInfo();
+    });
+    if (info && fineHover) {
+        info.addEventListener('mouseenter', function () {
+            clearTimeout(hoverTimer);
+            setMaxiInfoOpen(true);
+        });
+        info.addEventListener('mouseleave', hoverClose);
+    }
+    var help = document.getElementById('homeInvitesInfoText');
+    if (help && fineHover) {
+        help.addEventListener('mouseenter', function () { clearTimeout(hoverTimer); });
+        help.addEventListener('mouseleave', hoverClose);
+    }
+    var api = referralTierApi();
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
+}
+bindReferralTierLadder();
+
+function setMaxiInfoOpen(open) {
+    var tip = document.getElementById('homeInvitesInfoText');
+    var btn = document.getElementById('homeInvitesInfo');
+    if (!tip) return;
+    if (tip.parentElement !== document.body) document.body.appendChild(tip);
+    var api = referralTierApi();
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
+    tip.classList.toggle('is-open', !!open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) return;
+    var anchor = btn || document.getElementById('homeInvitesNote');
+    if (!anchor) return;
+    var rect = anchor.getBoundingClientRect();
+    var width = Math.min(240, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    tip.style.width = width + 'px';
+    tip.style.left = left + 'px';
+    var top = rect.bottom + 6;
+    tip.style.top = top + 'px';
+    if (top + tip.offsetHeight > window.innerHeight - 8) {
+        tip.style.top = Math.max(8, rect.top - tip.offsetHeight - 6) + 'px';
+    }
+}
+
+function toggleMaxiInfo() {
+    var tip = document.getElementById('homeInvitesInfoText');
+    if (!tip) return;
+    if (invitesSurfaceHidden()) {
+        setMaxiInfoOpen(false);
+        return;
+    }
+    setMaxiInfoOpen(!tip.classList.contains('is-open'));
+}
+
+function openHomeInvites(ev) {
+    var target = ev && ev.target;
+    if (target && target.closest && target.closest('[data-maxi-info]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleMaxiInfo();
+        return;
+    }
+    if (target && target.closest && target.closest('[data-tier-ladder]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleReferralTierLadder();
+        return;
+    }
+    if (invitesSurfaceHidden()) return;
     if (typeof openInviteFriends === 'function') openInviteFriends(true);
 }
 window.openHomeInvites = openHomeInvites;
@@ -4438,7 +4678,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
-                _showPointsToast(awarded, reason);
+                _showPointsToast(awarded, reason, result.data.doubled === true);
             }
             if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
                 window._serverDailyXp = {
@@ -4475,7 +4715,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 }
 
 // Helper: smart toast throttling for point awards
-function _showPointsToast(pts, reason) {
+function _showPointsToast(pts, reason, doubled) {
     var _show = false;
     if (pts >= 25) {
         _show = true;
@@ -4485,7 +4725,8 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' XP - ' + reason, 2500);
+        var mark = doubled === true ? ' 2x' : '';
+        showToast('+' + pts + ' XP' + mark + ' - ' + reason, 2500);
     }
 }
 
@@ -4587,11 +4828,6 @@ async function onChannelOpen(channelId) {
         sessionChannels.add(channelId);
 
         let ptsAwarded = POINTS.openChannel;
-        // Apply daily 2X boost
-        if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
-            ptsAwarded *= 2;
-            setTimeout(() => { showToast('⚡ 2X XP! Daily boost applied! +' + ptsAwarded + ' XP'); }, 2000);
-        }
 
         // Update local tracking
         if (currentUser._isLocal) {
@@ -5983,6 +6219,9 @@ async function toggleLeaderboard() {
             html += '<div class="lb-levels"><h4>Your Badges</h4>' + getBadgeHTML() + '</div>';
         }
 
+        // Daily Streaks — directly above Top Predictors. One cached stats doc.
+        html += '<div id="streakBoard" class="streak-board"><div class="streak-lb-loading">Loading Daily Streaks...</div></div>';
+
         // Top Predictors — above PVP. One stats doc holds all three periods.
         html += '<div id="predictorBoard" style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
             '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading Top Predictors...</div></div>';
@@ -6006,6 +6245,7 @@ async function toggleLeaderboard() {
         lb.innerHTML = html;
 
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
+        _loadStreakLeaderboard();
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
     } catch(e) {
@@ -6254,6 +6494,101 @@ async function _loadPredictorLeaderboard() {
         }
     }
     _renderPredictorBoard();
+}
+
+// Daily Streaks — All-Time / Current, same tab chrome as Top Predictors.
+// The list is the server doc stats/streak_leaderboard. No per-user reads.
+function _streakAttr(value) {
+    return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+}
+
+function _streakOpenProfile(el) {
+    if (!el || typeof db === 'undefined' || !db) return;
+    var name = el.getAttribute('data-streak-name') || '';
+    if (!name || name === 'Anon') return;
+    db.collection('public_profiles').where('username_lower', '==', name.toLowerCase()).limit(1).get().then(function(snap) {
+        if (!snap || snap.empty || typeof showUserProfile !== 'function') return;
+        showUserProfile(snap.docs[0].id);
+    }).catch(function() {});
+}
+window._streakOpenProfile = _streakOpenProfile;
+
+function _renderStreakBoard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var period = window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+    var data = (window._streakLbCache && window._streakLbCache.data) || {};
+    var rows = data[period] || [];
+    var tabs = [['alltime', 'All-Time'], ['current', 'Current']];
+    var note = period === 'current'
+        ? 'Still going. Older than the daily window drops off.'
+        : 'Longest daily streak each player has reached.';
+    var html = '<div class="streak-lb-head"><h4>🔥 Daily Streaks</h4></div>';
+    html += '<p class="streak-lb-note">' + note + '</p>';
+    html += '<div class="streak-lb-tabs">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_streakLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div><div id="streakLeaderboardList">';
+    if (!rows.length) {
+        html += '<div class="streak-lb-empty">' + (period === 'current' ? 'No streaks still going.' : 'No streaks yet.') + '</div>';
+    } else {
+        var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var rawName = entry.username || '';
+            var blank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawName)
+                : (!String(rawName).trim() || /^(anon|anonymous)$/i.test(String(rawName).trim()));
+            var shown = blank ? 'Anon' : rawName;
+            var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
+            var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row streak-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            var open = blank ? '' : ' onclick="_streakOpenProfile(this)"';
+            html += '<div' + hidden + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
+                '<span class="lb-name">' + name + '</span>' +
+                '<span class="lb-score">🔥 ' + (Number(entry.streak) || 0) + '</span>' +
+            '</div>';
+        });
+        if (rows.length > 10) {
+            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.streak-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' streaks ▼</button>';
+        }
+    }
+    html += '</div>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+}
+
+function _streakLbSwitchPeriod(period) {
+    window._streakLbPeriod = period === 'current' ? 'current' : 'alltime';
+    _renderStreakBoard();
+}
+window._streakLbSwitchPeriod = _streakLbSwitchPeriod;
+
+async function _loadStreakLeaderboard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var now = Date.now();
+    var fresh = window._streakLbCache && window._streakLbCacheTime && (now - window._streakLbCacheTime < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined') {
+                window._streakLbCache = { data: {} };
+            } else {
+                var doc = await db.collection('stats').doc('streak_leaderboard').get();
+                window._streakLbCache = { data: doc.exists ? (doc.data() || {}) : {} };
+            }
+            window._streakLbCacheTime = now;
+        } catch (e) {
+            window._streakLbCache = window._streakLbCache || { data: {} };
+            window._streakLbCacheTime = now;
+        }
+    }
+    _renderStreakBoard();
 }
 
 // PVP Leaderboard - loaded after main leaderboard renders, sorted by win %

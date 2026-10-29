@@ -301,6 +301,10 @@ test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     const latestAt = notes.indexOf('Latest: Fixed leaderboards and your saved profile taking too long to load.');
+    assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
+    assert.ok(!notes.includes('Latest: Daily Streaks'));
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

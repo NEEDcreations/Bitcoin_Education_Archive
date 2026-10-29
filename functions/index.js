@@ -41,6 +41,7 @@ const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOther
 const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
+const streakBoard = require('./src/streakBoard');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -155,6 +156,7 @@ const awardActions = require('./src/awardActions');
 const ticketGrants = require('./src/ticketGrants');
 const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets');
 const doubleXp = require('./src/doubleXp');
+const { planXpGrant } = require('./src/grantXp');
 const referralService = require('./src/referralService');
 const referralDecisions = require('./src/referrals');
 const tipService = require('./src/tipService');
@@ -3202,6 +3204,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             capped: badgeResult.capped === true,
             favor: !!badgeResult.favor,
             badgeId: badgeResult.badgeId || badgeId,
+            doubled: badgeResult.doubled === true,
+            base: badgeResult.base || 0,
+            boosted: badgeResult.boosted || 0,
+            doubleXpUntil: badgeResult.until || 0,
         };
     }
 
@@ -3303,19 +3309,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (resolved.requiresDoubleXp && !doubleXp.isActive(userData, Date.now())) {
                 throw new Error('DOUBLE_XP_REQUIRED');
             }
-            // Double XP covers daily-capped activity only. Badges, the scholar
-            // exam, and onboarding are not multiplied. A client amount that is
-            // already the doubled allowlist value is not multiplied again.
-            const actionLower = String(reason || '').toLowerCase();
-            const skipDouble = matchedAction === 'badge_earned'
-                || matchedAction === 'scholar_cert'
-                || actionLower.indexOf('nacho quest') !== -1
-                || actionLower.indexOf('onboarding') !== -1
-                || resolved.requiresDoubleXp;
-            const xpBoost = skipDouble
-                ? { points: pts, doubled: !!resolved.requiresDoubleXp, until: doubleXp.untilMillis(userData) }
-                : doubleXp.boostPoints(pts, userData, Date.now());
-            pts = xpBoost.points;
+            // resolved.xp is the catalog base. A legacy doubled client integer
+            // was already mapped back to that base. planXpGrant doubles it once.
 
             if (matchedAction === 'badge_earned' && badgeKnown) {
                 const MILESTONE_BADGE_THRESHOLDS = {
@@ -3369,11 +3364,26 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (claimDoc && claimDoc.exists) throw new Error('ALREADY_CLAIMED');
 
             const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            const grant = awardActions.planGrant({
-                xp: pts,
+            const xpPlan = planXpGrant({
+                base: pts,
+                user: userData,
+                now: Date.now(),
                 dailyUsed: dailyUsed,
-                dailyCap: DAILY_CAP,
+                boost: resolved.boost !== false,
             });
+            const xpBoost = { doubled: xpPlan.doubled, until: xpPlan.until, base: xpPlan.base, boosted: xpPlan.boosted };
+            const grant = {
+                awarded: xpPlan.awarded,
+                dropped: xpPlan.dropped,
+                overflowAdded: 0,
+                tickets: 0,
+                capped: xpPlan.capped,
+                pastCap: xpPlan.pastCap,
+                dailyXp: xpPlan.dailyXp,
+                dailyCap: xpPlan.dailyCap,
+                fullUntil: xpPlan.fullUntil,
+                halfUntil: xpPlan.halfUntil,
+            };
             const awarded = grant.awarded;
             const capped = grant.capped;
             const dropped = grant.dropped;
@@ -3439,6 +3449,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.set(claimRef, {
                     action: matchedAction,
                     xp: awarded,
+                    base: xpPlan.base,
+                    boosted: xpPlan.boosted,
+                    doubled: xpPlan.doubled === true,
                     day: offsetToday,
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 });
@@ -3509,6 +3522,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 channelTracked: channelTracked,
                 progress: progress,
                 doubled: xpBoost.doubled,
+                base: xpBoost.base || 0,
+                boosted: xpBoost.boosted || 0,
                 doubleXpUntil: xpBoost.until || 0,
                 flexCount: flexMeta ? flexMeta.count : null,
                 flexDayComplete: flexMeta ? flexMeta.complete : false,
@@ -3586,6 +3601,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         halfUntil: transactionResult.halfUntil,
         channelTracked: transactionResult.channelTracked,
         doubled: !!transactionResult.doubled,
+        base: transactionResult.base || 0,
+        boosted: transactionResult.boosted || 0,
         doubleXpUntil: transactionResult.doubleXpUntil || 0,
         flexCount: transactionResult.flexCount,
         flexDayComplete: !!transactionResult.flexDayComplete,
@@ -3842,35 +3859,14 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
                 accountAgeDays = Math.max(1, Math.floor((Date.now() - creationDate.getTime()) / 86400000) + 1);
             } catch(e) {}
 
-            // Calculate streak
-            let newStreak = 1;
-            let usedFreeze = false;
+            // Calculate streak. Grace lives in streakBoard.nextVisitStreak:
+            // yesterday continues, a saved freeze covers one missed day, older resets.
             let bonusTickets = 0;
             let oldStreak = user.streak || 0;
-            const streakFreezes = user.streakFreezes || 0;
-
-            // Cap existing streak to account age (fixes pre-patch inflated values)
-            if (oldStreak > accountAgeDays) {
-                oldStreak = accountAgeDays;
-            }
-
-            if (lastVisit) {
-                const lastDate = new Date(lastVisit);
-                const todayDate = new Date(today);
-                const diffDays = Math.round((todayDate - lastDate) / 86400000);
-
-                if (diffDays === 1) {
-                    // Consecutive day
-                    newStreak = oldStreak + 1;
-                } else if (diffDays === 2 && streakFreezes > 0) {
-                    // Missed one day but have a freeze
-                    newStreak = oldStreak + 1;
-                    usedFreeze = true;
-                } else {
-                    // Streak broken
-                    newStreak = 1;
-                }
-            }
+            if (oldStreak > accountAgeDays) oldStreak = accountAgeDays;
+            const step = streakBoard.nextVisitStreak(Object.assign({}, user, { streak: oldStreak }), today);
+            let newStreak = step.streak;
+            let usedFreeze = step.usedFreeze;
 
             // Bonus tickets for streak milestones
             if (newStreak === 7) bonusTickets = 3;
@@ -3881,15 +3877,17 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             // Cap streak to account age
             if (newStreak > accountAgeDays) newStreak = accountAgeDays;
 
-            const currentBest = Math.min(user.bestStreak || 0, accountAgeDays);
-            const newBest = Math.max(currentBest, newStreak);
+            const tracked = streakBoard.applyStreakUpdate(user, newStreak, Date.now(), accountAgeDays);
+            newStreak = tracked.streak;
 
             const updateData = {
                 totalVisits: admin.firestore.FieldValue.increment(1),
                 lastVisit: today,
-                streak: newStreak,
-                bestStreak: newBest,
+                streak: tracked.streak,
+                bestStreak: tracked.bestStreak,
+                streakReachedAt: tracked.streakReachedAt,
             };
+            if (tracked.bestStreakAt) updateData.bestStreakAt = tracked.bestStreakAt;
             if (bonusTickets > 0) {
                 updateData.orangeTickets = admin.firestore.FieldValue.increment(bonusTickets);
             }
@@ -3919,7 +3917,7 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             return {
                 alreadyVisited: false,
                 streak: newStreak,
-                bestStreak: newBest,
+                bestStreak: tracked.bestStreak,
                 oldStreak: oldStreak,
                 usedFreeze: usedFreeze,
                 bonusTickets: bonusTickets,
@@ -3933,10 +3931,33 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             await grantFamily(db, admin, uid, visitIds);
         }
         catch (streakBadgeErr) { console.warn('[VISIT] streak badges', streakBadgeErr && streakBadgeErr.message); }
+        if (result && !result.alreadyVisited) {
+            try { await streakBoard.refresh(db, Date.now(), { force: false }); }
+            catch (boardErr) { console.warn('[streak board]', boardErr && boardErr.message); }
+        }
         return { success: true, ...result };
     } catch (e) {
         console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
         return { success: false, error: 'Visit recording failed' };
+    }
+});
+
+// Cached Daily Streaks board. Public read, Admin SDK write. Rebuilt hourly
+// so a lapsed streak drops off Current even if that player never comes back,
+// and again after a visit that changes a streak (debounced inside refresh).
+exports.refreshStreakLeaderboard = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const doc = await streakBoard.refresh(db, Date.now(), { force: true });
+        console.log('[streak board]', JSON.stringify({
+            alltime: doc && doc.alltime ? doc.alltime.length : 0,
+            current: doc && doc.current ? doc.current.length : 0
+        }));
+    } catch (e) {
+        console.error('[streak board] refresh failed:', e && e.message);
     }
 });
 
@@ -4195,15 +4216,20 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
-        // Double XP does not apply. The wheel still shares the 500 / 900 / 1,000 cap.
-        const spinDoubled = false;
+        // Tickets and freezes are not doubled. The closet reward's 25 XP is,
+        // with every other XP amount: the base is doubled once, then the
+        // 500 / 900 / 1,000 taper runs on that amount.
         const spinLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
         const spinBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || spinLedger.banned === true;
         const spinUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
-        if (spinBlocked) totalPts = 0;
-        else if (totalPts > 0) {
-            totalPts = require('./src/dailyXp').planDailyXp(spinUsed, totalPts).awarded;
-        }
+        const spinPlan = planXpGrant({
+            base: spinBlocked ? 0 : totalPts,
+            user: userData,
+            now: Date.now(),
+            dailyUsed: spinUsed,
+        });
+        const spinDoubled = spinPlan.doubled === true;
+        totalPts = spinPlan.awarded;
 
         // Atomic update
         const update = {};
@@ -4228,7 +4254,7 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         tx.update(userRef, update);
         if (totalPts > 0) {
             tx.set(dailyRef, {
-                total: spinUsed + totalPts,
+                total: spinPlan.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }
@@ -4658,12 +4684,12 @@ exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.
         const scholarBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || scholarLedger.banned === true;
         // 2,100 is paid in full and is not added to the day's capped total.
         // The marker and the cert_bonus ledger row make a second credit a no-op.
-        const scholarPlan = certBonus.planCertBonus({
+        const scholarPlan = certBonus.applyXpWindow(certBonus.planCertBonus({
             type: type,
             passed: passed,
             banned: scholarBlocked,
             alreadyPaid: certBonus.alreadyPaid(bonusMarkerSnap, bonusLedgerSnap),
-        });
+        }), userData, now);
         const scholarRankPrev = scholarPlan.pay
             ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.amount)
             : {};
@@ -4753,6 +4779,9 @@ exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.
             passed: passed,
             type: type,
             pointsAwarded: pointsAwarded,
+            doubled: scholarPlan.doubled === true,
+            base: scholarPlan.base || 0,
+            boosted: scholarPlan.boosted || scholarPlan.amount || 0,
             already: scholarPlan.reason === 'already',
             capExempt: scholarPlan.pay === true,
             raidCredit: passed === true && !scholarBlocked && scholarPlan.reason !== 'already',
@@ -4800,6 +4829,9 @@ exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.
         passed: result.passed,
         type: result.type,
         pointsAwarded: result.pointsAwarded || 0,
+        doubled: result.doubled === true,
+        base: result.base || 0,
+        boosted: result.boosted || 0,
         blocked: result.blocked || null,
         already: result.already === true,
         capExempt: result.capExempt === true,
@@ -6270,9 +6302,12 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
             dailyData: dailyDoc.exists ? (dailyDoc.data() || {}) : { date: '', distance: 0 },
         });
         const blocked = rewardBlocked(userData, ledgerDoc.exists ? (ledgerDoc.data() || {}) : {});
+        const walkDay = getOffsetDateKey();
         const grant = await applyDailyXp(uid, blocked ? 0 : plan.rawPoints, transaction, {
-            day: getOffsetDateKey(),
+            day: walkDay,
             userRef: userRef,
+            user: userData,
+            now: Date.now(),
         });
 
         // A ban pays nothing and does not consume the activities.
@@ -8393,11 +8428,17 @@ async function settlePvpMatch(matchId, after) {
             const pvpUser = userSnaps[i].data() || {};
             const pvpLedger = ledgerSnaps[i].exists ? (ledgerSnaps[i].data() || {}) : {};
             const pvpBlocked = !!(pvpUser.ban_reason) || pvpUser.banned === true || pvpUser.satsDisabled === true || pvpLedger.banned === true;
-            const grant = awardActions.planGrant({
-                xp: pvpBlocked ? 0 : p.points,
+            const xpPlan = planXpGrant({
+                base: pvpBlocked ? 0 : p.points,
+                user: pvpUser,
+                now: Date.now(),
                 dailyUsed: used,
-                dailyCap: awardActions.DAILY_CAP,
             });
+            const grant = {
+                awarded: xpPlan.awarded,
+                dropped: xpPlan.dropped,
+                dailyXp: xpPlan.dailyXp,
+            };
             const write = pvpFlow.planXpWrite(grant.awarded);
             const ticket = pvpFlow.planWinTicket(Object.assign({}, p, {
                 ticketClaimedToday: ticketSnaps[i].exists,
@@ -8413,7 +8454,7 @@ async function settlePvpMatch(matchId, after) {
             if (ticket.tickets > 0) upd.orangeTickets = admin.firestore.FieldValue.increment(ticket.tickets);
             if (Object.keys(upd).length) tx.update(userRefs[i], upd);
             if (write.write) {
-                tx.set(dailyRefs[i], { total: admin.firestore.FieldValue.increment(write.points) }, { merge: true });
+                tx.set(dailyRefs[i], { total: xpPlan.dailyXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
             if (ticket.tickets > 0) {
                 tx.set(ticketRefs[i], {
@@ -8430,11 +8471,14 @@ async function settlePvpMatch(matchId, after) {
                 pendingOverflow: userSnaps[i].data().pendingOverflow || 0,
                 tickets: ticket.tickets,
                 outcome: p.outcome,
+                doubled: xpPlan.doubled === true,
+                base: xpPlan.base,
+                boosted: xpPlan.boosted,
             });
         }
         const rewardsMap = {};
         applied.forEach(function (a) {
-            rewardsMap[a.uid] = { points: a.points, outcome: a.outcome, tickets: a.tickets };
+            rewardsMap[a.uid] = { points: a.points, outcome: a.outcome, tickets: a.tickets, doubled: a.doubled === true, base: a.base || 0, boosted: a.boosted || 0 };
         });
         tx.set(rewardRef, {
             matchId: matchId,
@@ -8777,8 +8821,10 @@ exports.recountCountryStats = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC
     });
 
 // ── Badge Distribution Cache Refresh ─────────────────────────────────────────
-// Scans all users' badge_awards subcollections and caches counts to
-// stats/badge_distribution. Runs nightly, also callable via HTTP.
+// Rebuilds stats/badge_distribution from public badge holdings. The nightly
+// job is Cloud Scheduler only (no public invoker). The HTTP trigger is the
+// manual path: requireAdmin runs before any read, so an open function URL
+// cannot start the scan. Logs are counts only.
 
 async function _refreshBadgeDistribution() {
     return refreshBadgeDistribution(db, admin);
@@ -8791,13 +8837,16 @@ exports.refreshBadgeDistribution = onScheduleV2({
     timeoutSeconds: 540,
 }, async () => { await _refreshBadgeDistribution(); });
 
-exports.refreshBadgeDistributionHttp = functionsV1.https.onRequest(async (req, res) => {
+exports.refreshBadgeDistributionHttp = functionsV1.runWith({
+    timeoutSeconds: 540,
+    memory: '512MB',
+}).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const result = await _refreshBadgeDistribution();
         res.json({ ok: true, ...result });
     } catch (e) {
-        console.error('[BADGE DIST HTTP]', e);
+        console.error('[BADGE DIST HTTP] refresh failed');
         res.status(500).json({ error: 'Internal server error' });
     }
 });

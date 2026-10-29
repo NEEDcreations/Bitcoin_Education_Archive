@@ -18,7 +18,7 @@
 
 const admin = require('firebase-admin');
 const rewardNotify = require('./rewardNotify');
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const { rewardBlocked } = require('./cipherClaim');
 
@@ -121,18 +121,22 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
       [`peerData.${senderUid}.giftsExchanged`]: giftsExchanged,
     };
 
-    // Level-up XP shares the 500 / 900 / 1,000 daily counter. It is not doubled.
+    // Level-up XP shares the 500 / 900 / 1,000 daily counter.
+    // The base is doubled once while Double XP is open, then tapered.
     const rawXp = (didLevelUp && newLevel.xp > 0) ? newLevel.xp : 0;
     function taperedXp(raw, userDoc, dailyDoc, ledgerDoc) {
-      if (!(raw > 0)) return 0;
+      const empty = { awarded: 0, base: raw, boosted: 0, doubled: false, dailyXp: null, until: 0, capExempt: false };
+      if (!(raw > 0)) return empty;
       const user = userDoc.data() || {};
       const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
-      if (rewardBlocked(user, ledger)) return 0;
+      if (rewardBlocked(user, ledger)) return empty;
       const used = dailyDoc.exists ? Number((dailyDoc.data() || {}).total || 0) : 0;
-      return planDailyXp(used, raw).awarded;
+      return planXpGrant({ base: raw, user: user, now: Date.now(), dailyUsed: used });
     }
-    const senderXp = taperedXp(rawXp, senderDoc, senderDaily, senderLedger);
-    const recipXp = taperedXp(rawXp, recipDoc, recipDaily, recipLedger);
+    const senderPlan = taperedXp(rawXp, senderDoc, senderDaily, senderLedger);
+    const recipPlan = taperedXp(rawXp, recipDoc, recipDaily, recipLedger);
+    const senderXp = senderPlan.awarded;
+    const recipXp = recipPlan.awarded;
     function xpFields(amount) {
       return {
         points:    admin.firestore.FieldValue.increment(amount),
@@ -142,13 +146,11 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
     }
     if (senderXp > 0) {
       Object.assign(senderPeerUpdate, xpFields(senderXp));
-      const used = senderDaily.exists ? Number((senderDaily.data() || {}).total || 0) : 0;
-      t.set(senderDailyRef, { total: used + senderXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      t.set(senderDailyRef, { total: senderPlan.dailyXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
     }
     if (recipXp > 0) {
       Object.assign(recipPeerUpdate, xpFields(recipXp));
-      const used = recipDaily.exists ? Number((recipDaily.data() || {}).total || 0) : 0;
-      t.set(recipDailyRef, { total: used + recipXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      t.set(recipDailyRef, { total: recipPlan.dailyXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
     }
 
     t.update(senderRef, senderPeerUpdate);
