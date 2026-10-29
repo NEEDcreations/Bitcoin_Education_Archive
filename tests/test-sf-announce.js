@@ -410,8 +410,10 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latest = 'Latest: Double XP now applies to every way you earn XP.';
+    const latest = 'Latest: Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.';
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(!/\d/.test(latest));
     assert.strictEqual(latest.indexOf('@'), -1);
     assert.strictEqual(latest.toLowerCase().indexOf('threshold'), -1);

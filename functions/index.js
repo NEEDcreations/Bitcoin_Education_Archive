@@ -41,6 +41,7 @@ const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOther
 const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
+const streakBoard = require('./src/streakBoard');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -3858,35 +3859,14 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
                 accountAgeDays = Math.max(1, Math.floor((Date.now() - creationDate.getTime()) / 86400000) + 1);
             } catch(e) {}
 
-            // Calculate streak
-            let newStreak = 1;
-            let usedFreeze = false;
+            // Calculate streak. Grace lives in streakBoard.nextVisitStreak:
+            // yesterday continues, a saved freeze covers one missed day, older resets.
             let bonusTickets = 0;
             let oldStreak = user.streak || 0;
-            const streakFreezes = user.streakFreezes || 0;
-
-            // Cap existing streak to account age (fixes pre-patch inflated values)
-            if (oldStreak > accountAgeDays) {
-                oldStreak = accountAgeDays;
-            }
-
-            if (lastVisit) {
-                const lastDate = new Date(lastVisit);
-                const todayDate = new Date(today);
-                const diffDays = Math.round((todayDate - lastDate) / 86400000);
-
-                if (diffDays === 1) {
-                    // Consecutive day
-                    newStreak = oldStreak + 1;
-                } else if (diffDays === 2 && streakFreezes > 0) {
-                    // Missed one day but have a freeze
-                    newStreak = oldStreak + 1;
-                    usedFreeze = true;
-                } else {
-                    // Streak broken
-                    newStreak = 1;
-                }
-            }
+            if (oldStreak > accountAgeDays) oldStreak = accountAgeDays;
+            const step = streakBoard.nextVisitStreak(Object.assign({}, user, { streak: oldStreak }), today);
+            let newStreak = step.streak;
+            let usedFreeze = step.usedFreeze;
 
             // Bonus tickets for streak milestones
             if (newStreak === 7) bonusTickets = 3;
@@ -3897,15 +3877,17 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             // Cap streak to account age
             if (newStreak > accountAgeDays) newStreak = accountAgeDays;
 
-            const currentBest = Math.min(user.bestStreak || 0, accountAgeDays);
-            const newBest = Math.max(currentBest, newStreak);
+            const tracked = streakBoard.applyStreakUpdate(user, newStreak, Date.now(), accountAgeDays);
+            newStreak = tracked.streak;
 
             const updateData = {
                 totalVisits: admin.firestore.FieldValue.increment(1),
                 lastVisit: today,
-                streak: newStreak,
-                bestStreak: newBest,
+                streak: tracked.streak,
+                bestStreak: tracked.bestStreak,
+                streakReachedAt: tracked.streakReachedAt,
             };
+            if (tracked.bestStreakAt) updateData.bestStreakAt = tracked.bestStreakAt;
             if (bonusTickets > 0) {
                 updateData.orangeTickets = admin.firestore.FieldValue.increment(bonusTickets);
             }
@@ -3935,7 +3917,7 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             return {
                 alreadyVisited: false,
                 streak: newStreak,
-                bestStreak: newBest,
+                bestStreak: tracked.bestStreak,
                 oldStreak: oldStreak,
                 usedFreeze: usedFreeze,
                 bonusTickets: bonusTickets,
@@ -3949,10 +3931,33 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             await grantFamily(db, admin, uid, visitIds);
         }
         catch (streakBadgeErr) { console.warn('[VISIT] streak badges', streakBadgeErr && streakBadgeErr.message); }
+        if (result && !result.alreadyVisited) {
+            try { await streakBoard.refresh(db, Date.now(), { force: false }); }
+            catch (boardErr) { console.warn('[streak board]', boardErr && boardErr.message); }
+        }
         return { success: true, ...result };
     } catch (e) {
         console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
         return { success: false, error: 'Visit recording failed' };
+    }
+});
+
+// Cached Daily Streaks board. Public read, Admin SDK write. Rebuilt hourly
+// so a lapsed streak drops off Current even if that player never comes back,
+// and again after a visit that changes a streak (debounced inside refresh).
+exports.refreshStreakLeaderboard = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const doc = await streakBoard.refresh(db, Date.now(), { force: true });
+        console.log('[streak board]', JSON.stringify({
+            alltime: doc && doc.alltime ? doc.alltime.length : 0,
+            current: doc && doc.current ? doc.current.length : 0
+        }));
+    } catch (e) {
+        console.error('[streak board] refresh failed:', e && e.message);
     }
 });
 
