@@ -410,7 +410,7 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(notes.includes('Latest: Faster profile load when you open the app.'));
     const streaksNote = 'Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.';
     assert.ok(notes.includes(streaksNote));
     assert.ok(!notes.includes('Latest: ' + streaksNote));
