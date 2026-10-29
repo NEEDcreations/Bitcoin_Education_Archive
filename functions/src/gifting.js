@@ -968,6 +968,17 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     } catch (cipherBadgeErr) {
         console.warn('[decryptCipher] badges', cipherBadgeErr && cipherBadgeErr.message);
     }
+    if (applied && applied.share && applied.share.senderUid && applied.share.senderUid !== uid) {
+        try {
+            await require('./raidBossEngine').noteTrusted(db, admin, {
+                metric: 'cipherPeerKey',
+                uid: uid,
+                dedupeKey: 'cipher-' + uid + '-' + cipherId,
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (cipherRaidErr) { console.warn('[decryptCipher] raid', cipherRaidErr && cipherRaidErr.message); }
+    }
     const pub = publicReward(applied.reward);
     pub.opensToday = applied.opensToday;
     pub.opensMax = CIPHER_OPENS_PER_DAY;

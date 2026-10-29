@@ -176,6 +176,15 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             const grant = require('./src/grantBadge');
             await grant.grantFamily(db, admin, uid, grant.familyFor('tctvWatchDays'));
         } catch (e) { console.warn('[tctvWatch] badges', e.message); }
+        try {
+            await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                metric: 'tctvWatchDays',
+                uid: uid,
+                dedupeKey: 'tctv-' + uid + '-' + (watchResult.day || today),
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (e) { console.warn('[tctvWatch] raid', e && e.message); }
     }
     if (watchResult && watchResult.tickets > 0) {
         try {

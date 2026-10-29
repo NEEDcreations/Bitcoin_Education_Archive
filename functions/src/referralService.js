@@ -611,6 +611,26 @@ async function syncReferralMaxiCount(uid, before, after) {
             const counted = await persistReferralMaxiCount(referrerUid);
             if (typeof counted === 'number') await grantReferralBadges(referrerUid);
         }
+        if (outcome.referrerUid !== uid) {
+            try {
+                const { samePerson } = require('./badgeProgress');
+                const referrerSnap = await db().collection('users').doc(outcome.referrerUid).get();
+                const referredSnap = await db().collection('users').doc(uid).get();
+                const left = Object.assign({}, referrerSnap.exists ? (referrerSnap.data() || {}) : {}, { uid: outcome.referrerUid });
+                const right = Object.assign({}, referredSnap.exists ? (referredSnap.data() || {}) : {}, { uid: uid });
+                if (!samePerson(left, right)) {
+                    await require('./raidBossEngine').noteTrusted(db(), admin, {
+                        metric: 'referralsPaid',
+                        uid: outcome.referrerUid,
+                        dedupeKey: 'ref-' + uid,
+                        amount: 1,
+                        now: new Date(),
+                    });
+                }
+            } catch (e) {
+                console.warn('[referral] raid', e && e.message ? e.message : e);
+            }
+        }
     }
 }
 
