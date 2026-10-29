@@ -488,6 +488,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
     assert.ok(notes.includes('Latest: Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
     assert.ok(!notes.includes('Latest: Referral badges'));
     assert.ok(notes.includes("Global Chat now gives a heads-up when Satoshi's Favor is about to end."));

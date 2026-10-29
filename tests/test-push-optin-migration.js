@@ -168,6 +168,7 @@ queue.push(test('dry-run is the default and --apply is explicit', function () {
     assert.ok(terms.includes('when it already had a push token and you had not turned notifications off'));
 
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2424'"));
+    assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2407'));

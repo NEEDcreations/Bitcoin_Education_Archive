@@ -412,9 +412,13 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     const latest = 'Latest: Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.';
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(!/\d/.test(latest));
     assert.strictEqual(latest.indexOf('@'), -1);
     assert.strictEqual(latest.toLowerCase().indexOf('threshold'), -1);
+    assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(!notes.includes('Latest: Referral badges'));
     assert.ok(notes.includes('Global Chat now gives a heads-up when Satoshi\'s Favor is about to end.'));
     assert.ok(!notes.includes('Latest: Global Chat'));
     assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));

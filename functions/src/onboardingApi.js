@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const quest = require('./onboardingQuest');
+const { planXpGrant } = require('./grantXp');
 const names = require('./usernamePolicy');
 const faucetGuard = require('./faucetGuard');
 const rateSalt = require('./rateLimitSalt');
@@ -199,6 +200,8 @@ function registerOnboarding(deps) {
                 pendingOverflow: user.pendingOverflow || 0,
                 lastOverflowDate: user.lastOverflowDate || '',
                 today: today,
+                user: user,
+                now: Date.now(),
             });
             grant.today = today;
             const prev = (user.onboardingQuest && user.onboardingQuest.steps) || {};
@@ -226,6 +229,7 @@ function registerOnboarding(deps) {
                 already: false,
                 mode: mode,
                 awarded: grant.pointsOut,
+                doubled: grant.doubled === true,
                 tickets: again.tickets,
                 complete: complete,
             };
@@ -240,6 +244,7 @@ function registerOnboarding(deps) {
             already: !!written.already,
             error: written.error || '',
             awarded: written.awarded || 0,
+            doubled: written.doubled === true,
             tickets: written.tickets || 0,
             complete: !!written.complete,
             totalPts: totals.pts,
@@ -386,8 +391,15 @@ function registerOnboarding(deps) {
                 if (nonceMatches) clearGuestNonce(tx, admin, anonRef);
                 return { ok: true, already: true, points: 0, tickets: 0 };
             }
-            // Guest points were already earned. Moving them is not a new daily grant.
-            const movedPoints = Math.max(0, Math.floor(Number(again.points) || 0));
+            // Guest points were already earned. Moving them is not a new grant
+            // and is not doubled.
+            const movedGrant = planXpGrant({
+                base: Math.max(0, Math.floor(Number(again.points) || 0)),
+                boost: false,
+                capExempt: true,
+                now: nowMs,
+            });
+            const movedPoints = movedGrant.awarded;
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;

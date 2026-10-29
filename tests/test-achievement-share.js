@@ -17,6 +17,7 @@ function test(name, fn) {
 }
 
 const LATEST = "Latest: Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.";
+const DOUBLE_XP_NOTE = "Double XP now applies to every way you earn XP.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
 const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
 
@@ -393,6 +394,8 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));
+    assert.ok(notes.includes(DOUBLE_XP_NOTE));
+    assert.ok(!notes.includes('Latest: ' + DOUBLE_XP_NOTE));
     assert.ok(notes.includes(RAID));
     assert.ok(!notes.includes('Latest: ' + RAID));
     assert.ok(notes.includes(SHARE_NOTE));
@@ -401,6 +404,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2424'"));
+    assert.ok(!read('sw.js').includes('btc-archive-v2422'));
     assert.ok(!read('sw.js').includes('btc-archive-v2391'));
     assert.ok(!read('sw.js').includes('btc-archive-v2386'));
     assert.ok(!read('sw.js').includes('btc-archive-v2407'));

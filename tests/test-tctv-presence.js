@@ -257,6 +257,7 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
 
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2424'"));
+    assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2407'));

@@ -4,7 +4,7 @@
  */
 const ps = require('./predictionStats');
 const rewardNotify = require('./rewardNotify');
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const { rewardBlocked } = require('./cipherClaim');
 
@@ -198,8 +198,12 @@ function createPredictionJobs(db, admin, hooks) {
             const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : null;
             const dailyUsed = dailySnap.exists ? Number((dailySnap.data() || {}).total || 0) : 0;
             let xp = (applied.correct && userSnap.exists) ? ps.CORRECT_XP : 0;
+            let predictPlan = null;
             if (rewardBlocked(user, ledger)) xp = 0;
-            else if (xp > 0) xp = planDailyXp(dailyUsed, xp).awarded;
+            else if (xp > 0) {
+                predictPlan = planXpGrant({ base: xp, user: user, now: now, dailyUsed: dailyUsed });
+                xp = predictPlan.awarded;
+            }
             if (xp > 0) {
                 const inc = admin.firestore.FieldValue.increment;
                 tx.update(userRef, {
@@ -208,7 +212,7 @@ function createPredictionJobs(db, admin, hooks) {
                     monthlyXP: inc(xp)
                 });
                 tx.set(dailyRef, {
-                    total: dailyUsed + xp,
+                    total: predictPlan && predictPlan.dailyXp != null ? predictPlan.dailyXp : (dailyUsed + xp),
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
             }
@@ -217,6 +221,7 @@ function createPredictionJobs(db, admin, hooks) {
                 uid: liveUid,
                 direction: live.direction === 'down' ? 'down' : 'up',
                 xp: xp,
+                doubled: !!(predictPlan && predictPlan.doubled),
                 pointsBefore: pointsBefore
             };
         });

@@ -4607,7 +4607,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
-                _showPointsToast(awarded, reason);
+                _showPointsToast(awarded, reason, result.data.doubled === true);
             }
             if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
                 window._serverDailyXp = {
@@ -4644,7 +4644,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 }
 
 // Helper: smart toast throttling for point awards
-function _showPointsToast(pts, reason) {
+function _showPointsToast(pts, reason, doubled) {
     var _show = false;
     if (pts >= 25) {
         _show = true;
@@ -4654,7 +4654,8 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' XP - ' + reason, 2500);
+        var mark = doubled === true ? ' 2x' : '';
+        showToast('+' + pts + ' XP' + mark + ' - ' + reason, 2500);
     }
 }
 
@@ -4756,11 +4757,6 @@ async function onChannelOpen(channelId) {
         sessionChannels.add(channelId);
 
         let ptsAwarded = POINTS.openChannel;
-        // Apply daily 2X boost
-        if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
-            ptsAwarded *= 2;
-            setTimeout(() => { showToast('⚡ 2X XP! Daily boost applied! +' + ptsAwarded + ' XP'); }, 2000);
-        }
 
         // Update local tracking
         if (currentUser._isLocal) {

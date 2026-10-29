@@ -96,7 +96,7 @@ test('only Reading & Exploring starts open', function () {
     }
     assert.ok(html.includes('min-height:44px'));
     assert.ok(html.includes('class="earn-xp-chevron"'));
-    assert.ok(html.includes('✅ Daily Activities (12)'));
+    assert.ok(html.includes('✅ Daily Activities (11)'));
     assert.ok(html.includes('📚 Reading &amp; Exploring (3)'));
     assert.ok(html.includes('🎁 Gifts, Keys &amp; Ciphers (7)'));
     assert.ok(html.includes('Publish an article: <strong>30 XP</strong>, once per article, up to 2 a day, at least 300 characters and 50 words'));
