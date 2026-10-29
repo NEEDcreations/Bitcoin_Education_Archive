@@ -3,6 +3,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const live = require('../functions/src/favorLiveAnnounce');
+const ending = require('../functions/src/favorEndingAnnounce');
+const mirror = require('../functions/src/chatTelegramMirror');
 const badgeGg = require('../functions/src/badgeGg');
 const { resetExpiredFavorWith } = require('../functions/src/satoshiFavor');
 
@@ -355,6 +357,14 @@ queue.push(test('an expired reset keeps eraHashes inside the transaction', async
     const cron = index.slice(cronAt, cronAt + 500);
     assert.ok(cron.includes('resetExpiredFavor'));
     assert.ok(!cron.includes('archivedBy'));
+    const cronBody = index.slice(cronAt, index.indexOf('// ===== TELEGRAM REACTION BRIDGE ====='));
+    assert.ok(cronBody.includes('announceFavorEnding'));
+    assert.ok(cronBody.includes('onSchedule'));
+    assert.ok(!cronBody.includes("invoker: 'public'"));
+    assert.ok(!cronBody.includes('invoker: "public"'));
+    assert.ok(!cronBody.includes('onRequest'));
+    assert.ok(!index.includes("invoker: 'public'"));
+    assert.ok(!index.includes('invoker: "public"'));
     const favor = fs.readFileSync(path.join(root, 'functions', 'src', 'satoshiFavor.js'), 'utf8');
     const stateAt = favor.indexOf('exports.checkFavorState');
     const stateFn = favor.slice(stateAt, stateAt + 1200);
@@ -393,11 +403,22 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(dedup.includes('allow read: if true'));
     assert.ok(dedup.includes('allow write: if false'));
     assert.ok(rules.includes('match /sf_live_announcements/{cycleId}'));
+    const endingRulesAt = rules.indexOf('match /sf_ending_announcements/{cycleId}');
+    const endingRules = rules.slice(endingRulesAt, endingRulesAt + 120);
+    assert.ok(endingRules.includes('allow read, write: if false'));
     assert.ok(rules.includes('match /badge_gg_bursts/{uid}'));
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.'));
+    const latest = 'Latest: Global Chat now gives a heads-up when Satoshi\'s Favor is about to end.';
+    assert.ok(notes.includes(latest));
+    assert.ok(!/\d/.test(latest));
+    assert.strictEqual(latest.indexOf('@'), -1);
+    assert.strictEqual(latest.toLowerCase().indexOf('threshold'), -1);
+    assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
+    assert.ok(!notes.includes('Latest: Tap Nacho'));
+    assert.ok(notes.includes('Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.'));
+    assert.ok(!notes.includes('Latest: Raid bosses'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     assert.ok(notes.includes('Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));
@@ -445,6 +466,163 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
     assert.ok(!notes.includes('Latest: Nacho now announces'));
     assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
+}));
+
+function openWindow(cycleId, now, remainingMs, extra) {
+    return Object.assign({
+        favorActive: true,
+        currentCycleId: cycleId,
+        favorEndBase: now + remainingMs,
+        bonusMinutes: 0,
+        points: 21,
+        winnersThisWindow: [{ uid: 'uid-alice', username: 'Alice' }],
+    }, extra || {});
+}
+
+function chatPaths(db) {
+    return Object.keys(db.docs).filter(function (key) { return key.indexOf('global_chat/') === 0; });
+}
+
+queue.push(test('ten minutes left posts once, and a retry reuses the stored chat id', async function () {
+    const now = 1700000000000;
+    const state = openWindow('cycle_2000', now, ending.HEADS_UP_MS);
+    const db = memoryDb({ 'satoshiFavor/current': state });
+    const calls = [];
+    for (let i = 0; i < 5; i++) calls.push(ending.announceFavorEnding(db, admin, now));
+    const results = await Promise.all(calls);
+    const posted = results.filter(function (row) { return row && row.posted; });
+    assert.strictEqual(posted.length, 1);
+    const text = "⏳ Satoshi's Favor ends soon. Hash now!";
+    assert.strictEqual(ending.formatEndingAnnouncement(), text);
+    assert.strictEqual(posted[0].text, text);
+    assert.strictEqual(text.indexOf('⚡'), -1);
+    assert.strictEqual(text.indexOf('#favor'), -1);
+    const liveText = live.formatLiveAnnouncement({ total: 21, players: 5, flex: 12, badges: 5, trifectas: 4 }, 21);
+    assert.strictEqual(liveText.indexOf('#favor'), -1);
+    assert.ok(!/\d/.test(text));
+    assert.strictEqual(ending.HEADS_UP_MS, 10 * 60 * 1000);
+    const chatId = posted[0].chatId;
+    assert.ok(/^[a-f0-9]{32}$/.test(chatId));
+    assert.strictEqual(chatId.indexOf('cycle_2000'), -1);
+    assert.strictEqual(chatId.indexOf('sf_ending'), -1);
+    const chat = db.docs['global_chat/' + chatId];
+    assert.strictEqual(chat.text, text);
+    assert.strictEqual(chat.uid, 'nacho-bot');
+    assert.strictEqual(chat.name, '🦌 Nacho');
+    assert.strictEqual(chat.isNachoAuto, false);
+    assert.strictEqual(chat.cycleId, 'cycle_2000');
+    assert.strictEqual(db.docs['sf_ending_announcements/cycle_2000'].chatId, chatId);
+    assert.strictEqual(text.indexOf('Alice'), -1);
+    assert.strictEqual(text.indexOf('uid-alice'), -1);
+    assert.strictEqual(text.indexOf('@'), -1);
+    const forwarded = mirror.decideMirror({ collection: 'global_chat', data: chat });
+    assert.strictEqual(forwarded.forward, true);
+    assert.ok(forwarded.line.indexOf('ends soon') !== -1);
+    let transactions = 0;
+    const origTx = db.runTransaction;
+    db.runTransaction = function (fn) {
+        transactions += 1;
+        return origTx(fn);
+    };
+    const again = await ending.announceFavorEnding(db, admin, now);
+    assert.strictEqual(again.posted, false);
+    assert.strictEqual(again.reason, 'exists');
+    assert.strictEqual(again.chatId, chatId);
+    assert.strictEqual(transactions, 0);
+    assert.strictEqual(chatPaths(db).length, 1);
+    assert.strictEqual(Object.keys(db.docs).filter(function (key) { return key.indexOf('sf_ending_announcements/') === 0; }).length, 1);
+}));
+
+queue.push(test('a forged chat doc does not suppress the heads-up, and the marker does', async function () {
+    const now = 1700000000000;
+    const state = openWindow('cycle_forge', now, 9 * 60 * 1000 + 1);
+    const db = memoryDb({
+        'satoshiFavor/current': state,
+        'global_chat/sf_ending_cycle_forge': { uid: 'user1', name: 'phil', text: 'not the heads-up' },
+    });
+    const first = await ending.announceFavorEnding(db, admin, now);
+    assert.strictEqual(first.posted, true);
+    assert.strictEqual(first.text, "⏳ Satoshi's Favor ends soon. Hash now!");
+    assert.strictEqual(db.docs['global_chat/sf_ending_cycle_forge'].uid, 'user1');
+    assert.strictEqual(db.docs['global_chat/sf_ending_cycle_forge'].text, 'not the heads-up');
+    assert.notStrictEqual(first.chatId, 'sf_ending_cycle_forge');
+    assert.strictEqual(db.docs['global_chat/' + first.chatId].uid, 'nacho-bot');
+    assert.strictEqual(chatPaths(db).length, 2);
+    const held = memoryDb({
+        'satoshiFavor/current': state,
+        'sf_ending_announcements/cycle_forge': { cycleId: 'cycle_forge', chatId: 'a1b2c3d4e5f67890' },
+    });
+    let transactions = 0;
+    const origTx = held.runTransaction;
+    held.runTransaction = function (fn) {
+        transactions += 1;
+        return origTx(fn);
+    };
+    const second = await ending.announceFavorEnding(held, admin, now);
+    assert.strictEqual(second.posted, false);
+    assert.strictEqual(second.reason, 'exists');
+    assert.strictEqual(second.chatId, 'a1b2c3d4e5f67890');
+    assert.strictEqual(transactions, 0);
+    assert.strictEqual(chatPaths(held).length, 0);
+}));
+
+queue.push(test('an early close or no time left does not post', async function () {
+    const now = 1700000000000;
+    const early = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_early', now, 20 * 60 * 1000, { favorActive: false }),
+    });
+    const closed = await ending.announceFavorEnding(early, admin, now);
+    assert.strictEqual(closed.posted, false);
+    assert.strictEqual(closed.reason, 'inactive');
+    assert.strictEqual(Object.keys(early.docs).filter(function (key) { return key.indexOf('sf_ending_') === 0 || key.indexOf('global_chat/') === 0; }).length, 0);
+    const done = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_done', now, -1000),
+    });
+    const none = await ending.announceFavorEnding(done, admin, now);
+    assert.strictEqual(none.posted, false);
+    assert.strictEqual(none.reason, 'no_time');
+    assert.strictEqual(Object.keys(done.docs).length, 1);
+    const later = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_later', now, ending.HEADS_UP_MS + 1),
+    });
+    const waiting = await ending.announceFavorEnding(later, admin, now);
+    assert.strictEqual(waiting.posted, false);
+    assert.strictEqual(waiting.reason, 'not_yet');
+    const extended = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_bonus', now, 8 * 60 * 1000, { bonusMinutes: 5 }),
+    });
+    const bonus = await ending.announceFavorEnding(extended, admin, now);
+    assert.strictEqual(bonus.posted, false);
+    assert.strictEqual(bonus.reason, 'not_yet');
+    const raced = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_race', now, 5 * 60 * 1000),
+    });
+    const orig = raced.runTransaction;
+    raced.runTransaction = function (fn) {
+        return orig(async function (t) {
+            const get = t.get;
+            t.get = async function (r) {
+                if (r.path === 'satoshiFavor/current') raced.docs['satoshiFavor/current'].favorActive = false;
+                return get(r);
+            };
+            return fn(t);
+        });
+    };
+    const lost = await ending.announceFavorEnding(raced, admin, now);
+    assert.strictEqual(lost.posted, false);
+    assert.strictEqual(lost.reason, 'inactive');
+    assert.strictEqual(raced.docs['sf_ending_announcements/cycle_race'], undefined);
+    assert.strictEqual(chatPaths(raced).length, 0);
+    const one = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_one', now, 1, {
+            favorEndBase: { toMillis: function () { return now + 1; } },
+        }),
+    });
+    const last = await ending.announceFavorEnding(one, admin, now);
+    assert.strictEqual(last.posted, true);
+    assert.strictEqual(last.text, "⏳ Satoshi's Favor ends soon. Hash now!");
+    assert.strictEqual(last.text.indexOf('Alice'), -1);
+    assert.ok(!/\d/.test(last.text));
 }));
 
 queue.reduce(function (p, next) { return p.then(function () { return next; }); }, Promise.resolve()).then(function () {
