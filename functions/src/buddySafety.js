@@ -243,10 +243,11 @@ function negatedVerbIndexes(clause) {
         const gap = clause.slice(after, next.index).trim();
         const words = gap ? gap.split(/\s+/) : [];
         const negWord = match[0].toLowerCase();
-        const warning = /^(?:tempted|pressured|obligated|forced|tricked|fooled|asked|rushed)$/;
+        const warning = /^(?:tempted|pressured|obligated|forced|tricked|fooled)$/;
         if ((negWord === 'dont' || negWord === 'do not' || negWord === "don't") && words.length === 1 && words[0] === 'you' && /^(?:need|want|have)$/.test(next.word)) continue;
         const fillerGap = words.every(function (word) { return filler.test(word); });
-        const heldBack = words.length > 1 && words[words.length - 1] === 'to' && words.some(function (word) { return warning.test(word); });
+        const letsAnyone = words.indexOf('let') !== -1 && (words.indexOf('anyone') !== -1 || words.indexOf('someone') !== -1);
+        const heldBack = words.length > 1 && words[words.length - 1] === 'to' && (words.some(function (word) { return warning.test(word); }) || letsAnyone);
         if (!fillerGap && !heldBack) continue;
         negated[next.index] = true;
         const later = verbs.filter(function (verb) { return verb.index > next.index; })[0];
@@ -282,11 +283,32 @@ function liveVerb(clause, words) {
     });
 }
 
+function genericColonSpeaker(head) {
+    if (/\bmy\s+scammer\b/.test(head)) return false;
+    if (/\b(?:scammers|people|bad\s+actors)\b/.test(head)) return true;
+    if (/\bfake\s+(?:support|admins?)\b/.test(head)) return true;
+    if (/\b(?:anyone|someone)\b/.test(head)) return true;
+    if (/\bthey\s+who\b/.test(head)) return true;
+    return false;
+}
+
+function colonWarningFrame(head) {
+    if (/^(?:if|when|beware)\b/.test(head)) return true;
+    if (/^watch\s+out\b/.test(head)) return true;
+    if (/\bnever\s+trust\b/.test(head)) return true;
+    if (/\b(?:block|report|ignore)\s+(?:anyone|someone)\s+who\b/.test(head)) return true;
+    return false;
+}
+
 function colonIsHypotheticalQuote(clause) {
     const colonAt = clause.indexOf(':');
     if (colonAt < 0 || !/\S/.test(clause.slice(colonAt + 1))) return false;
     const head = clause.slice(0, colonAt).trim();
     const verb = '(?:saying|say|says|said|asking|ask|asks|asked|writing|write|writes|wrote|telling|tell|tells|told|messaging|message|messages|messaged|texting|text|texts|texted|dm|dms)';
+    const speech = new RegExp('\\b(?:' + verb + ')\\b', 'i').test(head) || /\bthings\s+like\s*$/i.test(head);
+    if (!speech) return false;
+    if (colonWarningFrame(head) || genericColonSpeaker(head)) return true;
+    if (/\b(?:dm|dms|message|messages|text|texts)\s+you\b/i.test(head) || /\b(?:you\s+saying|saying)\s*$/i.test(head)) return true;
     let match = head.match(new RegExp('\\b(' + verb + ')(?:\\s+you(?:\\s+saying)?|\\s+me)?\\s*$', 'i'));
     if (!match) match = head.match(new RegExp('\\b(' + verb + ')\\s+things\\s+like\\s*$', 'i'));
     if (!match) return false;
@@ -471,7 +493,8 @@ function directedSecret(clause) {
     if (new RegExp('\\b' + SECRET_SOURCE + '\\s+to\\s+me\\b', 'i').test(clause) && handoffAllows(clause) && !/\b(?:explain|teach|describe|about)\b/.test(clause)) return true;
     if (new RegExp('\\b(?:the|your|ur)\\s+' + SECRET_SOURCE + '\\s+with\\s+me\\b', 'i').test(clause) && handoffAllows(clause)) return true;
     if (new RegExp('\\b' + SECRET_SOURCE + '\\s+(?:and\\s+)?send\\s+(?:it|them)\\b', 'i').test(clause) && liveVerb(clause, ['send'])) return true;
-    if (/\b(?:type|paste|enter|write|post|drop|put)\b/.test(clause) && /\b(?:here|in the chat|in chat|this chat)\b/.test(clause) && namedSecret(clause) && liveVerb(clause, ['type', 'paste', 'enter', 'write', 'post', 'drop', 'put'])) return true;
+    if (/\b(?:type|paste|enter|write|post|drop|put)\b/.test(clause) && /\b(?:here|in the chat|in chat|this chat)\b/.test(clause) && namedSecret(clause) && !namesOwnObject(clause) && liveVerb(clause, ['type', 'paste', 'enter', 'write', 'post', 'drop', 'put'])) return true;
+    if (owns && !namesOwnObject(clause) && liveVerb(clause, ['send', 'give', 'show', 'tell', 'dm', 'paste', 'drop', 'share', 'type']) && /\b(?:send|give|show|tell|dm|paste|drop|share|type)\s+(?:me\s+)?(?:it|them|yours|those)\b/.test(clause)) return true;
     return false;
 }
 
@@ -519,6 +542,12 @@ function classifyText(raw) {
         if (!reported && directedSecret(clause)) add(lockReasons, 'seed_request');
         if (!reported && liveVerb(clause, ['pay', 'send', 'zap', 'transfer', 'deposit', 'withdraw']) && addressPattern().test(clause)) add(lockReasons, 'address_send');
         if (!reported && !scamFunds && paysAmount(clause) && /\b(?:to me|pay me|send me)\b/.test(clause)) add(lockReasons, 'admin_funds');
+        if (index > 0 && /^\s*(?:but\s+)?please\s+do\s*$/.test(clause)) {
+            const priorDo = clauses[index - 1];
+            if (/\b(?:dont|never|do not)\b/.test(priorDo) && (readerOwnsSecret(priorDo) || new RegExp('\\b(?:your|ur)\\s+(?:' + SECRET_SOURCE + ')\\b', 'i').test(priorDo))) {
+                add(lockReasons, 'seed_request');
+            }
+        }
         if (!reported && index > 0 && handsOffMention(clause)) {
             const prior = clauses[index - 1].trim();
             const priorIsSecret = readerOwnsSecret(prior)
@@ -599,7 +628,7 @@ function detectBuddyRisk(text, context) {
         && (now - previousAt) <= PAIR_WINDOW_MS
         && (!unlockedAt || previousAt > unlockedAt);
     const alone = classifyText(text);
-    if (!fresh) return alone;
+    if (!fresh || namesOwnObject(normalizeRiskText(text))) return alone;
     const joined = classifyText(previous + ' ' + String(text || ''));
     if (alone.lock) return alone;
     if (joined.lock) return joined;
@@ -674,11 +703,20 @@ function allowlistTail(text) {
     }).join(' ');
 }
 
+function namesOwnObject(text) {
+    const clause = String(text || '');
+    if (/\bwhat you think\b/.test(clause)) return true;
+    return /\b(?:your|the|an|a|my)\s+(?:answer|guess|thoughts|reply|opinion)\b/.test(clause);
+}
+
 function handsOffMention(clause) {
-    const pointed = clause.match(/\b(send|dm|give|tell|show|read|paste|drop|share)\s+(?:me\s+)?(?:it|them|this|that)\b/);
+    if (namesOwnObject(clause)) return false;
+    const pointed = clause.match(/\b(send|dm|give|tell|show|read|paste|drop|share)\s+(?:me\s+)?(?:it|them|this|that|yours|those)\b/);
     if (pointed && !verbIsNegated(clause, pointed[1])) return true;
+    const bare = clause.match(/\b(send|dm|give|show|tell)\s+me\s*$/);
+    if (bare && !verbIsNegated(clause, bare[1])) return true;
     const placed = clause.match(/\b(type|paste|enter|write|post|drop|put)\b/);
-    if (placed && /\b(?:here|in the chat|in chat|this chat)\b/.test(clause) && /\b(?:it|them|this|that)\b/.test(clause) && !verbIsNegated(clause, placed[1])) return true;
+    if (placed && /\b(?:here|in the chat|in chat|this chat)\b/.test(clause) && !verbIsNegated(clause, placed[1])) return true;
     return false;
 }
 
