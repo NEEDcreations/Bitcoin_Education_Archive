@@ -242,12 +242,12 @@ function negatedVerbIndexes(clause) {
         const words = gap ? gap.split(/\s+/) : [];
         if (!words.every(function (word) { return filler.test(word); })) continue;
         negated[next.index] = true;
-        if (next.word !== 'ask') continue;
         const later = verbs.filter(function (verb) { return verb.index > next.index; })[0];
         if (!later) continue;
-        const afterAsk = clause.slice(next.index + next.word.length, later.index).trim();
-        const askGap = afterAsk ? afterAsk.split(/\s+/) : [];
-        if (askGap.every(function (word) { return /^(?:you|your|me|it|the|a|an|to|just|for)$/.test(word); })) {
+        const afterVerb = clause.slice(next.index + next.word.length, later.index).trim();
+        const comp = afterVerb ? afterVerb.split(/\s+/) : [];
+        const compOk = /^(?:you|your|me|it|the|a|an|to|for)$/;
+        if (comp.length && comp.indexOf('to') !== -1 && comp.every(function (word) { return compOk.test(word); })) {
             negated[later.index] = true;
         }
     }
@@ -276,8 +276,11 @@ function liveVerb(clause, words) {
 }
 
 function hypotheticalQuote(clause) {
-    const head = clause.split(':')[0];
-    if (/:\s*\S/.test(clause) && /\b(?:they|someone|anyone|people|scammers?|fake)\b/.test(head)) return true;
+    const colonAt = clause.indexOf(':');
+    if (colonAt > 0 && /\S/.test(clause.slice(colonAt + 1))) {
+        const prevWord = clause.slice(0, colonAt).trim().split(/\s+/).pop();
+        if (/^(?:say|says|said|ask|asks|asked|write|writes|wrote|tell|tells|told|messaged|message|dm)$/.test(prevWord || '')) return true;
+    }
     if (!/\b(?:scammers?|someone|anyone|they|people|fake)\b/.test(clause)) return false;
     const intro = clause.match(/\b(?:(?:will|might|may|would|could)\s+(?:say|ask|tell|write|dm)|says|said|asks|asked|ask|tells|tell|say|writes|write)\b([\s\S]*)$/);
     if (!intro) return false;
@@ -360,7 +363,19 @@ function outsideSite(clause) {
 }
 
 function questionAboutUse(clause) {
-    return new RegExp('\\b(?:your|ur)\\s+(?:' + SECRET_SOURCE + ')\\s+(?:is\\s+used|is\\s+made|made\\s+of|for)\\b', 'i').test(clause);
+    return new RegExp('\\b(?:your|ur)\\s+(?:' + SECRET_SOURCE + ')\\s+(?:is\\s+used|is\\s+made|made\\s+of)\\b', 'i').test(clause);
+}
+
+function secretIsInTimeClause(clause) {
+    const timeRe = /\b(?:when|once)\b/gi;
+    let match;
+    while ((match = timeRe.exec(clause))) {
+        const after = clause.slice(match.index + match[0].length);
+        if (!/\b(?:your|ur)\b/.test(after)) continue;
+        const before = clause.slice(0, match.index);
+        if (/\b(?:send|give|show|tell|read|dm|paste|drop|share|reply|post|type|enter|write|put|need)\b/.test(before)) return true;
+    }
+    return false;
 }
 
 function verbReachesYourSecret(clause) {
@@ -377,7 +392,6 @@ function verbReachesYourSecret(clause) {
         const yourIndex = match.index + match[1].length + match[2].length;
         if (!yourOwnsAt(clause, yourIndex)) continue;
         if (!liveVerb(clause, [verb])) continue;
-        if (/\b(?:will\s+never|never)\s+ask\b(?:\s+\w+){0,3}\s+/.test(clause) && new RegExp('\\b(?:will\\s+never|never)\\s+ask\\b[\\s\\S]{0,24}\\b' + verb + '\\b').test(clause)) continue;
         if (verb === 'have' && !/\b(?:can|could|may)\s+i\s+have\s+(?:your|ur)\s+/.test(clause)) continue;
         if (storeVerb[verb] && !senderPointed(clause) && !/\b(?:can|could)\s+you\b/.test(clause) && !outsideSite(clause)) continue;
         if (questionAboutUse(clause) && !/\b(?:send|give|show|dm|paste)\s+me\b/.test(clause)) continue;
@@ -408,12 +422,7 @@ function ownedYourAfter(clause, pattern) {
 
 function directedSecret(clause) {
     if (!clause || !hasSecret(clause) || isDeviceOrStorage(clause) || shieldedFromSender(clause) || hypotheticalQuote(clause)) return false;
-    if (/\b(?:when|once)\b[\s\S]{0,40}\b(?:your|ur)\b/.test(clause)) {
-        const direct = /\b(?:send|give|show|tell|read|dm|paste|drop|share)\s+me\s+(?:\w+\s+){0,3}(?:your|ur|the)\b/.test(clause)
-            || /\bwhat\s+(?:is|are)\s+(?:\w+\s+){0,6}(?:your|ur)\b/.test(clause)
-            || /\b(?:i|we)\s+need\s+(?:\w+\s+){0,6}(?:your|ur)\b/.test(clause);
-        if (!direct) return false;
-    }
+    if (secretIsInTimeClause(clause)) return false;
     const owns = readerOwnsSecret(clause);
     if (ownedYourAfter(clause, '\\b(?:i|we)\\s+want\\s+(your|ur)\\b')) return true;
     if (owns && verbReachesYourSecret(clause)) return true;
@@ -433,7 +442,7 @@ function directedSecret(clause) {
     if (/\blet me see\b/.test(clause) && owns) return true;
     if (/\btyping\s+(?:your|ur)\b/.test(clause) && owns) return true;
     if (partialSecretAsk(clause)) return true;
-    if (owns && /\b(?:to me|with me|in here|this chat)\b/.test(clause) && handoffAllows(clause) && !questionAboutUse(clause) && !/\b(?:explain|teach|describe)\b/.test(clause)) return true;
+    if (owns && /\b(?:to me|with me|in here|this chat)\b/.test(clause) && liveVerb(clause, HANDOFF_VERBS) && !questionAboutUse(clause) && !/\b(?:explain|teach|describe)\b/.test(clause)) return true;
     if (new RegExp('^\\s*(?:please\\s+' + SECRET_SOURCE + '|' + SECRET_SOURCE + '\\s+please)\\s*$', 'i').test(clause)) return true;
     if (new RegExp('\\b' + SECRET_SOURCE + '\\s+to\\s+me\\b', 'i').test(clause) && handoffAllows(clause) && !/\b(?:explain|teach|describe|about)\b/.test(clause)) return true;
     if (new RegExp('\\b(?:the|your|ur)\\s+' + SECRET_SOURCE + '\\s+with\\s+me\\b', 'i').test(clause) && handoffAllows(clause)) return true;
@@ -613,6 +622,10 @@ const TAIL_ALLOW = {
     send: true, give: true, show: true, tell: true, need: true, want: true, have: true, share: true,
     read: true, dm: true, paste: true, type: true, enter: true, write: true, post: true, drop: true,
     reply: true, put: true, here: true, please: true, can: true, could: true, may: true, you: true,
+    dont: true, never: true, not: true, do: true, ever: true, ask: true, asked: true, asks: true,
+    say: true, says: true, said: true, wrote: true, writes: true, messaged: true, message: true,
+    scammer: true, scammers: true, someone: true, anyone: true, they: true, people: true, fake: true,
+    will: true, might: true, would: true, told: true, tells: true, if: true, just: true,
     what: true, is: true, are: true, whats: true, word: true, words: true, number: true,
     seed: true, phrase: true, phrases: true, private: true, key: true, keys: true, recovery: true,
     mnemonic: true, backup: true, wallet: true, xprv: true, sheet: true,
@@ -636,14 +649,13 @@ function planTailWrite(text, now) {
     const raw = String(text || '');
     if (!raw.trim()) return null;
     const compact = raw.replace(/\s+/g, '');
-    if (containsRawSecret(raw) || containsRawSecret(compact)) {
-        const kept = allowlistTail(raw);
-        if (!kept || containsRawSecret(kept)) return null;
-        if (!/\b(?:send|give|show|tell|need|want|share|paste|drop|type|dm|what|pay|zap|support|admin|frozen)\b/.test(kept)) return null;
-        return { text: kept, at: now, expireAt: now + PAIR_WINDOW_MS };
-    }
     const kept = allowlistTail(raw);
     if (!kept || containsRawSecret(kept)) return null;
+    if ((containsRawSecret(raw) || containsRawSecret(compact))
+        && !/\b(?:send|give|show|tell|need|want|share|paste|drop|type|dm|what|pay|zap|support|admin|frozen)\b/.test(kept)) {
+        return null;
+    }
+    if (classifyText(kept).lock && !classifyText(raw).lock) return null;
     return { text: kept, at: now, expireAt: now + PAIR_WINDOW_MS };
 }
 
