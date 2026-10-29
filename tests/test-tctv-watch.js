@@ -419,7 +419,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2418'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2423'"));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2407'));
@@ -883,6 +883,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     const latest = 'Latest: Onboarding can ask if you want a Bitcoin Buddy. Choose Learn or Teach, or Not now. A buddy can also be found while you are away, and you can leave the pool or find a new one.';
+    assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(!notes.includes('Latest: Referral badges'));
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
     const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
     const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';

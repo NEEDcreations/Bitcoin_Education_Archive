@@ -252,7 +252,7 @@ service cloud.firestore {
                         // A client cannot plant it on the profile either.
                         'sender',
                         'marketListings', 'marketMessages',
-                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited',
+                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited', 'referralMaxiCount',
                         'referredBy', 'referralVerified', 'scholarPoints', 'activeDayKeys',
                         'tipChallengeDate', 'tipConfirmedDate',
                         'pointsDonated', 'donationBadges',

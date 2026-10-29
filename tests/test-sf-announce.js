@@ -417,6 +417,8 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(!/\d/.test(favor));
     assert.strictEqual(favor.indexOf('@'), -1);
     assert.strictEqual(favor.toLowerCase().indexOf('threshold'), -1);
+    assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(!notes.includes('Latest: Referral badges'));
     assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
     assert.ok(!notes.includes('Latest: Tap Nacho'));
     assert.ok(notes.includes('Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.'));

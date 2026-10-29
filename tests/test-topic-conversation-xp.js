@@ -203,6 +203,8 @@ test('rules, terms, and the client toast come from the server payload', () => {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Onboarding can ask if you want a Bitcoin Buddy. Choose Learn or Teach, or Not now. A buddy can also be found while you are away, and you can leave the pool or find a new one.'));
+    assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(!notes.includes('Latest: Referral badges'));
     assert.ok(notes.includes('A returning signed-in player sees their home as soon as the page paints.'));
     assert.ok(!notes.includes('Latest: A returning signed-in player'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
