@@ -202,7 +202,9 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
+    assert.ok(notes.includes('Latest: Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
+    assert.ok(!notes.includes('Latest: Daily Streaks'));
     assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
     assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(notes.includes('A returning signed-in player sees their home as soon as the page paints.'));

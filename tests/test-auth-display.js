@@ -537,10 +537,13 @@ test('2FA flag set or unknown holds the cached profile', () => {
     const on = display.earlyProfileDecision(profileCache({ twoFa: true, data: { username: 'MeasurePleb', points: 2500, totpEnabled: true } }), UID);
     assert.strictEqual(on.action, 'hold');
     assert.strictEqual(on.reason, 'needs2fa');
-    const unknown = display.earlyProfileDecision(profileCache({ twoFa: undefined }), UID);
+    const unknown = display.earlyProfileDecision(profileCache({ twoFa: undefined, data: { username: 'MeasurePleb', points: 2500 } }), UID);
     assert.strictEqual(unknown.action, 'hold');
     assert.strictEqual(unknown.reason, 'unknown-2fa');
-    const missingFlag = JSON.parse(JSON.stringify(profileCache()));
+    const legacyOff = JSON.parse(JSON.stringify(profileCache()));
+    delete legacyOff.twoFa;
+    assert.strictEqual(display.earlyProfileDecision(legacyOff, UID).action, 'paint');
+    const missingFlag = JSON.parse(JSON.stringify(profileCache({ data: { username: 'MeasurePleb', points: 2500 } })));
     delete missingFlag.twoFa;
     assert.strictEqual(display.earlyProfileDecision(missingFlag, UID).action, 'hold');
     storage.setItem(display.PROFILE_KEY, JSON.stringify(profileCache({ twoFa: true })));
@@ -552,6 +555,12 @@ test('2FA flag set or unknown holds the cached profile', () => {
         assert.ok(!page.doc.documentElement.classList.contains('home-signed-in'));
         const chipText = page.nodes.homeSignedInChip.children.map(function (c) { return c.textContent || ''; }).join('') + page.nodes.homeSignedInChip.textContent;
         assert.strictEqual(chipText.indexOf('MeasurePleb'), -1);
+    });
+    storage.setItem(display.PROFILE_KEY, JSON.stringify(legacyOff));
+    withPage(storage, function (page) {
+        display.applyBoot();
+        assert.strictEqual(page.nodes.rankBar.getAttribute('data-profile-cache'), '1');
+        assert.ok(page.doc.documentElement.classList.contains('home-signed-in'));
     });
     storage.setItem(display.PROFILE_KEY, JSON.stringify(missingFlag));
     withPage(storage, function (page) {
@@ -575,7 +584,14 @@ test('ranking treats the profile cache as stale-while-revalidate and stamps 2FA'
     const pub = src.slice(src.indexOf('function publishAuthDisplay'), src.indexOf('function clearAuthDisplay'));
     assert.ok(pub.indexOf('stampProfileTwoFa(uid, false)') !== -1);
     assert.ok(pub.indexOf('stampProfileTwoFa(uid, false)') < pub.indexOf('.write('));
-    assert.ok(boot.indexOf('firebase.appCheck().activate(SITE_KEY, true)') !== -1);
+    assert.ok(boot.indexOf('firebase.appCheck().activate(') !== -1);
+    assert.ok(boot.indexOf('ReCaptchaV3Provider') !== -1);
+    assert.ok(boot.indexOf('_btcAppCheckForClaim') !== -1);
+    assert.ok(boot.indexOf('new firebase.appCheck.ReCaptchaV3Provider') !== -1);
+    assert.ok(boot.indexOf('provider.initialize(firebase.app())') !== -1);
+    assert.ok(boot.indexOf("Promise.reject(new Error('app-check-unavailable'))") !== -1);
+    assert.strictEqual(boot.indexOf('expireTimeMillis: Date.now() - 1'), -1);
+    assert.strictEqual(boot.indexOf('firebase.appCheck().activate(SITE_KEY, true)'), -1);
     assert.strictEqual((src.match(/firebase\.appCheck\(\)\.activate/g) || []).length, 1);
 });
 

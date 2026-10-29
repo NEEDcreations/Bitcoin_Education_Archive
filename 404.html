@@ -56,7 +56,7 @@
     }
 })();
 </script>
-    <script src="auth-display.js?v=20261028_v2403"></script>
+    <script src="auth-display.js?v=20261028_v2425"></script>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,7 +79,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
     <script src="firebase-config.js?v=20261027_v2394" defer></script>
-    <script src="app-check-boot.js?v=20261028_v2403" defer></script>
+    <script src="app-check-boot.js?v=20261028_v2425" defer></script>
     <script src="auth-boot.js?v=20261027_v2394" defer></script>
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -2114,7 +2114,7 @@
                 </div>
             </div>
             </details>
-            <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
+            <div id="turnstileWidget" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
             <div class="tos-check-row" id="signupConsentRow">
                 <input type="checkbox" id="signupTosCheck">
                 <label for="signupTosCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
@@ -2172,9 +2172,8 @@
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="referral-tiers.js?v=20261028_v2418" defer></script>
-    <script src="ranking.js?v=20261028_v2424" defer></script>
+    <script src="ranking.js?v=20261028_v2425" defer></script>
     <!-- Critical: needed for initial page render -->
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261028_v2417" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
@@ -2194,7 +2193,7 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261028_v2415',
+            'global-chat.js?v=20261028_v2425',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
@@ -2463,10 +2462,10 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261028_v2415'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261028_v2415'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261028_v2415'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261028_v2415'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261028_v2425'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261028_v2425'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261028_v2425'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261028_v2425'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261026_v2391'],
