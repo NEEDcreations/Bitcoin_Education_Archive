@@ -153,6 +153,12 @@ async function main() {
         assert.strictEqual(sandbox.mfaIsTransientError(err('', 'Failed to fetch')), false);
         assert.strictEqual(sandbox.mfaIsTransientError(err('', 'unavailable')), false);
         assert.strictEqual(sandbox.mfaAllowsAfterStatusError(true), false);
+        const allows = ranking.slice(ranking.indexOf('window._serverTotpAllows'), ranking.indexOf('window._maybeOfferRecoveryCodes ='));
+        assert.ok(allows.indexOf('mfaIsAppCheckError(e3)') !== -1);
+        assert.ok(allows.indexOf('mfaIsAppCheckError(e3)') < allows.indexOf('mfaClearDevice'));
+        const patch = ranking.slice(ranking.indexOf('function installMfaCallablePatch'), ranking.indexOf('function _mfaFailure'));
+        assert.ok(patch.indexOf('_btcAppCheckForClaim(8000)') !== -1);
+        assert.ok(patch.indexOf("missing.code = 'app-check-unavailable'") !== -1);
         assert.strictEqual(sandbox.mfaAllowsAfterStatusError(false), true);
     });
 

@@ -19,6 +19,7 @@ const TESTS = [
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
     { name: '2FA hold release', file: 'test-totp-hold.js' },
     { name: 'Auth before bundle', file: 'test-auth-before-bundle.js' },
+    { name: 'App Check SDK boot', file: 'test-app-check-sdk.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
@@ -112,10 +113,12 @@ const TESTS = [
     { name: 'SF chat rules', file: 'rules/sf-chat-rules.js' },
     { name: 'Username repick rules', file: 'rules/username-repick-rules.js' },
     { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },
+    { name: 'Raid bosses', file: 'test-raid-boss.js' },
     { name: 'Certification bonus', file: 'test-cert-bonus.js' },
     { name: 'Scholar exam draw', file: 'test-scholar-draw.js' },
     { name: 'Scholar answer key stays off the client', file: 'test-scholar-answer-key.js' },
     { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
+    { name: 'Raid boss emulator', file: 'test-raid-boss-emulator.js' },
 ];
 
 let allPassed = true;

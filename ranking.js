@@ -305,6 +305,14 @@ function mfaIsTransientError(err) {
     return code === 'unavailable' || code === 'deadline-exceeded' || code === 'internal' || code === 'aborted' || code === 'cancelled';
 }
 
+function mfaIsAppCheckError(err) {
+    var code = mfaErrorCode(err);
+    var msg = String((err && err.message) || '').toLowerCase();
+    if (code.indexOf('app-check') !== -1 || code.indexOf('appcheck') !== -1) return true;
+    if (msg.indexOf('app check') !== -1 || msg.indexOf('appcheck') !== -1 || msg.indexOf('recaptcha') !== -1) return true;
+    return false;
+}
+
 function mfaAllowsAfterStatusError(totpEnabled) {
     return !totpEnabled;
 }
@@ -361,7 +369,18 @@ function installMfaCallablePatch() {
                 var sid = window._mfaSessionId ? window._mfaSessionId() : '';
                 if (sid && payload.mfaSessionId == null) payload.mfaSessionId = sid;
             }
-            return callable(payload);
+            // One wait for every callable. Auth and Firestore do not use this path.
+            var ready = (typeof window._btcAppCheckForClaim === 'function')
+                ? window._btcAppCheckForClaim(8000)
+                : Promise.resolve('skip');
+            return ready.then(function (token) {
+                if (token === '') {
+                    var missing = new Error('App Check token is not ready');
+                    missing.code = 'app-check-unavailable';
+                    throw missing;
+                }
+                return callable(payload);
+            });
         };
     }
     wrapped._mfaPatched = true;
@@ -425,6 +444,8 @@ window._serverTotpAllows = async function (uid) {
         }
         return false;
     } catch (e3) {
+        // A missing App Check token is not proof the device was revoked.
+        if (mfaIsAppCheckError(e3)) return false;
         var resumeCode = mfaErrorCode(e3);
         if (!mfaIsTransientError(e3) && resumeCode !== 'resource-exhausted') mfaClearDevice(uid);
         return mfaAllowsAfterStatusError(true);
@@ -5794,6 +5815,10 @@ async function toggleLeaderboard() {
 
     try {
         await _lbAuthReady(15000);
+        if (!((typeof auth !== 'undefined' && auth && auth.currentUser) || (window.auth && window.auth.currentUser))) {
+            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
+            return;
+        }
         // Cache leaderboard data for 10 minutes to reduce Firestore reads
         var now = Date.now();
         var _lbPeriod = window._lbPeriod || 'alltime';
@@ -6353,7 +6378,10 @@ window._ensureTurnstile = function (el) {
         window._turnstileWaiters = [];
         waiters.forEach(function (fn) { try { fn(); } catch (e) {} });
     };
-    s.onerror = function () { window._turnstileLoading = false; };
+    s.onerror = function () {
+        window._turnstileLoading = false;
+        window._turnstileWaiters = [];
+    };
     document.head.appendChild(s);
 };
 
@@ -9827,9 +9855,13 @@ window.submitUsername = async function() {
         var tsEl = document.querySelector('#turnstileWidget [name="cf-turnstile-response"]');
         if (tsEl) tsToken = tsEl.value || '';
         if (!tsToken) {
-            // Widget may not have rendered yet (slow connection) - check window.turnstile
             showToast('⏳ Security check pending, please try again in a moment.');
-            if (window.turnstile) window.turnstile.reset('#turnstileWidget');
+            var signupWidget = document.getElementById('turnstileWidget');
+            if (signupWidget && signupWidget.getAttribute('data-rendered') !== '1' && typeof window._ensureTurnstile === 'function') {
+                window._ensureTurnstile(signupWidget);
+            } else if (window.turnstile) {
+                window.turnstile.reset('#turnstileWidget');
+            }
             return;
         }
         window._signupTurnstileToken = tsToken;

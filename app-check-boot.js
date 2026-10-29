@@ -1,82 +1,71 @@
-// App Check before Auth. The SDK attaches a token to Auth and Firestore, and
-// it waits on getToken() before the first signed-in restore. reCAPTCHA can
-// hang or 403 when Edge Tracking Prevention blocks the challenge iframe, so
-// this provider never makes those calls wait. A missing token is not cached
-// as success. claimSats and the other enforced callables wait separately and
-// the server still rejects a request with no token. Enforcement stays a
-// console setting. ranking.js skips a second activate when this worked.
+// App Check before Auth. Compat activate() only calls initialize() on a real
+// ReCaptchaV3Provider. A plain object is wrapped as CustomProvider, so the
+// inner provider never gets an app and getToken throws appCheck/recaptcha-error.
+// Pass the provider instance, then initialize it again after activate().
+// getToken() rejects when a real token is not ready. The SDK then gives
+// Auth and Firestore its own placeholder and backs the refresher off.
+// A blank already-expired token would schedule the next refresh at 0ms.
+// claimSats and the other enforced callables wait on _btcAppCheckForClaim.
+// Enforcement stays a console setting.
 (function () {
     var SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
     var CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
+    var inner = null;
+    var originalGetToken = null;
     var real = null;
-    var inflight = null;
-    var failedUntil = 0;
+    var pending = null;
 
-    function emptyToken() {
-        // Already expired, so the SDK calls getToken again instead of
-        // reusing a blank token for the hour.
-        return { token: '', expireTimeMillis: Date.now() - 1 };
+    function fresh(tok) {
+        return !!(tok && tok.token && tok.expireTimeMillis > Date.now() + 60000);
     }
 
-    function remember(tok) {
-        if (tok && tok.token) {
-            real = tok;
-            failedUntil = 0;
+    function ensureInner() {
+        if (inner) return inner;
+        if (typeof firebase === 'undefined' || !firebase.appCheck || !firebase.appCheck.ReCaptchaV3Provider) return null;
+        inner = new firebase.appCheck.ReCaptchaV3Provider(SITE_KEY);
+        originalGetToken = inner.getToken.bind(inner);
+        return inner;
+    }
+
+    function startExchange() {
+        if (fresh(real)) return Promise.resolve(real);
+        if (pending) return pending;
+        var provider = ensureInner();
+        if (!provider || typeof originalGetToken !== 'function') return Promise.resolve(null);
+        pending = Promise.resolve().then(function () {
+            return originalGetToken();
+        }).then(function (tok) {
+            pending = null;
+            if (tok && tok.token && tok.expireTimeMillis > Date.now()) real = tok;
             return real;
-        }
-        failedUntil = Date.now() + 20000;
-        return null;
-    }
-
-    function innerProvider() {
-        try {
-            if (firebase.appCheck && firebase.appCheck.ReCaptchaV3Provider) {
-                return new firebase.appCheck.ReCaptchaV3Provider(SITE_KEY);
-            }
-        } catch (e) {}
-        return null;
-    }
-
-    function exchange(provider, timeoutMs) {
-        if (real && real.token && real.expireTimeMillis > Date.now() + 60000) {
-            return Promise.resolve(real);
-        }
-        if (inflight) return inflight;
-        var limit = typeof timeoutMs === 'number' ? timeoutMs : 8000;
-        var timer;
-        var timed = new Promise(function (resolve) {
-            timer = setTimeout(function () { resolve(null); }, limit);
+        }).catch(function () {
+            pending = null;
+            return null;
         });
-        var attempt = provider
-            ? Promise.resolve().then(function () { return provider.getToken(); }).catch(function () { return null; })
-            : Promise.resolve(null);
-        inflight = Promise.race([attempt, timed]).then(function (tok) {
-            if (timer) clearTimeout(timer);
-            inflight = null;
-            return remember(tok);
-        });
-        return inflight;
+        return pending;
     }
 
-    function nonBlockingProvider(provider) {
-        exchange(provider, 8000);
-        return {
-            getToken: function () {
-                if (real && real.token && real.expireTimeMillis > Date.now() + 30000) {
-                    return Promise.resolve(real);
-                }
-                if (!failedUntil || Date.now() >= failedUntil) exchange(provider, 8000);
-                if (real && real.token) return Promise.resolve(real);
-                return Promise.resolve(emptyToken());
-            }
-        };
+    // The SDK calls this. Reject so it does not cache a blank token or spin.
+    function nonBlockingGetToken() {
+        if (fresh(real)) return Promise.resolve(real);
+        startExchange();
+        if (fresh(real)) return Promise.resolve(real);
+        return Promise.reject(new Error('app-check-unavailable'));
     }
 
     window._btcAppCheckForClaim = function (timeoutMs) {
-        var provider = window._btcAppCheckInner;
-        if (!provider && typeof firebase !== 'undefined') provider = innerProvider();
-        return exchange(provider, typeof timeoutMs === 'number' ? timeoutMs : 8000).then(function (tok) {
-            return (tok && tok.token) || '';
+        var limit = typeof timeoutMs === 'number' ? timeoutMs : 8000;
+        if (fresh(real)) return Promise.resolve(real.token);
+        var timer;
+        var timed = new Promise(function (resolve) {
+            timer = setTimeout(function () { resolve(''); }, limit);
+        });
+        return Promise.race([
+            startExchange().then(function (tok) { return (tok && tok.token) || ''; }),
+            timed
+        ]).then(function (token) {
+            if (timer) clearTimeout(timer);
+            return token || '';
         });
     };
 
@@ -85,9 +74,13 @@
         if (!CONFIG || !CONFIG.apiKey || typeof firebase === 'undefined' || !firebase.appCheck) return false;
         try {
             if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(CONFIG);
-            var provider = innerProvider();
+            var provider = ensureInner();
+            if (!provider) return false;
+            // Instance, not a plain object. Compat initialize() runs only then.
+            firebase.appCheck().activate(provider, true);
+            try { provider.initialize(firebase.app()); } catch (e) {}
+            provider.getToken = nonBlockingGetToken;
             window._btcAppCheckInner = provider;
-            firebase.appCheck().activate(provider ? nonBlockingProvider(provider) : nonBlockingProvider(null), true);
             window._btcAppCheckReady = true;
             return true;
         } catch (e) {
