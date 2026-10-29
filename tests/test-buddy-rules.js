@@ -261,6 +261,7 @@ async function main() {
             senderUid: 'bob',
             text: 'hello',
         }));
+        await assertFails(updateDoc(doc(cara, 'dm_conversations', 'bob_cara'), { lastMessage: 'still here', lastSenderUid: 'cara' }));
     });
     await check('a paused buddy chat blocks both people', async function () {
         await env.withSecurityRulesDisabled(async function (ctx) {

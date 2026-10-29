@@ -131,7 +131,7 @@ service cloud.firestore {
         'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'buddyMatchCount', 'buddyXpGrantedAt', 'activeBuddyId',
-        'lock', 'buddyRematchAt', 'endedBuddyUids',
+        'lock', 'buddyRematchAt', 'endedBuddyUids', 'dmBlocked',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
         'providersHash', 'providerHashes'
       ];
@@ -1147,6 +1147,7 @@ service cloud.firestore {
                             && request.resource.data.participantNames.values().toSet().size() <= 2));
       allow update: if request.auth != null
                     && !accountUnderReview()
+                    && !senderDmBanned()
                     && request.auth.uid in resource.data.participants
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt', 'isBuddyMatch', 'buddyMatchId', 'reviewPaused'])
                     && dmClientMayRevisePreview();

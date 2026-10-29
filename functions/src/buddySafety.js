@@ -160,6 +160,8 @@ function normalizeRiskText(text) {
     s = s.replace(/\b(\d+)k\b/g, '$1 k');
     s = applyLeet(s);
     s = s.replace(/->|=>/g, ' to ');
+    s = s.replace(/(?:^|\s)[:;]-?[)D](?=\s|$)/g, ' . ');
+    s = s.replace(/\p{Extended_Pictographic}/gu, ' . ');
     s = s.replace(/["'“”‘’`«»()[\]{}<>]/g, ' ');
     s = collapseLetterRuns(s);
     s = s.replace(/[\/\\|*^~=_+#]+/g, ' ');
@@ -179,6 +181,7 @@ function normalizeRiskText(text) {
     s = s.replace(/\btwelve\b/g, '12');
     s = s.replace(/\btwenty[\s-]*four\b/g, '24');
     s = s.replace(/\bsendme\b/g, 'send me');
+    s = s.replace(/\bsendittome\b/g, 'send it to me');
     s = s.replace(/\bgiveme\b/g, 'give me');
     s = s.replace(/\bgimme\b/g, 'give me');
     s = s.replace(/\btellme\b/g, 'tell me');
@@ -190,6 +193,11 @@ function normalizeRiskText(text) {
     s = s.replace(/\bse\s+nd\b/g, 'send');
     s = s.replace(/\bs\s+end\b/g, 'send');
     s = s.replace(/\u0001/g, '.');
+    s = s.replace(/\r?\n+/g, ' . ');
+    s = s.replace(/\.{3}|…/g, ' . ');
+    s = s.replace(/[—–]|--/g, ' . ');
+    s = s.replace(/[•·]/g, ' . ');
+    s = s.replace(/\s&\s/g, ' . ');
     s = s.replace(/\s+/g, ' ').trim();
     s = restoreAddresses(s, held.found);
     return s;
@@ -227,7 +235,7 @@ function isDeviceOrStorage(clause) {
 }
 
 function verbSpans(clause) {
-    const re = /\b(?:send|sending|give|show|share|tell|paste|pay|dm|read|post|write|type|enter|need|zap|transfer|deposit|withdraw|drop|reply|have|put|ask)\b/gi;
+    const re = /\b(?:send|sending|give|show|share|tell|paste|pay|dm|read|post|write|type|enter|need|zap|transfer|deposit|withdraw|drop|reply|have|put|ask|text|email|whatsapp|telegram|pm|inbox|forward|shoot|toss|hand|respond|fill|upload|snap|list|spell|voice|leave)\b/gi;
     const spans = [];
     let match;
     while ((match = re.exec(clause))) {
@@ -472,9 +480,42 @@ function ownedYourAfter(clause, pattern) {
     return false;
 }
 
+function nobodyWillEver(clause) {
+    return /\b(?:no one|nobody)\b/.test(clause) && /\bwill\s+ever\s+(?:need|ask)\b/.test(clause);
+}
+
+function bareSecretAsk(raw) {
+    const normalized = normalizeRiskText(raw).replace(/[?!.]+$/g, '').trim();
+    if (!new RegExp('^(?:your\\s+)?' + SECRET_SOURCE + '\\s*(?:pls|please)?\\s*$', 'i').test(normalized)) return false;
+    return /\?/.test(String(raw)) || /\b(?:pls|please)\b/.test(normalizeRiskText(raw));
+}
+
+function channelSecretAsk(clause) {
+    if (!clause || !hasSecret(clause) || nobodyWillEver(clause) || negationGovernsAsk(clause)) return false;
+    if (isDeviceOrStorage(clause) || purposeQuestion(clause) || questionAboutUse(clause)) return false;
+    if (/\babout\b/.test(clause) && /\bbackup plan\b/.test(clause)) return false;
+    const owns = readerOwnsSecret(clause) || namedSecret(clause);
+    if (!owns) return false;
+    if (/\b(?:text|email|whatsapp|telegram|pm|inbox|forward|shoot|toss)\s+me\b/.test(clause)) return true;
+    if (/\bhand\s+over\b/.test(clause)) return true;
+    if (/\bvoice\s+note\b/.test(clause)) return true;
+    if (/\brespond\s+with\b/.test(clause)) return true;
+    if (/\bleave\b/.test(clause) && /\bcomments\b/.test(clause)) return true;
+    if (/\bfill\s+in\b/.test(clause)) return true;
+    if (/\bupload\b/.test(clause)) return true;
+    if (/\bsnap\b/.test(clause) && /\b(?:photo|picture|pic)\b/.test(clause)) return true;
+    if (/\b(?:can|could|may)\s+i\s+get\b/.test(clause)) return true;
+    if (/\bi(?:\s+would)?\s+love\b/.test(clause)) return true;
+    if (/\blist\b/.test(clause) && readerOwnsSecret(clause)) return true;
+    if (/\bspell\s+out\b/.test(clause)) return true;
+    if (/\bsay\b/.test(clause) && /\b(?:out loud|on a call|with me)\b/.test(clause)) return true;
+    return false;
+}
+
 function directedSecret(clause) {
     if (!clause || !hasSecret(clause) || isDeviceOrStorage(clause) || shieldedFromSender(clause) || hypotheticalQuote(clause)) return false;
-    if (secretIsInTimeClause(clause)) return false;
+    if (secretIsInTimeClause(clause) || nobodyWillEver(clause)) return false;
+    if (channelSecretAsk(clause) || bareSecretAsk(clause)) return true;
     const owns = readerOwnsSecret(clause);
     if (ownedYourAfter(clause, '\\b(?:i|we)\\s+want\\s+(your|ur)\\b')) return true;
     if (owns && verbReachesYourSecret(clause)) return true;
@@ -584,10 +625,8 @@ function classifyText(raw) {
         }
     });
     const giveawayLure = /\b(?:double your (?:btc|bitcoin|sats)|guaranteed (?:profit|returns?)|investment opportunity)\b/.test(normalized)
-        || (/\bgiveaway\b/.test(normalized) && /\b(?:send|claim)\b/.test(normalized) && /\b(?:btc|bitcoin|sats)\b/.test(normalized));
-    const callsItAScam = /\b(?:scam|watch out|beware|sounds like)\b/.test(normalized)
-        && !/\b(?:send|pay|zap)\s+me\b/.test(normalized);
-    if (giveawayLure && !callsItAScam) add(mediumReasons, 'giveaway_invest');
+        || (/\bgiveaway\b/.test(normalized) && /\b(?:send|claim|pay)\b/.test(normalized) && /\b(?:btc|bitcoin|sats)\b/.test(normalized));
+    if (giveawayLure) add(mediumReasons, 'giveaway_invest');
     if (addressPattern().test(normalized)) add(mediumReasons, 'bare_address');
     const urls = String(raw || '').match(/https?:\/\/[^\s)]+/gi) || [];
     for (let i = 0; i < urls.length; i++) {
@@ -613,7 +652,7 @@ function classifyText(raw) {
 
 function negationGovernsAsk(clause) {
     const negated = negatedVerbIndexes(clause);
-    const ask = { send: true, sending: true, give: true, show: true, tell: true, share: true, paste: true, drop: true, dm: true, read: true, type: true, enter: true, write: true, post: true, put: true, reply: true };
+    const ask = { send: true, sending: true, give: true, show: true, tell: true, share: true, paste: true, drop: true, dm: true, read: true, type: true, enter: true, write: true, post: true, put: true, reply: true, text: true, email: true, whatsapp: true, telegram: true, pm: true, inbox: true, forward: true, shoot: true, toss: true, hand: true, respond: true, fill: true, upload: true, snap: true, list: true, spell: true, voice: true, leave: true };
     const asks = verbSpans(clause).filter(function (verb) { return ask[verb.word]; });
     if (!asks.length) return false;
     return asks.every(function (verb) { return negated[verb.index]; });
@@ -625,11 +664,16 @@ function instructionLeadIn(clause) {
     return /^(?:note|step\s+\d+|last\s+step|important(?:\s+message)?|reminder|fake\s+news\s+aside|someone\s+like\s+you|restore\s+here|verify(?:\s+your\s+wallet)?|like\s+i\s+(?:told|said))\b/.test(String(clause || '').trim());
 }
 
+function labelHead(head) {
+    return /^(?:example|red\s+flag|spot\s+the\s+scam|classic\s+scam|common\s+scam|typical\s+scam|phishing(?:\s+example)?|quiz|true\s+or\s+false|scam\s+or\s+not)\b/.test(String(head || '').trim());
+}
+
 function quotingColonAt(clause) {
     const text = String(clause || '');
     const colonAt = text.indexOf(':');
     if (colonAt < 0) return -1;
     const head = text.slice(0, colonAt).trim();
+    if (labelHead(head)) return colonAt;
     if (!new RegExp('\\b(?:' + QUOTE_VERB + ')\\b', 'i').test(head)) return -1;
     if (instructionLeadIn(head)) return -1;
     if (/\b(?:fake|scammers?)\b/.test(head)) return colonAt;
@@ -649,7 +693,7 @@ function handoffAfterQuote(clause) {
     const at = quotingColonAt(clause);
     if (at < 0) return '';
     const after = clause.slice(at + 1);
-    const again = after.match(/\b(?:so|now|then|and)\s+((?:send|dm|give|tell|show|type|paste|enter|share)\b[\s\S]*)$/);
+    const again = after.match(/\b(?:so|now|then|and|also|plus|or|but|for real(?:\s+tho)?|seriously|jk)(?:\s+(?!send\b|dm\b|give\b|tell\b|show\b|type\b|paste\b|enter\b|share\b|hand\b)\w+){0,4}\s+((?:send|dm|give|tell|show|type|paste|enter|share|hand)\b[\s\S]*)$/);
     return again ? again[1] : '';
 }
 
@@ -669,10 +713,14 @@ function progressTell(clause) {
 }
 
 function pronounHandoff(clause) {
-    const pointed = String(clause || '').match(/\b(send|dm|give|tell|show|read|paste|drop|share)\s+(?:me\s+)?(?:it|them|this|that|yours|those)\b/);
-    if (pointed && !verbIsNegated(clause, pointed[1])) return true;
-    const bare = String(clause || '').match(/\b(send|dm|give)\s+me\s*$/);
-    if (bare && !verbIsNegated(clause, bare[1])) return true;
+    const text = String(clause || '');
+    if (/\bhand(?:\s+it)?\s+over\b/.test(text) && !negationGovernsAsk(text)) return true;
+    if (/\blet me see it\b/.test(text)) return true;
+    if (/^\s*(?:yours|it|them|those)(?:\s+(?:pls|please))?\s*$/.test(text)) return true;
+    const pointed = text.match(/\b(send|dm|give|tell|show|read|paste|drop|share|hand)\s+(?:me\s+)?(?:it|them|this|that|yours|those)\b/);
+    if (pointed && !verbIsNegated(text, pointed[1])) return true;
+    const bare = text.match(/\b(send|dm|give)\s+me\s*$/);
+    if (bare && !verbIsNegated(text, bare[1])) return true;
     return false;
 }
 
@@ -709,7 +757,9 @@ function hasReaderHandoff(raw) {
 
 function isBlatantMessage(raw) {
     const normalized = normalizeRiskText(raw);
+    if (bareSecretAsk(raw)) return true;
     if (/\bscam or not\b/.test(normalized)) return false;
+    if (nobodyWillEver(normalized)) return false;
     const clauses = clausesOf(normalized);
     const instruction = clauses.some(instructionLeadIn);
     let secretSeen = false;
@@ -737,16 +787,24 @@ function readerTarget(text) {
         || outsideSite(text);
 }
 
+function storageShape(normalized) {
+    return isDeviceOrStorage(normalized)
+        || /\b(?:on paper|on steel|paper or steel|written down|backup plan|storage method|storage like)\b/.test(normalized);
+}
+
 function secretNeedsReview(raw) {
-    const normalized = normalizeRiskText(raw);
+    const normalized = normalizeRiskText(raw).replace(/[?!.]+$/g, '').trim();
     if (!hasSecret(normalized)) return false;
+    if (bareSecretAsk(raw) || channelSecretAsk(normalized)) return true;
     if (/\b(?:scammers?|phishing|fake support|bad actors)\b/.test(normalized)) return true;
     if (/\bwrote\b/.test(normalized) && /\b(?:steel|paper)\b/.test(normalized) && !readerTarget(normalized)) return false;
     const clauses = clausesOf(normalized);
     if (clauses.some(function (clause) { return /^(?:me|to me)$/.test(clause.trim()); })) return true;
     if (/\bme\s*$/.test(normalized) && normalized.split(/\s+/).length <= 6) return true;
-    if ((isDeviceOrStorage(normalized) || /\b(?:on paper|on steel|paper or steel|written down|backup plan|storage method|storage like)\b/.test(normalized)) && !readerTarget(normalized)) return false;
-    return /\b(?:send|give|show|tell|share|paste|drop|dm|read|post|type|enter|reply|put|need|ask|asks|asking|have|write|explain)\b/.test(normalized);
+    if (purposeQuestion(normalized)) return false;
+    if (storageShape(normalized) && !channelSecretAsk(normalized) && !/\b(?:send|give|dm|paste|text|email)\s+me\s+(?:your|ur|the)\b/.test(normalized)) return false;
+    if (readerOwnsSecret(normalized) && /\b(?:send|give|show|tell|share|paste|drop|dm|text|email|whatsapp|telegram|pm|inbox|forward|shoot|toss|hand|respond|fill|upload|snap|list|spell|type|enter)\b/.test(normalized) && !storageShape(normalized)) return true;
+    return /\b(?:send|give|show|tell|share|paste|drop|dm|read|post|type|enter|reply|put|need|ask|asks|asking|have|write|explain|text|email|whatsapp|telegram|pm|inbox|forward|shoot|toss|hand|respond|fill|upload|snap|list|spell)\b/.test(normalized);
 }
 
 function tierOf(raw, result) {
@@ -783,6 +841,22 @@ function knownHost(url) {
     return false;
 }
 
+function namesOtherObject(text) {
+    const normalized = normalizeRiskText(text);
+    if (/\b(?:link|pic|photo|picture|quiz|homework|paragraph|summary)\b/.test(normalized)) return true;
+    return /\b(?:your|the|an|a|my)\s+(?:\w+\s+){0,3}(?:answer|guess|homework|summary|link|quiz)\b/.test(normalized);
+}
+
+function inheritsSecret(text) {
+    const normalized = normalizeRiskText(text);
+    if (/\b(?:link|pic|photo|picture|quiz|homework|paragraph)\b/.test(normalized)) return false;
+    if (/\b(?:send|give|show|type|paste)\s+(?:me\s+)?(?:your|the|a|an)\s+(?:\w+\s+){0,3}(?:answer|guess|summary)\b/.test(normalized)
+        && !/\b(?:send|give|dm)\s+(?:me\s+)?(?:it|them)\b/.test(normalized)) return false;
+    if (/\b(?:it|them|yours|those)\b/.test(normalized)) return true;
+    if (/\byour\s+(?:words|word|phrase|phrases|key|keys|seed)\b/.test(normalized)) return true;
+    return false;
+}
+
 function detectBuddyRisk(text, context) {
     const ctx = context || {};
     const now = Number(ctx.now) || 0;
@@ -794,6 +868,10 @@ function detectBuddyRisk(text, context) {
         && (!unlockedAt || previousAt > unlockedAt);
     const alone = classifyText(text);
     if (!fresh) return alone;
+    const prevNorm = normalizeRiskText(previous);
+    const follows = Number(ctx.follows) || 0;
+    const secretTail = hasSecret(prevNorm);
+    if (secretTail && (follows >= 2 || !inheritsSecret(text))) return alone;
     if (namesOwnObject(normalizeRiskText(text)) && !hasReaderHandoff(text)) return alone;
     const joined = classifyText(previous + ' ' + String(text || ''));
     if (alone.lock) return alone;
@@ -821,6 +899,7 @@ function tailIsStale(row, now, unlockedAt) {
 
 function planTailRead(row, now, unlockedAt) {
     if (!row || typeof row.text !== 'string' || tailIsStale(row, now, unlockedAt)) return '';
+    if (hasSecret(row.text) && (Number(row.follows) || 0) >= 2) return '';
     return row.text;
 }
 
@@ -896,37 +975,37 @@ function secretNounPhrase(text) {
     return noun;
 }
 
-function preservedSecret(previousText) {
-    const noun = secretNounPhrase(previousText || '');
-    if (noun) return noun;
-    const kept = allowlistTail(previousText || '');
-    if (!kept || !hasSecret(kept) || containsRawSecret(kept)) return '';
-    if (classifyText(kept).lock) return secretNounPhrase(kept) || '';
-    return kept;
-}
-
-function planTailWrite(text, now, previousText) {
-    const prevNoun = preservedSecret(previousText || '');
-    function keepNoun() {
-        if (!prevNoun) return null;
-        return { text: prevNoun, at: now, expireAt: now + PAIR_WINDOW_MS };
-    }
+function planTailWrite(text, now, previousText, previousRow) {
     const raw = String(text || '');
-    if (!raw.trim()) return keepNoun();
+    const named = secretNounPhrase(raw);
+    if (named) {
+        return { text: named, at: now, secretAt: now, follows: 0, expireAt: now + PAIR_WINDOW_MS };
+    }
+    const prev = previousRow || {};
+    const prevText = String(previousText || '');
+    const secretAt = Number(prev.secretAt || prev.at) || 0;
+    const follows = Number(prev.follows) || 0;
+    const prevFresh = prevText && hasSecret(normalizeRiskText(prevText)) && secretAt && now >= secretAt && now - secretAt <= PAIR_WINDOW_MS && follows < 2;
+    if (prevFresh) {
+        if (namesOtherObject(raw)) return null;
+        const noun = secretNounPhrase(prevText) || allowlistTail(prevText);
+        if (!noun) return null;
+        return { text: noun, at: secretAt, secretAt: secretAt, follows: follows + 1, expireAt: secretAt + PAIR_WINDOW_MS };
+    }
+    if (!raw.trim()) return null;
     const compact = raw.replace(/\s+/g, '');
     const kept = allowlistTail(raw);
-    if (!kept || containsRawSecret(kept)) return keepNoun();
+    if (!kept || containsRawSecret(kept)) return null;
     if ((containsRawSecret(raw) || containsRawSecret(compact))
         && !/\b(?:send|give|show|tell|need|want|share|paste|drop|type|dm|what|pay|zap|support|admin|frozen)\b/.test(kept)) {
-        return keepNoun();
+        return null;
     }
     if (classifyText(kept).lock && !classifyText(raw).lock) {
-        const noun = secretNounPhrase(raw) || prevNoun;
+        const noun = secretNounPhrase(raw);
         if (!noun) return null;
-        return { text: noun, at: now, expireAt: now + PAIR_WINDOW_MS };
+        return { text: noun, at: now, secretAt: now, follows: 0, expireAt: now + PAIR_WINDOW_MS };
     }
-    if (!hasSecret(kept) && prevNoun) return keepNoun();
-    return { text: kept, at: now, expireAt: now + PAIR_WINDOW_MS };
+    return { text: kept, at: now, secretAt: 0, follows: 0, expireAt: now + PAIR_WINDOW_MS };
 }
 
 function tailDocId(convoId, sender) {
@@ -977,36 +1056,62 @@ function planReportQuota(data, reportedUid, now) {
     return { allow: true, hits: hits, targets: targets, now: at };
 }
 
+function redactWordRuns(text) {
+    const parts = String(text || '').match(/[A-Za-z]+|[^A-Za-z]+/g);
+    if (!parts) return String(text || '');
+    let out = '';
+    let i = 0;
+    while (i < parts.length) {
+        const token = parts[i];
+        if (!/^[A-Za-z]+$/.test(token) || !BIP39_SET.has(token.toLowerCase())) {
+            out += token;
+            i++;
+            continue;
+        }
+        const words = [];
+        let j = i;
+        while (j < parts.length) {
+            if (/^[A-Za-z]+$/.test(parts[j]) && BIP39_SET.has(parts[j].toLowerCase())) {
+                words.push(parts[j]);
+                j++;
+                if (j < parts.length && !/^[A-Za-z]+$/.test(parts[j])) {
+                    const next = j + 1;
+                    if (next < parts.length && /^[A-Za-z]+$/.test(parts[next]) && BIP39_SET.has(parts[next].toLowerCase())) {
+                        j++;
+                        continue;
+                    }
+                }
+                continue;
+            }
+            break;
+        }
+        if (words.length >= 3) out += words[0] + ' [redacted ' + (words.length - 1) + ' words]';
+        else out += parts.slice(i, j).join('');
+        i = j;
+    }
+    return out;
+}
+
 function redactSecrets(text) {
     let raw = typeof text === 'string' ? text : '';
     if (!raw) return raw;
+    raw = raw.replace(/[\u00AD\u200B-\u200F\u2060\uFEFF]/g, '');
     raw = raw.replace(/\b[xtyz]prv[1-9A-HJ-NP-Za-km-z]{20,}\b/gi, '[redacted 1 words]');
     raw = raw.replace(/\b[5KL][1-9A-HJ-NP-Za-km-z]{50,}\b/g, '[redacted 1 words]');
     raw = raw.replace(/\b(?:0x)?[0-9a-fA-F]{64}\b/g, '[redacted 1 words]');
-    const tokens = raw.split(/\s+/).filter(Boolean);
-    let bestStart = -1;
-    let bestLen = 0;
-    let run = 0;
-    let runStart = 0;
-    for (let i = 0; i < tokens.length; i++) {
-        const word = tokens[i].toLowerCase().replace(/[^a-z]/g, '');
-        if (word && BIP39_SET.has(word)) {
-            if (!run) runStart = i;
-            run++;
-            if (run > bestLen) {
-                bestLen = run;
-                bestStart = runStart;
-            }
-        } else {
-            run = 0;
-        }
-    }
-    if (bestLen >= 4 && bestStart >= 0) {
-        const first = (tokens[bestStart].match(/[A-Za-z]+/) || [tokens[bestStart]])[0];
-        tokens.splice(bestStart, bestLen, first + ' [redacted ' + (bestLen - 1) + ' words]');
-        raw = tokens.join(' ');
-    }
-    return raw;
+    raw = raw.replace(/[0-9a-fA-F]{2,}(?:\s+[0-9a-fA-F]{2,})+/g, function (span) {
+        const joined = span.replace(/\s+/g, '');
+        if (joined.length === 64 || joined.length === 32) return '[redacted 1 words]';
+        return span;
+    });
+    raw = raw.replace(/[1-9A-HJ-NP-Za-km-z]{4,}(?:\s+[1-9A-HJ-NP-Za-km-z]{4,})+/g, function (span) {
+        const joined = span.replace(/\s+/g, '');
+        if (/^[xtyz]prv/i.test(joined)) return '[redacted 1 words]';
+        if (/^[5KL]/.test(joined) && (joined.length === 51 || joined.length === 52)) return '[redacted 1 words]';
+        if (joined.length === 111) return '[redacted 1 words]';
+        return span;
+    });
+    return redactWordRuns(raw);
 }
 
 function snippetOf(text) {
@@ -1106,6 +1211,18 @@ function planBorderlineResolve(action) {
     if (action === 'ban') return { applyLock: false, ban: true, status: 'banned' };
     if (action === 'dismiss') return { applyLock: false, ban: false, status: 'dismissed' };
     return { error: 'action' };
+}
+
+function planBorderlineApply(status, action) {
+    const current = status || 'open';
+    if (current === 'open') return { apply: true };
+    if (current === 'dismissed' && action === 'lock') return { apply: true };
+    return { apply: false };
+}
+
+function borderlineDocId(sender, now) {
+    const bucket = Math.floor((Number(now) || 0) / BORDERLINE_WINDOW_MS);
+    return crypto.createHash('sha256').update(String(sender) + '\n' + bucket).digest('hex').slice(0, 40);
 }
 
 function planAdminResolve(action) {
@@ -1270,24 +1387,33 @@ function createSafetyHandlers(deps) {
 
     async function stageBorderline(spec) {
         const mailRef = db.collection('buddy_borderline_mail').doc(spec.sender);
-        const flagRef = db.collection('buddy_borderline').doc(randomDocId('bb'));
+        const flagRef = db.collection('buddy_borderline').doc(borderlineDocId(spec.sender, spec.now));
         const ts = admin.firestore.FieldValue.serverTimestamp();
         await db.runTransaction(async function (tx) {
             const mailSnap = await tx.get(mailRef);
+            const flagSnap = await tx.get(flagRef);
             const plan = planBorderlineMail(mailSnap.exists ? mailSnap.data() : {}, spec.now);
-            tx.set(flagRef, {
+            const existing = flagSnap.exists ? (flagSnap.data() || {}) : null;
+            const open = !!(existing && existing.status === 'open');
+            const target = open || !existing ? flagRef : db.collection('buddy_borderline').doc(randomDocId('bb'));
+            const count = open ? (Number(existing.count) || 1) + 1 : 1;
+            const row = {
                 senderUid: shortUid(spec.sender),
                 accountUid: spec.sender,
                 recipientUid: spec.other || '',
                 text: snippetOf(spec.snippet),
                 tier: 'flag',
                 reason: (spec.reasons || []).join(', ').slice(0, 180) || 'secret_mention',
-                createdAt: ts,
-                createdAtMs: spec.now || 0,
-                expireAt: admin.firestore.Timestamp.fromMillis((spec.now || Date.now()) + BORDERLINE_TTL_MS),
+                count: count,
                 status: 'open',
                 convoId: spec.convoId,
-            });
+            };
+            if (!open) {
+                row.createdAt = ts;
+                row.createdAtMs = spec.now || 0;
+                row.expireAt = admin.firestore.Timestamp.fromMillis((spec.now || Date.now()) + BORDERLINE_TTL_MS);
+            }
+            tx.set(target, row, { merge: true });
             tx.set(mailRef, { lastEmailAt: plan.lastEmailAt, pending: plan.pending }, { merge: true });
             if (!plan.send) return;
             const id = randomDocId('bf');
@@ -1305,7 +1431,8 @@ function createSafetyHandlers(deps) {
             report.actions = BORDERLINE_ACTIONS.slice();
             report.lockApplied = false;
             report.batched = plan.batched || 0;
-            report.borderlineId = flagRef.id;
+            report.borderlineId = target.id;
+            report.count = count;
             report.createdAt = ts;
             tx.set(db.collection('reports').doc(id), report);
         });
@@ -1365,11 +1492,12 @@ function createSafetyHandlers(deps) {
             console.warn('[onBuddyDmSafety] lock', err && err.message ? err.message : err);
         }
         const tailRef = db.collection('buddy_dm_tails').doc(tailDocId(convoId, sender));
+        let row = null;
         try {
             const tailSnap = await tailRef.get();
-            const row = tailSnap.exists ? (tailSnap.data() || {}) : null;
+            row = tailSnap.exists ? (tailSnap.data() || {}) : null;
             previousText = planTailRead(row, now, unlockedAt);
-            previousAt = previousText ? Number(row.at) || 0 : 0;
+            previousAt = previousText ? Number(row.secretAt || row.at) || 0 : 0;
             if (tailSnap.exists && !previousText) await tailRef.delete();
         } catch (err) {
             console.warn('[onBuddyDmSafety] tail', err && err.message ? err.message : err);
@@ -1379,15 +1507,18 @@ function createSafetyHandlers(deps) {
             previousAt: previousAt,
             now: now,
             unlockedAt: unlockedAt,
+            follows: previousText && row ? (Number(row.follows) || 0) : 0,
         });
         try {
-            const kept = planTailWrite(text, now, previousText);
+            const kept = planTailWrite(text, now, previousText, previousText ? row : null);
             if (!kept) {
                 await tailRef.delete();
             } else {
                 await tailRef.set({
                     text: kept.text,
                     at: kept.at,
+                    follows: kept.follows || 0,
+                    secretAt: kept.secretAt || 0,
                     expireAt: admin.firestore.Timestamp.fromMillis(kept.expireAt),
                 });
             }
@@ -1563,7 +1694,10 @@ function createSafetyHandlers(deps) {
             const now = Date.now();
             const flagStatus = plan.reportStatus === 'dismissed' ? 'dismissed' : 'resolved';
             if (plan.clearLock) {
-                tx.set(userRef, { lock: admin.firestore.FieldValue.delete() }, { merge: true });
+                tx.set(userRef, {
+                    lock: admin.firestore.FieldValue.delete(),
+                    dmBlocked: admin.firestore.FieldValue.delete(),
+                }, { merge: true });
                 tailSnaps.forEach(function (snap) {
                     if (snap && snap.exists) tx.delete(snap.ref);
                 });
@@ -1641,6 +1775,8 @@ function createSafetyHandlers(deps) {
             const userSnap = await tx.get(userRef);
             if (!userSnap.exists) throw new HttpsError('not-found', 'That account was not found.');
             const user = userSnap.data() || {};
+            const gate = planBorderlineApply(flag.status, data.action);
+            if (!gate.apply) return;
             const already = alreadyLockedFor(user);
             const ts = admin.firestore.FieldValue.serverTimestamp();
             const now = Date.now();
@@ -1649,6 +1785,9 @@ function createSafetyHandlers(deps) {
             const lockMetaRef = db.collection('buddy_locks').doc(uid);
             let lockMetaSnap = null;
             let warnSnap = null;
+            if (plan.applyLock && already) {
+                tx.set(lockMetaRef, { reportIds: admin.firestore.FieldValue.arrayUnion(flagId) }, { merge: true });
+            }
             if (plan.applyLock && !already) {
                 lockMetaSnap = await tx.get(lockMetaRef);
                 if (convoOk) {
@@ -1664,7 +1803,7 @@ function createSafetyHandlers(deps) {
                     reason: String(flag.reason || 'seed_request').slice(0, 180),
                     at: now,
                     convId: convId,
-                    reportIds: [reportId],
+                    reportIds: [reportId, flagId],
                     clientReportId: '',
                     source: 'borderline',
                     unlockedAt: lockMetaSnap && lockMetaSnap.exists ? ((lockMetaSnap.data() || {}).unlockedAt || 0) : 0,
@@ -1777,6 +1916,8 @@ module.exports = {
     planAdminResolve: planAdminResolve,
     planBorderlineMail: planBorderlineMail,
     planBorderlineResolve: planBorderlineResolve,
+    planBorderlineApply: planBorderlineApply,
+    borderlineDocId: borderlineDocId,
     BORDERLINE_LABEL: BORDERLINE_LABEL,
     BORDERLINE_ACTIONS: BORDERLINE_ACTIONS,
     isBuddyUserReport: isBuddyUserReport,

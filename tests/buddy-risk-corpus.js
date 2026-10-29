@@ -1,9 +1,8 @@
 'use strict';
 
-// Three buckets. Lock is a seed or private-key handoff aimed at the reader.
-// A quote or frame covers only that quoted text. Flag is a secret plus an
-// ask, a handoff, or a scam cue, including fund, link, off-platform, and
-// giveaway lures. None is ordinary chat, including storage talk.
+// Lock is a seed or private-key handoff aimed at the reader.
+// A label or quote covers only that span. Flag is a secret plus an ask,
+// or a fund, link, off-platform, or giveaway lure. None is ordinary chat.
 
 const lock = [
     "Don't worry, it's safe. Send me your seed phrase and I will help.",
@@ -173,7 +172,26 @@ const lock = [
     "Send me your seed phrase as your answer",
     "Scammers say: send me your seed phrase. Now send it to me",
     "Restore here: type your 12 words at https://evil.example/restore",
-    "What is your seed phrase for? Send it to me"
+    "What is your seed phrase for? Send it to me",
+    "Text me your seed phrase",
+    "email me your seed phrase",
+    "WhatsApp me your seed phrase",
+    "telegram me your 12 words",
+    "pm me your seed phrase",
+    "inbox me your seed",
+    "forward me your seed phrase",
+    "shoot me your seed phrase",
+    "toss me your 12 words",
+    "hand over your seed phrase",
+    "voice note me your 12 words",
+    "say your seed phrase out loud on a call with me",
+    "respond with your seed phrase",
+    "leave your seed phrase in the comments",
+    "fill in your seed phrase at bq-verify.app",
+    "upload your seed phrase to google drive",
+    "snap a photo of your seed phrase for me",
+    "can i get your 12 words",
+    "I'd love your seed phrase"
 ];
 
 const flag = [
@@ -227,7 +245,6 @@ const flag = [
     "give me tips on storing my seed phrase",
     "Send me your questions about seed phrases",
     "I need your help with my seed phrase",
-    "Give me a sec, my seed phrase is on steel",
     "Send me a pic of your setup, not your seed phrase",
     "Show me how you back up, but never show me your seed phrase",
     "A scammer will ask you to send your seed phrase",
@@ -261,7 +278,6 @@ const flag = [
     "Can I have your attention: never share your seed phrase",
     "You don't need to tell me your seed phrase",
     "If anyone asks for your seed phrase in this chat, report them",
-    "Tell me when your seed phrase is written down",
     "A scammer will DM you: give me your 12 words",
     "A scammer might message you: send me your seed phrase",
     "A scammer will text you: send me your seed phrase",
@@ -294,16 +310,20 @@ const flag = [
     "What is your seed phrase for? Show me what you think",
     "Post here once your seed phrase is stored safely",
     "seed phrase. now. me.",
-    "Once your seed phrase is written down, tell me",
     "Never be rushed to send anyone your seed phrase",
     "Anyone asking you to send them your seed phrase is a scammer",
     "Scam or not? Send me your seed phrase",
     "giveaway, send 1000 sats to claim",
     "look at http://free-btc.example/claim",
-    "let's continue on telegram"
+    "let's continue on telegram",
+    "Is this a guaranteed profit thing? Sounds like a scam lol",
+    "Watch out for anyone saying 'double your bitcoin', it's always a scam"
 ];
 
 const none = [
+    "Give me a sec, my seed phrase is on steel",
+    "Tell me when your seed phrase is written down",
+    "Once your seed phrase is written down, tell me",
     "What's your seed phrase backup plan? Paper or steel?",
     "What is a seed phrase?",
     "Enter your 24 words on the device itself, not on your computer",
@@ -331,8 +351,6 @@ const none = [
     "How do I transfer bitcoin to my hardware wallet?",
     "Next, send your bitcoin to cold storage once you have more than you can lose",
     "I'm an admin of our local Bitcoin meetup group",
-    "Is this a guaranteed profit thing? Sounds like a scam lol",
-    "Watch out for anyone saying 'double your bitcoin', it's always a scam",
     "Great question! You can pay me back by teaching someone else lol",
     "See https://bitcoin.org/en/ for the whitepaper.",
     "I'm the admin of a Telegram group, I'd never ask you for sats",
@@ -342,7 +360,12 @@ const none = [
     "lnbc2500n1pw5k8qapp5exampleinvoicepaymentrequest",
     "Give me your best guess",
     "Do you keep your seed phrase on paper or steel?",
-    "I wrote my 12 words on steel"
+    "I wrote my 12 words on steel",
+    "d love your seed phrase\", ",
+    ",\n            ",
+    ", ",
+    ",\n        ],\n        flag: [\n            ",
+    ",\n        ],\n        none: [\n            "
 ];
 
 const pairs = [
@@ -353,13 +376,13 @@ const pairs = [
     { lock: true, previous: "Your seed phrase.", text: "Send it to me" },
     { lock: true, previous: "your 12 words", text: "send them to me" },
     { lock: true, previous: "seed phrase", text: "send it to me" },
-    { lock: true, previous: "I need your seed phrase", text: "now" },
+    { lock: false, previous: "I need your seed phrase", text: "now" },
     { lock: true, previous: "send me your", text: "s e e d" },
     { lock: true, previous: "send", text: "your seed phrase" },
     { lock: true, previous: "dm me", text: "ur seed" },
     { lock: true, previous: "give me", text: "your private key" },
     { lock: false, previous: "Support team here", text: "send 10000 sats to verify" },
-    { lock: true, previous: "Write your seed phrase", text: "here" },
+    { lock: false, previous: "Write your seed phrase", text: "here" },
     { lock: true, previous: "What's the first word of your", text: "seed phrase?" },
     { lock: true, previous: "abandon ability able about send me your", text: "seed phrase" },
     { lock: true, previous: "Don't worry", text: "send me your seed phrase" },

@@ -376,7 +376,6 @@ test('learner questions do not lock and a split request still does', function ()
         'give me tips on storing my seed phrase',
         'Send me your questions about seed phrases',
         'I need your help with my seed phrase',
-        'Give me a sec, my seed phrase is on steel',
         'Send me a pic of your setup, not your seed phrase',
         'Show me how you back up, but never show me your seed phrase',
         'A scammer will ask you to send your seed phrase',
@@ -449,18 +448,27 @@ test('borderline mail sends once each ten minutes and can lock, ban, or dismiss'
     assert.strictEqual(safety.planBorderlineResolve('ban').ban, true);
     assert.strictEqual(safety.planBorderlineResolve('dismiss').status, 'dismissed');
     assert.strictEqual(safety.planBorderlineResolve('unlock').error, 'action');
+    assert.strictEqual(safety.planBorderlineApply('open', 'lock').apply, true);
+    assert.strictEqual(safety.planBorderlineApply('dismissed', 'lock').apply, true);
+    assert.strictEqual(safety.planBorderlineApply('locked', 'lock').apply, false);
+    assert.strictEqual(safety.planBorderlineApply('locked', 'dismiss').apply, false);
+    assert.strictEqual(safety.borderlineDocId('alice', 1000), safety.borderlineDocId('alice', 1000 + 60 * 1000));
+    assert.notStrictEqual(safety.borderlineDocId('alice', 1000), safety.borderlineDocId('alice', 1000 + 10 * 60 * 1000));
     assert.strictEqual(safety.BORDERLINE_LABEL, 'Borderline buddy DM (not locked)');
     assert.strictEqual(safety.BORDERLINE_TTL_MS, 90 * 24 * 60 * 60 * 1000);
     assert.strictEqual(safety.snippetOf('abandon ability able about above absent absorb abstract absurd absent absorb abstract'), 'abandon [redacted 11 words]');
     assert.strictEqual(safety.snippetOf('xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jP'), '[redacted 1 words]');
     assert.strictEqual(safety.alreadyLockedFor({ lock: safety.publicLock(5) }), true);
     const firstTail = safety.planTailWrite('What is your seed phrase for?', 1000);
-    const keptTail = safety.planTailWrite('thanks', 2000, firstTail.text);
+    const keptTail = safety.planTailWrite('thanks', 2000, firstTail.text, firstTail);
     assert.ok(keptTail.text.indexOf('seed') !== -1);
+    assert.strictEqual(keptTail.at, 1000);
+    assert.strictEqual(keptTail.follows, 1);
     const follow = safety.detectBuddyRisk("send it to me, I'll check your answer", {
         previousText: keptTail.text,
-        previousAt: 2000,
+        previousAt: keptTail.secretAt,
         now: 3000,
+        follows: keptTail.follows,
     });
     assert.strictEqual(follow.lock, true);
     const guess = safety.detectBuddyRisk('Give me your best guess', {
@@ -493,6 +501,102 @@ test('report limits count every type inside a rolling day', function () {
     assert.strictEqual(sixth.allow, false);
     const later = safety.planReportQuota(state, 'f', now + 24 * 60 * 60 * 1000);
     assert.strictEqual(later.allow, true);
+});
+
+test('review lines lock, flag, or stay quiet, and chains do not stick', function () {
+    function bucket(text) {
+        const found = safety.detectBuddyRisk(text);
+        return found.lock ? 'lock' : found.tier;
+    }
+    const expect = {
+        lock: [
+            'Text me your seed phrase', 'email me your seed phrase', 'WhatsApp me your seed phrase',
+            'telegram me your 12 words', 'pm me your seed phrase', 'inbox me your seed',
+            'forward me your seed phrase', 'shoot me your seed phrase', 'toss me your 12 words',
+            'hand over your seed phrase', 'voice note me your 12 words',
+            'say your seed phrase out loud on a call with me', 'respond with your seed phrase',
+            'leave your seed phrase in the comments', 'fill in your seed phrase at bq-verify.app',
+            'upload your seed phrase to google drive', 'snap a photo of your seed phrase for me',
+            'can i get your 12 words', "I'd love your seed phrase", 'your seed phrase pls',
+            'your seed phrase?', 'list your 12 words', 'spell out your seed phrase',
+            'Scammers say: send me your seed phrase\nsend it to me',
+            'Scammers say: send me your seed phrase\ntype it here',
+            'Scammers say: send me your seed phrase\ndm me',
+            'Scammers say: send me your seed phrase\nyours pls',
+            'Scammers say: send me your seed phrase — send it to me',
+            'Scammers say: send me your seed phrase -- send it to me',
+            'They say: send me your seed phrase • send it to me',
+            'Scammers say: send me your seed phrase :) send it to me',
+            'Scammers say: send me your seed phrase 😂 for real tho send it to me',
+            'Scammers say: send me your seed phrase also send it to me',
+            'Scammers say: send me your seed phrase plus dm it to me',
+            'Scammers say: send me your seed phrase or just type it here',
+            'Scammers say: send me your seed phrase & send it to me',
+            'Scammers say: send me your seed phrase but you can send it to me',
+            'Scammers say: send me your seed phrase. hand it over',
+            'Scammers say: send me your seed phrase. let me see it',
+            'Scammers say: send me your seed phrase. sendittome',
+            'Note: send me your seed phrase',
+            'What is your seed phrase for? Send it to me',
+        ],
+        flag: [
+            'Example: send me your seed phrase', 'Red flag: send me your seed phrase',
+            'Spot the scam: send me your seed phrase', 'Classic scam: send me your seed phrase to verify',
+            'Phishing example: type your 12 words here', 'Quiz: should you send me your seed phrase?',
+            'Quiz: if a buddy says type your seed phrase here, what do you do?',
+            'No one will ever need you to send me your seed phrase',
+            'Scammer says: send me your seed phrase', 'They say: send me your seed phrase',
+            'Free giveaway, beware the scam, send 1000 sats and get 5000 back',
+            'Watch out for fakes. Real giveaway: send 1000 sats to claim 5000',
+            'giveaway sounds like fun: send 1000 sats to claim 5000',
+            'investment opportunity, beware of copycats, guaranteed returns',
+        ],
+        none: [
+            'What is your seed phrase for?', 'Tell me about your seed phrase backup plan',
+            'Do you keep your seed phrase on paper or steel?', 'I wrote my 12 words on steel',
+            'Give me your best guess',
+        ],
+    };
+    Object.keys(expect).forEach(function (want) {
+        expect[want].forEach(function (text) {
+            assert.strictEqual(bucket(text), want, text);
+        });
+    });
+    function runChain(messages, step) {
+        let row = null;
+        let t = 1000;
+        let last = null;
+        messages.forEach(function (text) {
+            const readable = row ? safety.planTailRead(row, t, 0) : '';
+            last = safety.detectBuddyRisk(text, {
+                previousText: readable,
+                previousAt: readable && row ? (row.secretAt || row.at) : 0,
+                now: t,
+                follows: readable && row ? (row.follows || 0) : 0,
+            });
+            row = safety.planTailWrite(text, t, readable, readable ? row : null);
+            t += step || 1000;
+        });
+        return last;
+    }
+    assert.strictEqual(runChain(['Keep your seed phrase offline', 'gm', 'gm', 'gm', 'gm', 'gm', 'send me the link']).lock, false);
+    assert.strictEqual(runChain(['Keep your seed phrase offline', 'gm', 'gm', 'gm', 'gm', 'gm', 'send me the link'], 9 * 60 * 1000).lock, false);
+    assert.strictEqual(runChain(['Your seed phrase is the master backup', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'I made a quiz on wallets. ok send it to me when you finish']).lock, false);
+    assert.strictEqual(runChain(['What is your seed phrase for?', 'your homework: write a paragraph', 'send it to me tomorrow']).lock, false);
+    assert.strictEqual(runChain(['Keep your seed phrase offline', 'can you send me the link?']).lock, false);
+    assert.strictEqual(runChain(['What is your seed phrase for?', 'It backs up your wallet', 'so send it to me']).lock, true);
+    const numbered = '1. abandon 2. ability 3. able 4. about 5. above 6. absent 7. absorb 8. abstract 9. absurd 10. abuse 11. access 12. accident';
+    assert.ok(safety.snippetOf(numbered).indexOf('ability') === -1, safety.snippetOf(numbered));
+    assert.ok(safety.snippetOf('1) abandon\n2) ability\n3) able\n4) about').indexOf('ability') === -1);
+    assert.ok(safety.snippetOf('abandon,ability,able,about').indexOf('ability') === -1);
+    assert.ok(safety.snippetOf('abandon-ability-able-about').indexOf('ability') === -1);
+    assert.ok(safety.snippetOf('Abandon • Ability • Able • About').indexOf('Ability') === -1);
+    const split = safety.snippetOf('abandon ability able foo zoo abandon ability able about');
+    assert.ok(split.indexOf('ability') === -1, split);
+    assert.ok(split.indexOf('about') === -1, split);
+    const hex = 'e9873d79 c6d87dc0 0a1b2c3d 4e5f6071 89abcdef 01234567 89abcdef 01234567';
+    assert.strictEqual(safety.snippetOf('key ' + hex), 'key [redacted 1 words]');
+    assert.strictEqual(safety.snippetOf('xprv9s21ZrQH143K\u200B3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jP'), '[redacted 1 words]');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

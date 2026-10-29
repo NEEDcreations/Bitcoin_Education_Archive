@@ -6415,6 +6415,7 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
                 flagged: false,
                 flag_reason: admin.firestore.FieldValue.delete(),
                 ban_reason: admin.firestore.FieldValue.delete(),
+                dmBlocked: admin.firestore.FieldValue.delete(),
                 _pendingClaim: admin.firestore.FieldValue.delete(),
                 _pendingClaimAt: admin.firestore.FieldValue.delete(),
             });
