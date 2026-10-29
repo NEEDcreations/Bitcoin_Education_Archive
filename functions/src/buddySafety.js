@@ -196,18 +196,10 @@ function clausesOf(text) {
     const marked = protectedText
         .replace(/(\d)\.(\d)/g, '$1dot$2')
         .replace(/\b([a-z0-9-]+)\.(com|net|org|io)\b/g, '$1 hostdot $2');
-    const parts = marked.split(/[,.!?;]+/).map(function (part) {
+    const softened = marked.replace(/\b(never|dont|do not),\s+(ever|never)\b/g, '$1 $2');
+    return softened.split(/[,.!?;]+/).map(function (part) {
         return part.replace(/ hostdot /g, '.').replace(/(\d)dot(\d)/g, '$1.$2').trim();
     }).filter(Boolean);
-    const merged = [];
-    for (let i = 0; i < parts.length; i++) {
-        if (/^(?:never|dont|do not)$/.test(parts[i]) && i + 1 < parts.length) {
-            parts[i + 1] = parts[i] + ' ' + parts[i + 1];
-            continue;
-        }
-        merged.push(parts[i]);
-    }
-    return merged;
 }
 
 function secretPattern() {
@@ -251,9 +243,10 @@ function negatedVerbIndexes(clause) {
         const gap = clause.slice(after, next.index).trim();
         const words = gap ? gap.split(/\s+/) : [];
         const negWord = match[0].toLowerCase();
-        if ((negWord === 'dont' || negWord === 'do not' || negWord === "don't") && words.length === 1 && words[0] === 'you') continue;
+        const warning = /^(?:tempted|pressured|obligated|forced|tricked|fooled|asked|rushed)$/;
+        if ((negWord === 'dont' || negWord === 'do not' || negWord === "don't") && words.length === 1 && words[0] === 'you' && /^(?:need|want|have)$/.test(next.word)) continue;
         const fillerGap = words.every(function (word) { return filler.test(word); });
-        const heldBack = words.length > 1 && words[words.length - 1] === 'to';
+        const heldBack = words.length > 1 && words[words.length - 1] === 'to' && words.some(function (word) { return warning.test(word); });
         if (!fillerGap && !heldBack) continue;
         negated[next.index] = true;
         const later = verbs.filter(function (verb) { return verb.index > next.index; })[0];
@@ -299,7 +292,11 @@ function colonIsHypotheticalQuote(clause) {
     if (!match) return false;
     const verbAt = head.lastIndexOf(match[1]);
     const before = verbAt > 0 ? head.slice(0, verbAt) : '';
-    return /\b(?:scammers?|someone|anyone|they|people|fake|bad\s+actors)\b/.test(before);
+    if (!/\b(?:scammers?|someone|anyone|they|people|fake|bad\s+actors)\b/.test(before)) return false;
+    if (/\b(?:will|might|may|would|could)\b/.test(before)) return true;
+    if (/\bthings\s+like\s*$/.test(head)) return true;
+    if (/\b(?:told|texted)\s+me\s*$/.test(head) || /\btexted\s*$/.test(head)) return true;
+    return false;
 }
 
 function hypotheticalQuote(clause) {
@@ -522,7 +519,7 @@ function classifyText(raw) {
         if (!reported && directedSecret(clause)) add(lockReasons, 'seed_request');
         if (!reported && liveVerb(clause, ['pay', 'send', 'zap', 'transfer', 'deposit', 'withdraw']) && addressPattern().test(clause)) add(lockReasons, 'address_send');
         if (!reported && !scamFunds && paysAmount(clause) && /\b(?:to me|pay me|send me)\b/.test(clause)) add(lockReasons, 'admin_funds');
-        if (!reported && index > 0 && /\bsend (?:it|them|this|that)(?: to me| here)?\b/.test(clause) && !verbIsNegated(clause, 'send')) {
+        if (!reported && index > 0 && handsOffMention(clause)) {
             const prior = clauses[index - 1].trim();
             const priorIsSecret = readerOwnsSecret(prior)
                 || new RegExp('^(?:your\\s+|the\\s+)?' + SECRET_SOURCE + '$', 'i').test(prior)
@@ -677,6 +674,23 @@ function allowlistTail(text) {
     }).join(' ');
 }
 
+function handsOffMention(clause) {
+    const pointed = clause.match(/\b(send|dm|give|tell|show|read|paste|drop|share)\s+(?:me\s+)?(?:it|them|this|that)\b/);
+    if (pointed && !verbIsNegated(clause, pointed[1])) return true;
+    const placed = clause.match(/\b(type|paste|enter|write|post|drop|put)\b/);
+    if (placed && /\b(?:here|in the chat|in chat|this chat)\b/.test(clause) && /\b(?:it|them|this|that)\b/.test(clause) && !verbIsNegated(clause, placed[1])) return true;
+    return false;
+}
+
+function secretNounPhrase(text) {
+    const normalized = normalizeRiskText(text);
+    const match = normalized.match(new RegExp('\\b((?:your|ur)\\s+(?:' + SECRET_SOURCE + '))\\b', 'i'));
+    if (!match) return '';
+    const noun = allowlistTail(match[1]);
+    if (!noun || containsRawSecret(noun) || classifyText(noun).lock) return '';
+    return noun;
+}
+
 function planTailWrite(text, now) {
     const raw = String(text || '');
     if (!raw.trim()) return null;
@@ -687,7 +701,11 @@ function planTailWrite(text, now) {
         && !/\b(?:send|give|show|tell|need|want|share|paste|drop|type|dm|what|pay|zap|support|admin|frozen)\b/.test(kept)) {
         return null;
     }
-    if (classifyText(kept).lock && !classifyText(raw).lock) return null;
+    if (classifyText(kept).lock && !classifyText(raw).lock) {
+        const noun = secretNounPhrase(raw);
+        if (!noun) return null;
+        return { text: noun, at: now, expireAt: now + PAIR_WINDOW_MS };
+    }
     return { text: kept, at: now, expireAt: now + PAIR_WINDOW_MS };
 }
 
