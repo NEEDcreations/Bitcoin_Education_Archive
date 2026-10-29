@@ -149,6 +149,7 @@ function normalizeRiskText(text) {
     s = s.replace(/\bi['’]m\b/g, 'i am');
     s = s.replace(/\bi['’]d\b/g, 'i would');
     s = s.replace(/\bi['’]ll\b/g, 'i will');
+    s = s.replace(/\bthey['’]ll\b/g, 'they will');
     s = s.replace(/\bdon['’]t\b/g, 'dont');
     s = s.replace(/\byou['’]ll\b/g, 'you will');
     s = s.replace(/\bit['’]s\b/g, 'it is');
@@ -195,9 +196,18 @@ function clausesOf(text) {
     const marked = protectedText
         .replace(/(\d)\.(\d)/g, '$1dot$2')
         .replace(/\b([a-z0-9-]+)\.(com|net|org|io)\b/g, '$1 hostdot $2');
-    return marked.split(/[,.!?;]+/).map(function (part) {
+    const parts = marked.split(/[,.!?;]+/).map(function (part) {
         return part.replace(/ hostdot /g, '.').replace(/(\d)dot(\d)/g, '$1.$2').trim();
     }).filter(Boolean);
+    const merged = [];
+    for (let i = 0; i < parts.length; i++) {
+        if (/^(?:never|dont|do not)$/.test(parts[i]) && i + 1 < parts.length) {
+            parts[i + 1] = parts[i] + ' ' + parts[i + 1];
+            continue;
+        }
+        merged.push(parts[i]);
+    }
+    return merged;
 }
 
 function secretPattern() {
@@ -240,7 +250,11 @@ function negatedVerbIndexes(clause) {
         if (!next) continue;
         const gap = clause.slice(after, next.index).trim();
         const words = gap ? gap.split(/\s+/) : [];
-        if (!words.every(function (word) { return filler.test(word); })) continue;
+        const negWord = match[0].toLowerCase();
+        if ((negWord === 'dont' || negWord === 'do not' || negWord === "don't") && words.length === 1 && words[0] === 'you') continue;
+        const fillerGap = words.every(function (word) { return filler.test(word); });
+        const heldBack = words.length > 1 && words[words.length - 1] === 'to';
+        if (!fillerGap && !heldBack) continue;
         negated[next.index] = true;
         const later = verbs.filter(function (verb) { return verb.index > next.index; })[0];
         if (!later) continue;
@@ -275,12 +289,21 @@ function liveVerb(clause, words) {
     });
 }
 
-function hypotheticalQuote(clause) {
+function colonIsHypotheticalQuote(clause) {
     const colonAt = clause.indexOf(':');
-    if (colonAt > 0 && /\S/.test(clause.slice(colonAt + 1))) {
-        const prevWord = clause.slice(0, colonAt).trim().split(/\s+/).pop();
-        if (/^(?:say|says|said|ask|asks|asked|write|writes|wrote|tell|tells|told|messaged|message|dm)$/.test(prevWord || '')) return true;
-    }
+    if (colonAt < 0 || !/\S/.test(clause.slice(colonAt + 1))) return false;
+    const head = clause.slice(0, colonAt).trim();
+    const verb = '(?:saying|say|says|said|asking|ask|asks|asked|writing|write|writes|wrote|telling|tell|tells|told|messaging|message|messages|messaged|texting|text|texts|texted|dm|dms)';
+    let match = head.match(new RegExp('\\b(' + verb + ')(?:\\s+you(?:\\s+saying)?|\\s+me)?\\s*$', 'i'));
+    if (!match) match = head.match(new RegExp('\\b(' + verb + ')\\s+things\\s+like\\s*$', 'i'));
+    if (!match) return false;
+    const verbAt = head.lastIndexOf(match[1]);
+    const before = verbAt > 0 ? head.slice(0, verbAt) : '';
+    return /\b(?:scammers?|someone|anyone|they|people|fake|bad\s+actors)\b/.test(before);
+}
+
+function hypotheticalQuote(clause) {
+    if (colonIsHypotheticalQuote(clause)) return true;
     if (!/\b(?:scammers?|someone|anyone|they|people|fake)\b/.test(clause)) return false;
     const intro = clause.match(/\b(?:(?:will|might|may|would|could)\s+(?:say|ask|tell|write|dm)|says|said|asks|asked|ask|tells|tell|say|writes|write)\b([\s\S]*)$/);
     if (!intro) return false;
@@ -366,6 +389,10 @@ function questionAboutUse(clause) {
     return new RegExp('\\b(?:your|ur)\\s+(?:' + SECRET_SOURCE + ')\\s+(?:is\\s+used|is\\s+made|made\\s+of)\\b', 'i').test(clause);
 }
 
+function purposeQuestion(clause) {
+    return new RegExp('\\bwhat\\s+(?:is|are)\\b[\\s\\S]{0,48}?\\b(?:your|ur)\\s+(?:' + SECRET_SOURCE + ')\\s+for(?:\\s+anyway)?\\s*$', 'i').test(clause);
+}
+
 function secretIsInTimeClause(clause) {
     const timeRe = /\b(?:when|once)\b/gi;
     let match;
@@ -434,7 +461,7 @@ function directedSecret(clause) {
         const rest = secretHit ? afterThe.slice(secretHit[0].length).trim() : afterThe;
         if (secretHit && !/^(?:screen|example|guide|link|format|best)\b/i.test(rest)) return true;
     }
-    if (!storageQuestion(clause) && !questionAboutUse(clause) && ownedYourAfter(clause, '\\bwhat\\s+(?:is|are)\\b([\\s\\S]{0,48}?)\\b(your|ur)\\b')) return true;
+    if (!storageQuestion(clause) && !questionAboutUse(clause) && !purposeQuestion(clause) && ownedYourAfter(clause, '\\bwhat\\s+(?:is|are)\\b([\\s\\S]{0,48}?)\\b(your|ur)\\b')) return true;
     if (ownedYourAfter(clause, '\\bi\\s+(?:would\\s+)?like\\b([\\s\\S]{0,40}?)\\b(your|ur)\\b')) return true;
     if (liveVerb(clause, ['need']) && ownedYourAfter(clause, '\\b(?:i|we)\\s+need\\b([\\s\\S]{0,48}?)\\b(your|ur)\\b')) return true;
     if (/\bi need it\b/.test(clause) && owns && liveVerb(clause, ['need'])) return true;
@@ -574,8 +601,13 @@ function detectBuddyRisk(text, context) {
     const fresh = previous && previousAt && now && now >= previousAt
         && (now - previousAt) <= PAIR_WINDOW_MS
         && (!unlockedAt || previousAt > unlockedAt);
-    if (!fresh) return classifyText(text);
-    return classifyText(previous + ' ' + String(text || ''));
+    const alone = classifyText(text);
+    if (!fresh) return alone;
+    const joined = classifyText(previous + ' ' + String(text || ''));
+    if (alone.lock) return alone;
+    if (joined.lock) return joined;
+    if (alone.severity === 'medium') return alone;
+    return joined;
 }
 
 function timeMillis(value) {
