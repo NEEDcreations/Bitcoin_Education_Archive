@@ -442,6 +442,10 @@ function world() {
         'raid_daily_caps/u2_2026-10-22_chat': { contributed: 1 },
         'raid_deck_completions/b1_u1_deck': { uid: 'u1', deck: 'deck' },
         'raid_deck_completions/b1_u2_deck': { uid: 'u2', deck: 'deck' },
+        'raid_damage_events/2026-11_u1_chat-1': { uid: 'u1', metric: 'chatMessages' },
+        'raid_damage_events/2026-11_u2_chat-1': { uid: 'u2', metric: 'chatMessages' },
+        'raid_forum_pending/forum-u1': { uid: 'u1', status: 'pending' },
+        'raid_forum_pending/forum-u2': { uid: 'u2', status: 'pending' },
         'action_cooldowns/u1_chat_message': { t: 1 },
         'action_cooldowns/u2_chat_message': { t: 1 },
         'rate_limits/bridge_u1': { n: 1 },
@@ -780,6 +784,10 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('raid_bosses/old/participants/u1').contributed, 1);
         assert.strictEqual(db.docs.has('raid_deck_completions/b1_u1_deck'), false);
         assert.ok(db.docs.has('raid_deck_completions/b1_u2_deck'));
+        assert.strictEqual(db.docs.has('raid_damage_events/2026-11_u1_chat-1'), false);
+        assert.ok(db.docs.has('raid_damage_events/2026-11_u2_chat-1'));
+        assert.strictEqual(db.docs.has('raid_forum_pending/forum-u1'), false);
+        assert.ok(db.docs.has('raid_forum_pending/forum-u2'));
         assert.strictEqual(db.docs.has('shoutout_claims/claim1'), false);
         assert.ok(db.docs.has('shoutout_claims/claim2'));
         assert.strictEqual(db.docs.has('shoutout_limits/forum_u1'), false);
