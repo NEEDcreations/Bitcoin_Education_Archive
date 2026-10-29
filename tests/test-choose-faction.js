@@ -377,7 +377,7 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: Fixed leaderboards and your saved profile taking too long to load.") > 0);
+    assert.ok(notes.indexOf("Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front.") > 0);
     assert.ok(notes.indexOf("Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.") > 0);
     assert.ok(notes.indexOf("Latest: Daily Streaks") === -1);
     assert.ok(notes.indexOf("Double XP now applies to every way you earn XP.") > 0);
