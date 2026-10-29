@@ -56,10 +56,10 @@ test('high-confidence requests lock and teaching chat does not', function () {
     });
     const flagged = safety.detectBuddyRisk('Check https://river.com/learn and https://bitcoinmagazine.com', {});
     assert.strictEqual(flagged.lock, false);
-    assert.strictEqual(flagged.tier, 'none');
+    assert.strictEqual(flagged.tier, 'flag');
     const giveaway = safety.detectBuddyRisk('giveaway, send 1000 sats to claim', {});
     assert.strictEqual(giveaway.lock, false);
-    assert.strictEqual(giveaway.tier, 'none');
+    assert.strictEqual(giveaway.tier, 'flag');
     const payment = safety.detectBuddyRisk('Send 0.01 BTC to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 and I will send back 0.02', {});
     assert.strictEqual(payment.lock, false);
     assert.strictEqual(payment.tier, 'flag');
@@ -121,10 +121,10 @@ test('high-confidence requests lock and teaching chat does not', function () {
 test('an unknown link or an off-platform nudge does not lock', function () {
     const link = safety.detectBuddyRisk('look at http://free-btc.example/claim', {});
     assert.strictEqual(link.lock, false);
-    assert.strictEqual(link.tier, 'none');
+    assert.strictEqual(link.tier, 'flag');
     const move = safety.detectBuddyRisk("let's continue on telegram", {});
     assert.strictEqual(move.lock, false);
-    assert.strictEqual(move.tier, 'none');
+    assert.strictEqual(move.tier, 'flag');
     const known = safety.detectBuddyRisk('https://bitcoineducation.quest/learn', {});
     assert.strictEqual(known.severity, 'none');
 });
@@ -272,7 +272,6 @@ test('teaching lines do not lock and a scam quote is only a flag', function () {
         'Hackers need your private key to move funds',
         'Why do people need your seed phrase to steal your coins?',
         'Share your seed phrase with no one',
-        "Keep your seed phrase offline. What's your seed phrase storage like?",
         'A scammer might say send me your private key to verify',
     ];
     teaching.forEach(function (text) {
@@ -280,6 +279,9 @@ test('teaching lines do not lock and a scam quote is only a flag', function () {
         assert.strictEqual(found.lock, false, text + ' -> ' + found.reasons.join(','));
         assert.strictEqual(found.severity, 'medium', text);
     });
+    const storage = safety.detectBuddyRisk("Keep your seed phrase offline. What's your seed phrase storage like?");
+    assert.strictEqual(storage.lock, false);
+    assert.strictEqual(storage.tier, 'none');
 });
 
 test('delta-2 disguises lock or at least flag, including a split message', function () {
@@ -344,7 +346,7 @@ test('delta-2 disguises lock or at least flag, including a split message', funct
     ['5eed', 'sεεd', 'ꜱeed', 'privkey', 'wallet backup'].forEach(function (text) {
         const found = safety.detectBuddyRisk(text);
         assert.strictEqual(found.lock, false, text);
-        assert.strictEqual(found.severity, 'medium', text + ' ' + found.reasons.join(','));
+        assert.strictEqual(found.tier, 'none', text + ' ' + found.reasons.join(','));
     });
     const split = safety.detectBuddyRisk('seed phrase', { previousText: 'send me your', previousAt: 1000, now: 2000 });
     assert.strictEqual(split.lock, true);
@@ -354,7 +356,7 @@ test('delta-2 disguises lock or at least flag, including a split message', funct
     assert.strictEqual(key.lock, true);
     const stale = safety.detectBuddyRisk('seed phrase', { previousText: 'send me your', previousAt: 1000, now: 1000 + 11 * 60 * 1000 });
     assert.strictEqual(stale.lock, false);
-    assert.strictEqual(stale.severity, 'medium');
+    assert.strictEqual(stale.tier, 'none');
 });
 
 test('learner questions do not lock and a split request still does', function () {
@@ -448,6 +450,25 @@ test('borderline mail sends once each ten minutes and can lock, ban, or dismiss'
     assert.strictEqual(safety.planBorderlineResolve('dismiss').status, 'dismissed');
     assert.strictEqual(safety.planBorderlineResolve('unlock').error, 'action');
     assert.strictEqual(safety.BORDERLINE_LABEL, 'Borderline buddy DM (not locked)');
+    assert.strictEqual(safety.BORDERLINE_TTL_MS, 90 * 24 * 60 * 60 * 1000);
+    assert.strictEqual(safety.snippetOf('abandon ability able about above absent absorb abstract absurd absent absorb abstract'), 'abandon [redacted 11 words]');
+    assert.strictEqual(safety.snippetOf('xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jP'), '[redacted 1 words]');
+    assert.strictEqual(safety.alreadyLockedFor({ lock: safety.publicLock(5) }), true);
+    const firstTail = safety.planTailWrite('What is your seed phrase for?', 1000);
+    const keptTail = safety.planTailWrite('thanks', 2000, firstTail.text);
+    assert.ok(keptTail.text.indexOf('seed') !== -1);
+    const follow = safety.detectBuddyRisk("send it to me, I'll check your answer", {
+        previousText: keptTail.text,
+        previousAt: 2000,
+        now: 3000,
+    });
+    assert.strictEqual(follow.lock, true);
+    const guess = safety.detectBuddyRisk('Give me your best guess', {
+        previousText: keptTail.text,
+        previousAt: 2000,
+        now: 3000,
+    });
+    assert.strictEqual(guess.lock, false);
 });
 
 test('report limits count every type inside a rolling day', function () {

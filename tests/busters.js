@@ -484,6 +484,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(notes.includes('Global Chat now gives a heads-up when Satoshi\'s Favor is about to end.'));
     assert.ok(!notes.includes('Latest: Global Chat'));
     assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(notes.includes('The homepage Invites card shows your meetup tier from friends who reached Maxi, and how close you are to the next tier.'));
     assert.ok(!notes.includes('Latest: Referral badges'));
     assert.ok(!notes.includes('Latest: Raid bosses'));
     assert.ok(notes.includes('A shared certificate link shows up right away. If the check takes too long, you can retry or open Bitcoin Quest.'));

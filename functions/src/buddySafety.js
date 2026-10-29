@@ -14,6 +14,7 @@ const ADMIN_ACTIONS = ['unlock', 'keep_locked', 'ban', 'unlock_and_dismiss'];
 const BORDERLINE_ACTIONS = ['lock', 'ban', 'dismiss'];
 const BORDERLINE_LABEL = 'Borderline buddy DM (not locked)';
 const BORDERLINE_WINDOW_MS = 10 * 60 * 1000;
+const BORDERLINE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const KNOWN_HOSTS = {
     'bitcoineducation.quest': true,
     'www.bitcoineducation.quest': true,
@@ -199,7 +200,9 @@ function clausesOf(text) {
     const marked = protectedText
         .replace(/(\d)\.(\d)/g, '$1dot$2')
         .replace(/\b([a-z0-9-]+)\.(com|net|org|io)\b/g, '$1 hostdot $2');
-    const softened = marked.replace(/\b(never|dont|do not),\s+(ever|never)\b/g, '$1 $2');
+    const softened = marked
+        .replace(/\b(never|dont|do not),\s+(ever|never),\s+/g, '$1 $2 ')
+        .replace(/\b(never|dont|do not),\s+(ever|never)\b/g, '$1 $2');
     return softened.split(/[,.!?;]+/).map(function (part) {
         return part.replace(/ hostdot /g, '.').replace(/(\d)dot(\d)/g, '$1.$2').trim();
     }).filter(Boolean);
@@ -556,7 +559,7 @@ function classifyText(raw) {
             const priorIsSecret = readerOwnsSecret(prior)
                 || new RegExp('^(?:your\\s+|the\\s+)?' + SECRET_SOURCE + '$', 'i').test(prior)
                 || new RegExp('\\b(?:your|ur)\\s+(?:' + SECRET_SOURCE + ')\\b', 'i').test(prior);
-            if (priorIsSecret && !hypotheticalQuote(prior)) add(lockReasons, 'seed_request');
+            if (priorIsSecret) add(lockReasons, 'seed_request');
         }
     });
     const adminAt = [];
@@ -580,10 +583,11 @@ function classifyText(raw) {
             add(mediumReasons, 'send_value');
         }
     });
-    if (/\b(?:double your (?:btc|bitcoin|sats)|guaranteed (?:profit|returns?)|investment opportunity)\b/.test(normalized)
-        || (/\bgiveaway\b/.test(normalized) && /\b(?:send|claim)\b/.test(normalized) && /\b(?:btc|bitcoin|sats)\b/.test(normalized))) {
-        add(mediumReasons, 'giveaway_invest');
-    }
+    const giveawayLure = /\b(?:double your (?:btc|bitcoin|sats)|guaranteed (?:profit|returns?)|investment opportunity)\b/.test(normalized)
+        || (/\bgiveaway\b/.test(normalized) && /\b(?:send|claim)\b/.test(normalized) && /\b(?:btc|bitcoin|sats)\b/.test(normalized));
+    const callsItAScam = /\b(?:scam|watch out|beware|sounds like)\b/.test(normalized)
+        && !/\b(?:send|pay|zap)\s+me\b/.test(normalized);
+    if (giveawayLure && !callsItAScam) add(mediumReasons, 'giveaway_invest');
     if (addressPattern().test(normalized)) add(mediumReasons, 'bare_address');
     const urls = String(raw || '').match(/https?:\/\/[^\s)]+/gi) || [];
     for (let i = 0; i < urls.length; i++) {
@@ -595,27 +599,16 @@ function classifyText(raw) {
     const secretClauses = clauses.filter(hasSecret);
     const secretIsStored = secretClauses.length > 0 && secretClauses.every(isDeviceOrStorage);
     if (hasSecret(normalized) && !secretIsStored) add(mediumReasons, 'secret_mention');
+    if (isBlatantMessage(raw) && hasSecret(normalized) && lockReasons.indexOf('seed_request') === -1) {
+        add(lockReasons, 'seed_request');
+    }
+    const merged = lockReasons.concat(mediumReasons.filter(function (reason) {
+        return lockReasons.indexOf(reason) === -1;
+    }));
     if (lockReasons.length) {
-        return tierOf(raw, {
-            severity: 'high',
-            reasons: lockReasons.concat(mediumReasons.filter(function (reason) { return lockReasons.indexOf(reason) === -1; })),
-            lock: true,
-        });
+        return tierOf(raw, { severity: 'high', reasons: merged, lock: true });
     }
-    if (hasSecret(normalizeRiskText(raw))) {
-        const reasons = mediumReasons.length ? mediumReasons : ['secret_mention'];
-        return { severity: 'medium', reasons: reasons, lock: false, tier: 'flag' };
-    }
-    return { severity: 'none', reasons: [], lock: false, tier: 'none' };
-}
-
-function authorityOrFirstPerson(text) {
-    return /\b(?:i|we)\s+(?:said|say|says)\b/.test(text)
-        || /\bas i said\b/.test(text)
-        || /\b(?:admin|support|moderator|staff|official)\b/.test(text)
-        || /\bi am\b[\s\S]{0,40}\b(?:admin|support|moderator)\b/.test(text)
-        || /\bthis is\b[\s\S]{0,30}\b(?:admin|support)\b/.test(text)
-        || /\bbitcoin quest\b/.test(text);
+    return tierOf(raw, { severity: 'medium', reasons: merged, lock: false });
 }
 
 function negationGovernsAsk(clause) {
@@ -626,42 +619,151 @@ function negationGovernsAsk(clause) {
     return asks.every(function (verb) { return negated[verb.index]; });
 }
 
-function clauseFramed(clause) {
-    if (!clause) return false;
-    if (negationGovernsAsk(clause)) return true;
-    if (/\b(?:scammers|fake support|bad actors|watch out|beware|red flag|never trust)\b/.test(clause)) return true;
-    if (/\bthey\s+(?:say|says|said|will|might)\b/.test(clause)) return true;
-    if (/\b(?:someone|anyone)\s+(?:says|said|will|might|who)\b/.test(clause)) return true;
-    if (/\b(?:for example|an example|example seed|example phrase)\b/.test(clause)) return true;
-    if (namesOwnObject(clause)) return true;
-    if (/\bfor\s*$/.test(clause) || /\bfor\s+anyway\b/.test(clause)) return true;
-    if (/:/.test(clause) && !authorityOrFirstPerson(clause) && !/^(?:i|we)\b/.test(clause)) return true;
-    if (/^(?:if|when|beware)\b/.test(clause)) return true;
-    if (/\b(?:block|report|ignore)\s+anyone\b/.test(clause)) return true;
+const QUOTE_VERB = 'saying|say|says|said|asking|ask|asks|asked|writing|write|writes|wrote|telling|tell|tells|told|messaging|message|messages|messaged|texting|text|texts|texted|dm|dms';
+
+function instructionLeadIn(clause) {
+    return /^(?:note|step\s+\d+|last\s+step|important(?:\s+message)?|reminder|fake\s+news\s+aside|someone\s+like\s+you|restore\s+here|verify(?:\s+your\s+wallet)?|like\s+i\s+(?:told|said))\b/.test(String(clause || '').trim());
+}
+
+function quotingColonAt(clause) {
+    const text = String(clause || '');
+    const colonAt = text.indexOf(':');
+    if (colonAt < 0) return -1;
+    const head = text.slice(0, colonAt).trim();
+    if (!new RegExp('\\b(?:' + QUOTE_VERB + ')\\b', 'i').test(head)) return -1;
+    if (instructionLeadIn(head)) return -1;
+    if (/\b(?:fake|scammers?)\b/.test(head)) return colonAt;
+    if (/^(?:like\s+)?(?:i|we)\s+(?:said|say|says|told|tell|tells)\b/.test(head) || /\bas i said\b/.test(head)) return -1;
+    if (/\b(?:i|we)\s+(?:said|say|says|told|tell|tells)\b/.test(head)) return -1;
+    if (/\b(?:admin|support|moderator|mod|staff|official|team)\b/.test(head)) return -1;
+    return colonAt;
+}
+
+function textOutsideQuote(clause) {
+    const at = quotingColonAt(clause);
+    if (at < 0) return clause;
+    return clause.slice(0, at).trim();
+}
+
+function handoffAfterQuote(clause) {
+    const at = quotingColonAt(clause);
+    if (at < 0) return '';
+    const after = clause.slice(at + 1);
+    const again = after.match(/\b(?:so|now|then|and)\s+((?:send|dm|give|tell|show|type|paste|enter|share)\b[\s\S]*)$/);
+    return again ? again[1] : '';
+}
+
+function onlyGenericRecipient(clause) {
+    if (/\b(?:send|give|show|read|dm|paste|drop|share)\s+me\b/.test(clause)) return false;
+    if (/\bto me\b/.test(clause)) return false;
+    if (/\b(?:dm|message)\s+me\b/.test(clause)) return false;
+    if (/\bhere\b/.test(clause)) return false;
+    if (outsideSite(clause)) return false;
+    if (/\bas your answer\b/.test(clause)) return false;
+    return /\b(?:send|give|show|share|paste|tell|dm)\s+(?:anyone|someone|them|people)\b/.test(clause)
+        || /\bto\s+(?:anyone|someone|them|people)\b/.test(clause);
+}
+
+function progressTell(clause) {
+    return /^\s*(?:please\s+)?tell me\s*$/.test(String(clause || '').trim());
+}
+
+function pronounHandoff(clause) {
+    const pointed = String(clause || '').match(/\b(send|dm|give|tell|show|read|paste|drop|share)\s+(?:me\s+)?(?:it|them|this|that|yours|those)\b/);
+    if (pointed && !verbIsNegated(clause, pointed[1])) return true;
+    const bare = String(clause || '').match(/\b(send|dm|give)\s+me\s*$/);
+    if (bare && !verbIsNegated(clause, bare[1])) return true;
     return false;
 }
 
-function isBlatantMessage(raw) {
-    const clauses = clausesOf(normalizeRiskText(raw));
-    return clauses.some(function (clause, index) {
-        if (/^\s*(?:but\s+)?please\s+do\s*$/.test(clause) && index > 0) {
-            const prior = clauses[index - 1];
-            return /\b(?:dont|never|do not)\b/.test(prior) && (readerOwnsSecret(prior) || hasSecret(prior));
-        }
-        if (clauseFramed(clause)) return false;
-        if (directedSecret(clause)) return true;
-        if (index > 0 && handsOffMention(clause) && readerOwnsSecret(clauses[index - 1]) && !clauseFramed(clauses[index - 1])) return true;
-        return false;
+function typeHere(clause) {
+    if (namesOwnObject(clause) || secretIsInTimeClause(clause)) return false;
+    const placed = String(clause || '').match(/\b(type|paste|enter|write|post|drop|put)\b/);
+    if (!placed || verbIsNegated(clause, placed[1])) return false;
+    if (/\b(?:here|in the chat|in chat|this chat)\b/.test(clause)) return true;
+    return outsideSite(clause) && namedSecret(clause);
+}
+
+function isReaderHandoffClause(clause) {
+    if (!clause || progressTell(clause) || onlyGenericRecipient(clause) || negationGovernsAsk(clause)) return false;
+    if (directedSecret(clause)) return true;
+    if (/\bas your answer\b/.test(clause) && hasSecret(clause)) return true;
+    if (namesOwnObject(clause) && !pronounHandoff(clause)) return false;
+    if (pronounHandoff(clause) || typeHere(clause) || (/\bdm me\b/.test(clause) && !verbIsNegated(clause, 'dm'))) return true;
+    if (handsOffMention(clause)) return true;
+    return false;
+}
+
+function hasReaderHandoff(raw) {
+    const normalized = normalizeRiskText(raw);
+    if (/\bscam or not\b/.test(normalized)) return false;
+    const clauses = clausesOf(normalized);
+    const instruction = clauses.some(instructionLeadIn);
+    return clauses.some(function (clause) {
+        const visible = instruction ? clause : textOutsideQuote(clause);
+        if (isReaderHandoffClause(visible)) return true;
+        const extra = handoffAfterQuote(clause);
+        return !!(extra && isReaderHandoffClause(extra));
     });
 }
 
-function tierOf(raw, result) {
-    if (result.lock && isBlatantMessage(raw)) {
-        return { severity: 'high', reasons: result.reasons, lock: true, tier: 'lock' };
+function isBlatantMessage(raw) {
+    const normalized = normalizeRiskText(raw);
+    if (/\bscam or not\b/.test(normalized)) return false;
+    const clauses = clausesOf(normalized);
+    const instruction = clauses.some(instructionLeadIn);
+    let secretSeen = false;
+    for (let index = 0; index < clauses.length; index++) {
+        const clause = clauses[index];
+        if (hasSecret(clause)) secretSeen = true;
+        if (/^\s*(?:but\s+)?please\s+do\s*$/.test(clause) && index > 0) {
+            const prior = clauses[index - 1];
+            if (/\b(?:dont|never|do not)\b/.test(prior) && (readerOwnsSecret(prior) || hasSecret(prior))) return true;
+        }
+        const visible = instruction ? clause : textOutsideQuote(clause);
+        const extra = handoffAfterQuote(clause);
+        if (extra && isReaderHandoffClause(extra) && (secretSeen || hasSecret(extra))) return true;
+        if (!isReaderHandoffClause(visible)) continue;
+        if (directedSecret(visible)) return true;
+        if (hasSecret(visible)) return true;
+        if ((pronounHandoff(visible) || typeHere(visible) || /\bdm me\b/.test(visible) || /\bas your answer\b/.test(visible) || handsOffMention(visible)) && secretSeen) return true;
     }
-    if (result.lock || hasSecret(normalizeRiskText(raw))) {
-        const reasons = result.reasons && result.reasons.length ? result.reasons : ['secret_mention'];
-        return { severity: 'medium', reasons: reasons, lock: false, tier: 'flag' };
+    return false;
+}
+
+function readerTarget(text) {
+    return /\b(?:to me|send me|give me|show me|tell me|dm me|with me|in here|in the chat|in chat|this chat)\b/.test(text)
+        || (/\bhere\b/.test(text) && /\b(?:type|paste|enter|write|post|drop|send)\b/.test(text))
+        || outsideSite(text);
+}
+
+function secretNeedsReview(raw) {
+    const normalized = normalizeRiskText(raw);
+    if (!hasSecret(normalized)) return false;
+    if (/\b(?:scammers?|phishing|fake support|bad actors)\b/.test(normalized)) return true;
+    if (/\bwrote\b/.test(normalized) && /\b(?:steel|paper)\b/.test(normalized) && !readerTarget(normalized)) return false;
+    const clauses = clausesOf(normalized);
+    if (clauses.some(function (clause) { return /^(?:me|to me)$/.test(clause.trim()); })) return true;
+    if (/\bme\s*$/.test(normalized) && normalized.split(/\s+/).length <= 6) return true;
+    if ((isDeviceOrStorage(normalized) || /\b(?:on paper|on steel|paper or steel|written down|backup plan|storage method|storage like)\b/.test(normalized)) && !readerTarget(normalized)) return false;
+    return /\b(?:send|give|show|tell|share|paste|drop|dm|read|post|type|enter|reply|put|need|ask|asks|asking|have|write|explain)\b/.test(normalized);
+}
+
+function tierOf(raw, result) {
+    const reasons = result.reasons ? result.reasons.slice() : [];
+    if (result.lock && isBlatantMessage(raw)) {
+        return { severity: 'high', reasons: reasons, lock: true, tier: 'lock' };
+    }
+    const flagReasons = [];
+    function keep(reason) {
+        if (reason && flagReasons.indexOf(reason) === -1) flagReasons.push(reason);
+    }
+    ['unknown_link', 'off_platform', 'giveaway_invest', 'address_send', 'admin_funds', 'seed_request'].forEach(function (reason) {
+        if (reasons.indexOf(reason) !== -1) keep(reason);
+    });
+    if (secretNeedsReview(raw)) keep('secret_mention');
+    if (flagReasons.length) {
+        return { severity: 'medium', reasons: flagReasons, lock: false, tier: 'flag' };
     }
     return { severity: 'none', reasons: [], lock: false, tier: 'none' };
 }
@@ -691,12 +793,14 @@ function detectBuddyRisk(text, context) {
         && (now - previousAt) <= PAIR_WINDOW_MS
         && (!unlockedAt || previousAt > unlockedAt);
     const alone = classifyText(text);
-    if (!fresh || namesOwnObject(normalizeRiskText(text))) return alone;
+    if (!fresh) return alone;
+    if (namesOwnObject(normalizeRiskText(text)) && !hasReaderHandoff(text)) return alone;
     const joined = classifyText(previous + ' ' + String(text || ''));
     if (alone.lock) return alone;
     if (joined.lock) return joined;
-    if (alone.severity === 'medium') return alone;
-    return joined;
+    if (alone.tier === 'flag') return alone;
+    if (joined.tier === 'flag') return joined;
+    return alone;
 }
 
 function timeMillis(value) {
@@ -769,17 +873,17 @@ function allowlistTail(text) {
 function namesOwnObject(text) {
     const clause = String(text || '');
     if (/\bwhat you think\b/.test(clause)) return true;
-    return /\b(?:your|the|an|a|my)\s+(?:answer|guess|thoughts|reply|opinion)\b/.test(clause);
+    return /\b(?:your|the|an|a|my)\s+(?:\w+\s+){0,3}(?:answer|guess|thoughts|reply|opinion)\b/.test(clause);
 }
 
 function handsOffMention(clause) {
-    if (namesOwnObject(clause)) return false;
     const pointed = clause.match(/\b(send|dm|give|tell|show|read|paste|drop|share)\s+(?:me\s+)?(?:it|them|this|that|yours|those)\b/);
     if (pointed && !verbIsNegated(clause, pointed[1])) return true;
-    const bare = clause.match(/\b(send|dm|give|show|tell)\s+me\s*$/);
+    if (namesOwnObject(clause)) return false;
+    const bare = clause.match(/\b(send|dm|give)\s+me\s*$/);
     if (bare && !verbIsNegated(clause, bare[1])) return true;
     const placed = clause.match(/\b(type|paste|enter|write|post|drop|put)\b/);
-    if (placed && /\b(?:here|in the chat|in chat|this chat)\b/.test(clause) && !verbIsNegated(clause, placed[1])) return true;
+    if (placed && /\b(?:here|in the chat|in chat|this chat)\b/.test(clause) && !verbIsNegated(clause, placed[1]) && !secretIsInTimeClause(clause)) return true;
     return false;
 }
 
@@ -792,21 +896,36 @@ function secretNounPhrase(text) {
     return noun;
 }
 
-function planTailWrite(text, now) {
+function preservedSecret(previousText) {
+    const noun = secretNounPhrase(previousText || '');
+    if (noun) return noun;
+    const kept = allowlistTail(previousText || '');
+    if (!kept || !hasSecret(kept) || containsRawSecret(kept)) return '';
+    if (classifyText(kept).lock) return secretNounPhrase(kept) || '';
+    return kept;
+}
+
+function planTailWrite(text, now, previousText) {
+    const prevNoun = preservedSecret(previousText || '');
+    function keepNoun() {
+        if (!prevNoun) return null;
+        return { text: prevNoun, at: now, expireAt: now + PAIR_WINDOW_MS };
+    }
     const raw = String(text || '');
-    if (!raw.trim()) return null;
+    if (!raw.trim()) return keepNoun();
     const compact = raw.replace(/\s+/g, '');
     const kept = allowlistTail(raw);
-    if (!kept || containsRawSecret(kept)) return null;
+    if (!kept || containsRawSecret(kept)) return keepNoun();
     if ((containsRawSecret(raw) || containsRawSecret(compact))
         && !/\b(?:send|give|show|tell|need|want|share|paste|drop|type|dm|what|pay|zap|support|admin|frozen)\b/.test(kept)) {
-        return null;
+        return keepNoun();
     }
     if (classifyText(kept).lock && !classifyText(raw).lock) {
-        const noun = secretNounPhrase(raw);
+        const noun = secretNounPhrase(raw) || prevNoun;
         if (!noun) return null;
         return { text: noun, at: now, expireAt: now + PAIR_WINDOW_MS };
     }
+    if (!hasSecret(kept) && prevNoun) return keepNoun();
     return { text: kept, at: now, expireAt: now + PAIR_WINDOW_MS };
 }
 
@@ -858,8 +977,40 @@ function planReportQuota(data, reportedUid, now) {
     return { allow: true, hits: hits, targets: targets, now: at };
 }
 
+function redactSecrets(text) {
+    let raw = typeof text === 'string' ? text : '';
+    if (!raw) return raw;
+    raw = raw.replace(/\b[xtyz]prv[1-9A-HJ-NP-Za-km-z]{20,}\b/gi, '[redacted 1 words]');
+    raw = raw.replace(/\b[5KL][1-9A-HJ-NP-Za-km-z]{50,}\b/g, '[redacted 1 words]');
+    raw = raw.replace(/\b(?:0x)?[0-9a-fA-F]{64}\b/g, '[redacted 1 words]');
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    let bestStart = -1;
+    let bestLen = 0;
+    let run = 0;
+    let runStart = 0;
+    for (let i = 0; i < tokens.length; i++) {
+        const word = tokens[i].toLowerCase().replace(/[^a-z]/g, '');
+        if (word && BIP39_SET.has(word)) {
+            if (!run) runStart = i;
+            run++;
+            if (run > bestLen) {
+                bestLen = run;
+                bestStart = runStart;
+            }
+        } else {
+            run = 0;
+        }
+    }
+    if (bestLen >= 4 && bestStart >= 0) {
+        const first = (tokens[bestStart].match(/[A-Za-z]+/) || [tokens[bestStart]])[0];
+        tokens.splice(bestStart, bestLen, first + ' [redacted ' + (bestLen - 1) + ' words]');
+        raw = tokens.join(' ');
+    }
+    return raw;
+}
+
 function snippetOf(text) {
-    const raw = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
+    const raw = redactSecrets(typeof text === 'string' ? text : '').replace(/\s+/g, ' ').trim();
     return raw.length > 200 ? raw.slice(0, 200) : raw;
 }
 
@@ -1133,6 +1284,7 @@ function createSafetyHandlers(deps) {
                 reason: (spec.reasons || []).join(', ').slice(0, 180) || 'secret_mention',
                 createdAt: ts,
                 createdAtMs: spec.now || 0,
+                expireAt: admin.firestore.Timestamp.fromMillis((spec.now || Date.now()) + BORDERLINE_TTL_MS),
                 status: 'open',
                 convoId: spec.convoId,
             });
@@ -1229,7 +1381,7 @@ function createSafetyHandlers(deps) {
             unlockedAt: unlockedAt,
         });
         try {
-            const kept = planTailWrite(text, now);
+            const kept = planTailWrite(text, now, previousText);
             if (!kept) {
                 await tailRef.delete();
             } else {
@@ -1425,6 +1577,7 @@ function createSafetyHandlers(deps) {
                     withdrawals_disabled: true,
                     satsDisabled: true,
                     flagged: true,
+                    dmBlocked: true,
                     ban_reason: reason,
                 }, { merge: true });
                 tx.set(db.collection('faucet_ledger').doc(uid), {
@@ -1487,28 +1640,91 @@ function createSafetyHandlers(deps) {
             const userRef = db.collection('users').doc(uid);
             const userSnap = await tx.get(userRef);
             if (!userSnap.exists) throw new HttpsError('not-found', 'That account was not found.');
+            const user = userSnap.data() || {};
+            const already = alreadyLockedFor(user);
             const ts = admin.firestore.FieldValue.serverTimestamp();
             const now = Date.now();
             const convId = typeof flag.convoId === 'string' ? flag.convoId : '';
-            if (plan.applyLock) {
+            const convoOk = !!(convId && convId.indexOf('/') === -1);
+            const lockMetaRef = db.collection('buddy_locks').doc(uid);
+            let lockMetaSnap = null;
+            let warnSnap = null;
+            if (plan.applyLock && !already) {
+                lockMetaSnap = await tx.get(lockMetaRef);
+                if (convoOk) {
+                    warnSnap = await tx.get(db.collection('dm_conversations').doc(convId).collection('messages').doc('safety-review'));
+                }
+            }
+            if (plan.applyLock && !already) {
+                const reportId = randomDocId('bf');
+                const warnText = warningCopy('high');
                 tx.set(userRef, { lock: publicLock(now) }, { merge: true });
-                tx.set(db.collection('buddy_locks').doc(uid), {
+                tx.set(lockMetaRef, {
                     state: 'locked',
-                    reason: BORDERLINE_LABEL,
+                    reason: String(flag.reason || 'seed_request').slice(0, 180),
                     at: now,
                     convId: convId,
-                    reportIds: [flagId],
+                    reportIds: [reportId],
+                    clientReportId: '',
                     source: 'borderline',
+                    unlockedAt: lockMetaSnap && lockMetaSnap.exists ? ((lockMetaSnap.data() || {}).unlockedAt || 0) : 0,
                 }, { merge: true });
-                if (convId && convId.indexOf('/') === -1) {
+                if (convoOk) {
                     tx.set(db.collection('dm_conversations').doc(convId), { reviewPaused: true }, { merge: true });
+                    if (!warnSnap.exists) {
+                        tx.set(db.collection('dm_conversations').doc(convId).collection('messages').doc('safety-review'), {
+                            senderUid: 'nacho-bot',
+                            senderName: 'Nacho',
+                            text: warnText,
+                            createdAt: ts,
+                            isNachoAuto: true,
+                            safetyNotice: true,
+                        });
+                        if (flag.recipientUid) {
+                            tx.set(db.collection('notifications').doc(randomDocId('bn')), {
+                                recipientId: flag.recipientUid,
+                                senderId: 'system',
+                                senderName: 'Bitcoin Quest',
+                                type: 'buddy',
+                                message: warnText.slice(0, 180),
+                                targetType: 'buddy',
+                                targetId: null,
+                                read: false,
+                                createdAt: ts,
+                            });
+                        }
+                    }
                 }
+                tx.set(db.collection('buddy_flags').doc(reportId), {
+                    reportedUid: uid,
+                    otherUid: flag.recipientUid || '',
+                    convoId: convId,
+                    severity: 'high',
+                    reasons: ['seed_request'],
+                    snippet: snippetOf(flag.text || ''),
+                    source: 'server',
+                    reportId: reportId,
+                    status: 'open',
+                    createdAtMs: now,
+                    createdAt: ts,
+                });
+                const report = buildBuddyReport({
+                    reportedUid: uid,
+                    reportedName: '',
+                    reasons: ['seed_request'],
+                    severity: 'high',
+                    otherUid: flag.recipientUid || '',
+                    snippet: flag.text || '',
+                });
+                report.createdAt = ts;
+                tx.set(db.collection('reports').doc(reportId), report);
             }
             if (plan.ban) {
                 tx.set(userRef, {
                     withdrawals_disabled: true,
                     satsDisabled: true,
                     flagged: true,
+                    dmBlocked: true,
                     ban_reason: BORDERLINE_LABEL,
                 }, { merge: true });
                 tx.set(db.collection('faucet_ledger').doc(uid), {
@@ -1573,6 +1789,8 @@ module.exports = {
     tailDocId: tailDocId,
     cleanupExpiredTails: cleanupExpiredTails,
     containsRawSecret: containsRawSecret,
+    redactSecrets: redactSecrets,
+    BORDERLINE_TTL_MS: BORDERLINE_TTL_MS,
     normalizeRiskText: normalizeRiskText,
     knownHost: knownHost,
     createSafetyHandlers: createSafetyHandlers,

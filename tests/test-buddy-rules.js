@@ -247,6 +247,21 @@ async function main() {
             text: 'hello',
         }));
     });
+    await check('a banned account cannot send a direct message', async function () {
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            const root = ctx.firestore();
+            await setDoc(doc(root, 'users', 'cara'), { username: 'Cara', dmBlocked: true, ban_reason: 'buddy review' }, { merge: true });
+            await setDoc(doc(root, 'dm_conversations', 'bob_cara'), { participants: ['bob', 'cara'] });
+        });
+        await assertFails(setDoc(doc(cara, 'dm_conversations', 'bob_cara', 'messages', 'banned1'), {
+            senderUid: 'cara',
+            text: 'hello',
+        }));
+        await assertSucceeds(setDoc(doc(bob, 'dm_conversations', 'bob_cara', 'messages', 'openban1'), {
+            senderUid: 'bob',
+            text: 'hello',
+        }));
+    });
     await check('a paused buddy chat blocks both people', async function () {
         await env.withSecurityRulesDisabled(async function (ctx) {
             await setDoc(doc(ctx.firestore(), 'dm_conversations', 'alice_bob'), { participants: ['alice', 'bob'], reviewPaused: true }, { merge: true });
