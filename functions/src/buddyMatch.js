@@ -1374,6 +1374,7 @@ function bindBuddy(functionsV1, admin, db, hooks) {
             return safety.onBuddyReport(event);
         }),
         adminResolveLock: onCall(safety.adminResolveLock),
+        adminResolveBorderline: onCall(safety.adminResolveBorderline),
     };
 }
 

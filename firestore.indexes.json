@@ -745,6 +745,20 @@
       ]
     },
     {
+      "collectionGroup": "buddy_borderline",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "buddy_flags",
       "queryScope": "COLLECTION",
       "fields": [

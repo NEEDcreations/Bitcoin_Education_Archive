@@ -567,7 +567,12 @@ window.renderBuddyReportsAdmin = function (containerId) {
     status.style.cssText = 'font-size:13px;color:var(--text-muted,#cbd5e1);margin-top:6px;';
     card.appendChild(status);
     root.appendChild(card);
-    firebase.firestore().collection('buddy_flags').where('status', '==', 'open').orderBy('createdAt', 'desc').limit(20).get().then(function (snap) {
+    Promise.all([
+        firebase.firestore().collection('buddy_flags').where('status', '==', 'open').orderBy('createdAt', 'desc').limit(20).get(),
+        firebase.firestore().collection('buddy_borderline').where('status', '==', 'open').orderBy('createdAt', 'desc').limit(20).get()
+    ]).then(function (snaps) {
+        var snap = snaps[0];
+        var border = snaps[1];
         status.textContent = '';
         var shown = 0;
         snap.forEach(function (docSnap) {
@@ -596,6 +601,31 @@ window.renderBuddyReportsAdmin = function (containerId) {
                     block.appendChild(btn);
                 });
             }
+            card.appendChild(block);
+        });
+        border.forEach(function (docSnap) {
+            var data = docSnap.data() || {};
+            shown++;
+            var block = el('div', '');
+            block.style.cssText = 'border-top:1px solid var(--border,#334155);padding-top:8px;margin-top:8px;';
+            block.appendChild(el('div', '', 'borderline · ' + String(data.senderUid || '').slice(0, 6)));
+            var snippet = el('div', '', data.text || '');
+            snippet.style.cssText = 'font-size:12px;color:var(--text-muted,#cbd5e1);margin:4px 0;';
+            block.appendChild(snippet);
+            ['lock', 'ban', 'dismiss'].forEach(function (action) {
+                var btn = el('button', 'buddy-ghost', action);
+                btn.type = 'button';
+                btn.style.marginTop = '6px';
+                btn.addEventListener('click', function () {
+                    callBuddy('adminResolveBorderline', { flagId: docSnap.id, action: action }).then(function () {
+                        toast('Saved.');
+                        window.renderBuddyReportsAdmin(containerId);
+                    }).catch(function (err) {
+                        toast(callableError(err, 'That action did not save.'));
+                    });
+                });
+                block.appendChild(btn);
+            });
             card.appendChild(block);
         });
         if (!shown) status.textContent = 'No buddy reports waiting.';

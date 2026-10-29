@@ -11,6 +11,9 @@ const BIP39_SET = require('./bip39Words');
 const HIGH_REASONS = ['seed_request', 'address_send', 'admin_funds'];
 const MEDIUM_REASONS = ['send_value', 'giveaway_invest', 'unknown_link', 'off_platform'];
 const ADMIN_ACTIONS = ['unlock', 'keep_locked', 'ban', 'unlock_and_dismiss'];
+const BORDERLINE_ACTIONS = ['lock', 'ban', 'dismiss'];
+const BORDERLINE_LABEL = 'Borderline buddy DM (not locked)';
+const BORDERLINE_WINDOW_MS = 10 * 60 * 1000;
 const KNOWN_HOSTS = {
     'bitcoineducation.quest': true,
     'www.bitcoineducation.quest': true,
@@ -593,14 +596,74 @@ function classifyText(raw) {
     const secretIsStored = secretClauses.length > 0 && secretClauses.every(isDeviceOrStorage);
     if (hasSecret(normalized) && !secretIsStored) add(mediumReasons, 'secret_mention');
     if (lockReasons.length) {
-        return {
+        return tierOf(raw, {
             severity: 'high',
             reasons: lockReasons.concat(mediumReasons.filter(function (reason) { return lockReasons.indexOf(reason) === -1; })),
             lock: true,
-        };
+        });
     }
-    if (mediumReasons.length) return { severity: 'medium', reasons: mediumReasons, lock: false };
-    return { severity: 'none', reasons: [], lock: false };
+    if (hasSecret(normalizeRiskText(raw))) {
+        const reasons = mediumReasons.length ? mediumReasons : ['secret_mention'];
+        return { severity: 'medium', reasons: reasons, lock: false, tier: 'flag' };
+    }
+    return { severity: 'none', reasons: [], lock: false, tier: 'none' };
+}
+
+function authorityOrFirstPerson(text) {
+    return /\b(?:i|we)\s+(?:said|say|says)\b/.test(text)
+        || /\bas i said\b/.test(text)
+        || /\b(?:admin|support|moderator|staff|official)\b/.test(text)
+        || /\bi am\b[\s\S]{0,40}\b(?:admin|support|moderator)\b/.test(text)
+        || /\bthis is\b[\s\S]{0,30}\b(?:admin|support)\b/.test(text)
+        || /\bbitcoin quest\b/.test(text);
+}
+
+function negationGovernsAsk(clause) {
+    const negated = negatedVerbIndexes(clause);
+    const ask = { send: true, sending: true, give: true, show: true, tell: true, share: true, paste: true, drop: true, dm: true, read: true, type: true, enter: true, write: true, post: true, put: true, reply: true };
+    const asks = verbSpans(clause).filter(function (verb) { return ask[verb.word]; });
+    if (!asks.length) return false;
+    return asks.every(function (verb) { return negated[verb.index]; });
+}
+
+function clauseFramed(clause) {
+    if (!clause) return false;
+    if (negationGovernsAsk(clause)) return true;
+    if (/\b(?:scammers|fake support|bad actors|watch out|beware|red flag|never trust)\b/.test(clause)) return true;
+    if (/\bthey\s+(?:say|says|said|will|might)\b/.test(clause)) return true;
+    if (/\b(?:someone|anyone)\s+(?:says|said|will|might|who)\b/.test(clause)) return true;
+    if (/\b(?:for example|an example|example seed|example phrase)\b/.test(clause)) return true;
+    if (namesOwnObject(clause)) return true;
+    if (/\bfor\s*$/.test(clause) || /\bfor\s+anyway\b/.test(clause)) return true;
+    if (/:/.test(clause) && !authorityOrFirstPerson(clause) && !/^(?:i|we)\b/.test(clause)) return true;
+    if (/^(?:if|when|beware)\b/.test(clause)) return true;
+    if (/\b(?:block|report|ignore)\s+anyone\b/.test(clause)) return true;
+    return false;
+}
+
+function isBlatantMessage(raw) {
+    const clauses = clausesOf(normalizeRiskText(raw));
+    return clauses.some(function (clause, index) {
+        if (/^\s*(?:but\s+)?please\s+do\s*$/.test(clause) && index > 0) {
+            const prior = clauses[index - 1];
+            return /\b(?:dont|never|do not)\b/.test(prior) && (readerOwnsSecret(prior) || hasSecret(prior));
+        }
+        if (clauseFramed(clause)) return false;
+        if (directedSecret(clause)) return true;
+        if (index > 0 && handsOffMention(clause) && readerOwnsSecret(clauses[index - 1]) && !clauseFramed(clauses[index - 1])) return true;
+        return false;
+    });
+}
+
+function tierOf(raw, result) {
+    if (result.lock && isBlatantMessage(raw)) {
+        return { severity: 'high', reasons: result.reasons, lock: true, tier: 'lock' };
+    }
+    if (result.lock || hasSecret(normalizeRiskText(raw))) {
+        const reasons = result.reasons && result.reasons.length ? result.reasons : ['secret_mention'];
+        return { severity: 'medium', reasons: reasons, lock: false, tier: 'flag' };
+    }
+    return { severity: 'none', reasons: [], lock: false, tier: 'none' };
 }
 
 function hostOf(url) {
@@ -769,7 +832,7 @@ async function cleanupExpiredTails(db, adminSdk, nowMs) {
 function shouldCountReport(report) {
     const row = report || {};
     if (!row.reporterUid || row.reporterUid === 'system') return false;
-    if (row.type === 'buddy_dm_lock' || row.type === 'buddy_dm_flag') return false;
+    if (row.type === 'buddy_dm_lock' || row.type === 'buddy_dm_flag' || row.type === 'buddy_dm_borderline') return false;
     if (row.quotaAt) return false;
     return true;
 }
@@ -876,6 +939,24 @@ function flagCountsForLock(row, convoId, reported, unlockedAt) {
     return true;
 }
 
+function planBorderlineMail(state, now) {
+    const src = state || {};
+    const at = Number(now) || 0;
+    const last = Number(src.lastEmailAt) || 0;
+    const pending = Number(src.pending) || 0;
+    if (last && at >= last && at - last < BORDERLINE_WINDOW_MS) {
+        return { send: false, pending: pending + 1, lastEmailAt: last, batched: 0 };
+    }
+    return { send: true, pending: 0, lastEmailAt: at, batched: pending };
+}
+
+function planBorderlineResolve(action) {
+    if (action === 'lock') return { applyLock: true, ban: false, status: 'locked' };
+    if (action === 'ban') return { applyLock: false, ban: true, status: 'banned' };
+    if (action === 'dismiss') return { applyLock: false, ban: false, status: 'dismissed' };
+    return { error: 'action' };
+}
+
 function planAdminResolve(action) {
     if (ADMIN_ACTIONS.indexOf(action) === -1) return { error: 'action' };
     if (action === 'unlock') {
@@ -908,7 +989,7 @@ function planUserReportLock(report, flags, convo) {
 
 function isBuddyUserReport(data) {
     const row = data || {};
-    if (row.type === 'buddy_dm_lock' || row.type === 'buddy_dm_flag') return false;
+    if (row.type === 'buddy_dm_lock' || row.type === 'buddy_dm_flag' || row.type === 'buddy_dm_borderline') return false;
     return row.type === 'buddy' || row.reason === 'buddy';
 }
 
@@ -1036,6 +1117,48 @@ function createSafetyHandlers(deps) {
         return { locked: high && userSnap.exists && !alreadyLockedFor(user, convoId), warned: !warnSnap.exists };
     }
 
+    async function stageBorderline(spec) {
+        const mailRef = db.collection('buddy_borderline_mail').doc(spec.sender);
+        const flagRef = db.collection('buddy_borderline').doc(randomDocId('bb'));
+        const ts = admin.firestore.FieldValue.serverTimestamp();
+        await db.runTransaction(async function (tx) {
+            const mailSnap = await tx.get(mailRef);
+            const plan = planBorderlineMail(mailSnap.exists ? mailSnap.data() : {}, spec.now);
+            tx.set(flagRef, {
+                senderUid: shortUid(spec.sender),
+                accountUid: spec.sender,
+                recipientUid: spec.other || '',
+                text: snippetOf(spec.snippet),
+                tier: 'flag',
+                reason: (spec.reasons || []).join(', ').slice(0, 180) || 'secret_mention',
+                createdAt: ts,
+                createdAtMs: spec.now || 0,
+                status: 'open',
+                convoId: spec.convoId,
+            });
+            tx.set(mailRef, { lastEmailAt: plan.lastEmailAt, pending: plan.pending }, { merge: true });
+            if (!plan.send) return;
+            const id = randomDocId('bf');
+            const report = buildBuddyReport({
+                reportedUid: spec.sender,
+                reportedName: spec.reportedName || '',
+                reasons: ['borderline'],
+                severity: 'medium',
+                otherUid: spec.other,
+                snippet: (plan.batched ? (plan.batched + ' more saved without email. ') : '') + (spec.snippet || ''),
+            });
+            report.type = 'buddy_dm_borderline';
+            report.reason = BORDERLINE_LABEL;
+            report.label = BORDERLINE_LABEL;
+            report.actions = BORDERLINE_ACTIONS.slice();
+            report.lockApplied = false;
+            report.batched = plan.batched || 0;
+            report.borderlineId = flagRef.id;
+            report.createdAt = ts;
+            tx.set(db.collection('reports').doc(id), report);
+        });
+    }
+
     async function onBuddyDmSafety(event) {
         const snap = event && event.data;
         if (!snap) return null;
@@ -1119,8 +1242,26 @@ function createSafetyHandlers(deps) {
         } catch (err) {
             console.warn('[onBuddyDmSafety] tail write', err && err.message ? err.message : err);
         }
-        if (detection.severity === 'none') return null;
+        const tier = detection.tier || (detection.lock ? 'lock' : (detection.severity === 'none' ? 'none' : 'flag'));
+        if (tier === 'none') return null;
         const other = otherOf(match, sender);
+        const snippet = previousAt && (now - previousAt) <= PAIR_WINDOW_MS && previousText ? (previousText + ' ' + text) : text;
+        if (tier === 'flag') {
+            try {
+                await stageBorderline({
+                    sender: sender,
+                    other: other,
+                    convoId: convoId,
+                    reasons: detection.reasons,
+                    now: now,
+                    snippet: snippet,
+                    reportedName: message.senderName || '',
+                });
+            } catch (err) {
+                console.warn('[onBuddyDmSafety] borderline', err && err.message ? err.message : err);
+            }
+            return null;
+        }
         try {
             await db.runTransaction(function (tx) {
                 return stageReview(tx, {
@@ -1130,7 +1271,7 @@ function createSafetyHandlers(deps) {
                     severity: detection.severity,
                     reasons: detection.reasons,
                     now: now,
-                    snippet: previousAt && (now - previousAt) <= PAIR_WINDOW_MS && previousText ? (previousText + ' ' + text) : text,
+                    snippet: snippet,
                     messageId: messageId,
                     reportedName: message.senderName || '',
                 });
@@ -1324,10 +1465,77 @@ function createSafetyHandlers(deps) {
         return { ok: true, action: data.action, uid: uid };
     }
 
+    async function adminResolveBorderline(data, context) {
+        if (!context || !context.auth || !context.auth.uid) {
+            throw new HttpsError('unauthenticated', 'Sign in required.');
+        }
+        if (!context.auth.token || context.auth.token.admin !== true) {
+            throw new HttpsError('permission-denied', 'Admin only.');
+        }
+        const flagId = String((data && data.flagId) || '');
+        if (!/^[A-Za-z0-9_:-]{1,80}$/.test(flagId)) throw new HttpsError('invalid-argument', 'That flag id is not valid.');
+        const plan = planBorderlineResolve(data && data.action);
+        if (plan.error) throw new HttpsError('invalid-argument', 'Choose lock, ban, or dismiss.');
+        const flagRef = db.collection('buddy_borderline').doc(flagId);
+        const logRef = db.collection('buddy_lock_actions').doc();
+        await db.runTransaction(async function (tx) {
+            const flagSnap = await tx.get(flagRef);
+            if (!flagSnap.exists) throw new HttpsError('not-found', 'That flag was not found.');
+            const flag = flagSnap.data() || {};
+            const uid = String(flag.accountUid || '');
+            if (!UID_RE.test(uid)) throw new HttpsError('failed-precondition', 'That flag has no account.');
+            const userRef = db.collection('users').doc(uid);
+            const userSnap = await tx.get(userRef);
+            if (!userSnap.exists) throw new HttpsError('not-found', 'That account was not found.');
+            const ts = admin.firestore.FieldValue.serverTimestamp();
+            const now = Date.now();
+            const convId = typeof flag.convoId === 'string' ? flag.convoId : '';
+            if (plan.applyLock) {
+                tx.set(userRef, { lock: publicLock(now) }, { merge: true });
+                tx.set(db.collection('buddy_locks').doc(uid), {
+                    state: 'locked',
+                    reason: BORDERLINE_LABEL,
+                    at: now,
+                    convId: convId,
+                    reportIds: [flagId],
+                    source: 'borderline',
+                }, { merge: true });
+                if (convId && convId.indexOf('/') === -1) {
+                    tx.set(db.collection('dm_conversations').doc(convId), { reviewPaused: true }, { merge: true });
+                }
+            }
+            if (plan.ban) {
+                tx.set(userRef, {
+                    withdrawals_disabled: true,
+                    satsDisabled: true,
+                    flagged: true,
+                    ban_reason: BORDERLINE_LABEL,
+                }, { merge: true });
+                tx.set(db.collection('faucet_ledger').doc(uid), {
+                    banned: true,
+                    ban_reason: BORDERLINE_LABEL,
+                    bannedAt: ts,
+                }, { merge: true });
+            }
+            tx.set(flagRef, { status: plan.status }, { merge: true });
+            tx.set(logRef, {
+                uid: uid,
+                action: data.action,
+                adminUid: context.auth.uid,
+                convId: convId,
+                flagId: flagId,
+                source: 'borderline',
+                at: ts,
+            });
+        });
+        return { ok: true, action: data.action, flagId: flagId };
+    }
+
     return {
         onBuddyDmSafety: onBuddyDmSafety,
         onBuddyReport: onBuddyReport,
         adminResolveLock: adminResolveLock,
+        adminResolveBorderline: adminResolveBorderline,
     };
 }
 
@@ -1351,6 +1559,10 @@ module.exports = {
     accountLocked: accountLocked,
     alreadyLockedFor: alreadyLockedFor,
     planAdminResolve: planAdminResolve,
+    planBorderlineMail: planBorderlineMail,
+    planBorderlineResolve: planBorderlineResolve,
+    BORDERLINE_LABEL: BORDERLINE_LABEL,
+    BORDERLINE_ACTIONS: BORDERLINE_ACTIONS,
     isBuddyUserReport: isBuddyUserReport,
     planUserReportLock: planUserReportLock,
     planReportQuota: planReportQuota,

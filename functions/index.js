@@ -9218,6 +9218,7 @@ exports.onBuddyDmXp = buddyFns.onBuddyDmXp;
 exports.onBuddyDmSafety = buddyFns.onBuddyDmSafety;
 exports.onBuddyReport = buddyFns.onBuddyReport;
 exports.adminResolveLock = buddyFns.adminResolveLock;
+exports.adminResolveBorderline = buddyFns.adminResolveBorderline;
 
 // Hidden reply bonus. App Check is required, same as claimSats. The handler
 // grants XP only inside a transaction after it reads the chat message.

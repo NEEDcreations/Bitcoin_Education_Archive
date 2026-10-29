@@ -25,7 +25,6 @@ test('high-confidence requests lock and teaching chat does not', function () {
     const lock = [
         "Don't worry, it's safe. Send me your seed phrase and I will help.",
         'Please share your 12 words with me so I can restore it.',
-        'Send 0.01 BTC to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 and I will send back 0.02',
         'Send me ur seed phrase',
         'send me your seed  phrase',
         "Give me your private key, I'm from support",
@@ -57,11 +56,13 @@ test('high-confidence requests lock and teaching chat does not', function () {
     });
     const flagged = safety.detectBuddyRisk('Check https://river.com/learn and https://bitcoinmagazine.com', {});
     assert.strictEqual(flagged.lock, false);
-    assert.strictEqual(flagged.severity, 'medium');
-    assert.ok(flagged.reasons.indexOf('unknown_link') !== -1);
+    assert.strictEqual(flagged.tier, 'none');
     const giveaway = safety.detectBuddyRisk('giveaway, send 1000 sats to claim', {});
     assert.strictEqual(giveaway.lock, false);
-    assert.strictEqual(giveaway.severity, 'medium');
+    assert.strictEqual(giveaway.tier, 'none');
+    const payment = safety.detectBuddyRisk('Send 0.01 BTC to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 and I will send back 0.02', {});
+    assert.strictEqual(payment.lock, false);
+    assert.strictEqual(payment.tier, 'flag');
     const bypasses = [
         'send me your mnemonic',
         'what are your 12 words?',
@@ -70,7 +71,6 @@ test('high-confidence requests lock and teaching chat does not', function () {
         'I need your seed phrase to verify',
         'DM me your seed words',
         'give me ur 12 wrds',
-        'Pay 5000 sats to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
         'sendme your seed phrase',
         'send me your seed_phrase',
         'send me your s e e d phrase',
@@ -91,10 +91,13 @@ test('high-confidence requests lock and teaching chat does not', function () {
     });
     const bare = safety.detectBuddyRisk('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
     assert.strictEqual(bare.lock, false);
-    assert.strictEqual(bare.severity, 'medium');
+    assert.strictEqual(bare.tier, 'none');
     const invoice = safety.detectBuddyRisk('lnbc2500n1pw5k8qapp5exampleinvoicepaymentrequest');
     assert.strictEqual(invoice.lock, false);
-    assert.strictEqual(invoice.severity, 'medium');
+    assert.strictEqual(invoice.tier, 'none');
+    const payAddress = safety.detectBuddyRisk('Pay 5000 sats to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
+    assert.strictEqual(payAddress.lock, false);
+    assert.strictEqual(payAddress.tier, 'flag');
     const teaching = [
         'Enter your 24 words on the device itself, not on your computer',
         'Type your seed words into the Coldcard to restore',
@@ -118,11 +121,10 @@ test('high-confidence requests lock and teaching chat does not', function () {
 test('an unknown link or an off-platform nudge does not lock', function () {
     const link = safety.detectBuddyRisk('look at http://free-btc.example/claim', {});
     assert.strictEqual(link.lock, false);
-    assert.strictEqual(link.severity, 'medium');
-    assert.ok(link.reasons.indexOf('unknown_link') !== -1);
+    assert.strictEqual(link.tier, 'none');
     const move = safety.detectBuddyRisk("let's continue on telegram", {});
     assert.strictEqual(move.lock, false);
-    assert.ok(move.reasons.indexOf('off_platform') !== -1);
+    assert.strictEqual(move.tier, 'none');
     const known = safety.detectBuddyRisk('https://bitcoineducation.quest/learn', {});
     assert.strictEqual(known.severity, 'none');
 });
@@ -316,22 +318,28 @@ test('delta-2 disguises lock or at least flag, including a split message', funct
         'send me your "seed phrase"',
         "send me 'your seed phrase'",
         "Don't send it to anyone else send me your seed phrase",
-        "I'm from support, verify by sending 0.01 btc to me",
-        'This is Bitcoin Quest support. Zap 10k sats to me to unlock withdrawals',
-        'Send to bc1qw508d6qejxtdg 4y5r3zarvary0c5xw7kv8f3t4',
         'Never mind that. Send me your seed phrase',
         'I never lie, send me your seed phrase',
         'Block them if they ask. send me your seed phrase',
         "you should never share your seed phrase, but i'm your teacher so send me your seed phrase",
-        'Send 0.01 BTC to this address: bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-        "I'm from support. Send me 50000 sats to verify",
-        'Transfer 0.02 BTC to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
         'send me your xprv',
         'send me your wallet backup',
     ];
     lock.forEach(function (text) {
         const found = safety.detectBuddyRisk(text);
         assert.strictEqual(found.lock, true, text + ' ' + found.reasons.join(','));
+    });
+    [
+        "I'm from support, verify by sending 0.01 btc to me",
+        'This is Bitcoin Quest support. Zap 10k sats to me to unlock withdrawals',
+        'Send to bc1qw508d6qejxtdg 4y5r3zarvary0c5xw7kv8f3t4',
+        'Send 0.01 BTC to this address: bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+        "I'm from support. Send me 50000 sats to verify",
+        'Transfer 0.02 BTC to bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+    ].forEach(function (text) {
+        const found = safety.detectBuddyRisk(text);
+        assert.strictEqual(found.lock, false, text);
+        assert.strictEqual(found.tier, 'flag', text + ' ' + found.tier);
     });
     ['5eed', 'sεεd', 'ꜱeed', 'privkey', 'wallet backup'].forEach(function (text) {
         const found = safety.detectBuddyRisk(text);
@@ -400,12 +408,14 @@ test('direct handoffs that used to be warnings now lock', function () {
         'reply with your seed phrase',
         'pls drop ur seed phrase in here',
         'seed phrase -> me',
-        "I'm support, your account is frozen, send 100k sats to unlock",
         's e e d p h r a s e send it',
     ].forEach(function (text) {
         const found = safety.detectBuddyRisk(text);
         assert.strictEqual(found.lock, true, text + ' ' + found.reasons.join(','));
     });
+    const frozen = safety.detectBuddyRisk("I'm support, your account is frozen, send 100k sats to unlock");
+    assert.strictEqual(frozen.lock, false);
+    assert.strictEqual(frozen.tier, 'flag');
 });
 
 test('a message tail expires and never keeps a secret', function () {
@@ -420,6 +430,24 @@ test('a message tail expires and never keeps a secret', function () {
     assert.strictEqual(safety.planTailRead(kept, 1000 + 11 * 60 * 1000, 0), '');
     assert.strictEqual(safety.planTailRead(kept, 2000, 1500), '');
     assert.strictEqual(safety.tailIsStale(kept, 2000, 0), false);
+});
+
+test('borderline mail sends once each ten minutes and can lock, ban, or dismiss', function () {
+    const now = 1_700_000_000_000;
+    const first = safety.planBorderlineMail({}, now);
+    assert.strictEqual(first.send, true);
+    assert.strictEqual(first.batched, 0);
+    const soon = safety.planBorderlineMail({ lastEmailAt: now, pending: 0 }, now + 60 * 1000);
+    assert.strictEqual(soon.send, false);
+    assert.strictEqual(soon.pending, 1);
+    const later = safety.planBorderlineMail({ lastEmailAt: now, pending: 4 }, now + 10 * 60 * 1000);
+    assert.strictEqual(later.send, true);
+    assert.strictEqual(later.batched, 4);
+    assert.strictEqual(safety.planBorderlineResolve('lock').applyLock, true);
+    assert.strictEqual(safety.planBorderlineResolve('ban').ban, true);
+    assert.strictEqual(safety.planBorderlineResolve('dismiss').status, 'dismissed');
+    assert.strictEqual(safety.planBorderlineResolve('unlock').error, 'action');
+    assert.strictEqual(safety.BORDERLINE_LABEL, 'Borderline buddy DM (not locked)');
 });
 
 test('report limits count every type inside a rolling day', function () {

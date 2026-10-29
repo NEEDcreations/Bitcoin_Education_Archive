@@ -1237,6 +1237,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /buddy_borderline/{flagId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if false;
+    }
+
+    match /buddy_borderline_mail/{uid} {
+      allow read, write: if false;
+    }
+
     // =============================================
     // IRL EVENTS
     // =============================================

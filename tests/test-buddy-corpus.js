@@ -7,7 +7,7 @@ const corpus = require('./buddy-risk-corpus');
 
 let passed = 0;
 let failed = 0;
-const counts = { lock: 0, open: 0, pairLock: 0, pairOpen: 0 };
+const counts = { lock: 0, flag: 0, none: 0, pairLock: 0, pairOpen: 0 };
 
 function check(name, fn) {
     try {
@@ -28,11 +28,21 @@ corpus.lock.forEach(function (text) {
     });
 });
 
-corpus.open.forEach(function (text) {
-    check('open: ' + text, function () {
+corpus.flag.forEach(function (text) {
+    check('flag: ' + text, function () {
         const found = safety.detectBuddyRisk(text);
-        assert.strictEqual(found.lock, false, found.severity + ' ' + found.reasons.join(','));
-        counts.open++;
+        assert.strictEqual(found.lock, false, found.tier + ' ' + found.reasons.join(','));
+        assert.strictEqual(found.tier, 'flag', found.severity + ' ' + found.reasons.join(','));
+        counts.flag++;
+    });
+});
+
+corpus.none.forEach(function (text) {
+    check('none: ' + text, function () {
+        const found = safety.detectBuddyRisk(text);
+        assert.strictEqual(found.lock, false, found.tier);
+        assert.strictEqual(found.tier, 'none', found.severity + ' ' + found.reasons.join(','));
+        counts.none++;
     });
 });
 
@@ -70,6 +80,6 @@ corpus.pairs.forEach(function (row) {
     });
 });
 
-console.log('corpus lock ' + counts.lock + ', no-lock ' + counts.open + ', pair lock ' + counts.pairLock + ', pair no-lock ' + counts.pairOpen);
+console.log('corpus lock ' + counts.lock + ', flag ' + counts.flag + ', none ' + counts.none + ', pair lock ' + counts.pairLock + ', pair no-lock ' + counts.pairOpen);
 console.log(passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
