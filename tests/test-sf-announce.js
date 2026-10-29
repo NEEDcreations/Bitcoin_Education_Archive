@@ -410,11 +410,13 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latest = 'Latest: Global Chat now gives a heads-up when Satoshi\'s Favor is about to end.';
+    const latest = 'Latest: Referral badges line up with the meetup tiers, and only friends who reached Maxi count.';
     assert.ok(notes.includes(latest));
     assert.ok(!/\d/.test(latest));
     assert.strictEqual(latest.indexOf('@'), -1);
     assert.strictEqual(latest.toLowerCase().indexOf('threshold'), -1);
+    assert.ok(notes.includes('Global Chat now gives a heads-up when Satoshi\'s Favor is about to end.'));
+    assert.ok(!notes.includes('Latest: Global Chat'));
     assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
     assert.ok(!notes.includes('Latest: Tap Nacho'));
     assert.ok(notes.includes('Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.'));

@@ -9,6 +9,10 @@ SOURCES="channel_index.js utils.js raid-hp.js badges.catalog.js badge-search.js 
 # Extracted from bundle (lazy-loaded separately): nacho-qa.js (524KB), scholar.js (298KB), beats.js (174KB), irl-sync.js (31KB)
 # PVP is lazy-loaded — not included in bundle, served as separate file
 
+# Browser copy of the invite-tier module. The source lives in functions/
+# so a Cloud Functions deploy, which uploads only that directory, can load it.
+cp functions/referral-tiers.js referral-tiers.js
+
 echo "📦 Building bundle from source files..."
 cat $SOURCES > bundle.src.js
 

@@ -151,17 +151,20 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             visibleBadges: adminSdk.firestore.FieldValue.arrayUnion(badgeId),
         };
         if (!rule.cosmetic && rule.xp > 0) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
+        const tickets = Number(rule.tickets) || 0;
         if (xp > 0) {
             update.points = adminSdk.firestore.FieldValue.increment(xp);
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
             update.monthlyXP = adminSdk.firestore.FieldValue.increment(xp);
         }
+        if (tickets > 0) update.orangeTickets = adminSdk.firestore.FieldValue.increment(tickets);
         const awardDoc = {
             awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
             dropped: xpGrant.dropped,
+            tickets: tickets,
             day: day,
             source: options.source || 'awardBadge',
             favorPoint: false,
