@@ -4,7 +4,7 @@
 // decides whether the key's server-written sender is paid that same prize.
 // It does not read the client request. A key the user earned has no sender.
 
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { createdMs, samePerson } = require('./badgeProgress');
 const { assessCipherClaim } = require('./cipherClaim');
 
@@ -190,9 +190,17 @@ function planCipherShare(input) {
         credit.sats = prize.satsAmount;
         credit.satsStatus = prize.satsAmount >= SATS_PENDING_MIN ? 'pending' : 'claimable';
     } else {
-        const tapered = planDailyXp(src.senderDailyXpUsed, prize.xpAmount);
+        const tapered = planXpGrant({
+            base: prize.xpAmount,
+            user: src.sender,
+            now: src.nowMs,
+            dailyUsed: src.senderDailyXpUsed,
+        });
         credit.xp = tapered.awarded;
         credit.dailyXp = tapered.dailyXp;
+        credit.base = tapered.base;
+        credit.boosted = tapered.boosted;
+        credit.doubled = tapered.doubled === true;
         credit.tickets = prize.ticketCount;
     }
     const name = String(src.openerUsername || 'a Bitcoiner').replace(/[\r\n<>]/g, ' ').trim().slice(0, 40) || 'a Bitcoiner';

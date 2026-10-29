@@ -11,7 +11,7 @@
 
 const crypto = require('crypto');
 const banks = require('../reward-banks.json');
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 
 // Previous published bank. build-reward-banks.js writes this when the
 // client banks change, with validUntil 72 hours later. Grading uses it
@@ -337,12 +337,15 @@ function gradeTrivia(input) {
         return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected, optionIndex: optionIndex };
     }
     const pts = correct ? TRIVIA_CORRECT_XP : 0;
-    const split = planDailyXp(src.dailyUsed || 0, pts);
+    const split = planXpGrant({ base: pts, user: src.user, now: src.now, dailyUsed: src.dailyUsed || 0 });
     return {
         ok: true,
         correct: correct,
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
+        base: split.base,
+        boosted: split.boosted,
+        doubled: split.doubled === true,
+        overflowAdded: 0,
         capped: split.capped,
         pts: pts,
         reason: correct ? '' : 'incorrect',
@@ -486,10 +489,14 @@ function settleQuizReward(input) {
     // when this call will not write the completion doc.
     const already = src.alreadyPerfect === true;
     const pts = already ? 0 : (graded.pts || 0);
-    const split = planDailyXp(src.dailyUsed || 0, pts);
+    const split = planXpGrant({ base: pts, user: src.user, now: src.now, dailyUsed: src.dailyUsed || 0 });
     return {
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
+        base: split.base,
+        boosted: split.boosted,
+        doubled: split.doubled === true,
+        dailyXp: split.dailyXp,
+        overflowAdded: 0,
         capped: split.capped,
         pts: pts,
         score: score,

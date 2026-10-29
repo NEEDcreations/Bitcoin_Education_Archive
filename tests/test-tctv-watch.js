@@ -317,7 +317,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     const logic = read('functions/src/tctvWatch.js');
     assert.ok(logic.includes("onceKey: 'tctv_watch_' + cleanDay"));
     assert.ok(logic.includes('rewardNotify.plan'));
-    assert.ok(logic.includes('planDailyXp'));
+    assert.ok(logic.includes('planXpGrant'));
     assert.ok(logic.includes('offsetDateKey'));
     assert.ok(src.includes('runTransaction'));
     assert.ok(src.includes('orangeTickets'));
@@ -419,7 +419,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2423'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2426'"));
+    assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2407'));
@@ -883,6 +884,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     const latest = 'Latest: Onboarding can ask if you want a Bitcoin Buddy. Choose Learn or Teach, or Not now. A buddy can also be found while you are away, and you can leave the pool or find a new one.';
+    const doubleXpNote = 'Double XP now applies to every way you earn XP.';
     assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
     assert.ok(!notes.includes('Latest: Referral badges'));
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
@@ -892,6 +894,8 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const missingXp = 'Missing XP has been awarded to affected users.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
+    assert.ok(notes.includes(doubleXpNote));
+    assert.ok(!notes.includes('Latest: ' + doubleXpNote));
     assert.ok(notes.includes('Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.'));
     assert.ok(!notes.includes('Latest: Nacho can summarize'));
     assert.ok(notes.includes(raidHp));

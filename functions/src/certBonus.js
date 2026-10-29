@@ -23,6 +23,7 @@
 
 const { rewardBlocked } = require('./cipherClaim');
 const { offsetDateKey } = require('./offsetDay');
+const { planXpGrant } = require('./grantXp');
 
 const CERT_BONUS_XP = 2100;
 const CERT_BONUS_SOURCE = 'cert_bonus';
@@ -81,10 +82,33 @@ function planCertBonus(opts) {
     return {
         pay: true,
         amount: CERT_BONUS_XP,
+        base: CERT_BONUS_XP,
+        boosted: CERT_BONUS_XP,
+        doubled: false,
         reason: 'cert_bonus',
         source: CERT_BONUS_SOURCE,
         capExempt: true,
     };
+}
+
+// Doubles the 2,100 once while the window is open. The bonus stays outside
+// the daily taper. A backfill of an older shortfall does not call this.
+function applyXpWindow(plan, user, nowMs) {
+    if (!plan || plan.pay !== true) return plan;
+    const grant = planXpGrant({
+        base: plan.amount,
+        user: user,
+        now: nowMs,
+        capExempt: true,
+    });
+    return Object.assign({}, plan, {
+        amount: grant.awarded,
+        base: grant.base,
+        boosted: grant.boosted,
+        doubled: grant.doubled === true,
+        until: grant.until || 0,
+        capExempt: true,
+    });
 }
 
 function bonusUserFields(adminSdk, plan) {
@@ -109,7 +133,8 @@ function markerData(adminSdk, uid, type, amount, nowMs, priorCredit) {
     return data;
 }
 
-function ledgerData(uid, type, amount, day, nowMs, priorCredit) {
+function ledgerData(uid, type, amount, day, nowMs, priorCredit, windowFields) {
+    const win = windowFields || {};
     const data = {
         source: CERT_BONUS_SOURCE,
         amount: amount,
@@ -120,6 +145,9 @@ function ledgerData(uid, type, amount, day, nowMs, priorCredit) {
         day: day || '',
         createdAtMs: nowMs,
         countedTowardDailyCap: false,
+        base: win.base != null ? win.base : amount,
+        boosted: win.boosted != null ? win.boosted : amount,
+        doubled: win.doubled === true,
     };
     if (priorCredit != null && Number.isFinite(Number(priorCredit))) data.priorCredit = Number(priorCredit);
     return data;
@@ -131,13 +159,17 @@ function writeMarkers(tx, adminSdk, fields, plan, nowMs) {
     const amount = Number(plan.amount);
     const prior = plan.priorCredit;
     tx.set(fields.markerRef, markerData(adminSdk, fields.uid, fields.type, amount, when, prior));
-    tx.set(fields.ledgerRef, ledgerData(fields.uid, fields.type, amount, fields.day, when, prior));
+    tx.set(fields.ledgerRef, ledgerData(fields.uid, fields.type, amount, fields.day, when, prior, {
+        base: plan.base,
+        boosted: plan.boosted,
+        doubled: plan.doubled === true,
+    }));
 }
 
 function cleanAward(value) {
     if (value == null || value === '') return { present: false };
     const n = Number(value);
-    if (!Number.isFinite(n) || n < 0 || n > CERT_BONUS_XP || Math.round(n) !== n) return { present: true, bad: true };
+    if (!Number.isFinite(n) || n < 0 || n > CERT_BONUS_XP * 2 || Math.round(n) !== n) return { present: true, bad: true };
     return { present: true, amount: n };
 }
 
@@ -439,6 +471,7 @@ module.exports = {
     alreadyPaid: alreadyPaid,
     eligiblePass: eligiblePass,
     planCertBonus: planCertBonus,
+    applyXpWindow: applyXpWindow,
     gradeNoticeId: gradeNoticeId,
     resolvePriorCredit: resolvePriorCredit,
     planBackfillRow: planBackfillRow,

@@ -73,7 +73,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
-    <link rel="preload" href="bundle.min.js?v=20261029_v2423" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261029_v2426" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
@@ -418,6 +418,20 @@
         .pred-lb-info:hover, .pred-lb-info:focus-visible { border-color: var(--accent); color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
         .pred-lb-tip { background: #0f172a; color: #e2e8f0; border: 1px solid rgba(247,147,26,0.5); border-radius: 10px; padding: 10px 12px; font-size: 0.75rem; line-height: 1.45; text-align: left; box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
         .pred-lb-tip[hidden] { display: none !important; }
+        .streak-board { margin-top: 24px; padding: 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; }
+        .streak-board h4 { margin: 0; color: var(--heading); font-size: 1rem; }
+        .streak-lb-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .streak-lb-loading, .streak-lb-empty { text-align: center; color: var(--text-faint); font-size: 0.8rem; padding: 8px 0; }
+        .streak-lb-note { margin: 0 0 8px; font-size: 0.72rem; line-height: 1.35; color: var(--text-muted); }
+        .streak-lb-tabs { display: flex; gap: 4px; padding: 0 0 10px; }
+        #leaderboard.minimized .streak-board { display: none; }
+        @media (max-width: 360px) {
+            .streak-board { padding: 12px; margin-top: 16px; }
+            .streak-board .lb-row { gap: 6px; padding: 8px 4px; }
+            .streak-board .lb-name { font-size: 0.8rem; }
+            .streak-board .lb-score { font-size: 0.75rem; }
+            .streak-board .lb-rank { min-width: 22px; font-size: 0.8rem; }
+        }
         @media (max-width: 600px) {
             .btc-pred-overlay { padding: 12px !important; }
             .btc-pred-card { padding: 18px 14px !important; }
@@ -2164,10 +2178,11 @@
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
-    <script src="ranking.js?v=20261028_v2412" defer></script>
+    <script src="referral-tiers.js?v=20261028_v2418" defer></script>
+    <script src="ranking.js?v=20261028_v2424" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261029_v2423" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261029_v2426" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="features.registry.js?v=20261028_v2408" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>

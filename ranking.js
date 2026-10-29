@@ -4604,7 +4604,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
-                _showPointsToast(awarded, reason);
+                _showPointsToast(awarded, reason, result.data.doubled === true);
             }
             if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
                 window._serverDailyXp = {
@@ -4641,7 +4641,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 }
 
 // Helper: smart toast throttling for point awards
-function _showPointsToast(pts, reason) {
+function _showPointsToast(pts, reason, doubled) {
     var _show = false;
     if (pts >= 25) {
         _show = true;
@@ -4651,7 +4651,8 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' XP - ' + reason, 2500);
+        var mark = doubled === true ? ' 2x' : '';
+        showToast('+' + pts + ' XP' + mark + ' - ' + reason, 2500);
     }
 }
 
@@ -4753,11 +4754,6 @@ async function onChannelOpen(channelId) {
         sessionChannels.add(channelId);
 
         let ptsAwarded = POINTS.openChannel;
-        // Apply daily 2X boost
-        if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
-            ptsAwarded *= 2;
-            setTimeout(() => { showToast('⚡ 2X XP! Daily boost applied! +' + ptsAwarded + ' XP'); }, 2000);
-        }
 
         // Update local tracking
         if (currentUser._isLocal) {
@@ -6106,6 +6102,9 @@ async function toggleLeaderboard() {
             html += '<div class="lb-levels"><h4>Your Badges</h4>' + getBadgeHTML() + '</div>';
         }
 
+        // Daily Streaks — directly above Top Predictors. One cached stats doc.
+        html += '<div id="streakBoard" class="streak-board"><div class="streak-lb-loading">Loading Daily Streaks...</div></div>';
+
         // Top Predictors — above PVP. One stats doc holds all three periods.
         html += '<div id="predictorBoard" style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
             '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading Top Predictors...</div></div>';
@@ -6129,6 +6128,7 @@ async function toggleLeaderboard() {
         lb.innerHTML = html;
 
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
+        _loadStreakLeaderboard();
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
     } catch(e) {
@@ -6377,6 +6377,101 @@ async function _loadPredictorLeaderboard() {
         }
     }
     _renderPredictorBoard();
+}
+
+// Daily Streaks — All-Time / Current, same tab chrome as Top Predictors.
+// The list is the server doc stats/streak_leaderboard. No per-user reads.
+function _streakAttr(value) {
+    return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+}
+
+function _streakOpenProfile(el) {
+    if (!el || typeof db === 'undefined' || !db) return;
+    var name = el.getAttribute('data-streak-name') || '';
+    if (!name || name === 'Anon') return;
+    db.collection('public_profiles').where('username_lower', '==', name.toLowerCase()).limit(1).get().then(function(snap) {
+        if (!snap || snap.empty || typeof showUserProfile !== 'function') return;
+        showUserProfile(snap.docs[0].id);
+    }).catch(function() {});
+}
+window._streakOpenProfile = _streakOpenProfile;
+
+function _renderStreakBoard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var period = window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+    var data = (window._streakLbCache && window._streakLbCache.data) || {};
+    var rows = data[period] || [];
+    var tabs = [['alltime', 'All-Time'], ['current', 'Current']];
+    var note = period === 'current'
+        ? 'Still going. Older than the daily window drops off.'
+        : 'Longest daily streak each player has reached.';
+    var html = '<div class="streak-lb-head"><h4>🔥 Daily Streaks</h4></div>';
+    html += '<p class="streak-lb-note">' + note + '</p>';
+    html += '<div class="streak-lb-tabs">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_streakLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div><div id="streakLeaderboardList">';
+    if (!rows.length) {
+        html += '<div class="streak-lb-empty">' + (period === 'current' ? 'No streaks still going.' : 'No streaks yet.') + '</div>';
+    } else {
+        var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var rawName = entry.username || '';
+            var blank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawName)
+                : (!String(rawName).trim() || /^(anon|anonymous)$/i.test(String(rawName).trim()));
+            var shown = blank ? 'Anon' : rawName;
+            var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
+            var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row streak-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            var open = blank ? '' : ' onclick="_streakOpenProfile(this)"';
+            html += '<div' + hidden + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
+                '<span class="lb-name">' + name + '</span>' +
+                '<span class="lb-score">🔥 ' + (Number(entry.streak) || 0) + '</span>' +
+            '</div>';
+        });
+        if (rows.length > 10) {
+            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.streak-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' streaks ▼</button>';
+        }
+    }
+    html += '</div>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+}
+
+function _streakLbSwitchPeriod(period) {
+    window._streakLbPeriod = period === 'current' ? 'current' : 'alltime';
+    _renderStreakBoard();
+}
+window._streakLbSwitchPeriod = _streakLbSwitchPeriod;
+
+async function _loadStreakLeaderboard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var now = Date.now();
+    var fresh = window._streakLbCache && window._streakLbCacheTime && (now - window._streakLbCacheTime < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined') {
+                window._streakLbCache = { data: {} };
+            } else {
+                var doc = await db.collection('stats').doc('streak_leaderboard').get();
+                window._streakLbCache = { data: doc.exists ? (doc.data() || {}) : {} };
+            }
+            window._streakLbCacheTime = now;
+        } catch (e) {
+            window._streakLbCache = window._streakLbCache || { data: {} };
+            window._streakLbCacheTime = now;
+        }
+    }
+    _renderStreakBoard();
 }
 
 // PVP Leaderboard - loaded after main leaderboard renders, sorted by win %

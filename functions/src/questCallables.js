@@ -97,6 +97,7 @@ const answerTrivia = onCall(async (data, context) => {
             now: now,
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
+            user: user,
         });
         const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
         const pointsBefore = user.points || 0;
@@ -184,6 +185,7 @@ const answerTrivia = onCall(async (data, context) => {
             success: true,
             correct: graded.correct === true,
             awarded: graded.awarded || 0,
+            doubled: graded.doubled === true,
             capped: graded.capped === true,
             banned: banned,
             alreadyClaimed: false,
@@ -257,6 +259,8 @@ const gradeQuest = onCall(async (data, context) => {
             alreadyPerfect: !!(completionDoc && completionDoc.exists)
                 || reward.legacyPartRecorded(user.completedQuests, graded.topicKey, graded.questIndex),
             questsToday: questsToday,
+            user: user,
+            now: now,
         }) : { awarded: 0, reason: graded.reason || 'need-text-answers' };
         const awarded = settled.awarded || 0;
         const pointsBefore = user.points || 0;
@@ -354,6 +358,7 @@ const gradeQuest = onCall(async (data, context) => {
             score: settled.score,
             pts: settled.pts,
             awarded: settled.awarded,
+            doubled: settled.doubled === true,
             capped: settled.capped === true,
             banned: banned === true,
             reason: settled.reason || '',

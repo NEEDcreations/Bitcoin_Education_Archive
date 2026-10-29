@@ -361,7 +361,7 @@
         R({ id: 'double-xp', title: 'Double XP charge', group: 'Shop & items', term: 'double xp', priority: 70,
             kw: 'double xp 2x multiplier charge',
             desc: 'A Double XP charge starts when you buy it and lasts 60 minutes.',
-            how: 'Buying another charge while one is running adds another hour, and it doubles daily activity XP only.',
+            how: 'Buying another charge while one is running adds another hour, and it doubles every way you earn XP.',
             follow: 'Want to see your XP and the daily cap on the Sats page?',
             hash: 'app/double-xp', aliases: ['double-xp'], kind: 'quest', arg: 'nook' }),
         R({ id: 'hint-token', title: 'Hint tokens', group: 'Shop & items', term: 'hint token', priority: 70,
