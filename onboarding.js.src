@@ -656,13 +656,19 @@
         {
             kicker: 'People',
             title: 'Talk, post, trade',
-            body: 'Global Chat is live. PlebTalk is the forum. LightningMart is the marketplace. A buddy is optional.',
+            body: 'Global Chat is live. PlebTalk is the forum. LightningMart is the marketplace. A Bitcoin Buddy is optional. The next step asks if you want one.',
             items: [
                 { label: 'Global Chat', tryId: 'chat' },
                 { label: 'PlebTalk', tryId: 'forum' },
                 { label: 'Marketplace', tryId: 'market' },
                 { label: 'Find a buddy', tryId: 'buddy' }
             ]
+        },
+        {
+            kicker: 'Optional',
+            title: 'Want a Bitcoin Buddy?',
+            body: 'Get matched with another Bitcoiner. Learn finds a mentor. Teach helps someone. You can skip this, and nothing is stored if you choose Not now.',
+            buddy: true
         },
         {
             kicker: 'Play and earn',
@@ -797,6 +803,58 @@
                 });
                 card.appendChild(b);
             });
+        }
+        if (data.buddy) {
+            var pickedLevel = 'beginner';
+            var levelRow = document.createElement('div');
+            levelRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;';
+            [['beginner', 'Beginner'], ['intermediate', 'Intermediate'], ['advanced', 'Advanced']].forEach(function (item) {
+                var levelBtn = document.createElement('button');
+                levelBtn.type = 'button';
+                levelBtn.setAttribute('data-buddy-level', item[0]);
+                levelBtn.textContent = item[1];
+                levelBtn.style.cssText = 'flex:1 1 30%;min-height:44px;padding:8px;border-radius:10px;border:2px solid ' + (item[0] === 'beginner' ? 'var(--accent,#f97316)' : 'var(--border)') + ';background:var(--bg);color:var(--heading);font-size:13px;font-family:inherit;cursor:pointer;';
+                levelBtn.addEventListener('click', function () {
+                    pickedLevel = item[0];
+                    levelRow.querySelectorAll('button').forEach(function (el) { el.style.borderColor = 'var(--border)'; });
+                    levelBtn.style.borderColor = 'var(--accent,#f97316)';
+                });
+                levelRow.appendChild(levelBtn);
+            });
+            card.appendChild(levelRow);
+            var note = document.createElement('p');
+            note.setAttribute('data-buddy-note', '1');
+            note.textContent = '';
+            note.style.cssText = 'min-height:18px;margin:0 0 8px;font-size:13px;color:var(--text-muted);';
+            function chooseBuddy(goal) {
+                var planLevel = pickedLevel || 'beginner';
+                if (goal === 'later') {
+                    try { localStorage.removeItem('btc_buddy_pending'); } catch (e) {}
+                    if (typeof window._submitBuddyFromOnboarding === 'function') window._submitBuddyFromOnboarding(planLevel, 'later');
+                    note.textContent = 'Skipped. You can find a buddy later.';
+                    return;
+                }
+                var pending = { level: planLevel, goal: goal };
+                try { localStorage.setItem('btc_buddy_pending', JSON.stringify(pending)); } catch (e) {}
+                if (typeof window._submitBuddyFromOnboarding === 'function') window._submitBuddyFromOnboarding(planLevel, goal);
+                note.textContent = 'Saved. You can keep going.';
+            }
+            [['learn', '📖 Learn', 'Find a mentor'], ['teach', '🎓 Teach', 'Help someone'], ['later', 'Not now', 'Skip this']].forEach(function (item) {
+                var choiceBtn = document.createElement('button');
+                choiceBtn.type = 'button';
+                choiceBtn.setAttribute('data-buddy-choice', item[0]);
+                choiceBtn.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;min-height:44px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--heading);font-family:inherit;font-size:16px;cursor:pointer;';
+                var strong = document.createElement('strong');
+                strong.textContent = item[1];
+                var small = document.createElement('div');
+                small.textContent = item[2];
+                small.style.cssText = 'color:var(--text-muted);font-size:13px;font-weight:500;margin-top:2px;';
+                choiceBtn.appendChild(strong);
+                choiceBtn.appendChild(small);
+                choiceBtn.addEventListener('click', function () { chooseBuddy(item[0]); });
+                card.appendChild(choiceBtn);
+            });
+            card.appendChild(note);
         }
         var next = document.createElement('button');
         next.type = 'button';

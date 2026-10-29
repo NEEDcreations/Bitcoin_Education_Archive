@@ -513,6 +513,17 @@ function applyAward(mem, uid, data, opts) {
             orangeTickets: orangeTickets,
         };
     }
+    if (user.lock && user.lock.state === 'locked') {
+        return {
+            success: true,
+            awarded: 0,
+            tickets: 0,
+            locked: true,
+            overflowAdded: 0,
+            pendingOverflow: pendingOverflow,
+            orangeTickets: orangeTickets,
+        };
+    }
     if (user.ban_reason) {
         return {
             success: true,

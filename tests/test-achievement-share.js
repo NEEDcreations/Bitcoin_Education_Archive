@@ -16,7 +16,7 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.";
+const LATEST = "Latest: Onboarding can ask if you want a Bitcoin Buddy. Choose Learn or Teach, or Not now. A buddy can also be found while you are away, and you can leave the pool or find a new one.";
 const DOUBLE_XP_NOTE = "Double XP now applies to every way you earn XP.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
 const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
@@ -390,7 +390,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('achievement-share.js?v=20261026_v2391'));
     assert.ok(html.includes('timechain-tv.js?v=20261026_v2383'));
-    assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
+    assert.ok(html.includes('features.registry.js?v=20261028_v2408'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));
@@ -403,7 +403,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2424'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2426'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2422'));
     assert.ok(!read('sw.js').includes('btc-archive-v2391'));
     assert.ok(!read('sw.js').includes('btc-archive-v2386'));

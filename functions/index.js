@@ -1571,6 +1571,9 @@ exports.claimSats = functionsV1.runWith({
         ledgerPreSnap.exists ? ledgerPreSnap.data() : {}
     );
     if (!preBan.ok) return { success: false, error: preBan.error };
+    if (userPreSnap.exists && userPreSnap.data().lock && userPreSnap.data().lock.state === 'locked') {
+        return { success: false, error: 'Your account is under review.' };
+    }
 
     const accountTombstone = require('./src/accountTombstone');
     if (!accountTombstone.secretReady()) {
@@ -2664,6 +2667,9 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
         const ud = userDoc.data();
         const td = targetDoc.data();
 
+        if (ud.lock && ud.lock.state === 'locked') {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Your account is under review.');
+        }
         if ((ud.peers || []).includes(targetUid)) {
             throw new functionsV1.https.HttpsError('already-exists', 'Already peers');
         }
@@ -3303,6 +3309,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
             const ledger = ledgerDoc && ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+            if (userData.lock && userData.lock.state === 'locked') {
+                throw new Error('LOCKED');
+            }
             if (userData.ban_reason || userData.banned === true || userData.satsDisabled === true || ledger.banned === true) {
                 throw new Error('BANNED');
             }
@@ -3533,6 +3542,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     } catch (e) {
         if (e.message === 'TOO_FAST') {
             return { success: false, error: 'Too fast - wait a moment', cooldown: true, awarded: 0, tickets: 0 };
+        }
+        if (e.message === 'LOCKED') {
+            return { success: true, awarded: 0, tickets: 0, locked: true };
         }
         if (e.message === 'BANNED') {
             return { success: true, awarded: 0, tickets: 0, banned: true };
@@ -6438,6 +6450,7 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
                 flagged: false,
                 flag_reason: admin.firestore.FieldValue.delete(),
                 ban_reason: admin.firestore.FieldValue.delete(),
+                dmBlocked: admin.firestore.FieldValue.delete(),
                 _pendingClaim: admin.firestore.FieldValue.delete(),
                 _pendingClaimAt: admin.firestore.FieldValue.delete(),
             });
@@ -9230,6 +9243,27 @@ const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
+
+// Find a Bitcoin Buddy. App Check is required. Matching, the welcome, the
+// notifications, and the 20 XP are server-only. Deploy:
+// requestBuddyMatch, leaveBuddyPool, endBuddy, sweepStaleBuddies, onBuddyDmXp
+// and firestore:rules.
+const { bindBuddy } = require('./src/buddyMatch');
+const buddyFns = bindBuddy(functionsV1, admin, db, {
+    onSchedule: onSchedule,
+    onDocumentCreated: onDocumentCreated,
+});
+exports.requestBuddyMatch = buddyFns.requestBuddyMatch;
+exports.leaveBuddyPool = buddyFns.leaveBuddyPool;
+exports.endBuddy = buddyFns.endBuddy;
+exports.findNewBuddy = buddyFns.findNewBuddy;
+exports.sweepStaleBuddies = buddyFns.sweepStaleBuddies;
+exports.matchBuddyPool = buddyFns.matchBuddyPool;
+exports.onBuddyDmXp = buddyFns.onBuddyDmXp;
+exports.onBuddyDmSafety = buddyFns.onBuddyDmSafety;
+exports.onBuddyReport = buddyFns.onBuddyReport;
+exports.adminResolveLock = buddyFns.adminResolveLock;
+exports.adminResolveBorderline = buddyFns.adminResolveBorderline;
 
 // Hidden reply bonus. App Check is required, same as claimSats. The handler
 // grants XP only inside a transaction after it reads the chat message.

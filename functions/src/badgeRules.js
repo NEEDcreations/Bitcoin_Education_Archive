@@ -376,7 +376,8 @@ function sourceFor(id) {
     if (id.indexOf('poll_') === 0) return counter('pollDays', numFromId(id));
     if (id === 'chat_first') return counter('chatCount', 1);
     if (id.indexOf('chat_') === 0) return counter('chatCount', numFromId(id));
-    if (id === 'dm_first' || id === 'dm_buddy') return counter('dmCount', id === 'dm_buddy' ? 5 : 1);
+    if (id === 'dm_buddy') return counter('buddyMatchCount', 1);
+    if (id === 'dm_first') return counter('dmCount', 1);
     if (id.indexOf('dm_') === 0) return counter('dmCount', numFromId(id));
     if (id === 'forum_first') return counter('forumPosts', 1);
     if (id === 'forum_reply_1') return counter('forumReplies', 1);

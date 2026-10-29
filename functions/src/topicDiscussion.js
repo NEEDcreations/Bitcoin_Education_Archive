@@ -230,6 +230,7 @@ function buildAnnouncement(input) {
 function moderationBlock(user, ledger, nowMs) {
     const u = user || {};
     const l = ledger || {};
+    if (u.lock && u.lock.state === 'locked') return 'banned';
     if (u.banned === true || u.withdrawals_disabled === true || u.satsDisabled === true) return 'banned';
     if (l.banned === true) return 'banned';
     if (u.muted === true || u.chatMuted === true) return 'muted';

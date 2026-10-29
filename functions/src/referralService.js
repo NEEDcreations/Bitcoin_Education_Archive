@@ -103,7 +103,8 @@ async function linkedAccount(uid, user, ip, nowMs) {
             const otherLedger = await db().collection('faucet_ledger').doc(lockOwner).get();
             lockOwnerBanned = (other.exists && other.data().satsDisabled === true)
                 || (otherLedger.exists && otherLedger.data().banned === true)
-                || (other.exists && other.data().banned === true);
+                || (other.exists && other.data().banned === true)
+                || (other.exists && other.data().lock && other.data().lock.state === 'locked');
         }
         const addr = faucetGuard.assessAddressLock({
             callerUid: uid,

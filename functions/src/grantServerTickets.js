@@ -40,6 +40,7 @@ async function grantServerTickets(uid, action, opts) {
             if (!userDoc.exists) return { tickets: 0 };
             const user = userDoc.data() || {};
             if (user.ban_reason) return { tickets: 0 };
+            if (user.lock && user.lock.state === 'locked') return { tickets: 0 };
 
             const countData = countDoc && countDoc.exists ? countDoc.data() : {};
             const used = countData.count || 0;

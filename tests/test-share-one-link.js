@@ -300,9 +300,9 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.');
-    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
-    assert.ok(!notes.includes('Latest: Double XP'));
+    const latestAt = notes.indexOf('Latest: Onboarding can ask if you want a Bitcoin Buddy. Choose Learn or Teach, or Not now. A buddy can also be found while you are away, and you can leave the pool or find a new one.');
+    assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(!notes.includes('Latest: Referral badges'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

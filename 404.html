@@ -73,7 +73,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
-    <link rel="preload" href="bundle.min.js?v=20261028_v2417" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261029_v2426" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
@@ -868,6 +868,11 @@
         .today-check-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 2px 8px; }
         .today-check-head h2 { margin: 0; font-size: 1rem; font-weight: 900; color: #fff; }
         #todayDoneCount { font-size: 0.78rem; font-weight: 800; color: #f7931a; }
+        #homeBuddyTile { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; width:100%; max-width:500px; margin:0 auto 12px; min-height:44px; padding:12px 14px; box-sizing:border-box; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; color:var(--text); font-family:inherit; text-align:left; cursor:pointer; touch-action:manipulation; white-space:normal; }
+        #homeBuddyTile .home-buddy-title { display:block; font-size:14px; font-weight:800; color:var(--text); line-height:1.3; }
+        #homeBuddyTile .home-buddy-sub { display:block; font-size:12px; font-weight:600; color:var(--text-muted); line-height:1.3; }
+        #homeAppsMenu #homeAppsBuddy { min-height:44px; }
+        #homeAppsMenu #homeAppsBuddy .app-title, #homeAppsMenu #homeAppsBuddy .app-desc { font-size:12px; line-height:1.35; }
         #em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
         #em-quick-actions .today-tile,
         #todayTrifectaChooser button,
@@ -1775,6 +1780,7 @@
                         </div>
                     </div>
                 </section>
+                <button type="button" id="homeBuddyTile" onclick="if(typeof showBuddyFinder==='function')showBuddyFinder();else{window._pendingBuddy=true;if(window._loadDeferred)window._loadDeferred();}"><span class="home-buddy-title">🤝 Find a Bitcoin Buddy</span><span class="home-buddy-sub">Match with a learner or a teacher</span></button>
                 <button type="button" id="todayInviteGuest" onclick="if(window.inviteGuestSignup)window.inviteGuestSignup()">Sign up to get your invite link</button>
                 <section id="homeLearnCard" aria-label="Continue learning">
                     <div class="home-learn-kicker" id="homeLearnKicker">LEARN · CONTINUE</div>
@@ -1807,6 +1813,7 @@
                                 <button onclick="go('forum')" data-tier="explorer" data-unlock-name="🗣️ Pleb Talk" class="apps-grid-btn"><span class="app-title">🗣️ Pleb Talk</span><span class="app-desc">Community forum — discuss Bitcoin topics with fellow stackers</span></button>
                                 <button onclick="go('marketplace')" data-tier="full" data-unlock-name="⚡ Lightning Mart" class="apps-grid-btn"><span class="app-title">⚡ Lightning Mart</span><span class="app-desc">Peer-to-peer marketplace — buy &amp; sell goods for sats</span></button>
                                 <button onclick="go('irl-sync')" data-tier="community" data-unlock-name="🤝 IRL Sync" class="apps-grid-btn"><span class="app-title">🤝 IRL Sync</span><span class="app-desc">Find or host local Bitcoin meetups near you</span></button>
+                                <button type="button" id="homeAppsBuddy" class="apps-grid-btn" onclick="if(typeof showBuddyFinder==='function')showBuddyFinder();else{window._pendingBuddy=true;if(window._loadDeferred)window._loadDeferred();}"><span class="app-title">🤝 Find a Bitcoin Buddy</span><span class="app-desc">Match with a learner or a teacher</span></button>
                                 <button onclick="go('bitcoin-beats')" class="apps-grid-btn"><span class="app-title">🎵 Bitcoin Beats</span><span class="app-desc">Community music player — Bitcoin-themed tracks &amp; beats</span></button>
                                 <button onclick="go('timechain-tv')" class="apps-grid-btn"><span class="app-title">📺 Timechain TV</span><span class="app-desc">21 channels of Bitcoin video — free-to-air, always on</span></button>
                                 <button onclick="showProofOfWalk()" class="apps-grid-btn"><span class="app-title">👟 Proof of Walk</span><span class="app-desc">Earn XP for real-world steps — connect Strava to stack sats</span></button>
@@ -2175,15 +2182,15 @@
     <script src="ranking.js?v=20261028_v2424" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261028_v2417" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261029_v2426" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
-    <script src="features.registry.js?v=20261024_v2368" defer></script>
+    <script src="features.registry.js?v=20261028_v2408" defer></script>
     <script src="tctv-watch.js?v=20261023_v2340" defer></script>
     <script src="today-card.js?v=20261026_v2371" defer></script>
     <script src="achievement-share.js?v=20261026_v2391" defer></script>
     <script src="pvp-lobby-alert.js?v=20261026_v2391" defer></script>
     <script src="patches.js?v=20261026_v2385" defer></script>
-    <script src="onboarding.js?v=20261026_v2373" defer></script>
+    <script src="onboarding.js?v=20261028_v2412" defer></script>
     <script src="learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2200,14 +2207,14 @@
         var _lazyScripts = [
             'quests.js?v=20261028_v2415',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261026_v2391','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261027_v2395',
+            'pvp.js?v=20261026_v2391','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261028_v2408',
             'scholar.js?v=20261026_v2386','beats.js?v=20261026_v2391',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
+            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261028_v2412b',
             'timechain-tv.js?v=20261026_v2383',
             'learning-quests.js?v=20261026_v2377',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'

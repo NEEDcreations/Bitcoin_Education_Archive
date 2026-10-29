@@ -125,7 +125,7 @@ function indexId(uid, certType) {
 function rewardBlocked(userData, ledger) {
     const user = userData || {};
     const row = ledger || {};
-    return !!(user.ban_reason) || user.banned === true || user.satsDisabled === true || row.banned === true;
+    return !!(user.lock && user.lock.state === 'locked') || !!(user.ban_reason) || user.banned === true || user.satsDisabled === true || row.banned === true;
 }
 
 function buildRecord(opts) {

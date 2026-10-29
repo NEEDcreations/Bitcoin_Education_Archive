@@ -52,6 +52,7 @@ function senderOldEnough(user, nowMs) {
 function blockReason(user, ledger) {
     const u = user || {};
     const l = ledger || {};
+    if (u.lock && u.lock.state === 'locked') return 'locked';
     if (u.banned === true || u.ban_reason || l.banned === true) return 'banned';
     if (u.satsDisabled === true) return 'sats-disabled';
     return '';

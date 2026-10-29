@@ -21,6 +21,7 @@ const BLOCKING_FLAGS = {
     'self': 'rejected',
     'sats-disabled': 'rejected',
     'banned': 'rejected',
+    'locked': 'rejected',
     'ledger-banned': 'rejected',
     'same-fingerprint': 'flagged',
     'same-ip': 'flagged',
@@ -91,6 +92,7 @@ function fraudFlags(referred, referrer, signupIp) {
     }
     if (referred.satsDisabled === true || referrer.satsDisabled === true) flags.push('sats-disabled');
     if (referred.banned === true || referrer.banned === true) flags.push('banned');
+    if ((referred.lock && referred.lock.state === 'locked') || (referrer.lock && referrer.lock.state === 'locked')) flags.push('locked');
     if (referred.ledgerBanned === true || referrer.ledgerBanned === true) flags.push('ledger-banned');
     const fpA = String(referred.fingerprint || '').trim();
     const fpB = String(referrer.fingerprint || '').trim();

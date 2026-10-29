@@ -178,7 +178,7 @@ function applyWatchHeartbeat(prev, nowMs) {
         };
     }
 
-    if (src.banned === true) {
+    if (src.banned === true || (src.lock && src.lock.state === 'locked') || src.locked === true) {
         return {
             ok: false,
             reason: 'banned',
