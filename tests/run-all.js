@@ -25,6 +25,7 @@ const TESTS = [
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
+    { name: 'Nacho Radio shuffle', file: 'test-nacho-radio.js' },
     { name: 'Marketplace Client', file: 'test-marketplace.js' },
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
     { name: 'Article publish XP', file: 'test-article-publish-xp.js' },
