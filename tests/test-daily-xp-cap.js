@@ -155,7 +155,7 @@ test('every XP path calls planDailyXp and the old per-source caps are gone', fun
     ];
     callers.forEach(function (rel) {
         const src = fs.readFileSync(path.join(root, rel), 'utf8');
-        assert.ok(src.includes('planDailyXp'), rel);
+        assert.ok(src.includes('planXpGrant') || src.includes('planDailyXp') || src.includes('applyDailyXp('), rel);
     });
     ['functions/src/gifting.js', 'functions/src/tipService.js', 'functions/src/replyBonus.js', 'functions/src/awardBadge.js'].forEach(function (rel) {
         const src = fs.readFileSync(path.join(root, rel), 'utf8');

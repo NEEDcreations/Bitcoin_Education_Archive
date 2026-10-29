@@ -105,7 +105,7 @@ const SETS = {
     set_trader: ['market_listed_1', 'market_listed_5', 'market_message', 'market_sold_1', 'first_purchase'],
     set_codebreaker: ['cipher_1', 'cipher_10', 'cipher_50', 'cipher_peer_key_1', 'cipher_full_ring', 'cipher_sats_1'],
     set_generous: ['gift_sent_1', 'gift_sent_10', 'tip_first', 'donor_1000', 'gift_open_1', 'gift_sent_200', 'key_peers_5'],
-    set_network: ['peer_1', 'peer_3', 'peer_10', 'referral_1', 'referral_5', 'key_peers_5', 'key_peers_21', 'peer_level_2', 'peer_level_3', 'peer_level_5', 'peer_hub_5'],
+    set_network: ['peer_1', 'peer_3', 'peer_10', 'referral_1', 'referral_10', 'key_peers_5', 'key_peers_21', 'peer_level_2', 'peer_level_3', 'peer_level_5', 'peer_hub_5'],
     set_gladiator: ['pvp_first', 'pvp_25', 'pvp_win_streak_5', 'pvp_played_50'],
     set_scholar_daily: ['trivia_correct_30', 'quest_days_30', 'poll_days_30'],
     set_newcomer: ['onboarding_complete', 'push_enabled', 'profile_complete', 'first_channel'],
@@ -360,7 +360,11 @@ function sourceFor(id) {
     if (id === 'market_message') return counter('marketMessages', 1);
     if (id.indexOf('market_sold_') === 0) return counter('marketSold', numFromId(id));
     if (id.indexOf('peer_') === 0) return counter('peerCount', numFromId(id));
-    if (id.indexOf('referral_') === 0) return counter('referralCount', numFromId(id));
+    if (id.indexOf('referral_') === 0) {
+        const referralTier = require('../referral-tiers').badgeById(id);
+        if (!referralTier) return null;
+        return counter('referralMaxiCount', referralTier.min);
+    }
     if (id === 'referred') return { type: 'truthy', field: 'referredBy' };
     if (id.indexOf('daily_triple_') === 0) return counter('trifectaDays', numFromId(id));
     if (id.indexOf('sf_trifecta_') === 0) return counter('trifectaDays', numFromId(id));
@@ -457,15 +461,17 @@ function ruleFor(id) {
     const cosmetic = isCosmeticId(id);
     const source = cosmetic ? { type: 'cosmetic' } : sourceFor(id);
     const pays = !cosmetic && !!source;
-    const xp = pays ? fairXp(id, row.xp, false) : 0;
+    const referralTier = require('../referral-tiers').badgeById(id);
+    const xp = referralTier ? referralTier.xp : (pays ? fairXp(id, row.xp, false) : 0);
     return {
         id: id,
-        name: NAME_OVERRIDE[id] || row.name || id,
-        emoji: row.emoji || '🏅',
+        name: referralTier ? referralTier.name : (NAME_OVERRIDE[id] || row.name || id),
+        emoji: referralTier ? referralTier.emoji : (row.emoji || '🏅'),
         desc: row.desc || '',
         category: row.category || '',
         hidden: row.hidden === true,
         xp: xp,
+        tickets: referralTier ? referralTier.tickets : 0,
         displayXp: badgeXp.has(id) ? badgeXp.xpOf(id) : (Number(row.displayXp != null ? row.displayXp : row.xp) || 0),
         cosmetic: !pays,
         source: source,

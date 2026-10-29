@@ -193,6 +193,8 @@ const DEFERRED_QUERIES = [
     ['scholar_exam_keys', 'uid', '==', []],
     ['shoutout_claims', 'authorUid', '==', []],
     ['raid_deck_completions', 'uid', '==', []],
+    ['raid_damage_events', 'uid', '==', []],
+    ['raid_forum_pending', 'uid', '==', []],
     ['reply_bonus_pairs', 'replierUid', '==', []],
     ['reply_bonus_pairs', 'targetUid', '==', []],
     ['reply_bonus_claims', 'uid', '==', []],

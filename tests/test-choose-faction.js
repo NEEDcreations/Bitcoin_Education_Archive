@@ -377,9 +377,11 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: Added a Resets &amp; Timelines link on the home page.") > 0);
-    assert.ok(notes.indexOf("A shared certificate link shows up right away. If the check takes too long, you can retry or open Bitcoin Quest.") > 0);
-    assert.ok(notes.indexOf("Latest: A shared certificate link") === -1);
+    assert.ok(notes.indexOf("Latest: Fixed leaderboards and your saved profile taking too long to load.") > 0);
+    assert.ok(notes.indexOf("Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.") > 0);
+    assert.ok(notes.indexOf("Latest: Daily Streaks") === -1);
+    assert.ok(notes.indexOf("Double XP now applies to every way you earn XP.") > 0);
+    assert.ok(notes.indexOf("Latest: Double XP") === -1);
     assert.ok(notes.indexOf("The raid boss shows HP remaining, the same remaining over max HP as the raid screen.") > 0);
     assert.ok(notes.indexOf("Latest: The raid boss") === -1);
     assert.ok(notes.indexOf("Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.") > 0);

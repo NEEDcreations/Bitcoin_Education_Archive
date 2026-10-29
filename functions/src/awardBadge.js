@@ -144,24 +144,30 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const totalsSnap = await t.get(totalsRef);
 
         const catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
-        const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef });
+        const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef, user: user, now: nowMs });
         const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
 
         const update = {
             visibleBadges: adminSdk.firestore.FieldValue.arrayUnion(badgeId),
         };
         if (!rule.cosmetic && rule.xp > 0) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
+        const tickets = Number(rule.tickets) || 0;
         if (xp > 0) {
             update.points = adminSdk.firestore.FieldValue.increment(xp);
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
             update.monthlyXP = adminSdk.firestore.FieldValue.increment(xp);
         }
+        if (tickets > 0) update.orangeTickets = adminSdk.firestore.FieldValue.increment(tickets);
         const awardDoc = {
             awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
+            base: xpGrant.base,
+            boosted: xpGrant.boosted,
+            doubled: xpGrant.doubled === true,
             dropped: xpGrant.dropped,
+            tickets: tickets,
             day: day,
             source: options.source || 'awardBadge',
             favorPoint: false,
@@ -249,6 +255,10 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             success: true,
             xp: xp,
             awarded: xp,
+            base: xpGrant.base,
+            boosted: xpGrant.boosted,
+            doubled: xpGrant.doubled === true,
+            until: xpGrant.until || 0,
             overflowAdded: 0,
             dropped: xpGrant.dropped,
             capped: xpGrant.capped,

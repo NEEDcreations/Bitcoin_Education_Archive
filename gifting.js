@@ -144,9 +144,9 @@ function _rewardLabel(rw) {
     if (!rw) return 'Reward';
     if (rw.shoutoutConverted) return rw.conversionMessage || SHOUTOUT_WEEK_MSG;
     if (rw.rewardType === 'tickets') return '+' + (rw.ticketCount || 1) + ' Orange Ticket' + ((rw.ticketCount || 1) > 1 ? 's' : '');
-    if (rw.rewardType === 'xp_bonus') return '+' + (rw.xpAmount || 50) + ' XP';
+    if (rw.rewardType === 'xp_bonus') return '+' + (rw.xpAmount || 50) + ' XP' + (rw.doubled === true ? ' 2x' : '');
     if (rw.rewardType === 'xp_tickets') {
-        var bits = ['+' + (rw.xpAmount || 50) + ' XP'];
+        var bits = ['+' + (rw.xpAmount || 50) + ' XP' + (rw.doubled === true ? ' 2x' : '')];
         if ((rw.ticketCount || 0) > 0) bits.push('+' + rw.ticketCount + ' ticket' + (rw.ticketCount > 1 ? 's' : ''));
         return bits.join(' and ');
     }

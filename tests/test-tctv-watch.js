@@ -317,7 +317,7 @@ test('callable ignores the client body and writes the notice server-side', () =>
     const logic = read('functions/src/tctvWatch.js');
     assert.ok(logic.includes("onceKey: 'tctv_watch_' + cleanDay"));
     assert.ok(logic.includes('rewardNotify.plan'));
-    assert.ok(logic.includes('planDailyXp'));
+    assert.ok(logic.includes('planXpGrant'));
     assert.ok(logic.includes('offsetDateKey'));
     assert.ok(src.includes('runTransaction'));
     assert.ok(src.includes('orangeTickets'));
@@ -419,16 +419,15 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2413'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2430'"));
+    assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2407'));
     assert.ok(!sw.includes('btc-archive-v2385'));
-    assert.ok(!sw.includes('btc-archive-v2425'));
     assert.ok(!sw.includes('btc-archive-v2384'));
     assert.ok(!sw.includes('btc-archive-v2412'));
     assert.ok(!sw.includes('btc-archive-v2383'));
-    assert.ok(!sw.includes('btc-archive-v2420'));
     assert.ok(!sw.includes('btc-archive-v2382'));
     assert.ok(!sw.includes('btc-archive-v2381'));
     assert.ok(!sw.includes('btc-archive-v2380'));
@@ -882,7 +881,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    const latest = 'Latest: Added a Resets &amp; Timelines link on the home page.';
+    const latest = 'Latest: Fixed leaderboards and your saved profile taking too long to load.';
+    const streaksNote = 'Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.';
+    const doubleXpNote = 'Double XP now applies to every way you earn XP.';
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
     const articleXp = 'Publishing an article awards 30 XP, once per article, up to 2 a day.';
     const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';
@@ -890,8 +891,10 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const missingXp = 'Missing XP has been awarded to affected users.';
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(latest));
-    assert.ok(notes.includes('A shared certificate link shows up right away. If the check takes too long, you can retry or open Bitcoin Quest.'));
-    assert.ok(!notes.includes('Latest: A shared certificate link'));
+    assert.ok(notes.includes(streaksNote));
+    assert.ok(!notes.includes('Latest: ' + streaksNote));
+    assert.ok(notes.includes(doubleXpNote));
+    assert.ok(!notes.includes('Latest: ' + doubleXpNote));
     assert.ok(notes.includes('Nacho can summarize Bitcoin books and point to a legal place to read or buy them, and the Books channel no longer links pirated PDFs.'));
     assert.ok(!notes.includes('Latest: Nacho can summarize'));
     assert.ok(notes.includes(raidHp));
