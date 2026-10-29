@@ -8789,8 +8789,10 @@ exports.recountCountryStats = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC
     });
 
 // ── Badge Distribution Cache Refresh ─────────────────────────────────────────
-// Scans all users' badge_awards subcollections and caches counts to
-// stats/badge_distribution. Runs nightly, also callable via HTTP.
+// Rebuilds stats/badge_distribution from public badge holdings. The nightly
+// job is Cloud Scheduler only (no public invoker). The HTTP trigger is the
+// manual path: requireAdmin runs before any read, so an open function URL
+// cannot start the scan. Logs are counts only.
 
 async function _refreshBadgeDistribution() {
     return refreshBadgeDistribution(db, admin);
@@ -8803,13 +8805,16 @@ exports.refreshBadgeDistribution = onScheduleV2({
     timeoutSeconds: 540,
 }, async () => { await _refreshBadgeDistribution(); });
 
-exports.refreshBadgeDistributionHttp = functionsV1.https.onRequest(async (req, res) => {
+exports.refreshBadgeDistributionHttp = functionsV1.runWith({
+    timeoutSeconds: 540,
+    memory: '512MB',
+}).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const result = await _refreshBadgeDistribution();
         res.json({ ok: true, ...result });
     } catch (e) {
-        console.error('[BADGE DIST HTTP]', e);
+        console.error('[BADGE DIST HTTP] refresh failed');
         res.status(500).json({ error: 'Internal server error' });
     }
 });

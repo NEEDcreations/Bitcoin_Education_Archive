@@ -28,6 +28,7 @@ const TESTS = [
     { name: 'Article publish XP', file: 'test-article-publish-xp.js' },
     { name: 'Earn XP guide', file: 'test-earn-xp-guide.js' },
     { name: 'Badge engine', file: 'test-badge-engine.js' },
+    { name: 'Badge distribution', file: 'test-badge-distribution.js' },
     { name: 'SF live announce', file: 'test-sf-announce.js' },
     { name: 'GGs badge tooltips', file: 'test-gg-badge-tags.js' },
     { name: 'New badge sources', file: 'test-new-badges.js' },
