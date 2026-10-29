@@ -5,6 +5,7 @@
 // Tickets are never granted here. Every action shares the 500 / 900 / 1,000 taper.
 
 const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
+const { planXpGrant, baseFromAllowlist } = require('./grantXp');
 
 const ALLOWED_ACTION_KEYS = {
     flex_action: true,
@@ -546,8 +547,16 @@ function applyAward(mem, uid, data, opts) {
         };
     }
 
-    const grant = planGrant({
-        xp: xp,
+    const nowMs = opts && opts.now != null ? opts.now : Date.now();
+    let windowUser = opts && opts.user;
+    if (!windowUser && opts && opts.doubleXpActive) {
+        windowUser = { doubleXpUntil: nowMs + 60 * 60 * 1000 };
+    }
+    const base = baseFromAllowlist(xp, data && data.pts, resolved.requiresDoubleXp);
+    const grant = planXpGrant({
+        base: base,
+        user: windowUser,
+        now: nowMs,
         dailyUsed: daily.total || 0,
     });
 
@@ -584,6 +593,9 @@ function applyAward(mem, uid, data, opts) {
         id: resolved.id,
         orangeTickets: user.orangeTickets || 0,
         banned: false,
+        doubled: grant.doubled === true,
+        base: grant.base,
+        boosted: grant.boosted,
     };
 }
 

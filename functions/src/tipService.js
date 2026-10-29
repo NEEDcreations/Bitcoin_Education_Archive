@@ -10,10 +10,10 @@ const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 const bolt11 = require('bolt11');
 const tipConfirm = require('./tipConfirm');
-const doubleXp = require('./doubleXp');
 const referrals = require('./referrals');
 const { assertPublicHost } = require('./publicHost');
 const { applyDailyXp } = require('./applyDailyXp');
+const { ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
 const { paymentHashFromDecoded, rewardBlocked } = require('./cipherClaim');
 const tipBadge = require('./tipBadge');
 
@@ -339,11 +339,12 @@ async function confirmTipSent(data, context) {
             };
             return;
         }
-        const boost = doubleXp.boostPoints(call.awardXp, user, now);
         const senderLedger = senderLedgerDoc && senderLedgerDoc.exists ? (senderLedgerDoc.data() || {}) : {};
-        const split = await applyDailyXp(uid, rewardBlocked(user, senderLedger) ? 0 : boost.points, t, {
+        const split = await applyDailyXp(uid, rewardBlocked(user, senderLedger) ? 0 : call.awardXp, t, {
             day: capDay,
             userRef: userRef,
+            user: user,
+            now: now,
         });
         const userUpdate = { tipConfirmedDate: today };
         if (call.challengeCompleted) userUpdate.tipChallengeDate = today;
@@ -355,6 +356,11 @@ async function confirmTipSent(data, context) {
                 total: split.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
+            t.set(ledgerRefFor(userRef, 'tip_' + today), xpLedgerData(split, {
+                source: 'tip',
+                day: capDay,
+                uid: uid,
+            }));
         }
         let tipsCounted = false;
         let countedSats = 0;
@@ -407,11 +413,13 @@ async function confirmTipSent(data, context) {
             verifyReason: verification.reason || 'confirmation',
             paymentHash: verification.paymentHash || '',
             awarded: split.awarded,
-            doubled: !!boost.doubled,
+            doubled: split.doubled === true,
+            base: split.base || 0,
+            boosted: split.boosted || 0,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         const note = userRef.collection('notifications').doc();
-        const xpText = split.awarded > 0 ? (' +' + split.awarded + ' XP' + (boost.doubled ? ' (2×)' : '') + '.') : '.';
+        const xpText = split.awarded > 0 ? (' +' + split.awarded + ' XP' + (split.doubled ? ' 2x' : '') + '.') : '.';
         const body = call.challengeCompleted
             ? ('Tipping challenge complete' + xpText)
             : ('Tip recorded' + (verification.verified ? ' and verified' : '') + xpText);
@@ -436,7 +444,9 @@ async function confirmTipSent(data, context) {
             already: false,
             awarded: split.awarded,
             overflowAdded: split.overflowAdded,
-            doubled: !!boost.doubled,
+            doubled: split.doubled === true,
+            base: split.base || 0,
+            boosted: split.boosted || 0,
             verified: !!verification.verified,
             verifyReason: verification.reason || 'confirmation',
             challengeCompleted: !!call.challengeCompleted,

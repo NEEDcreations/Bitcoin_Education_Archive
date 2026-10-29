@@ -15,7 +15,7 @@ function tctvClaimId(day) {
 const { rewardBlocked } = require('./cipherClaim');
 const DAILY_FIVE_XP = 100;
 const DAILY_FIVE_TICKETS = 1;
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
 const { grantFamily } = require('./grantBadge');
 
 function offsetDateKey(nowMs) {
@@ -107,7 +107,7 @@ async function maybeCompleteDailyFive(opts) {
         const days = Number(user.dailyFiveDays || 0) + 1;
         const streak = prevSnap.exists ? Number(user.dailyFiveStreak || 0) + 1 : 1;
         const dailyUsed = dailySnap.exists ? Number(dailySnap.data().total || 0) : 0;
-        const split = planDailyXp(dailyUsed, DAILY_FIVE_XP);
+        const split = planXpGrant({ base: DAILY_FIVE_XP, user: user, now: Date.now(), dailyUsed: dailyUsed });
         const update = {
             dailyFiveDays: days,
             dailyFiveStreak: streak,
@@ -121,9 +121,14 @@ async function maybeCompleteDailyFive(opts) {
         t.set(markerRef, { day: o.day, at: o.admin.firestore.FieldValue.serverTimestamp() });
         t.update(userRef, update);
         if (split.awarded > 0) {
-            t.set(dailyRef, { total: dailyUsed + split.awarded }, { merge: true });
+            t.set(dailyRef, { total: split.dailyXp }, { merge: true });
+            t.set(ledgerRefFor(userRef, 'daily_five_' + o.day), xpLedgerData(split, {
+                source: 'daily_five',
+                day: o.day,
+                uid: o.uid,
+            }));
         }
-        return { created: true, days: days, streak: streak, awarded: split.awarded };
+        return { created: true, days: days, streak: streak, awarded: split.awarded, doubled: split.doubled === true };
     });
     if (written && written.created) {
         await grantFamily(o.db, o.admin, o.uid, [

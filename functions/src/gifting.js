@@ -17,10 +17,9 @@ const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
 const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
-const { planDailyXp } = require('./dailyXp');
 const { applyDailyXp } = require('./applyDailyXp');
 const rewardNotify = require('./rewardNotify');
-const doubleXp = require('./doubleXp');
+const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
 const {
     assessCipherClaim,
     isSatsBanned,
@@ -349,18 +348,26 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         } else if (reward.rewardType === 'xp_bonus') {
             const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
             let xp = reward.xpAmount || 50;
+            let giftDoubled = false;
             if (rewardBlocked(user, ledger)) xp = 0;
             else {
                 const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
-                xp = planDailyXp(used, xp).awarded;
+                const giftPlan = planXpGrant({ base: xp, user: user, now: Date.now(), dailyUsed: used });
+                xp = giftPlan.awarded;
+                giftDoubled = giftPlan.doubled === true;
                 if (xp > 0) {
                     t.set(dailyRef, {
-                        total: used + xp,
+                        total: giftPlan.dailyXp,
                         lastUpdated: now,
                     }, { merge: true });
+                    t.set(ledgerRefFor(userRef, 'gift_' + giftId), xpLedgerData(giftPlan, {
+                        source: 'open_gift',
+                        day: giftDay,
+                        uid: uid,
+                    }));
                 }
             }
-            reward = Object.assign({}, reward, { xpAmount: xp });
+            reward = Object.assign({}, reward, { xpAmount: xp, doubled: giftDoubled });
             if (xp > 0) {
                 userUpdate.points = admin.firestore.FieldValue.increment(xp);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
@@ -561,8 +568,12 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             sentLabels.push(key.label);
         });
 
-        const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
-        const xpGrant = await applyDailyXp(uid, keyXp, t, { day: todayOffset, userRef: senderRef });
+        const xpGrant = await applyDailyXp(uid, KEY_SEND_XP, t, {
+            day: todayOffset,
+            userRef: senderRef,
+            user: sender,
+            now: Date.now(),
+        });
         xpAwarded = xpGrant.awarded;
 
         const now = admin.firestore.FieldValue.serverTimestamp();
@@ -605,6 +616,11 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 total: xpGrant.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
+            t.set(ledgerRefFor(senderRef, 'keysend_' + recipientUid + '_' + todayOffset), xpLedgerData(xpGrant, {
+                source: 'key_send',
+                day: todayOffset,
+                uid: uid,
+            }));
         }
         t.update(senderRef, senderUpdate);
     });
@@ -730,6 +746,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         let winId = null;
         let satsStatus = null;
         let openerDailyTotal = null;
+        let cipherPlan = null;
         const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
 
         // Decide the opener's prize before any write so the sender reads
@@ -742,8 +759,12 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             if (rewardBlocked(user, ledger)) xp = 0;
             else {
                 const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
-                const tapered = planDailyXp(used, xp);
+                const tapered = planXpGrant({ base: xp, user: user, now: Date.now(), dailyUsed: used });
+                cipherPlan = tapered;
                 xp = tapered.awarded;
+                reward.doubled = tapered.doubled === true;
+                reward.base = tapered.base;
+                reward.boosted = tapered.boosted;
                 if (xp > 0) openerDailyTotal = tapered.dailyXp;
             }
             reward.xpAmount = xp;
@@ -825,6 +846,13 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 total: openerDailyTotal,
                 lastUpdated: now,
             }, { merge: true });
+            if (cipherPlan) {
+                t.set(ledgerRefFor(userRef, 'cipher_' + cipherId), xpLedgerData(cipherPlan, {
+                    source: 'cipher',
+                    day: cipherDay,
+                    uid: uid,
+                }));
+            }
         }
 
         if (sharePlan && sharePlan.pay && senderRef) {

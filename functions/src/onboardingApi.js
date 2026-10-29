@@ -198,6 +198,8 @@ function registerOnboarding(deps) {
                 pendingOverflow: user.pendingOverflow || 0,
                 lastOverflowDate: user.lastOverflowDate || '',
                 today: today,
+                user: user,
+                now: Date.now(),
             });
             grant.today = today;
             const prev = (user.onboardingQuest && user.onboardingQuest.steps) || {};
@@ -220,11 +222,20 @@ function registerOnboarding(deps) {
             }
             tx.update(userRef, update);
             writeDailyPoints(tx, admin, dailyRef, dailyUsed, grant);
+            if (grant.awarded > 0) {
+                const { ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
+                tx.set(ledgerRefFor(userRef, 'onboarding_' + stepId), xpLedgerData(grant, {
+                    source: 'onboarding',
+                    day: today,
+                    uid: uid,
+                }));
+            }
             return {
                 ok: true,
                 already: false,
                 mode: mode,
                 awarded: grant.pointsOut,
+                doubled: grant.doubled === true,
                 tickets: again.tickets,
                 complete: complete,
             };
@@ -239,6 +250,7 @@ function registerOnboarding(deps) {
             already: !!written.already,
             error: written.error || '',
             awarded: written.awarded || 0,
+            doubled: written.doubled === true,
             tickets: written.tickets || 0,
             complete: !!written.complete,
             totalPts: totals.pts,

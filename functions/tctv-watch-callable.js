@@ -114,15 +114,18 @@ const tctvWatchHeartbeat = functionsV1.runWith({
         let xpAwarded = 0;
         let ticketsOut = 0;
         let notice = decision.notice;
+        let xpDoubled = false;
         if (view.awarded) {
             const dailyUsed = dailySnap.exists ? ((dailySnap.data() || {}).total || 0) : 0;
             const xpPlan = watch.planWatchXp(
                 dailyUsed,
                 user.pendingOverflow || 0,
                 user.lastOverflowDate || '',
-                view.day || today
+                view.day || today,
+                { user: user, now: Date.now() }
             );
             xpAwarded = xpPlan.awarded;
+            xpDoubled = xpPlan.doubled === true;
             ticketsOut = (xpPlan.awarded > 0 && !claimSnap.exists) ? watch.REWARD_TICKETS : 0;
             notice = watch.buildWatchNotice(uid, view.day || today, xpPlan.awarded, ticketsOut) || null;
             const userUpdate = {};
@@ -146,9 +149,15 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             }
             if (xpPlan.awarded > 0) {
                 tx.set(dailyRef, {
-                    total: (Number(dailyUsed) || 0) + xpPlan.awarded,
+                    total: xpPlan.dailyXp != null ? xpPlan.dailyXp : ((Number(dailyUsed) || 0) + xpPlan.awarded),
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
+                const { ledgerData: xpLedgerData, ledgerRefFor } = require('./src/grantXp');
+                tx.set(ledgerRefFor(userRef, 'tctv_' + (view.day || today)), xpLedgerData(xpPlan, {
+                    source: 'tctv_watch',
+                    day: view.day || today,
+                    uid: uid,
+                }));
             }
             if (notice && notice.id && notice.data) {
                 rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), [notice]);
@@ -167,6 +176,7 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             showToast: showToast,
             toast: showToast ? ((notice && notice.data && notice.data.message) || watch.TOAST_TEXT) : '',
             xp: view.awarded ? xpAwarded : 0,
+            doubled: xpDoubled,
             tickets: view.awarded ? ticketsOut : 0,
             watchDay: ticketsOut > 0,
         };

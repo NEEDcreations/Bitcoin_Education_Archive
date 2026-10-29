@@ -371,7 +371,7 @@ async function submitScholarQuest() {
     var certTitle = scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar';
     var headline = passed ? 'Congratulations!' : (blocked === 'already_certified' ? 'Already certified' : 'Not quite there yet');
     var rewardText = '';
-    if (passed && pointsAwarded > 0) rewardText = '+' + formatCertXp(pointsAwarded) + ' XP, not limited by the daily cap';
+    if (passed && pointsAwarded > 0) rewardText = '+' + formatCertXp(pointsAwarded) + ' XP' + (data.doubled === true ? ' 2x' : '') + ', not limited by the daily cap';
     var detail = passed
         ? ("You've earned the " + certTitle + ' certification.')
         : (blocked === 'already_certified'

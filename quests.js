@@ -1921,7 +1921,8 @@ async function submitQuest() {
     // XP on screen is only what gradeQuest actually paid.
     var awarded = serverData && typeof serverData.awarded === 'number' ? serverData.awarded : 0;
     var pts = awarded;
-    var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP!' : '';
+    var xpMark = serverData && serverData.doubled === true ? ' 2x' : '';
+    var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP' + xpMark + '!' : '';
 
     let msg = '';
     var isPerfect = score === 5;
@@ -5598,7 +5599,7 @@ window.pollVote = function(chosenIdx) {
                     var awarded = Number(data.awarded) || 0;
                     if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
                     if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
-                    if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP') : '📊 Vote recorded!', 3000);
+                    if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP' + (data.doubled === true ? ' 2x' : '')) : '📊 Vote recorded!', 3000);
                     _markDailyActivity('poll');
                     _checkDailyAllThree();
                     _showPollBody(true);
@@ -6709,7 +6710,11 @@ function _flexClaimDayRewards(data) {
                     try { localStorage.removeItem(flag); } catch (e3) {}
                     return;
                 }
-                if (info && info.success && typeof showToast === 'function') showToast('💪 Full Stack! Flex done today! +50 XP');
+                if (info && info.success && typeof showToast === 'function') {
+                    var paid = Number(info.awarded) || 0;
+                    var mark = info.doubled === true ? ' 2x' : '';
+                    showToast('💪 Full Stack! Flex done today!' + (paid > 0 ? (' +' + paid + ' XP' + mark) : ''));
+                }
             }).catch(function () {
                 try { localStorage.removeItem(flag); } catch (e4) {}
             });

@@ -279,7 +279,7 @@ test('server source no longer keyword-matches or banks overflow', function () {
     assert.ok(body.indexOf('if (awarded > 0 && badgeAwardRef)') === -1);
     assert.ok(body.indexOf('userUpdate.pendingOverflow') === -1);
     assert.ok(body.indexOf('resolveAction') > 0);
-    assert.ok(body.indexOf('planGrant') > 0);
+    assert.ok(body.indexOf('planXpGrant') > 0);
     assert.ok(body.indexOf('ban_reason') > 0);
     assert.ok(body.indexOf("error === 'BANNED'") > 0 || body.indexOf("=== 'BANNED'") > 0);
 

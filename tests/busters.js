@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2417.
+// Cache-buster pin. This ship is btc-archive-v2422.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js stays 20261026_v2383. scholar.js stays 20261026_v2386.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261028_v2417.
@@ -35,10 +35,11 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2417', () => {
+test('service worker cache is v2422', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2417'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2422'"));
     assert.ok(!sw.includes('btc-archive-v2418'));
+    assert.ok(!sw.includes('btc-archive-v2417'));
     assert.ok(!sw.includes('btc-archive-v2416'));
     assert.ok(!sw.includes('btc-archive-v2415'));
     assert.ok(!sw.includes('btc-archive-v2411'));
@@ -419,7 +420,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2417');
+    assert.ok(swVersion && swVersion[1] === 'v2422');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -462,7 +463,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('October 28, 2026 · v2417'));
+    assert.ok(notes.includes('October 28, 2026 · v2422'));
+    assert.ok(!notes.includes('October 28, 2026 · v2417'));
     assert.ok(!notes.includes('October 28, 2026 · v2418'));
     assert.ok(!notes.includes('October 28, 2026 · v2416'));
     assert.ok(!notes.includes('October 28, 2026 · v2415'));
@@ -476,7 +478,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2394'));
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
-    assert.ok(notes.includes('Latest: Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(notes.includes('Latest: Double XP now applies to every way you earn XP.'));
+    assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(!notes.includes('Latest: Referral badges'));
     assert.ok(notes.includes("Global Chat now gives a heads-up when Satoshi's Favor is about to end."));
     assert.ok(!notes.includes("Latest: Global Chat"));
     assert.ok(notes.includes("Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month's boss has a goal the community can actually reach."));

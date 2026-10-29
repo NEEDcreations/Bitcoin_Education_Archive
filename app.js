@@ -1478,7 +1478,7 @@
                 }
             } else if (rewardType === 'points') {
                 var wonPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : rewardAmount;
-                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled ? ' (2×)' : '');
+                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled === true ? ' 2x' : '');
                 if (serverData && serverData.reward && typeof serverData.reward.pts === 'number') {
                     if (typeof currentUser !== 'undefined' && currentUser) {
                         currentUser.points = (currentUser.points || 0) + wonPts;

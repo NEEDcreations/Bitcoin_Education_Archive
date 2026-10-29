@@ -3,10 +3,10 @@
 // Pays 30 XP when an article document becomes published.
 // This file is the only payer. awardActions.js must keep rejecting
 // "📝 Article published", so an allowlist rewrite cannot pay it again.
-// Premium does not multiply this grant. Double XP does not apply.
-// The daily cap and taper still apply, through planDailyXp.
+// Premium does not multiply this grant. The shared XP planner doubles the
+// 30 while a 2× window is open, then the daily taper runs on that amount.
 
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const { moderateText } = require('./moderateText');
 const { rewardBlocked } = require('./cipherClaim');
@@ -247,6 +247,7 @@ function assessQuality(article) {
 }
 
 function markerPayload(fields) {
+    const plan = fields.plan || {};
     return {
         uid: fields.uid,
         awarded: fields.awarded,
@@ -256,6 +257,9 @@ function markerPayload(fields) {
         day: fields.day,
         reason: fields.reason,
         reversed: false,
+        base: plan.base != null ? plan.base : PUBLISH_XP,
+        boosted: plan.boosted != null ? plan.boosted : PUBLISH_XP,
+        doubled: plan.doubled === true,
     };
 }
 
@@ -310,6 +314,7 @@ async function grantArticlePublish(opts) {
         let awarded = 0;
         let dropped = 0;
         let consume = false;
+        let articlePlan = null;
 
         if (!quality.ok) {
             reason = quality.reason;
@@ -320,9 +325,15 @@ async function grantArticlePublish(opts) {
         } else if (count >= DAILY_ARTICLE_LIMIT) {
             reason = 'daily_limit';
         } else {
-            const plan = planDailyXp(dailyUsed, PUBLISH_XP);
+            const plan = planXpGrant({
+                base: PUBLISH_XP,
+                user: user,
+                now: nowMs,
+                dailyUsed: dailyUsed,
+            });
             awarded = plan.awarded;
             dropped = plan.dropped;
+            articlePlan = plan;
             if (awarded > 0) {
                 reason = 'paid';
                 consume = true;
@@ -338,8 +349,14 @@ async function grantArticlePublish(opts) {
             nowMs: nowMs,
             day: day,
             reason: reason,
+            plan: articlePlan,
         }));
         if (awarded > 0) {
+            tx.set(ledgerRefFor(userRef, 'article_' + articleId), xpLedgerData(articlePlan || { base: PUBLISH_XP, boosted: PUBLISH_XP, awarded: awarded }, {
+                source: 'article_publish',
+                day: day,
+                uid: uid,
+            }));
             tx.update(userRef, {
                 points: adminSdk.firestore.FieldValue.increment(awarded),
                 weeklyXP: adminSdk.firestore.FieldValue.increment(awarded),
