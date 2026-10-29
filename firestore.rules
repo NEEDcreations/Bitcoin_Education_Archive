@@ -206,8 +206,11 @@ service cloud.firestore {
                         // Timechain TV daily watch (tctvWatchHeartbeat only)
                         'tctvWatchSeconds', 'tctvWatchDay', 'tctvWatchLastCredit',
                         'tctvWatchAwardedDay', 'tctvWatchToastSeen',
-                        // Streak / activity (CF-managed)
-                        'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
+                        // Streak / activity (CF-managed). lastVisit is set on create
+                        // and after that only by recordDailyVisit, so a client cannot
+                        // keep a lapsed streak looking current.
+                        'streak', 'bestStreak', 'streakReachedAt', 'bestStreakAt', 'lastVisit',
+                        'totalVisits', 'channelsVisited',
                         'readChannels', 'visitedChannelsList',
                         // Claim / withdrawal state
                         'pointsClaimed', 'pointsExchanged',
@@ -484,6 +487,8 @@ service cloud.firestore {
       // resolvePredictions via the Admin SDK. The old client +1 rules are
       // closed so a hostile client cannot inflate community accuracy.
       // No allow matches statId == 'predictions', so client writes are denied.
+      // stats/streak_leaderboard is the same: refreshStreakLeaderboard writes
+      // it with the Admin SDK. No write rule matches that id. Read stays open.
       // Read stays open via `allow read: if true` above.
       // ─── Global community stats ───
       // Authenticated (non-anonymous) users may increment whitelisted counters

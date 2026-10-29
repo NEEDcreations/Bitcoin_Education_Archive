@@ -418,6 +418,20 @@
         .pred-lb-info:hover, .pred-lb-info:focus-visible { border-color: var(--accent); color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
         .pred-lb-tip { background: #0f172a; color: #e2e8f0; border: 1px solid rgba(247,147,26,0.5); border-radius: 10px; padding: 10px 12px; font-size: 0.75rem; line-height: 1.45; text-align: left; box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
         .pred-lb-tip[hidden] { display: none !important; }
+        .streak-board { margin-top: 24px; padding: 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; }
+        .streak-board h4 { margin: 0; color: var(--heading); font-size: 1rem; }
+        .streak-lb-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .streak-lb-loading, .streak-lb-empty { text-align: center; color: var(--text-faint); font-size: 0.8rem; padding: 8px 0; }
+        .streak-lb-note { margin: 0 0 8px; font-size: 0.72rem; line-height: 1.35; color: var(--text-muted); }
+        .streak-lb-tabs { display: flex; gap: 4px; padding: 0 0 10px; }
+        #leaderboard.minimized .streak-board { display: none; }
+        @media (max-width: 360px) {
+            .streak-board { padding: 12px; margin-top: 16px; }
+            .streak-board .lb-row { gap: 6px; padding: 8px 4px; }
+            .streak-board .lb-name { font-size: 0.8rem; }
+            .streak-board .lb-score { font-size: 0.75rem; }
+            .streak-board .lb-rank { min-width: 22px; font-size: 0.8rem; }
+        }
         @media (max-width: 600px) {
             .btc-pred-overlay { padding: 12px !important; }
             .btc-pred-card { padding: 18px 14px !important; }
@@ -2158,7 +2172,7 @@
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="referral-tiers.js?v=20261028_v2418" defer></script>
-    <script src="ranking.js?v=20261028_v2418" defer></script>
+    <script src="ranking.js?v=20261028_v2424" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261028_v2417" defer fetchpriority="high"></script>

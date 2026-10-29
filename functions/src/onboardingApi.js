@@ -7,6 +7,7 @@ const faucetGuard = require('./faucetGuard');
 const rateSalt = require('./rateLimitSalt');
 const { isSatsBanned } = require('./cipherClaim');
 const accountTombstone = require('./accountTombstone');
+const streakBoard = require('./streakBoard');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
@@ -395,17 +396,16 @@ function registerOnboarding(deps) {
                 if (free && names.assessUsername(guestName, { allowReserved: true }).ok) movedName = guestName;
             }
             if (!freshDest.exists) {
-                const created = {
+                const created = Object.assign({
                     points: movedPoints,
                     weeklyXP: movedPoints,
                     monthlyXP: movedPoints,
                     orangeTickets: again.tickets,
                     channelsVisited: again.channelsVisited,
                     totalVisits: 1,
-                    streak: 1,
                     mergedFromGuest: true,
                     created: admin.firestore.FieldValue.serverTimestamp(),
-                };
+                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null));
                 if (movedName) {
                     created.username = movedName;
                     created.username_lower = guestLower;
@@ -593,9 +593,8 @@ function registerOnboarding(deps) {
                     points: 0,
                     channelsVisited: 0,
                     totalVisits: 1,
-                    streak: 1,
                     created: admin.firestore.FieldValue.serverTimestamp(),
-                }, patch));
+                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null), patch));
             } else {
                 tx.update(userRef, patch);
             }
