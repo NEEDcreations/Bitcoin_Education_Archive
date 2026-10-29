@@ -144,7 +144,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const totalsSnap = await t.get(totalsRef);
 
         const catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
-        const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef });
+        const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef, user: user, now: nowMs });
         const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
 
         const update = {
@@ -163,6 +163,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
+            base: xpGrant.base,
+            boosted: xpGrant.boosted,
+            doubled: xpGrant.doubled === true,
             dropped: xpGrant.dropped,
             tickets: tickets,
             day: day,
@@ -252,6 +255,10 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             success: true,
             xp: xp,
             awarded: xp,
+            base: xpGrant.base,
+            boosted: xpGrant.boosted,
+            doubled: xpGrant.doubled === true,
+            until: xpGrant.until || 0,
             overflowAdded: 0,
             dropped: xpGrant.dropped,
             capped: xpGrant.capped,
