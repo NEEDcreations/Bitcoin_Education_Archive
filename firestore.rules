@@ -2486,6 +2486,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Nacho Radio shuffle bag (nacho_radio/queue). The scheduled tick is the
+    // only reader and writer. Clients must not see or edit the upcoming order.
+    match /nacho_radio/{docId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
