@@ -1,8 +1,8 @@
-// Cache-buster pin. This ship is btc-archive-v2420.
+// Cache-buster pin. This ship is btc-archive-v2421.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js stays 20261026_v2383. scholar.js stays 20261026_v2386.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261028_v2415.
-// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261029_v2420.
+// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261029_v2421.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // global-chat.js is 20261029_v2420. gifting.js stays 20261026_v2378. quests.js is 20261028_v2415.
@@ -35,9 +35,9 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2420', () => {
+test('service worker cache is v2421', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2420'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2421'"));
     assert.ok(!sw.includes('btc-archive-v2416'));
     assert.ok(!sw.includes('btc-archive-v2411'));
     assert.ok(!sw.includes('btc-archive-v2410'));
@@ -165,14 +165,16 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('username-repick.js?v=20261024_v2352'));
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
-    assert.ok(html.includes('ranking.js?v=20261029_v2420'));
+    assert.ok(html.includes('ranking.js?v=20261029_v2421'));
+    assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
     assert.ok(html.includes('auth-display.js?v=20261029_v2420'));
-    assert.ok(html.includes('app-check-boot.js?v=20261029_v2420'));
+    assert.ok(html.includes('app-check-boot.js?v=20261029_v2421'));
+    assert.ok(!html.includes('app-check-boot.js?v=20261029_v2420'));
     assert.ok(html.indexOf('firebase-app-check-compat.js') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('app-check-boot.js?v=20261029_v2420'));
-    assert.ok(html.indexOf('app-check-boot.js?v=20261029_v2420') < html.indexOf('auth-boot.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('app-check-boot.js?v=20261029_v2421'));
+    assert.ok(html.indexOf('app-check-boot.js?v=20261029_v2421') < html.indexOf('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('firebase-config.js?v=20261027_v2394'));
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
@@ -186,8 +188,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261029_v2420'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261029_v2420'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261029_v2421'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261029_v2421'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -415,7 +417,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2420');
+    assert.ok(swVersion && swVersion[1] === 'v2421');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -458,7 +460,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('October 29, 2026 · v2420'));
+    assert.ok(notes.includes('October 29, 2026 · v2421'));
     assert.ok(!notes.includes('October 28, 2026 · v2416'));
     assert.ok(!notes.includes('October 28, 2026 · v2411'));
     assert.ok(!notes.includes('October 28, 2026 · v2407'));
@@ -471,6 +473,8 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
     assert.ok(notes.includes('Latest: Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(notes.includes("Global Chat now gives a heads-up when Satoshi's Favor is about to end."));
+    assert.ok(!notes.includes("Latest: Global Chat now gives a heads-up when Satoshi's Favor is about to end."));
     assert.ok(notes.includes("Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month's boss has a goal the community can actually reach."));
     assert.ok(!notes.includes('Latest: Raid bosses'));
     assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));

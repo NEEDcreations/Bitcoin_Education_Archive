@@ -20,6 +20,7 @@ const TESTS = [
     { name: '2FA hold release', file: 'test-totp-hold.js' },
     { name: 'Auth before bundle', file: 'test-auth-before-bundle.js' },
     { name: 'App Check SDK boot', file: 'test-app-check-sdk.js' },
+    { name: 'App Check callable gate', file: 'test-app-check-callables.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },

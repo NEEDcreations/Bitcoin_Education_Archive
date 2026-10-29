@@ -2,21 +2,44 @@
 // ReCaptchaV3Provider. A plain object is wrapped as CustomProvider, so the
 // inner provider never gets an app and getToken throws appCheck/recaptcha-error.
 // Pass the provider instance, then initialize it again after activate().
-// getToken() rejects when a real token is not ready. The SDK then gives
-// Auth and Firestore its own placeholder and backs the refresher off.
-// A blank already-expired token would schedule the next refresh at 0ms.
-// claimSats and the other enforced callables wait on _btcAppCheckForClaim.
-// Enforcement stays a console setting.
+// The first getToken() rejects when no real token exists yet, so Auth and
+// Firestore are not held. A cached token past the SDK refresh point
+// (issued + 50% of its TTL + 5 min, and never later than 5 min before
+// expiry) is not handed back: that makes the refresher ask again immediately.
+// A fresh reCAPTCHA exchange is fetched instead, and it rejects after 10s
+// so the SDK backs off. claimSats and the other enforced callables wait on
+// _btcAppCheckForClaim. If the reCAPTCHA script never loads, later waits
+// fail immediately. Enforcement stays a console setting.
 (function () {
     var SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
     var CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
+    var REFRESH_OFFSET_MS = 300000;
     var inner = null;
     var originalGetToken = null;
     var real = null;
     var pending = null;
 
-    function fresh(tok) {
-        return !!(tok && tok.token && tok.expireTimeMillis > Date.now() + 60000);
+    // Same point the Firebase 9.23.0 refresher uses. At that moment it asks
+    // again, and a repeat of this token schedules the next ask at 0ms.
+    function pastRefreshPoint(tok) {
+        if (!tok || !tok.token) return true;
+        if (!(tok.expireTimeMillis > Date.now())) return true;
+        var issued = tok.issuedAtTimeMillis;
+        if (!(issued > 0) || issued > Date.now()) issued = tok.expireTimeMillis - 60 * 60 * 1000;
+        var refreshAt = issued + 0.5 * (tok.expireTimeMillis - issued) + REFRESH_OFFSET_MS;
+        var latest = tok.expireTimeMillis - REFRESH_OFFSET_MS;
+        if (refreshAt > latest) refreshAt = latest;
+        return Date.now() >= refreshAt;
+    }
+
+    function usable(tok) {
+        return !!(tok && tok.token && !pastRefreshPoint(tok));
+    }
+
+    function noteScriptFailure(err) {
+        if (window._btcRecaptchaFailed) return;
+        var blob = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+        if (blob.indexOf('recaptcha') !== -1) window._btcRecaptchaFailed = true;
     }
 
     function ensureInner() {
@@ -27,38 +50,88 @@
         return inner;
     }
 
-    function startExchange() {
-        if (fresh(real)) return Promise.resolve(real);
-        if (pending) return pending;
+    function remember(tok) {
+        if (tok && tok.token && tok.expireTimeMillis > Date.now()) real = tok;
+        return usable(real) ? real : null;
+    }
+
+    function forceExchange() {
         var provider = ensureInner();
-        if (!provider || typeof originalGetToken !== 'function') return Promise.resolve(null);
-        pending = Promise.resolve().then(function () {
+        if (!provider || typeof originalGetToken !== 'function') {
+            noteScriptFailure({ code: 'appCheck/recaptcha-error' });
+            return Promise.resolve(null);
+        }
+        return Promise.resolve().then(function () {
             return originalGetToken();
         }).then(function (tok) {
-            pending = null;
-            if (tok && tok.token && tok.expireTimeMillis > Date.now()) real = tok;
-            return real;
-        }).catch(function () {
-            pending = null;
+            return remember(tok);
+        }).catch(function (err) {
+            noteScriptFailure(err);
             return null;
+        });
+    }
+
+    function startExchange() {
+        if (usable(real)) return Promise.resolve(real);
+        if (pending) return pending;
+        pending = forceExchange().then(function (tok) {
+            pending = null;
+            return tok;
+        }, function (err) {
+            pending = null;
+            throw err;
         });
         return pending;
     }
 
-    // The SDK calls this. Reject so it does not cache a blank token or spin.
+    function withTimeout(promise, ms) {
+        var timer;
+        var timed = new Promise(function (_, reject) {
+            timer = setTimeout(function () {
+                if (typeof window.grecaptcha === 'undefined') window._btcRecaptchaFailed = true;
+                reject(new Error('app-check-unavailable'));
+            }, ms);
+        });
+        return Promise.race([promise, timed]).then(function (value) {
+            clearTimeout(timer);
+            return value;
+        }, function (err) {
+            clearTimeout(timer);
+            throw err;
+        });
+    }
+
+    // The SDK calls this. A still-fresh token is returned. A token the
+    // refresher would already consider due is exchanged, then rejected if
+    // that exchange does not produce a new one within 10s.
     function nonBlockingGetToken() {
-        if (fresh(real)) return Promise.resolve(real);
+        if (window._btcRecaptchaFailed && !(usable(real))) {
+            return Promise.reject(new Error('app-check-unavailable'));
+        }
+        if (usable(real)) return Promise.resolve(real);
+        if (real && real.token && real.expireTimeMillis > Date.now()) {
+            return withTimeout(forceExchange(), 10000).then(function (tok) {
+                if (usable(tok)) return tok;
+                if (typeof window.grecaptcha === 'undefined') window._btcRecaptchaFailed = true;
+                return Promise.reject(new Error('app-check-unavailable'));
+            }, function () {
+                return Promise.reject(new Error('app-check-unavailable'));
+            });
+        }
         startExchange();
-        if (fresh(real)) return Promise.resolve(real);
         return Promise.reject(new Error('app-check-unavailable'));
     }
 
     window._btcAppCheckForClaim = function (timeoutMs) {
+        if (window._btcRecaptchaFailed) return Promise.resolve('');
+        if (usable(real)) return Promise.resolve(real.token);
         var limit = typeof timeoutMs === 'number' ? timeoutMs : 8000;
-        if (fresh(real)) return Promise.resolve(real.token);
         var timer;
         var timed = new Promise(function (resolve) {
-            timer = setTimeout(function () { resolve(''); }, limit);
+            timer = setTimeout(function () {
+                if (typeof window.grecaptcha === 'undefined') window._btcRecaptchaFailed = true;
+                resolve('');
+            }, limit);
         });
         return Promise.race([
             startExchange().then(function (tok) { return (tok && tok.token) || ''; }),
@@ -76,10 +149,11 @@
             if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(CONFIG);
             var provider = ensureInner();
             if (!provider) return false;
+            // Wrap before activate so the SDK never observes the raw provider.
+            provider.getToken = nonBlockingGetToken;
             // Instance, not a plain object. Compat initialize() runs only then.
             firebase.appCheck().activate(provider, true);
             try { provider.initialize(firebase.app()); } catch (e) {}
-            provider.getToken = nonBlockingGetToken;
             window._btcAppCheckInner = provider;
             window._btcAppCheckReady = true;
             return true;

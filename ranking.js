@@ -353,6 +353,48 @@ function mfaClearDevice(uid) {
     } catch (e) {}
 }
 
+// Names of https callables whose server options set enforceAppCheck: true.
+// Everything else is sent immediately. A ready App Check token is still
+// attached by the SDK; a missing one must not block sign-in or these calls.
+var APP_CHECK_CALLABLES = {
+    ackBadgeBackfillToast: 1,
+    ackCipherShare: 1,
+    answerTrivia: 1,
+    armSayHi: 1,
+    chooseFaction: 1,
+    claimOnboardingQuestStep: 1,
+    claimReplyBonus: 1,
+    claimSats: 1,
+    claimSayHi: 1,
+    confirmAccountLink: 1,
+    deleteAccount: 1,
+    gradeQuest: 1,
+    gradeScholarExam: 1,
+    issueCertificate: 1,
+    linkGuestAccount: 1,
+    markIntroSeen: 1,
+    noteNachoQuestion: 1,
+    prepareEmailChange: 1,
+    prepareGuestLink: 1,
+    pvpCreateMatch: 1,
+    pvpStoreAnswerKey: 1,
+    pvpSubmitAnswer: 1,
+    pvpTimeoutOpponent: 1,
+    resetLightningAddressOnce: 1,
+    startQuest: 1,
+    startScholarExam: 1,
+    syncEmailChange: 1,
+    syncUserFactionPoints: 1,
+    tctvWatchHeartbeat: 1,
+    totpListDevices: 1,
+    totpResumeDevice: 1,
+    totpRevokeAllTrust: 1,
+    totpRevokeDevice: 1,
+    totpSignOutOtherDevices: 1,
+    totpStepUp: 1,
+    triviaXpStatus: 1
+};
+
 function installMfaCallablePatch() {
     if (typeof firebase === 'undefined' || !firebase.functions || window._mfaCallablePatched) return;
     var probe;
@@ -369,13 +411,20 @@ function installMfaCallablePatch() {
                 var sid = window._mfaSessionId ? window._mfaSessionId() : '';
                 if (sid && payload.mfaSessionId == null) payload.mfaSessionId = sid;
             }
-            // One wait for every callable. Auth and Firestore do not use this path.
+            if (!APP_CHECK_CALLABLES[name]) return callable(payload);
+            if (window._btcRecaptchaFailed) {
+                var fast = new Error('Security check did not load. Refresh the page and try again.');
+                fast.code = 'app-check-unavailable';
+                return Promise.reject(fast);
+            }
             var ready = (typeof window._btcAppCheckForClaim === 'function')
                 ? window._btcAppCheckForClaim(8000)
                 : Promise.resolve('skip');
             return ready.then(function (token) {
                 if (token === '') {
-                    var missing = new Error('App Check token is not ready');
+                    var missing = new Error(window._btcRecaptchaFailed
+                        ? 'Security check did not load. Refresh the page and try again.'
+                        : 'App Check token is not ready');
                     missing.code = 'app-check-unavailable';
                     throw missing;
                 }
@@ -444,11 +493,11 @@ window._serverTotpAllows = async function (uid) {
         }
         return false;
     } catch (e3) {
-        // A missing App Check token is not proof the device was revoked.
-        if (mfaIsAppCheckError(e3)) return false;
-        var resumeCode = mfaErrorCode(e3);
-        if (!mfaIsTransientError(e3) && resumeCode !== 'resource-exhausted') mfaClearDevice(uid);
-        return mfaAllowsAfterStatusError(true);
+        // Only the server's exact "Device is not trusted." answer forgets
+        // this browser. App Check, network, and rate-limit errors do not.
+        var resumeMsg = String((e3 && e3.message) || '');
+        if (!mfaIsAppCheckError(e3) && resumeMsg.indexOf('Device is not trusted') !== -1) mfaClearDevice(uid);
+        return false;
     }
 };
 
@@ -6364,6 +6413,7 @@ window._ensureTurnstile = function (el) {
             el.setAttribute('data-rendered', '1');
         } catch (e) {}
     }
+    render._el = el;
     if (window.turnstile) { render(); return; }
     window._turnstileWaiters = window._turnstileWaiters || [];
     window._turnstileWaiters.push(render);
@@ -6380,7 +6430,20 @@ window._ensureTurnstile = function (el) {
     };
     s.onerror = function () {
         window._turnstileLoading = false;
+        var waiters = window._turnstileWaiters || [];
         window._turnstileWaiters = [];
+        var retryEl = null;
+        if (!window._lnTurnstileRetried) {
+            for (var i = 0; i < waiters.length; i++) {
+                var waiterEl = waiters[i] && waiters[i]._el;
+                if (waiterEl && waiterEl.id === 'lnAddrTurnstile') retryEl = waiterEl;
+            }
+        }
+        if (retryEl) {
+            window._lnTurnstileRetried = true;
+            window._ensureTurnstile(retryEl);
+            return;
+        }
     };
     document.head.appendChild(s);
 };
