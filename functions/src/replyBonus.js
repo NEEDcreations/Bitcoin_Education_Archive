@@ -351,13 +351,6 @@ function createReplyBonusHandlers(opts) {
                     total: decision.dailyXp,
                     lastUpdated: ts,
                 }, { merge: true });
-                const { ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
-                tx.set(ledgerRefFor(userRef, 'reply_' + messageId), xpLedgerData({
-                    base: decision.base,
-                    boosted: decision.boosted,
-                    awarded: decision.xp,
-                    doubled: decision.doubled,
-                }, { source: 'reply_bonus', day: today, uid: uid }));
             }
             userUpdate.replyBonusCount = admin.firestore.FieldValue.increment(1);
             if (Object.keys(userUpdate).length) tx.update(userRef, userUpdate);

@@ -152,12 +152,6 @@ const tctvWatchHeartbeat = functionsV1.runWith({
                     total: xpPlan.dailyXp != null ? xpPlan.dailyXp : ((Number(dailyUsed) || 0) + xpPlan.awarded),
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
-                const { ledgerData: xpLedgerData, ledgerRefFor } = require('./src/grantXp');
-                tx.set(ledgerRefFor(userRef, 'tctv_' + (view.day || today)), xpLedgerData(xpPlan, {
-                    source: 'tctv_watch',
-                    day: view.day || today,
-                    uid: uid,
-                }));
             }
             if (notice && notice.id && notice.data) {
                 rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), [notice]);

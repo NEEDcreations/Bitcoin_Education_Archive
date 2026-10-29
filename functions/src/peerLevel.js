@@ -18,7 +18,7 @@
 
 const admin = require('firebase-admin');
 const rewardNotify = require('./rewardNotify');
-const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
+const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const { rewardBlocked } = require('./cipherClaim');
 
@@ -147,20 +147,10 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
     if (senderXp > 0) {
       Object.assign(senderPeerUpdate, xpFields(senderXp));
       t.set(senderDailyRef, { total: senderPlan.dailyXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-      t.set(ledgerRefFor(senderRef, 'peer_' + pairId + '_' + newLevel.level), xpLedgerData(senderPlan, {
-        source: 'peer_level',
-        day: dayKey,
-        uid: senderUid,
-      }));
     }
     if (recipXp > 0) {
       Object.assign(recipPeerUpdate, xpFields(recipXp));
       t.set(recipDailyRef, { total: recipPlan.dailyXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-      t.set(ledgerRefFor(recipRef, 'peer_' + pairId + '_' + newLevel.level), xpLedgerData(recipPlan, {
-        source: 'peer_level',
-        day: dayKey,
-        uid: recipientUid,
-      }));
     }
 
     t.update(senderRef, senderPeerUpdate);

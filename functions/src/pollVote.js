@@ -1,7 +1,7 @@
 'use strict';
 
 const POLL_BANK = require('./pollBank.json');
-const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
+const { planXpGrant } = require('./grantXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily, offsetDateKey } = require('./grantBadge');
 
@@ -88,11 +88,6 @@ function createPollVote(opts) {
             t.update(userRef, update);
             if (split.awarded > 0) {
                 t.set(dailyRef, { total: split.dailyXp }, { merge: true });
-                t.set(ledgerRefFor(userRef, 'poll_' + day), xpLedgerData(split, {
-                    source: 'poll',
-                    day: day,
-                    uid: uid,
-                }));
             }
             return { already: false, day: day, awarded: split.awarded, doubled: split.doubled === true, votes: prevVotes };
         });

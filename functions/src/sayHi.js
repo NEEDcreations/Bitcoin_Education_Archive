@@ -369,12 +369,6 @@ function createSayHiHandlers(opts) {
                 doubled: xp.doubled === true,
                 awarded: xp.awarded,
             });
-            const { ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
-            tx.set(ledgerRefFor(bag.userRef, 'sayhi_' + bag.today), xpLedgerData(xp, {
-                source: 'say_hi',
-                day: bag.today,
-                uid: uid,
-            }));
             return {
                 ok: true,
                 code: 'ok',

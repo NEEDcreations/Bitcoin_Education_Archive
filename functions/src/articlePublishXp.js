@@ -6,7 +6,7 @@
 // Premium does not multiply this grant. The shared XP planner doubles the
 // 30 while a 2× window is open, then the daily taper runs on that amount.
 
-const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
+const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const { moderateText } = require('./moderateText');
 const { rewardBlocked } = require('./cipherClaim');
@@ -352,11 +352,6 @@ async function grantArticlePublish(opts) {
             plan: articlePlan,
         }));
         if (awarded > 0) {
-            tx.set(ledgerRefFor(userRef, 'article_' + articleId), xpLedgerData(articlePlan || { base: PUBLISH_XP, boosted: PUBLISH_XP, awarded: awarded }, {
-                source: 'article_publish',
-                day: day,
-                uid: uid,
-            }));
             tx.update(userRef, {
                 points: adminSdk.firestore.FieldValue.increment(awarded),
                 weeklyXP: adminSdk.firestore.FieldValue.increment(awarded),

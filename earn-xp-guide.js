@@ -27,8 +27,7 @@
                 'Daily five (quest, trivia, poll, say hi, and TV): <strong>100 XP</strong> and 1 orange ticket',
                 'Proof of Walk: <strong>50 XP per km</strong>, up to 42 km on that activity\'s date',
                 'Visit streak badges pay <strong>50, 150, 500, or 2,000 XP</strong>',
-                'Double XP doubles every way you earn XP. Sats, orange tickets, and other non-XP rewards stay the same',
-                'These stay at the amounts above: quests, trivia, polls, a correct prediction, TV, say hi, the daily five, walks, gifts, ciphers, badges, exams, articles, the wheel, the starter quest, peer rewards, and topic and reply bonuses'
+                'Double XP doubles every way you earn XP. Sats, orange tickets, and other non-XP rewards stay the same'
             ]
         },
         {

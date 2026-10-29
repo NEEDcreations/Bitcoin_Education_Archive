@@ -155,7 +155,7 @@ const awardActions = require('./src/awardActions');
 const ticketGrants = require('./src/ticketGrants');
 const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets');
 const doubleXp = require('./src/doubleXp');
-const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor, baseFromAllowlist } = require('./src/grantXp');
+const { planXpGrant } = require('./src/grantXp');
 const referralService = require('./src/referralService');
 const referralDecisions = require('./src/referrals');
 const tipService = require('./src/tipService');
@@ -3308,9 +3308,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (resolved.requiresDoubleXp && !doubleXp.isActive(userData, Date.now())) {
                 throw new Error('DOUBLE_XP_REQUIRED');
             }
-            // The client amount is not a multiplier. baseFromAllowlist turns a
-            // legacy doubled flex/streak claim back into the catalog base.
-            // planXpGrant doubles that base once, after this read, using server now.
+            // resolved.xp is the catalog base. A legacy doubled client integer
+            // was already mapped back to that base. planXpGrant doubles it once.
 
             if (matchedAction === 'badge_earned' && badgeKnown) {
                 const MILESTONE_BADGE_THRESHOLDS = {
@@ -3364,12 +3363,12 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (claimDoc && claimDoc.exists) throw new Error('ALREADY_CLAIMED');
 
             const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            const basePts = baseFromAllowlist(pts, data && data.pts, resolved.requiresDoubleXp);
             const xpPlan = planXpGrant({
-                base: basePts,
+                base: pts,
                 user: userData,
                 now: Date.now(),
                 dailyUsed: dailyUsed,
+                boost: resolved.boost !== false,
             });
             const xpBoost = { doubled: xpPlan.doubled, until: xpPlan.until, base: xpPlan.base, boosted: xpPlan.boosted };
             const grant = {
@@ -3455,11 +3454,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     day: offsetToday,
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 });
-                t.set(ledgerRefFor(userRef, claimRef.id), xpLedgerData(xpPlan, {
-                    source: matchedAction,
-                    day: offsetToday,
-                    uid: uid,
-                }));
                 progress = progressBadges.progressSpec(userData, matchedAction, resolved, offsetToday);
                 progressBadges.applySpec(userUpdate, admin, progress);
                 if (matchedAction === 'flex_action' && resolved.flexId) {
@@ -4257,11 +4251,6 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
                 total: spinPlan.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-            tx.set(ledgerRefFor(userRef, 'spin_' + (isBonusSpin ? ('bonus_' + Date.now()) : today)), xpLedgerData(spinPlan, {
-                source: isBonusSpin ? 'bonus_spin' : 'daily_spin',
-                day: spinDay,
-                uid: uid,
-            }));
         }
         try {
             const spinGains = reward.closet ? ['👔 a closet drop'] : [];
@@ -6344,12 +6333,6 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
                 total: grant.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-            const walkIds = plan.rows.map(function (row) { return row.id; }).join('_').slice(0, 80);
-            transaction.set(ledgerRefFor(userRef, 'walk_' + walkDay + '_' + walkIds), xpLedgerData(grant, {
-                source: 'proof_of_walk',
-                day: walkDay,
-                uid: uid,
-            }));
         }
     });
 
@@ -8466,11 +8449,6 @@ async function settlePvpMatch(matchId, after) {
             if (Object.keys(upd).length) tx.update(userRefs[i], upd);
             if (write.write) {
                 tx.set(dailyRefs[i], { total: xpPlan.dailyXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-                tx.set(ledgerRefFor(userRefs[i], 'pvp_' + matchId + '_' + p.uid), xpLedgerData(xpPlan, {
-                    source: 'pvp',
-                    day: offsetToday,
-                    uid: p.uid,
-                }));
             }
             if (ticket.tickets > 0) {
                 tx.set(ticketRefs[i], {

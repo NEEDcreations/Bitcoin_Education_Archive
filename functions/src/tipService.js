@@ -13,7 +13,6 @@ const tipConfirm = require('./tipConfirm');
 const referrals = require('./referrals');
 const { assertPublicHost } = require('./publicHost');
 const { applyDailyXp } = require('./applyDailyXp');
-const { ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
 const { paymentHashFromDecoded, rewardBlocked } = require('./cipherClaim');
 const tipBadge = require('./tipBadge');
 
@@ -356,11 +355,6 @@ async function confirmTipSent(data, context) {
                 total: split.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-            t.set(ledgerRefFor(userRef, 'tip_' + today), xpLedgerData(split, {
-                source: 'tip',
-                day: capDay,
-                uid: uid,
-            }));
         }
         let tipsCounted = false;
         let countedSats = 0;

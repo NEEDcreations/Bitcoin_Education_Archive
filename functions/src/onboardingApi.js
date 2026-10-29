@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const quest = require('./onboardingQuest');
+const { planXpGrant } = require('./grantXp');
 const names = require('./usernamePolicy');
 const faucetGuard = require('./faucetGuard');
 const rateSalt = require('./rateLimitSalt');
@@ -222,14 +223,6 @@ function registerOnboarding(deps) {
             }
             tx.update(userRef, update);
             writeDailyPoints(tx, admin, dailyRef, dailyUsed, grant);
-            if (grant.awarded > 0) {
-                const { ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
-                tx.set(ledgerRefFor(userRef, 'onboarding_' + stepId), xpLedgerData(grant, {
-                    source: 'onboarding',
-                    day: today,
-                    uid: uid,
-                }));
-            }
             return {
                 ok: true,
                 already: false,
@@ -397,8 +390,15 @@ function registerOnboarding(deps) {
                 if (nonceMatches) clearGuestNonce(tx, admin, anonRef);
                 return { ok: true, already: true, points: 0, tickets: 0 };
             }
-            // Guest points were already earned. Moving them is not a new daily grant.
-            const movedPoints = Math.max(0, Math.floor(Number(again.points) || 0));
+            // Guest points were already earned. Moving them is not a new grant
+            // and is not doubled.
+            const movedGrant = planXpGrant({
+                base: Math.max(0, Math.floor(Number(again.points) || 0)),
+                boost: false,
+                capExempt: true,
+                now: nowMs,
+            });
+            const movedPoints = movedGrant.awarded;
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;

@@ -4,7 +4,7 @@
  */
 const ps = require('./predictionStats');
 const rewardNotify = require('./rewardNotify');
-const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
+const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const { rewardBlocked } = require('./cipherClaim');
 
@@ -215,13 +215,6 @@ function createPredictionJobs(db, admin, hooks) {
                     total: predictPlan && predictPlan.dailyXp != null ? predictPlan.dailyXp : (dailyUsed + xp),
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
-                if (predictPlan) {
-                    tx.set(ledgerRefFor(userRef, 'predict_' + liveTime), xpLedgerData(predictPlan, {
-                        source: 'prediction',
-                        day: dayKey,
-                        uid: liveUid,
-                    }));
-                }
             }
             return {
                 correct: applied.correct === true,

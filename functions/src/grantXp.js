@@ -38,11 +38,20 @@ function clean(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
 }
 
+// Missing, 0, and any non-finite clock fall back to server time. A stored
+// expiry must not look active just because the caller forgot `now`.
+function serverNow(value) {
+    if (value == null || value === '') return Date.now();
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return Date.now();
+    return n;
+}
+
 function planXpGrant(opts) {
     const src = opts || {};
     const kind = src.kind || 'xp';
     const base = clean(src.base != null ? src.base : src.amount);
-    const now = src.now == null || src.now === '' ? Date.now() : (Number(src.now) || 0);
+    const now = serverNow(src.now);
     if (NON_XP[kind]) {
         return {
             kind: kind,
@@ -162,27 +171,9 @@ function replayFromLedger(data) {
     };
 }
 
-function ledgerRefFor(userRef, id) {
-    const safe = String(id || 'grant').replace(/[^\w.-]/g, '_').slice(0, 700);
-    return userRef.collection('xp_ledger').doc(safe);
-}
-
-// Halve an allowlist figure only when the client sent the doubled payout
-// (flex 10, chat-streak 20/50) and the server stored that payout as xp.
-// A doubled claim whose stored xp is the real base (quiz 20 → 10) is left
-// alone so planXpGrant can double it once.
-function baseFromAllowlist(xp, clientPts, requiresDoubleXp) {
-    const amount = clean(xp);
-    const sent = clean(clientPts);
-    if (requiresDoubleXp && sent === amount && amount > 0 && amount % 2 === 0) return amount / 2;
-    return amount;
-}
-
 module.exports = {
     NON_XP: NON_XP,
     planXpGrant: planXpGrant,
     ledgerData: ledgerData,
     replayFromLedger: replayFromLedger,
-    ledgerRefFor: ledgerRefFor,
-    baseFromAllowlist: baseFromAllowlist,
 };

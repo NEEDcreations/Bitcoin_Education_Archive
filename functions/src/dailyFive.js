@@ -15,7 +15,7 @@ function tctvClaimId(day) {
 const { rewardBlocked } = require('./cipherClaim');
 const DAILY_FIVE_XP = 100;
 const DAILY_FIVE_TICKETS = 1;
-const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
+const { planXpGrant } = require('./grantXp');
 const { grantFamily } = require('./grantBadge');
 
 function offsetDateKey(nowMs) {
@@ -122,11 +122,6 @@ async function maybeCompleteDailyFive(opts) {
         t.update(userRef, update);
         if (split.awarded > 0) {
             t.set(dailyRef, { total: split.dailyXp }, { merge: true });
-            t.set(ledgerRefFor(userRef, 'daily_five_' + o.day), xpLedgerData(split, {
-                source: 'daily_five',
-                day: o.day,
-                uid: o.uid,
-            }));
         }
         return { created: true, days: days, streak: streak, awarded: split.awarded, doubled: split.doubled === true };
     });

@@ -6,7 +6,8 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { planXpGrant, ledgerData, replayFromLedger, baseFromAllowlist } = require('../functions/src/grantXp');
+const { planXpGrant, ledgerData, replayFromLedger } = require('../functions/src/grantXp');
+const awardActions = require('../functions/src/awardActions');
 const { planDailyXp } = require('../functions/src/dailyXp');
 const certBonus = require('../functions/src/certBonus');
 
@@ -37,9 +38,9 @@ function doubled(base, dailyUsed, extra) {
 
 const SOURCES = [
     { name: 'awardPoints', file: 'functions/index.js', needle: 'planXpGrant' },
-    { name: 'daily spin', file: 'functions/index.js', needle: 'source: isBonusSpin ? \'bonus_spin\' : \'daily_spin\'' },
-    { name: 'pvp', file: 'functions/index.js', needle: "source: 'pvp'" },
-    { name: 'proof of walk', file: 'functions/index.js', needle: "source: 'proof_of_walk'" },
+    { name: 'daily spin', file: 'functions/index.js', needle: 'spinPlan' },
+    { name: 'pvp', file: 'functions/index.js', needle: 'base: pvpBlocked ? 0 : p.points' },
+    { name: 'proof of walk', file: 'functions/index.js', needle: 'plan.rawPoints' },
     { name: 'scholar cert', file: 'functions/src/certBonus.js', needle: 'function applyXpWindow' },
     { name: 'badges', file: 'functions/src/awardBadge.js', needle: 'applyDailyXp(' },
     { name: 'badge credit', file: 'functions/src/badgeCredit.js', needle: 'applyDailyXp(' },
@@ -48,11 +49,12 @@ const SOURCES = [
     { name: 'trivia and quests', file: 'functions/src/questReward.js', needle: 'planXpGrant' },
     { name: 'predictions', file: 'functions/src/predictionJobs.js', needle: 'planXpGrant' },
     { name: 'raid is not a direct XP payer', file: 'functions/src/raidBossEngine.js', needle: 'noteTrusted' },
-    { name: 'cipher open', file: 'functions/src/gifting.js', needle: "source: 'cipher'" },
+    { name: 'cipher open', file: 'functions/src/gifting.js', needle: 'reward.base = tapered.base' },
     { name: 'cipher share', file: 'functions/src/cipherShare.js', needle: 'planXpGrant' },
     { name: 'key send', file: 'functions/src/gifting.js', needle: 'KEY_SEND_XP' },
-    { name: 'open gift', file: 'functions/src/gifting.js', needle: "source: 'open_gift'" },
-    { name: 'tips', file: 'functions/src/tipService.js', needle: "source: 'tip'" },
+    { name: 'open gift', file: 'functions/src/gifting.js', needle: 'giftPlan' },
+    { name: 'tips', file: 'functions/src/tipService.js', needle: 'call.awardXp' },
+    { name: 'guest merge', file: 'functions/src/onboardingApi.js', needle: 'boost: false' },
     { name: 'tctv watch', file: 'functions/src/tctvWatch.js', needle: 'planXpGrant' },
     { name: 'onboarding', file: 'functions/src/onboardingQuest.js', needle: 'planXpGrant' },
     { name: 'peer level', file: 'functions/src/peerLevel.js', needle: 'planXpGrant' },
@@ -165,18 +167,54 @@ test('each source class plans XP through the shared helper', () => {
     });
 });
 
-test('a legacy doubled client claim is reduced to the base before the helper doubles it', () => {
-    assert.strictEqual(baseFromAllowlist(10, 10, true), 5);
-    assert.strictEqual(baseFromAllowlist(10, 20, true), 10);
-    assert.strictEqual(baseFromAllowlist(5, 5, false), 5);
-    const flex = planXpGrant({
-        base: baseFromAllowlist(10, 10, true),
-        user: ACTIVE,
-        now: NOW,
-        dailyUsed: 0,
+test('a legacy doubled client integer resolves to the base and is doubled once', () => {
+    const streak = awardActions.resolveAction({ action: '🔥 7-day chat streak!', pts: 50 });
+    assert.strictEqual(streak.ok, true);
+    assert.strictEqual(streak.xp, 25);
+    assert.strictEqual(streak.requiresDoubleXp, true);
+    const on = awardActions.applyAward({ users: {} }, 'u', { action: '🔥 7-day chat streak!', pts: 50 }, { doubleXpActive: true, now: NOW });
+    assert.strictEqual(on.success, true);
+    assert.strictEqual(on.awarded, 50);
+    const off = awardActions.applyAward({ users: {} }, 'u2', { action: '🔥 7-day chat streak!', pts: 50 }, { now: NOW });
+    assert.strictEqual(off.success, false);
+    assert.strictEqual(off.awarded, 0);
+    const baseOn = awardActions.applyAward({ users: {} }, 'u3', { action: '🔥 7-day chat streak!', pts: 25 }, { doubleXpActive: true, now: NOW });
+    assert.strictEqual(baseOn.awarded, 50);
+    const baseOff = awardActions.applyAward({ users: {} }, 'u4', { action: '🔥 7-day chat streak!', pts: 25 }, { now: NOW });
+    assert.strictEqual(baseOff.awarded, 25);
+});
+
+test('hostile pts are rejected with Double XP on and off', () => {
+    const hostile = ['50x', '50.9', ' 50', [50], -5];
+    const actions = ['🔥 7-day chat streak!', 'Uploaded a track to Bitcoin Beats! 🎵'];
+    hostile.forEach(function (pts) {
+        actions.forEach(function (action) {
+            [true, false].forEach(function (on) {
+                const result = awardActions.applyAward({ users: {} }, 'u', { action: action, pts: pts }, on ? { doubleXpActive: true, now: NOW } : { now: NOW });
+                assert.strictEqual(result.success, false, action + ' ' + String(pts) + ' on=' + on);
+                assert.strictEqual(result.awarded, 0, action + ' ' + String(pts) + ' on=' + on);
+            });
+        });
     });
-    assert.strictEqual(flex.awarded, 10);
-    assert.strictEqual(flex.doubled, true);
+    // 1e3 is the integer 1000, not a parseInt prefix. It is not a streak amount.
+    [true, false].forEach(function (on) {
+        const streak = awardActions.applyAward({ users: {} }, 'u', { action: '🔥 7-day chat streak!', pts: 1e3 }, on ? { doubleXpActive: true, now: NOW } : { now: NOW });
+        assert.strictEqual(streak.success, false);
+        assert.strictEqual(streak.awarded, 0);
+    });
+    const beatsOff = awardActions.applyAward({ users: {} }, 'b', { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 1e3 }, { now: NOW });
+    const beatsOn = awardActions.applyAward({ users: {} }, 'b2', { action: 'Uploaded a track to Bitcoin Beats! 🎵', pts: 1e3 }, { doubleXpActive: true, now: NOW });
+    assert.strictEqual(beatsOff.awarded, 50);
+    assert.strictEqual(beatsOn.awarded, 100);
+});
+
+test('a missing or invalid now uses server time', () => {
+    const past = { doubleXpUntil: 1 };
+    assert.strictEqual(planXpGrant({ base: 10, user: past, now: 0 }).doubled, false);
+    assert.strictEqual(planXpGrant({ base: 10, user: past, now: Number.NaN }).doubled, false);
+    const open = planXpGrant({ base: 10, user: { doubleXpUntil: Date.now() + 60000 } });
+    assert.strictEqual(open.doubled, true);
+    assert.strictEqual(open.awarded, 20);
 });
 
 test('the certification bonus doubles outside the daily cap', () => {

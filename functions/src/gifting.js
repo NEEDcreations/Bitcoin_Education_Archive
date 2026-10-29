@@ -19,7 +19,7 @@ const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { applyDailyXp } = require('./applyDailyXp');
 const rewardNotify = require('./rewardNotify');
-const { planXpGrant, ledgerData: xpLedgerData, ledgerRefFor } = require('./grantXp');
+const { planXpGrant } = require('./grantXp');
 const {
     assessCipherClaim,
     isSatsBanned,
@@ -360,11 +360,6 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
                         total: giftPlan.dailyXp,
                         lastUpdated: now,
                     }, { merge: true });
-                    t.set(ledgerRefFor(userRef, 'gift_' + giftId), xpLedgerData(giftPlan, {
-                        source: 'open_gift',
-                        day: giftDay,
-                        uid: uid,
-                    }));
                 }
             }
             reward = Object.assign({}, reward, { xpAmount: xp, doubled: giftDoubled });
@@ -616,11 +611,6 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 total: xpGrant.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-            t.set(ledgerRefFor(senderRef, 'keysend_' + recipientUid + '_' + todayOffset), xpLedgerData(xpGrant, {
-                source: 'key_send',
-                day: todayOffset,
-                uid: uid,
-            }));
         }
         t.update(senderRef, senderUpdate);
     });
@@ -746,7 +736,6 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         let winId = null;
         let satsStatus = null;
         let openerDailyTotal = null;
-        let cipherPlan = null;
         const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
 
         // Decide the opener's prize before any write so the sender reads
@@ -760,7 +749,6 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             else {
                 const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
                 const tapered = planXpGrant({ base: xp, user: user, now: Date.now(), dailyUsed: used });
-                cipherPlan = tapered;
                 xp = tapered.awarded;
                 reward.doubled = tapered.doubled === true;
                 reward.base = tapered.base;
@@ -846,13 +834,6 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 total: openerDailyTotal,
                 lastUpdated: now,
             }, { merge: true });
-            if (cipherPlan) {
-                t.set(ledgerRefFor(userRef, 'cipher_' + cipherId), xpLedgerData(cipherPlan, {
-                    source: 'cipher',
-                    day: cipherDay,
-                    uid: uid,
-                }));
-            }
         }
 
         if (sharePlan && sharePlan.pay && senderRef) {
