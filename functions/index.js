@@ -6448,7 +6448,9 @@ exports.syncCycleToTop10 = syncCycleToTop10;
 exports.backfillFactionTotals = backfillFactionTotals;
 exports.getFactionTotals = getFactionTotals;
 
-// Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
+// Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
+// The same private minute job posts the one ending heads-up. No public invoker.
+const { announceFavorEnding } = require('./src/favorEndingAnnounce');
 exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {
     try {
         const result = await resetExpiredFavor();
@@ -6457,6 +6459,12 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
         }
     } catch (e) {
         console.warn('[SF-CRON] reset failed:', e.message);
+    }
+    try {
+        await announceFavorEnding(db, admin, Date.now());
+    } catch (e) {
+        console.error('[SF ENDING] announce failed');
+        throw e;
     }
 });
 

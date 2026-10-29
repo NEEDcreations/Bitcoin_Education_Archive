@@ -2257,6 +2257,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // One ending heads-up per Favor window. Admin SDK only.
+    match /sf_ending_announcements/{cycleId} {
+      allow read, write: if false;
+    }
+
     // Badge GGs burst queue and per-award claims. Admin SDK only.
     match /badge_gg_bursts/{uid} {
       allow read, write: if false;
