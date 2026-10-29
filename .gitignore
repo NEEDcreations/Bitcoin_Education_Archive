@@ -7,6 +7,8 @@ scripts/*
 !scripts/migrate-push-optin.js
 !scripts/backfill-badge-favor.js
 !scripts/cleanup_stale_buddies.js
+!scripts/raid-boss-activity.js
+!scripts/raid-boss-inspect.js
 .keys/
 firebase-debug.log
 firestore-debug.log

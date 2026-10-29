@@ -2164,8 +2164,33 @@ service cloud.firestore {
     }
 
     // ===== RAID BOSS =====
+    // Chat-Charger and every other scheduled boss take damage only from
+    // trusted Cloud Functions (Admin SDK). Clients cannot write boss HP,
+    // participants, winners, daily caps, or damage events.
     // Per-user daily contribution caps — Cloud Function writes only
     match /raid_daily_caps/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_damage_events/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_boss_posts/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_boss_alerts/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    // Forum and article damage waits here for 24 hours. Clients cannot queue it.
+    match /raid_forum_pending/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    // Goal inputs and formula. Not a public boss field.
+    match /raid_boss_meta/{docId} {
       allow read, write: if false; // Admin SDK bypasses rules
     }
 
