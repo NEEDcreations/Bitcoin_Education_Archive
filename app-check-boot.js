@@ -153,7 +153,6 @@
             provider.getToken = nonBlockingGetToken;
             // Instance, not a plain object. Compat initialize() runs only then.
             firebase.appCheck().activate(provider, true);
-            try { provider.initialize(firebase.app()); } catch (e) {}
             window._btcAppCheckInner = provider;
             window._btcAppCheckReady = true;
             return true;

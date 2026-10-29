@@ -585,10 +585,10 @@ test('ranking treats the profile cache as stale-while-revalidate and stamps 2FA'
     assert.ok(pub.indexOf('stampProfileTwoFa(uid, false)') !== -1);
     assert.ok(pub.indexOf('stampProfileTwoFa(uid, false)') < pub.indexOf('.write('));
     assert.ok(boot.indexOf('firebase.appCheck().activate(') !== -1);
+    assert.strictEqual(boot.indexOf('provider.initialize'), -1);
     assert.ok(boot.indexOf('ReCaptchaV3Provider') !== -1);
     assert.ok(boot.indexOf('_btcAppCheckForClaim') !== -1);
     assert.ok(boot.indexOf('new firebase.appCheck.ReCaptchaV3Provider') !== -1);
-    assert.ok(boot.indexOf('provider.initialize(firebase.app())') !== -1);
     assert.ok(boot.indexOf("Promise.reject(new Error('app-check-unavailable'))") !== -1);
     assert.strictEqual(boot.indexOf('expireTimeMillis: Date.now() - 1'), -1);
     assert.strictEqual(boot.indexOf('firebase.appCheck().activate(SITE_KEY, true)'), -1);
