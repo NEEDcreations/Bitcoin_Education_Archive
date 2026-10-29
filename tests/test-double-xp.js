@@ -57,29 +57,40 @@ test('a Firestore timestamp-shaped expiry still counts', () => {
     assert.strictEqual(doubleXp.untilMillis({ doubleXpUntil: String(now + 1000) }), now + 1000);
 });
 
-test('one-time awards are not passed through boostPoints', () => {
+test('XP grants plan through planXpGrant and do not call boostPoints themselves', () => {
     const root = path.join(__dirname, '..');
     function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
     const index = read('functions/index.js');
     const scholar = index.slice(index.indexOf('exports.gradeScholarExam'), index.indexOf('exports.startQuest'));
     assert.ok(scholar.indexOf('boostPoints') === -1);
     assert.ok(scholar.indexOf('planDailyXp') === -1);
+    assert.ok(scholar.indexOf('certBonus.applyXpWindow') !== -1);
     assert.ok(scholar.indexOf('certBonus.planCertBonus') !== -1);
     const donate = index.slice(index.indexOf('exports.donatePoints'), index.indexOf('exports.searchUsers'));
     assert.ok(donate.indexOf('boostPoints') === -1);
+    assert.ok(donate.indexOf('planXpGrant') === -1);
     const weekly = index.slice(index.indexOf('exports.incrementWeeklyChallenge'), index.indexOf('exports.spendTickets'));
     assert.ok(weekly.indexOf('boostPoints') === -1);
     const award = index.slice(index.indexOf('exports.awardPoints'), index.indexOf('exports.getFaucetStats'));
-    assert.ok(award.indexOf("matchedAction === 'badge_earned'") !== -1);
+    assert.ok(award.indexOf('planXpGrant') !== -1);
+    assert.ok(award.indexOf('boostPoints') === -1);
     assert.ok(award.indexOf('nacho quest') !== -1);
     const gifting = read('functions/src/gifting.js');
     const openGift = gifting.slice(gifting.indexOf('const openGift'), gifting.indexOf('const sendKeys'));
+    assert.ok(openGift.indexOf('planXpGrant') !== -1);
     assert.ok(openGift.indexOf('boostPoints') === -1);
     const decrypt = gifting.slice(gifting.indexOf('const decryptCipher'), gifting.indexOf('const claimCipherWin'));
+    assert.ok(decrypt.indexOf('planXpGrant') !== -1);
     assert.ok(decrypt.indexOf('boostPoints') === -1);
     const keys = gifting.slice(gifting.indexOf('const sendKeys'), gifting.indexOf('const decryptCipher'));
-    assert.ok(keys.indexOf('boostPoints') !== -1);
+    assert.ok(keys.indexOf('applyDailyXp') !== -1);
+    assert.ok(keys.indexOf('KEY_SEND_XP') !== -1);
+    assert.ok(keys.indexOf('boostPoints') === -1);
+    assert.ok(read('functions/src/peerLevel.js').indexOf('planXpGrant') !== -1);
     assert.ok(read('functions/src/peerLevel.js').indexOf('boostPoints') === -1);
+    const tips = read('functions/src/tipService.js');
+    assert.ok(tips.indexOf('applyDailyXp') !== -1);
+    assert.ok(tips.indexOf('boostPoints') === -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

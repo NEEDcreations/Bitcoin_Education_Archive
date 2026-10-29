@@ -33,12 +33,61 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: October 23, 2026</p>
+    <p class="subtitle">Last updated: October 28, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
         <p style="margin-top:8px;margin-bottom:0;">We collect the bare minimum needed to power your experience. No tracking, no ads, no third-party analytics.</p>
     </div>
+
+    <h2>Safety monitoring</h2>
+    <p>To protect users from scams, phishing, impersonation, spam, and abuse, we may automatically scan chat, direct messages, and account activity. That includes automated anti-abuse checks and bot detection. A moderator may review content those checks flag. While a review is open, we may temporarily restrict an account, or a feature such as direct messages.</p>
+    <p>Messages are also checked in your browser before they are stored, as described in Sections 9 and 10. We do not send that text to an outside moderation company. Bot checks include Cloudflare Turnstile on sats claims and a Lightning-address reset. We use App Check to help block automated abuse. A flagged direct message can still be delivered, with a warning. Reports you file are stored so a moderator can review them. We do not publish how the anti-abuse checks decide.</p>
+
+    <h2>Features and the data they use</h2>
+    <p>The tables later on this page are the detailed record. This section says, in plain language, what the current app actually stores for the features below.</p>
+
+    <h3>Referral tracking</h3>
+    <p>An invite link can attach a referral to a new account: the code, who shared it, and whether it is still pending. At signup we keep a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only <code>referral_signals</code> record. Other users cannot read it. Deleting the account deletes that record. The raw address is not stored in that referral record. A referral is paid only after the checks in the Terms, including account age, active days, and a verified sign-in. Each verified referral adds one to <code>referralCount</code> for the person who shared the link.</p>
+
+    <h3>Referral tiers</h3>
+    <p>Badge tiers count verified referrals: friends whose referral was paid after they reached Maxi. The tiers are 1, 5, 10, 25, 50, and 100. The server grants those badges from <code>referralCount</code>. The invite card shows how many friends were invited and how many reached Maxi.</p>
+
+    <h3>Two-factor authentication</h3>
+    <p>You can turn on an authenticator app. We store an encrypted TOTP secret on the account. After a successful code you can remember this browser for 30 days, counted from the day you checked the box. That record stores a hash of a random device token, a short browser and operating-system label, and the times it was added, last used, and when the 30 days end. It does not store an IP address. The token itself stays in this browser. Turning off two-factor authentication, using a recovery code, the in-app password reset, or an admin reset revokes every remembered device.</p>
+
+    <h3>Profile saved on this device</h3>
+    <p>A display copy of your profile is saved on this device. It never skips 2FA. It is removed on sign-out, when a different account signs in, and when you delete the account. It is not a second copy we keep on our servers.</p>
+
+    <h3>Account deletion</h3>
+    <p>Settings → Account deletes the account on the server after you confirm your username, including the Firebase sign-in. Section 11 lists what is removed and what we keep. This browser then clears the display copy saved on this device.</p>
+
+    <h3>App Check</h3>
+    <p>We use App Check to help block automated abuse.</p>
+
+    <h3>Lightning sats</h3>
+    <p>A claim pays out over Lightning to the address saved on the account. We store the amount, the time, a truncated invoice (the first 50 characters), and the daily and lifetime totals. The faucet log at claim time can include an IP address and a device fingerprint hash. That log is separate from the referral fingerprint above. Payouts we send are resolved to an invoice and paid through our Lightning wallet. We do not receive your seed or private keys.</p>
+
+    <h3>Nacho</h3>
+    <p>A saved answer is tried in your browser first. If that is not enough, the question goes to Cloudflare Workers AI, which runs Meta Llama 3.3 70B Instruct. We send your question, up to the last 8 turns of the recent Nacho chat, your display name, rank, and point total, your language, whether simple-explanation mode is on, a knowledge snippet, and matching app-feature text. A Firebase sign-in token may be attached to the request. Email, Lightning address, and wallet are not put in the prompt. A question in a topic thread sends the question text and a short topic excerpt, without your username or user id. We do not use your questions to train our own models.</p>
+
+    <h3>Timechain TV and Bitcoin Beats</h3>
+    <p>Timechain TV plays videos with YouTube's embedded player, including youtube-nocookie embeds. YouTube may collect data under its own policy. We do not send your account id to YouTube. A YouTube link in a topic or in chat can be shown the same way. Bitcoin Beats does not embed YouTube. It plays audio you upload, plus embedded players from Wavlake, Twitch, and LNBeats. We do not send your account id to Wavlake. Uploaded tracks are public.</p>
+
+    <h3>Share cards and referral links</h3>
+    <p>A share card is built on this device. The text is a title, a short line, and one link that includes your referral code. You can pass that text to your phone's share sheet, or to X or Telegram. Sharing does not award XP, sats, or tickets. We store a short <code>shareCardsShown</code> note on the account so the same card is not offered again. The referral code is stored on the account, and that is what the invite link carries.</p>
+
+    <h3>Satoshi's Favor</h3>
+    <p>A hash attempt is recorded on the server with your account id, the public username from your profile, the hash value, whether it won, and the window it belongs to. A missing name is left empty, and the app can show Anon. The account id is not included in the public response. Cooldown timestamps stay on the server. The name that is saved comes from your public profile, not from a name typed into the hash request.</p>
+
+    <h3>Peers, keys, and ciphers</h3>
+    <p>A peer is a mutual follow. Requests and accepted peers are stored on the account. Gifts exchanged with a peer can raise a friendship level that the server records. A key you send stores the sender. When an accepted peer opens a matching cipher with a key you sent, the server can pay the same prize to both of you. The share record stores the sender's account, the opener's display name, and the prize. It does not store the opener's account id.</p>
+
+    <h3>Leaderboard</h3>
+    <p>The public leaderboard shows usernames, points, and rank on the all-time, weekly, and monthly boards. The username on that board is the public name on your profile. Online status can appear there unless you turn presence off in Settings.</p>
+
+    <h3>Guest accounts</h3>
+    <p>Continue as a guest is an anonymous Firebase sign-in. It has no email. A guest can look around. The daily spin, Say hi, posting in Global Chat, direct messages, and sats claims stay off until you sign in with a real account. If you later sign in with a login that is new, that same guest account is upgraded. If the login already belongs to another account, the server can copy the guest's progress once, using a code that expires after 30 minutes. A guest's welcome-tour flag stays in this browser only.</p>
 
     <h2>1. What We Collect</h2>
 
@@ -337,13 +386,13 @@
         <tr><td>IP address</td><td>Rate limiting and abuse prevention on sats claims, Nostr and Lightning sign-in, and some votes. Operator audit logs for admin actions can also store an IP address and user agent. We do not put your IP on your public profile</td></tr>
     </table>
     <p>We do <strong>not</strong> use a third-party analytics product, advertising network, or tracking pixel. Thumbs up or down on a Nacho answer can be stored on our servers as feedback. We do not sell that feedback. We do <strong>not</strong> collect your real name, precise location, or browsing history outside the Site. The financial details we store are the ones you type in, such as a Lightning address for withdrawals and giveaways. A withdrawal address stays on the account. A one-time reset marker records that a fresh address was saved, and a later change is a support request to info.603btc@gmail.com. We do not receive your wallet seed or private keys.</p>
-    <p><strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once at referral signup. The referral IP is not stored in raw form. The server keeps an HMAC of it in a server-only record with a 90-day expiry. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
+    <p><strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once at referral signup. The referral IP is not stored in raw form. The server keeps a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only record. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
 
     <h2>2. How We Use Your Data</h2>
     <ul>
         <li>Display your rank and username on the leaderboard</li>
         <li>Track your progress, points, streaks, badges, and ticket earnings</li>
-        <li>Process referrals and pay both sides 50 orange tickets when the referred friend reaches Maxi (2,140 points). The signup IP used for that check is stored only as an HMAC in a server-only record that expires after 90 days, and is not shown to the referrer or anyone else. Deleting your account deletes that record.</li>
+        <li>Process referrals and pay both sides 50 orange tickets when the referred friend reaches Maxi (2,140 points). The signup IP used for that check is stored only as a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only record, and is not shown to the referrer or anyone else. Deleting your account deletes that record.</li>
         <li>Determine giveaway eligibility based on Orange Ticket count</li>
         <li>Send sign-in magic links to verify your email</li>
         <li>Send optional web push notifications to devices you opt in, using the category switches in Settings</li>
@@ -591,7 +640,7 @@
         <li>Server-side daily XP cap enforcement (1,000 XP/day: full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked; atomic transactions). A certification completion bonus of 2,100 XP is credited once per certification outside that daily counter</li>
         <li>Device fingerprinting and IP-based multi-account detection for faucet claims, referral signup, and the peer-key and peer-request checks that decide badge and XP credit. Those checks compare fingerprint, IP, email, and Lightning address the same way tips do. Server-written badge counters (gifts opened, keys used, shop purchases, raffle tickets bought, topic comments, and the rest of the badge ladders) live on the account profile and are not writable from the browser</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
-        <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>
+        <li>We use App Check to help block automated abuse</li>
         <li>Rate limits on sign-in, chat, messages, and other actions</li>
         <li>Abuse checks that can refuse a reward or restrict an account. We do not publish how those checks work</li>
         <li>HTML sanitization on all user-generated content</li>
@@ -615,7 +664,7 @@
         <tr><td>Daily claim tracking</td><td>Enforce 1-claim-per-24-hours cooldown and 200 sats/day cap</td></tr>
         <tr><td>Lifetime total claimed</td><td>Enforce 15,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
-        <tr><td>IP address (faucet claim, and once at referral signup)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is an HMAC in a server-only record that expires after 90 days and is deleted with the account.</td></tr>
+        <tr><td>IP address (faucet claim, and once at referral signup)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only record, and is deleted with the account.</td></tr>
         <tr><td>Server-side daily points tracking</td><td>Enforce the shared 1,000 XP/day cap (full through 500, half through 900, then a quarter until 1,000, floor per tier, nothing banked) — tracked in Firebase, not the browser</td></tr>
     </table>
 
@@ -627,7 +676,7 @@
         <li><strong>daily_points</strong> — server-side daily XP tracking (total awarded per day; full XP through 500, half rate through 900, then quarter rate until 1,000, floor per tier, nothing banked)</li>
         <li><strong>faucet_stats</strong> — global faucet statistics (total distributed, active claimants)</li>
         <li><strong>faucet_ip_log</strong> — IP addresses at claim time (detects multi-account abuse per network)</li>
-        <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus a 90-day expiry. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>
+        <li><strong>referral_signals</strong> — a one-way, non-reversible fingerprint of your network address, kept 90 days, captured when a referral is registered. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>
         <li><strong>faucet_fingerprints</strong> — device fingerprint hashes (detects multi-account abuse per device)</li>
     </ul>
     <p>The withdrawal list and daily totals stored on your profile are deleted with the account. The faucet ledger, invoice records, IP log, and device-fingerprint log are kept. Section 11 explains why.</p>

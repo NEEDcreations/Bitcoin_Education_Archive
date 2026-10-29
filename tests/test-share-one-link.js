@@ -89,6 +89,8 @@ test('certificate, invite, badge celebration, Nacho, channel, beats, and PVP pos
     vm.runInContext(read('shareable-certs.js'), certCtx);
     const certOn = certCtx.certShareText('Scholar', 'CERT-ABC12', 'abc12345');
     assert.strictEqual(linkCount(certOn), 1);
+    assert.ok(certOn.includes('@BTCedu_app'));
+    assert.strictEqual(certOn.includes('@BTCeduArchive'), false);
     assert.ok(certOn.includes('https://bitcoineducation.quest/?ref=abc12345#cert/CERT-ABC12'));
     assert.ok(certOn.includes(TAG));
     const certOff = certCtx.certShareText('Scholar', 'CERT-ABC12', '');
@@ -298,7 +300,11 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf("Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, key send, or inventory opened from the gift screen stays in front.");
+    const latestAt = notes.indexOf("Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front.");
+    assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
+    assert.ok(!notes.includes('Latest: Daily Streaks'));
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

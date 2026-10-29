@@ -260,14 +260,14 @@ queue.push(test('the daily cap tapers the grant and a full cap pays nothing with
     assert.strictEqual(capped.docs['users/author1'].points, 1030);
 }));
 
-queue.push(test('premium and double XP do not add extra, and a delete within 24h reverses the grant', async function () {
+queue.push(test('premium does not add extra, Double XP doubles the base, and a delete within 24h reverses the grant', async function () {
     const db = memoryDb(seedUser({
         premium: true,
         doubleXpUntil: NOW + 60 * 60 * 1000,
     }));
     const paid = await publish(db, 'artBoost', article());
-    assert.strictEqual(paid.awarded, 30);
-    assert.strictEqual(pointsOf(db), 40);
+    assert.strictEqual(paid.awarded, 60);
+    assert.strictEqual(pointsOf(db), 70);
 
     const undone = await handleArticlePublishWrite({
         db: db, admin: admin, articleId: 'artBoost', before: article(), after: null,
@@ -286,8 +286,8 @@ queue.push(test('premium and double XP do not add extra, and a delete within 24h
     assert.strictEqual(republish.reason, 'already');
     assert.strictEqual(pointsOf(db), 10);
     const freed = await publish(db, 'artAfterDelete', article());
-    assert.strictEqual(freed.awarded, 30);
-    assert.strictEqual(pointsOf(db), 40);
+    assert.strictEqual(freed.awarded, 60);
+    assert.strictEqual(pointsOf(db), 70);
     assert.strictEqual(db.docs['users/author1/article_publish_days/2026-10-26'].count, 1);
 
     const lateDb = memoryDb(seedUser());
@@ -324,6 +324,7 @@ queue.push(test('rules deny the marker, authorship cannot move, and awardPoints 
     assert.ok(articles.includes('request.resource.data.title.size() <= 120'));
     assert.ok(articles.includes('request.resource.data.title.size() >= 10'));
     assert.ok(!actions.includes('📝 Article published'));
+    assert.ok(payer.includes('planXpGrant'));
     assert.ok(!payer.includes('boostPoints'));
     assert.ok(!payer.includes('doubleXp'));
     assert.ok(!forum.includes("awardPoints(30, '📝 Article published')"));

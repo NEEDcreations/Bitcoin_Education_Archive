@@ -76,7 +76,7 @@ const answerTrivia = onCall(async (data, context) => {
     const claimRef = userRef.collection('daily_action_counts').doc(dayKey + '_trivia');
     const dailyPtsRef = userRef.collection('daily_points').doc(dayKey);
 
-    return db.runTransaction(async (tx) => {
+    const triviaResult = await db.runTransaction(async (tx) => {
         const rateDoc = await tx.get(rateRef);
         const userDoc = await tx.get(userRef);
         const ledgerDoc = await tx.get(ledgerRef);
@@ -97,6 +97,7 @@ const answerTrivia = onCall(async (data, context) => {
             now: now,
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
+            user: user,
         });
         const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
         const pointsBefore = user.points || 0;
@@ -184,6 +185,7 @@ const answerTrivia = onCall(async (data, context) => {
             success: true,
             correct: graded.correct === true,
             awarded: graded.awarded || 0,
+            doubled: graded.doubled === true,
             capped: graded.capped === true,
             banned: banned,
             alreadyClaimed: false,
@@ -192,6 +194,16 @@ const answerTrivia = onCall(async (data, context) => {
             reason: banned ? 'banned' : (graded.correct ? '' : 'incorrect'),
         }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)));
     });
+    if (triviaResult && triviaResult.correct === true && triviaResult.success === true && triviaResult.alreadyClaimed !== true && triviaResult.banned !== true) {
+        await require('./raidBossEngine').noteTrusted(db, admin, {
+            metric: 'triviaCorrect',
+            uid: uid,
+            dedupeKey: 'trivia-' + uid + '-' + dayKey,
+            amount: 1,
+            now: new Date(now),
+        });
+    }
+    return triviaResult;
 });
 
 const gradeQuest = onCall(async (data, context) => {
@@ -247,6 +259,8 @@ const gradeQuest = onCall(async (data, context) => {
             alreadyPerfect: !!(completionDoc && completionDoc.exists)
                 || reward.legacyPartRecorded(user.completedQuests, graded.topicKey, graded.questIndex),
             questsToday: questsToday,
+            user: user,
+            now: now,
         }) : { awarded: 0, reason: graded.reason || 'need-text-answers' };
         const awarded = settled.awarded || 0;
         const pointsBefore = user.points || 0;
@@ -344,6 +358,7 @@ const gradeQuest = onCall(async (data, context) => {
             score: settled.score,
             pts: settled.pts,
             awarded: settled.awarded,
+            doubled: settled.doubled === true,
             capped: settled.capped === true,
             banned: banned === true,
             reason: settled.reason || '',
@@ -361,6 +376,15 @@ const gradeQuest = onCall(async (data, context) => {
     if (result && result.questDay) {
         try { await grantFamily(db, admin, uid, familyFor('questDays')); }
         catch (questDayErr) { console.warn('[gradeQuest] quest days', questDayErr && questDayErr.message); }
+    }
+    if (result && result.questsPassed && result.banned !== true) {
+        await require('./raidBossEngine').noteTrusted(db, admin, {
+            metric: 'quizCompletions',
+            uid: uid,
+            dedupeKey: 'quest-' + uid + '-' + dayKey + '-' + String(result.questsToday || 1),
+            amount: 1,
+            now: new Date(now),
+        });
     }
     return result;
 });

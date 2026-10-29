@@ -5,6 +5,7 @@
 // Tickets are never granted here. Every action shares the 500 / 900 / 1,000 taper.
 
 const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 
 const ALLOWED_ACTION_KEYS = {
     flex_action: true,
@@ -44,10 +45,30 @@ function sanitizeId(value, max) {
     return String(value || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, max || 60);
 }
 
+// A plain non-negative integer: a JS integer, or a string of digits only.
+// parseInt('50x') and parseInt(' 50') are not accepted. Absent pts is -1
+// so choice maps miss, and fixed catalog actions can still resolve.
 function normalizePts(value) {
-    const n = parseInt(value, 10);
-    if (isNaN(n) || n < 0) return -1;
-    return n;
+    if (typeof value === 'number') {
+        if (!Number.isInteger(value) || value < 0) return -1;
+        return value;
+    }
+    if (typeof value === 'string' && /^\d+$/.test(value)) {
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 0) return -1;
+        return n;
+    }
+    if (value == null || value === '') return -1;
+    return -1;
+}
+
+// Hostile shapes ('50x', '50.9', ' 50', [50], -5) are rejected before any
+// allowlist match. A missing pts is left for the action to ignore or refuse.
+function ptsShapeRejected(value) {
+    if (value == null || value === '') return false;
+    if (typeof value === 'number') return !(Number.isInteger(value) && value >= 0);
+    if (typeof value === 'string') return !/^\d+$/.test(value);
+    return true;
 }
 
 function unknown() {
@@ -76,8 +97,8 @@ function payMapped(clientPts, amounts) {
     return amounts[clientPts];
 }
 
-// baseMap is payable with no buff. doubleMap is the doubled client amount and
-// is payable only while the server Double XP timer is still running.
+// baseMap is the catalog base. doubleMap accepts the legacy doubled client
+// integer and returns that same base. planXpGrant applies 2× once.
 function payChoice(clientPts, baseMap, doubleMap) {
     if (clientPts < 0) return null;
     if (baseMap && Object.prototype.hasOwnProperty.call(baseMap, clientPts)) {
@@ -138,7 +159,7 @@ function flexAllBadgeMet(badgeId, flexFullDays) {
 
 function resolveFlex(flexActionId, clientPts) {
     if (!flexActionId || !FLEX_ID_SET.has(flexActionId)) return unknown();
-    const choice = payChoice(clientPts, { 5: 5 }, { 10: 10 });
+    const choice = payChoice(clientPts, { 5: 5 }, { 10: 5 });
     if (!choice) return unknown();
     return done({
         id: 'flex_action',
@@ -301,8 +322,8 @@ function resolvePhrase(action, ctx) {
     }
 
     const streaks = {
-        '🔥 3-day chat streak!': ['chat_streak_3', { 10: 10 }, { 20: 20 }, '3'],
-        '🔥 7-day chat streak!': ['chat_streak_7', { 25: 25 }, { 50: 50 }, '7'],
+        '🔥 3-day chat streak!': ['chat_streak_3', { 10: 10 }, { 20: 10 }, '3'],
+        '🔥 7-day chat streak!': ['chat_streak_7', { 25: 25 }, { 50: 25 }, '7'],
         '💎 30-day chat streak!': ['chat_streak_30', { 100: 100 }, { 200: 100 }, '30'],
     };
     if (streaks[action]) {
@@ -347,6 +368,7 @@ function resolvePhrase(action, ctx) {
             id: 'anon_merge',
             xp: Math.min(clientPts, 500),
             requiresDoubleXp: clientPts > 500,
+            boost: false,
             scope: 'once',
             dailyLimit: 1,
             target: 'merge',
@@ -372,7 +394,7 @@ function resolvePhrase(action, ctx) {
         let doubledSend = false;
         if (clientPts === raw) xp = Math.min(raw, 50);
         else if (clientPts === doubled) {
-            xp = Math.min(doubled, 50);
+            xp = Math.min(raw, 50);
             doubledSend = true;
         }
         if (xp == null) return unknown();
@@ -397,6 +419,7 @@ function resolveAction(input) {
     const badgeId = String(src.badgeId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
     const channelId = String(src.channelId || '').slice(0, 100);
     const flexActionId = String(src.flexActionId || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
+    if (ptsShapeRejected(src.pts)) return unknown();
     const clientPts = normalizePts(src.pts);
 
     if (actionKey === 'prediction_correct' || PREDICTION_RESULT.test(action)) {
@@ -547,9 +570,17 @@ function applyAward(mem, uid, data, opts) {
         };
     }
 
-    const grant = planGrant({
-        xp: xp,
+    const nowMs = opts && opts.now != null ? opts.now : Date.now();
+    let windowUser = opts && opts.user;
+    if (!windowUser && opts && opts.doubleXpActive) {
+        windowUser = { doubleXpUntil: nowMs + 60 * 60 * 1000 };
+    }
+    const grant = planXpGrant({
+        base: xp,
+        user: windowUser,
+        now: nowMs,
         dailyUsed: daily.total || 0,
+        boost: resolved.boost !== false,
     });
 
     if (grant.awarded > 0) {
@@ -585,6 +616,9 @@ function applyAward(mem, uid, data, opts) {
         id: resolved.id,
         orangeTickets: user.orangeTickets || 0,
         banned: false,
+        doubled: grant.doubled === true,
+        base: grant.base,
+        boosted: grant.boosted,
     };
 }
 
@@ -597,6 +631,8 @@ module.exports = {
     flexDayStatus: flexDayStatus,
     nextFlexFullDays: nextFlexFullDays,
     flexAllBadgeMet: flexAllBadgeMet,
+    normalizePts: normalizePts,
+    ptsShapeRejected: ptsShapeRejected,
     resolveAction: resolveAction,
     planGrant: planGrant,
     claimId: claimId,

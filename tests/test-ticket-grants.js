@@ -25,7 +25,9 @@ test('fixed grants keep the old amounts and day keys', () => {
 
 test('raid tickets follow the damage and stop at 10 a day', () => {
     assert.strictEqual(ticketGrants.raidTickets(12.9), 12);
-    assert.strictEqual(ticketGrants.raidTickets(0.4), 0);
+    assert.strictEqual(ticketGrants.raidTickets(0.4), 1);
+    assert.strictEqual(ticketGrants.planRaidTickets(0.4, 9), 1);
+    assert.strictEqual(ticketGrants.planRaidTickets(0.4, 10), 0);
     assert.strictEqual(ticketGrants.ACTIONS.raid_damage_ticket.dailyTickets, 10);
     let used = 0;
     function take(damage) {
