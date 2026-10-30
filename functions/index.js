@@ -42,6 +42,7 @@ const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
 const streakBoard = require('./src/streakBoard');
+const questBoard = require('./src/questBoard');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -3964,6 +3965,25 @@ exports.refreshStreakLeaderboard = onSchedule({
         }));
     } catch (e) {
         console.error('[streak board] refresh failed:', e && e.message);
+    }
+});
+
+// Quest lists. One public doc per tab, rebuilt from quest_lb_stats.
+// gradeQuest also refreshes, debounced. Period math is Eastern Time.
+exports.refreshQuestLeaderboard = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const doc = await questBoard.refresh(db, Date.now(), { force: true });
+        console.log('[quest board]', JSON.stringify({
+            alltime: doc && doc.alltime ? doc.alltime : 0,
+            week: doc && doc.week ? doc.week : 0,
+            month: doc && doc.month ? doc.month : 0
+        }));
+    } catch (e) {
+        console.error('[quest board] refresh failed:', e && e.message);
     }
 });
 

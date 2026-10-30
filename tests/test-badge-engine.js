@@ -314,6 +314,12 @@ queue.push(test('user updates deny server fields and poll votes are server-only'
     const polls = rules.slice(rules.indexOf('match /poll_votes/{pollId}'), rules.indexOf('match /poll_cumulative/'));
     assert.ok(polls.includes('allow read: if true'));
     assert.ok(polls.includes('allow create, update, delete: if false'));
+    const cumulativeAt = rules.indexOf('match /poll_cumulative/{pollId}');
+    const cumulative = rules.slice(cumulativeAt, rules.indexOf('match /', cumulativeAt + 10));
+    assert.ok(cumulative.includes('allow read: if true'));
+    assert.ok(cumulative.includes('allow create, update, delete: if false'));
+    assert.strictEqual(cumulative.includes('allow create: if request.auth'), false);
+    assert.strictEqual(cumulative.includes('allow update: if request.auth'), false);
     assert.ok(rules.includes('match /market_listing_daily/{docId}'));
     assert.ok(rules.includes('match /market_message_counts/{docId}'));
     assert.ok(rules.includes('match /market_sale_counts/{docId}'));
@@ -721,10 +727,15 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.deepStrictEqual(lastGrant, ['combo_legend']);
     assert.deepStrictEqual(combo.planCombo(state, 'chat').grant, []);
     assert.deepStrictEqual(combo.planCombo(state, 'combo_legend').grant, []);
-    assert.strictEqual(
-        fs.readFileSync(path.join(root, 'data', 'trivia-bank.js'), 'utf8'),
-        fs.readFileSync(path.join(root, 'functions', 'src', 'trivia-bank.js'), 'utf8')
-    );
+    const publicTrivia = new Function(fs.readFileSync(path.join(root, 'data', 'trivia-bank.js'), 'utf8') + '\nreturn TRIVIA_BANK;')();
+    const privateTrivia = new Function(fs.readFileSync(path.join(root, 'functions', 'src', 'trivia-bank.js'), 'utf8') + '\nreturn TRIVIA_BANK;')();
+    assert.strictEqual(publicTrivia.length, privateTrivia.length);
+    publicTrivia.forEach(function (row, i) {
+        assert.deepStrictEqual(Object.keys(row).sort(), ['options', 'q']);
+        assert.strictEqual(row.q, privateTrivia[i].q);
+        assert.deepStrictEqual(row.options, privateTrivia[i].options);
+        assert.deepStrictEqual(Object.keys(privateTrivia[i]).sort(), ['options', 'q']);
+    });
     const os = require('os');
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'trivia-fn-'));
     fs.mkdirSync(path.join(tmp, 'functions', 'src'), { recursive: true });
@@ -733,13 +744,18 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     assert.ok(!fs.existsSync(path.join(tmp, 'data', 'trivia-bank.js')));
     const isolated = require(path.join(tmp, 'functions', 'src', 'triviaBank.js'));
     const isolatedQuestion = isolated.questionForDay('2026-10-22');
-    assert.ok(isolatedQuestion && isolatedQuestion.optionCount > 0);
-    assert.strictEqual(isolated.grade('2026-10-22', isolatedQuestion.answer).correct, true);
+    assert.ok(isolatedQuestion && isolatedQuestion.optionCount === 4);
+    assert.strictEqual(isolatedQuestion.answer, undefined);
+    assert.strictEqual(isolated.grade('2026-10-22', 0).correct, false);
+    assert.strictEqual(isolated.grade('2026-10-22', 1).correct, false);
+    assert.strictEqual(isolated.grade('2026-10-22', 2).correct, false);
+    assert.strictEqual(isolated.grade('2026-10-22', 3).correct, false);
     const trivia = require('../functions/src/triviaBank');
     const day = '2026-10-22';
     const question = trivia.questionForDay(day);
-    assert.strictEqual(trivia.grade(day, question.answer).correct, true);
-    assert.strictEqual(trivia.grade(day, question.answer === 0 ? 1 : 0).correct, false);
+    assert.strictEqual(question.answer, undefined);
+    assert.strictEqual(trivia.grade(day, 0).correct, false);
+    assert.strictEqual(trivia.grade(day, 1).correct, false);
     assert.strictEqual(trivia.grade(day, undefined).correct, false);
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     const awardAt = index.indexOf('exports.awardPoints');

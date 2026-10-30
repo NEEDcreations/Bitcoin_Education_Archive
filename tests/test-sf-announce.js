@@ -411,6 +411,8 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Boss History sits at the bottom of the Raid screen. Open it to see past bosses, the month they showed up, and how the fight ended.'));
+    assert.ok(notes.includes('Daily trivia shows the explanation after you answer, and a guest answer does not earn XP.'));
+    assert.ok(!notes.includes('Latest: Daily trivia'));
     assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
     assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
     assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
